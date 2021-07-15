@@ -29,16 +29,16 @@ build_eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh dependen
 	cd build; docker build -t uid2operator .
 	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
 
-build/conf/prod-config.json: ./scripts/aws/conf/prod-config.json
+build/conf/prod-config.json: build_artifacts ./scripts/aws/conf/prod-config.json
 	cp ./scripts/aws/conf/prod-config.json ./build/conf/prod-config.json
 
-build/Dockerfile: ./scripts/aws/Dockerfile
+build/Dockerfile: build_artifacts ./scripts/aws/Dockerfile
 	cp ./scripts/aws/Dockerfile ./build/
 
-build/proxies.nitro.yaml: ./scripts/aws/proxies.nitro.yaml
+build/proxies.nitro.yaml: build_artifacts ./scripts/aws/proxies.nitro.yaml
 	cp ./scripts/aws/proxies.nitro.yaml ./build/
 	
-build/entrypoint.sh:
+build/entrypoint.sh: build_artifacts
 	cp ./scripts/aws/entrypoint.sh ./build/
 
 build_artifacts: Dockerfile.nitro.builder

@@ -20,7 +20,7 @@ uninstall:
 	rm -rf $(CONFIG_DIR)
 	rm -rf $(DATA_DIR)
 
-build/uid2operator.eif: build_artifacts build/static build/conf build/proxies.nitro.yaml build/vsockpx build/entrypoint.sh
+build/uid2operator.eif: build_artifacts build/static build/conf build/proxies.nitro.yaml build/vsockpx build/entrypoint.sh build/Dockerfile
 	cd build; docker build -t uid2operator .
 	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
 

@@ -1,8 +1,3 @@
-BUILDER_EXISTS=$(shell docker images -q uid2-nitro-builder 2> /dev/null)
-ifeq ($(BUILDER_EXISTS),)
-BUILD_DOCKER_BUILDER="docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder --build-arg GITHUB_ACCESS_TOKEN=$(GITHUB_ACCESS_TOKEN) ."
-endif
-
 CONFIG_DIR=/etc/uid2operator
 DATA_DIR=/opt/uid2operator
 
@@ -26,10 +21,11 @@ uninstall:
 	rm -rf $(DATA_DIR)
 
 build/uid2operator.eif: build_artifacts build/static build/conf build/proxies.nitro.yaml build/vsockpx build/entrypoint.sh
-	@cd build
-	docker build -t uid2operator .
-	nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
-	@cd ..
+	cd build; docker build -t uid2operator .
+	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
+
+build/Dockerfile: ./scripts/aws/Dockerfile
+	cp ./scripts/aws/Dockerfile ./build/
 
 build/proxies.nitro.yaml: ./scripts/aws/proxies.nitro.yaml
 	cp ./scripts/aws/proxies.nitro.yaml ./build/
@@ -47,7 +43,7 @@ build/conf: ./conf
 	cp -r ./conf ./build/
 
 build_artifacts: Dockerfile.nitro.builder
-	$(BUILD_DOCKER_BUILDER)
+	docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder --build-arg GITHUB_ACCESS_TOKEN=$(GITHUB_ACCESS_TOKEN) .
 	docker cp $(shell docker create --rm uid2-nitro-builder):/build .
 
 setup_dependencies: 

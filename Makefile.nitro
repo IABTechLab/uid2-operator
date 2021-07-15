@@ -4,10 +4,10 @@ DATA_DIR=/opt/uid2operator
 .PHONY: all
 all: build/uid2operator.eif
 
-install: build/uid2operator.eif ./scripts/aws/start.sh ./scripts/aws/stop.sh ./scripts/aws/allocator.template.yaml ./scripts/aws/proxies.host.yaml ./scripts/aws/uid2operator.service ./dependencies/vsockpx
+install: ./build/uid2operator.eif ./scripts/aws/start.sh ./scripts/aws/stop.sh ./scripts/aws/allocator.template.yaml ./scripts/aws/proxies.host.yaml ./scripts/aws/uid2operator.service ./dependencies/vsockpx
 	mkdir -p $(CONFIG_DIR)
 	mkdir -p $(DATA_DIR)
-	cp ./build/proxies.host.yaml $(CONFIG_DIR)/proxy.yaml
+	cp ./scripts/aws/proxies.host.yaml $(CONFIG_DIR)/proxy.yaml
 	cp ./build/allocator.template.yaml $(CONFIG_DIR)/
 	cp ./build/uid2operator.eif $(DATA_DIR)/
 	cp ./scripts/aws/start.sh $(DATA_DIR)/start.sh

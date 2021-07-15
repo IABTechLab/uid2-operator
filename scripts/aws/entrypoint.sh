@@ -30,6 +30,7 @@ overridable_variables=(           \
   'clients_metadata_path'         \
   'keys_metadata_path'            \
   'salts_metadata_path'           \
+  'keys_acl_metadata_path'        \
   'core_attest_url'               \
   'optout_metadata_path'          \
   'optout_api_uri'                \

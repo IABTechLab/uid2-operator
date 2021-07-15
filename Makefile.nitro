@@ -1,0 +1,56 @@
+BUILDER_EXISTS=$(shell docker images -q uid2-nitro-builder 2> /dev/null)
+ifeq ($(BUILDER_EXISTS),)
+BUILD_DOCKER_BUILDER="docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder --build-arg GITHUB_ACCESS_TOKEN=$(GITHUB_ACCESS_TOKEN) ."
+endif
+
+CONFIG_DIR=/etc/uid2operator
+DATA_DIR=/opt/uid2operator
+
+.PHONY: all
+all: build/uid2operator.eif
+
+install: build/uid2operator.eif ./scripts/aws/start.sh ./scripts/aws/stop.sh ./scripts/aws/allocator.template.yaml ./scripts/aws/proxies.host.yaml ./scripts/aws/uid2operator.service ./dependencies/vsockpx
+	mkdir -p $(CONFIG_DIR)
+	mkdir -p $(DATA_DIR)
+	cp ./build/proxies.host.yaml $(CONFIG_DIR)/proxy.yaml
+	cp ./build/allocator.template.yaml $(CONFIG_DIR)/
+	cp ./build/uid2operator.eif $(DATA_DIR)/
+	cp ./scripts/aws/start.sh $(DATA_DIR)/start.sh
+	cp ./scripts/aws/stop.sh $(DATA_DIR)/stop.sh
+	cp ./scripts/aws/uid2operator.service /etc/systemd/system/
+	cp ./build/vsockpx /usr/bin/
+	chmod +x /usr/bin/vsockpx
+
+uninstall:
+	rm -rf $(CONFIG_DIR)
+	rm -rf $(DATA_DIR)
+
+build/uid2operator.eif: build_artifacts build/static build/conf build/proxies.nitro.yaml build/vsockpx build/entrypoint.sh
+	@cd build
+	docker build -t uid2operator .
+	nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
+	@cd ..
+
+build/proxies.nitro.yaml: ./scripts/aws/proxies.nitro.yaml
+	cp ./scripts/aws/proxies.nitro.yaml ./build/
+
+build/vsockpx: setup_dependencies ./dependencies/vsockpx
+	cp ./dependencies/vsockpx ./build/vsockpx
+
+build/static:
+	cp -r ./static ./build/
+
+build/entrypoint.sh:
+	cp ./scripts/aws/entrypoint.sh ./build/
+
+build/conf: ./conf
+	cp -r ./conf ./build/
+
+build_artifacts: Dockerfile.nitro.builder
+	$(BUILD_DOCKER_BUILDER)
+	docker cp $(shell docker create --rm uid2-nitro-builder):/build .
+
+setup_dependencies: 
+	GITHUB_ACCESS_TOKEN=$(GITHUB_ACCESS_TOKEN) enclave_platform="aws-nitro" ./setup_dependencies.sh
+
+.PHONY: install uninstall setup_nitro setup_dependencies build_artifacts

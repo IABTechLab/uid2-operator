@@ -19,6 +19,8 @@ install: ./build/uid2operator.eif ./scripts/aws/start.sh ./scripts/aws/stop.sh .
 uninstall:
 	rm -rf $(CONFIG_DIR)
 	rm -rf $(DATA_DIR)
+	rm /usr/bin/vsockpx
+	rm /etc/systemd/system/uid2operator.service
 
 build/uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh dependencies/vsockpx build/Dockerfile build/conf/prod-config.json
 	cd build; docker build -t uid2operator .

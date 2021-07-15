@@ -15,9 +15,9 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 RUN apt install git -y
 
 WORKDIR /build
-COPY conf .
-COPY src .
-COPY static .
+ADD conf ./conf
+ADD src ./src
+ADD static ./static
 COPY setup_dependencies.sh .
 COPY ./scripts/aws/pom.nitro.xml ./pom.xml
 RUN chmod +x ./setup_dependencies.sh

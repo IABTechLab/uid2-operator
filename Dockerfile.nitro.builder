@@ -22,4 +22,4 @@ COPY setup_dependencies.sh .
 COPY ./pom.xml ./pom.xml
 RUN chmod +x ./setup_dependencies.sh
 RUN ./setup_dependencies.sh
-RUN mvn package -Paws
+RUN mvn package -Paws -DskipTests=true

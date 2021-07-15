@@ -19,7 +19,7 @@ ADD conf ./conf
 ADD src ./src
 ADD static ./static
 COPY setup_dependencies.sh .
-COPY ./scripts/aws/pom.nitro.xml ./pom.xml
+COPY ./pom.xml ./pom.xml
 RUN chmod +x ./setup_dependencies.sh
 RUN ./setup_dependencies.sh
-RUN mvn package
+RUN mvn package -Paws

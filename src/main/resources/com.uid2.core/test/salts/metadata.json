@@ -1,0 +1,14 @@
+{
+  "version" : 2,
+  "generated" : 1614556800000,
+  "first_level" : "test_first_level_salt",
+  "salts" : [
+    {
+      "effective" : 1614556800000,
+      "location" : "/com.uid2.core/test/salts/salts.txt",
+      "id_prefix" : "a",
+      "id_secret" : "m3yMIcbg9vCaFLJsn4m4PfruZnvAZ72OxmFG5QsGMOw=",
+      "size" : 8
+    }
+  ]
+}

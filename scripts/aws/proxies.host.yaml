@@ -1,0 +1,20 @@
+---
+
+socks5h-proxy:
+  service: socks
+  listen: vsock://-1:3305
+
+operator-service:
+  service: direct
+  listen: tcp://0.0.0.0:80
+  connect: vsock://42:8080
+
+operator-prometheus:
+  service: direct
+  listen: tcp://0.0.0.0:9080
+  connect: vsock://42:9080
+
+loki:
+  service: direct
+  listen: vsock://-1:3100
+  connect: tcp://127.0.0.1:3100

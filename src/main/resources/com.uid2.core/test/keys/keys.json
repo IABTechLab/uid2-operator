@@ -1,0 +1,17 @@
+[
+  {
+    "id": 3,
+    "secret": "2m4mNGTExXEq7IoIB6ZpKRB2NmdGP2grhsuHsKiziKQ=",
+    "created": 1609459200,
+    "activates": 1609469200,
+    "expires": 1893456000
+  },
+  {
+    "id": 2,
+    "site_id": 2,
+    "secret": "RgyxkP4yP1gYhCINq7O9PxM6jX+etPqSQluZxjB1aG8=",
+    "created": 1609459200,
+    "activates": 1609469200,
+    "expires": 1893456000
+  }
+]

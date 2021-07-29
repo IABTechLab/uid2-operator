@@ -1,0 +1,34 @@
+[
+  {
+    "key": "test-admin-key",
+    "name": "admin@uid2.com",
+    "contact": "admin@uid2.com",
+    "created": 1617149276,
+    "roles": [ "mapper", "generator" ],
+    "site_id": 3
+  },
+  {
+    "key": "test-mapper-key",
+    "name": "mapper@uid2.com",
+    "contact": "mapper@uid2.com",
+    "created": 1617149276,
+    "roles": [ "mapper", "generator" ],
+    "site_id": 4
+  },
+  {
+    "key": "test-optout-key",
+    "name": "optout@uid2.com",
+    "contact": "optout@uid2.com",
+    "created": 1617149276,
+    "roles": [ "optout" ],
+    "site_id": 5
+  },
+  {
+    "key": "trusted-partner-key",
+    "name": "partner@uid2.com",
+    "contact": "partner@uid2.com",
+    "created": 1617149276,
+    "roles": [ "id_reader", "mapper", "generator" ],
+    "site_id": 6
+  }
+]

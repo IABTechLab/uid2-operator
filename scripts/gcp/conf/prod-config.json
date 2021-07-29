@@ -1,0 +1,14 @@
+{
+  "clients_metadata_path": "https://core-prod.uidapi.com/clients/refresh",
+  "keys_metadata_path": "https://core-prod.uidapi.com/key/refresh",
+  "keys_acl_metadata_path": "https://core-prod.uidapi.com/key/acl/refresh",
+  "salts_metadata_path": "https://core-prod.uidapi.com/salt/refresh",
+  "core_attest_url": "https://core-prod.uidapi.com/attest",
+  "optout_metadata_path": "https://optout-prod.uidapi.com/optout/refresh",
+  "optout_api_uri": "https://optout-prod.uidapi.com/optout/replicate",
+  "optout_s3_folder": "optout-v2/",
+  "optout_inmem_cache": true,
+  "enclave_platform": "gcp-vmid",
+  "enforce_https": true,
+  "service_instances": 16
+}

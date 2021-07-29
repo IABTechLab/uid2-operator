@@ -1,0 +1,21 @@
+---
+
+uid-operator-in:
+  service: direct
+  listen: vsock://-1:8080
+  connect: tcp://127.0.0.1:8080
+
+prometheus-server:
+  service: direct
+  listen: vsock://-1:9080
+  connect: tcp://127.0.0.1:9080
+
+socks5h-proxy:
+  service: direct
+  listen: tcp://0.0.0.0:3305
+  connect: vsock://3:3305
+
+loki:
+  service: direct
+  listen: tcp://0.0.0.0:3100
+  connect: vsock://3:3100

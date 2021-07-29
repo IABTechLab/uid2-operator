@@ -1,0 +1,12 @@
+[Unit]
+Description=Starter service for UID2 Operator Enclave
+After=network.target nitro-enclaves-allocator.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/uid2operator/start.sh
+ExecStop=/opt/uid2operator/stop.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels: &Labels
+    app: uid
+    flavor: uid2-operator
+  annotations: &Annotations
+    env: test
+  name: uid2-operator
+  namespace: default
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels: *Labels
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels: *Labels
+      annotations: *Annotations
+    spec:
+      containers:
+        - image: uid20.azurecr.io/uid2/operator/occlum:0.9
+          imagePullPolicy: Always
+          name: uid2-operator
+          env:
+            - name: core_api_token
+              valueFrom:
+                secretKeyRef:
+                  key: OPERATOR_API_KEY
+                  name: uid2-operator-secret
+            - name: optout_api_token
+              valueFrom:
+                secretKeyRef:
+                  key: OPERATOR_API_KEY
+                  name: uid2-operator-secret
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+            - name: prometheus
+              containerPort: 9080
+              protocol: TCP
+          resources:
+            limits:
+              kubernetes.azure.com/sgx_epc_mem_in_MiB: 160 # This limit will automatically place the job into confidential computing node. Alternatively you can target deployment to nodepools
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      imagePullSecrets: 
+      - name: uid2acr
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30

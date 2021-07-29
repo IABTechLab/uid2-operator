@@ -1,0 +1,14 @@
+{
+  "service_instances": 4,
+  "clients_metadata_path": "https://core-prod.uidapi.com/clients/refresh",
+  "keys_metadata_path": "https://core-prod.uidapi.com/key/refresh",
+  "keys_acl_metadata_path": "https://core-prod.uidapi.com/key/acl/refresh",
+  "salts_metadata_path": "https://core-prod.uidapi.com/salt/refresh",
+  "optout_metadata_path": "https://optout-prod.uidapi.com/optout/refresh",
+  "core_attest_url": "https://core-prod.uidapi.com/attest",
+  "core_api_token": "gJGU",
+  "optout_s3_path_compat": true,
+  "optout_api_uri": "https://core-prod.uidapi.com/optout/replicate",
+  "optout_api_token": "your-api-token",
+  "enclave_platform": "aws-nitro"
+}

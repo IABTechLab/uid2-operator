@@ -73,7 +73,7 @@ public class UIDOperatorServiceTest {
     @Test
     public void testIdService(TestContext ctx) throws Exception {
         final UIDOperatorService idService = createOperatorService();
-        final String email = "red5550ttd@gmail.com";
+        final String email = "validate@email.com";
 
         final IdentityTokens tokens = idService.generateIdentity(
             new IdentityRequest(email, 4, 12)

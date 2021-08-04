@@ -62,8 +62,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.optOutStore = optOutStore;
 
         // initialize test optout key
-        InputUtil.InputVal input = InputUtil.NormalizeEmail("optout@email.com");
-        testOptOutKey = getFirstLevelKey(input.getIdentityInput());
+        testOptOutKey = getFirstLevelKey(InputUtil.NormalizeEmail("optout@email.com").getIdentityInput());
     }
 
     private static int getRandomVerificationNumber() {
@@ -106,7 +105,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             return;
         }
 
-        if (testOptOutKey != null && testOptOutKey.equals(token.getIdentity().getId())) {
+        if (testOptOutKey.equals(token.getIdentity().getId())) {
             handler.handle(Future.succeededFuture(RefreshResponse.Optout));
             return;
         }

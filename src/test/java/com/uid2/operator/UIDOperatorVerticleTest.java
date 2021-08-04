@@ -85,11 +85,12 @@ public class UIDOperatorVerticleTest {
 
     @BeforeEach void deployVerticle(Vertx vertx, VertxTestContext testContext) throws Throwable {
         mocks = MockitoAnnotations.openMocks(this);
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore);
-        vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
         when(keyStore.getSnapshot()).thenReturn(keyStoreSnapshot);
         when(keyAclProvider.getSnapshot()).thenReturn(keyAclProviderSnapshot);
         when(saltProvider.getSnapshot()).thenReturn(saltProviderSnapshot);
+
+        UIDOperatorVerticle verticle = new UIDOperatorVerticle(clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore);
+        vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
     }
 
     @AfterEach void teardown() throws Exception {

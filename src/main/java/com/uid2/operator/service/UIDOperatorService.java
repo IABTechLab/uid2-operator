@@ -53,12 +53,17 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final IOptOutStore optOutStore;
     private final ITokenEncoder encoder;
     private Map<String, VerificationEntry> verificationCodes = new HashMap<String, VerificationEntry>();
+    private final String testOptOutKey;
 
     public UIDOperatorService(IKeyStore keyStore, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder) {
         this.keyStore = keyStore;
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
+
+        // initialize test optout key
+        InputUtil.InputVal input = InputUtil.NormalizeEmail("optout@email.com");
+        testOptOutKey = getFirstLevelKey(input.getIdentityInput());
     }
 
     private static int getRandomVerificationNumber() {
@@ -98,6 +103,11 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         if (token.getIdentity().getEstablished().isBefore(RefreshCutoff)) {
             handler.handle(Future.succeededFuture(RefreshResponse.Deprecated));
+            return;
+        }
+
+        if (testOptOutKey != null && testOptOutKey.equals(token.getIdentity().getId())) {
+            handler.handle(Future.succeededFuture(RefreshResponse.Optout));
             return;
         }
 

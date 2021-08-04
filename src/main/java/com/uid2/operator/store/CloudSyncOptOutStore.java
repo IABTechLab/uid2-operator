@@ -60,9 +60,6 @@ import java.util.stream.Collectors;
 public class CloudSyncOptOutStore implements IOptOutStore {
     private static final Logger LOGGER = LoggerFactory.getLogger(CloudSyncOptOutStore.class);
 
-    private static String TestOptOutKey = "tbd";
-    // EncodingUtils.getSha256(EncodingUtils.getSha256("optout@email.com"), RotatingSaltProvider.INSTANCE.getSnapshot().getFirstLevelSalt());
-
     private final AtomicReference<OptOutStoreSnapshot> snapshot = new AtomicReference<>(null);
     private final ICloudStorage fsLocal;
     private final WebClient webClient;

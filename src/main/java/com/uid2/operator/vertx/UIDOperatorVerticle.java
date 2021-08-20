@@ -39,6 +39,8 @@ import com.uid2.shared.store.IKeyAclProvider;
 import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
@@ -59,12 +61,16 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
 
-    private static String ValidationInput = EncodingUtils.getSha256("validate@email.com");
+    public static final String ValidationInputEmail = "validate@email.com";
+    public static final String ValidationInput = EncodingUtils.getSha256(ValidationInputEmail);
+    public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final AuthMiddleware auth;
@@ -73,6 +79,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private IUIDOperatorService idService;
+    private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
 
     public UIDOperatorVerticle(IClientKeyProvider clientKeyProvider,
                                IKeyStore keyStore,
@@ -121,7 +128,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private Router createRoutesSetup() {
         final Router router = Router.router(vertx);
 
-        router.route().handler(BodyHandler.create());
+        router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
         router.route().handler(new RequestCapturingHandler());
         router.route().handler(CorsHandler.create(".*.")
             .allowedMethod(io.vertx.core.http.HttpMethod.GET)
@@ -272,8 +279,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenValidateV1(RoutingContext rc) {
         try {
             final InputUtil.InputVal input = getTokenInput(rc);
-            if (input == null || !input.isValid()) {
-                ResponseUtil.ClientError(rc, "Required Parameter Missing: email or email_hash");
+            if (!checkTokenInput(input, rc)) {
                 return;
             }
             if (ValidationInput.equals(input.getIdentityInput())) {
@@ -299,8 +305,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenGenerateV1(RoutingContext rc) {
         try {
             final InputUtil.InputVal input = this.getTokenInput(rc);
-            if (input == null || !input.isValid()) {
-                ResponseUtil.ClientError(rc, "Required Parameter Missing: email or email_hash");
+            if (!checkTokenInput(input, rc)) {
+                return;
             } else {
                 final ClientKey clientKey = (ClientKey)AuthMiddleware.getAuthClient(rc);
                 final IdentityTokens t = this.idService.generateIdentity(
@@ -450,12 +456,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV1(RoutingContext rc) {
         final InputUtil.InputVal input = this.getTokenInput(rc);
-        if (input == null || !input.isValid()) {
-            ResponseUtil.ClientError(rc, "invalid identifier");
+        if (!checkTokenInput(input, rc)) {
             return;
         }
         try {
-
             final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput());
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
@@ -482,18 +486,31 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private InputUtil.InputVal getTokenInput(RoutingContext rc) {
         final InputUtil.InputVal input;
         final List<String> emailInput = rc.queryParam("email");
+        final List<String> emailHashInput = rc.queryParam("email_hash");
         if (emailInput != null && emailInput.size() > 0) {
-            input = InputUtil.NormalizeEmail(emailInput.get(0));
-        } else {
-            final List<String> emailHashInput = rc.queryParam("email_hash");
             if (emailHashInput != null && emailHashInput.size() > 0) {
-                input = InputUtil.NormalizeHash(emailHashInput.get(0));
-            } else {
+                // cannot specify both
                 input = null;
+            } else {
+                input = InputUtil.NormalizeEmail(emailInput.get(0));
             }
+        } else if (emailHashInput != null && emailHashInput.size() > 0) {
+            input = InputUtil.NormalizeHash(emailHashInput.get(0));
+        } else {
+            input = null;
         }
         return input;
+    }
 
+    private boolean checkTokenInput(InputUtil.InputVal input, RoutingContext rc) {
+        if (input == null) {
+            ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
+            return false;
+        } else if (!input.isValid()) {
+            ResponseUtil.ClientError(rc, "Invalid Identifier");
+            return false;
+        }
+        return true;
     }
 
     private void handleIdentityMapBatchV1(RoutingContext rc) {
@@ -501,16 +518,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonObject obj = rc.getBodyAsJson();
             final InputUtil.InputVal[] inputList;
             final JsonArray emails = obj.getJsonArray("email");
-            final JsonArray inputArray;
+            final JsonArray emailHashes = obj.getJsonArray("email_hash");
             // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
-            if (emails != null && emails.size() > 0) {
-                inputArray = emails;
+            if (emails == null && emailHashes == null) {
+                ResponseUtil.ClientError(rc, "Exactly one of email or email_hash must be specified");
+                return;
+            } else if (emails != null && !emails.isEmpty()) {
+                if (emailHashes != null && !emailHashes.isEmpty()) {
+                    ResponseUtil.ClientError(rc, "Only one of email or email_hash can be specified");
+                    return;
+                }
                 inputList = createInputList(emails, false);
-
             } else {
-                inputArray = obj.getJsonArray("email_hash");
-                inputList = createInputList(inputArray, true);
+                inputList = createInputList(emailHashes, true);
             }
+
+            recordIdentityMapStats(rc, inputList.length);
 
             final JsonArray mapped = new JsonArray();
             final int count = inputList.length;
@@ -540,16 +563,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonObject obj = rc.getBodyAsJson();
             final InputUtil.InputVal[] inputList;
             final JsonArray emails = obj.getJsonArray("email");
-            final JsonArray inputArray;
+            final JsonArray emailHashes = obj.getJsonArray("email_hash");
             // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
-            if (emails != null && emails.size() > 0) {
-                inputArray = emails;
+            if (emails == null && emailHashes == null) {
+                rc.fail(400);
+                return;
+            } else if (emails != null && !emails.isEmpty()) {
+                if (emailHashes != null && !emailHashes.isEmpty()) {
+                    rc.fail(400);
+                    return;
+                }
                 inputList = createInputList(emails, false);
-
             } else {
-                inputArray = obj.getJsonArray("email_hash");
-                inputList = createInputList(inputArray, true);
+                inputList = createInputList(emailHashes, true);
             }
+
+            recordIdentityMapStats(rc, inputList.length);
 
             final JsonArray mapped = new JsonArray();
             final int count = inputList.length;
@@ -571,6 +600,24 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             e.printStackTrace();
             rc.fail(500);
         }
+    }
+
+    private void recordIdentityMapStats(RoutingContext rc, int inputCount) {
+        String apiContact;
+        try {
+            apiContact = (String) rc.data().get(AuthMiddleware.API_CONTACT_PROP);
+            apiContact = apiContact == null ? "unknown" : apiContact;
+        } catch (Exception ex) {
+            apiContact = "error: " + ex.getMessage();
+        }
+
+        final String finalApiContact = apiContact;
+        DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(apiContact, k -> DistributionSummary
+                .builder("uid2.operator.identity.map.inputs")
+                .description("number of emails or email hashes passed to identity map batch endpoint")
+                .tags("api_contact", finalApiContact)
+                .register(Metrics.globalRegistry));
+        ds.record(inputCount);
     }
 
     private InputUtil.InputVal[] createInputList(JsonArray a, boolean inputAsHash) {

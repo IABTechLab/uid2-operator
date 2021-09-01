@@ -65,6 +65,7 @@ cd /app
 echo "-- starting java application"
 # -- start operator
 java \
+  -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
   -Djava.security.egd=file:/dev/./urandom \
   -Djava.library.path=/app/lib \
   -Dvertx-config-path=/app/conf/config.json \

@@ -67,8 +67,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
@@ -178,6 +177,12 @@ public class UIDOperatorVerticleTest {
         when(keyStoreSnapshot.getActiveSiteKey(eq(Const.Data.AdvertisingTokenSiteId), any())).thenReturn(siteKey);
         when(keyStoreSnapshot.getKey(101)).thenReturn(masterKey);
         when(keyStoreSnapshot.getKey(102)).thenReturn(siteKey);
+    }
+
+    private void setupSiteKey(int siteId, int keyId) {
+        EncryptionKey siteKey = new EncryptionKey(keyId, makeAesKey("siteKey"+siteId), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), siteId);
+        when(keyStoreSnapshot.getActiveSiteKey(eq(siteId), any())).thenReturn(siteKey);
+        when(keyStoreSnapshot.getKey(keyId)).thenReturn(siteKey);
     }
 
     private void generateTokens(Vertx vertx, String inputType, String input, Handler<AsyncResult<JsonObject>> handler) {
@@ -449,6 +454,38 @@ public class UIDOperatorVerticleTest {
 
                 testContext.completeNow();
             });
+        });
+    }
+
+    @Test void tokenGenerateUsingCustomSiteKey(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final int siteKeyId = 1201;
+        final String emailAddress = "test@uid2.com";
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+        setupSiteKey(clientSiteId, siteKeyId);
+        get(vertx, "v1/token/generate?email=" + emailAddress, ar -> {
+            assertTrue(ar.succeeded());
+            HttpResponse response = ar.result();
+            assertEquals(200, response.statusCode());
+            JsonObject json = response.bodyAsJsonObject();
+            assertEquals("success", json.getString("status"));
+            JsonObject body = json.getJsonObject("body");
+            assertNotNull(body);
+            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
+
+            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
+            verify(keyStoreSnapshot).getKey(eq(siteKeyId));
+            verify(keyStoreSnapshot, times(0)).getKey(eq(Const.Data.AdvertisingTokenSiteId));
+            assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
+            assertEquals(TokenUtils.getAdvertisingIdFromEmail(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
+
+            RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
+            assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
+            assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
+
+            testContext.completeNow();
         });
     }
 

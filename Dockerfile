@@ -13,9 +13,11 @@ ENV LOGBACK_CONF=${LOGBACK_CONF:-./conf/logback.xml}
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app
+COPY ./target/${JAR_NAME}-${JAR_VERSION}-static.tar.gz /app/static.tar.gz
 COPY ./conf/default-config.json /app/conf/
 COPY ./conf/*.xml /app/conf/
-COPY ./static/ /app/static/
+
+RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
 
 CMD java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \

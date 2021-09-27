@@ -236,17 +236,22 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.3.0</version>
                 <configuration>
                     <!-- get all project dependencies -->
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
+                    <descriptors>
+                        <descriptor>src/assembly/static.xml</descriptor>
+                    </descriptors>
                     <!-- MainClass in manifest make a executable jar -->
                     <archive>
                         <manifest>
                             <mainClass>com.uid2.operator.Main</mainClass>
                         </manifest>
                     </archive>
+                    <tarLongFileMode>posix</tarLongFileMode>
                 </configuration>
                 <executions>
                     <execution>

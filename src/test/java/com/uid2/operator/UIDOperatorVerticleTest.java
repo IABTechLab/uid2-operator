@@ -33,6 +33,7 @@ import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Role;
+import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IKeyAclProvider;
 import com.uid2.shared.store.IKeyStore;
@@ -42,7 +43,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.HttpResponse;
@@ -81,13 +81,13 @@ public class UIDOperatorVerticleTest {
     @Mock private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
     @Mock private IOptOutStore optOutStore;
     private static final String firstLevelSalt = "first-level-salt";
-    private static final ISaltProvider.SaltEntry rotatingSalt123 = new ISaltProvider.SaltEntry(123, "hashed123", 0, "salt123");
+    private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123");
 
     @BeforeEach void deployVerticle(Vertx vertx, VertxTestContext testContext) throws Throwable {
         mocks = MockitoAnnotations.openMocks(this);
         when(keyStore.getSnapshot()).thenReturn(keyStoreSnapshot);
         when(keyAclProvider.getSnapshot()).thenReturn(keyAclProviderSnapshot);
-        when(saltProvider.getSnapshot()).thenReturn(saltProviderSnapshot);
+        when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
 
         UIDOperatorVerticle verticle = new UIDOperatorVerticle(clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore);
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
@@ -173,7 +173,7 @@ public class UIDOperatorVerticleTest {
         EncryptionKey masterKey = new EncryptionKey(101, makeAesKey("masterKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), -1);
         EncryptionKey siteKey = new EncryptionKey(102, makeAesKey("siteKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), Const.Data.AdvertisingTokenSiteId);
         when(keyAclProviderSnapshot.canClientAccessKey(any(), any())).thenReturn(true);
-        when(keyStoreSnapshot.getMasterKey()).thenReturn(masterKey);
+        when(keyStoreSnapshot.getMasterKey(any())).thenReturn(masterKey);
         when(keyStoreSnapshot.getActiveSiteKey(eq(Const.Data.AdvertisingTokenSiteId), any())).thenReturn(siteKey);
         when(keyStoreSnapshot.getKey(101)).thenReturn(masterKey);
         when(keyStoreSnapshot.getKey(102)).thenReturn(siteKey);

@@ -44,9 +44,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     @Override
     public byte[] encode(AdvertisingToken t) {
-        final EncryptionKey masterKey = this.keyStore.getSnapshot().getMasterKey();
+        final Instant now = Instant.now();
+        final EncryptionKey masterKey = this.keyStore.getSnapshot().getMasterKey(now);
         final EncryptionKey siteEncryptionKey = EncryptionKeyUtil.getActiveSiteKey(
-                this.keyStore.getSnapshot(), t.getIdentity().getSiteId(), Const.Data.AdvertisingTokenSiteId, Instant.now());
+                this.keyStore.getSnapshot(), t.getIdentity().getSiteId(), Const.Data.AdvertisingTokenSiteId, now);
         final Buffer b = Buffer.buffer();
 
         // <version><space><master key id><space>
@@ -146,7 +147,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     @Override
     public byte[] encode(RefreshToken t) {
-        final EncryptionKey serviceKey = this.keyStore.getSnapshot().getMasterKey();
+        final EncryptionKey serviceKey = this.keyStore.getSnapshot().getMasterKey(Instant.now());
 
         final Buffer b = Buffer.buffer();
         b.appendByte((byte) t.getVersion());

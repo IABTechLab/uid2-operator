@@ -34,6 +34,7 @@ import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.EncryptionKey;
+import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IKeyAclProvider;
 import com.uid2.shared.store.IKeyStore;
@@ -284,7 +285,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             if (ValidationInput.equals(input.getIdentityInput())) {
                 try {
-                    if (this.idService.doesMatch(rc.queryParam("token").get(0), input.getIdentityInput())) {
+                    if (this.idService.doesMatch(rc.queryParam("token").get(0), input.getIdentityInput(), Instant.now())) {
                         ResponseUtil.Success(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.Success(rc, Boolean.FALSE);
@@ -372,7 +373,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal input = getTokenInput(rc);
             if (input != null && input.isValid() && ValidationInput.equals(input.getIdentityInput())) {
                 try {
-                    if (this.idService.doesMatch(rc.queryParam("token").get(0), input.getIdentityInput())) {
+                    if (this.idService.doesMatch(rc.queryParam("token").get(0), input.getIdentityInput(), Instant.now())) {
                         rc.response().end("true");
                     } else {
                         rc.response().end("false");
@@ -436,10 +437,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.ClientError(rc, "invalid date, must conform to ISO 8601");
                 return;
             }
-            final List<ISaltProvider.SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
+            final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
             final JsonArray resp = new JsonArray();
             if (modified != null) {
-                for (ISaltProvider.SaltEntry e : modified) {
+                for (SaltEntry e : modified) {
                     final JsonObject o = new JsonObject();
                     o.put("bucket_id", e.getHashedId());
                     Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
@@ -460,7 +461,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
         try {
-            final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput());
+            final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput(), Instant.now());
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
             jsonObject.put("advertising_id", mappedIdentity.getAdvertisingId());
@@ -475,7 +476,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = this.getTokenInput(rc);
 
         if (input != null && input.isValid()) {
-            final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput());
+            final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput(), Instant.now());
             rc.response().end(mappedIdentity.getAdvertisingId());
         } else {
             rc.fail(400);
@@ -535,12 +536,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             recordIdentityMapStats(rc, inputList.length);
 
+            final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
             final int count = inputList.length;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput());
+                    final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput(), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
                     resp.put("advertising_id", mappedIdentity.getAdvertisingId());
@@ -580,12 +582,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             recordIdentityMapStats(rc, inputList.length);
 
+            final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
             final int count = inputList.length;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput());
+                    final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput(), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
                     resp.put("advertising_id", mappedIdentity.getAdvertisingId());

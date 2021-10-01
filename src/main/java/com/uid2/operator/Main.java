@@ -23,6 +23,7 @@
 
 package com.uid2.operator;
 
+import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
@@ -66,6 +67,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import static io.micrometer.core.instrument.Metrics.globalRegistry;
+
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
@@ -81,6 +84,8 @@ public class Main {
     private final RotatingKeyAclProvider keyAclProvider;
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
+
+    private final OperatorMetrics metrics;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -138,6 +143,8 @@ public class Main {
             this.keyAclProvider.loadContent();
             this.saltProvider.loadContent();
         }
+
+        metrics = new OperatorMetrics(keyStore, saltProvider);
     }
 
     public static void main(String[] args) throws Exception {
@@ -224,6 +231,9 @@ public class Main {
 
         createStoreVerticles()
             .compose(v -> {
+                metrics.setup();
+                vertx.setPeriodic(60000, id -> metrics.update());
+
                 Promise<String> promise = Promise.promise();
                 vertx.deployVerticle(operatorVerticleSupplier, options, ar -> promise.handle(ar));
                 return promise.future();
@@ -339,12 +349,12 @@ public class Main {
         }
 
         // retrieve image version (will unify when uid2-common is used)
-        String version = Optional.ofNullable(System.getenv("IMAGE_VERSION")).orElse("unknown");
-        Gauge appStatus = Gauge
-            .builder("app.status", () -> 1)
-            .description("application version and status")
-            .tags("version", version)
-            .register(Metrics.globalRegistry);
+        final String version = Optional.ofNullable(System.getenv("IMAGE_VERSION")).orElse("unknown");
+        Gauge
+                .builder("app.status", () -> 1)
+                .description("application version and status")
+                .tags("version", version)
+                .register(globalRegistry);
     }
 
     private UidCoreClient createUidCoreClient(String attestationUrl, String userToken) throws Exception {

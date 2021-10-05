@@ -44,7 +44,7 @@ import java.util.Objects;
 public class UIDOperatorService implements IUIDOperatorService {
 
     private static int CURRENT_TOKEN_VERSION = 2;
-    private static int DEFAULT_EXPIRY_MILLIS = 4 * 60 * 60 * 1000; // 4 hours
+    private static int DEFAULT_EXPIRY_MILLIS = 24 * 60 * 60 * 1000; // temporarily 24, to revert to 4 hours
     private static int DEFAULT_VALID_MILLIS = 30 * 24 * 60 * 60 * 1000; // 30 Days
 
     private static Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);

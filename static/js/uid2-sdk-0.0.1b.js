@@ -31,7 +31,7 @@ function __esp_getUID2Async(cb) {
     });
 }
 
-if (googletag) {
+if (typeof (googletag) !== "undefined" && googletag) {
 
     googletag.encryptedSignalProviders.push({
         id: 'uidapi.com',

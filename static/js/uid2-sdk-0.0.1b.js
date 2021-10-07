@@ -31,6 +31,17 @@ function __esp_getUID2Async(cb) {
     });
 }
 
+if (googletag) {
+
+    googletag.encryptedSignalProviders.push({
+        id: 'uidapi.com',
+        collectorFunction: () => {
+           return __esp_getUID2Async().then((signals) => signals);
+        }
+    });
+    
+}
+
 class UID2 {
     constructor() {
         this.init = (opts) => {

@@ -222,7 +222,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            return new UIDOperatorVerticle(clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore);
+            return new UIDOperatorVerticle(this.config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore);
         };
 
         DeploymentOptions options = new DeploymentOptions();

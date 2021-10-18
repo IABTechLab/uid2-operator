@@ -154,7 +154,8 @@ public class V2EncryptedTokenEncoder implements ITokenEncoder {
         b.appendByte((byte) t.getVersion());
         b.appendLong(t.getCreatedAt().toEpochMilli());
         b.appendLong(t.getExpiresAt().toEpochMilli());
-        b.appendLong(t.getValidTill().toEpochMilli());
+        // give an extra minute for clients which are trying to refresh tokens close to or at the refresh expiry timestamp
+        b.appendLong(t.getValidTill().plusSeconds(60).toEpochMilli());
         b.appendInt(serviceKey.getId());
         final byte[] encryptedIdentity = encryptIdentity(t.getIdentity(), serviceKey);
         b.appendBytes(encryptedIdentity);
@@ -184,12 +185,15 @@ public class V2EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     @Override
-    public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken) {
+    public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken, Instant refreshFrom) {
         return new IdentityTokens(
             EncodingUtils.toBase64String(encode(advertisingToken)),
             EncodingUtils.toBase64String(encode(userToken)),
             EncodingUtils.toBase64String(encode(refreshToken)),
-            EncodingUtils.generateIdGuid(advertisingToken.getIdentity().getId())
+            EncodingUtils.generateIdGuid(advertisingToken.getIdentity().getId()),
+            advertisingToken.getExpiresAt(),
+            refreshToken.getValidTill(),
+            refreshFrom
         );
     }
 

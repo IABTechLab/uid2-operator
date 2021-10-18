@@ -1,0 +1,20 @@
+{
+  "name": "uid2-sdk",
+  "version": "1.0.0",
+  "description": "UID2 Client SDK",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^27.2.5"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["./setupJest.js"]
+  },
+  "dependencies": {
+    "rewire": "^5.0.0"
+  }
+}

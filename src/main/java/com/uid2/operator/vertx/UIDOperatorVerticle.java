@@ -57,6 +57,7 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -74,6 +75,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
+    private final JsonObject config;
     private final AuthMiddleware auth;
     private final IKeyStore keyStore;
     private final IKeyAclProvider keyAclProvider;
@@ -82,11 +84,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
 
-    public UIDOperatorVerticle(IClientKeyProvider clientKeyProvider,
+    public UIDOperatorVerticle(JsonObject config,
+                               IClientKeyProvider clientKeyProvider,
                                IKeyStore keyStore,
                                IKeyAclProvider keyAclProvider,
                                ISaltProvider saltProvider,
                                IOptOutStore optOutStore) {
+        this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
         this.keyStore = keyStore;
@@ -100,6 +104,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.healthComponent.setHealthStatus(false, "still starting");
 
         this.idService = new UIDOperatorService(
+            this.config,
             this.keyStore,
             this.optOutStore,
             this.saltProvider,
@@ -126,20 +131,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
-    private Router createRoutesSetup() {
+    private Router createRoutesSetup() throws IOException {
         final Router router = Router.router(vertx);
 
-        router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
         router.route().handler(new RequestCapturingHandler());
+        router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js"));
         router.route().handler(CorsHandler.create(".*.")
             .allowedMethod(io.vertx.core.http.HttpMethod.GET)
             .allowedMethod(io.vertx.core.http.HttpMethod.POST)
             .allowedMethod(io.vertx.core.http.HttpMethod.OPTIONS)
+            .allowedHeader(com.uid2.shared.Const.Http.ClientVersionHeader)
             .allowedHeader("Access-Control-Request-Method")
             .allowedHeader("Access-Control-Allow-Credentials")
             .allowedHeader("Access-Control-Allow-Origin")
             .allowedHeader("Access-Control-Allow-Headers")
             .allowedHeader("Content-Type"));
+        router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
         // Current version APIs
         router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
@@ -646,6 +653,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         json.put("advertising_token", t.getAdvertisingToken());
         json.put("user_token", t.getUserToken());
         json.put("refresh_token", t.getRefreshToken());
+        json.put("identity_expires", t.getIdentityExpires().toEpochMilli());
+        json.put("refresh_expires", t.getRefreshExpires().toEpochMilli());
+        json.put("refresh_from", t.getRefreshFrom().toEpochMilli());
         return json;
     }
 

@@ -190,12 +190,15 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     @Override
-    public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken) {
+    public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken, Instant refreshFrom) {
         return new IdentityTokens(
             EncodingUtils.toBase64String(encode(advertisingToken)),
             EncodingUtils.toBase64String(encode(userToken)),
             EncodingUtils.toBase64String(encode(refreshToken)),
-            EncodingUtils.generateIdGuid(advertisingToken.getIdentity().getId())
+            EncodingUtils.generateIdGuid(advertisingToken.getIdentity().getId()),
+            advertisingToken.getExpiresAt(),
+            refreshToken.getValidTill(),
+            refreshFrom
         );
     }
 

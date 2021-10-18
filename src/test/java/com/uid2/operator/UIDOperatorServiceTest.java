@@ -33,6 +33,7 @@ import com.uid2.operator.store.MockOptOutStore;
 import com.uid2.shared.store.RotatingKeyStore;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -61,7 +62,14 @@ public class UIDOperatorServiceTest {
 
         MockOptOutStore optOutStore = new MockOptOutStore();
 
-        final UIDOperatorService idService = new UIDOperatorService(keyStore,
+        final JsonObject config = new JsonObject();
+        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 600);
+        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 900);
+        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, 300);
+
+        final UIDOperatorService idService = new UIDOperatorService(
+            config,
+            keyStore,
             optOutStore,
             saltProvider,
             new EncryptedTokenEncoder(keyStore)

@@ -45,7 +45,7 @@ GCP Secure Computing: 16 instances, 64G Mem
 
 Azure SGX Enclave: 8 instances (utilize 8 vCPUs), 22G Mem, 160MB EPC memory
 
-Config: prod + 40 synthetic optout (was struggling to keep the service running with more records)
+Config: prod + 40 synthetic optout
 
 | Endpoint          | Method | QPS  | Throughput | Avg Latency | Min Latency | 50%       | 90%       | 99%       | Client Count |
 | :---------------- | :----- | :--- | :--------- | :---------- | :---------- | :-------- | :-------- | :-------- | :----------- |

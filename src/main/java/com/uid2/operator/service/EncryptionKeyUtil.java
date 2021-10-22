@@ -21,23 +21,17 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-function __esp_getUID2Async(cb) {
-    return new Promise(function(cb) {
-        if (window.__uid2 && window.__uid2.getAdvertisingToken) {
-            cb(__uid2.getAdvertisingToken());
-        } else {
-            throw new "UID2 SDK not present";
-        }
-    });
-}
+package com.uid2.operator.service;
 
-if (typeof (googletag) !== "undefined" && googletag) {
+import com.uid2.shared.model.EncryptionKey;
+import com.uid2.shared.store.IKeyStore;
 
-    googletag.encryptedSignalProviders.push({
-        id: 'uidapi.com',
-        collectorFunction: () => {
-           return __esp_getUID2Async().then((signals) => signals);
-        }
-    });
-    
+import java.time.Instant;
+
+public class EncryptionKeyUtil {
+    public static EncryptionKey getActiveSiteKey(IKeyStore.IKeyStoreSnapshot keyStoreSnapshot, int siteId, int fallbackSiteId, Instant now) {
+        EncryptionKey key = keyStoreSnapshot.getActiveSiteKey(siteId, now);
+        if (key == null) key = keyStoreSnapshot.getActiveSiteKey(fallbackSiteId, now);
+        return key;
+    }
 }

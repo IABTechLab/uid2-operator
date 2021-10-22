@@ -1,0 +1,10 @@
+target*
+target/
+target/*
+.idea*
+.idea/*
+.idea/
+dependencies/
+conf/*.json
+uid2-operator.iml
+build/**

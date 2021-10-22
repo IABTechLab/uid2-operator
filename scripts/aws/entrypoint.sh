@@ -30,6 +30,7 @@ overridable_variables=(           \
   'clients_metadata_path'         \
   'keys_metadata_path'            \
   'salts_metadata_path'           \
+  'keys_acl_metadata_path'        \
   'core_attest_url'               \
   'optout_metadata_path'          \
   'optout_api_uri'                \
@@ -64,6 +65,7 @@ cd /app
 echo "-- starting java application"
 # -- start operator
 java \
+  -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
   -Djava.security.egd=file:/dev/./urandom \
   -Djava.library.path=/app/lib \
   -Dvertx-config-path=/app/conf/config.json \

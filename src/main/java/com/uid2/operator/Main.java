@@ -23,8 +23,10 @@
 
 package com.uid2.operator;
 
+import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
+import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
 import com.uid2.shared.attest.AttestationFactory;
 import com.uid2.shared.attest.UidCoreClient;
@@ -65,11 +67,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import static io.micrometer.core.instrument.Metrics.globalRegistry;
+
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
     private final JsonObject config;
     private final Vertx vertx;
+    private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
     private final ICloudStorage fsStores;
@@ -80,9 +85,13 @@ public class Main {
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
 
+    private final OperatorMetrics metrics;
+
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
         this.config = config;
+
+        this.appVersion = ApplicationVersion.load("uid2-operator", "uid2-shared", "enclave-attestation-api");
 
         // allow to switch between in-mem optout file cache and on-disk file cache
         if (config.getBoolean(Const.Config.OptOutInMemCacheProp)) {
@@ -134,6 +143,8 @@ public class Main {
             this.keyAclProvider.loadContent();
             this.saltProvider.loadContent();
         }
+
+        metrics = new OperatorMetrics(keyStore, saltProvider);
     }
 
     public static void main(String[] args) throws Exception {
@@ -220,6 +231,9 @@ public class Main {
 
         createStoreVerticles()
             .compose(v -> {
+                metrics.setup();
+                vertx.setPeriodic(60000, id -> metrics.update());
+
                 Promise<String> promise = Promise.promise();
                 vertx.deployVerticle(operatorVerticleSupplier, options, ar -> promise.handle(ar));
                 return promise.future();
@@ -335,12 +349,12 @@ public class Main {
         }
 
         // retrieve image version (will unify when uid2-common is used)
-        String version = Optional.ofNullable(System.getenv("IMAGE_VERSION")).orElse("unknown");
-        Gauge appStatus = Gauge
-            .builder("app.status", () -> 1)
-            .description("application version and status")
-            .tags("version", version)
-            .register(Metrics.globalRegistry);
+        final String version = Optional.ofNullable(System.getenv("IMAGE_VERSION")).orElse("unknown");
+        Gauge
+                .builder("app.status", () -> 1)
+                .description("application version and status")
+                .tags("version", version)
+                .register(globalRegistry);
     }
 
     private UidCoreClient createUidCoreClient(String attestationUrl, String userToken) throws Exception {
@@ -349,19 +363,19 @@ public class Main {
         if(enclavePlatform != null && enclavePlatform.equals("aws-nitro"))
         {
             LOGGER.info("creating uid core client with aws attestation protocol");
-            return new UidCoreClient(attestationUrl, userToken, CloudUtils.defaultProxy, AttestationFactory.getNitroAttestation(), enforceHttps);
+            return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getNitroAttestation(), enforceHttps);
         }
         else if(enclavePlatform != null && enclavePlatform.equals("gcp-vmid"))
         {
             LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-            return new UidCoreClient(attestationUrl, userToken, CloudUtils.defaultProxy, AttestationFactory.getGcpVmidAttestation(), enforceHttps);
+            return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getGcpVmidAttestation(), enforceHttps);
         }
         else if(enclavePlatform != null && enclavePlatform.equals("azure-sgx"))
         {
             LOGGER.info("creating uid core client with azure sgx attestation protocol");
-            return new UidCoreClient(attestationUrl, userToken, CloudUtils.defaultProxy, AttestationFactory.getAzureAttestation(), enforceHttps);
+            return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getAzureAttestation(), enforceHttps);
         }
 
-        return UidCoreClient.createNoAttest(attestationUrl, userToken, enforceHttps);
+        return UidCoreClient.createNoAttest(attestationUrl, userToken, this.appVersion, enforceHttps);
     }
 }

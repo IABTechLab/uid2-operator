@@ -18,12 +18,14 @@
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
         <micrometer.version>1.1.0</micrometer.version>
         <enclave-api.version>1.0.0</enclave-api.version>
+        <uid2-shared.version>1.0.0</uid2-shared.version>
+        <image.version>${project.version}</image.version>
     </properties>
     <dependencies>
         <dependency>
             <groupId>com.uid2</groupId>
             <artifactId>uid2-shared</artifactId>
-            <version>1.0.0</version>
+            <version>${uid2-shared.version}</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
@@ -221,6 +223,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.2</version>
                 <configuration>
                     <systemProperties>
                         <property>
@@ -233,17 +236,22 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.3.0</version>
                 <configuration>
                     <!-- get all project dependencies -->
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
+                    <descriptors>
+                        <descriptor>src/assembly/static.xml</descriptor>
+                    </descriptors>
                     <!-- MainClass in manifest make a executable jar -->
                     <archive>
                         <manifest>
                             <mainClass>com.uid2.operator.Main</mainClass>
                         </manifest>
                     </archive>
+                    <tarLongFileMode>posix</tarLongFileMode>
                 </configuration>
                 <executions>
                     <execution>
@@ -258,18 +266,35 @@
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>1.0.0</version>
+                <executions>
+                    <execution>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>write-project-properties</goal>
+                        </goals>
+                        <configuration>
+                            <outputFile>${project.build.outputDirectory}/${project.artifactId}.properties</outputFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>${exec-maven-plugin.version}</version>
                 <executions>
                     <execution>
+                        <id>default-cli</id>
                         <goals>
                             <goal>java</goal>
                        </goals>
+                        <configuration>
+                            <mainClass>com.uid2.operator.Main</mainClass>
+                        </configuration>
                     </execution>
                 </executions>
-                <configuration>
-                    <mainClass>com.uid2.operator.Main</mainClass>
-                </configuration>
             </plugin>
         </plugins>
     </build>

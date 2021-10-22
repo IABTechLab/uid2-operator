@@ -9,10 +9,9 @@ ENV JAR_VERSION=${JAR_VERSION}
 ENV IMAGE_VERSION=${IMAGE_VERSION}
 ENV ENCLAVE_ENVIRONMENT=aws-nitro
 
-RUN apt update -y && apt install net-tools curl jq netcat -y
+RUN apt update -y && apt install pkg-config libssl-dev net-tools curl jq netcat -y
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
-COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app
 COPY ./static /app/static
 COPY ./dependencies/vsockpx /app/
 COPY ./dependencies/nsm-java/jnsm/target/release/libjnsm.so /app/lib/

@@ -24,6 +24,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.model.EncryptionKey;
 import io.vertx.core.AsyncResult;
@@ -44,12 +45,12 @@ public interface IUIDOperatorService {
 
     public RefreshResponse refreshIdentity(String refreshToken);
 
-    public MappedIdentity map(String input);
+    public MappedIdentity map(String input, Instant asOf);
 
-    public List<ISaltProvider.SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
+    public List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
 
     public void InvalidateTokensAsync(String inputIdentity, Handler<AsyncResult<Instant>> handler);
 
-    public boolean doesMatch(String advertisingToke, String inputIdentity);
+    public boolean doesMatch(String advertisingToke, String inputIdentity, Instant asOf);
 
 }

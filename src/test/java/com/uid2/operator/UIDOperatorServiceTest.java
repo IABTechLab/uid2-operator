@@ -27,21 +27,27 @@ import com.uid2.operator.model.IdentityRequest;
 import com.uid2.operator.model.IdentityTokens;
 import com.uid2.operator.model.RefreshResponse;
 import com.uid2.operator.service.EncryptedTokenEncoder;
+import com.uid2.operator.service.InputUtil;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.MockOptOutStore;
 import com.uid2.shared.store.RotatingKeyStore;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 import junit.framework.TestCase;
 import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.security.Security;
 
-public class UIDOperatorServiceTest extends TestCase {
+@RunWith(VertxUnitRunner.class)
+public class UIDOperatorServiceTest {
 
-    public void testIdService() throws Exception {
+    private UIDOperatorService createOperatorService() throws Exception {
         Security.setProperty("crypto.policy", "unlimited");
-        final String email = "red5550ttd@gmail.com";
 
         RotatingKeyStore keyStore = new RotatingKeyStore(
             new EmbeddedResourceStorage(Main.class),
@@ -61,6 +67,14 @@ public class UIDOperatorServiceTest extends TestCase {
             new EncryptedTokenEncoder(keyStore)
         );
 
+        return idService;
+    }
+
+    @Test
+    public void testIdService(TestContext ctx) throws Exception {
+        final UIDOperatorService idService = createOperatorService();
+        final String email = "validate@email.com";
+
         final IdentityTokens tokens = idService.generateIdentity(
             new IdentityRequest(email, 4, 12)
         );
@@ -71,5 +85,47 @@ public class UIDOperatorServiceTest extends TestCase {
         Assert.assertNotNull(refreshResponse.getTokens());
 
         System.out.println("For Email : " + email + "Token = " + tokens.getTdid());
+    }
+
+    @Test
+    public void testGenerateAndRefresh(TestContext ctx) throws Exception {
+        final UIDOperatorService idService = createOperatorService();
+        final String email = "validate@email.com";
+        final InputUtil.InputVal inputVal = InputUtil.NormalizeEmail(email);
+
+        final IdentityTokens tokens = idService.generateIdentity(
+                new IdentityRequest(inputVal.getIdentityInput(), 4, 12)
+        );
+        Assert.assertNotNull(tokens);
+
+        Async asyncValidation = ctx.async();
+        idService.refreshIdentityAsync(tokens.getRefreshToken(), ar -> {
+            ctx.assertTrue(ar.succeeded());
+            if (ar.succeeded()) {
+                ctx.assertNotEquals(RefreshResponse.Optout, ar.result());
+            }
+            asyncValidation.complete();
+        });
+    }
+
+    @Test
+    public void testTestOptOutKey(TestContext ctx) throws Exception {
+        final UIDOperatorService idService = createOperatorService();
+        final String email = "optout@email.com";
+        final InputUtil.InputVal inputVal = InputUtil.NormalizeEmail(email);
+
+        final IdentityTokens tokens = idService.generateIdentity(
+                new IdentityRequest(inputVal.getIdentityInput(), 4, 12)
+        );
+        Assert.assertNotNull(tokens);
+
+        Async asyncValidation = ctx.async();
+        idService.refreshIdentityAsync(tokens.getRefreshToken(), ar -> {
+            ctx.assertTrue(ar.succeeded());
+            if (ar.succeeded()) {
+                ctx.assertEquals(RefreshResponse.Optout, ar.result());
+            }
+            asyncValidation.complete();
+        });
     }
 }

@@ -157,6 +157,22 @@ module.exports = {
             }
           ]
         }
+      },
+      {
+        "files": [
+          "uid2-sdk-*.js",
+        ],
+        "rules": {
+          "no-unused-vars": [
+            "error",
+            {
+              "args": "after-used",
+              "ignoreRestSiblings": true,
+              "argsIgnorePattern": "^(_|(args|props|event|e)$)",
+              "varsIgnorePattern": "^(_|(IdentityStatus)$)"
+            }
+          ]
+        }
       }
     ]
   };

@@ -21,31 +21,29 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-function __esp_getUID2Async(cb) {
-    return new Promise(function(cb) {
-        if (window.__uid2 && window.__uid2.getAdvertisingToken) {
-            cb(__uid2.getAdvertisingToken());
-        } else {
-            throw new "UID2 SDK not present";
-        }
-    });
-}
-
-if (typeof (googletag) !== "undefined" && googletag) {
-
+if (googletag) {
     googletag.encryptedSignalProviders.push({
         id: 'uidapi.com',
         collectorFunction: () => {
-           return __esp_getUID2Async().then((signals) => signals);
+            if (window.__uid2 && window.__uid2.getAdvertisingToken) {
+                return Promise.resolve(__uid2.getAdvertisingToken());
+            } else {
+                return Promise.reject(new Error("UID2 SDK not present"));
+            }
         }
     });
-
 }
 
 class UID2 {
-    static get VERSION() { return "1.0.0"; }
-    static get COOKIE_NAME() { return "__uid_2"; }
-    static get DEFAULT_REFRESH_RETRY_PERIOD_MS() { return 5000; }
+    static get VERSION() {
+        return "1.0.0";
+    }
+    static get COOKIE_NAME() {
+        return "__uid_2";
+    }
+    static get DEFAULT_REFRESH_RETRY_PERIOD_MS() {
+        return 5000;
+    }
 
     constructor() {
         // PUBLIC METHODS
@@ -243,7 +241,7 @@ class UID2 {
                     checkIdentity(response.body);
                     setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
                 } catch (err) {
-                    handleRefreshFailure(identity, req, err.message);
+                    handleRefreshFailure(identity, err.message);
                 }
             };
             req.send();
@@ -264,16 +262,16 @@ class UID2 {
                 throw new TypeError("unexpected response status: " + response.status);
             }
         };
-        const handleRefreshFailure = (identity, req, errorMessage) => {
+        const handleRefreshFailure = (identity, errorMessage) => {
             const now = Date.now();
             if (identity.refresh_expires <= now) {
-                setFailedIdentity(UID2.IdentityStatus.REFRESH_EXPIRED, "Refresh expired; token refresh failed");
+                setFailedIdentity(UID2.IdentityStatus.REFRESH_EXPIRED, "Refresh expired; token refresh failed: " + errorMessage);
             } else if (identity.identity_expires <= now && !temporarilyUnavailable()) {
-                setValidIdentity(identity, UID2.IdentityStatus.EXPIRED, "Token refresh failed for expired identity");
+                setValidIdentity(identity, UID2.IdentityStatus.EXPIRED, "Token refresh failed for expired identity: " + errorMessage);
             } else if (initialised()) {
                 setRefreshTimer(); // silently retry later
             } else {
-                setIdentity(identity, UID2.IdentityStatus.ESTABLISHED, "Identity established; token refresh failed")
+                setIdentity(identity, UID2.IdentityStatus.ESTABLISHED, "Identity established; token refresh failed: " + errorMessage)
             }
         };
         const setRefreshTimer = () => {

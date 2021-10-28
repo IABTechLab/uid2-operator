@@ -28,7 +28,7 @@ class CookieMock {
   constructor(document) {
     this.jar = new jsdom.CookieJar();
     this.url = document.URL;
-    this.set = (value) => { this.jar.setCookieSync(value, this.url, { http: false }); };
+    this.set = (value) => this.jar.setCookieSync(value, this.url, { http: false });
     this.get = () => this.jar.getCookieStringSync(this.url, { http: false });
     this.getSetCookieString = (name) => {
       return this.jar.getSetCookieStringsSync(this.url).filter(c => c.startsWith(name+'='))[0];
@@ -43,14 +43,19 @@ class CookieMock {
 }
 
 class XhrMock {
+  get DONE() {
+    return 4;
+  }
+
   constructor(window) {
     this.open             = jest.fn();
     this.send             = jest.fn();
+    this.abort            = jest.fn();
     this.overrideMimeType = jest.fn();
     this.setRequestHeader = jest.fn();
-    this.readyState       = 4;
+    this.readyState       = this.DONE;
     this.applyTo = (window) => {
-      jest.spyOn(sdk.window, 'XMLHttpRequest').mockImplementation(() => this);
+      jest.spyOn(window, 'XMLHttpRequest').mockImplementation(() => this);
     };
 
     this.applyTo(window);
@@ -71,6 +76,10 @@ function resetFakeTime() {
   jest.setSystemTime(new Date('2021-10-01'));
 }
 
+function setCookieMock(document) {
+  return new CookieMock(document);
+}
+
 function setUid2Cookie(value) {
   document.cookie = sdk.UID2.COOKIE_NAME + '=' + encodeURIComponent(JSON.stringify(value));
 }
@@ -85,13 +94,15 @@ function getUid2Cookie() {
   }
 }
 
-function makeIdentity(identity) {
-  identity.advertising_token = identity.advertising_token || 'test_advertising_token';
-  identity.refresh_token = identity.refresh_token || 'test_refresh_token';
-  identity.refresh_from = identity.refresh_from || (Date.now() + 100000);
-  identity.identity_expires = identity.identity_expires || (Date.now() + 200000);
-  identity.refresh_expires = identity.refresh_expires || (Date.now() + 300000);
-  return identity;
+function makeIdentity(overrides) {
+  return {
+     advertising_token: 'test_advertising_token',
+     refresh_token: 'test_refresh_token',
+     refresh_from: Date.now() + 100000,
+     identity_expires: Date.now() + 200000,
+     refresh_expires: Date.now() + 300000,
+     ...(overrides || {}),
+  };
 }
 
 module.exports = {
@@ -99,6 +110,7 @@ module.exports = {
   XhrMock: XhrMock,
   setupFakeTime: setupFakeTime,
   resetFakeTime: resetFakeTime,
+  setCookieMock: setCookieMock,
   setUid2Cookie: setUid2Cookie,
   getUid2Cookie: getUid2Cookie,
   makeIdentity: makeIdentity,

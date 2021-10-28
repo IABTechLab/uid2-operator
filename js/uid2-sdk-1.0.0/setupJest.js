@@ -44,7 +44,7 @@ expect.extend({
   },
 
   toBeInAvailableState(uid2, expectedAdvertisingToken) {
-    if (typeof expectedAdvertisingToken !== 'undefined') {
+    if (expectedAdvertisingToken) {
       expect(uid2.getAdvertisingToken()).toBe(expectedAdvertisingToken);
     } else if (uid2.getAdvertisingToken() !== '') {
       expect(uid2.getAdvertisingToken()).toBeNonEmptyString();

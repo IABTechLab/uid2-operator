@@ -26,9 +26,7 @@ const mocks = require('./mocks.js');
 
 let callback;
 let uid2;
-let document;
 let xhrMock;
-let cookieMock;
 
 mocks.setupFakeTime();
 
@@ -36,8 +34,7 @@ beforeEach(() => {
   callback = jest.fn();
   uid2 = new sdk.UID2();
   xhrMock = new mocks.XhrMock(sdk.window);
-  document = sdk.window.document;
-  cookieMock = new mocks.CookieMock(document);
+  mocks.setCookieMock(sdk.window.document);
 });
 
 afterEach(() => {
@@ -59,7 +56,7 @@ describe('when a v0 cookie is available', () => {
 
   beforeEach(() => {
       setUid2Cookie(originalIdentity);
-      uid2.init({callback: callback});
+      uid2.init({ callback: callback });
   });
 
   it('should initiate token refresh', () => {
@@ -75,17 +72,17 @@ describe('when a v0 cookie is available', () => {
 
   describe('when token refresh succeeds', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({status: 'success', body: updatedIdentity});
+      xhrMock.responseText = JSON.stringify({ status: 'success', body: updatedIdentity });
       xhrMock.onreadystatechange(new Event(''));
     });
 
     it('should invoke the callback', () => {
-      expect(callback.mock.calls.length).toBe(1);
-      expect(callback.mock.calls[0][0].advertising_token).toBe(updatedIdentity.advertising_token);
-      expect(callback.mock.calls[0][0].status).toBe(sdk.UID2.IdentityStatus.REFRESHED);
+      expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertising_token: updatedIdentity.advertising_token,
+        status: sdk.UID2.IdentityStatus.REFRESHED,
+      }));
     });
     it('should set cookie', () => {
-      expect(document.cookie).not.toBe('');
       expect(getUid2Cookie().advertising_token).toBe(updatedIdentity.advertising_token);
     });
     it('should set refresh timer', () => {
@@ -99,18 +96,17 @@ describe('when a v0 cookie is available', () => {
 
   describe('when token refresh returns an error status', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({status: 'error', body: updatedIdentity});
+      xhrMock.responseText = JSON.stringify({ status: 'error', body: updatedIdentity });
       xhrMock.onreadystatechange(new Event(''));
     });
 
     it('should invoke the callback', () => {
-      expect(callback.mock.calls.length).toBe(1);
-      expect(callback.mock.calls[0][0].advertising_token).toBe(originalIdentity.advertising_token);
-      expect(callback.mock.calls[0][0].status).toBe(sdk.UID2.IdentityStatus.ESTABLISHED);
+      expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertising_token: originalIdentity.advertising_token,
+        status: sdk.UID2.IdentityStatus.ESTABLISHED,
+      }));
     });
     it('should set enriched cookie', () => {
-      expect(document.cookie).not.toBe('');
-      expect(getUid2Cookie().advertising_token).toBe(originalIdentity.advertising_token);
       expect(getUid2Cookie().refresh_token).toBe(originalIdentity.refresh_token);
       expect(getUid2Cookie().refresh_from).toBe(Date.now());
       expect(getUid2Cookie().identity_expires).toBeGreaterThan(Date.now());

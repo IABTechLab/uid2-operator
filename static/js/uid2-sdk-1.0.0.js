@@ -45,7 +45,7 @@ if (typeof (googletag) !== "undefined" && googletag) {
 class UID2 {
     static get VERSION() { return "1.0.0"; }
     static get COOKIE_NAME() { return "__uid_2"; }
-    static get DEFAULT_REFRESH_RETRY_PERIOD() { return 5000; }
+    static get DEFAULT_REFRESH_RETRY_PERIOD_MS() { return 5000; }
 
     constructor() {
         // PUBLIC METHODS
@@ -68,7 +68,7 @@ class UID2 {
 
             _initCalled = true;
             _opts = opts;
-            initIdentity(_opts.identity ? _opts.identity : loadIdentity());
+            applyIdentity(_opts.identity ? _opts.identity : loadIdentity());
         };
         this.getAdvertisingToken = () => {
             return _identity && !temporarilyUnavailable() ? _identity.advertising_token : undefined;
@@ -77,16 +77,18 @@ class UID2 {
             return initialised() ? !_identity : undefined;
         };
         this.disconnect = () => {
+            this.abort();
             removeCookie(UID2.COOKIE_NAME);
         };
         this.abort = () => {
-            if (typeof _refreshReq !== 'undefined') {
-                _refreshReq.abort();
-                _refreshReq = undefined;
-            }
+            _initCalled = true;
             if (typeof _refreshTimerId !== 'undefined') {
                 clearTimeout(_refreshTimerId);
                 _refreshTimerId = undefined;
+            }
+            if (_refreshReq) {
+                _refreshReq.abort();
+                _refreshReq = undefined;
             }
         };
 
@@ -141,13 +143,13 @@ class UID2 {
             };
             _opts.callback(result);
         };
-        const handleValidIdentity = (identity, status, statusText) => {
+        const setValidIdentity = (identity, status, statusText) => {
             _identity = identity;
-            setRefreshTimer(identity);
             setCookie(UID2.COOKIE_NAME, identity);
+            setRefreshTimer();
             updateStatus(status, statusText);
         };
-        const handleFailedIdentity = (status, statusText) => {
+        const setFailedIdentity = (status, statusText) => {
             _identity = undefined;
             this.abort();
             removeCookie(UID2.COOKIE_NAME);
@@ -166,16 +168,16 @@ class UID2 {
                 return true;
             } catch (err) {
                 if (err instanceof InvalidIdentityError) {
-                    handleFailedIdentity(UID2.IdentityStatus.INVALID, err.message);
+                    setFailedIdentity(UID2.IdentityStatus.INVALID, err.message);
                     return false;
                 } else {
                     throw err;
                 }
             }
         };
-        const applyIdentity = (identity, status, statusText) => {
+        const setIdentity = (identity, status, statusText) => {
           if (tryCheckIdentity(identity)) {
-            handleValidIdentity(identity, status, statusText);
+            setValidIdentity(identity, status, statusText);
           }
         };
         const loadIdentity = () => {
@@ -186,42 +188,42 @@ class UID2 {
         };
 
         const enrichIdentity = (identity, now) => {
-            // Backward compatibility with older cookies
-            if (typeof identity.refresh_from === 'undefined') {
-                identity.refresh_from = now;
-            }
-            if (typeof identity.refresh_expires === 'undefined') {
-                identity.refresh_expires = now + 7 * 86400 * 1000; // 7 days
-            }
-            if (typeof identity.identity_expires === 'undefined') {
-                identity.identity_expires = Math.min(identity.refresh_expires, now + 4 * 3600 * 1000); // 4 hours
-            }
+            return {
+                refresh_from: now,
+                refresh_expires: now + 7 * 86400 * 1000, // 7 days
+                identity_expires: now + 4 * 3600 * 1000, // 4 hours
+                ...identity,
+            };
         };
-        const initIdentity = (identity) => {
-            if (identity) {
-                if (!tryCheckIdentity(identity)) return;
+        const applyIdentity = (identity) => {
+            if (!identity) {
+                setFailedIdentity(UID2.IdentityStatus.NO_IDENTITY, "Identity not available");
+                return;
+            }
 
-                const now = Date.now();
-                enrichIdentity(identity, now);
-                if (identity.refresh_expires < now) {
-                    handleFailedIdentity(UID2.IdentityStatus.REFRESH_EXPIRED, "Identity expired, refresh expired");
-                    return;
-                }
-                if (identity.refresh_from <= now) {
-                    refreshToken(identity);
-                    return;
-                }
+            if (!tryCheckIdentity(identity)) {
+                // failed identity already set
+                return;
+            }
 
-                if (typeof _identity === 'undefined') {
-                    applyIdentity(identity, UID2.IdentityStatus.ESTABLISHED, "Identity established");
-                } else if (identity.advertising_token !== _identity.advertising_token) {
-                    // identity must have been refreshed from another tab
-                    applyIdentity(identity, UID2.IdentityStatus.REFRESH, "Identity refreshed");
-                } else {
-                    setRefreshTimer(identity);
-                }
+            const now = Date.now();
+            identity = enrichIdentity(identity, now);
+            if (identity.refresh_expires < now) {
+                setFailedIdentity(UID2.IdentityStatus.REFRESH_EXPIRED, "Identity expired, refresh expired");
+                return;
+            }
+            if (identity.refresh_from <= now) {
+                refreshToken(identity);
+                return;
+            }
+
+            if (typeof _identity === 'undefined') {
+                setIdentity(identity, UID2.IdentityStatus.ESTABLISHED, "Identity established");
+            } else if (identity.advertising_token !== _identity.advertising_token) {
+                // identity must have been refreshed from another tab
+                setIdentity(identity, UID2.IdentityStatus.REFRESH, "Identity refreshed");
             } else {
-                handleFailedIdentity(UID2.IdentityStatus.NO_IDENTITY, "Identity not available");
+                setRefreshTimer();
             }
         }
         const refreshToken = (identity) => {
@@ -234,12 +236,12 @@ class UID2 {
             req.setRequestHeader('X-UID2-Client-Version', 'uid2-sdk-' + UID2.VERSION);
             req.onreadystatechange = () => {
                 _refreshReq = undefined;
-                if (req.readyState !== 4) return;
+                if (req.readyState !== req.DONE) return;
                 try {
                     const response = JSON.parse(req.responseText);
                     if (!checkResponseStatus(identity, response)) return;
                     checkIdentity(response.body);
-                    applyIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
+                    setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
                 } catch (err) {
                     handleRefreshFailure(identity, req, err.message);
                 }
@@ -249,11 +251,14 @@ class UID2 {
         const checkResponseStatus = (identity, response) => {
             if (typeof response !== 'object' || response === null) {
                 throw new TypeError("refresh response is not an object");
-            } else if (response.status === "optout") {
-                handleFailedIdentity(UID2.IdentityStatus.OPTOUT, "User opted out");
+            }
+            if (response.status === "optout") {
+                setFailedIdentity(UID2.IdentityStatus.OPTOUT, "User opted out");
                 return false;
             } else if (response.status === "success") {
-                if (typeof response.body === 'object' && response.body !== null) return true;
+                if (typeof response.body === 'object' && response.body !== null) {
+                  return true;
+                }
                 throw new TypeError("refresh response object does not have a body");
             } else {
                 throw new TypeError("unexpected response status: " + response.status);
@@ -262,20 +267,20 @@ class UID2 {
         const handleRefreshFailure = (identity, req, errorMessage) => {
             const now = Date.now();
             if (identity.refresh_expires <= now) {
-                handleFailedIdentity(UID2.IdentityStatus.REFRESH_EXPIRED, "Refresh expired; token refresh failed");
+                setFailedIdentity(UID2.IdentityStatus.REFRESH_EXPIRED, "Refresh expired; token refresh failed");
             } else if (identity.identity_expires <= now && !temporarilyUnavailable()) {
-                handleValidIdentity(identity, UID2.IdentityStatus.EXPIRED, "Token refresh failed for expired identity");
+                setValidIdentity(identity, UID2.IdentityStatus.EXPIRED, "Token refresh failed for expired identity");
             } else if (initialised()) {
-                setRefreshTimer(identity); // silently retry later
+                setRefreshTimer(); // silently retry later
             } else {
-                applyIdentity(identity, UID2.IdentityStatus.ESTABLISHED, "Identity established; token refresh failed")
+                setIdentity(identity, UID2.IdentityStatus.ESTABLISHED, "Identity established; token refresh failed")
             }
         };
-        const setRefreshTimer = (identity) => {
-            const timeout = getOptionOrDefault(_opts.refreshRetryPeriod, UID2.DEFAULT_REFRESH_RETRY_PERIOD);
+        const setRefreshTimer = () => {
+            const timeout = getOptionOrDefault(_opts.refreshRetryPeriod, UID2.DEFAULT_REFRESH_RETRY_PERIOD_MS);
             _refreshTimerId = setTimeout(() => {
                 if (this.isLoginRequired()) return;
-                initIdentity(loadIdentity());
+                applyIdentity(loadIdentity());
             }, timeout);
         };
 

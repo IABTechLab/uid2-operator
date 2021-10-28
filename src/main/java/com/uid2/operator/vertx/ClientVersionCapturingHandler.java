@@ -36,7 +36,9 @@ public class ClientVersionCapturingHandler implements Handler<RoutingContext> {
             final String clientVersion = context.request().headers().get(Const.Http.ClientVersionHeader);
             if (clientVersion != null) {
                 final Counter counter = _clientVersionCounters.get(clientVersion);
-                if (counter != null) counter.increment();
+                if (counter != null) {
+                    counter.increment();
+                }
             }
         }
         context.next();

@@ -26,7 +26,6 @@ const mocks = require('./mocks.js');
 
 let callback;
 let uid2;
-let document;
 let xhrMock;
 let cookieMock;
 
@@ -39,29 +38,26 @@ beforeEach(() => {
   callback = jest.fn();
   uid2 = new sdk.UID2();
   xhrMock = new mocks.XhrMock(sdk.window);
-  document = sdk.window.document;
   jest.spyOn(document, 'URL', 'get').mockImplementation(() => mockUrl);
-  cookieMock = new mocks.CookieMock(document);
+  cookieMock = new mocks.CookieMock(sdk.window.document);
 });
 
 afterEach(() => {
   mocks.resetFakeTime();
 });
 
-const setUid2Cookie = mocks.setUid2Cookie;
-const getUid2Cookie = mocks.getUid2Cookie;
 const makeIdentity = mocks.makeIdentity;
 
 describe('cookieDomain option', () => {
   describe('when using default value', () => {
     beforeEach(() => {
-      uid2.init({callback: callback, identity: makeIdentity({})});
+      uid2.init({ callback: callback, identity: makeIdentity() });
     });
 
     it('should not mention domain in the cookie string', () => {
       const cookie = cookieMock.getSetCookieString(sdk.UID2.COOKIE_NAME);
       expect(cookie).not.toBe('');
-      expect(cookie).toEqual(expect.not.stringContaining('Domain='));
+      expect(cookie).not.toContain('Domain=');
     });
   });
 
@@ -69,13 +65,12 @@ describe('cookieDomain option', () => {
     const domain = 'uidapi.com';
 
     beforeEach(() => {
-      uid2.init({callback: callback, identity: makeIdentity({}), cookieDomain: domain});
+      uid2.init({ callback: callback, identity: makeIdentity(), cookieDomain: domain });
     });
 
     it('should use domain in the cookie string', () => {
       const cookie = cookieMock.getSetCookieString(sdk.UID2.COOKIE_NAME);
-      expect(cookie).not.toBe('');
-      expect(cookie).toEqual(expect.stringContaining(`Domain=${domain};`));
+      expect(cookie).toContain(`Domain=${domain};`);
     });
   });
 });
@@ -83,13 +78,12 @@ describe('cookieDomain option', () => {
 describe('cookiePath option', () => {
   describe('when using default value', () => {
     beforeEach(() => {
-      uid2.init({callback: callback, identity: makeIdentity({})});
+      uid2.init({ callback: callback, identity: makeIdentity() });
     });
 
-    it('should not mention domain in the cookie string', () => {
+    it('should use the default path in the cookie string', () => {
       const cookie = cookieMock.getSetCookieString(sdk.UID2.COOKIE_NAME);
-      expect(cookie).not.toBe('');
-      expect(cookie+';').toEqual(expect.stringContaining('Path=/;'));
+      expect(cookie+';').toContain('Path=/;');
     });
   });
 
@@ -97,13 +91,12 @@ describe('cookiePath option', () => {
     const path = '/test/';
 
     beforeEach(() => {
-      uid2.init({callback: callback, identity: makeIdentity({}), cookiePath: path});
+      uid2.init({ callback: callback, identity: makeIdentity(), cookiePath: path });
     });
 
-    it('should use domain in the cookie string', () => {
+    it('should use custom path in the cookie string', () => {
       const cookie = cookieMock.getSetCookieString(sdk.UID2.COOKIE_NAME);
-      expect(cookie).not.toBe('');
-      expect(cookie+';').toEqual(expect.stringContaining(`Path=${path};`));
+      expect(cookie+';').toContain(`Path=${path};`);
     });
   });
 });
@@ -115,12 +108,12 @@ describe('baseUrl option', () => {
 
   describe('when using default value', () => {
     beforeEach(() => {
-      uid2.init({callback: callback, identity: identity});
+      uid2.init({ callback: callback, identity: identity });
     });
 
     it('should use prod URL when refreshing token', () => {
       expect(xhrMock.open.mock.calls.length).toBe(1);
-      expect(xhrMock.open.mock.calls[0][1]).toEqual(expect.stringContaining('prod.uidapi.com'));
+      expect(xhrMock.open.mock.calls[0][1]).toContain('prod.uidapi.com');
     });
   });
 
@@ -128,13 +121,13 @@ describe('baseUrl option', () => {
     const baseUrl = 'http://test-host';
 
     beforeEach(() => {
-      uid2.init({callback: callback, identity: identity, baseUrl: baseUrl});
+      uid2.init({ callback: callback, identity: identity, baseUrl: baseUrl });
     });
 
     it('should use custom URL when refreshing token', () => {
       expect(xhrMock.open.mock.calls.length).toBe(1);
-      expect(xhrMock.open.mock.calls[0][1]).toEqual(expect.not.stringContaining('prod.uidapi.com'));
-      expect(xhrMock.open.mock.calls[0][1]).toEqual(expect.stringContaining('test-host'));
+      expect(xhrMock.open.mock.calls[0][1]).not.toContain('prod.uidapi.com');
+      expect(xhrMock.open.mock.calls[0][1]).toContain('test-host');
     });
   });
 });
@@ -142,18 +135,18 @@ describe('baseUrl option', () => {
 describe('refreshRetryPeriod option', () => {
   describe('when using default value', () => {
     beforeEach(() => {
-      uid2.init({callback: callback, identity: makeIdentity({})});
+      uid2.init({ callback: callback, identity: makeIdentity() });
     });
 
     it('it should use the default retry period', () => {
       expect(setTimeout.mock.calls.length).toBe(1);
-      expect(setTimeout.mock.calls[0][1]).toBe(sdk.UID2.DEFAULT_REFRESH_RETRY_PERIOD);
+      expect(setTimeout.mock.calls[0][1]).toBe(sdk.UID2.DEFAULT_REFRESH_RETRY_PERIOD_MS);
     });
   });
 
   describe('when using custom value', () => {
     beforeEach(() => {
-      uid2.init({callback: callback, identity: makeIdentity({}), refreshRetryPeriod: 12345});
+      uid2.init({ callback: callback, identity: makeIdentity(), refreshRetryPeriod: 12345 });
     });
 
     it('it should use the default retry period', () => {

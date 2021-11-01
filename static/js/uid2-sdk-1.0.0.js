@@ -21,7 +21,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-if (googletag) {
+if (window.googletag) {
     googletag.encryptedSignalProviders.push({
         id: 'uidapi.com',
         collectorFunction: () => {

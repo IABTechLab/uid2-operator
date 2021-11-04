@@ -32,6 +32,7 @@ import com.uid2.shared.model.EncryptionKey;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.json.JsonObject;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -54,8 +55,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Clock clock;
     private Map<String, VerificationEntry> verificationCodes = new HashMap<String, VerificationEntry>();
     private final String testOptOutKey;
+    private final boolean shouldCheckRefreshTokenExpiry;
 
-    public UIDOperatorService(IKeyStore keyStore, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock) {
+    public UIDOperatorService(JsonObject config, IKeyStore keyStore, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock) {
         this.keyStore = keyStore;
         this.saltProvider = saltProvider;
         this.encoder = encoder;
@@ -64,6 +66,8 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         // initialize test optout key
         testOptOutKey = getFirstLevelKey(InputUtil.NormalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
+
+        shouldCheckRefreshTokenExpiry = config.getBoolean("check_refresh_token_expiry", false);
     }
 
     private static int getRandomVerificationNumber() {
@@ -107,7 +111,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             return;
         }
 
-        if (token.getValidTill().isBefore(Instant.now(this.clock))) {
+        if (this.shouldCheckRefreshTokenExpiry && token.getValidTill().isBefore(Instant.now(this.clock))) {
             handler.handle(Future.succeededFuture(RefreshResponse.Expired));
             return;
         }

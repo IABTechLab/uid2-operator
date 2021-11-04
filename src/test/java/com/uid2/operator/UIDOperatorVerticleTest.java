@@ -93,7 +93,10 @@ public class UIDOperatorVerticleTest {
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(clock.instant()).thenAnswer(i -> Instant.now());
 
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock);
+        final JsonObject config = new JsonObject();
+        config.put("check_refresh_token_expiry", true);
+
+        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock);
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
     }
 

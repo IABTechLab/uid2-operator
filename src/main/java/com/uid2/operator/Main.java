@@ -61,6 +61,7 @@ import javax.management.*;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -222,7 +223,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            return new UIDOperatorVerticle(clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore);
+            return new UIDOperatorVerticle(clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC());
         };
 
         DeploymentOptions options = new DeploymentOptions();

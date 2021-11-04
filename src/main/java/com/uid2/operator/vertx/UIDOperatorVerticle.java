@@ -57,10 +57,7 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -79,6 +76,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IKeyAclProvider keyAclProvider;
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
+    private final Clock clock;
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
 
@@ -86,13 +84,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IKeyStore keyStore,
                                IKeyAclProvider keyAclProvider,
                                ISaltProvider saltProvider,
-                               IOptOutStore optOutStore) {
+                               IOptOutStore optOutStore,
+                               Clock clock) {
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
         this.keyStore = keyStore;
         this.keyAclProvider = keyAclProvider;
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
+        this.clock = clock;
     }
 
     @Override
@@ -103,7 +103,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             this.keyStore,
             this.optOutStore,
             this.saltProvider,
-            new V2EncryptedTokenEncoder(this.keyStore)
+            new V2EncryptedTokenEncoder(this.keyStore),
+            this.clock
         );
 
         final Router router = createRoutesSetup();
@@ -144,7 +145,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // Current version APIs
         router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
         router.get("/v1/token/validate").handler(this::handleTokenValidateV1);
-        router.get("/v1/token/refresh-back").handler(auth.handle(this::handleTokenRefreshV1));
         router.get("/v1/token/refresh").handler(auth.handle(this::handleTokenRefreshV1Async));
         router.get("/v1/identity/buckets").handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
         router.get("/v1/identity/map").handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
@@ -231,6 +231,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                             ResponseUtil.Error("invalid_token", 400, rc, "Invalid Token presented " + tokenList.get(0));
                         } else if (r.isOptOut() || r.isDeprecated()) {
                             ResponseUtil.SuccessNoBody("optout", rc);
+                        } else if (r.isExpired()) {
+                            ResponseUtil.Error("expired_token", 400, rc, "Expired Token presented");
                         } else {
                             ResponseUtil.Error("unknown", 500, rc, "Unknown State");
                         }
@@ -247,34 +249,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             rc.fail(500);
         }
 
-    }
-
-    private void handleTokenRefreshV1(RoutingContext rc, boolean isAuthorized) {
-
-        final List<String> tokenList = rc.queryParam("refresh_token");
-        if (tokenList == null || tokenList.size() == 0) {
-            ResponseUtil.ClientError(rc, "Required Parameter Missing: refresh_token");
-            return;
-        }
-
-        try {
-            final RefreshResponse r = this.idService.refreshIdentity(tokenList.get(0));
-
-            if (isAuthorized && !r.isRefreshed()) {
-                if (r.isInvalidToken()) {
-                    ResponseUtil.Error("invalid_token", 400, rc, "Invalid Token presented " + tokenList.get(0));
-                } else if (r.isOptOut()) {
-                    ResponseUtil.SuccessNoBody("optout", rc);
-                } else {
-                    ResponseUtil.Error("unknown", 500, rc, "Unknown State");
-                }
-            } else {
-                ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            rc.fail(500);
-        }
     }
 
     private void handleTokenValidateV1(RoutingContext rc) {

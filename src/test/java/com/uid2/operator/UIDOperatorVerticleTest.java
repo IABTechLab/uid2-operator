@@ -24,6 +24,7 @@
 package com.uid2.operator;
 
 import com.uid2.operator.model.AdvertisingToken;
+import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.operator.model.RefreshResponse;
 import com.uid2.operator.model.RefreshToken;
@@ -59,6 +60,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -80,6 +82,7 @@ public class UIDOperatorVerticleTest {
     @Mock private ISaltProvider saltProvider;
     @Mock private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
     @Mock private IOptOutStore optOutStore;
+    @Mock private Clock clock;
     private static final String firstLevelSalt = "first-level-salt";
     private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123");
 
@@ -88,8 +91,9 @@ public class UIDOperatorVerticleTest {
         when(keyStore.getSnapshot()).thenReturn(keyStoreSnapshot);
         when(keyAclProvider.getSnapshot()).thenReturn(keyAclProviderSnapshot);
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
+        when(clock.instant()).thenAnswer(i -> Instant.now());
 
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore);
+        UIDOperatorVerticle verticle = new UIDOperatorVerticle(clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock);
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
     }
 
@@ -356,7 +360,7 @@ public class UIDOperatorVerticleTest {
             String refreshTokenString = bodyGen.getString("refresh_token");
 
             doAnswer(i -> {
-                Handler<AsyncResult<RefreshResponse>> handler = i.getArgument(1);
+                Handler<AsyncResult<Instant>> handler = i.getArgument(1);
                 handler.handle(Future.succeededFuture());
                 return null;
             }).when(this.optOutStore).getLatestEntry(any(), any());
@@ -486,6 +490,100 @@ public class UIDOperatorVerticleTest {
             assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
 
             testContext.completeNow();
+        });
+    }
+
+    @Test void tokenRefreshNoToken(Vertx vertx, VertxTestContext testContext) {
+        get(vertx, "v1/token/refresh", ar -> {
+            assertTrue(ar.succeeded());
+            HttpResponse response = ar.result();
+            assertEquals(400, response.statusCode());
+            JsonObject json = response.bodyAsJsonObject();
+            assertEquals("client_error", json.getString("status"));
+
+            testContext.completeNow();
+        });
+    }
+
+    @Test void tokenRefreshInvalidToken(Vertx vertx, VertxTestContext testContext) {
+        get(vertx, "v1/token/refresh?refresh_token=abcd", ar -> {
+            assertTrue(ar.succeeded());
+            HttpResponse response = ar.result();
+            assertEquals(400, response.statusCode());
+            JsonObject json = response.bodyAsJsonObject();
+            assertEquals("invalid_token", json.getString("status"));
+
+            testContext.completeNow();
+        });
+    }
+
+    private void generateRefreshToken(Vertx vertx, String email, int siteId, Handler<String> handler) {
+        fakeAuth(siteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+        generateTokens(vertx, "email", email, arGen -> {
+            assertTrue(arGen.succeeded());
+            JsonObject bodyGen = arGen.result();
+            handler.handle(bodyGen.getString("refresh_token"));
+        });
+    }
+
+    @Test void tokenRefreshExpiredToken(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
+            when(clock.instant()).thenAnswer(i -> Instant.now().plusMillis(UIDOperatorService.DEFAULT_VALID_MILLIS));
+            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
+                assertTrue(ar.succeeded());
+                HttpResponse response = ar.result();
+                assertEquals(400, response.statusCode());
+                JsonObject json = response.bodyAsJsonObject();
+                assertEquals("expired_token", json.getString("status"));
+
+                testContext.completeNow();
+            });
+        });
+    }
+
+    @Test void tokenRefreshOptOut(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
+            doAnswer(i -> {
+                Handler<AsyncResult<Instant>> handler = i.getArgument(1);
+                handler.handle(Future.succeededFuture(Instant.now()));
+                return null;
+            }).when(this.optOutStore).getLatestEntry(any(), any());
+            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
+                assertTrue(ar.succeeded());
+                HttpResponse response = ar.result();
+                assertEquals(200, response.statusCode());
+                JsonObject json = response.bodyAsJsonObject();
+                assertEquals("optout", json.getString("status"));
+
+                testContext.completeNow();
+            });
+        });
+    }
+
+    @Test void tokenRefreshOptOutBeforeLogin(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
+            doAnswer(i -> {
+                Handler<AsyncResult<Instant>> handler = i.getArgument(1);
+                handler.handle(Future.succeededFuture(Instant.now().minusSeconds(10)));
+                return null;
+            }).when(this.optOutStore).getLatestEntry(any(), any());
+            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
+                assertTrue(ar.succeeded());
+                HttpResponse response = ar.result();
+                assertEquals(200, response.statusCode());
+                JsonObject json = response.bodyAsJsonObject();
+                assertEquals("success", json.getString("status"));
+
+                testContext.completeNow();
+            });
         });
     }
 

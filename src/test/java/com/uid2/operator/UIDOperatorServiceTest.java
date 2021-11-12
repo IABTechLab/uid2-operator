@@ -43,6 +43,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.security.Security;
+import java.time.Clock;
 
 @RunWith(VertxUnitRunner.class)
 public class UIDOperatorServiceTest {
@@ -72,7 +73,8 @@ public class UIDOperatorServiceTest {
             keyStore,
             optOutStore,
             saltProvider,
-            new EncryptedTokenEncoder(keyStore)
+            new EncryptedTokenEncoder(keyStore),
+            Clock.systemUTC()
         );
 
         return idService;
@@ -88,11 +90,14 @@ public class UIDOperatorServiceTest {
         );
         Assert.assertNotNull(tokens);
 
-        final RefreshResponse refreshResponse = idService.refreshIdentity(tokens.getRefreshToken());
-        Assert.assertNotNull(refreshResponse);
-        Assert.assertNotNull(refreshResponse.getTokens());
+        idService.refreshIdentityAsync(tokens.getRefreshToken(), result -> {
+            Assert.assertTrue(result.succeeded());
+            final RefreshResponse refreshResponse = result.result();
+            Assert.assertNotNull(refreshResponse);
+            Assert.assertNotNull(refreshResponse.getTokens());
 
-        System.out.println("For Email : " + email + "Token = " + tokens.getTdid());
+            System.out.println("For Email : " + email + "Token = " + tokens.getTdid());
+        });
     }
 
     @Test

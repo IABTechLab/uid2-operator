@@ -34,6 +34,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -58,21 +59,26 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final ITokenEncoder encoder;
+    private final Clock clock;
     private Map<String, VerificationEntry> verificationCodes = new HashMap<String, VerificationEntry>();
     private final String testOptOutKey;
+    private final boolean shouldCheckRefreshTokenExpiry;
 
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
     private final Duration refreshIdentityAfter;
 
-    public UIDOperatorService(JsonObject config, IKeyStore keyStore, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder) {
+    public UIDOperatorService(JsonObject config, IKeyStore keyStore, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock) {
         this.keyStore = keyStore;
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
+        this.clock = clock;
 
         // initialize test optout key
         testOptOutKey = getFirstLevelKey(InputUtil.NormalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
+
+        shouldCheckRefreshTokenExpiry = config.getBoolean("check_refresh_token_expiry", false);
 
         this.identityExpiresAfter = Duration.ofSeconds(config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         this.refreshExpiresAfter = Duration.ofSeconds(config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
@@ -126,6 +132,11 @@ public class UIDOperatorService implements IUIDOperatorService {
             return;
         }
 
+        if (this.shouldCheckRefreshTokenExpiry && token.getValidTill().isBefore(Instant.now(this.clock))) {
+            handler.handle(Future.succeededFuture(RefreshResponse.Expired));
+            return;
+        }
+
         if (testOptOutKey.equals(token.getIdentity().getId())) {
             handler.handle(Future.succeededFuture(RefreshResponse.Optout));
             return;
@@ -149,28 +160,6 @@ public class UIDOperatorService implements IUIDOperatorService {
             }
         });
 
-    }
-
-    @Override
-    public RefreshResponse refreshIdentity(String refreshToken) {
-
-        final RefreshToken token;
-        try {
-            token = this.encoder.decode(refreshToken);
-        } catch (Throwable t) {
-            return RefreshResponse.Invalid;
-        }
-        if (token == null) {
-            return RefreshResponse.Invalid;
-        }
-        final Instant logoutEntry = null; // this.logoutEntriesStore.getLatestEntry(token.getIdentity().getId());
-        if (logoutEntry == null || token.getCreatedAt().isAfter(logoutEntry)) {
-            return RefreshResponse.Refreshed(this.generateIdentity(
-                    token.getIdentity().getId(), token.getIdentity().getSiteId(),
-                    token.getIdentity().getPrivacyBits(), token.getIdentity().getEstablished()));
-        } else {
-            return RefreshResponse.Optout;
-        }
     }
 
     @Override

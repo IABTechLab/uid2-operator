@@ -43,8 +43,6 @@ public interface IUIDOperatorService {
 
     public void refreshIdentityAsync(String refreshToken, Handler<AsyncResult<RefreshResponse>> handler);
 
-    public RefreshResponse refreshIdentity(String refreshToken);
-
     public MappedIdentity map(String input, Instant asOf);
 
     public List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);

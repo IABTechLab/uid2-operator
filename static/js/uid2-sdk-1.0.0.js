@@ -278,9 +278,12 @@ class UID2 {
             if (response.status === "optout") {
                 setFailedIdentity(UID2.IdentityStatus.OPTOUT, "User opted out");
                 return false;
+            } else if (response.status === "expired_token") {
+                setFailedIdentity(UID2.IdentityStatus.REFRESH_EXPIRED, "Refresh token expired");
+                return false;
             } else if (response.status === "success") {
                 if (typeof response.body === 'object' && response.body !== null) {
-                  return true;
+                    return true;
                 }
                 throw new TypeError("refresh response object does not have a body");
             } else {

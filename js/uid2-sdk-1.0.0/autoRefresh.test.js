@@ -145,6 +145,30 @@ describe('when auto refreshing a non-expired identity which requires a refresh',
     });
   });
 
+  describe('when token refresh returns refresh token expired', () => {
+    beforeEach(() => {
+      xhrMock.responseText = JSON.stringify({ status: 'expired_token' });
+      xhrMock.onreadystatechange(new Event(''));
+    });
+
+    it('should invoke the callback', () => {
+      expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertising_token: undefined,
+        status: sdk.UID2.IdentityStatus.REFRESH_EXPIRED,
+      }));
+    });
+    it('should clear cookie', () => {
+      expect(getUid2Cookie()).toBeUndefined();
+    });
+    it('should not set refresh timer', () => {
+      expect(setTimeout).not.toHaveBeenCalled();
+      expect(clearTimeout).toHaveBeenCalledTimes(1);
+    });
+    it('should be in unavailable state', () => {
+      expect(uid2).toBeInUnavailableState();
+    });
+  });
+
   describe('when token refresh returns an error status', () => {
     beforeEach(() => {
       xhrMock.responseText = JSON.stringify({ status: 'error', body: updatedIdentity });
@@ -258,6 +282,30 @@ describe('when auto refreshing an expired identity', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
         advertising_token: undefined,
         status: sdk.UID2.IdentityStatus.OPTOUT,
+      }));
+    });
+    it('should clear cookie', () => {
+      expect(getUid2Cookie()).toBeUndefined();
+    });
+    it('should not set refresh timer', () => {
+      expect(setTimeout).not.toHaveBeenCalled();
+      expect(clearTimeout).toHaveBeenCalledTimes(1);
+    });
+    it('should be in unavailable state', () => {
+      expect(uid2).toBeInUnavailableState();
+    });
+  });
+
+  describe('when token refresh returns refresh token expired', () => {
+    beforeEach(() => {
+      xhrMock.responseText = JSON.stringify({ status: 'expired_token' });
+      xhrMock.onreadystatechange(new Event(''));
+    });
+
+    it('should invoke the callback', () => {
+      expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertising_token: undefined,
+        status: sdk.UID2.IdentityStatus.REFRESH_EXPIRED,
       }));
     });
     it('should clear cookie', () => {

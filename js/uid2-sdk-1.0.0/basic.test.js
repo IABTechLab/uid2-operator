@@ -735,8 +735,18 @@ describe('disconnect()', () => {
     expect(xhrMock.send).toHaveBeenCalledTimes(1);
     expect(xhrMock.abort).toHaveBeenCalledTimes(1);
   });
+  it('should not invoke callback after aborting refresh token request', () => {
+    uid2.init({ callback: callback, identity: makeIdentity({ refresh_from: Date.now() - 100000 }) });
+    uid2.disconnect();
+    expect(callback).not.toHaveBeenCalled();
+  });
   it('should prevent subsequent calls to init()', () => {
     uid2.disconnect();
     expect(() => uid2.init({ callback: () => {} })).toThrow();
+  });
+  it('should switch to unavailable state', () => {
+    uid2.init({ callback: callback, identity: makeIdentity() });
+    uid2.disconnect();
+    expect(uid2).toBeInUnavailableState();
   });
 });

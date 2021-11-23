@@ -90,6 +90,12 @@ class UID2 {
         this.disconnect = () => {
             this.abort();
             removeCookie(UID2.COOKIE_NAME);
+            _identity = undefined;
+            _lastStatus = UID2.IdentityStatus.INVALID;
+
+            const promises = _promises;
+            _promises = [];
+            promises.forEach(p => p.reject(new Error("disconnect()")));
         };
         this.abort = () => {
             _initCalled = true;

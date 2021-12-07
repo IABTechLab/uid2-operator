@@ -28,6 +28,8 @@ import com.uid2.operator.model.IdentityTokens;
 import com.uid2.operator.model.RefreshToken;
 import com.uid2.operator.model.UserToken;
 
+import java.time.Instant;
+
 public interface ITokenEncoder {
     public byte[] encode(AdvertisingToken advertisingToken);
 
@@ -35,7 +37,7 @@ public interface ITokenEncoder {
 
     public byte[] encode(UserToken userToken);
 
-    public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken);
+    public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken, Instant refreshFrom);
 
     public RefreshToken decode(String base64String);
 

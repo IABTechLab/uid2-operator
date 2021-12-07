@@ -61,6 +61,7 @@ import org.mockito.MockitoAnnotations;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -85,6 +86,9 @@ public class UIDOperatorVerticleTest {
     @Mock private Clock clock;
     private static final String firstLevelSalt = "first-level-salt";
     private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123");
+    private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
+    private static final Duration refreshExpiresAfter = Duration.ofMinutes(15);
+    private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
 
     @BeforeEach void deployVerticle(Vertx vertx, VertxTestContext testContext) throws Throwable {
         mocks = MockitoAnnotations.openMocks(this);
@@ -94,6 +98,9 @@ public class UIDOperatorVerticleTest {
         when(clock.instant()).thenAnswer(i -> Instant.now());
 
         final JsonObject config = new JsonObject();
+        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, identityExpiresAfter.toMillis() / 1000);
+        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, refreshExpiresAfter.toMillis() / 1000);
+        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, refreshIdentityAfter.toMillis() / 1000);
         config.put("check_refresh_token_expiry", true);
 
         UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock);
@@ -201,6 +208,11 @@ public class UIDOperatorVerticleTest {
             JsonObject body = json.getJsonObject("body");
             handler.handle(Future.succeededFuture(body));
         });
+    }
+
+    private static void assertEqualsClose(Instant expected, Instant actual, int withinSeconds) {
+        assertTrue(expected.minusSeconds(withinSeconds).isBefore(actual));
+        assertTrue(expected.plusSeconds(withinSeconds).isAfter(actual));
     }
 
     @Test void verticleDeployed(Vertx vertx, VertxTestContext testContext) {
@@ -319,6 +331,10 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
             assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
 
+            assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
+            assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
+            assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
+
             testContext.completeNow();
         });
     }
@@ -346,6 +362,10 @@ public class UIDOperatorVerticleTest {
             RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
             assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
             assertEquals(TokenUtils.getFirstLevelKey(emailHash, firstLevelSalt), refreshToken.getIdentity().getId());
+
+            assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
+            assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
+            assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
 
             testContext.completeNow();
         });
@@ -386,6 +406,10 @@ public class UIDOperatorVerticleTest {
                 RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
                 assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
                 assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
+
+                assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
+                assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
+                assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
 
                 testContext.completeNow();
             });
@@ -535,7 +559,7 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
-            when(clock.instant()).thenAnswer(i -> Instant.now().plusMillis(UIDOperatorService.DEFAULT_VALID_MILLIS));
+            when(clock.instant()).thenAnswer(i -> Instant.now().plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
             get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
                 assertTrue(ar.succeeded());
                 HttpResponse response = ar.result();

@@ -64,6 +64,9 @@ public class UIDOperatorServiceTest {
         MockOptOutStore optOutStore = new MockOptOutStore();
 
         final JsonObject config = new JsonObject();
+        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 600);
+        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 900);
+        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, 300);
 
         final UIDOperatorService idService = new UIDOperatorService(
             config,

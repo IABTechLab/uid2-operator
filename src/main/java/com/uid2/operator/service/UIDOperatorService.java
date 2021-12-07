@@ -34,18 +34,25 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 
-import java.time.*;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static java.lang.Long.getLong;
+
 public class UIDOperatorService implements IUIDOperatorService {
+    public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
+    public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
+    public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
 
     private static int CURRENT_TOKEN_VERSION = 2;
-    private static int DEFAULT_EXPIRY_MILLIS = 4 * 60 * 60 * 1000; // 4 hours
-    public static long DEFAULT_VALID_MILLIS = Duration.ofDays(30).toMillis();
 
     private static Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private final IKeyStore keyStore;
@@ -56,6 +63,10 @@ public class UIDOperatorService implements IUIDOperatorService {
     private Map<String, VerificationEntry> verificationCodes = new HashMap<String, VerificationEntry>();
     private final String testOptOutKey;
     private final boolean shouldCheckRefreshTokenExpiry;
+
+    private final Duration identityExpiresAfter;
+    private final Duration refreshExpiresAfter;
+    private final Duration refreshIdentityAfter;
 
     public UIDOperatorService(JsonObject config, IKeyStore keyStore, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock) {
         this.keyStore = keyStore;
@@ -68,10 +79,20 @@ public class UIDOperatorService implements IUIDOperatorService {
         testOptOutKey = getFirstLevelKey(InputUtil.NormalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
 
         shouldCheckRefreshTokenExpiry = config.getBoolean("check_refresh_token_expiry", false);
-    }
 
-    private static int getRandomVerificationNumber() {
-        return (int) ((Math.random() * (9999 - 1000)) + 1000);
+        this.identityExpiresAfter = Duration.ofSeconds(config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+        this.refreshExpiresAfter = Duration.ofSeconds(config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
+        this.refreshIdentityAfter = Duration.ofSeconds(config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
+
+        if (this.identityExpiresAfter.compareTo(this.refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
+        }
+        if (this.refreshIdentityAfter.compareTo(this.identityExpiresAfter) > 0) {
+            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
+        }
+        if (this.refreshIdentityAfter.compareTo(this.refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
+        }
     }
 
     @Override
@@ -197,23 +218,25 @@ public class UIDOperatorService implements IUIDOperatorService {
         return this.encoder.encode(
             this.createAdvertisementToken(advertisementIdentity, nowUtc),
             this.createUserToken(advertisementIdentity, nowUtc),
-            this.createRefreshToken(refreshIdentity, nowUtc)
+            this.createRefreshToken(refreshIdentity, nowUtc),
+            nowUtc.plusMillis(refreshIdentityAfter.toMillis())
         );
     }
 
     private RefreshToken createRefreshToken(UserIdentity userIdentity, Instant now) {
         return new RefreshToken(CURRENT_TOKEN_VERSION,
             now,
-            now.plusMillis(DEFAULT_EXPIRY_MILLIS),
-            now.plusMillis(DEFAULT_VALID_MILLIS), userIdentity);
+            now.plusMillis(identityExpiresAfter.toMillis()),
+            now.plusMillis(refreshExpiresAfter.toMillis()),
+            userIdentity);
     }
 
     private AdvertisingToken createAdvertisementToken(UserIdentity userIdentity, Instant now) {
-        return new AdvertisingToken(CURRENT_TOKEN_VERSION, now, now.plusMillis(DEFAULT_EXPIRY_MILLIS), userIdentity);
+        return new AdvertisingToken(CURRENT_TOKEN_VERSION, now, now.plusMillis(identityExpiresAfter.toMillis()), userIdentity);
     }
 
     private UserToken createUserToken(UserIdentity userIdentity, Instant now) {
-        return new UserToken(CURRENT_TOKEN_VERSION, now, now.plusMillis(DEFAULT_EXPIRY_MILLIS), userIdentity, 2);
+        return new UserToken(CURRENT_TOKEN_VERSION, now, now.plusMillis(identityExpiresAfter.toMillis()), userIdentity, 2);
     }
 
     private static class VerificationEntry {

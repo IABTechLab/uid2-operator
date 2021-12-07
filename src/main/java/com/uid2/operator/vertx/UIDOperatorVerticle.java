@@ -57,7 +57,12 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
-import java.time.*;
+import java.io.IOException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -131,20 +136,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
-    private Router createRoutesSetup() {
+    private Router createRoutesSetup() throws IOException {
         final Router router = Router.router(vertx);
 
-        router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
         router.route().handler(new RequestCapturingHandler());
+        router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js"));
         router.route().handler(CorsHandler.create(".*.")
             .allowedMethod(io.vertx.core.http.HttpMethod.GET)
             .allowedMethod(io.vertx.core.http.HttpMethod.POST)
             .allowedMethod(io.vertx.core.http.HttpMethod.OPTIONS)
+            .allowedHeader(com.uid2.shared.Const.Http.ClientVersionHeader)
             .allowedHeader("Access-Control-Request-Method")
             .allowedHeader("Access-Control-Allow-Credentials")
             .allowedHeader("Access-Control-Allow-Origin")
             .allowedHeader("Access-Control-Allow-Headers")
             .allowedHeader("Content-Type"));
+        router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
         // Current version APIs
         router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
@@ -624,6 +631,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         json.put("advertising_token", t.getAdvertisingToken());
         json.put("user_token", t.getUserToken());
         json.put("refresh_token", t.getRefreshToken());
+        json.put("identity_expires", t.getIdentityExpires().toEpochMilli());
+        json.put("refresh_expires", t.getRefreshExpires().toEpochMilli());
+        json.put("refresh_from", t.getRefreshFrom().toEpochMilli());
         return json;
     }
 

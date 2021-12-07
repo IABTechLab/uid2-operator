@@ -129,7 +129,7 @@ describe('when initialised without identity', () => {
   });
 
   describe('when uid2 cookie with up-to-date identity is available', () => {
-    const identity = makeIdentity({});
+    const identity = makeIdentity();
 
     beforeEach(() => {
       setUid2Cookie(identity);
@@ -253,7 +253,7 @@ describe('when initialised with specific identity', () => {
   });
 
   describe('when valid identity is supplied', () => {
-    const identity = makeIdentity({});
+    const identity = makeIdentity();
 
     beforeEach(() => {
       uid2.init({ callback: callback, identity: identity });

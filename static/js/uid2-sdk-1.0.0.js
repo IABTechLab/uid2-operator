@@ -26,7 +26,7 @@ if (window.googletag) {
         id: 'uidapi.com',
         collectorFunction: () => {
             if (window.__uid2 && window.__uid2.getAdvertisingToken) {
-                return Promise.resolve(__uid2.getAdvertisingToken());
+                return __uid2.getAdvertisingTokenAsync();
             } else {
                 return Promise.reject(new Error("UID2 SDK not present"));
             }
@@ -71,6 +71,19 @@ class UID2 {
         this.getAdvertisingToken = () => {
             return _identity && !temporarilyUnavailable() ? _identity.advertising_token : undefined;
         };
+        this.getAdvertisingTokenAsync = () => {
+            if (!initialised()) {
+                return new Promise((resolve, reject) => {
+                    _promises.push({ resolve: resolve, reject: reject });
+                });
+            } else if (_identity) {
+                return temporarilyUnavailable()
+                    ? Promise.reject(new Error('temporarily unavailable'))
+                    : Promise.resolve(_identity.advertising_token);
+            } else {
+                return Promise.reject(new Error('identity not available'));
+            }
+        };
         this.isLoginRequired = () => {
             return initialised() ? !_identity : undefined;
         };
@@ -98,6 +111,7 @@ class UID2 {
         let _lastStatus;
         let _refreshTimerId;
         let _refreshReq;
+        let _promises = [];
 
         // PRIVATE METHODS
 
@@ -134,12 +148,23 @@ class UID2 {
         const updateStatus = (status, statusText) => {
             _lastStatus = status;
 
+            const promises = _promises;
+            _promises = [];
+
+            const advertisingToken = this.getAdvertisingToken();
+
             const result = {
-                advertising_token: this.getAdvertisingToken(),
+                advertising_token: advertisingToken,
                 status: status,
                 statusText: statusText
             };
             _opts.callback(result);
+
+            if (advertisingToken) {
+                promises.forEach(p => p.resolve(advertisingToken));
+            } else {
+                promises.forEach(p => p.reject(new Error(statusText)));
+            }
         };
         const setValidIdentity = (identity, status, statusText) => {
             _identity = identity;

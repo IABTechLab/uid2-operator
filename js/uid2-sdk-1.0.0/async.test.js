@@ -156,6 +156,14 @@ describe('when getAdvertisingTokenAsync is called after init completed', () => {
       return expect(uid2.getAdvertisingTokenAsync()).rejects.toBeInstanceOf(Error);
     });
   });
+
+  describe('when disconnect() has been called', () => {
+    it('it should reject promise', () => {
+      uid2.init({ callback: callback, identity: makeIdentity() });
+      uid2.disconnect();
+      return expect(uid2.getAdvertisingTokenAsync()).rejects.toBeInstanceOf(Error);
+    });
+  });
 });
 
 describe('when getAdvertisingTokenAsync is called before refresh on init completes', () => {
@@ -179,6 +187,21 @@ describe('when getAdvertisingTokenAsync is called before refresh on init complet
       xhrMock.responseText = JSON.stringify({ status: 'success', body: updatedIdentity });
       xhrMock.onreadystatechange(new Event(''));
       return expect(p).resolves.toBe(updatedIdentity.advertising_token);
+    });
+  });
+
+  describe('when disconnect() has been called', () => {
+    it('it should reject promise', () => {
+      const p = uid2.getAdvertisingTokenAsync();
+      uid2.disconnect();
+      return expect(p).rejects.toBeInstanceOf(Error);
+    });
+  });
+
+  describe('when promise obtained after disconnect', () => {
+    it('it should reject promise', () => {
+      uid2.disconnect();
+      return expect(uid2.getAdvertisingTokenAsync()).rejects.toBeInstanceOf(Error);
     });
   });
 });

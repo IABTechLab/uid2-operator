@@ -62,7 +62,6 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Clock clock;
     private Map<String, VerificationEntry> verificationCodes = new HashMap<String, VerificationEntry>();
     private final String testOptOutKey;
-    private final boolean shouldCheckRefreshTokenExpiry;
 
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
@@ -77,8 +76,6 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         // initialize test optout key
         testOptOutKey = getFirstLevelKey(InputUtil.NormalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
-
-        shouldCheckRefreshTokenExpiry = config.getBoolean("check_refresh_token_expiry", false);
 
         this.identityExpiresAfter = Duration.ofSeconds(config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         this.refreshExpiresAfter = Duration.ofSeconds(config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
@@ -132,7 +129,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             return;
         }
 
-        if (this.shouldCheckRefreshTokenExpiry && token.getValidTill().isBefore(Instant.now(this.clock))) {
+        if (token.getValidTill().isBefore(Instant.now(this.clock))) {
             handler.handle(Future.succeededFuture(RefreshResponse.Expired));
             return;
         }

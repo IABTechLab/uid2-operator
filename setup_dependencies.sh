@@ -45,7 +45,15 @@ then
     cargo build --lib --release
     popd
 
-    curl -LJ -H "Authorization: token $GITHUB_ACCESS_TOKEN" -H 'Accept: application/octet-stream' 'https://api.github.com/repos/UnifiedID2/vsock-skeleton-key/releases/assets/35853213' -o vsockpx
+    git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/vsock-skeleton-key.git
+    pushd vsock-skeleton-key || exit
+    mkdir build
+    cd build
+    cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    make
+    popd
+    cp vsock-skeleton-key/build/vsock-bridge/src/vsock-bridge vsockpx
+
 elif [ "$enclave_platform" = "gcp-vmid" ]
 then
     echo 'uid2-attestation-gcp: download'

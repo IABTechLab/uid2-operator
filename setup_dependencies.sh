@@ -16,7 +16,7 @@ mvn package && mvn install:install-file -Dfile="./target/$ARTIFACT_ID-$VERSION.j
 popd
 
 echo 'uid2-shared: download'
-git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/uid2-shared.git
+git clone https://github.com/IABTechLab/uid2-shared.git
 
 VERSION=${1:-"1.0.0"}
 GROUP_ID="com.uid2"

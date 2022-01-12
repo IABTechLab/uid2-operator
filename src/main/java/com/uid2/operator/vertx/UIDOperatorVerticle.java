@@ -156,7 +156,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // Current version APIs
         router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
         router.get("/v1/token/validate").handler(this::handleTokenValidateV1);
-        router.get("/v1/token/refresh").handler(auth.handle(this::handleTokenRefreshV1Async));
+        router.get("/v1/token/refresh").handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1Async));
         router.get("/v1/identity/buckets").handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
         router.get("/v1/identity/map").handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
         router.post("/v1/identity/map").handler(auth.handle(this::handleIdentityMapBatchV1, Role.MAPPER));
@@ -182,7 +182,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void handleKeysRequestCommon(RoutingContext rc, Handler<JsonArray> onSuccess) {
-        final ClientKey clientKey = (ClientKey)AuthMiddleware.getAuthClient(rc);
+        final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
         final int clientSiteId = clientKey.getSiteId();
         if(!clientKey.hasValidSiteId()) {
             ResponseUtil.Error("invalid_client", 401, rc, "Unexpected client site id " + Integer.toString(clientSiteId));
@@ -225,7 +225,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleTokenRefreshV1Async(RoutingContext rc, boolean isAuthorized) {
+    private void handleTokenRefreshV1Async(RoutingContext rc) {
         final List<String> tokenList = rc.queryParam("refresh_token");
         if (tokenList == null || tokenList.size() == 0) {
             ResponseUtil.ClientError(rc, "Required Parameter Missing: refresh_token");
@@ -237,7 +237,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             this.idService.refreshIdentityAsync(tokenList.get(0), ar -> {
                 if (ar.succeeded()) {
                     final RefreshResponse r = ar.result();
-                    if (isAuthorized && !r.isRefreshed()) {
+                    if (!r.isRefreshed()) {
                         if (r.isInvalidToken()) {
                             ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
                         } else if (r.isOptOut() || r.isDeprecated()) {

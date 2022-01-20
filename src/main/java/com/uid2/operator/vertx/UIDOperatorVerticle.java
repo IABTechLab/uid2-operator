@@ -238,20 +238,23 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 if (ar.succeeded()) {
                     final RefreshResponse r = ar.result();
                     if (!r.isRefreshed()) {
-                        if (r.isInvalidToken()) {
-                            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
-                        } else if (r.isOptOut() || r.isDeprecated()) {
+                        if (r.isOptOut() || r.isDeprecated()) {
                             ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
+                        } else if (!AuthMiddleware.isAuthenticated(rc)) {
+                            // unauthenticated clients get a generic error
+                            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                        } else if (r.isInvalidToken()) {
+                            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
                         } else if (r.isExpired()) {
                             ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
                         } else {
-                            ResponseUtil.Error("unknown", 500, rc, "Unknown State");
+                            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                         }
                     } else {
                         ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
                     }
                 } else {
-                    ResponseUtil.Error("unknown", 500, rc, "Service Error");
+                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
                 }
 
             });
@@ -453,7 +456,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             jsonObject.put("bucket_id", mappedIdentity.getBucketId());
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
-            ResponseUtil.Error("unknown", 500, rc, "Unknown State");
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
         }
     }
 
@@ -540,7 +543,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.put("mapped", mapped);
             ResponseUtil.Success(rc, resp);
         } catch (Exception e) {
-            ResponseUtil.Error("unknown", 500, rc, "Unknown State");
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
             e.printStackTrace();
         }
     }
@@ -685,6 +688,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         public static String OptOut = "optout";
         public static String InvalidToken = "invalid_token";
         public static String ExpiredToken = "expired_token";
+        public static String GenericError = "error";
+        public static String UnknownError = "unknown";
     }
 
 }

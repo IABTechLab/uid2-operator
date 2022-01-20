@@ -123,6 +123,10 @@ public class UIDOperatorVerticleTest {
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
     }
 
+    private void clearAuth() {
+        when(clientKeyProvider.get(any())).thenReturn(null);
+    }
+
     private static String urlEncode(String value) {
         try {
             return URLEncoder.encode(value, StandardCharsets.UTF_8.name());
@@ -531,13 +535,27 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test void tokenRefreshInvalidToken(Vertx vertx, VertxTestContext testContext) {
+    @Test void tokenRefreshInvalidTokenAuthenticated(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
         get(vertx, "v1/token/refresh?refresh_token=abcd", ar -> {
             assertTrue(ar.succeeded());
             HttpResponse response = ar.result();
             assertEquals(400, response.statusCode());
             JsonObject json = response.bodyAsJsonObject();
             assertEquals("invalid_token", json.getString("status"));
+
+            testContext.completeNow();
+        });
+    }
+
+    @Test void tokenRefreshInvalidTokenUnauthenticated(Vertx vertx, VertxTestContext testContext) {
+        get(vertx, "v1/token/refresh?refresh_token=abcd", ar -> {
+            assertTrue(ar.succeeded());
+            HttpResponse response = ar.result();
+            assertEquals(400, response.statusCode());
+            JsonObject json = response.bodyAsJsonObject();
+            assertEquals("error", json.getString("status"));
 
             testContext.completeNow();
         });
@@ -554,8 +572,9 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test void tokenRefreshExpiredToken(Vertx vertx, VertxTestContext testContext) {
+    @Test void tokenRefreshExpiredTokenAuthenticated(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
         final String emailAddress = "test@uid2.com";
         generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
             when(clock.instant()).thenAnswer(i -> Instant.now().plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
@@ -565,6 +584,24 @@ public class UIDOperatorVerticleTest {
                 assertEquals(400, response.statusCode());
                 JsonObject json = response.bodyAsJsonObject();
                 assertEquals("expired_token", json.getString("status"));
+
+                testContext.completeNow();
+            });
+        });
+    }
+
+    @Test void tokenRefreshExpiredTokenUnauthenticated(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
+            clearAuth();
+            when(clock.instant()).thenAnswer(i -> Instant.now().plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
+            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
+                assertTrue(ar.succeeded());
+                HttpResponse response = ar.result();
+                assertEquals(400, response.statusCode());
+                JsonObject json = response.bodyAsJsonObject();
+                assertEquals("error", json.getString("status"));
 
                 testContext.completeNow();
             });

@@ -1,0 +1,22 @@
+name: Build and Test
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out repository $GITHUB_WORKSPACE
+      - uses: action/checkout@v2
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'temurin' # (Apache 2.0), (GPLv2+CE)
+          architecture: x64
+      - name: Check building environment
+        run: |
+          which java
+          which mvn
+          java -version
+          mvn -v

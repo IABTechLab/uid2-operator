@@ -90,14 +90,11 @@ public class UIDOperatorServiceTest {
         );
         Assert.assertNotNull(tokens);
 
-        idService.refreshIdentityAsync(tokens.getRefreshToken(), result -> {
-            Assert.assertTrue(result.succeeded());
-            final RefreshResponse refreshResponse = result.result();
-            Assert.assertNotNull(refreshResponse);
-            Assert.assertNotNull(refreshResponse.getTokens());
+        final RefreshResponse refreshResponse = idService.refreshIdentity(tokens.getRefreshToken());
+        Assert.assertNotNull(refreshResponse);
+        Assert.assertNotNull(refreshResponse.getTokens());
 
-            System.out.println("For Email : " + email + "Token = " + tokens.getTdid());
-        });
+        System.out.println("For Email : " + email + "Token = " + tokens.getTdid());
     }
 
     @Test
@@ -111,14 +108,7 @@ public class UIDOperatorServiceTest {
         );
         Assert.assertNotNull(tokens);
 
-        Async asyncValidation = ctx.async();
-        idService.refreshIdentityAsync(tokens.getRefreshToken(), ar -> {
-            ctx.assertTrue(ar.succeeded());
-            if (ar.succeeded()) {
-                ctx.assertNotEquals(RefreshResponse.Optout, ar.result());
-            }
-            asyncValidation.complete();
-        });
+        ctx.assertNotEquals(RefreshResponse.Optout, idService.refreshIdentity(tokens.getRefreshToken()));
     }
 
     @Test
@@ -132,13 +122,6 @@ public class UIDOperatorServiceTest {
         );
         Assert.assertNotNull(tokens);
 
-        Async asyncValidation = ctx.async();
-        idService.refreshIdentityAsync(tokens.getRefreshToken(), ar -> {
-            ctx.assertTrue(ar.succeeded());
-            if (ar.succeeded()) {
-                ctx.assertEquals(RefreshResponse.Optout, ar.result());
-            }
-            asyncValidation.complete();
-        });
+        ctx.assertEquals(RefreshResponse.Optout, idService.refreshIdentity(tokens.getRefreshToken()));
     }
 }

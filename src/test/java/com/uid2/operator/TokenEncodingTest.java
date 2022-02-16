@@ -70,7 +70,9 @@ public class TokenEncodingTest {
 
         final byte[] encodedBytes = encoder.encode(token);
         final RefreshToken decoded = encoder.decode(encodedBytes);
-        Assert.assertEquals(token, decoded);
+        Assert.assertEquals(token.getIdentity(), decoded.getIdentity());
+        Assert.assertEquals(token.getExpiresAt(), decoded.getExpiresAt());
+        Assert.assertEquals(token.getValidTill().plusSeconds(60), decoded.getValidTill());  // encoder adds 1 minute to ValidTill to accommodate communication delay.
     }
 
     @Test

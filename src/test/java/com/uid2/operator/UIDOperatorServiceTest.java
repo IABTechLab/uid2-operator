@@ -93,8 +93,6 @@ public class UIDOperatorServiceTest {
         final RefreshResponse refreshResponse = idService.refreshIdentity(tokens.getRefreshToken());
         Assert.assertNotNull(refreshResponse);
         Assert.assertNotNull(refreshResponse.getTokens());
-
-        System.out.println("For Email : " + email + "Token = " + tokens.getTdid());
     }
 
     @Test

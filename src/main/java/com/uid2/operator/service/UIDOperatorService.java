@@ -136,16 +136,14 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         try {
             final Instant logoutEntry = this.optOutStore.getLatestEntry(token.getIdentity().getId());
-            final RefreshResponse response;
 
             if (logoutEntry == null || token.getCreatedAt().isAfter(logoutEntry)) {
-                response = RefreshResponse.Refreshed(this.generateIdentity(
-                        token.getIdentity().getId(), token.getIdentity().getSiteId(),
-                        token.getIdentity().getPrivacyBits(), token.getIdentity().getEstablished()));
+                return RefreshResponse.Refreshed(this.generateIdentity(
+                    token.getIdentity().getId(), token.getIdentity().getSiteId(),
+                    token.getIdentity().getPrivacyBits(), token.getIdentity().getEstablished()));
             } else {
-                response = RefreshResponse.Optout;
+                return RefreshResponse.Optout;
             }
-            return response;
         }
         catch (Exception ex) {
             return RefreshResponse.Invalid;

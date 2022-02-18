@@ -391,7 +391,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         .end();
             }
             catch ( Exception ex ) {
-                ex.printStackTrace();
                 rc.fail(500);
             }
         } else {

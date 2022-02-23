@@ -385,11 +385,7 @@ public class UIDOperatorVerticleTest {
             JsonObject bodyGen = arGen.result();
             String refreshTokenString = bodyGen.getString("refresh_token");
 
-            doAnswer(i -> {
-                Handler<AsyncResult<Instant>> handler = i.getArgument(1);
-                handler.handle(Future.succeededFuture());
-                return null;
-            }).when(this.optOutStore).getLatestEntry(any(), any());
+            when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
             get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshTokenString), ar -> {
                 assertTrue(ar.succeeded());
@@ -612,11 +608,8 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
-            doAnswer(i -> {
-                Handler<AsyncResult<Instant>> handler = i.getArgument(1);
-                handler.handle(Future.succeededFuture(Instant.now()));
-                return null;
-            }).when(this.optOutStore).getLatestEntry(any(), any());
+            when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
+
             get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
                 assertTrue(ar.succeeded());
                 HttpResponse response = ar.result();
@@ -633,11 +626,8 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
-            doAnswer(i -> {
-                Handler<AsyncResult<Instant>> handler = i.getArgument(1);
-                handler.handle(Future.succeededFuture(Instant.now().minusSeconds(10)));
-                return null;
-            }).when(this.optOutStore).getLatestEntry(any(), any());
+            when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now().minusSeconds(10));
+
             get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
                 assertTrue(ar.succeeded());
                 HttpResponse response = ar.result();

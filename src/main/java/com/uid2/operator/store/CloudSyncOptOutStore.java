@@ -90,15 +90,11 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
-    public void getLatestEntry(String key, Handler<AsyncResult<Instant>> handler) {
-        try {
-            byte[] idBytes = OptOutUtils.base64StringTobyteArray(key);
-            long epochSecond = this.snapshot.get().getOptOutTimestamp(idBytes);
-            Instant instant = epochSecond > 0 ? Instant.ofEpochSecond(epochSecond) : null;
-            handler.handle(Future.succeededFuture(instant));
-        } catch (Exception ex) {
-            handler.handle(Future.failedFuture(ex));
-        }
+    public Instant getLatestEntry(String key) {
+        byte[] idBytes = OptOutUtils.base64StringTobyteArray(key);
+        long epochSecond = this.snapshot.get().getOptOutTimestamp(idBytes);
+        Instant instant = epochSecond > 0 ? Instant.ofEpochSecond(epochSecond) : null;
+        return instant;
     }
 
     @Override

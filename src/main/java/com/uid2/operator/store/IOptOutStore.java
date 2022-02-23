@@ -30,7 +30,7 @@ import java.time.Instant;
 
 public interface IOptOutStore {
 
-    public void getLatestEntry(String key, Handler<AsyncResult<Instant>> handler);
+    public Instant getLatestEntry(String key);
 
     public void addEntry(String key, String advertisingId, Handler<AsyncResult<Instant>> handler);
 }

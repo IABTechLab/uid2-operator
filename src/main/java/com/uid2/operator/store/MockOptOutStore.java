@@ -31,8 +31,8 @@ import java.time.Instant;
 
 public class MockOptOutStore implements IOptOutStore {
     @Override
-    public void getLatestEntry(String key, Handler<AsyncResult<Instant>> handler) {
-        handler.handle(Future.succeededFuture(null));
+    public Instant getLatestEntry(String key) {
+        return null;
     }
 
     @Override

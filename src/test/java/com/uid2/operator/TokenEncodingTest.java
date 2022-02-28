@@ -29,6 +29,7 @@ import com.uid2.operator.model.UserIdentity;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.ITokenEncoder;
 import com.uid2.operator.service.V2EncryptedTokenEncoder;
+import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.store.RotatingKeyStore;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
@@ -73,6 +74,11 @@ public class TokenEncodingTest {
         Assert.assertEquals(token.getIdentity(), decoded.getIdentity());
         Assert.assertEquals(token.getExpiresAt(), decoded.getExpiresAt());
         Assert.assertEquals(token.getValidTill().plusSeconds(60), decoded.getValidTill());  // encoder adds 1 minute to ValidTill to accommodate communication delay.
+
+        Buffer b = Buffer.buffer(encodedBytes);
+        int keyId = b.getInt(25);
+        EncryptionKey key = this.keyStoreInstance.getSnapshot().getKey(keyId);
+        Assert.assertEquals(Const.Data.RefreshKeySiteId, key.getSiteId());
     }
 
     @Test
@@ -91,6 +97,10 @@ public class TokenEncodingTest {
         Assert.assertEquals(token.getExpiresAt(), decoded.getExpiresAt());
         Assert.assertEquals(token.getIdentity(), decoded.getIdentity());
 
+        Buffer b = Buffer.buffer(encodedBytes);
+        int keyId = b.getInt(1);
+        EncryptionKey key = this.keyStoreInstance.getSnapshot().getKey(keyId);
+        Assert.assertEquals(Const.Data.MasterKeySiteId, key.getSiteId());
     }
 
     // @Test

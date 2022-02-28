@@ -28,7 +28,6 @@ import com.uid2.operator.service.EncryptionHelper;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.shared.Utils;
 import com.uid2.shared.model.EncryptionKey;
-import com.uid2.operator.model.RefreshResponse;
 import com.uid2.operator.model.RefreshToken;
 import com.uid2.operator.service.TokenUtils;
 import com.uid2.operator.service.V2EncryptedTokenEncoder;
@@ -46,9 +45,9 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.VertxExtension;
@@ -63,20 +62,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -146,6 +141,7 @@ public class UIDOperatorVerticleTest {
         ClientKey clientKey = new ClientKey("test-key", Utils.toBase64String(clientSecret))
             .withSiteId(siteId).withRoles(roles);
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
     }
 
     private void clearAuth() {
@@ -177,7 +173,6 @@ public class UIDOperatorVerticleTest {
                 if (ar.result().statusCode() == 200) {
                     byte[] decrypted = EncryptionHelper.decryptGCM(Utils.decodeBase64String(ar.result().bodyAsString()), 0, ck.getSecretBytes());
                     JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
-
                     Buffer buffer = Buffer.buffer();
                     Assert.assertEquals(Utils.toBase64String(buffer.appendLong(nonce).getBytes()), respJson.getString("nonce"));
 
@@ -201,23 +196,144 @@ public class UIDOperatorVerticleTest {
         }
     }
 
+    private void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode,
+                                   Handler<JsonObject> handler) {
+        if (apiVersion.equals("v2")) {
+            ClientKey ck = (ClientKey) clientKeyProvider.get("");
+
+            postV2(ck, vertx, apiVersion + "/token/generate", v2PostPayload, ar -> {
+                Assert.assertTrue(ar.succeeded());
+                Assert.assertEquals(expectedHttpCode, ar.result().statusCode());
+
+                if (ar.result().statusCode() == 200) {
+                    byte[] decrypted = EncryptionHelper.decryptGCM(Utils.decodeBase64String(ar.result().bodyAsString()), 0, ck.getSecretBytes());
+                    JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
+
+                    decodeV2RefreshToken(respJson);
+
+                    handler.handle(respJson);
+                } else {
+                    handler.handle(tryParseResponse(ar.result()));
+                }
+            });
+        } else {
+            get(vertx, apiVersion + "/token/generate" + (v1GetParam != null ? "?" + v1GetParam : ""), ar -> {
+                Assert.assertTrue(ar.succeeded());
+                Assert.assertEquals(expectedHttpCode, ar.result().statusCode());
+                handler.handle(tryParseResponse(ar.result()));
+            });
+        }
+    }
+
+    private void sendTokenRefresh(String apiVersion, Vertx vertx, String refreshToken, String v2RefreshDecryptSecret, int expectedHttpCode,
+                                  Handler<JsonObject> handler) {
+        if (apiVersion.equals("v2")) {
+            WebClient client = WebClient.create(vertx);
+            client.postAbs(getUrlForEndpoint("v2/token/refresh"))
+                .putHeader("content-type", "text/plain")
+                .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), ar -> {
+                    Assert.assertTrue(ar.succeeded());
+                    Assert.assertEquals(expectedHttpCode, ar.result().statusCode());
+
+                    if (ar.result().statusCode() == 200 && v2RefreshDecryptSecret != null) {
+                        byte[] decrypted = EncryptionHelper.decryptGCM(Utils.decodeBase64String(ar.result().bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
+                        JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
+
+                        decodeV2RefreshToken(respJson);
+
+                        handler.handle(respJson);
+                    } else {
+                        handler.handle(tryParseResponse(ar.result()));
+                    }
+                });
+        } else {
+            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
+                assertTrue(ar.succeeded());
+                HttpResponse response = ar.result();
+                assertEquals(expectedHttpCode, response.statusCode());
+                JsonObject json = response.bodyAsJsonObject();
+                handler.handle(json);
+            });
+        }
+    }
+
+    private void decodeV2RefreshToken(JsonObject respJson) {
+        JsonObject bodyJson = respJson.getJsonObject("body");
+
+        byte[] tokenBytes = Utils.decodeBase64String(bodyJson.getString("refresh_token"));
+        EncryptionKey refreshKey = keyStore.getSnapshot().getKey(Buffer.buffer(tokenBytes).getInt(0));
+
+        byte[] decrypted = EncryptionHelper.decryptGCM(tokenBytes, 4, refreshKey);
+        JsonObject tokenKeyJson = new JsonObject(new String(decrypted));
+
+        String origRefreshToken = tokenKeyJson.getString("refresh_token");
+        bodyJson.put("original_refresh_token", origRefreshToken);
+    }
+
     private JsonObject tryParseResponse(HttpResponse resp) {
         try {
             return resp.bodyAsJsonObject();
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             return null;
         }
     }
 
     private void get(Vertx vertx, String endpoint, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
         WebClient client = WebClient.create(vertx);
-        client.getAbs(getUrlForEndpoint(endpoint)).send(handler);
+        ClientKey ck = clientKeyProvider.getClientKey("");
+        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint(endpoint));
+        if (ck != null)
+            req.putHeader("Authorization", "Bearer " + ck.getKey());
+        req.send(handler);
     }
 
     private void post(Vertx vertx, String endpoint, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
         WebClient client = WebClient.create(vertx);
-        client.postAbs(getUrlForEndpoint(endpoint)).sendJsonObject(body, handler);
+        ClientKey ck = clientKeyProvider.getClientKey("");
+        HttpRequest<Buffer> req = client.postAbs(getUrlForEndpoint(endpoint));
+        if (ck != null)
+            req.putHeader("Authorization", "Bearer " + ck.getKey());
+        req.sendJsonObject(body, handler);
+    }
+
+    private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
+        WebClient client = WebClient.create(vertx);
+
+        Buffer b = Buffer.buffer();
+        b.appendLong(Instant.now().toEpochMilli());
+        b.appendLong(new Random().nextLong());
+
+        if (body != null)
+            b.appendBytes(body.encode().getBytes(StandardCharsets.UTF_8));
+
+        Buffer bufBody = Buffer.buffer();
+        bufBody.appendByte((byte) 1);
+        bufBody.appendBytes(EncryptionHelper.encryptGCM(b.getBytes(), ck.getSecretBytes()));
+
+        client.postAbs(getUrlForEndpoint(endpoint))
+            .putHeader("Authorization", "Bearer " + ck.getKey())
+            .putHeader("content-type", "application/octet-stream")
+            .sendBuffer(Buffer.buffer(Utils.toBase64String(bufBody.getBytes()).getBytes(StandardCharsets.UTF_8)), handler);
+    }
+
+    private void postV2TokenRequest(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
+        WebClient client = WebClient.create(vertx);
+
+        Buffer b = Buffer.buffer();
+        b.appendLong(Instant.now().toEpochMilli());
+        b.appendLong(new Random().nextLong());
+
+        if (body != null)
+            b.appendBytes(body.encode().getBytes(StandardCharsets.UTF_8));
+
+        Buffer bufBody = Buffer.buffer();
+        bufBody.appendByte((byte) 1);
+        bufBody.appendBytes(EncryptionHelper.encryptGCM(b.getBytes(), ck.getSecretBytes()));
+
+        client.postAbs(getUrlForEndpoint(endpoint))
+            .putHeader("Authorization", "Bearer " + ck.getKey())
+            .putHeader("content-type", "application/octet-stream")
+            .sendBuffer(Buffer.buffer(Utils.toBase64String(bufBody.getBytes()).getBytes(StandardCharsets.UTF_8)), handler);
     }
 
     private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
@@ -297,15 +413,12 @@ public class UIDOperatorVerticleTest {
         when(keyStoreSnapshot.getKey(keyId)).thenReturn(siteKey);
     }
 
-    private void generateTokens(Vertx vertx, String inputType, String input, Handler<AsyncResult<JsonObject>> handler) {
-        get(vertx, "v1/token/generate?" + inputType + "=" + input, ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse responseGen = ar.result();
-            assertEquals(200, responseGen.statusCode());
-            JsonObject json = responseGen.bodyAsJsonObject();
-            JsonObject body = json.getJsonObject("body");
-            handler.handle(Future.succeededFuture(body));
-        });
+    private void generateTokens(String apiVersion, Vertx vertx, String inputType, String input, Handler<JsonObject> handler) {
+        String v1Param = inputType + "=" + input;
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put(inputType, input);
+
+        sendTokenGenerate(apiVersion, vertx, v1Param, v2Payload, 200, handler);
     }
 
     private static void assertEqualsClose(Instant expected, Instant actual, int withinSeconds) {
@@ -390,140 +503,74 @@ public class UIDOperatorVerticleTest {
     }
 
 
-    @Test
-    void tokenGenerateBothEmailAndHashSpecified(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateBothEmailAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         final String emailHash = TokenUtils.getEmailHash(emailAddress);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        get(vertx, "v1/token/generate?email=" + emailAddress + "&email_hash=" + urlEncode(emailHash), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertFalse(json.containsKey("body"));
-            assertEquals("client_error", json.getString("status"));
 
-            testContext.completeNow();
-        });
+        String v1Param = "email=" + emailAddress + "&email_hash=" + urlEncode(emailHash);
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", emailAddress);
+        v2Payload.put("email_hash", emailHash);
+
+        sendTokenGenerate(apiVersion, vertx,
+            v1Param, v2Payload, 400,
+            json -> {
+                assertFalse(json.containsKey("body"));
+                assertEquals("client_error", json.getString("status"));
+                testContext.completeNow();
+            });
     }
 
-    @Test
-    void tokenGenerateNoEmailOrHashSpecified(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateNoEmailOrHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        get(vertx, "v1/token/generate", ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertFalse(json.containsKey("body"));
-            assertEquals("client_error", json.getString("status"));
 
-            testContext.completeNow();
-        });
+        sendTokenGenerate(apiVersion, vertx,
+            "", null, 400,
+            json -> {
+                assertFalse(json.containsKey("body"));
+                assertEquals("client_error", json.getString("status"));
+                testContext.completeNow();
+            });
     }
 
-    @Test
-    void tokenGenerateForEmail(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String emailAddress = "test@uid2.com";
-        fakeAuth(clientSiteId, Role.GENERATOR);
-        setupSalts();
-        setupKeys();
-        get(vertx, "v1/token/generate?email=" + emailAddress, ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(200, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertEquals("success", json.getString("status"));
-            JsonObject body = json.getJsonObject("body");
-            assertNotNull(body);
-            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
-
-            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
-            assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
-            assertEquals(TokenUtils.getAdvertisingIdFromEmail(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
-
-            RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
-            assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
-            assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
-
-            assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
-            assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
-            assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
-
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void tokenGenerateForEmailHash(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String emailHash = TokenUtils.getEmailHash("test@uid2.com");
-        fakeAuth(clientSiteId, Role.GENERATOR);
-        setupSalts();
-        setupKeys();
-        get(vertx, "v1/token/generate?email_hash=" + urlEncode(emailHash), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(200, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertEquals("success", json.getString("status"));
-            JsonObject body = json.getJsonObject("body");
-            assertNotNull(body);
-            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
-
-            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
-            assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
-            assertEquals(TokenUtils.getAdvertisingIdFromEmailHash(emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
-
-            RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
-            assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
-            assertEquals(TokenUtils.getFirstLevelKey(emailHash, firstLevelSalt), refreshToken.getIdentity().getId());
-
-            assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
-            assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
-            assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
-
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void tokenGenerateThenRefresh(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateForEmail(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        generateTokens(vertx, "email", emailAddress, arGen -> {
-            assertTrue(arGen.succeeded());
-            JsonObject bodyGen = arGen.result();
-            String refreshTokenString = bodyGen.getString("refresh_token");
 
-            when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
+        String v1Param = "email=" + emailAddress;
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", emailAddress);
 
-            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshTokenString), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse response = ar.result();
-                assertEquals(200, response.statusCode());
-                JsonObject json = response.bodyAsJsonObject();
+        sendTokenGenerate(apiVersion, vertx,
+            v1Param, v2Payload, 200,
+            json -> {
                 assertEquals("success", json.getString("status"));
                 JsonObject body = json.getJsonObject("body");
                 assertNotNull(body);
                 V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
 
-                AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
+                String advTokenStr = body.getString("advertising_token");
+                AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(Utils.decodeBase64String(advTokenStr));
                 assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
                 assertEquals(TokenUtils.getAdvertisingIdFromEmail(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
 
-                assertNotEquals(refreshTokenString, body.getString("refresh_token"));
-                RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
+                RefreshToken refreshToken = encoder.decode(apiVersion.equals("v2") ? body.getBinary("original_refresh_token") : body.getBinary("refresh_token"));
                 assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
                 assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
 
@@ -533,26 +580,112 @@ public class UIDOperatorVerticleTest {
 
                 testContext.completeNow();
             });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateForEmailHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailHash = TokenUtils.getEmailHash("test@uid2.com");
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        String v1Param = "email_hash=" + urlEncode(emailHash);
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email_hash", emailHash);
+
+        sendTokenGenerate(apiVersion, vertx,
+            v1Param, v2Payload, 200,
+            json -> {
+                assertEquals("success", json.getString("status"));
+                JsonObject body = json.getJsonObject("body");
+                assertNotNull(body);
+                V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
+
+                String advTokenStr = body.getString("advertising_token");
+                AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(Utils.decodeBase64String(advTokenStr));
+                assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
+                assertEquals(TokenUtils.getAdvertisingIdFromEmailHash(emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
+
+                RefreshToken refreshToken = encoder.decode(apiVersion.equals("v2") ? body.getBinary("original_refresh_token") : body.getBinary("refresh_token"));
+                assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
+                assertEquals(TokenUtils.getFirstLevelKey(emailHash, firstLevelSalt), refreshToken.getIdentity().getId());
+
+                assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
+                assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
+                assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
+
+                testContext.completeNow();
+            });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateThenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        generateTokens(apiVersion, vertx, "email", emailAddress, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject bodyJson = genRespJson.getJsonObject("body");
+            assertNotNull(bodyJson);
+
+            String genRefreshToken = bodyJson.getString("refresh_token");
+
+            when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
+
+            sendTokenRefresh(apiVersion, vertx, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            {
+                assertEquals("success", refreshRespJson.getString("status"));
+                JsonObject refreshBody = refreshRespJson.getJsonObject("body");
+                assertNotNull(refreshBody);
+                V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
+
+                AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(refreshBody.getBinary("advertising_token"));
+                assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
+                assertEquals(TokenUtils.getAdvertisingIdFromEmail(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
+
+                String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "original_refresh_token" : "refresh_token");
+                assertNotEquals(genRefreshToken, refreshTokenStringNew);
+                RefreshToken refreshToken = encoder.decode(Utils.decodeBase64String(refreshTokenStringNew));
+                assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
+                assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
+
+                assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
+                assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
+                assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_from")), 10);
+
+                testContext.completeNow();
+            });
         });
     }
 
-    @Test
-    void tokenGenerateThenValidateWithEmail_Match(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateThenValidateWithEmail_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        generateTokens(vertx, "email", emailAddress, arGen -> {
-            assertTrue(arGen.succeeded());
-            JsonObject bodyGen = arGen.result();
-            String advertisingTokenString = bodyGen.getString("advertising_token");
 
-            get(vertx, "v1/token/validate?token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress, ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse response = ar.result();
-                assertEquals(200, response.statusCode());
-                JsonObject json = response.bodyAsJsonObject();
+        generateTokens(apiVersion, vertx, "email", emailAddress, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject genBody = genRespJson.getJsonObject("body");
+            assertNotNull(genBody);
+
+            String advertisingTokenString = genBody.getString("advertising_token");
+
+            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress;
+            JsonObject v2Payload = new JsonObject();
+            v2Payload.put("token", advertisingTokenString);
+            v2Payload.put("email", emailAddress);
+
+            send(apiVersion, vertx, apiVersion + "/token/validate", true, v1Param, v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
                 assertEquals("success", json.getString("status"));
 
@@ -561,23 +694,28 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenGenerateThenValidateWithEmailHash_Match(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateThenValidateWithEmailHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        generateTokens(vertx, "email", emailAddress, arGen -> {
-            assertTrue(arGen.succeeded());
-            JsonObject bodyGen = arGen.result();
-            String advertisingTokenString = bodyGen.getString("advertising_token");
 
-            get(vertx, "v1/token/validate?token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(UIDOperatorVerticle.ValidationInput), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse response = ar.result();
-                assertEquals(200, response.statusCode());
-                JsonObject json = response.bodyAsJsonObject();
+        generateTokens(apiVersion, vertx, "email", emailAddress, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject genBody = genRespJson.getJsonObject("body");
+            assertNotNull(genBody);
+
+            String advertisingTokenString = genBody.getString("advertising_token");
+
+            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(UIDOperatorVerticle.ValidationInput);
+            JsonObject v2Payload = new JsonObject();
+            v2Payload.put("token", advertisingTokenString);
+            v2Payload.put("email_hash", UIDOperatorVerticle.ValidationInput);
+
+            send(apiVersion, vertx, apiVersion + "/token/validate", true, v1Param, v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
                 assertEquals("success", json.getString("status"));
 
@@ -586,23 +724,29 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenGenerateThenValidateWithBothEmailAndEmailHash(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateThenValidateWithBothEmailAndEmailHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        generateTokens(vertx, "email", emailAddress, arGen -> {
-            assertTrue(arGen.succeeded());
-            JsonObject bodyGen = arGen.result();
-            String advertisingTokenString = bodyGen.getString("advertising_token");
 
-            get(vertx, "v1/token/validate?token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress + "&email_hash=" + urlEncode(UIDOperatorVerticle.ValidationInput), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse response = ar.result();
-                assertEquals(400, response.statusCode());
-                JsonObject json = response.bodyAsJsonObject();
+        generateTokens(apiVersion, vertx, "email", emailAddress, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject genBody = genRespJson.getJsonObject("body");
+            assertNotNull(genBody);
+
+            String advertisingTokenString = genBody.getString("advertising_token");
+
+            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress + "&email_hash=" + urlEncode(UIDOperatorVerticle.ValidationInput);
+            JsonObject v2Payload = new JsonObject();
+            v2Payload.put("token", advertisingTokenString);
+            v2Payload.put("email", emailAddress);
+            v2Payload.put("email_hash", emailAddress);
+
+            send(apiVersion, vertx, apiVersion + "/token/validate", true, v1Param, v2Payload, 400, json -> {
                 assertFalse(json.containsKey("body"));
                 assertEquals("client_error", json.getString("status"));
 
@@ -611,8 +755,9 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenGenerateUsingCustomSiteKey(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateUsingCustomSiteKey(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final int siteKeyId = 1201;
         final String emailAddress = "test@uid2.com";
@@ -620,11 +765,12 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
         setupSiteKey(clientSiteId, siteKeyId);
-        get(vertx, "v1/token/generate?email=" + emailAddress, ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(200, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
+
+        String v1Param = "email=" + emailAddress;
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", emailAddress);
+
+        sendTokenGenerate(apiVersion, vertx, v1Param, v2Payload, 200, json -> {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
@@ -636,7 +782,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
             assertEquals(TokenUtils.getAdvertisingIdFromEmail(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
 
-            RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
+            RefreshToken refreshToken = encoder.decode(body.getBinary(apiVersion.equals("v2") ? "original_refresh_token" : "refresh_token"));
             assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
             assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
 
@@ -644,109 +790,113 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenRefreshNoToken(Vertx vertx, VertxTestContext testContext) {
-        get(vertx, "v1/token/refresh", ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertEquals("client_error", json.getString("status"));
-
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void tokenRefreshInvalidTokenAuthenticated(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenRefreshNoToken(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
-        get(vertx, "v1/token/refresh?refresh_token=abcd", ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
+        sendTokenRefresh(apiVersion, vertx, "", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
-
             testContext.completeNow();
         });
     }
 
-    @Test
-    void tokenRefreshInvalidTokenUnauthenticated(Vertx vertx, VertxTestContext testContext) {
-        get(vertx, "v1/token/refresh?refresh_token=abcd", ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenRefreshInvalidTokenAuthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+
+        sendTokenRefresh(apiVersion, vertx, "abcd", "", 400, json -> {
+            assertEquals("invalid_token", json.getString("status"));
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenRefreshInvalidTokenUnauthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        sendTokenRefresh(apiVersion, vertx, "abcd", "", 400, json -> {
             assertEquals("error", json.getString("status"));
-
             testContext.completeNow();
         });
     }
 
-    private void generateRefreshToken(Vertx vertx, String email, int siteId, Handler<String> handler) {
+    private void generateRefreshToken(String apiVersion, Vertx vertx, String email, int siteId, Handler<JsonObject> handler) {
         fakeAuth(siteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        generateTokens(vertx, "email", email, arGen -> {
-            assertTrue(arGen.succeeded());
-            JsonObject bodyGen = arGen.result();
-            handler.handle(bodyGen.getString("refresh_token"));
-        });
+        generateTokens(apiVersion, vertx, "email", email, handler);
     }
 
-    @Test
-    void tokenRefreshExpiredTokenAuthenticated(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenRefreshExpiredTokenAuthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         final String emailAddress = "test@uid2.com";
-        generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
+        generateRefreshToken(apiVersion, vertx, emailAddress, clientSiteId, genRespJson -> {
+            JsonObject bodyJson = genRespJson.getJsonObject("body");
+            String refreshToken = bodyJson.getString("refresh_token");
             when(clock.instant()).thenAnswer(i -> Instant.now().plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
-            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse response = ar.result();
-                assertEquals(400, response.statusCode());
-                JsonObject json = response.bodyAsJsonObject();
-                assertEquals("expired_token", json.getString("status"));
 
+            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 400, refreshRespJson-> {
+                assertEquals("expired_token", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
         });
     }
 
-    @Test
-    void tokenRefreshExpiredTokenUnauthenticated(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenRefreshExpiredTokenUnauthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
-        generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
+
+        generateRefreshToken(apiVersion, vertx, emailAddress, clientSiteId, genRespJson -> {
+            String refreshToken = genRespJson.getJsonObject("body").getString("refresh_token");
             clearAuth();
             when(clock.instant()).thenAnswer(i -> Instant.now().plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
-            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse response = ar.result();
-                assertEquals(400, response.statusCode());
-                JsonObject json = response.bodyAsJsonObject();
-                assertEquals("error", json.getString("status"));
 
+            sendTokenRefresh(apiVersion, vertx, refreshToken, "", 400, refreshRespJson-> {
+                assertEquals("error", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
         });
     }
 
-    @Test
-    void tokenRefreshOptOut(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenRefreshOptOut(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
-        generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
+        generateRefreshToken(apiVersion, vertx, emailAddress, clientSiteId, genRespJson  -> {
+            JsonObject bodyJson = genRespJson.getJsonObject("body");
+            String refreshToken = bodyJson.getString("refresh_token");
+
             when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
-            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse response = ar.result();
-                assertEquals(200, response.statusCode());
-                JsonObject json = response.bodyAsJsonObject();
-                assertEquals("optout", json.getString("status"));
+            sendTokenRefresh(apiVersion, vertx, refreshToken, "", 400, refreshRespJson -> {
+                assertEquals("optout", refreshRespJson.getString("status"));
+                testContext.completeNow();
+            });
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenRefreshOptOutBeforeLogin(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        generateRefreshToken(apiVersion, vertx, emailAddress, clientSiteId, genRespJson -> {
+            JsonObject bodyJson = genRespJson.getJsonObject("body");
+            String refreshToken = bodyJson.getString("refresh_token");
+            String refreshTokenDecryptSecret = bodyJson.getString("refresh_response_key");
+
+            when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now().minusSeconds(10));
+
+            sendTokenRefresh(apiVersion, vertx, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
+                assertEquals("success", refreshRespJson.getString("status"));
 
                 testContext.completeNow();
             });
@@ -754,19 +904,40 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void tokenRefreshOptOutBeforeLogin(Vertx vertx, VertxTestContext testContext) {
+    void v2HandleV1RefreshToken(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
+        fakeAuth(201, Role.GENERATOR);
         final String emailAddress = "test@uid2.com";
-        generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
-            when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now().minusSeconds(10));
 
-            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse response = ar.result();
-                assertEquals(200, response.statusCode());
-                JsonObject json = response.bodyAsJsonObject();
-                assertEquals("success", json.getString("status"));
+        generateRefreshToken("v1", vertx, emailAddress, clientSiteId, genRespJson -> {
+            JsonObject bodyJson = genRespJson.getJsonObject("body");
+            String refreshToken = bodyJson.getString("refresh_token");
 
+            sendTokenRefresh("v2", vertx, refreshToken, null, 200, refreshRespJson -> {
+                assertEquals("success", refreshRespJson.getString("status"));
+
+                JsonObject refreshBodyJson = refreshRespJson.getJsonObject("body");
+                assertNotNull(refreshBodyJson.getString("refresh_response_key"));
+
+                decodeV2RefreshToken(refreshRespJson);
+
+                testContext.completeNow();
+            });
+        });
+    }
+
+    @Test
+    void v1HandleV2RefreshToken(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(201, Role.GENERATOR);
+        final String emailAddress = "test@uid2.com";
+
+        generateRefreshToken("v2", vertx, emailAddress, clientSiteId, genRespJson -> {
+            JsonObject bodyJson = genRespJson.getJsonObject("body");
+            String refreshToken = bodyJson.getString("refresh_token");
+
+            sendTokenRefresh("v1", vertx, refreshToken, null, 200, refreshRespJson -> {
+                assertEquals("success", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
         });

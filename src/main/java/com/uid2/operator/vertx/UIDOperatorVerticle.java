@@ -47,6 +47,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -103,7 +104,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
-        this.v2PayloadHandler = new V2PayloadHandler(config.getBoolean("enable_v2_encryption", true), clock);
+        this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), clock);
     }
 
     @Override
@@ -189,6 +190,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void setupV2Routes(Router mainRouter) {
         final Router v2Router = Router.router(vertx);
 
+        v2Router.post("/token/generate").handler(auth.handleV1(
+            rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
+        v2Router.post("/token/refresh").handler(auth.handleWithOptionalAuth(
+            rc -> v2PayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
         v2Router.post("/token/validate").handler(auth.handleV1(
             rc -> v2PayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
         v2Router.post("/identity/buckets").handler(auth.handleV1(
@@ -265,11 +270,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
+        String refreshToken = tokenList.get(0);
+        if (refreshToken.length() == v2PayloadHandler.V2_REFRESH_PAYLOAD_LENGTH) {
+            // V2 token sent by V1 JSSDK. Decrypt and extract original refresh token
+            JsonObject v2Json = V2PayloadHandler.decodeV2RefreshPayload(this.keyStore, refreshToken);
+            refreshToken = v2Json.getString("refresh_token");
+        }
+
         try {
-            RefreshResponse r = idService.refreshIdentity(tokenList.get(0));
+            RefreshResponse r = idService.refreshIdentity(refreshToken);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
-                    ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
+                    ResponseUtil.Error(ResponseStatus.OptOut, 400, rc, "User opt out");
                 } else if (!AuthMiddleware.isAuthenticated(rc)) {
                     // unauthenticated clients get a generic error
                     ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
@@ -287,7 +299,32 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             e.printStackTrace();
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
         }
+    }
 
+    private void handleTokenRefreshV2(RoutingContext rc) {
+        try {
+            String tokenStr = (String) rc.data().get("refresh_token");
+            RefreshResponse r = idService.refreshIdentity(tokenStr);
+            if (!r.isRefreshed()) {
+                if (r.isOptOut() || r.isDeprecated()) {
+                    ResponseUtil.Error(ResponseStatus.OptOut, 400, rc, "User opt out");
+                } else if (!AuthMiddleware.isAuthenticated(rc)) {
+                    // unauthenticated clients get a generic error
+                    ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                } else if (r.isInvalidToken()) {
+                    ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
+                } else if (r.isExpired()) {
+                    ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                } else {
+                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
+                }
+            } else {
+                ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
+        }
     }
 
     private void handleTokenValidateV1(RoutingContext rc) {
@@ -326,7 +363,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (ValidationInput.equals(input.getIdentityInput())) {
                 try {
                     String token = req.getString("token");
-
                     if (this.idService.doesMatch(token, input.getIdentityInput(), Instant.now())) {
                         ResponseUtil.SuccessV2(rc, Boolean.TRUE);
                     } else {
@@ -360,6 +396,25 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            rc.fail(500);
+        }
+    }
+
+    private void handleTokenGenerateV2(RoutingContext rc) {
+        try {
+            JsonObject req = (JsonObject) rc.data().get("request");
+
+            final InputUtil.InputVal input = this.getTokenInputV2(req);
+            if (!checkTokenInput(input, rc)) {
+                return;
+            } else {
+                final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+                final IdentityTokens t = this.idService.generateIdentity(
+                    new IdentityRequest(input.getIdentityInput(), clientKey.getSiteId(), 1));
+                ResponseUtil.SuccessV2(rc, toJsonV1(t));
+            }
+        } catch (Exception e) {
+            LOGGER.error(e);
             rc.fail(500);
         }
     }

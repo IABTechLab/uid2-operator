@@ -67,6 +67,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
@@ -189,7 +190,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        final List<EncryptionKey> keys = this.keyStore.getSnapshot().getActiveKeySet();
+        final List<EncryptionKey> keys = this.keyStore.getSnapshot().getActiveKeySet()
+            .stream().filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
+            .collect(Collectors.toList());
         final IKeyAclProvider.IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
         onSuccess.handle(toJson(keys, clientKey, acls));
     }

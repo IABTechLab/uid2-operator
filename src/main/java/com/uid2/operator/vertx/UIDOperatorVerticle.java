@@ -68,7 +68,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class UIDOperatorVerticle extends AbstractVerticle {
+public class UIDOperatorVerticle extends AbstractVerticle{
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
 
     public static final String ValidationInputEmail = "validate@email.com";
@@ -153,6 +153,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
+        router.route().handler(new APIUsageCaptureHandler());
         // Current version APIs
         router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
         router.get("/v1/token/validate").handler(this::handleTokenValidateV1);

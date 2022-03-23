@@ -1,4 +1,6 @@
 package com.uid2.operator.vertx;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
 import io.vertx.core.Handler;
@@ -8,6 +10,7 @@ import io.vertx.ext.web.RoutingContext;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Semaphore;
 
 //TODO Maybe Come up with a better name
 public class APIUsageCaptureHandler implements Handler<RoutingContext> {
@@ -15,18 +18,35 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
     private final Vertx vertx;
     private ConcurrentHashMap<String, Endpoint> pathMap;
 
+    private static final int MAX_AVAILABLE = 1000;
+    private final Semaphore available;
+
     public APIUsageCaptureHandler() {
         vertx = Vertx.vertx();
         pathMap = new ConcurrentHashMap<>();
-        vertx.setPeriodic(1000, this::handleJsonSerial);
+        vertx.setPeriodic(60000, this::handleJsonSerial);
+        available = new Semaphore(MAX_AVAILABLE, true);
     }
 
     public void handleJsonSerial(Long l) {
-        System.out.println(l);
-        Object[] keys = pathMap.keySet().toArray();
-        for (int i = 0; i < pathMap.size(); i++) {
-            System.out.println(pathMap.get(keys[i]));
+        try {
+            available.acquire(MAX_AVAILABLE);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
+        Object[] keys = pathMap.keySet().toArray();
+        ObjectMapper mapper = new ObjectMapper();
+        String jsonString = null;
+        for (int i = 0; i < pathMap.size(); i++) {
+            try {
+                jsonString = mapper.writeValueAsString(pathMap.get(keys[i]));
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+            System.out.println(jsonString);
+        }
+        pathMap.clear();
+        available.release(MAX_AVAILABLE);
     }
 
     public void handleQueue(Void v) {
@@ -47,7 +67,13 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
 
         Endpoint endpointClass = new Endpoint(endpoint, siteId, apiVersion, domain);
 
+        try {
+            available.acquire();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         pathMap.merge(path, endpointClass, this::mergeEndpoint);
+        available.release();
     }
 
     private Endpoint mergeEndpoint(Endpoint a, Endpoint b) {
@@ -83,6 +109,10 @@ class Domain {
         return count;
     }
 
+    public String getApiContact() {
+        return apiContact;
+    }
+
     public void merge(Domain d) {
         count += d.getCount();
     }
@@ -109,6 +139,22 @@ class Endpoint {
         domainMap = new HashMap<>();
 
         AddDomain(d);
+    }
+
+    public String getEndpoint() {
+        return endpoint;
+    }
+
+    public Integer getSiteId() {
+        return siteId;
+    }
+
+    public String getApiVersion() {
+        return apiVersion;
+    }
+
+    public LinkedList<Domain> getDomainList() {
+        return domainList;
     }
 
     public void Merge(Endpoint other) {

@@ -122,7 +122,7 @@ public class UIDOperatorVerticleTest {
     }
 
     private void fakeAuth(int siteId, Role... roles) {
-        ClientKey clientKey = new ClientKey("test-key").withSiteId(siteId).withRoles(roles);
+        ClientKey clientKey = new ClientKey("test-key", "test-secret").withSiteId(siteId).withRoles(roles);
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
     }
 

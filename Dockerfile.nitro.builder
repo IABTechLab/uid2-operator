@@ -1,7 +1,5 @@
 FROM ubuntu:18.04
 
-ARG GITHUB_ACCESS_TOKEN
-ENV GITHUB_ACCESS_TOKEN=${GITHUB_ACCESS_TOKEN}
 ENV enclave_platform="aws-nitro"
 
 RUN apt-get update -y

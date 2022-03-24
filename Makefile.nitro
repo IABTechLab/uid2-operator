@@ -33,6 +33,9 @@ clean:
 	cd build/dante-1.4.3; ./configure
 	cd build/dante-1.4.3; make
 
+package: build_eif ./scripts/aws/start.sh ./scripts/aws/stop.sh ./scripts/aws/allocator.template.yaml ./scripts/aws/proxies.host.yaml ./scripts/aws/uid2operator.service
+	
+
 build_eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/dependencies/vsockpx build/Dockerfile build/conf/prod-config.json
 	cd build; docker build -t uid2operator .
 	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
@@ -50,10 +53,10 @@ build/entrypoint.sh: build_artifacts
 	cp ./scripts/aws/entrypoint.sh ./build/
 
 build_artifacts: Dockerfile.nitro.builder
-	docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder --build-arg GITHUB_ACCESS_TOKEN=$(GITHUB_ACCESS_TOKEN) .
+	docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder .
 	docker cp $(shell docker create --rm uid2-nitro-builder):/build .
 
 setup_dependencies: 
-	GITHUB_ACCESS_TOKEN=$(GITHUB_ACCESS_TOKEN) enclave_platform="aws-nitro" ./setup_dependencies.sh
+	enclave_platform="aws-nitro" ./setup_dependencies.sh
 
-.PHONY: install uninstall setup_nitro setup_dependencies build_artifacts build_eif
+.PHONY: install uninstall setup_nitro setup_dependencies build_artifacts build_eif package

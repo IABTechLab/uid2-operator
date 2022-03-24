@@ -30,7 +30,7 @@ popd
 if [ "$enclave_platform" = "aws-nitro" ]
 then
     echo 'uid2-attestation-aws: download'
-    git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/nsm-java.git
+    git clone https://github.com/IABTechLab/nsm-java.git
 
     VERSION=${1:-"1.0.0"}
     GROUP_ID="com.uid2"
@@ -45,7 +45,7 @@ then
     cargo build --lib --release
     popd
 
-    git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/vsock-skeleton-key.git
+    git clone https://github.com/IABTechLab/vsock-skeleton-key.git
     pushd vsock-skeleton-key || exit
     mkdir build
     cd build
@@ -57,7 +57,7 @@ then
 elif [ "$enclave_platform" = "gcp-vmid" ]
 then
     echo 'uid2-attestation-gcp: download'
-    git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/uid2-attestation-gcp.git
+    git clone https://github.com/IABTechLab/uid2-attestation-gcp.git
 
     VERSION=${1:-"1.0.0"}
     GROUP_ID="com.uid2"
@@ -70,7 +70,7 @@ then
 elif [ "$enclave_platform" = "azure-sgx" ]
 then
     echo 'uid2-attestation-azure: download'
-    git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/uid2-attestation-azure.git
+    git clone https://github.com/IABTechLab/uid2-attestation-azure.git
 
     VERSION=${1:-"1.0.0"}
     GROUP_ID="com.uid2"

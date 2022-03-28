@@ -148,7 +148,7 @@ public class V2EncryptedTokenEncoder implements ITokenEncoder {
 
     @Override
     public byte[] encode(RefreshToken t) {
-        final EncryptionKey serviceKey = this.keyStore.getSnapshot().getMasterKey(Instant.now());
+        final EncryptionKey serviceKey = this.keyStore.getSnapshot().getRefreshKey(Instant.now());
 
         final Buffer b = Buffer.buffer();
         b.appendByte((byte) t.getVersion());

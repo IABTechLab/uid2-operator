@@ -4,7 +4,7 @@ mkdir dependencies
 cd dependencies
 
 echo 'enclave-attestation-api: download'
-git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/enclave-attestation-api-java.git
+git clone https://github.com/IABTechLab/enclave-attestation-api-java.git
 
 VERSION=${1:-"1.0.0"}
 GROUP_ID="com.uid2"

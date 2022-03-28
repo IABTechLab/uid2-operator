@@ -13,6 +13,7 @@
         <vertx.version>3.9.2</vertx.version>
         <vertx-maven-plugin.version>1.0.22</vertx-maven-plugin.version>
         <junit-jupiter.version>5.7.0</junit-jupiter.version>
+        <junit-vintage.version>5.7.0</junit-vintage.version>
         <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
         <vertx.verticle>com.uid2.operator.vertx.UIDOperatorVerticle</vertx.verticle>
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
@@ -81,9 +82,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <version>${junit-vintage.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -225,6 +226,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.22.2</version>
                 <configuration>
+                    <argLine>-Dfile.encoding=${project.build.sourceEncoding}</argLine>
                     <systemProperties>
                         <property>
                             <name>java.security.egd</name>

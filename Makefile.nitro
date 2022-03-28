@@ -33,9 +33,6 @@ clean:
 	cd build/dante-1.4.3; ./configure
 	cd build/dante-1.4.3; make
 
-package: build_eif ./scripts/aws/start.sh ./scripts/aws/stop.sh ./scripts/aws/allocator.template.yaml ./scripts/aws/proxies.host.yaml ./scripts/aws/uid2operator.service
-	
-
 build_eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/dependencies/vsockpx build/Dockerfile build/conf/prod-config.json
 	cd build; docker build -t uid2operator .
 	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
@@ -54,7 +51,7 @@ build/entrypoint.sh: build_artifacts
 
 build_artifacts: Dockerfile.nitro.builder
 	docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder .
-	docker cp $(shell docker create --rm uid2-nitro-builder):/build .
+	docker cp $(docker create --rm uid2-nitro-builder):/build .
 
 setup_dependencies: 
 	enclave_platform="aws-nitro" ./setup_dependencies.sh

@@ -3,54 +3,70 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
+import com.uid2.shared.store.IClientKeyProvider;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.RoutingContext;
 
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 
+
 //TODO Maybe Come up with a better name
 public class APIUsageCaptureHandler implements Handler<RoutingContext> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(APIUsageCaptureHandler.class);
+
     private final ConcurrentLinkedQueue<RoutingContext> requestQueue = new ConcurrentLinkedQueue<>();
     private final Vertx vertx;
     private ConcurrentHashMap<String, Endpoint> pathMap;
 
     private static final int MAX_AVAILABLE = 1000;
-    private final Semaphore available;
+    private final Semaphore jsonSemaphore;
+    private final Semaphore queueSemaphore;
 
-    public APIUsageCaptureHandler() {
+    public APIUsageCaptureHandler(Boolean periodicJson) {
         vertx = Vertx.vertx();
         pathMap = new ConcurrentHashMap<>();
-        vertx.setPeriodic(60000, this::handleJsonSerial);
-        available = new Semaphore(MAX_AVAILABLE, true);
+        if (periodicJson) {
+            vertx.setPeriodic(60000, this::handleJsonSerial);
+
+        }
+        jsonSemaphore = new Semaphore(MAX_AVAILABLE, true);
+        queueSemaphore = new Semaphore(MAX_AVAILABLE, true);
     }
 
     public void handleJsonSerial(Long l) {
         try {
-            available.acquire(MAX_AVAILABLE);
+            jsonSemaphore.acquire(MAX_AVAILABLE);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        Object[] keys = pathMap.keySet().toArray();
+
+        Object[] localValues = pathMap.values().toArray();
+        pathMap.clear();
+        jsonSemaphore.release(MAX_AVAILABLE);
+
+
         ObjectMapper mapper = new ObjectMapper();
         String jsonString = null;
-        for (int i = 0; i < pathMap.size(); i++) {
+        for (int i = 0; i < localValues.length; i++) {
             try {
-                jsonString = mapper.writeValueAsString(pathMap.get(keys[i]));
+                jsonString = mapper.writeValueAsString(localValues[i]);
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
-            System.out.println(jsonString);
+            LOGGER.debug(jsonString);
         }
-        pathMap.clear();
-        available.release(MAX_AVAILABLE);
     }
 
     public void handleQueue(Void v) {
         RoutingContext routingContext = requestQueue.poll();
+        queueSemaphore.release();
         assert routingContext != null;
         //TODO Add case for no version api
         String path = routingContext.request().path();
@@ -68,12 +84,12 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         Endpoint endpointClass = new Endpoint(endpoint, siteId, apiVersion, domain);
 
         try {
-            available.acquire();
+            jsonSemaphore.acquire();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         pathMap.merge(path, endpointClass, this::mergeEndpoint);
-        available.release();
+        jsonSemaphore.release();
     }
 
     private Endpoint mergeEndpoint(Endpoint a, Endpoint b) {
@@ -85,6 +101,11 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
     @Override
     public void handle(RoutingContext routingContext) {
         routingContext.next();
+        if(!queueSemaphore.tryAcquire()){
+            //Queue is full
+            System.out.println("Queue is full");
+            return;
+        }
         requestQueue.offer(routingContext);
         vertx.runOnContext(this::handleQueue);
     }

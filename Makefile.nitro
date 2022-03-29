@@ -58,4 +58,4 @@ build_artifacts: Dockerfile.nitro.builder
 setup_dependencies: 
 	enclave_platform="aws-nitro" ./setup_dependencies.sh
 
-.PHONY: install uninstall setup_nitro setup_dependencies build_artifacts build_eif package
+.PHONY: install uninstall setup_nitro setup_dependencies build_artifacts build_eif

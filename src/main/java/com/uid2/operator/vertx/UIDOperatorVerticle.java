@@ -153,7 +153,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
-        router.route().handler(new APIUsageCaptureHandler(true));
+        router.route().handler(new APIUsageCaptureHandler(60000));
         // Current version APIs
         router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
         router.get("/v1/token/validate").handler(this::handleTokenValidateV1);

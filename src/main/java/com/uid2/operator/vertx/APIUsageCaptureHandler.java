@@ -29,13 +29,10 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
     private final Semaphore jsonSemaphore;
     private final Semaphore queueSemaphore;
 
-    public APIUsageCaptureHandler(Boolean periodicJson) {
+    public APIUsageCaptureHandler(long periodicDuration) {
         vertx = Vertx.vertx();
         pathMap = new ConcurrentHashMap<>();
-        if (periodicJson) {
-            vertx.setPeriodic(60000, this::handleJsonSerial);
-
-        }
+        vertx.setPeriodic(periodicDuration, this::handleJsonSerial);
         jsonSemaphore = new Semaphore(MAX_AVAILABLE, true);
         queueSemaphore = new Semaphore(MAX_AVAILABLE, true);
     }
@@ -70,9 +67,14 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         assert routingContext != null;
         //TODO Add case for no version api
         String path = routingContext.request().path();
-        int apiVIndex = path.indexOf("/", 1);
-        String apiVersion = path.substring(1, apiVIndex);
-        String endpoint = path.substring(apiVIndex+1);
+        String apiVersion = "v0";
+        String endpoint = path.substring(1);
+
+        if(path.charAt(1) == 'v') {
+            int apiVIndex = path.indexOf("/", 1);
+            apiVersion = path.substring(1, apiVIndex);
+            endpoint = path.substring(apiVIndex+1);
+        }
 
         String referer = routingContext.request().headers().get("Referer");
         ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(routingContext);

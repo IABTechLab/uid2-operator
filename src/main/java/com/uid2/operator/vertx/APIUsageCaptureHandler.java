@@ -17,7 +17,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 
 
-//TODO Maybe Come up with a better name
 public class APIUsageCaptureHandler implements Handler<RoutingContext> {
     private static final Logger LOGGER = LoggerFactory.getLogger(APIUsageCaptureHandler.class);
 
@@ -65,7 +64,6 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         RoutingContext routingContext = requestQueue.poll();
         queueSemaphore.release();
         assert routingContext != null;
-        //TODO Add case for no version api
         String path = routingContext.request().path();
         String apiVersion = "v0";
         String endpoint = path.substring(1);

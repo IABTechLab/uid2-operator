@@ -1,6 +1,6 @@
 name: Setup Dependancies 
 inputs:
-  cloud_provider:
+  cloud_provnameer:
     required: true
     type: string
 
@@ -8,7 +8,6 @@ runs:
   using: "composite"
   steps:
     - name: Set up JDK
-      shell: bash
       uses: actions/setup-java@v2
       with:
         java-version: '11'
@@ -23,7 +22,6 @@ runs:
         mvn -v
     
     - name: Set up Python3
-      shell: bash
       uses: actions/setup-python@v2
       with:
         python-version: '3.8'

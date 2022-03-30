@@ -64,7 +64,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -119,7 +122,7 @@ public class UIDOperatorVerticleTest {
     }
 
     private void fakeAuth(int siteId, Role... roles) {
-        ClientKey clientKey = new ClientKey("test-key").withSiteId(siteId).withRoles(roles);
+        ClientKey clientKey = new ClientKey("test-key", "test-secret").withSiteId(siteId).withRoles(roles);
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
     }
 
@@ -189,11 +192,15 @@ public class UIDOperatorVerticleTest {
     private void setupKeys() {
         EncryptionKey masterKey = new EncryptionKey(101, makeAesKey("masterKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), -1);
         EncryptionKey siteKey = new EncryptionKey(102, makeAesKey("siteKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), Const.Data.AdvertisingTokenSiteId);
+        EncryptionKey refreshKey = new EncryptionKey(103, makeAesKey("refreshKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), -2);
         when(keyAclProviderSnapshot.canClientAccessKey(any(), any())).thenReturn(true);
         when(keyStoreSnapshot.getMasterKey(any())).thenReturn(masterKey);
+        when(keyStoreSnapshot.getRefreshKey(any())).thenReturn(refreshKey);
         when(keyStoreSnapshot.getActiveSiteKey(eq(Const.Data.AdvertisingTokenSiteId), any())).thenReturn(siteKey);
         when(keyStoreSnapshot.getKey(101)).thenReturn(masterKey);
         when(keyStoreSnapshot.getKey(102)).thenReturn(siteKey);
+        when(keyStoreSnapshot.getKey(103)).thenReturn(refreshKey);
+        when(keyStoreSnapshot.getActiveKeySet()).thenReturn(Arrays.asList(new EncryptionKey[] {masterKey, siteKey, refreshKey}));
     }
 
     private void setupSiteKey(int siteId, int keyId) {
@@ -273,6 +280,26 @@ public class UIDOperatorVerticleTest {
             testContext.completeNow();
         });
     }
+
+    @Test void keyLatestHideRefreshKey(Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(205, Role.ID_READER);
+        EncryptionKey[] encryptionKeys = {
+            new EncryptionKey(101, "key101".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), -1),
+            new EncryptionKey(102, "key102".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), -2),
+            new EncryptionKey(103, "key103".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 202),
+        };
+        addEncryptionKeys(encryptionKeys);
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), any())).thenReturn(true);
+        get(vertx, "v1/key/latest", ar -> {
+            assertTrue(ar.succeeded());
+            HttpResponse response = ar.result();
+            assertEquals(200, response.statusCode());
+            checkEncryptionKeysResponse(response.bodyAsJsonObject(),
+                Arrays.stream(encryptionKeys).filter(k ->k.getSiteId() != -2).toArray(EncryptionKey[]::new));
+            testContext.completeNow();
+        });
+    }
+
 
     @Test void tokenGenerateBothEmailAndHashSpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
@@ -385,11 +412,7 @@ public class UIDOperatorVerticleTest {
             JsonObject bodyGen = arGen.result();
             String refreshTokenString = bodyGen.getString("refresh_token");
 
-            doAnswer(i -> {
-                Handler<AsyncResult<Instant>> handler = i.getArgument(1);
-                handler.handle(Future.succeededFuture());
-                return null;
-            }).when(this.optOutStore).getLatestEntry(any(), any());
+            when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
             get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshTokenString), ar -> {
                 assertTrue(ar.succeeded());
@@ -612,11 +635,8 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
-            doAnswer(i -> {
-                Handler<AsyncResult<Instant>> handler = i.getArgument(1);
-                handler.handle(Future.succeededFuture(Instant.now()));
-                return null;
-            }).when(this.optOutStore).getLatestEntry(any(), any());
+            when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
+
             get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
                 assertTrue(ar.succeeded());
                 HttpResponse response = ar.result();
@@ -633,11 +653,8 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         generateRefreshToken(vertx, emailAddress, clientSiteId, refreshToken -> {
-            doAnswer(i -> {
-                Handler<AsyncResult<Instant>> handler = i.getArgument(1);
-                handler.handle(Future.succeededFuture(Instant.now().minusSeconds(10)));
-                return null;
-            }).when(this.optOutStore).getLatestEntry(any(), any());
+            when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now().minusSeconds(10));
+
             get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
                 assertTrue(ar.succeeded());
                 HttpResponse response = ar.result();

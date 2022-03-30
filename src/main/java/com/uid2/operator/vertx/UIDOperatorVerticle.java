@@ -67,6 +67,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
@@ -156,7 +157,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // Current version APIs
         router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
         router.get("/v1/token/validate").handler(this::handleTokenValidateV1);
-        router.get("/v1/token/refresh").handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1Async));
+        router.get("/v1/token/refresh").handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1));
         router.get("/v1/identity/buckets").handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
         router.get("/v1/identity/map").handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
         router.post("/v1/identity/map").handler(auth.handle(this::handleIdentityMapBatchV1, Role.MAPPER));
@@ -189,7 +190,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        final List<EncryptionKey> keys = this.keyStore.getSnapshot().getActiveKeySet();
+        final List<EncryptionKey> keys = this.keyStore.getSnapshot().getActiveKeySet()
+            .stream().filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
+            .collect(Collectors.toList());
         final IKeyAclProvider.IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
         onSuccess.handle(toJson(keys, clientKey, acls));
     }
@@ -225,7 +228,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleTokenRefreshV1Async(RoutingContext rc) {
+    private void handleTokenRefreshV1(RoutingContext rc) {
         final List<String> tokenList = rc.queryParam("refresh_token");
         if (tokenList == null || tokenList.size() == 0) {
             ResponseUtil.ClientError(rc, "Required Parameter Missing: refresh_token");
@@ -233,34 +236,27 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         try {
-
-            this.idService.refreshIdentityAsync(tokenList.get(0), ar -> {
-                if (ar.succeeded()) {
-                    final RefreshResponse r = ar.result();
-                    if (!r.isRefreshed()) {
-                        if (r.isOptOut() || r.isDeprecated()) {
-                            ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
-                        } else if (!AuthMiddleware.isAuthenticated(rc)) {
-                            // unauthenticated clients get a generic error
-                            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
-                        } else if (r.isInvalidToken()) {
-                            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
-                        } else if (r.isExpired()) {
-                            ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
-                        } else {
-                            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
-                        }
-                    } else {
-                        ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
-                    }
+            RefreshResponse r = idService.refreshIdentity(tokenList.get(0));
+            if (!r.isRefreshed()) {
+                if (r.isOptOut() || r.isDeprecated()) {
+                    ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
+                } else if (!AuthMiddleware.isAuthenticated(rc)) {
+                    // unauthenticated clients get a generic error
+                    ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                } else if (r.isInvalidToken()) {
+                    ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
+                } else if (r.isExpired()) {
+                    ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
                 } else {
-                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
+                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
-
-            });
+            }
+            else {
+                ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
+            }
         } catch (Exception e) {
             e.printStackTrace();
-            rc.fail(500);
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
         }
 
     }
@@ -341,15 +337,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         try {
-
-            this.idService.refreshIdentityAsync(tokenList.get(0), ar -> {
-                if (ar.succeeded()) {
-                    final RefreshResponse r = ar.result();
-                    sendJsonResponse(rc, toJson(r.getTokens()));
-                } else {
-                    rc.fail(500);
-                }
-            });
+            final RefreshResponse r = this.idService.refreshIdentity(tokenList.get(0));
+            sendJsonResponse(rc, toJson(r.getTokens()));
         } catch (Exception e) {
             e.printStackTrace();
             rc.fail(500);
@@ -396,19 +385,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleOptOutGet(RoutingContext rc) {
         final InputUtil.InputVal input = getTokenInput(rc);
         if (input.isValid()) {
-            this.optOutStore.getLatestEntry(input.getIdentityInput(), ar -> {
-                if (ar.failed()) {
-                    rc.fail(500);
-                }
-                else {
-                    Instant result = ar.result();
-                    long timestamp = result == null ? -1 : result.getEpochSecond();
-                    rc.response().setStatusCode(200)
+            try {
+                Instant result = this.optOutStore.getLatestEntry(input.getIdentityInput());
+                long timestamp = result == null ? -1 : result.getEpochSecond();
+                rc.response().setStatusCode(200)
                         .setChunked(true)
                         .write(String.valueOf(timestamp))
                         .end();
-                }
-            });
+            }
+            catch ( Exception ex ) {
+                rc.fail(500);
+            }
         } else {
             rc.fail(400);
         }

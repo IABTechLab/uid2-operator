@@ -67,7 +67,7 @@ jobs:
 
           mkdir dependencies
           pushd dependencies
-          clone_repo https://${{ secrets.UID_REPO_ACCESS_TOKEN }}@github.com/UnifiedID2/enclave-attestation-api-java enclave-attestation-api-java
+          clone_repo https://github.com/IABTechLab/enclave-attestation-api-java.git enclave-attestation-api-java
           package_and_install enclave-attestation-api-java
           clone_repo https://github.com/IABTechLab/uid2-shared.git uid2-shared
           package_and_install uid2-shared

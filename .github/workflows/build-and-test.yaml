@@ -8,70 +8,9 @@ jobs:
     steps:
       # Check out repository $GITHUB_WORKSPACE
       - uses: actions/checkout@v2
-
-      # Setup JDK 11 and Maven
-      - name: Set up JDK
-        uses: actions/setup-java@v2
+      - uses: ./.github/workflows/setup_dependancies
         with:
-          java-version: '11'
-          distribution: 'temurin' # (Apache 2.0), (GPLv2+CE)
-          architecture: x64
-      - name: Check Building Environment
-        run: |
-          which java
-          which mvn
-          java -version
-          mvn -v
-      
-      - name: Set up Python3
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
-      - name: Install yq
-        run: pip3 install --no-cache-dir --user yq
-
-      # Install dependencies. 
-      # Note: will change when a public registry is in place
-      - name: Install Dependencies
-        env:
-          VERSION: '1.0.0'
-        run: |
-          clone_repo() { git clone "$1" "$2"; }
-          package_and_install() {
-            echo $1 - mvn package and install local 
-            cd $1
-
-            VERSION=`~/.local/bin/xq -r .project.version pom.xml`
-            echo "VERSION=$VERSION"
-            GROUP_ID=`~/.local/bin/xq -r .project.groupId pom.xml`
-            echo "GROUP_ID=$GROUP_ID"
-            ARTIFACT_ID=`~/.local/bin/xq -r .project.artifactId pom.xml`
-            echo "ARTIFACT_ID=$ARTIFACT_ID"
-            GIT_COMMIT="$(git show --format="%h" --no-patch)"
-            echo "GIT_COMMIT=$GIT_COMMIT"
-            IMAGE_VERSION="v$VERSION.$GIT_COMMIT"
-            echo "IMAGE_VERSION=$IMAGE_VERSION"
-
-            mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=warn package -Dimage.version="$IMAGE_VERSION" && \
-            mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=warn install:install-file \
-              -Dfile="./target/$ARTIFACT_ID-$VERSION.jar" \
-              -Dsources="./target/$ARTIFACT_ID-$VERSION-sources.jar" \
-              -DgroupId="$GROUP_ID" \
-              -DartifactId="$ARTIFACT_ID" \
-              -Dpackaging=jar \
-              -DpomFile="./pom.xml" \
-              -Dversion="$VERSION" \
-              -Dimage.version="$IMAGE_VERSION"
-            cd ..
-          }
-
-          mkdir dependencies
-          pushd dependencies
-          clone_repo https://github.com/IABTechLab/enclave-attestation-api-java.git enclave-attestation-api-java
-          package_and_install enclave-attestation-api-java
-          clone_repo https://github.com/IABTechLab/uid2-shared.git uid2-shared
-          package_and_install uid2-shared
-          popd
+          cloud_provider: test
       
       # Build and Run Unit Tests
       - name: Build and Run Unit Tests

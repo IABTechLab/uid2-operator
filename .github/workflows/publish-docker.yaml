@@ -48,6 +48,7 @@ jobs:
           echo "::set-output name=jar_name::$(ls target/*[0-9].jar)"
           echo "::set-output name=jar_dep_name::$(ls target/*dependencies.jar)"
           echo "::set-output name=static_name::$(ls target/*static.tar.gz)"
+          export JAR_VERSION="$(mvn help:evaluate -Dexpression=project.version | grep -e '^[^\[]')"
       - name: Log in to the Container registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:

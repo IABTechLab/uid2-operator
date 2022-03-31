@@ -3,11 +3,11 @@ on:
   workflow_call:
     inputs:
       tag:
-        descriptions: 'The tag to apply to the Docker file'
+        description: 'The tag to apply to the Docker file'
         required: true
         type: string
       cloud_provider:
-        descriptions: 'Must be one of [aws, gcp, azure, default]'
+        description: 'Must be one of [aws, gcp, azure, default]'
         required: false
         default: 'default'
         type: string

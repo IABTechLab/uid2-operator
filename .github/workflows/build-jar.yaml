@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       cloud_provider:
-        descriptions: 'Must be one of [aws, gcp, azure, default]'
+        description: 'Must be one of [aws, gcp, azure, default]'
         required: false
         default: 'default'
         type: string

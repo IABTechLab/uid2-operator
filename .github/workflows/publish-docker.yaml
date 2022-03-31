@@ -11,7 +11,16 @@ on:
         required: false
         default: 'default'
         type: string
-
+    outputs:
+      jar_name:
+        description: 'The name of the jar'
+        value: ${{ jobs.build.outputs.jar_name }}
+      jar_dep_name:
+        description: 'The name of the jar'
+        value: ${{ jobs.build.outputs.jar_dep_name }}
+      static_name:
+        description: 'The name of the jar'
+        value: ${{ jobs.build.outputs.static_name }}
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -24,6 +33,18 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v2
+      - uses: ./.github/workflows/setup_dependancies
+        with:
+          cloud_provider: ${{inputs.cloud_provider}} 
+      
+      # Build and Run Unit Tests
+      - name: Package Jar 
+        id: package
+        run: |
+          mvn package 
+          echo "::set-output name=jar_name::$(ls target/*[0-9].jar)"
+          echo "::set-output name=jar_dep_name::$(ls target/*dependencies.jar)"
+          echo "::set-output name=static_name::$(ls target/*static.tar.gz)"
       - name: Log in to the Container registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:

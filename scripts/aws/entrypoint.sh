@@ -6,7 +6,7 @@ ulimit -n 65536
 ifconfig lo 127.0.0.1
 
 # -- start vsock proxy
-/app/vsockpx --config /app/proxies.nitro.yaml --daemon --num-threads $(nproc) --log-level 3
+/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 4 )) --log-level 3
 
 user_data() {
   curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | jq -r ".\"$1\""

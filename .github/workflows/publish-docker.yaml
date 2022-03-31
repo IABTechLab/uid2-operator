@@ -19,11 +19,8 @@ env:
 jobs:
   build-jar:
     uses: ./.github/workflows/build-jar.yaml
-    with:
-      cloud_provider: ${{ inputs.cloud_provider }}
   build-publish-docker:
     runs-on: ubuntu-latest
-    needs: build-jar
     permissions:
       contents: read
       packages: write

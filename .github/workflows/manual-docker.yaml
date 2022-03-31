@@ -2,8 +2,13 @@ name: Manual Docker
 on: [push]
 
 jobs:
+  build_jar:
+    uses: ./.github/workflows/build-jar.yaml
+    with:
+      cloud_provider: 'default'
   create_docker:
     uses: ./.github/workflows/publish-docker.yaml
+    needs: build_jar 
     with:
       cloud_provider: 'default'
       tag: ''

@@ -26,6 +26,7 @@ jobs:
       static_name: ${{ steps.package.outputs.static_name }}
 
     steps:
+      - uses: actions/checkout@v2
       # Check out repository $GITHUB_WORKSPACE
       - uses: ./.github/workflows/setup_dependancies
         with:

@@ -1,0 +1,42 @@
+name: Build Jar 
+on: 
+  workflow_call:
+    inputs:
+      cloud_provider:
+        descriptions: 'Must be one of [aws, gcp, azure, default]'
+        required: false
+        default: 'default'
+        type: string
+    outputs:
+      jar_name:
+        description: 'The name of the jar'
+        value: ${{ jobs.build.outputs.jar_name }}
+      jar_dep_name:
+        description: 'The name of the jar'
+        value: ${{ jobs.build.outputs.jar_dep_name }}
+      static_name:
+        description: 'The name of the jar'
+        value: ${{ jobs.build.outputs.static_name }}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      jar_name: ${{ steps.package.outputs.jar_name }}
+      jar_dep_name: ${{ steps.package.outputs.jar_dep_name }}
+      static_name: ${{ steps.package.outputs.static_name }}
+
+    steps:
+      # Check out repository $GITHUB_WORKSPACE
+      - uses: ./.github/workflows/setup_dependancies
+        with:
+          cloud_provider: ${{inputs.cloud_provider}} 
+      
+      # Build and Run Unit Tests
+      - name: Build and Run Unit Tests
+        id: package
+        run: |
+          mvn package 
+          echo "::set-output name=jar_name::$(ls target/*[0-9].jar)"
+          echo "::set-output name=jar_dep_name::$(ls target/*dependencies.jar)"
+          echo "::set-output name=static_name::$(ls target/*static.tar.gz)"
+

@@ -1,0 +1,10 @@
+name: Manual Docker
+on: [push]
+
+jobs:
+  create_docker:
+    uses: ./.github/workflows/publish-docker.yaml
+    with:
+      cloud_provider: 'default'
+      tag: ''
+

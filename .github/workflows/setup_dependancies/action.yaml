@@ -1,7 +1,9 @@
 name: Setup Dependancies 
 inputs:
-  cloud_provnameer:
-    required: true
+  cloud_provider:
+    descriptions: 'Must be one of [aws, gcp, azure, default]'
+    required: false
+    default: 'default'
     type: string
 
 runs:

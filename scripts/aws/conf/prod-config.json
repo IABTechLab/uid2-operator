@@ -13,5 +13,8 @@
   "enclave_platform": "aws-nitro",
   "optout_synthetic_logs_enabled": false,
   "optout_synthetic_logs_count": 0,
-  "optout_inmem_cache": true
+  "optout_inmem_cache": true,
+  "identity_token_expires_after_seconds": 3600,
+  "refresh_token_expires_after_seconds": 86400,
+  "refresh_identity_token_after_seconds": 900
 }

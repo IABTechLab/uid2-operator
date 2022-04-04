@@ -36,6 +36,10 @@ overridable_variables=(           \
   'optout_api_uri'                \
   'optout_synthetic_logs_enabled' \
   'optout_synthetic_logs_count'   \
+  'optout_s3_folder'              \
+  'identity_token_expires_after_seconds'   \
+  'refresh_token_expires_after_seconds'    \
+  'refresh_identity_token_after_seconds'   \
 )
 
 echo "-- set api token"

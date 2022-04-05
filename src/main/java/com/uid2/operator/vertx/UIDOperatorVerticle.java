@@ -28,8 +28,10 @@ import com.uid2.operator.model.*;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.shared.Utils;
+import com.uid2.shared.attest.UidCoreClient;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Role;
+import com.uid2.shared.cloud.ICloudStorage;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
@@ -86,6 +88,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Clock clock;
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
+    private final ICloudStorage coreClient;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -93,7 +96,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IKeyAclProvider keyAclProvider,
                                ISaltProvider saltProvider,
                                IOptOutStore optOutStore,
-                               Clock clock) {
+                               Clock clock,
+                               ICloudStorage coreClient) {
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -102,6 +106,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
+        this.coreClient = coreClient;
     }
 
     @Override
@@ -139,6 +144,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private Router createRoutesSetup() throws IOException {
         final Router router = Router.router(vertx);
+
+        if (this.coreClient instanceof UidCoreClient) {
+            OperatorDisableHandler h = new OperatorDisableHandler(this.config, this.clock);
+            ((UidCoreClient) this.coreClient).setResponseStatusWatcher(h::handleResponseStatus);
+            router.route().handler(h);
+        }
 
         router.route().handler(new RequestCapturingHandler());
         router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js"));

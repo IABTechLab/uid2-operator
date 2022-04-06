@@ -5,11 +5,17 @@ ulimit -n 65536
 # setup loopback device
 ifconfig lo 127.0.0.1
 
+# add amazonaws dns
+echo "127.0.0.1 secretsmanager.$AWS_REGION_NAME.amazonaws.com" >> /etc/hosts
+
+export UID2_CONFIG_SECRET_KEY=${UID2_CONFIG_SECRET_KEY:-"uid2-operator-config-key"}
+config_json=$(python3 /app/load_config.py)
+
 # -- start vsock proxy
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 4 )) --log-level 3
 
-user_data() {
-  curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | jq -r ".\"$1\""
+get_config_override() {
+  echo $config_json | jq -r ".\"$1\""
 }
 
 set_config() {
@@ -37,26 +43,23 @@ overridable_variables=(           \
   'optout_synthetic_logs_enabled' \
   'optout_synthetic_logs_count'   \
   'optout_s3_folder'              \
-  'identity_token_expires_after_seconds'   \
-  'refresh_token_expires_after_seconds'    \
-  'refresh_identity_token_after_seconds'   \
 )
 
 echo "-- set api token"
-API_TOKEN=$(user_data 'api_token')
+API_TOKEN=$(get_config_override 'api_token')
 set_config 'core_api_token' "$API_TOKEN"
 set_config 'optout_api_token' "$API_TOKEN"
 
 echo "-- override runtime configurations"
 for varname in "${overridable_variables[@]}"; do
-  val=$(user_data "$varname")
+  val=$(get_config_override "$varname")
   if [[ -n "$val" && "$val" != "null" ]]; then
     set_config "$varname" "$val"
   fi
 done
 
 echo "-- setup loki"
-[[ "$(user_data 'loki_enabled')" == "true" ]] \
+[[ "$(get_config_override 'loki_enabled')" == "true" ]] \
   && SETUP_LOKI_LINE="-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory -Dlogback.configurationFile=./conf/logback.loki.xml" \
   || SETUP_LOKI_LINE=""
 

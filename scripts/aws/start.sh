@@ -5,6 +5,7 @@ EIF_PATH=${EIF_PATH:-/opt/uid2operator/uid2operator.eif}
 CID=${CID:-42}
 CPU_COUNT=${CPU_COUNT:-$(curl -s http://169.254.169.254/latest/user-data | jq -r '.enclave_cpu_count')}
 MEMORY_MB=${MEMORY_MB:-$(curl -s http://169.254.169.254/latest/user-data | jq -r '.enclave_memory_mb')}
+AWS_REGION_NAME=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r '.region')
 
 if [ -z "$CPU_COUNT" ] || [ -z "$MEMORY_MB" ]; then
     echo 'No CPU_COUNT or MEMORY_MB set, cannot start enclave'
@@ -40,6 +41,17 @@ function setup_dante() {
     sockd -D
 }
 
+function setup_aws_proxy() {
+    # allow vsock-proxy to forward to secretsmanager
+    AWS_VSOCK_CFG=/etc/nitro_enclave/vsock-proxy.yaml
+    found_line=$(grep "secretsmanager.$AWS_REGION_NAME.amazonaws.com" $AWS_VSOCK_CFG | grep "port: 443" | wc -l)
+    if [ "$found_line" == "0" ]; then
+        echo "- {address: secretsmanager.$AWS_REGION_NAME.amazonaws.com, port: 443}" >> $AWS_VSOCK_CFG
+    fi
+
+    nohup vsock-proxy 3308 secretsmanager.us-east-1.amazonaws.com 443 &
+}
+
 function run_enclave() {
     echo "starting enclave..."
     nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID
@@ -48,6 +60,7 @@ function run_enclave() {
 terminate_old_enclave
 update_allocation
 setup_vsockproxy
+setup_aws_proxy
 setup_dante
 run_enclave
 

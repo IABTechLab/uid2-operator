@@ -37,8 +37,11 @@ public class V2EncryptedTokenEncoder implements ITokenEncoder {
     private final IKeyStore keyStore;
     private final SecureRandom random = new SecureRandom();
 
-    public V2EncryptedTokenEncoder(IKeyStore keyStore) {
+    private final boolean useGCM;
+
+    public V2EncryptedTokenEncoder(IKeyStore keyStore, boolean useGCM) {
         this.keyStore = keyStore;
+        this.useGCM = useGCM;
     }
 
     @Override
@@ -58,7 +61,9 @@ public class V2EncryptedTokenEncoder implements ITokenEncoder {
         b2.appendLong(t.getExpiresAt().toEpochMilli());
         encodeSiteIdentity(b2, t.getIdentity(), siteEncryptionKey);
 
-        byte[] encryptedId = EncryptionHelper.encrypt(b2.getBytes(), masterKey).getPayload();
+        byte[] encryptedId = useGCM ?
+                EncryptionHelper.encryptGCM(b2.getBytes(), masterKey).getPayload()
+                : EncryptionHelper.encrypt(b2.getBytes(), masterKey).getPayload();
 
         b.appendBytes(encryptedId);
 
@@ -82,7 +87,9 @@ public class V2EncryptedTokenEncoder implements ITokenEncoder {
 
         final EncryptionKey key = this.keyStore.getSnapshot().getKey(keyId);
 
-        final byte[] decryptedPayload = EncryptionHelper.decrypt(b.slice(29, b.length()).getBytes(), key);
+        final byte[] decryptedPayload = useGCM ?
+                EncryptionHelper.decryptGCM(bytes, 29, key)
+                : EncryptionHelper.decrypt(b.slice(29, b.length()).getBytes(), key);
 
         final Buffer b2 = Buffer.buffer(decryptedPayload);
 
@@ -114,14 +121,18 @@ public class V2EncryptedTokenEncoder implements ITokenEncoder {
             final int version = b.getByte(0);
             final int masterKeyId = b.getInt(1);
 
-            final byte[] decryptedPayload = EncryptionHelper.decrypt(b.slice(5, b.length()).getBytes(), this.keyStore.getSnapshot().getKey(masterKeyId));
+            final byte[] decryptedPayload = useGCM ?
+                    EncryptionHelper.decryptGCM(bytes, 5, this.keyStore.getSnapshot().getKey(masterKeyId))
+                    :EncryptionHelper.decrypt(b.slice(5, b.length()).getBytes(), this.keyStore.getSnapshot().getKey(masterKeyId));
 
             final Buffer b2 = Buffer.buffer(decryptedPayload);
 
             final long expiresMillis = b2.getLong(0);
             final int siteKeyId = b2.getInt(8);
 
-            final byte[] decryptedSitePayload = EncryptionHelper.decrypt(b2.slice(12, b2.length()).getBytes(), this.keyStore.getSnapshot().getKey(siteKeyId));
+            final byte[] decryptedSitePayload = useGCM ?
+                    EncryptionHelper.decryptGCM( decryptedPayload, 12, this.keyStore.getSnapshot().getKey(siteKeyId))
+                    : EncryptionHelper.decrypt(b2.slice(12, b2.length()).getBytes(), this.keyStore.getSnapshot().getKey(siteKeyId));
 
             final Buffer b3 = Buffer.buffer(decryptedSitePayload);
 
@@ -209,6 +220,8 @@ public class V2EncryptedTokenEncoder implements ITokenEncoder {
         }
         b.appendInt(identity.getPrivacyBits());
         b.appendLong(identity.getEstablished().toEpochMilli());
-        return EncryptionHelper.encrypt(b.getBytes(), key).getPayload();
+        return useGCM ?
+                EncryptionHelper.encryptGCM(b.getBytes(), key).getPayload()
+                : EncryptionHelper.encrypt(b.getBytes(), key).getPayload();
     }
 }

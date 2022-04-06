@@ -113,7 +113,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             this.keyStore,
             this.optOutStore,
             this.saltProvider,
-            new V2EncryptedTokenEncoder(this.keyStore),
+            new V2EncryptedTokenEncoder(this.keyStore, false),
             this.clock
         );
 

@@ -25,5 +25,6 @@
   "salts_metadata_path": "salts/metadata.json",
   "optout_metadata_path": null,
   "optout_inmem_cache": false,
-  "enclave_platform": null
+  "enclave_platform": null,
+  "failure_shutdown_wait_hours": 120
 }

@@ -25,7 +25,10 @@ package com.uid2.operator;
 
 import com.uid2.operator.model.AdvertisingToken;
 import com.uid2.operator.service.UIDOperatorService;
+import com.uid2.shared.ApplicationVersion;
+import com.uid2.shared.attest.NoAttestationProvider;
 import com.uid2.shared.attest.UidCoreClient;
+import com.uid2.shared.cloud.CloudUtils;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.operator.model.RefreshToken;
 import com.uid2.operator.service.TokenUtils;
@@ -84,7 +87,7 @@ public class UIDOperatorVerticleTest {
     @Mock private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
     @Mock private IOptOutStore optOutStore;
     @Mock private Clock clock;
-    private UidCoreClient fakeCoreClient = UidCoreClient.createFakeForTest();
+    private UidCoreClient fakeCoreClient = new UidCoreClient("", "", new ApplicationVersion("test", "test"), CloudUtils.defaultProxy, new NoAttestationProvider(), false);
     private static final String firstLevelSalt = "first-level-salt";
     private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123");
     private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
@@ -976,7 +979,7 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test void shutdownOnUnauthorized(Vertx vertx, VertxTestContext testContext) {
+    @Test void disableOnDeauthorization(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -1004,7 +1007,7 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test void shutdownOnFailure(Vertx vertx, VertxTestContext testContext) throws Exception {
+    @Test void disableOnFailure(Vertx vertx, VertxTestContext testContext) throws Exception {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();

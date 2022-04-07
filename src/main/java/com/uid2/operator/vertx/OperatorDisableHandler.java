@@ -8,16 +8,17 @@ import io.vertx.ext.web.RoutingContext;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class OperatorDisableHandler implements Handler<RoutingContext> {
-    private JsonObject config;
-    private AtomicReference<Boolean> canServe = new AtomicReference<>(true);
+    private Duration disableWaitTime;
+    private AtomicBoolean canServe = new AtomicBoolean(true);
     private AtomicReference<Instant> failureStartTime = new AtomicReference<>(null);
     private final Clock clock;
 
-    public OperatorDisableHandler(JsonObject config, Clock clock) {
-        this.config = config;
+    public OperatorDisableHandler(Duration disableWaitTime, Clock clock) {
+        this.disableWaitTime = disableWaitTime;
         this.clock = clock;
     }
 
@@ -33,22 +34,20 @@ public class OperatorDisableHandler implements Handler<RoutingContext> {
     public void handleResponseStatus(Integer statusCode) {
         switch (statusCode.intValue()) {
             case 200:
-                canServe.set(Boolean.TRUE);
+                canServe.set(true);
                 failureStartTime.set(null);
                 break;
 
             case 401:
-                canServe.set(Boolean.FALSE);
+                canServe.set(false);
                 break;
 
             default:
                 Instant t = failureStartTime.get();
                 if (t == null) {
                     failureStartTime.set(clock.instant());
-                } else {
-                    if (Duration.between(t, clock.instant()).toHours() >= this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120)) {
-                        canServe.set(Boolean.FALSE);
-                    }
+                } else if (Duration.between(t, clock.instant()).compareTo(this.disableWaitTime) > 0) {
+                    canServe.set(false);
                 }
         }
     }

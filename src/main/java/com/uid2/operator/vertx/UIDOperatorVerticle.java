@@ -60,11 +60,7 @@ import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
 import java.io.IOException;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -146,7 +142,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final Router router = Router.router(vertx);
 
         if (this.coreClient instanceof UidCoreClient) {
-            OperatorDisableHandler h = new OperatorDisableHandler(this.config, this.clock);
+            Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
+            OperatorDisableHandler h = new OperatorDisableHandler(disableWaitTime, this.clock);
             ((UidCoreClient) this.coreClient).setResponseStatusWatcher(h::handleResponseStatus);
             router.route().handler(h);
         }

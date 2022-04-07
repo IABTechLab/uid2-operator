@@ -24,7 +24,7 @@ function update_allocation() {
     sed -r "s/^(\s*memory_mib\s*:\s*).*/\1$MEMORY_MB/" -i $ALLOCATOR_YAML
     sed -r "s/^(\s*cpu_count\s*:\s*).*/\1$CPU_COUNT/" -i $ALLOCATOR_YAML
     systemctl start nitro-enclaves-allocator.service && systemctl enable nitro-enclaves-allocator.service
-    echo "nitro-enclaves-allocator restarted"   
+    echo "nitro-enclaves-allocator restarted"
 }
 
 function setup_vsockproxy() {
@@ -43,7 +43,7 @@ function setup_dante() {
 
 function setup_aws_proxy() {
     # allow vsock-proxy to forward to secretsmanager
-    AWS_VSOCK_CFG=/etc/nitro_enclave/vsock-proxy.yaml
+    AWS_VSOCK_CFG=/etc/nitro_enclaves/vsock-proxy.yaml
     found_line=$(grep "secretsmanager.$AWS_REGION_NAME.amazonaws.com" $AWS_VSOCK_CFG | grep "port: 443" | wc -l)
     if [ "$found_line" == "0" ]; then
         echo "- {address: secretsmanager.$AWS_REGION_NAME.amazonaws.com, port: 443}" >> $AWS_VSOCK_CFG

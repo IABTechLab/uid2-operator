@@ -5,14 +5,23 @@ ulimit -n 65536
 # setup loopback device
 ifconfig lo 127.0.0.1
 
-# add amazonaws dns
-echo "127.0.0.1 secretsmanager.$AWS_REGION_NAME.amazonaws.com" >> /etc/hosts
-
-export UID2_CONFIG_SECRET_KEY=${UID2_CONFIG_SECRET_KEY:-"uid2-operator-config-key"}
-config_json=$(python3 /app/load_config.py)
-
 # -- start vsock proxy
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 4 )) --log-level 3
+
+# -- load config via proxy
+export UID2_CONFIG_SECRET_KEY=${UID2_CONFIG_SECRET_KEY:-"uid2-operator-config-key"}
+export AWS_REGION_NAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r '.region')
+IAM_ROLE=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+echo "IAM_ROLE=$IAM_ROLE"
+CREDS_ENDPOINT=http://169.254.169.254/latest/meta-data/iam/security-credentials/$IAM_ROLE
+export AWS_ACCESS_KEY_ID=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.AccessKeyId')
+export AWS_SECRET_KEY=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.SecretAccessKey')
+export AWS_SESSION_TOKEN=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.Token')
+echo "UID2_CONFIG_SECRET_KEY=$UID2_CONFIG_SECRET_KEY"
+echo "AWS_REGION_NAME=$AWS_REGION_NAME"
+echo "127.0.0.1 secretsmanager.$AWS_REGION_NAME.amazonaws.com" >> /etc/hosts
+config_json=$(python3 /app/load_config.py)
+
 
 get_config_override() {
   echo $config_json | jq -r ".\"$1\""

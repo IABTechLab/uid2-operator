@@ -3,6 +3,7 @@ package com.uid2.operator;
 import com.uid2.operator.vertx.APIUsageCaptureHandler;
 import com.uid2.shared.auth.ClientKey;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.logging.Logger;
 import io.vertx.ext.web.RoutingContext;
@@ -49,7 +50,7 @@ public class APIUsageCaptureTest {
     }
     @Test
     public void HandleRequest() throws Exception {
-        APIUsageCaptureHandler handler = new APIUsageCaptureHandler(1000);
+        APIUsageCaptureHandler handler = new APIUsageCaptureHandler(1000, Vertx.vertx());
 
         Logger logger = Mockito.mock(Logger.class);
         Mockito.when(logger.isInfoEnabled()).thenReturn(false);

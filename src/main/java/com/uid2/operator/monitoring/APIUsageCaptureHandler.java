@@ -26,7 +26,6 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
     private HashMap<String, EndpointStat> pathMap;
 
     private static final int MAX_AVAILABLE = 1000;
-    private final Semaphore jsonSemaphore;
     private final Semaphore queueSemaphore;
 
     private final long jsonProcessingInterval;
@@ -45,7 +44,6 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         lastJsonProcessTime = Instant.now();
         this.jsonSerializer = jsonSerial;
         runningSerializer = new Thread();
-        jsonSemaphore = new Semaphore(MAX_AVAILABLE, true);
         queueSemaphore = new Semaphore(MAX_AVAILABLE, true);
     }
 
@@ -57,6 +55,9 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
+
+        queueSemaphore.release();
+
         String path = messageItem.getPath();
         String apiVersion = "v0";
         String endpoint = path.substring(1);
@@ -83,13 +84,8 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         DomainStat domain = new DomainStat(referer, 1, apiContact);
 
         EndpointStat endpointStat = new EndpointStat(endpoint, siteId, apiVersion, domain);
-        try {
-            jsonSemaphore.acquire();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+
         pathMap.merge(path, endpointStat, this::mergeEndpoint);
-        jsonSemaphore.release();
     }
 
     private EndpointStat mergeEndpoint(EndpointStat a, EndpointStat b) {
@@ -101,7 +97,6 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
     @Override
     public void handle(RoutingContext routingContext) {
         routingContext.next();
-        queueSemaphore.release();
         assert routingContext != null;
 
         String path = routingContext.request().path();
@@ -110,7 +105,7 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         MessageItem messageItem = new MessageItem(path, referer, clientKey.getContact(), clientKey.getSiteId());
 
         if(!queueSemaphore.tryAcquire()){
-            //Queue is full
+            //TODO Queue is full
             System.out.println("Queue is full");
             return;
         }
@@ -226,14 +221,17 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         private String endpoint;
         private Integer siteId;
         private String apiVersion;
-        private LinkedList<DomainStat> domainList;
+        private ArrayList<DomainStat> domainList;
         private HashMap<String, Integer> domainMap;
+
+
+        private final int DomainSize = 1000;
 
         public EndpointStat(String e, Integer s, String a, DomainStat d) {
             endpoint = e;
             siteId = s;
             apiVersion = a;
-            domainList = new LinkedList<>();
+            domainList = new ArrayList<>(DomainSize);
             domainMap = new HashMap<>();
 
             AddDomain(d);
@@ -251,7 +249,7 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
             return apiVersion;
         }
 
-        public LinkedList<DomainStat> getDomainList() {
+        public ArrayList<DomainStat> getDomainList() {
             return domainList;
         }
 
@@ -263,9 +261,12 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
             String domainName = d.getDomain();
             if(domainMap.containsKey(domainName)) {
                 domainList.get(domainMap.get(domainName)).merge(d);
-            } else {
+            }
+            else if(domainList.size() < DomainSize) {
                 domainList.add(d);
                 domainMap.put(domainName, domainList.size()-1);
+            } else {
+                //TODO full on domains
             }
         }
 

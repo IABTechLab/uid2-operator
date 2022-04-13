@@ -1,5 +1,7 @@
 package com.uid2.operator;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.monitoring.APIUsageCaptureHandler;
 import com.uid2.operator.monitoring.JSONSerializer;
 import com.uid2.shared.auth.ClientKey;
@@ -15,6 +17,7 @@ import org.mockito.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
+import java.util.Objects;
 
 import static org.mockito.Mockito.*;
 
@@ -49,7 +52,63 @@ public class APIUsageCaptureTest {
 
     @Test
     public void HandleRequest() throws Exception {
-        APIUsageCaptureHandler handler = new APIUsageCaptureHandler(60000, Vertx.vertx(), new JSONSerializer());
+        JSONSerializer jsonSerializer = Mockito.mock(JSONSerializer.class);
+
+        ArgumentCaptor<Object[]> valueCapture = ArgumentCaptor.forClass(Object[].class);
+        doNothing().when(jsonSerializer).setArray(valueCapture.capture());
+
+        APIUsageCaptureHandler handler = new APIUsageCaptureHandler(1000, Vertx.vertx(), jsonSerializer);
+
+        Logger logger = Mockito.mock(Logger.class);
+        Mockito.when(logger.isInfoEnabled()).thenReturn(false);
+        setFinalStatic(APIUsageCaptureHandler.class.getDeclaredField("LOGGER"), logger);
+
+        when(routingContext.request()).thenReturn(httpServerRequest);
+
+        when(httpServerRequest.path()).thenReturn("/v1/token/generate");
+        when(httpServerRequest.headers()).thenReturn(headers);
+        when(headers.get("Referer")).thenReturn("http://test.com");
+        handler.handle(routingContext);
+        handler.handle(routingContext);
+        handler.handle(routingContext);
+
+        when(headers.get("Referer")).thenReturn(null);
+        handler.handle(routingContext);
+
+        when(httpServerRequest.path()).thenReturn("/v1/token/refresh");
+        when(httpServerRequest.headers()).thenReturn(headers);
+        when(headers.get("Referer")).thenReturn("http://test.com");
+        handler.handle(routingContext);
+        handler.handle(routingContext);
+
+        Thread.sleep(1000);
+        when(httpServerRequest.path()).thenReturn("/token/generate");
+        handler.handle(routingContext);
+
+        //Lets threads process
+
+        //Call once more to empty threads
+        String[] expected = {
+                "{\"endpoint\":\"token/generate\",\"siteId\":1,\"apiVersion\":\"v1\",\"domainList\":[{\"domain\":\"test.com\",\"count\":3,\"apiContact\":null},{\"domain\":\"unknown\",\"count\":1,\"apiContact\":null}]}",
+                "{\"endpoint\":\"token/refresh\",\"siteId\":1,\"apiVersion\":\"v1\",\"domainList\":[{\"domain\":\"test.com\",\"count\":2,\"apiContact\":null}]}"
+        };
+        ObjectMapper mapper = new ObjectMapper();
+        Object[] results = valueCapture.getValue();
+        for (int i = 0; i < results.length; i++) {
+            String jsonString = mapper.writeValueAsString(results[i]);
+            assert Objects.equals(jsonString, expected[i]);
+            System.out.println(jsonString);
+        }
+    }
+
+    @Test
+    public void HandleRequestTestLimit() throws Exception {
+        JSONSerializer jsonSerializer = Mockito.mock(JSONSerializer.class);
+
+        ArgumentCaptor<Object[]> valueCapture = ArgumentCaptor.forClass(Object[].class);
+        doNothing().when(jsonSerializer).setArray(valueCapture.capture());
+
+        APIUsageCaptureHandler handler = new APIUsageCaptureHandler(5000, Vertx.vertx(), jsonSerializer);
 
         Logger logger = Mockito.mock(Logger.class);
         Mockito.when(logger.isInfoEnabled()).thenReturn(false);
@@ -60,23 +119,22 @@ public class APIUsageCaptureTest {
         when(httpServerRequest.path()).thenReturn("/v1/token/generate");
         when(httpServerRequest.headers()).thenReturn(headers);
 
-        when(headers.get("Referer")).thenReturn("test.com");
+        for (int i = 0; i < 1050; i++) {
+            when(headers.get("Referer")).thenReturn(String.format("http://test%d.com", i));
+            handler.handle(routingContext);
+        }
 
-        handler.handle(routingContext);
-        handler.handle(routingContext);
-        handler.handle(routingContext);
-
+        Thread.sleep(5000);
         when(httpServerRequest.path()).thenReturn("/token/generate");
         handler.handle(routingContext);
 
-        //Lets threads process
-        Thread.sleep(2000);
 
-        //Call once more to empty threads
-        handler.handleJsonSerial(1L);
-        verify(logger).debug("{\"endpoint\":\"token/generate\",\"siteId\":1,\"apiVersion\":\"v1\",\"domainList\":" +
-                "[{\"domain\":\"test.com\",\"count\":3,\"apiContact\":null}]}");
-        verify(logger).debug("{\"endpoint\":\"token/generate\",\"siteId\":1,\"apiVersion\":\"v0\",\"domainList\":" +
-                "[{\"domain\":\"test.com\",\"count\":1,\"apiContact\":null}]}");
+        ObjectMapper mapper = new ObjectMapper();
+        Object[] results = valueCapture.getValue();
+
+        assert results.length == 1;
+
+        String jsonString = mapper.writeValueAsString(results[0]);
+        assert Objects.equals(jsonString.length(), 52963);
     }
 }

@@ -18,14 +18,13 @@ public class JSONSerializer implements Runnable {
     public void run() {
         LOGGER.debug("Starting JSON Serialize");
         ObjectMapper mapper = new ObjectMapper();
-        String jsonString = null;
         for (int i = 0; i < endpointStats.length; i++) {
             try {
-                jsonString = mapper.writeValueAsString(endpointStats[i]);
+                String jsonString = mapper.writeValueAsString(endpointStats[i]);
+                LOGGER.info(jsonString);
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
-            LOGGER.info(jsonString);
         }
     }
 }

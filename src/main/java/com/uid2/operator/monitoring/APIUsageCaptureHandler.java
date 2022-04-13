@@ -1,4 +1,4 @@
-package com.uid2.operator.vertx;
+package com.uid2.operator.monitoring;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.shared.auth.ClientKey;
@@ -6,13 +6,16 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.MessageCodec;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.RoutingContext;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 
 
@@ -26,49 +29,66 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
     private final Semaphore jsonSemaphore;
     private final Semaphore queueSemaphore;
 
-    public APIUsageCaptureHandler(long periodicDurationMS, Vertx v) {
+    private final long jsonProcessingInterval;
+    private Instant lastJsonProcessTime;
+
+    private JSONSerializer jsonSerializer;
+    private Thread runningSerializer;
+
+    public APIUsageCaptureHandler(long jsonIntervalMS, Vertx v, JSONSerializer jsonSerial) {
         vertx = v;
         pathMap = new HashMap<>();
 
-        vertx.eventBus().consumer("APIUsage", this::handleQueue);
+        vertx.eventBus().consumer("APIUsage", this::handleMessage);
 
-        vertx.setPeriodic(periodicDurationMS, this::handleJsonSerial);
+        jsonProcessingInterval = jsonIntervalMS;
+        lastJsonProcessTime = Instant.now();
+        this.jsonSerializer = jsonSerial;
+        runningSerializer = new Thread();
         jsonSemaphore = new Semaphore(MAX_AVAILABLE, true);
         queueSemaphore = new Semaphore(MAX_AVAILABLE, true);
     }
 
-    public void handleJsonSerial(Long l) {
+    public void handleMessage(Message message) {
+        ObjectMapper mapper = new ObjectMapper();
+        MessageItem messageItem = null;
         try {
-            jsonSemaphore.acquire(MAX_AVAILABLE);
-        } catch (InterruptedException e) {
+            messageItem = mapper.readValue(message.body().toString(), MessageItem.class);
+        } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
+        String path = messageItem.getPath();
+        String apiVersion = "v0";
+        String endpoint = path.substring(1);
 
-        Object[] localValues = pathMap.values().toArray();
-        pathMap.clear();
-        jsonSemaphore.release(MAX_AVAILABLE);
+        if(path.charAt(1) == 'v') {
+            int apiVIndex = path.indexOf("/", 1);
+            apiVersion = path.substring(1, apiVIndex);
+            endpoint = path.substring(apiVIndex+1);
+        }
 
-
-        ObjectMapper mapper = new ObjectMapper();
-        String jsonString = null;
-        for (int i = 0; i < localValues.length; i++) {
+        String referer = messageItem.getReferer();
+        if(referer == null){
+            referer = "unknown";
+        } else {
             try {
-                jsonString = mapper.writeValueAsString(localValues[i]);
-            } catch (JsonProcessingException e) {
+                referer = new URI(referer).getHost();
+            } catch (URISyntaxException e) {
                 e.printStackTrace();
             }
-            LOGGER.debug(jsonString);
         }
-    }
+        String apiContact = messageItem.getApiContact();
 
-    public void handleQueue(Message message) {
-        EndpointStat endpointStat = (EndpointStat) message.body();
+        Integer siteId = messageItem.getSiteId();
+        DomainStat domain = new DomainStat(referer, 1, apiContact);
+
+        EndpointStat endpointStat = new EndpointStat(endpoint, siteId, apiVersion, domain);
         try {
             jsonSemaphore.acquire();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        pathMap.merge(endpointStat.path, endpointStat, this::mergeEndpoint);
+        pathMap.merge(path, endpointStat, this::mergeEndpoint);
         jsonSemaphore.release();
     }
 
@@ -83,41 +103,94 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         routingContext.next();
         queueSemaphore.release();
         assert routingContext != null;
+
         String path = routingContext.request().path();
-        String apiVersion = "v0";
-        String endpoint = path.substring(1);
-
-        if(path.charAt(1) == 'v') {
-            int apiVIndex = path.indexOf("/", 1);
-            apiVersion = path.substring(1, apiVIndex);
-            endpoint = path.substring(apiVIndex+1);
-        }
-
         String referer = routingContext.request().headers().get("Referer");
-        if(referer == null){
-            referer = "unknown";
-        } else {
-            //TODO parse out domain name
-            referer = referer;
-        }
         ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(routingContext);
-        String apiContact = clientKey.getContact();
-
-        Integer siteId = clientKey.getSiteId();
-        DomainStat domain = new DomainStat(referer, 1, apiContact);
-
-        EndpointStat endpointClass = new EndpointStat(endpoint, path, siteId, apiVersion, domain);
+        MessageItem messageItem = new MessageItem(path, referer, clientKey.getContact(), clientKey.getSiteId());
 
         if(!queueSemaphore.tryAcquire()){
             //Queue is full
             System.out.println("Queue is full");
             return;
         }
-        vertx.eventBus().send("APIUsage", endpointClass);
+
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            vertx.eventBus().send("APIUsage", mapper.writeValueAsString(messageItem));
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+
+        if(Duration.between(lastJsonProcessTime, Instant.now()).toMillis() >= jsonProcessingInterval){
+            lastJsonProcessTime = Instant.now();
+            if(runningSerializer.isAlive()){
+                //TODO serializer is still running
+                //Skip this cycle
+                LOGGER.debug("Serializer is still running");
+            } else {
+                jsonSerializer.setArray(pathMap.values().toArray());
+                runningSerializer = new Thread(jsonSerializer);
+                runningSerializer.start();
+                pathMap.clear();
+            }
+
+        }
     }
 
+    static class MessageItem {
+        private String path;
+        private String referer;
+        private String apiContact;
+        private Integer siteId;
 
-    static class DomainStat {
+        //USED by json serial
+        public MessageItem(){}
+
+        public MessageItem(String p, String r, String api, Integer s){
+            path = p;
+            referer = r;
+            apiContact = api;
+            siteId = s;
+        }
+
+        public void setClientKey(ClientKey key) {
+        }
+
+        public void setReferer(String referer) {
+            this.referer = referer;
+        }
+
+        public String getReferer() {
+            return referer;
+        }
+
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public String getApiContact() {
+            return apiContact;
+        }
+
+        public void setApiContact(String apiContact) {
+            this.apiContact = apiContact;
+        }
+
+        public Integer getSiteId() {
+            return siteId;
+        }
+
+        public void setSiteId(Integer siteId) {
+            this.siteId = siteId;
+        }
+    }
+
+    public static class DomainStat {
         private String domain;
         private Integer count;
         private String apiContact;
@@ -151,14 +224,12 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
 
     class EndpointStat {
         private String endpoint;
-        private String path;
         private Integer siteId;
         private String apiVersion;
         private LinkedList<DomainStat> domainList;
-
         private HashMap<String, Integer> domainMap;
 
-        public EndpointStat(String e, String p, Integer s, String a, DomainStat d) {
+        public EndpointStat(String e, Integer s, String a, DomainStat d) {
             endpoint = e;
             siteId = s;
             apiVersion = a;

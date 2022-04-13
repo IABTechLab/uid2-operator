@@ -1,6 +1,7 @@
 package com.uid2.operator;
 
-import com.uid2.operator.vertx.APIUsageCaptureHandler;
+import com.uid2.operator.monitoring.APIUsageCaptureHandler;
+import com.uid2.operator.monitoring.JSONSerializer;
 import com.uid2.shared.auth.ClientKey;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -9,15 +10,12 @@ import io.vertx.core.logging.Logger;
 import io.vertx.ext.web.RoutingContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.runner.RunWith;
 import org.mockito.*;
-import org.mockito.junit.MockitoJUnitRunner;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 public class APIUsageCaptureTest {
@@ -48,9 +46,10 @@ public class APIUsageCaptureTest {
         modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
         field.set(null, newValue);
     }
+
     @Test
     public void HandleRequest() throws Exception {
-        APIUsageCaptureHandler handler = new APIUsageCaptureHandler(1000, Vertx.vertx());
+        APIUsageCaptureHandler handler = new APIUsageCaptureHandler(60000, Vertx.vertx(), new JSONSerializer());
 
         Logger logger = Mockito.mock(Logger.class);
         Mockito.when(logger.isInfoEnabled()).thenReturn(false);

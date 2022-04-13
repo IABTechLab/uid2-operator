@@ -25,6 +25,8 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
+import com.uid2.operator.monitoring.APIUsageCaptureHandler;
+import com.uid2.operator.monitoring.JSONSerializer;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.shared.Utils;
@@ -153,7 +155,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
-        router.route().handler(new APIUsageCaptureHandler(60000, vertx));
+        router.route().handler(new APIUsageCaptureHandler(1000, vertx, new JSONSerializer()));
         // Current version APIs
         router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
         router.get("/v1/token/validate").handler(this::handleTokenValidateV1);

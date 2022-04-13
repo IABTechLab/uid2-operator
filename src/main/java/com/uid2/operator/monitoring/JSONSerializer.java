@@ -25,7 +25,7 @@ public class JSONSerializer implements Runnable {
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
-            LOGGER.debug(jsonString);
+            LOGGER.info(jsonString);
         }
     }
 }

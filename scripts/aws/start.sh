@@ -14,10 +14,34 @@ function config_aws() {
     aws configure set default.region $AWS_REGION_NAME
 }
 
+function default_cpu() {
+    target=$(( $(nproc) * 3 / 4 ))
+    if [ $target -lt 2 ]; then
+        target="2"
+    fi
+    echo $target
+}
+
+function default_mem() {
+    target=$(( $(grep MemTotal /proc/meminfo | awk '{print $2}') * 3 / 4000 ))
+    if [ $target -lt 24576 ]; then
+        target="24576"
+    fi
+    echo $target
+}
+
 function update_allocation() {
     ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
-    CPU_COUNT=${CPU_COUNT:-$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.enclave_cpu_count')}
-    MEMORY_MB=${MEMORY_MB:-$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.enclave_memory_mb')}
+    USER_CUSTOMIZED=${$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.customize_enclave' | tr '[:upper:]' '[:lower:]'):-"false"}
+    if [ "$USER_CUSTOMIZED" = "true" ]; then
+        echo "Applying user customized CPU/Mem allocation..."
+        CPU_COUNT=${CPU_COUNT:-$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.enclave_cpu_count')}
+        MEMORY_MB=${MEMORY_MB:-$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.enclave_memory_mb')}
+    else
+        echo "Applying default CPU/Mem allocation..."
+        CPU_COUNT=${CPU_COUNT:-$(default_cpu)}
+        MEMORY_MB=${MEMORY_MB:-$(default_mem)}
+    fi
     if [ -z "$CPU_COUNT" ] || [ -z "$MEMORY_MB" ]; then
         echo 'No CPU_COUNT or MEMORY_MB set, cannot start enclave'
         exit 1
@@ -27,6 +51,7 @@ function update_allocation() {
     sed -r "s/^(\s*memory_mib\s*:\s*).*/\1$MEMORY_MB/" -i $ALLOCATOR_YAML
     sed -r "s/^(\s*cpu_count\s*:\s*).*/\1$CPU_COUNT/" -i $ALLOCATOR_YAML
     systemctl start nitro-enclaves-allocator.service && systemctl enable nitro-enclaves-allocator.service
+    sleep 5
     echo "nitro-enclaves-allocator restarted"
 }
 
@@ -57,7 +82,7 @@ function setup_aws_proxy() {
 
 function run_enclave() {
     echo "starting enclave..."
-    nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID
+    nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator
 }
 
 terminate_old_enclave

@@ -6,7 +6,7 @@ ulimit -n 65536
 ifconfig lo 127.0.0.1
 
 # -- start vsock proxy
-/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 4 )) --log-level 3
+/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
 
 # -- load config via proxy
 export UID2_CONFIG_SECRET_KEY=${UID2_CONFIG_SECRET_KEY:-"uid2-operator-config-key"}
@@ -41,7 +41,6 @@ set_config() {
 }
 
 overridable_variables=(           \
-  'service_instances'             \
   'clients_metadata_path'         \
   'keys_metadata_path'            \
   'salts_metadata_path'           \
@@ -60,6 +59,7 @@ set_config 'core_api_token' "$API_TOKEN"
 set_config 'optout_api_token' "$API_TOKEN"
 
 echo "-- override runtime configurations"
+set_config "service_instances" "$(nproc)"
 for varname in "${overridable_variables[@]}"; do
   val=$(get_config_override "$varname")
   if [[ -n "$val" && "$val" != "null" ]]; then

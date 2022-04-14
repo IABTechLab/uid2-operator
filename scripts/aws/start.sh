@@ -30,18 +30,23 @@ function default_mem() {
     echo $target
 }
 
-function update_allocation() {
-    ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
-    USER_CUSTOMIZED=${$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.customize_enclave' | tr '[:upper:]' '[:lower:]'):-"false"}
+function read_allocation() {
+    USER_CUSTOMIZED=$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.customize_enclave')
+    shopt -s nocasematch
     if [ "$USER_CUSTOMIZED" = "true" ]; then
         echo "Applying user customized CPU/Mem allocation..."
         CPU_COUNT=${CPU_COUNT:-$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.enclave_cpu_count')}
         MEMORY_MB=${MEMORY_MB:-$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.enclave_memory_mb')}
     else
         echo "Applying default CPU/Mem allocation..."
-        CPU_COUNT=${CPU_COUNT:-$(default_cpu)}
-        MEMORY_MB=${MEMORY_MB:-$(default_mem)}
+        CPU_COUNT=6
+        MEMORY_MB=24576
     fi
+    shopt -u nocasematch
+}
+
+function update_allocation() {
+    ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
     if [ -z "$CPU_COUNT" ] || [ -z "$MEMORY_MB" ]; then
         echo 'No CPU_COUNT or MEMORY_MB set, cannot start enclave'
         exit 1
@@ -51,7 +56,6 @@ function update_allocation() {
     sed -r "s/^(\s*memory_mib\s*:\s*).*/\1$MEMORY_MB/" -i $ALLOCATOR_YAML
     sed -r "s/^(\s*cpu_count\s*:\s*).*/\1$CPU_COUNT/" -i $ALLOCATOR_YAML
     systemctl start nitro-enclaves-allocator.service && systemctl enable nitro-enclaves-allocator.service
-    sleep 5
     echo "nitro-enclaves-allocator restarted"
 }
 
@@ -87,7 +91,8 @@ function run_enclave() {
 
 terminate_old_enclave
 config_aws
-update_allocation
+read_allocation
+# update_allocation
 setup_vsockproxy
 setup_aws_proxy
 setup_dante

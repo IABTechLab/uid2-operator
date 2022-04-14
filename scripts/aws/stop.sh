@@ -25,6 +25,7 @@ terminate_old_enclave
 kill_process vsockpx
 kill_process sockd
 # we start aws vsock-proxy via nohup
+kill_process vsock-proxy
 kill_process nohup
 
 echo "Done!"

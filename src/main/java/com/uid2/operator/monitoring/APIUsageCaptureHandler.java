@@ -3,6 +3,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
@@ -29,6 +31,10 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
     private final Semaphore queueSemaphore;
 
     private final long jsonProcessingInterval;
+
+    private final Counter queueFullCounter;
+    private final Counter logCycleSkipperCounter;
+    private final Counter domainMissedCounter;
     private Instant lastJsonProcessTime;
 
     private JSONSerializer jsonSerializer;
@@ -45,6 +51,20 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         this.jsonSerializer = jsonSerial;
         runningSerializer = new Thread();
         queueSemaphore = new Semaphore(MAX_AVAILABLE, true);
+        queueFullCounter = Counter
+                .builder("uid2.api_usage_queue_full")
+                .description("counter for how many usage messages are dropped because the queue is full")
+                .register(Metrics.globalRegistry);
+
+        logCycleSkipperCounter = Counter
+                .builder("uid2.api_usage_log_cycle_skipped")
+                .description("counter for how many log cycles are skipped because the thread is still running")
+                .register(Metrics.globalRegistry);
+
+        domainMissedCounter = Counter
+                .builder("uid2.api_usage_domain_missed")
+                .description("counter for how many domains are missed because the dictionary is full")
+                .register(Metrics.globalRegistry);
     }
 
     public void handleMessage(Message message) {
@@ -105,8 +125,7 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         MessageItem messageItem = new MessageItem(path, referer, clientKey.getContact(), clientKey.getSiteId());
 
         if(!queueSemaphore.tryAcquire()){
-            //TODO Queue is full
-            System.out.println("Queue is full");
+            queueFullCounter.increment();
             return;
         }
 
@@ -120,9 +139,7 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         if(Duration.between(lastJsonProcessTime, Instant.now()).toMillis() >= jsonProcessingInterval){
             lastJsonProcessTime = Instant.now();
             if(runningSerializer.isAlive()){
-                //TODO serializer is still running
-                //Skip this cycle
-                LOGGER.debug("Serializer is still running");
+               logCycleSkipperCounter.increment();
             } else {
                 jsonSerializer.setArray(pathMap.values().toArray());
                 runningSerializer = new Thread(jsonSerializer);
@@ -266,7 +283,7 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
                 domainList.add(d);
                 domainMap.put(domainName, domainList.size()-1);
             } else {
-                //TODO full on domains
+                domainMissedCounter.increment();
             }
         }
 

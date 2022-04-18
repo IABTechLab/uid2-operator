@@ -4,7 +4,10 @@ After=network.target nitro-enclaves-allocator.service
 
 [Service]
 Type=oneshot
-RemainAfterExit=yes
+RemainAfterExit=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=uid2operator
 ExecStart=/opt/uid2operator/start.sh
 ExecStop=/opt/uid2operator/stop.sh
 

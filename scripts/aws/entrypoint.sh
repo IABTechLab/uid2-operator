@@ -6,10 +6,25 @@ ulimit -n 65536
 ifconfig lo 127.0.0.1
 
 # -- start vsock proxy
-/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 4 )) --log-level 3
+/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
 
-user_data() {
-  curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | jq -r ".\"$1\""
+# -- load config via proxy
+export UID2_CONFIG_SECRET_KEY=${UID2_CONFIG_SECRET_KEY:-"uid2-operator-config-key"}
+export AWS_REGION_NAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r '.region')
+IAM_ROLE=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+echo "IAM_ROLE=$IAM_ROLE"
+CREDS_ENDPOINT=http://169.254.169.254/latest/meta-data/iam/security-credentials/$IAM_ROLE
+export AWS_ACCESS_KEY_ID=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.AccessKeyId')
+export AWS_SECRET_KEY=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.SecretAccessKey')
+export AWS_SESSION_TOKEN=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.Token')
+echo "UID2_CONFIG_SECRET_KEY=$UID2_CONFIG_SECRET_KEY"
+echo "AWS_REGION_NAME=$AWS_REGION_NAME"
+echo "127.0.0.1 secretsmanager.$AWS_REGION_NAME.amazonaws.com" >> /etc/hosts
+config_json=$(python3 /app/load_config.py)
+
+
+get_config_override() {
+  echo $config_json | jq -r ".\"$1\""
 }
 
 set_config() {
@@ -26,7 +41,6 @@ set_config() {
 }
 
 overridable_variables=(           \
-  'service_instances'             \
   'clients_metadata_path'         \
   'keys_metadata_path'            \
   'salts_metadata_path'           \
@@ -37,26 +51,24 @@ overridable_variables=(           \
   'optout_synthetic_logs_enabled' \
   'optout_synthetic_logs_count'   \
   'optout_s3_folder'              \
-  'identity_token_expires_after_seconds'   \
-  'refresh_token_expires_after_seconds'    \
-  'refresh_identity_token_after_seconds'   \
 )
 
 echo "-- set api token"
-API_TOKEN=$(user_data 'api_token')
+API_TOKEN=$(get_config_override 'api_token')
 set_config 'core_api_token' "$API_TOKEN"
 set_config 'optout_api_token' "$API_TOKEN"
 
 echo "-- override runtime configurations"
+set_config "service_instances" "$(nproc)"
 for varname in "${overridable_variables[@]}"; do
-  val=$(user_data "$varname")
+  val=$(get_config_override "$varname")
   if [[ -n "$val" && "$val" != "null" ]]; then
     set_config "$varname" "$val"
   fi
 done
 
 echo "-- setup loki"
-[[ "$(user_data 'loki_enabled')" == "true" ]] \
+[[ "$(get_config_override 'loki_enabled')" == "true" ]] \
   && SETUP_LOKI_LINE="-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory -Dlogback.configurationFile=./conf/logback.loki.xml" \
   || SETUP_LOKI_LINE=""
 

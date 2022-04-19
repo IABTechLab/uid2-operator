@@ -45,7 +45,9 @@ public class EncryptionHelper {
 
     private static String gcmCipherScheme = "AES/GCM/NoPadding";
 
-    public static final int GCM_TAG_LENGTH = 12;
+    public static final int GCM_AUTHTAG_LENGTH = 16;
+
+    public static final int GCM_IV_LENGTH = 12;
 
     private static ThreadLocal<SecureRandom> threadLocalSecureRandom = ThreadLocal.withInitial(() -> {
         try {
@@ -111,9 +113,9 @@ public class EncryptionHelper {
         try {
             final SecretKey k = new SecretKeySpec(secretBytes, "AES");
             final Cipher c = Cipher.getInstance(gcmCipherScheme);
-            final byte[] ivBytes = new byte[16];
+            final byte[] ivBytes = new byte[GCM_IV_LENGTH];
             threadLocalSecureRandom.get().nextBytes(ivBytes);
-            GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, ivBytes);
+            GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_AUTHTAG_LENGTH * 8, ivBytes);
             c.init(Cipher.ENCRYPT_MODE, k, gcmParameterSpec);
             return Buffer.buffer().appendBytes(ivBytes).appendBytes(c.doFinal(b)).getBytes();
         } catch (Exception e) {
@@ -132,10 +134,10 @@ public class EncryptionHelper {
     public static byte[] decryptGCM(byte[] encryptedBytes, int offset, byte[] secretBytes) {
         try {
             final SecretKey key = new SecretKeySpec(secretBytes, "AES");
-            final GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, encryptedBytes, offset, 16);
+            final GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_AUTHTAG_LENGTH * 8, encryptedBytes, offset, GCM_IV_LENGTH);
             final Cipher c = Cipher.getInstance(gcmCipherScheme);
             c.init(Cipher.DECRYPT_MODE, key, gcmParameterSpec);
-            return c.doFinal(encryptedBytes, offset + 16, encryptedBytes.length - offset - 16);
+            return c.doFinal(encryptedBytes, offset + GCM_IV_LENGTH, encryptedBytes.length - offset - GCM_IV_LENGTH);
         } catch (Exception e) {
             throw new RuntimeException("Unable to Encrypt", e);
         }

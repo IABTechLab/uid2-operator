@@ -23,10 +23,10 @@
 
 package com.uid2.operator.vertx;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
-import com.uid2.operator.monitoring.APIUsageCaptureHandler;
-import com.uid2.operator.monitoring.JSONSerializer;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.shared.Utils;
@@ -42,6 +42,7 @@ import com.uid2.shared.store.IKeyAclProvider;
 import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.AbstractVerticle;
@@ -69,6 +70,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class UIDOperatorVerticle extends AbstractVerticle{
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
@@ -88,13 +90,17 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
 
+    private final int MAX_STAT_COLLECTORS = 1000;
+    private AtomicInteger _statCollectorCount;
+
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
                                IKeyStore keyStore,
                                IKeyAclProvider keyAclProvider,
                                ISaltProvider saltProvider,
                                IOptOutStore optOutStore,
-                               Clock clock) {
+                               Clock clock,
+                               AtomicInteger statCollectorCount) {
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -103,6 +109,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
+        _statCollectorCount = statCollectorCount;
     }
 
     @Override
@@ -155,7 +162,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
-        router.route().handler(new APIUsageCaptureHandler(60000, vertx, new JSONSerializer()));
+        router.route().handler(this::sendToStatsCollector);
         // Current version APIs
         router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
         router.get("/v1/token/validate").handler(this::handleTokenValidateV1);
@@ -612,6 +619,32 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 .tags("api_contact", finalApiContact)
                 .register(Metrics.globalRegistry));
         ds.record(inputCount);
+    }
+
+    public void sendToStatsCollector(RoutingContext routingContext) {
+        routingContext.next();
+        assert routingContext != null;
+
+        String path = routingContext.request().path();
+        String referer = routingContext.request().headers().get("Referer");
+        ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(routingContext);
+        StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(path, referer, clientKey.getContact(), clientKey.getSiteId());
+
+        if(_statCollectorCount.get() >= MAX_STAT_COLLECTORS){
+            Counter queueFullCounter = Counter
+                    .builder("uid2.api_usage_queue_full")
+                    .description("counter for how many usage messages are dropped because the queue is full")
+                    .register(Metrics.globalRegistry);
+            queueFullCounter.increment();
+            return;
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            vertx.eventBus().send("StatsCollector", mapper.writeValueAsString(messageItem));
+        } catch (JsonProcessingException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
     }
 
     private InputUtil.InputVal[] createInputList(JsonArray a, boolean inputAsHash) {

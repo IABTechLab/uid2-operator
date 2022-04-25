@@ -24,6 +24,7 @@
 package com.uid2.operator;
 
 import com.uid2.operator.monitoring.OperatorMetrics;
+import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
@@ -66,6 +67,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
@@ -87,6 +89,8 @@ public class Main {
     private final CloudSyncOptOutStore optOutStore;
 
     private final OperatorMetrics metrics;
+
+    private final AtomicInteger _statsCollectorCount;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -146,6 +150,8 @@ public class Main {
         }
 
         metrics = new OperatorMetrics(keyStore, saltProvider);
+
+        _statsCollectorCount = new AtomicInteger(0);
     }
 
     public static void main(String[] args) throws Exception {
@@ -223,7 +229,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            return new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC());
+            return new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorCount);
         };
 
         DeploymentOptions options = new DeploymentOptions();
@@ -244,6 +250,8 @@ public class Main {
                 vertx.close();
                 System.exit(1);
             });
+
+        createAndDeployStatsCollector();
     }
 
     private Future<Void> createStoreVerticles() throws Exception {
@@ -286,6 +294,13 @@ public class Main {
         vertx.deployVerticle(cloudSyncVerticle, ar -> promise.handle(ar));
         return promise.future()
             .onComplete(v -> setupTimerEvent(cloudSyncVerticle.eventRefresh()));
+    }
+
+    private Future<String> createAndDeployStatsCollector() {
+        Promise<String> promise = Promise.promise();
+        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, this._statsCollectorCount);
+        vertx.deployVerticle(statsCollectorVerticle, ar -> promise.handle(ar));
+        return promise.future();
     }
 
     private void setupTimerEvent(String eventCloudRefresh) {

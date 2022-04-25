@@ -1,17 +1,16 @@
 package com.uid2.operator.monitoring;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.uid2.shared.auth.ClientKey;
-import com.uid2.shared.middleware.AuthMiddleware;
+import com.uid2.operator.model.StatsCollectorMessageItem;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
-import io.vertx.core.Handler;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import io.vertx.core.WorkerExecutor;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageCodec;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.ext.web.RoutingContext;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -19,42 +18,34 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
-public class APIUsageCaptureHandler implements Handler<RoutingContext> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(APIUsageCaptureHandler.class);
-
-    private final Vertx vertx;
+public class StatsCollectorVerticle extends AbstractVerticle {
+    private static final Logger LOGGER = LoggerFactory.getLogger(StatsCollectorVerticle.class);
     private HashMap<String, EndpointStat> pathMap;
 
     private static final int MAX_AVAILABLE = 1000;
-    private final Semaphore queueSemaphore;
 
     private final long jsonProcessingInterval;
-
-    private final Counter queueFullCounter;
-    private final Counter logCycleSkipperCounter;
-    private final Counter domainMissedCounter;
     private Instant lastJsonProcessTime;
 
-    private JSONSerializer jsonSerializer;
-    private Thread runningSerializer;
+    private final Counter logCycleSkipperCounter;
+    private final Counter domainMissedCounter;
 
-    public APIUsageCaptureHandler(long jsonIntervalMS, Vertx v, JSONSerializer jsonSerial) {
-        vertx = v;
+    private final AtomicInteger _statsCollectorCount;
+    private final AtomicInteger _runningSerializer;
+
+    private WorkerExecutor jsonSerializerExecutor;
+
+    public StatsCollectorVerticle(long jsonIntervalMS, AtomicInteger statsCollectorCount) {
         pathMap = new HashMap<>();
 
-        vertx.eventBus().consumer("APIUsage", this::handleMessage);
+        _statsCollectorCount = statsCollectorCount;
+        _runningSerializer = new AtomicInteger(0);
 
         jsonProcessingInterval = jsonIntervalMS;
         lastJsonProcessTime = Instant.now();
-        this.jsonSerializer = jsonSerial;
-        runningSerializer = new Thread();
-        queueSemaphore = new Semaphore(MAX_AVAILABLE, true);
-        queueFullCounter = Counter
-                .builder("uid2.api_usage_queue_full")
-                .description("counter for how many usage messages are dropped because the queue is full")
-                .register(Metrics.globalRegistry);
 
         logCycleSkipperCounter = Counter
                 .builder("uid2.api_usage_log_cycle_skipped")
@@ -67,16 +58,23 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
                 .register(Metrics.globalRegistry);
     }
 
+    @Override
+    public void start() throws Exception {
+        super.start();
+        vertx.eventBus().consumer("StatsCollector", this::handleMessage);
+        this.jsonSerializerExecutor = vertx.createSharedWorkerExecutor("stats-collector-json-worker-pool");
+    }
+
     public void handleMessage(Message message) {
         ObjectMapper mapper = new ObjectMapper();
-        MessageItem messageItem = null;
+        StatsCollectorMessageItem messageItem = null;
         try {
-            messageItem = mapper.readValue(message.body().toString(), MessageItem.class);
+            messageItem = mapper.readValue(message.body().toString(), StatsCollectorMessageItem.class);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
 
-        queueSemaphore.release();
+        assert messageItem != null;
 
         String path = messageItem.getPath();
         String apiVersion = "v0";
@@ -95,7 +93,7 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
             try {
                 referer = new URI(referer).getHost();
             } catch (URISyntaxException e) {
-                e.printStackTrace();
+                LOGGER.error(e.getMessage(), e);
             }
         }
         String apiContact = messageItem.getApiContact();
@@ -106,6 +104,45 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
         EndpointStat endpointStat = new EndpointStat(endpoint, siteId, apiVersion, domain);
 
         pathMap.merge(path, endpointStat, this::mergeEndpoint);
+
+        _statsCollectorCount.decrementAndGet();
+
+        if(Duration.between(lastJsonProcessTime, Instant.now()).toMillis() >= jsonProcessingInterval){
+            lastJsonProcessTime = Instant.now();
+            if(_runningSerializer.get() > 0){
+               logCycleSkipperCounter.increment();
+            } else {
+                _runningSerializer.incrementAndGet();
+                this.jsonSerializerExecutor.<String>executeBlocking(
+                        promise -> promise.complete(this.serializeToLogs(pathMap.values().toArray())),
+                        res -> {
+                            if(res.succeeded()){
+                                LOGGER.info(res.result());
+                            } else {
+                                LOGGER.error("Failed To Serialize JSON");
+                            }
+                            _runningSerializer.decrementAndGet();
+                        }
+                );
+                pathMap.clear();
+            }
+
+        }
+    }
+
+    public String serializeToLogs(Object[] stats) {
+        LOGGER.debug("Starting JSON Serialize");
+        ObjectMapper mapper = new ObjectMapper();
+        StringBuilder completeStats = new StringBuilder();
+        for (int i = 0; i < stats.length; i++) {
+            try {
+                String jsonString = mapper.writeValueAsString(stats[i]);
+                completeStats.append(jsonString);
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+        }
+        return completeStats.toString();
     }
 
     private EndpointStat mergeEndpoint(EndpointStat a, EndpointStat b) {
@@ -114,93 +151,6 @@ public class APIUsageCaptureHandler implements Handler<RoutingContext> {
     }
 
 
-    @Override
-    public void handle(RoutingContext routingContext) {
-        routingContext.next();
-        assert routingContext != null;
-
-        String path = routingContext.request().path();
-        String referer = routingContext.request().headers().get("Referer");
-        ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(routingContext);
-        MessageItem messageItem = new MessageItem(path, referer, clientKey.getContact(), clientKey.getSiteId());
-
-        if(!queueSemaphore.tryAcquire()){
-            queueFullCounter.increment();
-            return;
-        }
-
-        ObjectMapper mapper = new ObjectMapper();
-        try {
-            vertx.eventBus().send("APIUsage", mapper.writeValueAsString(messageItem));
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-
-        if(Duration.between(lastJsonProcessTime, Instant.now()).toMillis() >= jsonProcessingInterval){
-            lastJsonProcessTime = Instant.now();
-            if(runningSerializer.isAlive()){
-               logCycleSkipperCounter.increment();
-            } else {
-                jsonSerializer.setArray(pathMap.values().toArray());
-                runningSerializer = new Thread(jsonSerializer);
-                runningSerializer.start();
-                pathMap.clear();
-            }
-
-        }
-    }
-
-    static class MessageItem {
-        private String path;
-        private String referer;
-        private String apiContact;
-        private Integer siteId;
-
-        //USED by json serial
-        public MessageItem(){}
-
-        public MessageItem(String p, String r, String api, Integer s){
-            path = p;
-            referer = r;
-            apiContact = api;
-            siteId = s;
-        }
-
-        public void setClientKey(ClientKey key) {
-        }
-
-        public void setReferer(String referer) {
-            this.referer = referer;
-        }
-
-        public String getReferer() {
-            return referer;
-        }
-
-        public void setPath(String path) {
-            this.path = path;
-        }
-
-        public String getPath() {
-            return path;
-        }
-
-        public String getApiContact() {
-            return apiContact;
-        }
-
-        public void setApiContact(String apiContact) {
-            this.apiContact = apiContact;
-        }
-
-        public Integer getSiteId() {
-            return siteId;
-        }
-
-        public void setSiteId(Integer siteId) {
-            this.siteId = siteId;
-        }
-    }
 
     public static class DomainStat {
         private String domain;

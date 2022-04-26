@@ -136,7 +136,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
                 String jsonString = mapper.writeValueAsString(stats[i]);
                 completeStats.append(jsonString).append("\n");
             } catch (JsonProcessingException e) {
-                e.printStackTrace();
+                LOGGER.error(e.getMessage(), e);
             }
         }
         return completeStats.toString();

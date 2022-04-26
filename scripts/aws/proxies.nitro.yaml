@@ -15,6 +15,11 @@ socks5h-proxy:
   listen: tcp://0.0.0.0:3305
   connect: vsock://3:3305
 
+aws-service-proxy:
+  service: direct
+  listen: tcp://127.0.0.1:443
+  connect: vsock://3:3308
+
 loki:
   service: direct
   listen: tcp://0.0.0.0:3100

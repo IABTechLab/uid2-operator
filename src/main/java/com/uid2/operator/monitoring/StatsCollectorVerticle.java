@@ -31,7 +31,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
     private final Counter domainMissedCounter;
 
     private final AtomicInteger _statsCollectorCount;
-    private final AtomicInteger _runningSerializer;
+    private int _runningSerializer;
 
     private WorkerExecutor jsonSerializerExecutor;
 
@@ -39,7 +39,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         pathMap = new HashMap<>();
 
         _statsCollectorCount = statsCollectorCount;
-        _runningSerializer = new AtomicInteger(0);
+        _runningSerializer = 0;
 
         jsonProcessingInterval = jsonIntervalMS;
         lastJsonProcessTime = Instant.ofEpochMilli(Instant.now().toEpochMilli() + jsonIntervalMS - 1);
@@ -106,10 +106,10 @@ public class StatsCollectorVerticle extends AbstractVerticle {
 
         if(Duration.between(lastJsonProcessTime, Instant.now()).toMillis() >= jsonProcessingInterval){
             lastJsonProcessTime = Instant.now();
-            if(_runningSerializer.get() > 0){
+            if(_runningSerializer > 0){
                logCycleSkipperCounter.increment();
             } else {
-                _runningSerializer.incrementAndGet();
+                _runningSerializer ++;
                 this.jsonSerializerExecutor.<String>executeBlocking(
                         promise -> promise.complete(this.serializeToLogs(pathMap.values().toArray())),
                         res -> {
@@ -118,7 +118,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
                             } else {
                                 LOGGER.error("Failed To Serialize JSON");
                             }
-                            _runningSerializer.decrementAndGet();
+                            _runningSerializer--;
                         }
                 );
                 pathMap.clear();

@@ -41,7 +41,7 @@ public interface IUIDOperatorService {
 
     public IdentityTokens generateIdentity(IdentityRequest request);
 
-    public void refreshIdentityAsync(String refreshToken, Handler<AsyncResult<RefreshResponse>> handler);
+    public RefreshResponse refreshIdentity(String refreshToken);
 
     public MappedIdentity map(String input, Instant asOf);
 

@@ -110,53 +110,44 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public void refreshIdentityAsync(String refreshToken, Handler<AsyncResult<RefreshResponse>> handler) {
+    public RefreshResponse refreshIdentity(String refreshToken) {
 
         final RefreshToken token;
         try {
             token = this.encoder.decode(refreshToken);
         } catch (Throwable t) {
-            handler.handle(Future.succeededFuture(RefreshResponse.Invalid));
-            return;
+            return RefreshResponse.Invalid;
         }
         if (token == null) {
-            handler.handle(Future.succeededFuture(RefreshResponse.Invalid));
-            return;
+            return RefreshResponse.Invalid;
         }
 
         if (token.getIdentity().getEstablished().isBefore(RefreshCutoff)) {
-            handler.handle(Future.succeededFuture(RefreshResponse.Deprecated));
-            return;
+            return RefreshResponse.Deprecated;
         }
 
         if (token.getValidTill().isBefore(Instant.now(this.clock))) {
-            handler.handle(Future.succeededFuture(RefreshResponse.Expired));
-            return;
+            return RefreshResponse.Expired;
         }
 
         if (testOptOutKey.equals(token.getIdentity().getId())) {
-            handler.handle(Future.succeededFuture(RefreshResponse.Optout));
-            return;
+            return RefreshResponse.Optout;
         }
 
-        this.optOutStore.getLatestEntry(token.getIdentity().getId(), r -> {
-            if (r.succeeded()) {
-                final Instant logoutEntry = r.result();
-                final RefreshResponse response;
+        try {
+            final Instant logoutEntry = this.optOutStore.getLatestEntry(token.getIdentity().getId());
 
-                if (logoutEntry == null || token.getCreatedAt().isAfter(logoutEntry)) {
-                    response = RefreshResponse.Refreshed(this.generateIdentity(
-                            token.getIdentity().getId(), token.getIdentity().getSiteId(),
-                            token.getIdentity().getPrivacyBits(), token.getIdentity().getEstablished()));
-                } else {
-                    response = RefreshResponse.Optout;
-                }
-                handler.handle(Future.succeededFuture(response));
+            if (logoutEntry == null || token.getCreatedAt().isAfter(logoutEntry)) {
+                return RefreshResponse.Refreshed(this.generateIdentity(
+                    token.getIdentity().getId(), token.getIdentity().getSiteId(),
+                    token.getIdentity().getPrivacyBits(), token.getIdentity().getEstablished()));
             } else {
-                handler.handle(Future.succeededFuture(RefreshResponse.Invalid));
+                return RefreshResponse.Optout;
             }
-        });
-
+        }
+        catch (Exception ex) {
+            return RefreshResponse.Invalid;
+        }
     }
 
     @Override

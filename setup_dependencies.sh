@@ -4,7 +4,7 @@ mkdir dependencies
 cd dependencies
 
 echo 'enclave-attestation-api: download'
-git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/enclave-attestation-api-java.git
+git clone https://github.com/IABTechLab/enclave-attestation-api-java.git
 
 VERSION=${1:-"1.0.0"}
 GROUP_ID="com.uid2"
@@ -16,7 +16,7 @@ mvn package && mvn install:install-file -Dfile="./target/$ARTIFACT_ID-$VERSION.j
 popd
 
 echo 'uid2-shared: download'
-git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/uid2-shared.git
+git clone https://github.com/IABTechLab/uid2-shared.git
 
 VERSION=${1:-"1.0.0"}
 GROUP_ID="com.uid2"
@@ -30,7 +30,7 @@ popd
 if [ "$enclave_platform" = "aws-nitro" ]
 then
     echo 'uid2-attestation-aws: download'
-    git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/nsm-java.git
+    git clone https://github.com/IABTechLab/nsm-java.git
 
     VERSION=${1:-"1.0.0"}
     GROUP_ID="com.uid2"
@@ -45,11 +45,19 @@ then
     cargo build --lib --release
     popd
 
-    curl -LJ -H "Authorization: token $GITHUB_ACCESS_TOKEN" -H 'Accept: application/octet-stream' 'https://api.github.com/repos/UnifiedID2/vsock-skeleton-key/releases/assets/35853213' -o vsockpx
+    git clone https://github.com/IABTechLab/vsock-skeleton-key.git
+    pushd vsock-skeleton-key || exit
+    mkdir build
+    cd build
+    cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    make
+    popd
+    cp vsock-skeleton-key/build/vsock-bridge/src/vsock-bridge vsockpx
+
 elif [ "$enclave_platform" = "gcp-vmid" ]
 then
     echo 'uid2-attestation-gcp: download'
-    git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/uid2-attestation-gcp.git
+    git clone https://github.com/IABTechLab/uid2-attestation-gcp.git
 
     VERSION=${1:-"1.0.0"}
     GROUP_ID="com.uid2"
@@ -62,7 +70,7 @@ then
 elif [ "$enclave_platform" = "azure-sgx" ]
 then
     echo 'uid2-attestation-azure: download'
-    git clone https://$GITHUB_ACCESS_TOKEN@github.com/UnifiedID2/uid2-attestation-azure.git
+    git clone https://github.com/IABTechLab/uid2-attestation-azure.git
 
     VERSION=${1:-"1.0.0"}
     GROUP_ID="com.uid2"

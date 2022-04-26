@@ -1,8 +1,9 @@
 ---
 
 socks5h-proxy:
-  service: socks
+  service: direct
   listen: vsock://-1:3305
+  connect: tcp://127.0.0.1:3306
 
 operator-service:
   service: direct

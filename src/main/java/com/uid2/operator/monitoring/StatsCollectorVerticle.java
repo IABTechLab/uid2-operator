@@ -68,7 +68,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         try {
             messageItem = mapper.readValue(message.body().toString(), StatsCollectorMessageItem.class);
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage(), e);
         }
 
         assert messageItem != null;

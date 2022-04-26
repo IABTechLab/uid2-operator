@@ -65,6 +65,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -90,6 +91,8 @@ public class UIDOperatorVerticleTest {
     private static final Duration refreshExpiresAfter = Duration.ofMinutes(15);
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
 
+    private AtomicInteger statsCollectorRunning;
+
     @BeforeEach void deployVerticle(Vertx vertx, VertxTestContext testContext) throws Throwable {
         mocks = MockitoAnnotations.openMocks(this);
         when(keyStore.getSnapshot()).thenReturn(keyStoreSnapshot);
@@ -102,7 +105,9 @@ public class UIDOperatorVerticleTest {
         config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, refreshExpiresAfter.toMillis() / 1000);
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, refreshIdentityAfter.toMillis() / 1000);
 
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock);
+        statsCollectorRunning = new AtomicInteger(0);
+
+        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorRunning);
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
     }
 
@@ -956,6 +961,42 @@ public class UIDOperatorVerticleTest {
             HttpResponse response = ar.result();
             assertEquals(413, response.statusCode());
 
+            testContext.completeNow();
+        });
+    }
+
+    @Test void sendInformationToStatsCollector(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        vertx.eventBus().consumer("StatsCollector", message -> {
+            String expected = "{\"path\":\"/v1/token/generate\",\"referer\":null,\"apiContact\":null,\"siteId\":201}";
+            assert message.body().toString().equals(expected);
+        });
+
+        get(vertx, "v1/token/generate?email=" + emailAddress, ar -> {
+            assert statsCollectorRunning.get() == 1;
+            testContext.completeNow();
+        });
+    }
+    @Test void sendToStatsCollectorFullQueue(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        statsCollectorRunning.set(1000);
+
+        vertx.eventBus().consumer("StatsCollector", message -> {
+            assert false;
+        });
+
+        get(vertx, "v1/token/generate?email=" + emailAddress, ar -> {
+            assert statsCollectorRunning.get() == 1000;
             testContext.completeNow();
         });
     }

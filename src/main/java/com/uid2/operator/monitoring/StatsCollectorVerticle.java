@@ -5,8 +5,6 @@ import com.uid2.operator.model.StatsCollectorMessageItem;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
 import io.vertx.core.WorkerExecutor;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.logging.Logger;
@@ -17,7 +15,6 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -45,7 +42,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         _runningSerializer = new AtomicInteger(0);
 
         jsonProcessingInterval = jsonIntervalMS;
-        lastJsonProcessTime = Instant.now();
+        lastJsonProcessTime = Instant.ofEpochMilli(Instant.now().toEpochMilli() + jsonIntervalMS - 1);
 
         logCycleSkipperCounter = Counter
                 .builder("uid2.api_usage_log_cycle_skipped")
@@ -137,7 +134,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         for (int i = 0; i < stats.length; i++) {
             try {
                 String jsonString = mapper.writeValueAsString(stats[i]);
-                completeStats.append(jsonString);
+                completeStats.append(jsonString).append("\n");
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
@@ -151,6 +148,11 @@ public class StatsCollectorVerticle extends AbstractVerticle {
     }
 
 
+    public String GetEndpointStats() {
+        StringBuilder output = new StringBuilder();
+        Object[] stats = pathMap.values().toArray();
+        return serializeToLogs(stats);
+    }
 
     public static class DomainStat {
         private String domain;

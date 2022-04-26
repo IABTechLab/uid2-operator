@@ -642,6 +642,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         ObjectMapper mapper = new ObjectMapper();
         try {
             vertx.eventBus().send("StatsCollector", mapper.writeValueAsString(messageItem));
+            _statCollectorCount.incrementAndGet();
         } catch (JsonProcessingException e) {
             LOGGER.error(e.getMessage(), e);
         }

@@ -31,18 +31,19 @@ public class StatsCollectorVerticle extends AbstractVerticle {
     private final Counter domainMissedCounter;
 
     private final AtomicInteger _statsCollectorCount;
-    private int _runningSerializer;
+    private boolean _runningSerializer;
 
     private WorkerExecutor jsonSerializerExecutor;
+
+    private final ObjectMapper mapper;
 
     public StatsCollectorVerticle(long jsonIntervalMS, AtomicInteger statsCollectorCount) {
         pathMap = new HashMap<>();
 
         _statsCollectorCount = statsCollectorCount;
-        _runningSerializer = 0;
+        _runningSerializer = false;
 
         jsonProcessingInterval = jsonIntervalMS;
-        lastJsonProcessTime = Instant.ofEpochMilli(Instant.now().toEpochMilli() + jsonIntervalMS - 1);
 
         logCycleSkipperCounter = Counter
                 .builder("uid2.api_usage_log_cycle_skipped")
@@ -53,6 +54,8 @@ public class StatsCollectorVerticle extends AbstractVerticle {
                 .builder("uid2.api_usage_domain_missed")
                 .description("counter for how many domains are missed because the dictionary is full")
                 .register(Metrics.globalRegistry);
+
+        mapper = new ObjectMapper();
     }
 
     @Override
@@ -60,15 +63,16 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         super.start();
         vertx.eventBus().consumer("StatsCollector", this::handleMessage);
         this.jsonSerializerExecutor = vertx.createSharedWorkerExecutor("stats-collector-json-worker-pool");
+        lastJsonProcessTime = Instant.ofEpochMilli(Instant.now().toEpochMilli() + jsonProcessingInterval - 1);
     }
 
     public void handleMessage(Message message) {
-        ObjectMapper mapper = new ObjectMapper();
         StatsCollectorMessageItem messageItem = null;
         try {
             messageItem = mapper.readValue(message.body().toString(), StatsCollectorMessageItem.class);
         } catch (JsonProcessingException e) {
             LOGGER.error(e.getMessage(), e);
+            return;
         }
 
         assert messageItem != null;
@@ -106,19 +110,17 @@ public class StatsCollectorVerticle extends AbstractVerticle {
 
         if(Duration.between(lastJsonProcessTime, Instant.now()).toMillis() >= jsonProcessingInterval){
             lastJsonProcessTime = Instant.now();
-            if(_runningSerializer > 0){
+            if(_runningSerializer){
                logCycleSkipperCounter.increment();
             } else {
-                _runningSerializer ++;
-                this.jsonSerializerExecutor.<String>executeBlocking(
+                _runningSerializer = true;
+                this.jsonSerializerExecutor.<Void>executeBlocking(
                         promise -> promise.complete(this.serializeToLogs(pathMap.values().toArray())),
                         res -> {
-                            if(res.succeeded()){
-                                LOGGER.info(res.result());
-                            } else {
+                            if(!res.succeeded()) {
                                 LOGGER.error("Failed To Serialize JSON");
                             }
-                            _runningSerializer--;
+                            _runningSerializer = false;
                         }
                 );
                 pathMap.clear();
@@ -127,9 +129,28 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         }
     }
 
-    public String serializeToLogs(Object[] stats) {
+    Void serializeToLogs(Object[] stats) {
         LOGGER.debug("Starting JSON Serialize");
         ObjectMapper mapper = new ObjectMapper();
+        for (int i = 0; i < stats.length; i++) {
+            try {
+                String jsonString = mapper.writeValueAsString(stats[i]);
+                LOGGER.info(jsonString);
+            } catch (JsonProcessingException e) {
+                LOGGER.error(e.getMessage(), e);
+            }
+        }
+        return null;
+    }
+
+    private EndpointStat mergeEndpoint(EndpointStat a, EndpointStat b) {
+        a.merge(b);
+        return a;
+    }
+
+
+    public String GetEndpointStats() {
+        Object[] stats = pathMap.values().toArray();
         StringBuilder completeStats = new StringBuilder();
         for (int i = 0; i < stats.length; i++) {
             try {
@@ -142,19 +163,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         return completeStats.toString();
     }
 
-    private EndpointStat mergeEndpoint(EndpointStat a, EndpointStat b) {
-        a.Merge(b);
-        return a;
-    }
-
-
-    public String GetEndpointStats() {
-        StringBuilder output = new StringBuilder();
-        Object[] stats = pathMap.values().toArray();
-        return serializeToLogs(stats);
-    }
-
-    public static class DomainStat {
+    static class DomainStat {
         private String domain;
         private Integer count;
         private String apiContact;
@@ -180,10 +189,6 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         public void merge(DomainStat d) {
             count += d.getCount();
         }
-
-        public String toString() {
-            return "{Domain: " + domain + ", Count: " + count + ", Api_Contact: "+ apiContact + "}";
-        }
     }
 
     class EndpointStat {
@@ -193,17 +198,16 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         private ArrayList<DomainStat> domainList;
         private HashMap<String, Integer> domainMap;
 
-
-        private final int DomainSize = 1000;
+        private final int MaxDomains = 1000;
 
         public EndpointStat(String e, Integer s, String a, DomainStat d) {
             endpoint = e;
             siteId = s;
             apiVersion = a;
-            domainList = new ArrayList<>(DomainSize);
+            domainList = new ArrayList<>(MaxDomains);
             domainMap = new HashMap<>();
 
-            AddDomain(d);
+            addDomain(d);
         }
 
         public String getEndpoint() {
@@ -222,32 +226,21 @@ public class StatsCollectorVerticle extends AbstractVerticle {
             return domainList;
         }
 
-        public void Merge(EndpointStat other) {
-            other.domainList.forEach(this::AddDomain);
+        public void merge(EndpointStat other) {
+            other.domainList.forEach(this::addDomain);
         }
 
-        public void AddDomain(DomainStat d) {
+        public void addDomain(DomainStat d) {
             String domainName = d.getDomain();
             if(domainMap.containsKey(domainName)) {
                 domainList.get(domainMap.get(domainName)).merge(d);
             }
-            else if(domainList.size() < DomainSize) {
+            else if(domainList.size() < MaxDomains) {
                 domainList.add(d);
                 domainMap.put(domainName, domainList.size()-1);
             } else {
                 domainMissedCounter.increment();
             }
-        }
-
-        public String toString() {
-            StringBuilder outString = new StringBuilder("endpoint: " + endpoint + ", site_id: " + siteId + ", api_version: " + apiVersion +
-                    "\nDomains: ");
-
-            for (int i = 0; i < domainList.size(); i++) {
-                outString.append(domainList.get(i).toString()).append(", ");
-            }
-
-            return outString.toString();
         }
     }
 }

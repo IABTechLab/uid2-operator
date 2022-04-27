@@ -33,23 +33,72 @@ public class InputUtil {
 
     private static String GMAILDOMAIN = "gmail.com";
 
-    public static InputVal NormalizeHash(String input) {
+    private static int MIN_PHONENUMBER_DIGITS = 10;
+    private static int MAX_PHONENUMBER_DIGITS = 15;
+
+    public static InputVal NormalizeEmailHash(String input) {
         final int inputLength = input.length();
         if (inputLength == 44) {
             try {
                 EncodingUtils.fromBase64(input);
-                return InputVal.ValidHash(input, input);
+                return InputVal.ValidEmailHash(input, input);
             } catch (Exception e) {
             }
         } else if (inputLength == 64) {
             try {
                 final byte[] s = EncodingUtils.fromHexString(input);
-                return InputVal.ValidHash(input, EncodingUtils.toBase64String(s));
+                return InputVal.ValidEmailHash(input, EncodingUtils.toBase64String(s));
             } catch (Exception e) {
             }
         }
-        return InputVal.InvalidHash(input);
+        return InputVal.InvalidEmailHash(input);
+    }
 
+    public static InputVal NormalizePhoneHash(String input) {
+        final int inputLength = input.length();
+        if (inputLength == 44) {
+            try {
+                EncodingUtils.fromBase64(input);
+                return InputVal.ValidPhoneHash(input, input);
+            } catch (Exception e) {
+            }
+        } else if (inputLength == 64) {
+            try {
+                final byte[] s = EncodingUtils.fromHexString(input);
+                return InputVal.ValidPhoneHash(input, EncodingUtils.toBase64String(s));
+            } catch (Exception e) {
+            }
+        }
+        return InputVal.InvalidPhoneHash(input);
+    }
+
+    public static boolean IsAsciiDigit(char d)
+    {
+        return d >= '0' && d <= '9';
+    }
+
+    public static boolean IsPhoneNumberNormalized(String phonenumber) {
+        // normalized phonenumber must follow ITU E.164 standard, see https://www.wikipedia.com/en/E.164
+        if (phonenumber == null || phonenumber.length() < MIN_PHONENUMBER_DIGITS)
+            return false;
+
+        // first character must be '+' sign
+        if ('+' != phonenumber.charAt(0))
+            return false;
+
+        // count the digits, return false if non-digit charracter is found
+        int totalDigits = 0;
+        for (int i = 1; i < phonenumber.length(); ++i)
+        {
+            if (!InputUtil.IsAsciiDigit(phonenumber.charAt(i)))
+                return false;
+            ++totalDigits;
+        }
+
+        if (totalDigits < MIN_PHONENUMBER_DIGITS || totalDigits > MAX_PHONENUMBER_DIGITS)
+            return false;
+
+        return true;
     }
 
     public static InputVal NormalizeEmail(String email) {
@@ -58,6 +107,13 @@ public class InputUtil {
             return InputVal.ValidEmail(email, normalize);
         }
         return InputVal.InvalidEmail(email);
+    }
+
+    public static InputVal NormalizePhone(String phone) {
+        if (IsPhoneNumberNormalized(phone)) {
+            return InputVal.ValidEmail(phone, phone);
+        }
+        return InputVal.InvalidPhone(phone);
     }
 
     public static String NormalizeEmailString(String email) {
@@ -182,12 +238,28 @@ public class InputUtil {
             return new InputVal(input, null, IdentityType.Email, IdentityInputType.Raw, false);
         }
 
-        public static InputVal ValidHash(String input, String normalized) {
+        public static InputVal ValidEmailHash(String input, String normalized) {
             return new InputVal(input, normalized, IdentityType.Email, IdentityInputType.Hash, true);
         }
 
-        public static InputVal InvalidHash(String input) {
+        public static InputVal InvalidEmailHash(String input) {
             return new InputVal(input, null, IdentityType.Email, IdentityInputType.Hash, false);
+        }
+
+        public static InputVal ValidPhone(String input, String normalized) {
+            return new InputVal(input, normalized, IdentityType.Phone, IdentityInputType.Raw, true);
+        }
+
+        public static InputVal InvalidPhone(String input) {
+            return new InputVal(input, null, IdentityType.Phone, IdentityInputType.Raw, false);
+        }
+
+        public static InputVal ValidPhoneHash(String input, String normalized) {
+            return new InputVal(input, normalized, IdentityType.Phone, IdentityInputType.Hash, true);
+        }
+
+        public static InputVal InvalidPhoneHash(String input) {
+            return new InputVal(input, null, IdentityType.Phone, IdentityInputType.Hash, false);
         }
 
         public byte[] getIdentityInput() {

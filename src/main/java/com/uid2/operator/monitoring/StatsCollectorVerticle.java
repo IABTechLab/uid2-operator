@@ -115,8 +115,9 @@ public class StatsCollectorVerticle extends AbstractVerticle {
                logCycleSkipperCounter.increment();
             } else {
                 _runningSerializer = true;
+                Object[] stats = pathMap.values().toArray();
                 this.jsonSerializerExecutor.<Void>executeBlocking(
-                        promise -> promise.complete(this.serializeToLogs(pathMap.values().toArray())),
+                        promise -> promise.complete(this.serializeToLogs(stats)),
                         res -> {
                             if(!res.succeeded()) {
                                 LOGGER.error("Failed To Serialize JSON");

@@ -2,6 +2,7 @@ package com.uid2.operator.monitoring;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.uid2.operator.Const;
 import com.uid2.operator.model.StatsCollectorMessageItem;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
@@ -13,7 +14,6 @@ import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.RoundingMode;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class StatsCollectorHandler implements Handler<RoutingContext> {
@@ -52,7 +52,7 @@ public class StatsCollectorHandler implements Handler<RoutingContext> {
         }
 
         try {
-            vertx.eventBus().send("StatsCollector", mapper.writeValueAsString(messageItem));
+            vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
             _statCollectorCount.incrementAndGet();
         } catch (JsonProcessingException e) {
             LOGGER.error(e.getMessage(), e);

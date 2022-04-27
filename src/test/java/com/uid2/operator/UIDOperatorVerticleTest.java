@@ -986,9 +986,9 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
 
-        vertx.eventBus().consumer("StatsCollector", message -> {
+        vertx.eventBus().consumer(Const.Config.StatsCollectorEventBus, message -> {
             String expected = "{\"path\":\"/v1/token/generate\",\"referer\":null,\"apiContact\":null,\"siteId\":201}";
-            assert message.body().toString().equals(expected);
+            assertSame(message.body().toString(), expected);
         });
 
         get(vertx, "v1/token/generate?email=" + emailAddress, ar -> {
@@ -1005,7 +1005,7 @@ public class UIDOperatorVerticleTest {
 
         statsCollectorRunning.set(1000);
 
-        vertx.eventBus().consumer("StatsCollector", message -> {
+        vertx.eventBus().consumer(Const.Config.StatsCollectorEventBus, message -> {
             assert false;
         });
 

@@ -1,6 +1,7 @@
 package com.uid2.operator.monitoring;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.uid2.operator.Const;
 import com.uid2.operator.model.StatsCollectorMessageItem;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
@@ -61,7 +62,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
     @Override
     public void start() throws Exception {
         super.start();
-        vertx.eventBus().consumer("StatsCollector", this::handleMessage);
+        vertx.eventBus().consumer(Const.Config.StatsCollectorEventBus, this::handleMessage);
         this.jsonSerializerExecutor = vertx.createSharedWorkerExecutor("stats-collector-json-worker-pool");
         lastJsonProcessTime = Instant.ofEpochMilli(Instant.now().toEpochMilli() + jsonProcessingInterval - 1);
     }

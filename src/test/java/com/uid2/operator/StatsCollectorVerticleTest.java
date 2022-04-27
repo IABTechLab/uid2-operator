@@ -5,10 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.model.StatsCollectorMessageItem;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import io.vertx.core.Vertx;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.logging.Logger;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +19,7 @@ import java.lang.reflect.Modifier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.*;
 
 
@@ -63,7 +64,7 @@ public class StatsCollectorVerticleTest {
         ObjectMapper mapper = new ObjectMapper();
         StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem("test", "https://test.com", "test", 1);
 
-        vertx.eventBus().send("StatsCollector", mapper.writeValueAsString(messageItem));
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
         testContext.awaitCompletion(1000, TimeUnit.MILLISECONDS);
         assert statsCollectorRunning.get() == 0;
         testContext.completeNow();
@@ -74,14 +75,14 @@ public class StatsCollectorVerticleTest {
         ObjectMapper mapper = new ObjectMapper();
         StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem("/test", "https://test.com", "test", 1);
 
-        vertx.eventBus().send("StatsCollector", mapper.writeValueAsString(messageItem));
-        vertx.eventBus().send("StatsCollector", mapper.writeValueAsString(messageItem));
-        vertx.eventBus().send("StatsCollector", mapper.writeValueAsString(messageItem));
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
 
         messageItem = new StatsCollectorMessageItem("/v1/test", "https://test.com", "test", 1);
 
-        vertx.eventBus().send("StatsCollector", mapper.writeValueAsString(messageItem));
-        vertx.eventBus().send("StatsCollector", mapper.writeValueAsString(messageItem));
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
 
         testContext.awaitCompletion(2000, TimeUnit.MILLISECONDS);
 
@@ -91,7 +92,7 @@ public class StatsCollectorVerticleTest {
 
         String results = verticle.GetEndpointStats();
 
-        assert results.equals(expected);
+        Assertions.assertSame(results, expected);
 
         testContext.completeNow();
     }

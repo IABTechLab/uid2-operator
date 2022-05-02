@@ -24,31 +24,18 @@
 package com.uid2.operator.model;
 
 import java.time.Instant;
-import java.util.Objects;
 
 public class AdvertisingToken extends VersionedToken {
-    private final UserIdentity identity;
+    public final OperatorIdentity operatorIdentity;
+    public final PublisherIdentity publisherIdentity;
+    public final UserIdentity userIdentity;
 
-    public AdvertisingToken(int version, Instant createdAt, Instant expiresAt, UserIdentity identity) {
+    public AdvertisingToken(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
+                            PublisherIdentity publisherIdentity, UserIdentity userIdentity) {
         super(version, createdAt, expiresAt);
-        this.identity = identity;
-    }
-
-    public UserIdentity getIdentity() {
-        return identity;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        if (!super.equals(o)) return false;
-        AdvertisingToken that = (AdvertisingToken) o;
-        return Objects.equals(identity, that.identity);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(super.hashCode(), identity);
+        this.operatorIdentity = operatorIdentity;
+        this.publisherIdentity = publisherIdentity;
+        this.userIdentity = userIdentity;
     }
 }
+

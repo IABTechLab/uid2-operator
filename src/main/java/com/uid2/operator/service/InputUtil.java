@@ -23,6 +23,12 @@
 
 package com.uid2.operator.service;
 
+import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.IdentityType;
+import com.uid2.operator.model.UserIdentity;
+
+import java.time.Instant;
+
 public class InputUtil {
 
     private static String GMAILDOMAIN = "gmail.com";
@@ -130,8 +136,8 @@ public class InputUtil {
         return addressPartToUse.append('@').append(domainPart).toString();
     }
 
-    public static enum Type {
-        Email,
+    public enum IdentityInputType {
+        Raw,
         Hash
     }
 
@@ -146,20 +152,22 @@ public class InputUtil {
     public static class InputVal {
         private final String provided;
         private final String normalized;
-        private final Type type;
+        private final IdentityType identityType;
+        private final IdentityInputType inputType;
         private final boolean valid;
-        private final String identityInput;
+        private final byte[] identityInput;
 
-        public InputVal(String provided, String normalized, Type type, boolean valid) {
+        public InputVal(String provided, String normalized, IdentityType identityType, IdentityInputType inputType, boolean valid) {
             this.provided = provided;
             this.normalized = normalized;
-            this.type = type;
+            this.identityType = identityType;
+            this.inputType = inputType;
             this.valid = valid;
             if (valid) {
-                if (this.type == Type.Email) {
-                    this.identityInput = TokenUtils.getEmailHash(this.normalized);
+                if (this.inputType == IdentityInputType.Raw) {
+                    this.identityInput = TokenUtils.getIdentityHash(this.normalized);
                 } else {
-                    this.identityInput = this.normalized;
+                    this.identityInput = EncodingUtils.fromBase64(this.normalized);
                 }
             } else {
                 this.identityInput = null;
@@ -167,22 +175,22 @@ public class InputUtil {
         }
 
         public static InputVal ValidEmail(String input, String normalized) {
-            return new InputVal(input, normalized, Type.Email, true);
+            return new InputVal(input, normalized, IdentityType.Email, IdentityInputType.Raw, true);
         }
 
         public static InputVal InvalidEmail(String input) {
-            return new InputVal(input, null, Type.Email, false);
+            return new InputVal(input, null, IdentityType.Email, IdentityInputType.Raw, false);
         }
 
         public static InputVal ValidHash(String input, String normalized) {
-            return new InputVal(input, normalized, Type.Hash, true);
+            return new InputVal(input, normalized, IdentityType.Email, IdentityInputType.Hash, true);
         }
 
         public static InputVal InvalidHash(String input) {
-            return new InputVal(input, null, Type.Hash, false);
+            return new InputVal(input, null, IdentityType.Email, IdentityInputType.Hash, false);
         }
 
-        public String getIdentityInput() {
+        public byte[] getIdentityInput() {
             return this.identityInput;
         }
 
@@ -194,12 +202,24 @@ public class InputUtil {
             return normalized;
         }
 
-        public Type getType() {
-            return type;
+        public IdentityType getIdentityType() {
+            return identityType;
         }
+
+        public IdentityInputType getInputType() { return inputType; }
 
         public boolean isValid() {
             return valid;
+        }
+
+        public UserIdentity toUserIdentity(IdentityScope identityScope, int privacyBits, Instant establishedAt) {
+            return new UserIdentity(
+                    identityScope,
+                    this.identityType,
+                    getIdentityInput(),
+                    privacyBits,
+                    establishedAt,
+                    establishedAt);
         }
     }
 

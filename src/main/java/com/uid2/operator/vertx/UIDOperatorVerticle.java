@@ -64,6 +64,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +74,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
 
     public static final String ValidationInputEmail = "validate@email.com";
-    public static final String ValidationInput = EncodingUtils.getSha256(ValidationInputEmail);
+    public static final byte[] ValidationInput = EncodingUtils.getSha256Bytes(ValidationInputEmail);
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
@@ -112,10 +113,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         this.idService = new UIDOperatorService(
             this.config,
-            this.keyStore,
             this.optOutStore,
             this.saltProvider,
-            new V2EncryptedTokenEncoder(this.keyStore),
+            new EncryptedTokenEncoder(this.keyStore),
             this.clock
         );
 
@@ -296,9 +296,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (!checkTokenInput(input, rc)) {
                 return;
             }
-            if (ValidationInput.equals(input.getIdentityInput())) {
+            if (Arrays.equals(ValidationInput, input.getIdentityInput())) {
                 try {
-                    if (this.idService.doesMatch(rc.queryParam("token").get(0), input.getIdentityInput(), Instant.now())) {
+                    final Instant now = Instant.now();
+                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(IdentityScope.UID2, 0, now), now)) {
                         ResponseUtil.Success(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.Success(rc, Boolean.FALSE);
@@ -325,9 +326,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             if (ValidationInput.equals(input.getIdentityInput())) {
                 try {
-                    String token = req.getString("token");
+                    final Instant now = Instant.now();
+                    final String token = req.getString("token");
 
-                    if (this.idService.doesMatch(token, input.getIdentityInput(), Instant.now())) {
+                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(IdentityScope.UID2, 0, now), now)) {
                         ResponseUtil.SuccessV2(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.SuccessV2(rc, Boolean.FALSE);
@@ -352,7 +354,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             } else {
                 final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
                 final IdentityTokens t = this.idService.generateIdentity(
-                    new IdentityRequest(input.getIdentityInput(), clientKey.getSiteId(), 1));
+                    new IdentityRequest(
+                        new PublisherIdentity(clientKey.getSiteId(), 0, 0),
+                        input.toUserIdentity(IdentityScope.UID2, 1, Instant.now())));
 
                 //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
@@ -374,7 +378,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
             final IdentityTokens t = this.idService.generateIdentity(
-                new IdentityRequest(input.getIdentityInput(), clientKey.getSiteId(), 1));
+                    new IdentityRequest(
+                            new PublisherIdentity(clientKey.getSiteId(), 0, 0),
+                            input.toUserIdentity(IdentityScope.UID2, 1, Instant.now())));
 
             //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
@@ -405,9 +411,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleValidate(RoutingContext rc) {
         try {
             final InputUtil.InputVal input = getTokenInput(rc);
-            if (input != null && input.isValid() && ValidationInput.equals(input.getIdentityInput())) {
+            if (input != null && input.isValid() && Arrays.equals(ValidationInput, input.getIdentityInput())) {
                 try {
-                    if (this.idService.doesMatch(rc.queryParam("token").get(0), input.getIdentityInput(), Instant.now())) {
+                    final Instant now = Instant.now();
+                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(IdentityScope.UID2, 0, now), now)) {
                         rc.response().end("true");
                     } else {
                         rc.response().end("false");
@@ -427,7 +434,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleLogoutAsync(RoutingContext rc) {
         final InputUtil.InputVal input = getTokenInput(rc);
         if (input.isValid()) {
-            this.idService.InvalidateTokensAsync(input.getIdentityInput(), ar -> {
+            final Instant now = Instant.now();
+            this.idService.invalidateTokensAsync(input.toUserIdentity(IdentityScope.UID2, 0, now), now, ar -> {
                 if (ar.succeeded()) {
                     rc.response().end("OK");
                 } else {
@@ -443,7 +451,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
         if (input.isValid()) {
-            this.idService.InvalidateTokensAsync(input.getIdentityInput(), ar -> {
+            final Instant now = Instant.now();
+            this.idService.invalidateTokensAsync(input.toUserIdentity(IdentityScope.UID2, 0, now), now, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
                     body.put("optout", "OK");
@@ -461,7 +470,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = getTokenInput(rc);
         if (input.isValid()) {
             try {
-                Instant result = this.optOutStore.getLatestEntry(input.getIdentityInput());
+                final Instant now = Instant.now();
+                final UserIdentity userIdentity = input.toUserIdentity(IdentityScope.UID2, 0, now);
+                final Instant result = this.idService.getLatestOptoutEntry(userIdentity, now);
                 long timestamp = result == null ? -1 : result.getEpochSecond();
                 rc.response().setStatusCode(200)
                     .setChunked(true)
@@ -541,11 +552,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
         try {
-            final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput(), Instant.now());
+            final Instant now = Instant.now();
+            final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(IdentityScope.UID2, 0, now), now);
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
-            jsonObject.put("advertising_id", mappedIdentity.getAdvertisingId());
-            jsonObject.put("bucket_id", mappedIdentity.getBucketId());
+            jsonObject.put("advertising_id", mappedIdentity.advertisingId);
+            jsonObject.put("bucket_id", mappedIdentity.bucketId);
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
@@ -556,8 +568,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = this.getTokenInput(rc);
 
         if (input != null && input.isValid()) {
-            final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput(), Instant.now());
-            rc.response().end(mappedIdentity.getAdvertisingId());
+            final Instant now = Instant.now();
+            final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(IdentityScope.UID2, 0, now), now);
+            rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
         } else {
             rc.fail(400);
         }
@@ -632,11 +645,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput(), now);
+                    final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(IdentityScope.UID2, 0, now), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", mappedIdentity.getAdvertisingId());
-                    resp.put("bucket_id", mappedIdentity.getBucketId());
+                    resp.put("advertising_id", mappedIdentity.advertisingId);
+                    resp.put("bucket_id", mappedIdentity.bucketId);
                     mapped.add(resp);
                 }
             }
@@ -677,11 +690,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = idService.map(input.getIdentityInput(), now);
+                    final MappedIdentity mappedIdentity = idService.map(input.toUserIdentity(IdentityScope.UID2, 0, now), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", mappedIdentity.getAdvertisingId());
-                    resp.put("bucket_id", mappedIdentity.getBucketId());
+                    resp.put("advertising_id", mappedIdentity.advertisingId);
+                    resp.put("bucket_id", mappedIdentity.bucketId);
                     mapped.add(resp);
                 }
             }
@@ -722,10 +735,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = this.idService.map(input.getIdentityInput(), now);
+                    final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(IdentityScope.UID2, 0, now), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", mappedIdentity.getAdvertisingId());
+                    resp.put("advertising_id", mappedIdentity.advertisingId);
                     mapped.add(resp);
                 }
             }
@@ -812,7 +825,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         json.put("advertising_token", t.getAdvertisingToken());
         json.put("user_token", t.getUserToken());
         json.put("refresh_token", t.getRefreshToken());
-        json.put("tdid", t.getTdid());
 
         return json;
     }

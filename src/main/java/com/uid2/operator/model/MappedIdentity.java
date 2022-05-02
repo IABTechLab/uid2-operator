@@ -24,19 +24,11 @@
 package com.uid2.operator.model;
 
 public class MappedIdentity {
-    private final String advertisingId;
-    private final String bucketId;
+    public final byte[] advertisingId;
+    public final String bucketId;
 
-    public MappedIdentity(String advertisingId, String bucketId) {
+    public MappedIdentity(byte[] advertisingId, String bucketId) {
         this.advertisingId = advertisingId;
         this.bucketId = bucketId;
-    }
-
-    public String getAdvertisingId() {
-        return advertisingId;
-    }
-
-    public String getBucketId() {
-        return bucketId;
     }
 }

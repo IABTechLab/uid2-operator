@@ -23,6 +23,7 @@
 
 package com.uid2.operator.store;
 
+import com.uid2.operator.model.UserIdentity;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 
@@ -30,7 +31,7 @@ import java.time.Instant;
 
 public interface IOptOutStore {
 
-    public Instant getLatestEntry(String key);
+    Instant getLatestEntry(UserIdentity firstLevelHashIdentity);
 
-    public void addEntry(String key, String advertisingId, Handler<AsyncResult<Instant>> handler);
+    void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler);
 }

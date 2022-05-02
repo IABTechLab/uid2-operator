@@ -29,114 +29,132 @@ import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.model.EncryptionKey;
 import io.vertx.core.buffer.Buffer;
 
-import java.security.SecureRandom;
 import java.time.Instant;
 
 public class EncryptedTokenEncoder implements ITokenEncoder {
 
-    private static final byte FIELD_SEPARATOR = (byte) 95;
     private final IKeyStore keyStore;
-    private final SecureRandom random = new SecureRandom();
 
     public EncryptedTokenEncoder(IKeyStore keyStore) {
         this.keyStore = keyStore;
     }
 
-    @Override
-    public byte[] encode(AdvertisingToken t) {
-        final Instant now = Instant.now();
-        final EncryptionKey masterKey = this.keyStore.getSnapshot().getMasterKey(now);
+    public byte[] encode(AdvertisingToken t, Instant asOf) {
+        final EncryptionKey masterKey = this.keyStore.getSnapshot().getMasterKey(asOf);
         final EncryptionKey siteEncryptionKey = EncryptionKeyUtil.getActiveSiteKey(
-                this.keyStore.getSnapshot(), t.getIdentity().getSiteId(), Const.Data.AdvertisingTokenSiteId, now);
+                this.keyStore.getSnapshot(), t.publisherIdentity.siteId, Const.Data.AdvertisingTokenSiteId, asOf);
+
+        return t.version == TokenVersion.V3
+            ? encodeV3(t, masterKey, siteEncryptionKey)
+            : encodeV2(t, masterKey, siteEncryptionKey);
+    }
+
+    private byte[] encodeV2(AdvertisingToken t, EncryptionKey masterKey, EncryptionKey siteKey) {
         final Buffer b = Buffer.buffer();
 
-        // <version><space><master key id><space>
-
-        b.appendByte((byte) t.getVersion());
-        b.appendByte(FIELD_SEPARATOR);
+        b.appendByte((byte) t.version.rawVersion);
         b.appendInt(masterKey.getId());
-        b.appendByte(FIELD_SEPARATOR);
 
         Buffer b2 = Buffer.buffer();
-        encodeSiteIdentity(b2, t.getIdentity(), siteEncryptionKey);
+        b2.appendLong(t.expiresAt.toEpochMilli());
+        encodeSiteIdentityV2(b2, t.publisherIdentity, t.userIdentity, siteKey);
 
-        byte[] encryptedId = EncryptionHelper.encrypt(b2.getBytes(), masterKey).getPayload();
+        final byte[] encryptedId = EncryptionHelper.encrypt(b2.getBytes(), masterKey).getPayload();
 
         b.appendBytes(encryptedId);
 
         return b.getBytes();
     }
 
-    @Override
-    public RefreshToken decode(String s) {
-        return decode(EncodingUtils.fromBase64(s));
+    private byte[] encodeV3(AdvertisingToken t, EncryptionKey masterKey, EncryptionKey siteKey) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public RefreshToken decode(byte[] bytes) {
-        final Buffer b = Buffer.buffer(bytes);
+    public RefreshToken decodeRefreshToken(String s) {
+        final Buffer b = Buffer.buffer(EncodingUtils.fromBase64(s));
 
-        final int version = b.getByte(0);
-        final Instant createdAt = Instant.ofEpochMilli(b.getLong(2));
-        final Instant expiresAt = Instant.ofEpochMilli(b.getLong(11));
-        final Instant validTill = Instant.ofEpochMilli(b.getLong(20));
-        final int keyId = b.getInt(29);
+        if (b.getByte(0) == TokenVersion.V2.rawVersion) {
+            return decodeRefreshTokenV2(b);
+        }
+
+        throw new IllegalArgumentException("Invalid refresh token version");
+    }
+
+    private RefreshToken decodeRefreshTokenV2(Buffer b) {
+        final Instant createdAt = Instant.ofEpochMilli(b.getLong(1));
+        //final Instant expiresAt = Instant.ofEpochMilli(b.getLong(9));
+        final Instant validTill = Instant.ofEpochMilli(b.getLong(17));
+        final int keyId = b.getInt(25);
 
         final EncryptionKey key = this.keyStore.getSnapshot().getKey(keyId);
 
-        final byte[] decryptedPayload = EncryptionHelper.decrypt(b.slice(34, b.length()).getBytes(), key);
+        final byte[] decryptedPayload = EncryptionHelper.decrypt(b.slice(29, b.length()).getBytes(), key);
 
         final Buffer b2 = Buffer.buffer(decryptedPayload);
 
         final int siteId = b2.getInt(0);
-        final int length = b2.getInt(5);
-        final String identity;
+        final int length = b2.getInt(4);
+        final byte[] identity;
         try {
 
-            identity = new String(b2.slice(10, 10 + length).getBytes(), "UTF-8");
+            identity = EncodingUtils.fromBase64(b2.slice(8, 8 + length).getBytes());
         } catch (Exception e) {
             throw new RuntimeException("Couldn't decode Entity", e);
         }
 
-        final int privacyBits = b2.getInt(10 + length + 1);
+        final int privacyBits = b2.getInt(8 + length);
+        final long establishedMillis = b2.getLong(8 + length + 4);
 
         return new RefreshToken(
-            version, createdAt, expiresAt, validTill,
-            new UserIdentity(identity, siteId, privacyBits, EncodingUtils.NowUTCMillis()));
+                TokenVersion.V2, createdAt, validTill,
+                new OperatorIdentity(0, OperatorType.Service, 0, 0),
+                new PublisherIdentity(siteId, 0, 0),
+                new UserIdentity(IdentityScope.UID2, IdentityType.Email, identity, privacyBits, Instant.ofEpochMilli(establishedMillis), null),
+                null);
     }
 
+    @Override
     public AdvertisingToken decodeAdvertisingToken(String s) {
-        return decodeAdvertisingToken(EncodingUtils.fromBase64(s));
+        final Buffer b = Buffer.buffer(EncodingUtils.fromBase64(s));
+
+        if (b.getByte(0) == TokenVersion.V2.rawVersion) {
+            return decodeAdvertisingTokenV2(b);
+        }
+
+        throw new IllegalArgumentException("Invalid advertisement token version");
     }
 
-    public AdvertisingToken decodeAdvertisingToken(byte[] bytes) {
+    public AdvertisingToken decodeAdvertisingTokenV2(Buffer b) {
         try {
-            final Buffer b = Buffer.buffer(bytes);
-            final int version = b.getByte(0);
-            final int masterKeyId = b.getInt(2);
+            final int masterKeyId = b.getInt(1);
 
-            final byte[] decryptedPayload = EncryptionHelper.decrypt(b.slice(7, b.length()).getBytes(), this.keyStore.getSnapshot().getKey(masterKeyId));
+            final byte[] decryptedPayload = EncryptionHelper.decrypt(b.slice(5, b.length()).getBytes(), this.keyStore.getSnapshot().getKey(masterKeyId));
 
             final Buffer b2 = Buffer.buffer(decryptedPayload);
 
-            final int siteKeyId = b2.getInt(0);
+            final long expiresMillis = b2.getLong(0);
+            final int siteKeyId = b2.getInt(8);
 
-            final byte[] decryptedSitePayload = EncryptionHelper.decrypt(b2.slice(5, b2.length()).getBytes(), this.keyStore.getSnapshot().getKey(siteKeyId));
+            final byte[] decryptedSitePayload = EncryptionHelper.decrypt(b2.slice(12, b2.length()).getBytes(), this.keyStore.getSnapshot().getKey(siteKeyId));
 
             final Buffer b3 = Buffer.buffer(decryptedSitePayload);
 
             final int siteId = b3.getInt(0);
-            final int length = b3.getInt(5);
+            final int length = b3.getInt(4);
 
-            final String value = new String(b3.slice(10, 10 + length).getBytes(), "UTF-8");
+            final byte[] advertisingId = EncodingUtils.fromBase64(b3.slice(8, 8 + length).getBytes());
 
-            final int privacyBits = b3.getInt(10 + length + 1);
+            final int privacyBits = b3.getInt(8 + length);
+            final long establishedMillis = b3.getLong(8 + length + 4);
 
             return new AdvertisingToken(
-                version,
-                Instant.now(),
-                Instant.now(),
-                new UserIdentity(value, siteId, privacyBits, EncodingUtils.NowUTCMillis())
+                    TokenVersion.V2,
+                    Instant.ofEpochMilli(establishedMillis),
+                    Instant.ofEpochMilli(expiresMillis),
+                    new OperatorIdentity(0, OperatorType.Service, 0, 0),
+                    new PublisherIdentity(siteId, 0, 0),
+                    new UserIdentity(IdentityScope.UID2, IdentityType.Email, advertisingId, privacyBits, Instant.ofEpochMilli(establishedMillis), null)
             );
 
         } catch (Exception e) {
@@ -145,86 +163,75 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     }
 
-    @Override
-    public byte[] encode(RefreshToken t) {
-        final EncryptionKey serviceKey = this.keyStore.getSnapshot().getMasterKey(Instant.now());
+    public byte[] encode(RefreshToken t, Instant asOf) {
+        if (t.version != TokenVersion.V2) {
+            throw new UnsupportedOperationException();
+        }
+
+        return encodeV2(t, asOf);
+    }
+
+    public byte[] encodeV2(RefreshToken t, Instant asOf) {
+        final EncryptionKey serviceKey = this.keyStore.getSnapshot().getRefreshKey(asOf);
 
         final Buffer b = Buffer.buffer();
-        b.appendByte((byte) t.getVersion());
-        b.appendByte(FIELD_SEPARATOR);
-        b.appendLong(t.getCreatedAt().toEpochMilli());
-        b.appendByte(FIELD_SEPARATOR);
-        b.appendLong(t.getExpiresAt().toEpochMilli());
-        b.appendByte(FIELD_SEPARATOR);
-        b.appendLong(t.getValidTill().toEpochMilli());
-        b.appendByte(FIELD_SEPARATOR);
+        b.appendByte((byte) t.version.rawVersion);
+        b.appendLong(t.createdAt.toEpochMilli());
+        b.appendLong(t.expiresAt.toEpochMilli()); // should not be used
+        // give an extra minute for clients which are trying to refresh tokens close to or at the refresh expiry timestamp
+        b.appendLong(t.expiresAt.plusSeconds(60).toEpochMilli());
         b.appendInt(serviceKey.getId());
-        b.appendByte(FIELD_SEPARATOR);
-        final byte[] encryptedIdentity = encryptIdentity(t.getIdentity(), serviceKey);
+        final byte[] encryptedIdentity = encryptIdentityV2(t.publisherIdentity, t.userIdentity, serviceKey);
         b.appendBytes(encryptedIdentity);
         return b.getBytes();
     }
 
-    private byte[] encodeSiteIdentity(Buffer b, UserIdentity identity, EncryptionKey siteEncryptionKey) {
-
-        // <key-id><space><encrypted payload>
+    private byte[] encodeSiteIdentityV2(Buffer b, PublisherIdentity publisherIdentity, UserIdentity userIdentity, EncryptionKey siteEncryptionKey) {
 
         b.appendInt(siteEncryptionKey.getId());
-        b.appendByte(FIELD_SEPARATOR);
-        final byte[] encryptedIdentity = encryptIdentity(identity, siteEncryptionKey);
+        final byte[] encryptedIdentity = encryptIdentityV2(publisherIdentity, userIdentity, siteEncryptionKey);
         b.appendBytes(encryptedIdentity);
 
         return b.getBytes();
     }
 
-    @Override
-    public byte[] encode(UserToken t) {
-        final EncryptionKey siteEncryptionKey = EncryptionKeyUtil.getActiveSiteKey(
-                this.keyStore.getSnapshot(), t.getIdentity().getSiteId(), Const.Data.AdvertisingTokenSiteId, Instant.now());
-        Buffer b = Buffer.buffer();
-        b.appendByte((byte) t.getVersion());
-        b.appendByte(FIELD_SEPARATOR);
-        encodeSiteIdentity(b, t.getIdentity(), siteEncryptionKey);
-        return b.getBytes();
+    public byte[] encode(UserToken t, Instant asOf) {
+        return encodeV2(t, asOf);
+    }
 
+    private byte[] encodeV2(UserToken t, Instant asOf) {
+        final EncryptionKey siteEncryptionKey = EncryptionKeyUtil.getActiveSiteKey(
+                this.keyStore.getSnapshot(), t.publisherIdentity.siteId, Const.Data.AdvertisingTokenSiteId, asOf);
+        final Buffer b = Buffer.buffer();
+        b.appendByte((byte) TokenVersion.V2.rawVersion);
+        encodeSiteIdentityV2(b, t.publisherIdentity, t.userIdentity, siteEncryptionKey);
+        return b.getBytes();
     }
 
     @Override
-    public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken, Instant refreshFrom) {
+    public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken, Instant refreshFrom, Instant asOf) {
         return new IdentityTokens(
-            EncodingUtils.toBase64String(encode(advertisingToken)),
-            EncodingUtils.toBase64String(encode(userToken)),
-            EncodingUtils.toBase64String(encode(refreshToken)),
-            EncodingUtils.generateIdGuid(advertisingToken.getIdentity().getId()),
-            advertisingToken.getExpiresAt(),
-            refreshToken.getValidTill(),
-            refreshFrom
+                EncodingUtils.toBase64String(encode(advertisingToken, asOf)),
+                EncodingUtils.toBase64String(encode(userToken, asOf)),
+                EncodingUtils.toBase64String(encode(refreshToken, asOf)),
+                advertisingToken.expiresAt,
+                refreshToken.expiresAt,
+                refreshFrom
         );
     }
 
-    private byte[] encryptIdentity(UserIdentity identity, EncryptionKey key) {
+    private byte[] encryptIdentityV2(PublisherIdentity publisherIdentity, UserIdentity identity, EncryptionKey key) {
         Buffer b = Buffer.buffer();
-        b.appendInt(identity.getSiteId());
-        b.appendByte(FIELD_SEPARATOR);
+        b.appendInt(publisherIdentity.siteId);
         try {
-            byte[] identityBytes = identity.getId().getBytes("UTF-8");
+            final byte[] identityBytes = EncodingUtils.toBase64(identity.id);
             b.appendInt(identityBytes.length);
-            b.appendByte(FIELD_SEPARATOR);
             b.appendBytes(identityBytes);
         } catch (Exception e) {
             throw new RuntimeException("Could not turn Identity into UTF-8");
         }
-        b.appendByte(FIELD_SEPARATOR);
-        b.appendInt(identity.getPrivacyBits());
-        b.appendBytes(this.getNononce());
+        b.appendInt(identity.privacyBits);
+        b.appendLong(identity.establishedAt.toEpochMilli());
         return EncryptionHelper.encrypt(b.getBytes(), key).getPayload();
     }
-
-    private byte[] getNononce() {
-        // This is to encure that Nonce itself doesn't have seperator
-        // This is no longer necessary
-        return EncodingUtils.toBase64(this.random.generateSeed(16));
-
-    }
-
 }

@@ -25,7 +25,6 @@ package com.uid2.operator;
 
 import com.uid2.operator.model.AdvertisingToken;
 import com.uid2.operator.service.UIDOperatorService;
-import com.uid2.shared.Utils;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.operator.model.RefreshResponse;
 import com.uid2.operator.model.RefreshToken;
@@ -140,7 +139,7 @@ public class UIDOperatorVerticleTest {
     }
 
     private String getUrlForEndpoint(String endpoint) {
-        return String.format("http://127.0.0.1:%d/%s", Const.Port.ServicePortForOperator + Utils.getPortOffset(), endpoint);
+        return String.format("http://127.0.0.1:%d/%s", Const.Port.ServicePortForOperator, endpoint);
     }
 
     private void get(Vertx vertx, String endpoint, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
@@ -352,7 +351,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore, false);
+            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
 
             AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
             assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
@@ -384,7 +383,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore, false);
+            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
 
             AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
             assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
@@ -423,7 +422,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", json.getString("status"));
                 JsonObject body = json.getJsonObject("body");
                 assertNotNull(body);
-                V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore, false);
+                V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
 
                 AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
                 assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
@@ -531,7 +530,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore, false);
+            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
 
             AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
             verify(keyStoreSnapshot).getKey(eq(siteKeyId));

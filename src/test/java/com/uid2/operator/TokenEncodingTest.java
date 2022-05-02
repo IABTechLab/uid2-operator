@@ -60,7 +60,7 @@ public class TokenEncodingTest {
 
     @Test
     public void testRefreshTokenEncoding() {
-        final ITokenEncoder encoder = new V2EncryptedTokenEncoder(keyStoreInstance, false);
+        final ITokenEncoder encoder = new V2EncryptedTokenEncoder(keyStoreInstance);
         final Instant now = EncodingUtils.NowUTCMillis();
         final RefreshToken token = new RefreshToken(3,
             now,
@@ -82,58 +82,13 @@ public class TokenEncodingTest {
     }
 
     @Test
-    public void testRefreshTokenEncodingGCM() {
-        final ITokenEncoder encoder = new V2EncryptedTokenEncoder(keyStoreInstance, true);
-        final Instant now = EncodingUtils.NowUTCMillis();
-        final RefreshToken token = new RefreshToken(3,
-                now,
-                now.plusSeconds(60),
-                now.plusSeconds(120),
-                new UserIdentity("some-id", 123, 444, now)
-        );
-
-        final byte[] encodedBytes = encoder.encode(token);
-        final RefreshToken decoded = encoder.decode(encodedBytes);
-        Assert.assertEquals(token.getIdentity(), decoded.getIdentity());
-        Assert.assertEquals(token.getExpiresAt(), decoded.getExpiresAt());
-        Assert.assertEquals(token.getValidTill().plusSeconds(60), decoded.getValidTill());  // encoder adds 1 minute to ValidTill to accommodate communication delay.
-
-        Buffer b = Buffer.buffer(encodedBytes);
-        int keyId = b.getInt(25);
-        EncryptionKey key = this.keyStoreInstance.getSnapshot().getKey(keyId);
-        Assert.assertEquals(Const.Data.RefreshKeySiteId, key.getSiteId());
-    }
-
-    @Test
     public void testAdvertisingTokenEncoding() {
-        final ITokenEncoder encoder = new V2EncryptedTokenEncoder(keyStoreInstance, false);
+        final ITokenEncoder encoder = new V2EncryptedTokenEncoder(keyStoreInstance);
         final Instant now = EncodingUtils.NowUTCMillis();
         final AdvertisingToken token = new AdvertisingToken(4,
             now,
             now.plusSeconds(60),
             new UserIdentity("some-id", 2, 22, now)
-        );
-
-        final byte[] encodedBytes = encoder.encode(token);
-        final AdvertisingToken decoded = encoder.decodeAdvertisingToken(encodedBytes);
-
-        Assert.assertEquals(token.getExpiresAt(), decoded.getExpiresAt());
-        Assert.assertEquals(token.getIdentity(), decoded.getIdentity());
-
-        Buffer b = Buffer.buffer(encodedBytes);
-        int keyId = b.getInt(1);
-        EncryptionKey key = this.keyStoreInstance.getSnapshot().getKey(keyId);
-        Assert.assertEquals(Const.Data.MasterKeySiteId, key.getSiteId());
-    }
-
-    @Test
-    public void testAdvertisingTokenEncodingGCM() {
-        final ITokenEncoder encoder = new V2EncryptedTokenEncoder(keyStoreInstance, true);
-        final Instant now = EncodingUtils.NowUTCMillis();
-        final AdvertisingToken token = new AdvertisingToken(4,
-                now,
-                now.plusSeconds(60),
-                new UserIdentity("some-id", 2, 22, now)
         );
 
         final byte[] encodedBytes = encoder.encode(token);
@@ -161,7 +116,7 @@ public class TokenEncodingTest {
             new String[]{"V0: From Email", "AgAAAAPepHlo7L1pIlU4bUDQU0uAPwOUkPNxrFkpJpqR78PFfXdmUcU2FDOs+/Jp6CdoF2bXlF8WiniovzohEr7MjsobYDYE9Ud/s/b6YJsJ05mQpyCcO/nStazZhbeIiAmclyeHr1TJhpeFypB9G2VT4mKTpG8vdOOzqfWuf+utwJBWnA=="}
         };
 
-        final ITokenEncoder encoder = new V2EncryptedTokenEncoder(keyStoreInstance, false);
+        final ITokenEncoder encoder = new V2EncryptedTokenEncoder(keyStoreInstance);
         for (String[] s : testCases) {
             System.out.println("Testing " + s[0] + " with token " + s[1]);
             final AdvertisingToken token = encoder.decodeAdvertisingToken(s[1]);
@@ -317,7 +272,7 @@ public class TokenEncodingTest {
 
         final byte[] bytes = EncodingUtils.fromBase64("3rkQq/LBqBUPkbxfpFvfMw==");
 
-        final ITokenEncoder encoder = new V2EncryptedTokenEncoder(keyStoreInstance, false);
+        final ITokenEncoder encoder = new V2EncryptedTokenEncoder(keyStoreInstance);
         final AdvertisingToken token = new AdvertisingToken(3,
             Instant.now(),
             Instant.now().plusSeconds(60),

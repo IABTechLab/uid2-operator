@@ -1,8 +1,8 @@
-name: Publish Docker
-on: [push, workflow_dispatch]
+name: Check Stable Dependencies 
+on: [pull_request, workflow_dispatch]
 
 jobs:
-  build:
+  check_dependency:
     runs-on: ubuntu-latest
 
     steps:

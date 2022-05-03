@@ -1,8 +1,5 @@
 name: Publish Docker
 on:
-  push:
-    branches:
-      - '*'
   workflow_dispatch:
     inputs:
       tag:

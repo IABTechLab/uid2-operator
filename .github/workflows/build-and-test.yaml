@@ -8,10 +8,6 @@ jobs:
     steps:
       # Check out repository $GITHUB_WORKSPACE
       - uses: actions/checkout@v2
-      - uses: ./.github/workflows/setup_dependancies
-        with:
-          cloud_provider: test
-      
       # Build and Run Unit Tests
       - name: Build and Run Unit Tests
         run: mvn clean test

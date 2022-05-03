@@ -32,10 +32,6 @@ jobs:
       jar_version: ${{ steps.package.outputs.jar_version }}
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/workflows/setup_dependancies
-        with:
-          cloud_provider: ${{inputs.cloud_provider}} 
-      
       # Build and Run Unit Tests
       - name: Package Jar 
         id: package

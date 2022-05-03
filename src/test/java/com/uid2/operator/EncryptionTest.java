@@ -31,6 +31,7 @@ import org.junit.Assert;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -139,5 +140,13 @@ public class EncryptionTest extends TestCase {
 
     public void doSomething(EncryptedPayload loag) {
         count++;
+    }
+
+    public void testGCMEncryptionDecryption() {
+        final EncryptionKey key = new EncryptionKey(1, EncryptionHelper.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), -1);
+        String plaintxt = "hello world";
+        EncryptedPayload payload = EncryptionHelper.encryptGCM(plaintxt.getBytes(StandardCharsets.UTF_8), key);
+        String decryptedText = new String(EncryptionHelper.decryptGCM(payload.getPayload(), 0, key), StandardCharsets.UTF_8);
+        assertEquals(plaintxt, decryptedText);
     }
 }

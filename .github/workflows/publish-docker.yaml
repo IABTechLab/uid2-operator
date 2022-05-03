@@ -4,7 +4,6 @@ on:
     inputs:
       tag:
         description: 'The tag to apply to the Docker file'
-        required: true
         type: string
       cloud_provider:
         description: 'Must be one of [aws, gcp, azure, default]'
@@ -43,7 +42,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,prefix=${{ steps.package.outputs.jar_version }}-,suffix=${{ github.event.inputs.cloud_provider }},format=short
+            type=sha,prefix=${{ steps.package.outputs.jar_version }}-,suffix=-${{ github.event.inputs.cloud_provider }},format=short
             type=raw,value=${{ github.event.inputs.tag }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v2

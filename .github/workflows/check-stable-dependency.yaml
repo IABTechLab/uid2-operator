@@ -1,0 +1,21 @@
+name: Check Stable Dependencies 
+on: [pull_request, workflow_dispatch]
+
+jobs:
+  check_dependency:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Resolve Dependencies
+        run: mvn dependency:resolve
+      - name: List and Check for snapshot
+        run: |
+          export SNAPSHOT_COUNT=$(mvn -o dependency:list | grep -e "SNAPSHOT" | wc -l)
+          if [ $SNAPSHOT_COUNT -gt 0 ]
+          then
+            exit 1
+          fi
+
+
+

@@ -14,10 +14,6 @@ on:
         required: false
         default: 'default'
         type: string
-    outputs:
-      jar_version:
-        description: 'The version of the jar'
-        value: ${{ jobs.build.outputs.jar_version }}
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}

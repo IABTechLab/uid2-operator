@@ -7,7 +7,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Resolve Dependencies:
+      - name: Resolve Dependencies
         run: mvn dependency:resolve
       - name: List and Check for snapshot
         run: |

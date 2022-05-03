@@ -103,7 +103,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
-        this.v2PayloadHandler = new V2PayloadHandler(clock);
+        this.v2PayloadHandler = new V2PayloadHandler(config.getBoolean("enable_v2_encryption", true), clock);
     }
 
     @Override

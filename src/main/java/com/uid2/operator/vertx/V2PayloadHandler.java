@@ -1,5 +1,6 @@
 package com.uid2.operator.vertx;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import com.uid2.operator.service.EncryptionHelper;
 import com.uid2.operator.service.ResponseUtil;
 import com.uid2.shared.Utils;
@@ -26,13 +27,21 @@ public class V2PayloadHandler {
 
     private static final byte VERSION = 1;
 
+    private Boolean enableEncryption;
+
     private final Clock clock;
 
-    public V2PayloadHandler(Clock clock) {
+    public V2PayloadHandler(Boolean enableEncryption, Clock clock) {
+        this.enableEncryption = enableEncryption;
         this.clock = clock;
     }
 
     public void handle(RoutingContext rc, Handler<RoutingContext> apiHandler) {
+        if (!enableEncryption) {
+            passThrough(rc, apiHandler);
+            return;
+        }
+
         ClientKey ck = AuthMiddleware.getAuthClient(ClientKey.class, rc);
 
         // Payload envelop format:
@@ -97,6 +106,17 @@ public class V2PayloadHandler {
         }
 
         return true;
+    }
+
+    private void passThrough(RoutingContext rc, Handler<RoutingContext> apiHandler) {
+        rc.data().put("request", rc.getBodyAsJson());
+        apiHandler.handle(rc);
+        if (rc.response().getStatusCode() != 200) {
+            return;
+        }
+        JsonObject respJson = (JsonObject) rc.data().get("response");
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+            .end(respJson.encode());
     }
 }
 

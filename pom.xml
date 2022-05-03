@@ -18,8 +18,8 @@
         <vertx.verticle>com.uid2.operator.vertx.UIDOperatorVerticle</vertx.verticle>
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
         <micrometer.version>1.1.0</micrometer.version>
-        <enclave-api.version>1.0.0</enclave-api.version>
-        <uid2-shared.version>1.0.0</uid2-shared.version>
+        <enclave-api.version>1.1.0</enclave-api.version>
+        <uid2-shared.version>1.1.0</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
     <dependencies>

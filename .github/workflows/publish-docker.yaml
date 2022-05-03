@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - '*'
-  workflow_call:
+  workflow_dispatch:
     inputs:
       tag:
         description: 'The tag to apply to the Docker file'
@@ -50,7 +50,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,prefix=${{ steps.package.outputs.jar_version }},format=short
+            type=sha,prefix=${{ steps.package.outputs.jar_version }}-,format=short
             type=raw,value=${{ github.event.inputs.tag }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v2

@@ -1,6 +1,5 @@
 package com.uid2.operator.vertx;
 
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import com.uid2.operator.service.EncryptionHelper;
 import com.uid2.operator.service.ResponseUtil;
 import com.uid2.shared.Utils;

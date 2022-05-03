@@ -168,13 +168,19 @@ public class UIDOperatorVerticleTest {
         if (apiVersion.equals("v2")) {
             ClientKey ck = (ClientKey) clientKeyProvider.get("");
 
-            postV2(ck, vertx, endpoint, postPayload, ar -> {
+            long nonce = new Random().nextLong();
+
+            postV2(ck, vertx, endpoint, postPayload, nonce, ar -> {
                 Assert.assertTrue(ar.succeeded());
                 Assert.assertEquals(expectedHttpCode, ar.result().statusCode());
 
                 if (ar.result().statusCode() == 200) {
                     byte[] decrypted = EncryptionHelper.decryptGCM(Utils.decodeBase64String(ar.result().bodyAsString()), 0, ck.getSecretBytes());
                     JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
+
+                    Buffer buffer = Buffer.buffer();
+                    Assert.assertEquals(Utils.toBase64String(buffer.appendLong(nonce).getBytes()), respJson.getString("nonce"));
+
                     handler.handle(respJson);
                 } else {
                     handler.handle(tryParseResponse(ar.result()));
@@ -214,12 +220,12 @@ public class UIDOperatorVerticleTest {
         client.postAbs(getUrlForEndpoint(endpoint)).sendJsonObject(body, handler);
     }
 
-    private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
+    private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
         WebClient client = WebClient.create(vertx);
 
         Buffer b = Buffer.buffer();
         b.appendLong(Instant.now().toEpochMilli());
-        b.appendLong(new Random().nextLong());
+        b.appendLong(nonce);
 
         if (body != null)
             b.appendBytes(body.encode().getBytes(StandardCharsets.UTF_8));

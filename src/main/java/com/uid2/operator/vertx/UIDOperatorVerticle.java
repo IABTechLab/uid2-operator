@@ -197,6 +197,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
         v2Router.post("/key/latest").handler(auth.handleV1(
             rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
+        v2Router.post("/token/logout").handler(auth.handleV1(
+            rc -> v2PayloadHandler.handle(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
         mainRouter.mountSubRouter("/v2", v2Router);
     }
@@ -428,6 +430,24 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             this.idService.InvalidateTokensAsync(input.getIdentityInput(), ar -> {
                 if (ar.succeeded()) {
                     rc.response().end("OK");
+                } else {
+                    rc.fail(500);
+                }
+            });
+        } else {
+            rc.fail(400);
+        }
+    }
+
+    private void handleLogoutAsyncV2(RoutingContext rc) {
+        final JsonObject req = (JsonObject) rc.data().get("request");
+        final InputUtil.InputVal input = getTokenInputV2(req);
+        if (input.isValid()) {
+            this.idService.InvalidateTokensAsync(input.getIdentityInput(), ar -> {
+                if (ar.succeeded()) {
+                    JsonObject body = new JsonObject();
+                    body.put("optout", "OK");
+                    ResponseUtil.SuccessV2(rc, body);
                 } else {
                     rc.fail(500);
                 }

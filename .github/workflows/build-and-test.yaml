@@ -10,4 +10,4 @@ jobs:
       - uses: actions/checkout@v2
       # Build and Run Unit Tests
       - name: Build and Run Unit Tests
-        run: mvn clean test
+        run: mvn -B clean test

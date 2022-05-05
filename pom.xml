@@ -6,11 +6,11 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <vertx.version>3.9.2</vertx.version>
+        <vertx.version>3.9.4</vertx.version>
         <vertx-maven-plugin.version>1.0.22</vertx-maven-plugin.version>
         <junit-jupiter.version>5.7.0</junit-jupiter.version>
         <junit-vintage.version>5.7.0</junit-vintage.version>
@@ -19,7 +19,7 @@
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
         <micrometer.version>1.1.0</micrometer.version>
         <enclave-api.version>1.1.0</enclave-api.version>
-        <uid2-shared.version>1.1.0</uid2-shared.version>
+        <uid2-shared.version>1.1.1</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
     <dependencies>

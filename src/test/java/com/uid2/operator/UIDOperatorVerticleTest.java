@@ -1069,5 +1069,28 @@ public class UIDOperatorVerticleTest {
             testContext.completeNow();
         });
     }
+
+    @Test
+    void LogoutV2(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.OPTOUT);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        req.put("email", "test@uid2.com");
+
+        doAnswer(invocation -> {
+            Handler<AsyncResult<Instant>> handler = invocation.getArgument(2);
+            handler.handle(Future.succeededFuture(Instant.now()));
+            return null;
+        }).when(this.optOutStore).addEntry(any(), any(), any());
+
+        send("v2", vertx, "v2/token/logout", false, null, req, 200, respJson -> {
+            Assert.assertEquals("success", respJson.getString("status"));
+            Assert.assertEquals("OK", respJson.getJsonObject("body").getString("optout"));
+            testContext.completeNow();
+        });
+    }
 }
 

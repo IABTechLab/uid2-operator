@@ -611,7 +611,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal[] inputList;
             final JsonArray emails = obj.getJsonArray("email");
             final JsonArray emailHashes = obj.getJsonArray("email_hash");
-            // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
             if (emails == null && emailHashes == null) {
                 ResponseUtil.ClientError(rc, "Exactly one of email or email_hash must be specified");
                 return;
@@ -657,7 +656,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal[] inputList;
             final JsonArray emails = obj.getJsonArray("email");
             final JsonArray emailHashes = obj.getJsonArray("email_hash");
-            // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
             if (emails == null && emailHashes == null) {
                 ResponseUtil.ClientError(rc, "Exactly one of email or email_hash must be specified");
                 return;
@@ -703,7 +701,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal[] inputList;
             final JsonArray emails = obj.getJsonArray("email");
             final JsonArray emailHashes = obj.getJsonArray("email_hash");
-            // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
             if (emails == null && emailHashes == null) {
                 rc.fail(400);
                 return;

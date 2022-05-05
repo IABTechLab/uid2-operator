@@ -5,7 +5,6 @@ import com.uid2.operator.service.ResponseUtil;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
-import com.uid2.shared.store.IClientKeyProvider;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
@@ -91,7 +90,7 @@ public class V2PayloadHandler {
         String nonce = Utils.toBase64String(Buffer.buffer(decryptedBody).slice(8, 16).getBytes());
         respJson.put("nonce", nonce);
 
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/octet-stream");
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
         rc.response().end(Utils.toBase64String(EncryptionHelper.encryptGCM(respJson.encode().getBytes(StandardCharsets.UTF_8), ck.getSecretBytes())));
     }
 

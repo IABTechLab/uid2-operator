@@ -33,8 +33,10 @@ clean:
 	cd build/dante-1.4.3; ./configure
 	cd build/dante-1.4.3; make
 
-build_eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/dependencies/vsockpx build/Dockerfile build/conf/prod-config.json build/load_config.py
-	cd build; docker build -t uid2operator .
+build_eif: uid2operator.eif
+
+uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/dependencies/vsockpx build/Dockerfile build/conf/prod-config.json build/load_config.py	
+	cd build; docker build -t uid2operator . --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
 	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
 
 build/load_config.py: ./scripts/aws/load_config.py
@@ -52,11 +54,14 @@ build/proxies.nitro.yaml: build_artifacts ./scripts/aws/proxies.nitro.yaml
 build/entrypoint.sh: build_artifacts
 	cp ./scripts/aws/entrypoint.sh ./build/
 
-build_artifacts: Dockerfile.nitro.builder
+build_artifacts: build/build_artifacts.stamp
+
+build/build_artifacts.stamp build/vsockpx build/libjnsm.so: Dockerfile.nitro.builder
 	docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder .
 	docker create --name uid2-nitro-builder uid2-nitro-builder
 	docker cp uid2-nitro-builder:/build .
 	docker rm uid2-nitro-builder
+	touch build/build_artifacts.stamp
 
 setup_dependencies:
 	enclave_platform="aws-nitro" ./setup_dependencies.sh

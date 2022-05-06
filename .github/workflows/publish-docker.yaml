@@ -23,7 +23,13 @@ jobs:
     outputs:
       jar_version: ${{ steps.package.outputs.jar_version }}
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout Full history
+        uses: actions/checkout@v2
+        with:
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+      - name: Restore Timestamps
+        uses: thetradedesk/git-restore-mtime-action@v1
       # Build and Run Unit Tests
       - name: Package Jar 
         id: package

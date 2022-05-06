@@ -212,6 +212,8 @@ public class V2PayloadHandler {
             .appendInt(refreshKey.getId())
             .appendBytes(encrypted)
             .getBytes());
+        assert modifiedToken.length() == V2_REFRESH_PAYLOAD_LENGTH;
+
         bodyJson.put("refresh_token", modifiedToken);
         bodyJson.put("refresh_response_key", refreshResponseKey);
     }

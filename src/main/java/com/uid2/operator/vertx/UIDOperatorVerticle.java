@@ -361,12 +361,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (!checkTokenInput(input, rc)) {
                 return;
             }
-            if (ValidationInput.equals(input.getIdentityInput())) {
+            if (Arrays.equals(ValidationInput, input.getIdentityInput())) {
                 try {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
 
-                    if (this.idService.doesMatch(token, input.getIdentityInput(), Instant.now())) {
+                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(IdentityScope.UID2, 0, now), Instant.now())) {
                         ResponseUtil.SuccessV2(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.SuccessV2(rc, Boolean.FALSE);
@@ -415,7 +415,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             } else {
                 final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
                 final IdentityTokens t = this.idService.generateIdentity(
-                    new IdentityRequest(input.getIdentityInput(), clientKey.getSiteId(), 1));
+                    new IdentityRequest(
+                        new PublisherIdentity(clientKey.getSiteId(), 0, 0),
+                        input.toUserIdentity(IdentityScope.UID2, 1, Instant.now())));
                 ResponseUtil.SuccessV2(rc, toJsonV1(t));
             }
         } catch (Exception e) {

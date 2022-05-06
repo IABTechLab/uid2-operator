@@ -25,8 +25,6 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.store.ISaltProvider;
-import com.uid2.shared.model.EncryptionKey;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 
@@ -35,20 +33,18 @@ import java.util.List;
 
 public interface IUIDOperatorService {
 
-    public List<EncryptionKey> getConsortiumKeys();
+    IdentityTokens generateIdentity(IdentityRequest request);
 
-    public void generateIdentityAsync(IdentityRequest request, Handler<AsyncResult<IdentityTokens>> handler);
+    RefreshResponse refreshIdentity(String refreshToken);
 
-    public IdentityTokens generateIdentity(IdentityRequest request);
+    MappedIdentity map(UserIdentity userIdentity, Instant asOf);
 
-    public RefreshResponse refreshIdentity(String refreshToken);
+    List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
 
-    public MappedIdentity map(String input, Instant asOf);
+    void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler);
 
-    public List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
+    boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf);
 
-    public void InvalidateTokensAsync(String inputIdentity, Handler<AsyncResult<Instant>> handler);
-
-    public boolean doesMatch(String advertisingToke, String inputIdentity, Instant asOf);
+    Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf);
 
 }

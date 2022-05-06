@@ -23,5 +23,10 @@
 
 package com.uid2.operator.model;
 
-public enum PrivacyBit {
+public enum IdentityScope {
+    UID2(0);
+
+    public final int value;
+
+    IdentityScope(int value) { this.value = value; }
 }

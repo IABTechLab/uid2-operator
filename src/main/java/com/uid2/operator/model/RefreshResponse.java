@@ -25,20 +25,22 @@ package com.uid2.operator.model;
 
 public class RefreshResponse {
 
-    public static RefreshResponse Invalid = new RefreshResponse(Status.Invalid, IdentityTokens.LogoutToken);
-    public static RefreshResponse Optout = new RefreshResponse(Status.Optout, IdentityTokens.LogoutToken);
-    public static RefreshResponse Expired = new RefreshResponse(Status.Expired, IdentityTokens.LogoutToken);
-    public static RefreshResponse Deprecated = new RefreshResponse(Status.Deprecated, IdentityTokens.LogoutToken);
+    public static RefreshResponse Invalid = new RefreshResponse(Status.Invalid, IdentityTokens.LogoutToken, null);
+    public static RefreshResponse Optout = new RefreshResponse(Status.Optout, IdentityTokens.LogoutToken, null);
+    public static RefreshResponse Expired = new RefreshResponse(Status.Expired, IdentityTokens.LogoutToken, null);
+    public static RefreshResponse Deprecated = new RefreshResponse(Status.Deprecated, IdentityTokens.LogoutToken, null);
     private final Status status;
     private final IdentityTokens tokens;
+    private final byte[] responseEncryptionKey;
 
-    private RefreshResponse(Status status, IdentityTokens tokens) {
+    private RefreshResponse(Status status, IdentityTokens tokens, byte[] responseEncryptionKey) {
         this.status = status;
         this.tokens = tokens;
+        this.responseEncryptionKey = responseEncryptionKey;
     }
 
-    public static RefreshResponse Refreshed(IdentityTokens tokens) {
-        return new RefreshResponse(Status.Refreshed, tokens);
+    public static RefreshResponse Refreshed(IdentityTokens tokens, byte[] responseEncryptionKey) {
+        return new RefreshResponse(Status.Refreshed, tokens, responseEncryptionKey);
     }
 
     public Status getStatus() {
@@ -48,6 +50,8 @@ public class RefreshResponse {
     public IdentityTokens getTokens() {
         return tokens;
     }
+
+    public byte[] getResponseEncryptionKey() { return responseEncryptionKey; }
 
     public boolean isRefreshed() {
         return Status.Refreshed.equals(this.status);

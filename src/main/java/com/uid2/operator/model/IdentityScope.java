@@ -29,4 +29,11 @@ public enum IdentityScope {
     public final int value;
 
     IdentityScope(int value) { this.value = value; }
+
+    public static IdentityScope fromValue(int value) {
+        switch (value) {
+            case 0: return UID2;
+            default: throw new IllegalArgumentException();
+        }
+    }
 }

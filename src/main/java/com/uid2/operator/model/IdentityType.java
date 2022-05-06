@@ -29,4 +29,11 @@ public enum IdentityType {
     public final int value;
 
     IdentityType(int value) { this.value = value; }
+
+    public static IdentityType fromValue(int value) {
+        switch (value) {
+            case 0: return Email;
+            default: throw new IllegalArgumentException();
+        }
+    }
 }

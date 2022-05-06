@@ -62,8 +62,7 @@ public class TokenEncodingTest {
             now.plusSeconds(360),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
             new PublisherIdentity(111, 112, 113),
-            new UserIdentity(IdentityScope.UID2, IdentityType.Email, "some-id".getBytes(StandardCharsets.UTF_8), 121, now, now.minusSeconds(122)),
-            null
+            new UserIdentity(IdentityScope.UID2, IdentityType.Email, "some-id".getBytes(StandardCharsets.UTF_8), 121, now, now.minusSeconds(122))
         );
 
         final byte[] encodedBytes = encoder.encode(token, now);

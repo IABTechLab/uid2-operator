@@ -227,7 +227,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             handleKeysRequestCommon(rc, keys -> ResponseUtil.Success(rc, keys));
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -245,7 +245,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             handleKeysRequestCommon(rc, keys -> sendJsonResponse(rc, keys));
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -296,7 +296,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
         }
     }
@@ -322,7 +322,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
         }
     }
@@ -347,7 +347,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.Success(rc, Boolean.FALSE);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -395,7 +395,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.Success(rc, toJsonV1(t));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -436,7 +436,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             sendJsonResponse(rc, toJson(t));
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -452,7 +452,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final RefreshResponse r = this.idService.refreshIdentity(tokenList.get(0));
             sendJsonResponse(rc, toJson(r.getTokens()));
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -474,7 +474,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc.response().end("not allowed");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -700,8 +700,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.put("mapped", mapped);
             ResponseUtil.Success(rc, resp);
         } catch (Exception e) {
+            LOGGER.error(e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
-            e.printStackTrace();
         }
     }
 
@@ -789,7 +789,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.put("mapped", mapped);
             sendJsonResponse(rc, resp);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }

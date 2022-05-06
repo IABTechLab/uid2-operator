@@ -23,11 +23,16 @@
 
 package com.uid2.operator.model;
 
-import com.uid2.shared.model.EncryptionKey;
+public class OperatorIdentity {
+    public final int siteId;
+    public final OperatorType operatorType;
+    public final int operatorVersion;
+    public final int operatorKeyId;
 
-public class SiteConfig {
-    private int id;
-    private String domain;
-    private EncryptionKey privateKey;
-    private EncryptionKey consortiumKey;
+    public OperatorIdentity(int siteId, OperatorType operatorType, int operatorVersion, int operatorKeyId) {
+        this.siteId = siteId;
+        this.operatorType = operatorType;
+        this.operatorVersion = operatorVersion;
+        this.operatorKeyId = operatorKeyId;
+    }
 }

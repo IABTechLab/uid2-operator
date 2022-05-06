@@ -24,14 +24,14 @@
 package com.uid2.operator;
 
 import com.uid2.operator.model.AdvertisingToken;
+import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptionHelper;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.shared.Utils;
 import com.uid2.shared.model.EncryptionKey;
-import com.uid2.operator.model.RefreshResponse;
 import com.uid2.operator.model.RefreshToken;
 import com.uid2.operator.service.TokenUtils;
-import com.uid2.operator.service.V2EncryptedTokenEncoder;
+import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.auth.ClientKey;
@@ -46,7 +46,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.HttpResponse;
@@ -63,20 +62,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -394,7 +389,7 @@ public class UIDOperatorVerticleTest {
     void tokenGenerateBothEmailAndHashSpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
-        final String emailHash = TokenUtils.getEmailHash(emailAddress);
+        final String emailHash = TokenUtils.getIdentityHashString(emailAddress);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -443,15 +438,15 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
+            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
-            assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
-            assertEquals(TokenUtils.getAdvertisingIdFromEmail(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
+            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
+            assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
+            assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-            RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
-            assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
-            assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
+            RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString("refresh_token"));
+            assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
+            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
 
             assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
             assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
@@ -464,7 +459,7 @@ public class UIDOperatorVerticleTest {
     @Test
     void tokenGenerateForEmailHash(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailHash = TokenUtils.getEmailHash("test@uid2.com");
+        final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -476,15 +471,15 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
+            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
-            assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
-            assertEquals(TokenUtils.getAdvertisingIdFromEmailHash(emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
+            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
+            assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
+            assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentityHash(emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-            RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
-            assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
-            assertEquals(TokenUtils.getFirstLevelKey(emailHash, firstLevelSalt), refreshToken.getIdentity().getId());
+            RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString("refresh_token"));
+            assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
+            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(emailHash, firstLevelSalt), refreshToken.userIdentity.id);
 
             assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
             assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
@@ -516,16 +511,16 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", json.getString("status"));
                 JsonObject body = json.getJsonObject("body");
                 assertNotNull(body);
-                V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
+                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-                AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
-                assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
-                assertEquals(TokenUtils.getAdvertisingIdFromEmail(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
+                AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
+                assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
+                assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
                 assertNotEquals(refreshTokenString, body.getString("refresh_token"));
-                RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
-                assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
-                assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
+                RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString("refresh_token"));
+                assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
+                assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
 
                 assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
                 assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
@@ -573,7 +568,7 @@ public class UIDOperatorVerticleTest {
             JsonObject bodyGen = arGen.result();
             String advertisingTokenString = bodyGen.getString("advertising_token");
 
-            get(vertx, "v1/token/validate?token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(UIDOperatorVerticle.ValidationInput), ar -> {
+            get(vertx, "v1/token/validate?token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInput)), ar -> {
                 assertTrue(ar.succeeded());
                 HttpResponse response = ar.result();
                 assertEquals(200, response.statusCode());
@@ -598,7 +593,7 @@ public class UIDOperatorVerticleTest {
             JsonObject bodyGen = arGen.result();
             String advertisingTokenString = bodyGen.getString("advertising_token");
 
-            get(vertx, "v1/token/validate?token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress + "&email_hash=" + urlEncode(UIDOperatorVerticle.ValidationInput), ar -> {
+            get(vertx, "v1/token/validate?token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInput)), ar -> {
                 assertTrue(ar.succeeded());
                 HttpResponse response = ar.result();
                 assertEquals(400, response.statusCode());
@@ -628,17 +623,17 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            V2EncryptedTokenEncoder encoder = new V2EncryptedTokenEncoder(keyStore);
+            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getBinary("advertising_token"));
+            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
             verify(keyStoreSnapshot).getKey(eq(siteKeyId));
             verify(keyStoreSnapshot, times(0)).getKey(eq(Const.Data.AdvertisingTokenSiteId));
-            assertEquals(clientSiteId, advertisingToken.getIdentity().getSiteId());
-            assertEquals(TokenUtils.getAdvertisingIdFromEmail(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.getIdentity().getId());
+            assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
+            assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-            RefreshToken refreshToken = encoder.decode(body.getBinary("refresh_token"));
-            assertEquals(clientSiteId, refreshToken.getIdentity().getSiteId());
-            assertEquals(TokenUtils.getFirstLevelKey(TokenUtils.getEmailHash(emailAddress), firstLevelSalt), refreshToken.getIdentity().getId());
+            RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString("refresh_token"));
+            assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
+            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
 
             testContext.completeNow();
         });
@@ -802,7 +797,7 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         send(apiVersion, vertx, apiVersion + "/token/validate", true,
-            "token=abcdef&email_hash=" + urlEncode(UIDOperatorVerticle.ValidationInput),
+            "token=abcdef&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInput)),
             new JsonObject().put("token", "abcdef").put("email_hash", UIDOperatorVerticle.ValidationInput),
             200,
             respJson -> {
@@ -817,7 +812,7 @@ public class UIDOperatorVerticleTest {
     void identityMapBothEmailAndHashSpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
-        final String emailHash = TokenUtils.getEmailHash(emailAddress);
+        final String emailHash = TokenUtils.getIdentityHashString(emailAddress);
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
         setupKeys();
@@ -878,7 +873,7 @@ public class UIDOperatorVerticleTest {
     @Test
     void identityMapForEmailHash(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailHash = TokenUtils.getEmailHash("test@uid2.com");
+        final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
         setupKeys();
@@ -934,7 +929,7 @@ public class UIDOperatorVerticleTest {
         req.put("email_hash", emailHashes);
 
         emails.add("test1@uid2.com");
-        emailHashes.add(TokenUtils.getEmailHash("test2@uid2.com"));
+        emailHashes.add(TokenUtils.getIdentityHashString("test2@uid2.com"));
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 400, respJson -> {
             assertFalse(respJson.containsKey("body"));
@@ -994,8 +989,8 @@ public class UIDOperatorVerticleTest {
         JsonArray hashes = new JsonArray();
         req.put("email_hash", hashes);
         final String[] email_hashes = {
-            TokenUtils.getEmailHash("test1@uid2.com"),
-            TokenUtils.getEmailHash("test2@uid2.com"),
+            TokenUtils.getIdentityHashString("test1@uid2.com"),
+            TokenUtils.getIdentityHashString("test2@uid2.com"),
         };
 
         for (String email_hash : email_hashes) {

@@ -23,13 +23,10 @@
 
 package com.uid2.operator.model;
 
-import com.uid2.shared.model.KeyIdentifier;
+public enum IdentityType {
+    Email(0);
 
-public class SiteKeyIdentifier extends KeyIdentifier {
-    private final int siteId;
+    public final int value;
 
-    public SiteKeyIdentifier(int id, int siteId) {
-        super(id);
-        this.siteId = siteId;
-    }
+    IdentityType(int value) { this.value = value; }
 }

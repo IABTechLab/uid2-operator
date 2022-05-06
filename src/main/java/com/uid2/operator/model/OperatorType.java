@@ -23,14 +23,11 @@
 
 package com.uid2.operator.model;
 
-public enum TokenType {
-    AdvertisingToken(0),
-    UserToken(1),
-    RefreshToken(2);
+public enum OperatorType {
+    Service(1),
+    Snowflake(17);
 
-    private int value;
+    public final int value;
 
-    TokenType(int value) {
-        this.value = value;
-    }
+    OperatorType(int value) { this.value = value; }
 }

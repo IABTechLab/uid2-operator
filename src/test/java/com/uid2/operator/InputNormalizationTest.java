@@ -94,7 +94,7 @@ public class InputNormalizationTest extends TestCase {
             Assert.assertEquals(normalization.getProvided(), testCase[0]);
             Assert.assertTrue(normalization.isValid());
             Assert.assertEquals(testCase[1], normalization.getNormalized());
-            Assert.assertEquals(testCase[2], normalization.getIdentityInput());
+            Assert.assertEquals(testCase[2], EncodingUtils.toBase64String(normalization.getIdentityInput()));
         }
     }
 
@@ -110,10 +110,10 @@ public class InputNormalizationTest extends TestCase {
         for (final String s : testCases) {
             System.out.println("Testing hash " + s);
             final InputUtil.InputVal normalization = InputUtil.NormalizeHash(s);
-            Assert.assertEquals(normalization.getProvided(), s);
+            Assert.assertEquals(s, normalization.getProvided());
             Assert.assertTrue(normalization.isValid());
-            Assert.assertEquals(normalization.getNormalized(), masterHash);
-            Assert.assertEquals(normalization.getIdentityInput(), masterHash);
+            Assert.assertEquals(masterHash, normalization.getNormalized());
+            Assert.assertEquals(masterHash, EncodingUtils.toBase64String(normalization.getIdentityInput()));
         }
     }
 

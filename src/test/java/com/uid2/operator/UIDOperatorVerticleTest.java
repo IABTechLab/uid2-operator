@@ -169,9 +169,10 @@ public class UIDOperatorVerticleTest {
 
                 if (ar.result().statusCode() == 200) {
                     byte[] decrypted = EncryptionHelper.decryptGCM(Utils.decodeBase64String(ar.result().bodyAsString()), 0, ck.getSecretBytes());
-                    JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
-                    Buffer buffer = Buffer.buffer();
-                    Assert.assertEquals(Utils.toBase64String(buffer.appendLong(nonce).getBytes()), respJson.getString("nonce"));
+                    Assert.assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(),
+                        Buffer.buffer(decrypted).slice(8, 16).getBytes());
+
+                    JsonObject respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
 
                     handler.handle(respJson);
                 } else {
@@ -198,13 +199,18 @@ public class UIDOperatorVerticleTest {
         if (apiVersion.equals("v2")) {
             ClientKey ck = (ClientKey) clientKeyProvider.get("");
 
-            postV2(ck, vertx, apiVersion + "/token/generate", v2PostPayload, ar -> {
+            long nonce = new Random().nextLong();
+
+            postV2(ck, vertx, apiVersion + "/token/generate", v2PostPayload, nonce, ar -> {
                 Assert.assertTrue(ar.succeeded());
                 Assert.assertEquals(expectedHttpCode, ar.result().statusCode());
 
                 if (ar.result().statusCode() == 200) {
                     byte[] decrypted = EncryptionHelper.decryptGCM(Utils.decodeBase64String(ar.result().bodyAsString()), 0, ck.getSecretBytes());
-                    JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
+
+                    assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
+
+                    JsonObject respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
 
                     decodeV2RefreshToken(respJson);
 
@@ -291,26 +297,6 @@ public class UIDOperatorVerticleTest {
         if (ck != null)
             req.putHeader("Authorization", "Bearer " + ck.getKey());
         req.sendJsonObject(body, handler);
-    }
-
-    private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
-        WebClient client = WebClient.create(vertx);
-
-        Buffer b = Buffer.buffer();
-        b.appendLong(Instant.now().toEpochMilli());
-        b.appendLong(new Random().nextLong());
-
-        if (body != null)
-            b.appendBytes(body.encode().getBytes(StandardCharsets.UTF_8));
-
-        Buffer bufBody = Buffer.buffer();
-        bufBody.appendByte((byte) 1);
-        bufBody.appendBytes(EncryptionHelper.encryptGCM(b.getBytes(), ck.getSecretBytes()));
-
-        client.postAbs(getUrlForEndpoint(endpoint))
-            .putHeader("Authorization", "Bearer " + ck.getKey())
-            .putHeader("content-type", "application/octet-stream")
-            .sendBuffer(Buffer.buffer(Utils.toBase64String(bufBody.getBytes()).getBytes(StandardCharsets.UTF_8)), handler);
     }
 
     private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {

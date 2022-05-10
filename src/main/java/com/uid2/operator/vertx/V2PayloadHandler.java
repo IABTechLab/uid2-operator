@@ -1,5 +1,6 @@
 package com.uid2.operator.vertx;
 
+import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptionHelper;
 import com.uid2.operator.service.ResponseUtil;
 import com.uid2.shared.Utils;
@@ -67,14 +68,15 @@ public class V2PayloadHandler {
             return;
         }
 
-        JsonObject respJson = (JsonObject) rc.data().get("response");
+        try {
+            JsonObject respJson = (JsonObject) rc.data().get("response");
 
-        // Echo nonce back for client to validate response
-        String nonce = Utils.toBase64String(Buffer.buffer(decryptedBody).slice(8, 16).getBytes());
-        respJson.put("nonce", nonce);
-
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
-        rc.response().end(Utils.toBase64String(EncryptionHelper.encryptGCM(respJson.encode().getBytes(StandardCharsets.UTF_8), ck.getSecretBytes())));
+            writeResponse(rc, Buffer.buffer(decryptedBody).slice(8, 16).getBytes(), respJson, ck.getSecretBytes());
+        }
+        catch (Exception ex){
+            LOGGER.error("Failed to generate response", ex);
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+        }
     }
 
     public void handleTokenGenerate(RoutingContext rc, Handler<RoutingContext> apiHandler) {
@@ -105,20 +107,16 @@ public class V2PayloadHandler {
             return;
         }
 
-        JsonObject respJson = (JsonObject) rc.data().get("response");
-
-        // Echo nonce back for client to validate response
-        String nonce = Utils.toBase64String(Buffer.buffer(decryptedBody).slice(8, 16).getBytes());
-        respJson.put("nonce", nonce);
-
         try {
+            JsonObject respJson = (JsonObject) rc.data().get("response");
+
             handleRefreshTokenInResponse(respJson);
-            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
-            rc.response().end(Utils.toBase64String(EncryptionHelper.encryptGCM(respJson.encode().getBytes(StandardCharsets.UTF_8), ck.getSecretBytes())));
+
+            writeResponse(rc, Buffer.buffer(decryptedBody).slice(8, 16).getBytes(), respJson, ck.getSecretBytes());
         }
         catch (Exception ex){
-            LOGGER.error("Failed to encrypt refresh token", ex);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "fail to encrypt refresh token");
+            LOGGER.error("Failed to generate token", ex);
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 
@@ -132,7 +130,7 @@ public class V2PayloadHandler {
 
         String bodyStr = rc.getBodyAsString();
         if (bodyStr.length() != V2_REFRESH_PAYLOAD_LENGTH) {
-            // Pass through unencrypted v1 refresh token
+            // Pass through v1 refresh token
             rc.data().put("refresh_token", bodyStr);
         } else {
             try {
@@ -154,8 +152,9 @@ public class V2PayloadHandler {
             return;
         }
 
-        JsonObject respJson = (JsonObject) rc.data().get("response");
         try {
+            JsonObject respJson = (JsonObject) rc.data().get("response");
+
             handleRefreshTokenInResponse(respJson);
 
             if (responseKey != null) {
@@ -172,8 +171,8 @@ public class V2PayloadHandler {
             }
         }
         catch (Exception ex){
-            LOGGER.error("Failed to encrypt refresh token", ex);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "fail to encrypt refresh token");
+            LOGGER.error("Failed to refresh token", ex);
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 
@@ -273,6 +272,16 @@ public class V2PayloadHandler {
         JsonObject respJson = (JsonObject) rc.data().get("response");
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
             .end(respJson.encode());
+    }
+
+    private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
+        Buffer buffer = Buffer.buffer();
+        buffer.appendLong(EncodingUtils.NowUTCMillis().toEpochMilli());
+        buffer.appendBytes(nonce);
+        buffer.appendBytes(resp.encode().getBytes(StandardCharsets.UTF_8));
+
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
+        rc.response().end(Utils.toBase64String(EncryptionHelper.encryptGCM(buffer.getBytes(), keyBytes)));
     }
 }
 

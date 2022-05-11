@@ -28,10 +28,8 @@ import com.uid2.operator.model.*;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.shared.Utils;
-import com.uid2.shared.attest.UidCoreClient;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Role;
-import com.uid2.shared.cloud.ICloudStorage;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
@@ -60,7 +58,11 @@ import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
 import java.io.IOException;
-import java.time.*;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -86,6 +88,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final V2PayloadHandler v2PayloadHandler;
+    private Handler<RoutingContext> disableHandler = null;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -93,8 +96,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IKeyAclProvider keyAclProvider,
                                ISaltProvider saltProvider,
                                IOptOutStore optOutStore,
-                               Clock clock,
-                               ICloudStorage coreClient) {
+                               Clock clock) {
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -103,11 +105,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
-<<<<<<< HEAD
-        this.coreClient = coreClient;
-=======
         this.v2PayloadHandler = new V2PayloadHandler(config.getBoolean("enable_v2_encryption", true), clock);
->>>>>>> master
     }
 
     @Override
@@ -142,14 +140,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
+    public void setDisableHandler(Handler<RoutingContext> h) {
+        this.disableHandler = h;
+    }
+
     private Router createRoutesSetup() throws IOException {
         final Router router = Router.router(vertx);
 
-        if (this.coreClient instanceof UidCoreClient) {
-            Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
-            OperatorDisableHandler h = new OperatorDisableHandler(disableWaitTime, this.clock);
-            ((UidCoreClient) this.coreClient).setResponseStatusWatcher(h::handleResponseStatus);
-            router.route().handler(h);
+        if (this.disableHandler != null) {
+            router.route().handler(this.disableHandler);
         }
 
         router.route().handler(new RequestCapturingHandler());

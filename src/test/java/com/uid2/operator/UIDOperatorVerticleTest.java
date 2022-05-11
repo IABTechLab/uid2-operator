@@ -27,14 +27,12 @@ import com.uid2.operator.model.AdvertisingToken;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptionHelper;
 import com.uid2.operator.service.UIDOperatorService;
-<<<<<<< HEAD
+import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.attest.NoAttestationProvider;
 import com.uid2.shared.attest.UidCoreClient;
 import com.uid2.shared.cloud.CloudUtils;
-=======
 import com.uid2.shared.Utils;
->>>>>>> master
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.operator.model.RefreshToken;
 import com.uid2.operator.service.TokenUtils;
@@ -78,11 +76,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-<<<<<<< HEAD
-import java.util.Arrays;
-=======
 import java.util.*;
->>>>>>> master
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -93,18 +87,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
     private AutoCloseable mocks;
-<<<<<<< HEAD
-    @Mock private IClientKeyProvider clientKeyProvider;
-    @Mock private IKeyStore keyStore;
-    @Mock private IKeyStore.IKeyStoreSnapshot keyStoreSnapshot;
-    @Mock private IKeyAclProvider keyAclProvider;
-    @Mock private IKeyAclProvider.IKeysAclSnapshot keyAclProviderSnapshot;
-    @Mock private ISaltProvider saltProvider;
-    @Mock private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
-    @Mock private IOptOutStore optOutStore;
-    @Mock private Clock clock;
-    private UidCoreClient fakeCoreClient = new UidCoreClient("", "", new ApplicationVersion("test", "test"), CloudUtils.defaultProxy, new NoAttestationProvider(), false);
-=======
     @Mock
     private IClientKeyProvider clientKeyProvider;
     @Mock
@@ -123,13 +105,15 @@ public class UIDOperatorVerticleTest {
     private IOptOutStore optOutStore;
     @Mock
     private Clock clock;
->>>>>>> master
+
     private static final String firstLevelSalt = "first-level-salt";
     private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123");
     private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
     private static final Duration refreshExpiresAfter = Duration.ofMinutes(15);
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
     private static final byte[] clientSecret = EncryptionHelper.getRandomKeyBytes();
+
+    private UidCoreClient fakeCoreClient = new UidCoreClient("", "", new ApplicationVersion("test", "test"), CloudUtils.defaultProxy, new NoAttestationProvider(), false);
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext) throws Throwable {
@@ -145,7 +129,12 @@ public class UIDOperatorVerticleTest {
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, refreshIdentityAfter.toMillis() / 1000);
         config.put(Const.Config.FailureShutdownWaitHoursProp, 24);
 
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, fakeCoreClient);
+        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock);
+
+        OperatorDisableHandler h = new OperatorDisableHandler(Duration.ofHours(24), clock);
+        fakeCoreClient.setResponseStatusWatcher(h::handleResponseStatus);
+        verticle.setDisableHandler(h);
+
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
     }
 

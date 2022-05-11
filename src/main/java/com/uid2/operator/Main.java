@@ -63,6 +63,7 @@ import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -111,7 +112,9 @@ public class Main {
             this.fsStores = coreClient;
             LOGGER.info("Salt/Key/Client stores - Using uid2-core attestation endpoint: " + coreAttestUrl);
 
-            disableHandler = new OperatorDisableHandler()
+            Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
+            this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
+            coreClient.setResponseStatusWatcher(this.disableHandler::handleResponseStatus);
 
             if (useStorageMock) {
                 this.fsOptOut = configureMockOptOutStore();
@@ -227,7 +230,10 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            return new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), fsStores);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC());
+            if (this.disableHandler != null)
+                verticle.setDisableHandler(this.disableHandler);
+            return verticle;
         };
 
         DeploymentOptions options = new DeploymentOptions();

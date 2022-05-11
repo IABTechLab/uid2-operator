@@ -67,14 +67,37 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     private byte[] encodeV3(AdvertisingToken t, EncryptionKey masterKey, EncryptionKey siteKey) {
-        throw new UnsupportedOperationException();
+        final Buffer sitePayload = Buffer.buffer(69);
+        encodePublisherIdentityV3(sitePayload, t.publisherIdentity);
+        sitePayload.appendInt(t.userIdentity.privacyBits);
+        sitePayload.appendLong(t.userIdentity.establishedAt.toEpochMilli());
+        sitePayload.appendLong(t.userIdentity.refreshedAt.toEpochMilli());
+        sitePayload.appendBytes(t.userIdentity.id); // 32 or 33 bytes
+
+        final Buffer masterPayload = Buffer.buffer(130);
+        masterPayload.appendLong(t.expiresAt.toEpochMilli());
+        masterPayload.appendLong(t.createdAt.toEpochMilli());
+        encodeOperatorIdentityV3(masterPayload, t.operatorIdentity);
+        masterPayload.appendInt(siteKey.getId());
+        masterPayload.appendBytes(EncryptionHelper.encryptGCM(sitePayload.getBytes(), siteKey).getPayload());
+
+        final Buffer b = Buffer.buffer(164);
+        b.appendByte(encodeIdentityTypeV3(t.userIdentity));
+        b.appendByte((byte) t.version.rawVersion);
+        b.appendInt(masterKey.getId());
+        b.appendBytes(EncryptionHelper.encryptGCM(masterPayload.getBytes(), masterKey).getPayload());
+
+        return b.getBytes();
     }
 
     @Override
     public RefreshToken decodeRefreshToken(String s) {
-        final Buffer b = Buffer.buffer(EncodingUtils.fromBase64(s));
+        final byte[] bytes = EncodingUtils.fromBase64(s);
+        final Buffer b = Buffer.buffer(bytes);
 
-        if (b.getByte(0) == TokenVersion.V2.rawVersion) {
+        if (b.getByte(1) == TokenVersion.V3.rawVersion) {
+            return decodeRefreshTokenV3(b, bytes);
+        } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
             return decodeRefreshTokenV2(b);
         }
 
@@ -110,19 +133,50 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                 TokenVersion.V2, createdAt, validTill,
                 new OperatorIdentity(0, OperatorType.Service, 0, 0),
                 new PublisherIdentity(siteId, 0, 0),
-                new UserIdentity(IdentityScope.UID2, IdentityType.Email, identity, privacyBits, Instant.ofEpochMilli(establishedMillis), null),
-                null);
+                new UserIdentity(IdentityScope.UID2, IdentityType.Email, identity, privacyBits, Instant.ofEpochMilli(establishedMillis), null));
+    }
+
+    private RefreshToken decodeRefreshTokenV3(Buffer b, byte[] bytes) {
+        final int keyId = b.getInt(2);
+        final EncryptionKey key = this.keyStore.getSnapshot().getKey(keyId);
+
+        final byte[] decryptedPayload = EncryptionHelper.decryptGCM(bytes, 6, key);
+
+        final Buffer b2 = Buffer.buffer(decryptedPayload);
+        final Instant expiresAt = Instant.ofEpochMilli(b2.getLong(0));
+        final Instant createdAt = Instant.ofEpochMilli(b2.getLong(8));
+        final OperatorIdentity operatorIdentity = decodeOperatorIdentityV3(b2, 16);
+        final PublisherIdentity publisherIdentity = decodePublisherIdentityV3(b2, 29);
+        final int privacyBits = b2.getInt(45);
+        final Instant establishedAt = Instant.ofEpochMilli(b2.getLong(49));
+        final IdentityScope identityScope = decodeIdentityScopeV3(b2.getByte(57));
+        final IdentityType identityType = decodeIdentityTypeV3(b2.getByte(57));
+        final byte[] id = b2.getBytes(58, 90);
+
+        if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
+            throw new IllegalArgumentException("Identity scope mismatch");
+        }
+        if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
+            throw new IllegalArgumentException("Identity type mismatch");
+        }
+
+        return new RefreshToken(
+                TokenVersion.V3, createdAt, expiresAt, operatorIdentity, publisherIdentity,
+                new UserIdentity(identityScope, identityType, id, privacyBits, establishedAt, null));
     }
 
     @Override
     public AdvertisingToken decodeAdvertisingToken(String s) {
-        final Buffer b = Buffer.buffer(EncodingUtils.fromBase64(s));
+        final byte[] bytes = EncodingUtils.fromBase64(s);
+        final Buffer b = Buffer.buffer(bytes);
 
-        if (b.getByte(0) == TokenVersion.V2.rawVersion) {
+        if (b.getByte(1) == TokenVersion.V3.rawVersion) {
+            return decodeAdvertisingTokenV3(b, bytes);
+        } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
             return decodeAdvertisingTokenV2(b);
         }
 
-        throw new IllegalArgumentException("Invalid advertisement token version");
+        throw new IllegalArgumentException("Invalid advertising token version");
     }
 
     public AdvertisingToken decodeAdvertisingTokenV2(Buffer b) {
@@ -163,17 +217,47 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     }
 
-    public byte[] encode(RefreshToken t, Instant asOf) {
-        if (t.version != TokenVersion.V2) {
-            throw new UnsupportedOperationException();
+    public AdvertisingToken decodeAdvertisingTokenV3(Buffer b, byte[] bytes) {
+        final int masterKeyId = b.getInt(2);
+
+        final byte[] masterPayloadBytes = EncryptionHelper.decryptGCM(bytes, 6, this.keyStore.getSnapshot().getKey(masterKeyId));
+        final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
+        final Instant expiresAt = Instant.ofEpochMilli(masterPayload.getLong(0));
+        final Instant createdAt = Instant.ofEpochMilli(masterPayload.getLong(8));
+        final OperatorIdentity operatorIdentity = decodeOperatorIdentityV3(masterPayload, 16);
+        final int siteKeyId = masterPayload.getInt(29);
+
+        final Buffer sitePayload = Buffer.buffer(EncryptionHelper.decryptGCM(masterPayloadBytes, 33, this.keyStore.getSnapshot().getKey(siteKeyId)));
+        final PublisherIdentity publisherIdentity = decodePublisherIdentityV3(sitePayload, 0);
+        final int privacyBits = sitePayload.getInt(16);
+        final Instant establishedAt = Instant.ofEpochMilli(sitePayload.getLong(20));
+        final Instant refreshedAt = Instant.ofEpochMilli(sitePayload.getLong(28));
+        final byte[] id = sitePayload.slice(36, sitePayload.length()).getBytes();
+        final IdentityScope identityScope = id.length == 32 ? IdentityScope.UID2 : decodeIdentityScopeV3(id[0]);
+        final IdentityType identityType = id.length == 32 ? IdentityType.Email : decodeIdentityTypeV3(id[0]);
+
+        if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
+            throw new IllegalArgumentException("Identity scope mismatch");
+        }
+        if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
+            throw new IllegalArgumentException("Identity type mismatch");
         }
 
-        return encodeV2(t, asOf);
+        return new AdvertisingToken(
+                TokenVersion.V3, createdAt, expiresAt, operatorIdentity, publisherIdentity,
+                new UserIdentity(identityScope, identityType, id, privacyBits, establishedAt, refreshedAt)
+        );
     }
 
-    public byte[] encodeV2(RefreshToken t, Instant asOf) {
+    public byte[] encode(RefreshToken t, Instant asOf) {
         final EncryptionKey serviceKey = this.keyStore.getSnapshot().getRefreshKey(asOf);
 
+        return t.version == TokenVersion.V3
+                ? encodeV3(t, serviceKey)
+                : encodeV2(t, serviceKey);
+    }
+
+    public byte[] encodeV2(RefreshToken t, EncryptionKey serviceKey) {
         final Buffer b = Buffer.buffer();
         b.appendByte((byte) t.version.rawVersion);
         b.appendLong(t.createdAt.toEpochMilli());
@@ -183,6 +267,26 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         b.appendInt(serviceKey.getId());
         final byte[] encryptedIdentity = encryptIdentityV2(t.publisherIdentity, t.userIdentity, serviceKey);
         b.appendBytes(encryptedIdentity);
+        return b.getBytes();
+    }
+
+    public byte[] encodeV3(RefreshToken t, EncryptionKey serviceKey) {
+        final Buffer refreshPayload = Buffer.buffer(90);
+        refreshPayload.appendLong(t.expiresAt.toEpochMilli());
+        refreshPayload.appendLong(t.createdAt.toEpochMilli());
+        encodeOperatorIdentityV3(refreshPayload, t.operatorIdentity);
+        encodePublisherIdentityV3(refreshPayload, t.publisherIdentity);
+        refreshPayload.appendInt(t.userIdentity.privacyBits);
+        refreshPayload.appendLong(t.userIdentity.establishedAt.toEpochMilli());
+        refreshPayload.appendByte(encodeIdentityTypeV3(t.userIdentity));
+        refreshPayload.appendBytes(t.userIdentity.id);
+
+        final Buffer b = Buffer.buffer(124);
+        b.appendByte(encodeIdentityTypeV3(t.userIdentity));
+        b.appendByte((byte) t.version.rawVersion);
+        b.appendInt(serviceKey.getId());
+        b.appendBytes(EncryptionHelper.encryptGCM(refreshPayload.getBytes(), serviceKey).getPayload());
+
         return b.getBytes();
     }
 
@@ -233,5 +337,38 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         b.appendInt(identity.privacyBits);
         b.appendLong(identity.establishedAt.toEpochMilli());
         return EncryptionHelper.encrypt(b.getBytes(), key).getPayload();
+    }
+
+    static private byte encodeIdentityTypeV3(UserIdentity userIdentity) {
+        return (byte) ((userIdentity.identityScope.value << 4) | (userIdentity.identityType.value << 2) | 3);
+    }
+
+    static private IdentityScope decodeIdentityScopeV3(byte value) {
+        return IdentityScope.fromValue(value & 0x10);
+    }
+
+    static private IdentityType decodeIdentityTypeV3(byte value) {
+        return IdentityType.fromValue((value & 0xf) >> 2);
+    }
+
+    static void encodePublisherIdentityV3(Buffer b, PublisherIdentity publisherIdentity) {
+        b.appendInt(publisherIdentity.siteId);
+        b.appendLong(publisherIdentity.publisherId);
+        b.appendInt(publisherIdentity.clientKeyId);
+    }
+
+    static PublisherIdentity decodePublisherIdentityV3(Buffer b, int offset) {
+        return new PublisherIdentity(b.getInt(offset), b.getInt(offset + 12), b.getLong(offset + 4));
+    }
+
+    static void encodeOperatorIdentityV3(Buffer b, OperatorIdentity operatorIdentity) {
+        b.appendInt(operatorIdentity.siteId);
+        b.appendByte((byte)operatorIdentity.operatorType.value);
+        b.appendInt(operatorIdentity.operatorVersion);
+        b.appendInt(operatorIdentity.operatorKeyId);
+    }
+
+    static OperatorIdentity decodeOperatorIdentityV3(Buffer b, int offset) {
+        return new OperatorIdentity(b.getInt(offset), OperatorType.fromValue(b.getByte(offset + 4)), b.getInt(offset + 5), b.getInt(offset + 9));
     }
 }

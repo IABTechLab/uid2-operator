@@ -89,6 +89,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final V2PayloadHandler v2PayloadHandler;
+    private Handler<RoutingContext> disableHandler = null;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -140,8 +141,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
+    public void setDisableHandler(Handler<RoutingContext> h) {
+        this.disableHandler = h;
+    }
+
     private Router createRoutesSetup() throws IOException {
         final Router router = Router.router(vertx);
+
+        if (this.disableHandler != null) {
+            router.route().handler(this.disableHandler);
+        }
 
         router.route().handler(new RequestCapturingHandler());
         router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js"));

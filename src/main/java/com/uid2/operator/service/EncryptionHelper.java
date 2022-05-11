@@ -127,7 +127,7 @@ public class EncryptionHelper {
         try {
             return decryptGCM(encryptedBytes, offset, key.getKeyBytes());
         } catch (Exception e) {
-            throw new RuntimeException("Unable to Encrypt", e);
+            throw new RuntimeException("Unable to Decrypt", e);
         }
     }
 
@@ -139,7 +139,8 @@ public class EncryptionHelper {
             c.init(Cipher.DECRYPT_MODE, key, gcmParameterSpec);
             return c.doFinal(encryptedBytes, offset + GCM_IV_LENGTH, encryptedBytes.length - offset - GCM_IV_LENGTH);
         } catch (Exception e) {
-            throw new RuntimeException("Unable to Encrypt", e);
+            System.err.println(e);
+            throw new RuntimeException("Unable to Decrypt", e);
         }
     }
 

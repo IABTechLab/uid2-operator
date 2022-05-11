@@ -57,6 +57,8 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Duration refreshIdentityAfter;
 
     private final OperatorIdentity operatorIdentity;
+    private final TokenVersion tokenVersion;
+    private final boolean uid2EmailV3Enabled;
 
     public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock) {
         this.saltProvider = saltProvider;
@@ -81,6 +83,9 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (this.refreshIdentityAfter.compareTo(this.refreshExpiresAfter) > 0) {
             throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
+
+        this.tokenVersion = config.getBoolean("generate_v3_tokens", false) ? TokenVersion.V3 : TokenVersion.V2;
+        this.uid2EmailV3Enabled = config.getBoolean("uid2_email_v3", false);
     }
 
     @Override
@@ -121,7 +126,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             final Instant logoutEntry = this.optOutStore.getLatestEntry(token.userIdentity);
 
             if (logoutEntry == null || token.userIdentity.establishedAt.isAfter(logoutEntry)) {
-                return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity), token.responseEncryptionKey);
+                return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity));
             } else {
                 return RefreshResponse.Optout;
             }
@@ -186,7 +191,11 @@ public class UIDOperatorService implements IUIDOperatorService {
     private MappedIdentity getAdvertisingId(UserIdentity firstLevelHashIdentity, Instant asOf) {
         final SaltEntry rotatingSalt = this.saltProvider.getSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
 
-        return new MappedIdentity(TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, rotatingSalt.getSalt()), rotatingSalt.getHashedId());
+        return new MappedIdentity(
+                this.uid2EmailV3Enabled
+                    ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, rotatingSalt.getSalt())
+                    : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, rotatingSalt.getSalt()),
+                rotatingSalt.getHashedId());
     }
 
     private IdentityTokens generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity) {
@@ -207,18 +216,17 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private RefreshToken createRefreshToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
         return new RefreshToken(
-                TokenVersion.V2,
+                tokenVersion,
                 now,
                 now.plusMillis(refreshExpiresAfter.toMillis()),
                 this.operatorIdentity,
                 publisherIdentity,
-                userIdentity,
-                null);
+                userIdentity);
     }
 
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
         return new AdvertisingToken(
-                TokenVersion.V2,
+                tokenVersion,
                 now,
                 now.plusMillis(identityExpiresAfter.toMillis()),
                 this.operatorIdentity,

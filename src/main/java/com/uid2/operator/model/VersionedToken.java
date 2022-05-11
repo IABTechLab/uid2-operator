@@ -27,40 +27,13 @@ import java.time.Instant;
 import java.util.Objects;
 
 public abstract class VersionedToken {
-    private final int version;
-    private final Instant createdAt;
-    private final Instant expiresAt;
+    public final TokenVersion version;
+    public final Instant createdAt;
+    public final Instant expiresAt;
 
-    public VersionedToken(int version, Instant createdAt, Instant expiresAt) {
+    public VersionedToken(TokenVersion version, Instant createdAt, Instant expiresAt) {
         this.version = version;
         this.createdAt = createdAt;
         this.expiresAt = expiresAt;
-    }
-
-    public int getVersion() {
-        return version;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getExpiresAt() {
-        return expiresAt;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        VersionedToken that = (VersionedToken) o;
-        return version == that.version &&
-            createdAt.equals(that.createdAt) &&
-            expiresAt.equals(that.expiresAt);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(version, createdAt, expiresAt);
     }
 }

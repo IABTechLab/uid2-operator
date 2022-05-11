@@ -24,38 +24,17 @@
 package com.uid2.operator.model;
 
 import java.time.Instant;
-import java.util.Objects;
 
 public class RefreshToken extends VersionedToken {
-    private final Instant validTill;
-    private final UserIdentity identity;
+    public final OperatorIdentity operatorIdentity;
+    public final PublisherIdentity publisherIdentity;
+    public final UserIdentity userIdentity;
 
-    public RefreshToken(int version, Instant createdAt, Instant expiresAt, Instant validTill, UserIdentity identity) {
+    public RefreshToken(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
+                        PublisherIdentity publisherIdentity, UserIdentity userIdentity) {
         super(version, createdAt, expiresAt);
-        this.validTill = validTill;
-        this.identity = identity;
-    }
-
-    public Instant getValidTill() {
-        return validTill;
-    }
-
-    public UserIdentity getIdentity() {
-        return identity;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        if (!super.equals(o)) return false;
-        RefreshToken that = (RefreshToken) o;
-        return Objects.equals(validTill, that.validTill) &&
-            Objects.equals(identity, that.identity);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(super.hashCode(), validTill, identity);
+        this.operatorIdentity = operatorIdentity;
+        this.publisherIdentity = publisherIdentity;
+        this.userIdentity = userIdentity;
     }
 }

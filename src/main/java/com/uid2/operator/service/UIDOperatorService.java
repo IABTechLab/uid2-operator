@@ -25,10 +25,8 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.store.IKeyStore;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
-import com.uid2.shared.model.EncryptionKey;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -40,42 +38,37 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import static java.lang.Long.getLong;
+import java.util.*;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
     public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
 
-    private static int CURRENT_TOKEN_VERSION = 2;
-
-    private static Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
-    private final IKeyStore keyStore;
+    private static final Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final ITokenEncoder encoder;
     private final Clock clock;
-    private Map<String, VerificationEntry> verificationCodes = new HashMap<String, VerificationEntry>();
-    private final String testOptOutKey;
+    private final UserIdentity testOptOutIdentity;
 
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
     private final Duration refreshIdentityAfter;
 
-    public UIDOperatorService(JsonObject config, IKeyStore keyStore, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock) {
-        this.keyStore = keyStore;
+    private final OperatorIdentity operatorIdentity;
+    private final TokenVersion tokenVersion;
+    private final boolean uid2EmailV3Enabled;
+
+    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
         this.clock = clock;
 
-        // initialize test optout key
-        testOptOutKey = getFirstLevelKey(InputUtil.NormalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
+        this.testOptOutIdentity = getFirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Email,
+                InputUtil.NormalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
+        this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
         this.identityExpiresAfter = Duration.ofSeconds(config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         this.refreshExpiresAfter = Duration.ofSeconds(config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
@@ -90,31 +83,26 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (this.refreshIdentityAfter.compareTo(this.refreshExpiresAfter) > 0) {
             throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
-    }
 
-    @Override
-    public List<EncryptionKey> getConsortiumKeys() {
-        return this.keyStore.getSnapshot().getActiveKeySet();
+        this.tokenVersion = config.getBoolean("generate_v3_tokens", false) ? TokenVersion.V3 : TokenVersion.V2;
+        this.uid2EmailV3Enabled = config.getBoolean("uid2_email_v3", false);
     }
 
     @Override
     public IdentityTokens generateIdentity(IdentityRequest request) {
-        final Instant now = EncodingUtils.NowUTCMillis();
-        final String firstLevelKey = getFirstLevelKey(request.getEmailSha(), now);
-        return generateIdentity(firstLevelKey, request.getSiteId(), request.getPrivacyBits(), now);
-    }
-
-    @Override
-    public void generateIdentityAsync(IdentityRequest request, Handler<AsyncResult<IdentityTokens>> handler) {
-
+        final Instant now = EncodingUtils.NowUTCMillis(this.clock);
+        final byte[] firstLevelHash = getFirstLevelHash(request.userIdentity.id, now);
+        final UserIdentity firstLevelHashIdentity = new UserIdentity(
+                request.userIdentity.identityScope, request.userIdentity.identityType, firstLevelHash, request.userIdentity.privacyBits,
+                request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
+        return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
     }
 
     @Override
     public RefreshResponse refreshIdentity(String refreshToken) {
-
         final RefreshToken token;
         try {
-            token = this.encoder.decode(refreshToken);
+            token = this.encoder.decodeRefreshToken(refreshToken);
         } catch (Throwable t) {
             return RefreshResponse.Invalid;
         }
@@ -122,51 +110,48 @@ public class UIDOperatorService implements IUIDOperatorService {
             return RefreshResponse.Invalid;
         }
 
-        if (token.getIdentity().getEstablished().isBefore(RefreshCutoff)) {
+        if (token.userIdentity.establishedAt.isBefore(RefreshCutoff)) {
             return RefreshResponse.Deprecated;
         }
 
-        if (token.getValidTill().isBefore(Instant.now(this.clock))) {
+        if (token.expiresAt.isBefore(Instant.now(this.clock))) {
             return RefreshResponse.Expired;
         }
 
-        if (testOptOutKey.equals(token.getIdentity().getId())) {
+        if (token.userIdentity.matches(testOptOutIdentity)) {
             return RefreshResponse.Optout;
         }
 
         try {
-            final Instant logoutEntry = this.optOutStore.getLatestEntry(token.getIdentity().getId());
+            final Instant logoutEntry = this.optOutStore.getLatestEntry(token.userIdentity);
 
-            if (logoutEntry == null || token.getCreatedAt().isAfter(logoutEntry)) {
-                return RefreshResponse.Refreshed(this.generateIdentity(
-                    token.getIdentity().getId(), token.getIdentity().getSiteId(),
-                    token.getIdentity().getPrivacyBits(), token.getIdentity().getEstablished()));
+            if (logoutEntry == null || token.userIdentity.establishedAt.isAfter(logoutEntry)) {
+                return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity));
             } else {
                 return RefreshResponse.Optout;
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             return RefreshResponse.Invalid;
         }
     }
 
     @Override
-    public MappedIdentity map(String input, Instant asOf) {
-        final String firstLevelKey = getFirstLevelKey(input, asOf);
-        return getAdvertisementId(firstLevelKey, asOf);
+    public MappedIdentity map(UserIdentity userIdentity, Instant asOf) {
+        final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
+        return getAdvertisingId(firstLevelHashIdentity, asOf);
     }
 
+    @Override
     public List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp) {
         return this.saltProvider.getSnapshot(Instant.now()).getModifiedSince(sinceTimestamp);
     }
 
     @Override
-    public void InvalidateTokensAsync(String inputIdentity, Handler<AsyncResult<Instant>> handler) {
-        final Instant now = Instant.now();
-        final String firstLevelKey = this.getFirstLevelKey(inputIdentity, now);
-        final MappedIdentity mappedIdentity = getAdvertisementId(firstLevelKey, now);
+    public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler) {
+        final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
+        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf);
 
-        this.optOutStore.addEntry(firstLevelKey, mappedIdentity.getAdvertisingId(), r -> {
+        this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.advertisingId, r -> {
             if (r.succeeded()) {
                 handler.handle(Future.succeededFuture(r.result()));
             } else {
@@ -176,79 +161,87 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public boolean doesMatch(String advertisingToken, String inputIdentity, Instant asOf) {
-        final String firstLevelHash = getFirstLevelKey(inputIdentity, asOf);
-        final MappedIdentity identity = getAdvertisementId(firstLevelHash, asOf);
+    public boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf) {
+        final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
+        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf);
 
         final AdvertisingToken token = this.encoder.decodeAdvertisingToken(advertisingToken);
-        return token.getIdentity().getId().equals(identity.getAdvertisingId());
-
+        return Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id);
     }
 
-    private String getFirstLevelKey(String emailAddress, Instant asOf) {
-        return TokenUtils.getFirstLevelKey(emailAddress, this.saltProvider.getSnapshot(asOf).getFirstLevelSalt());
+    @Override
+    public Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf) {
+        final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
+        return this.optOutStore.getLatestEntry(firstLevelHashIdentity);
     }
 
-    private MappedIdentity getAdvertisementId(String firstLevelKey, Instant asOf) {
-        final SaltEntry rotatingSalt = this.saltProvider.getSnapshot(asOf).getRotatingSalt(firstLevelKey);
-
-        return new MappedIdentity(TokenUtils.getAdvertisingId(firstLevelKey, rotatingSalt.getSalt()), rotatingSalt.getHashedId());
+    private UserIdentity getFirstLevelHashIdentity(UserIdentity userIdentity, Instant asOf) {
+        return getFirstLevelHashIdentity(userIdentity.identityScope, userIdentity.identityType, userIdentity.id, asOf);
     }
 
-    private IdentityTokens generateIdentity(String firstLevelKey, int siteId, int privicyBits, Instant established) {
-        final Instant nowUtc = EncodingUtils.NowUTCMillis();
+    private UserIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf) {
+        final byte[] firstLevelHash = getFirstLevelHash(identityHash, asOf);
+        return new UserIdentity(identityScope, identityType, firstLevelHash, 0, null, null);
+    }
 
-        final MappedIdentity mappedIdentity = getAdvertisementId(firstLevelKey, nowUtc);
+    private byte[] getFirstLevelHash(byte[] identityHash, Instant asOf) {
+        return TokenUtils.getFirstLevelHash(identityHash, this.saltProvider.getSnapshot(asOf).getFirstLevelSalt());
+    }
 
-        final UserIdentity refreshIdentity = new UserIdentity(firstLevelKey, siteId, privicyBits, established);
-        final UserIdentity advertisementIdentity = new UserIdentity(mappedIdentity.getAdvertisingId(), siteId, privicyBits, established);
+    private MappedIdentity getAdvertisingId(UserIdentity firstLevelHashIdentity, Instant asOf) {
+        final SaltEntry rotatingSalt = this.saltProvider.getSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
+
+        return new MappedIdentity(
+                this.uid2EmailV3Enabled
+                    ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, rotatingSalt.getSalt())
+                    : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, rotatingSalt.getSalt()),
+                rotatingSalt.getHashedId());
+    }
+
+    private IdentityTokens generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity) {
+        final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
+
+        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, nowUtc);
+        final UserIdentity advertisingIdentity = new UserIdentity(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType,
+                mappedIdentity.advertisingId, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
 
         return this.encoder.encode(
-            this.createAdvertisementToken(advertisementIdentity, nowUtc),
-            this.createUserToken(advertisementIdentity, nowUtc),
-            this.createRefreshToken(refreshIdentity, nowUtc),
-            nowUtc.plusMillis(refreshIdentityAfter.toMillis())
+                this.createAdvertisingToken(publisherIdentity, advertisingIdentity, nowUtc),
+                this.createUserToken(publisherIdentity, advertisingIdentity, nowUtc),
+                this.createRefreshToken(publisherIdentity, firstLevelHashIdentity, nowUtc),
+                nowUtc.plusMillis(refreshIdentityAfter.toMillis()),
+                nowUtc
         );
     }
 
-    private RefreshToken createRefreshToken(UserIdentity userIdentity, Instant now) {
-        return new RefreshToken(CURRENT_TOKEN_VERSION,
-            now,
-            now.plusMillis(identityExpiresAfter.toMillis()),
-            now.plusMillis(refreshExpiresAfter.toMillis()),
-            userIdentity);
+    private RefreshToken createRefreshToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
+        return new RefreshToken(
+                tokenVersion,
+                now,
+                now.plusMillis(refreshExpiresAfter.toMillis()),
+                this.operatorIdentity,
+                publisherIdentity,
+                userIdentity);
     }
 
-    private AdvertisingToken createAdvertisementToken(UserIdentity userIdentity, Instant now) {
-        return new AdvertisingToken(CURRENT_TOKEN_VERSION, now, now.plusMillis(identityExpiresAfter.toMillis()), userIdentity);
+    private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
+        return new AdvertisingToken(
+                tokenVersion,
+                now,
+                now.plusMillis(identityExpiresAfter.toMillis()),
+                this.operatorIdentity,
+                publisherIdentity,
+                userIdentity);
     }
 
-    private UserToken createUserToken(UserIdentity userIdentity, Instant now) {
-        return new UserToken(CURRENT_TOKEN_VERSION, now, now.plusMillis(identityExpiresAfter.toMillis()), userIdentity, 2);
-    }
-
-    private static class VerificationEntry {
-        private String token;
-        private int code;
-
-        public VerificationEntry(String token, int code) {
-            this.token = token;
-            this.code = code;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            VerificationEntry that = (VerificationEntry) o;
-            return code == that.code &&
-                Objects.equals(token, that.token);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(token, code);
-        }
+    private UserToken createUserToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
+        return new UserToken(
+                TokenVersion.V2,
+                now,
+                now.plusMillis(identityExpiresAfter.toMillis()),
+                this.operatorIdentity,
+                publisherIdentity,
+                userIdentity);
     }
 
 }

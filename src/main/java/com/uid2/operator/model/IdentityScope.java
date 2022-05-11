@@ -23,13 +23,17 @@
 
 package com.uid2.operator.model;
 
-import com.uid2.shared.model.KeyIdentifier;
+public enum IdentityScope {
+    UID2(0);
 
-public class SiteKeyIdentifier extends KeyIdentifier {
-    private final int siteId;
+    public final int value;
 
-    public SiteKeyIdentifier(int id, int siteId) {
-        super(id);
-        this.siteId = siteId;
+    IdentityScope(int value) { this.value = value; }
+
+    public static IdentityScope fromValue(int value) {
+        switch (value) {
+            case 0: return UID2;
+            default: throw new IllegalArgumentException();
+        }
     }
 }

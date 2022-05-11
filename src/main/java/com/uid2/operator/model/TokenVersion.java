@@ -21,22 +21,13 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-package com.uid2.operator.store;
+package com.uid2.operator.model;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
+public enum TokenVersion {
+    V2(2),
+    V3(112);
 
-import java.time.Instant;
+    public final int rawVersion;
 
-public class MockOptOutStore implements IOptOutStore {
-    @Override
-    public Instant getLatestEntry(String key) {
-        return null;
-    }
-
-    @Override
-    public void addEntry(String key, String advertisingId, Handler<AsyncResult<Instant>> handler) {
-        handler.handle(Future.succeededFuture(Instant.now()));
-    }
+    TokenVersion(int rawVersion) { this.rawVersion = rawVersion; }
 }

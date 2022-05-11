@@ -25,6 +25,7 @@ package com.uid2.operator;
 
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.store.*;
+import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
@@ -85,6 +86,7 @@ public class Main {
     private final RotatingKeyAclProvider keyAclProvider;
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
+    private OperatorDisableHandler disableHandler = null;
 
     private final OperatorMetrics metrics;
 
@@ -108,6 +110,8 @@ public class Main {
             UidCoreClient coreClient = createUidCoreClient(coreAttestUrl, coreApiToken);
             this.fsStores = coreClient;
             LOGGER.info("Salt/Key/Client stores - Using uid2-core attestation endpoint: " + coreAttestUrl);
+
+            disableHandler = new OperatorDisableHandler()
 
             if (useStorageMock) {
                 this.fsOptOut = configureMockOptOutStore();

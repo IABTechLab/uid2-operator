@@ -4,7 +4,7 @@ DATA_DIR=/opt/uid2operator
 .PHONY: all
 all: build_eif
 
-install: ./build/uid2operator.eif ./scripts/aws/start.sh ./scripts/aws/stop.sh ./scripts/aws/allocator.template.yaml ./scripts/aws/proxies.host.yaml ./scripts/aws/uid2operator.service ./dependencies/vsockpx
+install: ./build/uid2operator.eif ./build/dante-1.4.3/sockd ./scripts/aws/start.sh ./scripts/aws/stop.sh ./scripts/aws/allocator.template.yaml ./scripts/aws/proxies.host.yaml ./scripts/aws/uid2operator.service ./build/vsockpx
 	mkdir -p $(CONFIG_DIR)
 	mkdir -p $(DATA_DIR)
 	cp ./scripts/aws/proxies.host.yaml $(CONFIG_DIR)/proxy.yaml
@@ -13,7 +13,9 @@ install: ./build/uid2operator.eif ./scripts/aws/start.sh ./scripts/aws/stop.sh .
 	cp ./scripts/aws/start.sh $(DATA_DIR)/start.sh
 	cp ./scripts/aws/stop.sh $(DATA_DIR)/stop.sh
 	cp ./scripts/aws/uid2operator.service /etc/systemd/system/
-	cp ./dependencies/vsockpx /usr/bin/
+	cp ./build/vsockpx /usr/bin/
+	cp ./scripts/aws/sockd.conf /etc/
+	cp ./build/dante-1.4.3/sockd/sockd /usr/bin
 	chmod +x /usr/bin/vsockpx
 
 uninstall:
@@ -25,9 +27,20 @@ uninstall:
 clean:
 	rm -rf build
 
-build_eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh dependencies/vsockpx build/Dockerfile build/conf/prod-config.json
-	cd build; docker build -t uid2operator .
+./build/dante-1.4.3/sockd:
+	cd build; wget https://www.inet.no/dante/files/dante-1.4.3.tar.gz
+	cd build; tar -xf dante-1.4.3.tar.gz
+	cd build/dante-1.4.3; ./configure
+	cd build/dante-1.4.3; make
+
+build_eif: uid2operator.eif
+
+uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/conf/prod-config.json build/load_config.py	
+	cd build; docker build -t uid2operator . --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
 	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
+
+build/load_config.py: ./scripts/aws/load_config.py
+	cp ./scripts/aws/load_config.py ./build/
 
 build/conf/prod-config.json: build_artifacts ./scripts/aws/conf/prod-config.json
 	cp ./scripts/aws/conf/prod-config.json ./build/conf/prod-config.json
@@ -37,15 +50,17 @@ build/Dockerfile: build_artifacts ./scripts/aws/Dockerfile
 
 build/proxies.nitro.yaml: build_artifacts ./scripts/aws/proxies.nitro.yaml
 	cp ./scripts/aws/proxies.nitro.yaml ./build/
-	
+
 build/entrypoint.sh: build_artifacts
 	cp ./scripts/aws/entrypoint.sh ./build/
 
-build_artifacts: Dockerfile.nitro.builder
-	docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder --build-arg GITHUB_ACCESS_TOKEN=$(GITHUB_ACCESS_TOKEN) .
-	docker cp $(shell docker create --rm uid2-nitro-builder):/build .
+build_artifacts: build/build_artifacts.stamp
 
-setup_dependencies: 
-	GITHUB_ACCESS_TOKEN=$(GITHUB_ACCESS_TOKEN) enclave_platform="aws-nitro" ./setup_dependencies.sh
+build/build_artifacts.stamp build/vsockpx build/libjnsm.so: Dockerfile.nitro.builder
+	docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder .
+	docker create --name uid2-nitro-builder uid2-nitro-builder
+	docker cp uid2-nitro-builder:/build .
+	docker rm uid2-nitro-builder
+	touch build/build_artifacts.stamp
 
-.PHONY: install uninstall setup_nitro setup_dependencies build_artifacts build_eif
+.PHONY: install uninstall setup_nitro build_artifacts build_eif

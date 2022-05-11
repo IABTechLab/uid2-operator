@@ -23,6 +23,17 @@
 
 package com.uid2.operator.model;
 
-public class BaseEncryptionKey {
+public enum IdentityType {
+    Email(0);
 
+    public final int value;
+
+    IdentityType(int value) { this.value = value; }
+
+    public static IdentityType fromValue(int value) {
+        switch (value) {
+            case 0: return Email;
+            default: throw new IllegalArgumentException();
+        }
+    }
 }

@@ -36,61 +36,61 @@ public class InputUtil {
     private static int MIN_PHONENUMBER_DIGITS = 10;
     private static int MAX_PHONENUMBER_DIGITS = 15;
 
-    public static InputVal NormalizeEmailHash(String input) {
+    public static InputVal normalizeEmailHash(String input) {
         final int inputLength = input.length();
         if (inputLength == 44) {
             try {
                 EncodingUtils.fromBase64(input);
-                return InputVal.ValidEmailHash(input, input);
+                return InputVal.validEmailHash(input, input);
             } catch (Exception e) {
             }
         } else if (inputLength == 64) {
             try {
                 final byte[] s = EncodingUtils.fromHexString(input);
-                return InputVal.ValidEmailHash(input, EncodingUtils.toBase64String(s));
+                return InputVal.validEmailHash(input, EncodingUtils.toBase64String(s));
             } catch (Exception e) {
             }
         }
-        return InputVal.InvalidEmailHash(input);
+        return InputVal.invalidEmailHash(input);
     }
 
-    public static InputVal NormalizePhoneHash(String input) {
+    public static InputVal normalizePhoneHash(String input) {
         final int inputLength = input.length();
         if (inputLength == 44) {
             try {
                 EncodingUtils.fromBase64(input);
-                return InputVal.ValidPhoneHash(input, input);
+                return InputVal.validPhoneHash(input, input);
             } catch (Exception e) {
             }
         } else if (inputLength == 64) {
             try {
                 final byte[] s = EncodingUtils.fromHexString(input);
-                return InputVal.ValidPhoneHash(input, EncodingUtils.toBase64String(s));
+                return InputVal.validPhoneHash(input, EncodingUtils.toBase64String(s));
             } catch (Exception e) {
             }
         }
-        return InputVal.InvalidPhoneHash(input);
+        return InputVal.invalidPhoneHash(input);
     }
 
-    public static boolean IsAsciiDigit(char d)
+    public static boolean isAsciiDigit(char d)
     {
         return d >= '0' && d <= '9';
     }
 
-    public static boolean IsPhoneNumberNormalized(String phonenumber) {
-        // normalized phonenumber must follow ITU E.164 standard, see https://www.wikipedia.com/en/E.164
-        if (phonenumber == null || phonenumber.length() < MIN_PHONENUMBER_DIGITS)
+    public static boolean isPhoneNumberNormalized(String phoneNumber) {
+        // normalized phoneNumber must follow ITU E.164 standard, see https://www.wikipedia.com/en/E.164
+        if (phoneNumber == null || phoneNumber.length() < MIN_PHONENUMBER_DIGITS)
             return false;
 
         // first character must be '+' sign
-        if ('+' != phonenumber.charAt(0))
+        if ('+' != phoneNumber.charAt(0))
             return false;
 
-        // count the digits, return false if non-digit charracter is found
+        // count the digits, return false if non-digit character is found
         int totalDigits = 0;
-        for (int i = 1; i < phonenumber.length(); ++i)
+        for (int i = 1; i < phoneNumber.length(); ++i)
         {
-            if (!InputUtil.IsAsciiDigit(phonenumber.charAt(i)))
+            if (!InputUtil.isAsciiDigit(phoneNumber.charAt(i)))
                 return false;
             ++totalDigits;
         }
@@ -101,22 +101,22 @@ public class InputUtil {
         return true;
     }
 
-    public static InputVal NormalizeEmail(String email) {
-        final String normalize = NormalizeEmailString(email);
+    public static InputVal normalizeEmail(String email) {
+        final String normalize = normalizeEmailString(email);
         if (normalize != null && normalize.length() > 0) {
-            return InputVal.ValidEmail(email, normalize);
+            return InputVal.validEmail(email, normalize);
         }
-        return InputVal.InvalidEmail(email);
+        return InputVal.invalidEmail(email);
     }
 
-    public static InputVal NormalizePhone(String phone) {
-        if (IsPhoneNumberNormalized(phone)) {
-            return InputVal.ValidEmail(phone, phone);
+    public static InputVal normalizePhone(String phone) {
+        if (isPhoneNumberNormalized(phone)) {
+            return InputVal.validPhone(phone, phone);
         }
-        return InputVal.InvalidPhone(phone);
+        return InputVal.invalidPhone(phone);
     }
 
-    public static String NormalizeEmailString(String email) {
+    public static String normalizeEmailString(String email) {
         final StringBuilder preSb = new StringBuilder();
         final StringBuilder preSbSpecialized = new StringBuilder();
         final StringBuilder sb = new StringBuilder();
@@ -230,35 +230,35 @@ public class InputUtil {
             }
         }
 
-        public static InputVal ValidEmail(String input, String normalized) {
+        public static InputVal validEmail(String input, String normalized) {
             return new InputVal(input, normalized, IdentityType.Email, IdentityInputType.Raw, true);
         }
 
-        public static InputVal InvalidEmail(String input) {
+        public static InputVal invalidEmail(String input) {
             return new InputVal(input, null, IdentityType.Email, IdentityInputType.Raw, false);
         }
 
-        public static InputVal ValidEmailHash(String input, String normalized) {
+        public static InputVal validEmailHash(String input, String normalized) {
             return new InputVal(input, normalized, IdentityType.Email, IdentityInputType.Hash, true);
         }
 
-        public static InputVal InvalidEmailHash(String input) {
+        public static InputVal invalidEmailHash(String input) {
             return new InputVal(input, null, IdentityType.Email, IdentityInputType.Hash, false);
         }
 
-        public static InputVal ValidPhone(String input, String normalized) {
+        public static InputVal validPhone(String input, String normalized) {
             return new InputVal(input, normalized, IdentityType.Phone, IdentityInputType.Raw, true);
         }
 
-        public static InputVal InvalidPhone(String input) {
+        public static InputVal invalidPhone(String input) {
             return new InputVal(input, null, IdentityType.Phone, IdentityInputType.Raw, false);
         }
 
-        public static InputVal ValidPhoneHash(String input, String normalized) {
+        public static InputVal validPhoneHash(String input, String normalized) {
             return new InputVal(input, normalized, IdentityType.Phone, IdentityInputType.Hash, true);
         }
 
-        public static InputVal InvalidPhoneHash(String input) {
+        public static InputVal invalidPhoneHash(String input) {
             return new InputVal(input, null, IdentityType.Phone, IdentityInputType.Hash, false);
         }
 

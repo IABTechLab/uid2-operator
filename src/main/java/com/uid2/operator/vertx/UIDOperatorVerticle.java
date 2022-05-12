@@ -635,8 +635,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void handleIdentityMapV1(RoutingContext rc) {
-        final InputUtil.InputVal input = this.getTokenInputV1(rc);
-        if (!checkTokenInputV1(input, rc)) {
+        final InputUtil.InputVal input = this.v1PhoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
+        if (this.v1PhoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
             return;
         }
         try {
@@ -673,10 +673,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 // cannot specify both
                 input = null;
             } else {
-                input = InputUtil.NormalizeEmail(emailInput.get(0));
+                input = InputUtil.normalizeEmail(emailInput.get(0));
             }
         } else if (emailHashInput != null && emailHashInput.size() > 0) {
-            input = InputUtil.NormalizeEmailHash(emailHashInput.get(0));
+            input = InputUtil.normalizeEmailHash(emailHashInput.get(0));
         } else {
             input = null;
         }
@@ -695,7 +695,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return null;
         }
 
-        return email != null ? InputUtil.NormalizeEmail(email) : InputUtil.NormalizeEmailHash(emailHash);
+        return email != null ? InputUtil.normalizeEmail(email) : InputUtil.normalizeEmailHash(emailHash);
     }
     
     private InputUtil.InputVal getTokenInputV1(RoutingContext rc) {
@@ -724,13 +724,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         if (emailInput != null && emailInput.size() > 0) {
-            return InputUtil.NormalizeEmail(emailInput.get(0));
+            return InputUtil.normalizeEmail(emailInput.get(0));
         } else if (phoneInput != null && phoneInput.size() > 0) {
-            return InputUtil.NormalizePhone(phoneInput.get(0));
+            return InputUtil.normalizePhone(phoneInput.get(0));
         } else if (emailHashInput != null && emailHashInput.size() > 0) {
-            return InputUtil.NormalizeEmailHash(emailHashInput.get(0));
+            return InputUtil.normalizeEmailHash(emailHashInput.get(0));
         } else if (phoneHashInput != null && phoneHashInput.size() > 0) {
-            return InputUtil.NormalizePhoneHash(phoneHashInput.get(0));
+            return InputUtil.normalizePhoneHash(phoneHashInput.get(0));
         }
 
         return null;
@@ -749,7 +749,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private boolean checkTokenInputV1(InputUtil.InputVal input, RoutingContext rc) {
         if (input == null) {
-            ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of [email, email_hash, phonenumber, id_hash] must be specified");
+            ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified");
             return false;
         } else if (!input.isValid()) {
             ResponseUtil.ClientError(rc, "Invalid Identifier");
@@ -758,7 +758,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return true;
     }
 
-    private InputUtil.InputVal[] getTokenBulkInput(RoutingContext rc) {
+    private InputUtil.InputVal[] getIdentityBulkInput(RoutingContext rc) {
         final JsonObject obj = rc.getBodyAsJson();
         final JsonArray emails = obj.getJsonArray("email");
         final JsonArray emailHashes = obj.getJsonArray("email_hash");
@@ -778,7 +778,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
 
-    private InputUtil.InputVal[] getTokenBulkInputV1(RoutingContext rc) {
+    private InputUtil.InputVal[] getIdentityBulkInputV1(RoutingContext rc) {
         final JsonObject obj = rc.getBodyAsJson();
         final JsonArray emails = obj.getJsonArray("email");
         final JsonArray emailHashes = obj.getJsonArray("email_hash");
@@ -825,7 +825,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapBatchV1(RoutingContext rc) {
         try {
-            final InputUtil.InputVal[] inputList = this.v1PhoneSupport ? getTokenBulkInputV1(rc) : getTokenBulkInput(rc);
+            final InputUtil.InputVal[] inputList = this.v1PhoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
             if (inputList == null) return;
 
             recordIdentityMapStats(rc, inputList.length);
@@ -970,9 +970,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         for (int i = 0; i < size; ++i) {
             if (inputAsHash) {
-                resp[i] = InputUtil.NormalizeEmailHash(a.getString(i));
+                resp[i] = InputUtil.normalizeEmailHash(a.getString(i));
             } else {
-                resp[i] = InputUtil.NormalizeEmail(a.getString(i));
+                resp[i] = InputUtil.normalizeEmail(a.getString(i));
             }
         }
         return resp;
@@ -989,11 +989,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (identityType == IdentityType.Email) {
             if (inputType == InputUtil.IdentityInputType.Raw) {
                 for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.NormalizeEmail(a.getString(i));
+                    resp[i] = InputUtil.normalizeEmail(a.getString(i));
                 }
             } else if (inputType == InputUtil.IdentityInputType.Hash) {
                 for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.NormalizeEmailHash(a.getString(i));
+                    resp[i] = InputUtil.normalizeEmailHash(a.getString(i));
                 }
             } else {
                 throw new IllegalStateException("inputType");
@@ -1001,11 +1001,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } else if (identityType == IdentityType.Phone) {
             if (inputType == InputUtil.IdentityInputType.Raw) {
                 for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.NormalizePhone(a.getString(i));
+                    resp[i] = InputUtil.normalizePhone(a.getString(i));
                 }
             } else if (inputType == InputUtil.IdentityInputType.Hash) {
                 for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.NormalizePhoneHash(a.getString(i));
+                    resp[i] = InputUtil.normalizePhoneHash(a.getString(i));
                 }
             } else {
                 throw new IllegalStateException("inputType");

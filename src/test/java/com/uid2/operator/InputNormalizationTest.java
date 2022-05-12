@@ -49,7 +49,7 @@ public class InputNormalizationTest extends TestCase {
 
         for (String s : invalidTEstCases) {
             System.out.println("Negative case " + s);
-            final InputUtil.InputVal normalized = InputUtil.NormalizeEmail(s);
+            final InputUtil.InputVal normalized = InputUtil.normalizeEmail(s);
             Assert.assertEquals(normalized.getProvided(), s);
             Assert.assertFalse(normalized.isValid());
 
@@ -90,7 +90,7 @@ public class InputNormalizationTest extends TestCase {
 
         for (String[] testCase : validTestCases) {
             System.out.println("Positive Test case " + testCase[0] + " Expected : " + testCase[1]);
-            final InputUtil.InputVal normalization = InputUtil.NormalizeEmail(testCase[0]);
+            final InputUtil.InputVal normalization = InputUtil.normalizeEmail(testCase[0]);
             Assert.assertEquals(normalization.getProvided(), testCase[0]);
             Assert.assertTrue(normalization.isValid());
             Assert.assertEquals(testCase[1], normalization.getNormalized());
@@ -109,7 +109,7 @@ public class InputNormalizationTest extends TestCase {
         };
         for (final String s : testCases) {
             System.out.println("Testing hash " + s);
-            final InputUtil.InputVal normalization = InputUtil.NormalizeEmailHash(s);
+            final InputUtil.InputVal normalization = InputUtil.normalizeEmailHash(s);
             Assert.assertEquals(s, normalization.getProvided());
             Assert.assertTrue(normalization.isValid());
             Assert.assertEquals(masterHash, normalization.getNormalized());
@@ -130,7 +130,7 @@ public class InputNormalizationTest extends TestCase {
 
         for (final String s : testCases) {
             System.out.println("Testing Invalid hash " + s);
-            final InputUtil.InputVal normalization = InputUtil.NormalizeEmailHash(s);
+            final InputUtil.InputVal normalization = InputUtil.normalizeEmailHash(s);
             Assert.assertEquals(normalization.getProvided(), s);
             Assert.assertFalse(normalization.isValid());
         }
@@ -185,7 +185,7 @@ public class InputNormalizationTest extends TestCase {
 
         for (final String s : testCases) {
             System.out.println("Testing phonenumber '" + s + "'");
-            Assert.assertFalse(InputUtil.IsPhoneNumberNormalized(s));
+            Assert.assertFalse(InputUtil.isPhoneNumberNormalized(s));
         }
     }
 
@@ -201,7 +201,7 @@ public class InputNormalizationTest extends TestCase {
 
         for (final String s : testCases) {
             System.out.println("Testing phonenumber '" + s + "'");
-            Assert.assertTrue(InputUtil.IsPhoneNumberNormalized(s));
+            Assert.assertTrue(InputUtil.isPhoneNumberNormalized(s));
         }
     }
 

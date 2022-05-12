@@ -51,11 +51,18 @@ public class V2RequestUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
     public static V2Request parseRequest(String bodyString, ClientKey ck) {
-        // Payload envelop format:
-        //  byte 0: version
-        //  byte 1-12: GCM IV
-        //  byte 13-end: encrypted payload + GCM AUTH TAG
-        byte[] bodyBytes = Utils.decodeBase64String(bodyString);
+        byte[] bodyBytes;
+        try {
+            // Payload envelop format:
+            //  byte 0: version
+            //  byte 1-12: GCM IV
+            //  byte 13-end: encrypted payload + GCM AUTH TAG
+            bodyBytes = Utils.decodeBase64String(bodyString);
+        }
+        catch (IllegalArgumentException ex) {
+            return new V2Request("cannot decode body");
+        }
+
         if (bodyBytes.length < MIN_PAYLOAD_LENGTH) {
             return new V2Request("wrong size");
         }
@@ -97,10 +104,16 @@ public class V2RequestUtil {
     }
 
     public static V2Request parseRefreshRequest(String bodyString, IKeyStore keyStore) {
-        // Refresh token envelop format:
-        //  byte 0-4: ID of key used to encrypt body
-        //  byte 5-N: IV + encrypted body + GCM AUTH TAG
-        byte[] bytes = Utils.decodeBase64String(bodyString);
+        byte[] bytes;
+        try {
+            // Refresh token envelop format:
+            //  byte 0-4: ID of key used to encrypt body
+            //  byte 5-N: IV + encrypted body + GCM AUTH TAG
+            bytes = Utils.decodeBase64String(bodyString);
+        }
+        catch (IllegalArgumentException ex) {
+            return new V2Request("cannot decode body");
+        }
 
         // Skip first identity scope byte
         int keyId = Buffer.buffer(bytes).getInt(1);

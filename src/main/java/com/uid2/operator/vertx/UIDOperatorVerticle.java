@@ -381,7 +381,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
 
-                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(IdentityScope.UID2, 0, now), Instant.now())) {
+                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(IdentityScope.UID2, 0, now), now)) {
                         ResponseUtil.SuccessV2(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.SuccessV2(rc, Boolean.FALSE);

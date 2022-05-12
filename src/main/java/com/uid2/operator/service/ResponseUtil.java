@@ -53,6 +53,15 @@ public class ResponseUtil {
             .end(json.encode());
     }
 
+    public static void SuccessNoBodyV2(String status, RoutingContext rc) {
+        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+            {
+                put("status", status);
+            }
+        });
+        rc.data().put("response", json);
+    }
+
     public static void SuccessV2(RoutingContext rc, Object body) {
         final JsonObject json = new JsonObject(new HashMap<String, Object>() {
             {

@@ -280,17 +280,23 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         String refreshToken = tokenList.get(0);
-        if (refreshToken.length() == v2PayloadHandler.V2_REFRESH_PAYLOAD_LENGTH) {
+        if (refreshToken.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
             // V2 token sent by V1 JSSDK. Decrypt and extract original refresh token
-            JsonObject v2Json = V2PayloadHandler.decodeV2RefreshPayload(this.keyStore, refreshToken);
-            refreshToken = v2Json.getString("refresh_token");
+            V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, keyStore);
+            if (v2req.isValid()) {
+                refreshToken = (String) v2req.payload;
+            }
+            else {
+                ResponseUtil.ClientError(rc, v2req.errorMessage);
+                return;
+            }
         }
 
         try {
             RefreshResponse r = idService.refreshIdentity(refreshToken);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
-                    ResponseUtil.Error(ResponseStatus.OptOut, 400, rc, "User opt out");
+                    ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
                 } else if (!AuthMiddleware.isAuthenticated(rc)) {
                     // unauthenticated clients get a generic error
                     ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
@@ -312,11 +318,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleTokenRefreshV2(RoutingContext rc) {
         try {
-            String tokenStr = (String) rc.data().get("refresh_token");
+            String tokenStr = (String) rc.data().get("request");
             RefreshResponse r = idService.refreshIdentity(tokenStr);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
-                    ResponseUtil.Error(ResponseStatus.OptOut, 400, rc, "User opt out");
+                    ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
                 } else if (!AuthMiddleware.isAuthenticated(rc)) {
                     // unauthenticated clients get a generic error
                     ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
@@ -663,6 +669,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private InputUtil.InputVal getTokenInputV2(JsonObject req) {
+        if (req == null)
+            return null;
+
         final String email = req.getString("email");
         final String emailHash = req.getString("email_hash");
 

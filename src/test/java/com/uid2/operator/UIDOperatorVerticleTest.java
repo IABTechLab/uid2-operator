@@ -24,9 +24,7 @@
 package com.uid2.operator;
 
 import com.uid2.operator.model.AdvertisingToken;
-import com.uid2.operator.service.EncodingUtils;
-import com.uid2.operator.service.EncryptionHelper;
-import com.uid2.operator.service.UIDOperatorService;
+import com.uid2.operator.service.*;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.attest.NoAttestationProvider;
@@ -258,7 +256,8 @@ public class UIDOperatorVerticleTest {
                         byte[] decrypted = EncryptionHelper.decryptGCM(Utils.decodeBase64String(ar.result().bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
                         JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
 
-                        decodeV2RefreshToken(respJson);
+                        if (respJson.getString("status").equals("success"))
+                            decodeV2RefreshToken(respJson);
 
                         handler.handle(respJson);
                     } else {
@@ -280,9 +279,9 @@ public class UIDOperatorVerticleTest {
         JsonObject bodyJson = respJson.getJsonObject("body");
 
         byte[] tokenBytes = Utils.decodeBase64String(bodyJson.getString("refresh_token"));
-        EncryptionKey refreshKey = keyStore.getSnapshot().getKey(Buffer.buffer(tokenBytes).getInt(0));
+        EncryptionKey refreshKey = keyStore.getSnapshot().getKey(Buffer.buffer(tokenBytes).getInt(1));
 
-        byte[] decrypted = EncryptionHelper.decryptGCM(tokenBytes, 4, refreshKey);
+        byte[] decrypted = EncryptionHelper.decryptGCM(tokenBytes, 5, refreshKey);
         JsonObject tokenKeyJson = new JsonObject(new String(decrypted));
 
         String refreshToken = tokenKeyJson.getString("refresh_token");
@@ -507,7 +506,8 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    //@ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateNoEmailOrHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -854,7 +854,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, "", 400, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("optout", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });

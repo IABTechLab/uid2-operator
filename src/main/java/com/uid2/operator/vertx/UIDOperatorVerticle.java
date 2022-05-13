@@ -349,7 +349,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenValidateV1(RoutingContext rc) {
         try {
             final InputUtil.InputVal input = this.v1PhoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
-            if (!checkTokenInputV1(input, rc)) {
+            if (this.v1PhoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             }
             if (Arrays.equals(ValidationInputEmailHash, input.getIdentityInput())) {
@@ -416,7 +416,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenGenerateV1(RoutingContext rc) {
         try {
             final InputUtil.InputVal input = this.v1PhoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-            if (!checkTokenInputV1(input, rc)) {
+            if (this.v1PhoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             } else {
                 final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);

@@ -65,23 +65,23 @@ To fetch the configuration in Secrets Manager from EC2 instances, the instances 
 
 ```
 {
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Effect": "Allow",
-			"Action": [
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
         "kms:Decrypt*",
         "kms:GenerateDataKey*",
         "kms:Describe*"
       ],
       "Resource": "<KMS-key-ARN>"
-		},
+    },
     {
       "Effect": "Allow",
       "Action": "secretsmanager:GetSecretValue",
       "Resource": "<Config-key-ARN>"
     }
-	]
+  ]
 }
 ```
 

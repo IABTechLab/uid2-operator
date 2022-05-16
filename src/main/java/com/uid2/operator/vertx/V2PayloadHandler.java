@@ -29,12 +29,12 @@ public class V2PayloadHandler {
 
     private Boolean enableEncryption;
 
-    private final Clock clock;
+    private IdentityScope identityScope;
 
-    public V2PayloadHandler(IKeyStore keyStore, Boolean enableEncryption, Clock clock) {
+    public V2PayloadHandler(IKeyStore keyStore, Boolean enableEncryption, IdentityScope identityScope) {
         this.keyStore = keyStore;
         this.enableEncryption = enableEncryption;
-        this.clock = clock;
+        this.identityScope = identityScope;
     }
 
     public void handle(RoutingContext rc, Handler<RoutingContext> apiHandler) {
@@ -89,7 +89,7 @@ public class V2PayloadHandler {
         try {
             JsonObject respJson = (JsonObject) rc.data().get("response");
 
-            V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), keyStore);
+            V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), keyStore, this.identityScope);
 
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
         }
@@ -131,7 +131,7 @@ public class V2PayloadHandler {
 
             JsonObject bodyJson = respJson.getJsonObject("body");
             if (bodyJson != null)
-                V2RequestUtil.handleRefreshTokenInResponseBody(bodyJson, keyStore);
+                V2RequestUtil.handleRefreshTokenInResponseBody(bodyJson, keyStore, this.identityScope);
 
             if (request != null) {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");

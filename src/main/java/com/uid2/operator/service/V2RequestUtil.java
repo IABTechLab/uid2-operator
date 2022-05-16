@@ -107,7 +107,8 @@ public class V2RequestUtil {
         byte[] bytes;
         try {
             // Refresh token envelop format:
-            //  byte 0-4: ID of key used to encrypt body
+            //  byte 0:   identity scope
+            //  byte 1-4: ID of key used to encrypt body
             //  byte 5-N: IV + encrypted body + GCM AUTH TAG
             bytes = Utils.decodeBase64String(bodyString);
         }
@@ -143,7 +144,7 @@ public class V2RequestUtil {
         }
     }
 
-    public static void handleRefreshTokenInResponseBody(JsonObject bodyJson, IKeyStore keyStore) throws Exception {
+    public static void handleRefreshTokenInResponseBody(JsonObject bodyJson, IKeyStore keyStore, IdentityScope identityScope) throws Exception {
         EncryptionKey refreshKey = keyStore.getSnapshot().getRefreshKey(Clock.systemUTC().instant());
 
         JsonObject tokenKeyJson = new JsonObject();
@@ -157,7 +158,7 @@ public class V2RequestUtil {
         byte[] encrypted = EncryptionHelper.encryptGCM(tokenKeyJson.encode().getBytes(StandardCharsets.UTF_8), refreshKey).getPayload();
 
         String modifiedToken = Utils.toBase64String(Buffer.buffer()
-            .appendByte((byte) IdentityScope.UID2.value)
+            .appendByte(TokenUtils.encodeIdentityScope(identityScope))
             .appendInt(refreshKey.getId())
             .appendBytes(encrypted)
             .getBytes());

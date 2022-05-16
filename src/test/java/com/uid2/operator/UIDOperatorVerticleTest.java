@@ -24,6 +24,8 @@
 package com.uid2.operator;
 
 import com.uid2.operator.model.AdvertisingToken;
+import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.IdentityType;
 import com.uid2.operator.service.*;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.shared.ApplicationVersion;
@@ -126,6 +128,8 @@ public class UIDOperatorVerticleTest {
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, refreshIdentityAfter.toMillis() / 1000);
         config.put(Const.Config.FailureShutdownWaitHoursProp, 24);
 
+        setupConfig(config);
+
         UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock);
 
         OperatorDisableHandler h = new OperatorDisableHandler(Duration.ofHours(24), clock);
@@ -139,6 +143,8 @@ public class UIDOperatorVerticleTest {
     void teardown() throws Exception {
         mocks.close();
     }
+
+    public void setupConfig(JsonObject config) {}
 
     private static byte[] makeAesKey(String prefix) {
         return String.format("%1$16s", prefix).getBytes();
@@ -404,6 +410,21 @@ public class UIDOperatorVerticleTest {
         assertTrue(expected.plusSeconds(withinSeconds).isAfter(actual));
     }
 
+    private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
+        return !useIdentityV3()
+                ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt)
+                : TokenUtils.getAdvertisingIdV3FromIdentity(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt);
+    }
+
+    private byte[] getAdvertisingIdFromIdentityHash(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
+        return !useIdentityV3()
+                ? TokenUtils.getAdvertisingIdV2FromIdentityHash(identityString, firstLevelSalt, rotatingSalt)
+                : TokenUtils.getAdvertisingIdV3FromIdentityHash(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt);
+    }
+
+    protected boolean useIdentityV3() { return false; }
+    protected IdentityScope getIdentityScope() { return IdentityScope.UID2; }
+
     @Test
     void verticleDeployed(Vertx vertx, VertxTestContext testContext) {
         testContext.completeNow();
@@ -545,7 +566,7 @@ public class UIDOperatorVerticleTest {
 
                 AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-                assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
                 RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2")? "decrypted_refresh_token" :  "refresh_token"));
                 assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
@@ -583,7 +604,7 @@ public class UIDOperatorVerticleTest {
                 String advTokenStr = body.getString("advertising_token");
                 AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(advTokenStr);
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-                assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentityHash(emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+                assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email, emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
                 RefreshToken refreshToken = encoder.decodeRefreshToken(apiVersion.equals("v2") ? body.getString("decrypted_refresh_token") : body.getString("refresh_token"));
                 assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
@@ -624,7 +645,7 @@ public class UIDOperatorVerticleTest {
 
                 AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(refreshBody.getString("advertising_token"));
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-                assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
@@ -757,7 +778,7 @@ public class UIDOperatorVerticleTest {
             verify(keyStoreSnapshot).getKey(eq(siteKeyId));
             verify(keyStoreSnapshot, times(0)).getKey(eq(Const.Data.AdvertisingTokenSiteId));
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-            assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+            assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
             RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
             assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
@@ -1397,7 +1418,7 @@ public class UIDOperatorVerticleTest {
 
             AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-            assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+            assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
             RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
             assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
@@ -1433,7 +1454,7 @@ public class UIDOperatorVerticleTest {
 
             AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-            assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+            assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
             RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
             assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
@@ -1475,7 +1496,7 @@ public class UIDOperatorVerticleTest {
 
                 AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(refreshBody.getString("advertising_token"));
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-                assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);

@@ -62,8 +62,24 @@ public class TokenUtils {
     public static byte[] getAdvertisingIdV3(IdentityScope scope, IdentityType type, byte[] firstLevelHash, String rotatingSalt) {
         final byte[] sha = EncodingUtils.getSha256Bytes(EncodingUtils.toBase64String(firstLevelHash), rotatingSalt);
         final byte[] id = new byte[33];
-        id[0] = (byte)((scope.value << 4) | (type.value << 2));
+        id[0] = (byte)(encodeIdentityScope(scope) | encodeIdentityType(type));
         System.arraycopy(sha, 0, id, 1, 32);
         return id;
+    }
+
+    public static byte[] getAdvertisingIdV3FromIdentity(IdentityScope scope, IdentityType type, String identityString, String firstLevelSalt, String rotatingSalt) {
+        return getAdvertisingIdV3(scope, type, getFirstLevelHashFromIdentity(identityString, firstLevelSalt), rotatingSalt);
+    }
+
+    public static byte[] getAdvertisingIdV3FromIdentityHash(IdentityScope scope, IdentityType type, String identityString, String firstLevelSalt, String rotatingSalt) {
+        return getAdvertisingIdV3(scope, type, getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
+    }
+
+    public static byte encodeIdentityScope(IdentityScope identityScope) {
+        return (byte) (identityScope.value << 4);
+    }
+
+    public static byte encodeIdentityType(IdentityType identityType) {
+        return (byte) (identityType.value << 2);
     }
 }

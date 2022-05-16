@@ -52,7 +52,8 @@ public class UIDOperatorServiceTest {
     @Mock private IOptOutStore optOutStore;
     @Mock private Clock clock;
     EncryptedTokenEncoder tokenEncoder;
-    UIDOperatorService idService;
+    UIDOperatorService uid2Service;
+    UIDOperatorService euidService;
     Instant now;
 
     final int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
@@ -84,12 +85,26 @@ public class UIDOperatorServiceTest {
 
         setNow(Instant.now());
 
-        idService = new UIDOperatorService(
+        uid2Service = new UIDOperatorService(
                 config,
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
-                this.clock
+                this.clock,
+                IdentityScope.UID2
+        );
+
+        config.put("advertising_token_v3", true);
+        config.put("refresh_token_v3", true);
+        config.put("identity_v3", true);
+
+        euidService = new UIDOperatorService(
+                config,
+                optOutStore,
+                saltProvider,
+                tokenEncoder,
+                this.clock,
+                IdentityScope.EUID
         );
     }
 
@@ -120,7 +135,7 @@ public class UIDOperatorServiceTest {
                 new PublisherIdentity(123, 124, 125),
                 createUserIdentity("test-email-hash")
         );
-        final IdentityTokens tokens = idService.generateIdentity(identityRequest);
+        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
         assertNotNull(tokens);
 
         AdvertisingToken advertisingToken = tokenEncoder.decodeAdvertisingToken(tokens.getAdvertisingToken());
@@ -140,7 +155,7 @@ public class UIDOperatorServiceTest {
 
         setNow(Instant.now().plusSeconds(200));
 
-        final RefreshResponse refreshResponse = idService.refreshIdentity(tokens.getRefreshToken());
+        final RefreshResponse refreshResponse = uid2Service.refreshIdentity(tokens.getRefreshToken());
         assertNotNull(refreshResponse);
         assertEquals(RefreshResponse.Status.Refreshed, refreshResponse.getStatus());
         assertNotNull(refreshResponse.getTokens());
@@ -172,9 +187,24 @@ public class UIDOperatorServiceTest {
                 new PublisherIdentity(123, 124, 125),
                 inputVal.toUserIdentity(IdentityScope.UID2, 0, this.now)
         );
-        final IdentityTokens tokens = idService.generateIdentity(identityRequest);
+        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
         assertNotNull(tokens);
 
-        assertEquals(RefreshResponse.Optout, idService.refreshIdentity(tokens.getRefreshToken()));
+        assertEquals(RefreshResponse.Optout, uid2Service.refreshIdentity(tokens.getRefreshToken()));
+    }
+
+    @Test
+    public void testTestOptOutKeyIdentityScopeMismatch() {
+        final String email = "optout@email.com";
+        final InputUtil.InputVal inputVal = InputUtil.normalizeEmail(email);
+
+        final IdentityRequest identityRequest = new IdentityRequest(
+                new PublisherIdentity(123, 124, 125),
+                inputVal.toUserIdentity(IdentityScope.EUID, 0, this.now)
+        );
+        final IdentityTokens tokens = euidService.generateIdentity(identityRequest);
+        assertNotNull(tokens);
+
+        assertEquals(RefreshResponse.Invalid, uid2Service.refreshIdentity(tokens.getRefreshToken()));
     }
 }

@@ -8,7 +8,9 @@
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,
-  "generate_v3_tokens": false,
-  "uid2_email_v3": false,
+  "advertising_token_v3": false,
+  "refresh_token_v3": false,
+  "identity_v3": false,
+  "identity_scope": "uid2",
   "enable_v2_encryption": false
 }

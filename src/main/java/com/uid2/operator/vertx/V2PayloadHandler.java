@@ -1,10 +1,15 @@
 package com.uid2.operator.vertx;
 
+import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptionHelper;
 import com.uid2.operator.service.ResponseUtil;
+import com.uid2.operator.service.V2RequestUtil;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
+import com.uid2.shared.model.EncryptionKey;
+import com.uid2.shared.store.IKeyStore;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
@@ -20,16 +25,14 @@ import java.time.Instant;
 public class V2PayloadHandler {
     private static final io.vertx.core.logging.Logger LOGGER = LoggerFactory.getLogger(V2PayloadHandler.class);
 
-    // version: 1 byte, IV: 12 bytes, GCM tag: 16 bytes, timestamp: 8 bytes, nonce: 8 bytes
-    private static final int MIN_PAYLOAD_LENGTH = 1 + EncryptionHelper.GCM_IV_LENGTH + EncryptionHelper.GCM_AUTHTAG_LENGTH + 8 + 8;
-
-    private static final byte VERSION = 1;
+    private IKeyStore keyStore;
 
     private Boolean enableEncryption;
 
     private final Clock clock;
 
-    public V2PayloadHandler(Boolean enableEncryption, Clock clock) {
+    public V2PayloadHandler(IKeyStore keyStore, Boolean enableEncryption, Clock clock) {
+        this.keyStore = keyStore;
         this.enableEncryption = enableEncryption;
         this.clock = clock;
     }
@@ -40,42 +43,81 @@ public class V2PayloadHandler {
             return;
         }
 
-        ClientKey ck = AuthMiddleware.getAuthClient(ClientKey.class, rc);
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.getBodyAsString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        if (!request.isValid()) {
+            ResponseUtil.ClientError(rc, request.errorMessage);
+            return;
+        }
+        rc.data().put("request", request.payload);
 
-        // Payload envelop format:
-        //  byte 0: version
-        //  byte 1-12: GCM IV
-        //  byte 13-end: encrypted payload
-        byte[] bodyBytes = Utils.decodeBase64String(rc.getBodyAsString());
-        if (!sanityCheck(bodyBytes, MIN_PAYLOAD_LENGTH)) {
-            ResponseUtil.ClientError(rc, "wrong format");
+        apiHandler.handle(rc);
+
+        if (rc.response().getStatusCode() != 200) {
             return;
         }
 
-        // Request envelop format:
-        //  byte 0-7: timestamp
-        //  byte 8-15: nonce
-        //  byte 16-end: base64 encoded request JSON
-        byte[] decryptedBody;
         try {
-            decryptedBody = EncryptionHelper.decryptGCM(bodyBytes, 1, ck.getSecretBytes());
+            JsonObject respJson = (JsonObject) rc.data().get("response");
+
+            writeResponse(rc, request.nonce, respJson, request.encryptionKey);
         }
-        catch (Exception ex) {
-            ResponseUtil.ClientError(rc, "fail to decrypt");
+        catch (Exception ex){
+            LOGGER.error("Failed to generate response", ex);
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+        }
+    }
+
+    public void handleTokenGenerate(RoutingContext rc, Handler<RoutingContext> apiHandler) {
+        if (!enableEncryption) {
+            passThrough(rc, apiHandler);
             return;
         }
 
-        Buffer b = Buffer.buffer(decryptedBody);
-        Instant tm = Instant.ofEpochMilli(b.getLong(0));
-        if (Math.abs(Duration.between(tm, Instant.now(clock)).toMinutes()) > 1.0) {
-            ResponseUtil.ClientError(rc, "invalid timestamp");
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.getBodyAsString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        if (!request.isValid()) {
+            ResponseUtil.ClientError(rc, request.errorMessage);
+            return;
+        }
+        rc.data().put("request", request.payload);
+
+        apiHandler.handle(rc);
+
+        if (rc.response().getStatusCode() != 200) {
             return;
         }
 
-        if (decryptedBody.length > 16) {
-            String bodyStr = new String(decryptedBody, 16, decryptedBody.length - 16, StandardCharsets.UTF_8);
-            JsonObject reqJson = new JsonObject(bodyStr);
-            rc.data().put("request", reqJson);
+        try {
+            JsonObject respJson = (JsonObject) rc.data().get("response");
+
+            V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), keyStore);
+
+            writeResponse(rc, request.nonce, respJson, request.encryptionKey);
+        }
+        catch (Exception ex){
+            LOGGER.error("Failed to generate token", ex);
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+        }
+    }
+
+    public void handleTokenRefresh(RoutingContext rc, Handler<RoutingContext> apiHandler) {
+        if (!enableEncryption) {
+            passThrough(rc, apiHandler);
+            return;
+        }
+
+        String bodyString = rc.getBodyAsString();
+
+        V2RequestUtil.V2Request request = null;
+        if (bodyString.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
+            request = V2RequestUtil.parseRefreshRequest(bodyString, this.keyStore);
+            if (!request.isValid()) {
+                ResponseUtil.ClientError(rc, request.errorMessage);
+                return;
+            }
+            rc.data().put("request", request.payload);
+        }
+        else {
+            rc.data().put("request", bodyString);
         }
 
         apiHandler.handle(rc);
@@ -84,26 +126,30 @@ public class V2PayloadHandler {
             return;
         }
 
-        JsonObject respJson = (JsonObject) rc.data().get("response");
+        try {
+            JsonObject respJson = (JsonObject) rc.data().get("response");
 
-        // Echo nonce back for client to validate response
-        String nonce = Utils.toBase64String(Buffer.buffer(decryptedBody).slice(8, 16).getBytes());
-        respJson.put("nonce", nonce);
+            JsonObject bodyJson = respJson.getJsonObject("body");
+            if (bodyJson != null)
+                V2RequestUtil.handleRefreshTokenInResponseBody(bodyJson, keyStore);
 
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
-        rc.response().end(Utils.toBase64String(EncryptionHelper.encryptGCM(respJson.encode().getBytes(StandardCharsets.UTF_8), ck.getSecretBytes())));
-    }
-
-    private boolean sanityCheck(byte[] buf, int minLength) {
-        if (buf.length < minLength) {
-            return false;
+            if (request != null) {
+                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
+                // Encrypt whole payload using key shared with client.
+                byte[] encryptedResp = EncryptionHelper.encryptGCM(
+                    respJson.encode().getBytes(StandardCharsets.UTF_8),
+                    request.encryptionKey);
+                rc.response().end(Utils.toBase64String(encryptedResp));
+            }
+            else {
+                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                    .end(respJson.encode());
+            }
         }
-
-        if (buf[0] != VERSION) {
-            return false;
+        catch (Exception ex){
+            LOGGER.error("Failed to refresh token", ex);
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
         }
-
-        return true;
     }
 
     private void passThrough(RoutingContext rc, Handler<RoutingContext> apiHandler) {
@@ -115,6 +161,16 @@ public class V2PayloadHandler {
         JsonObject respJson = (JsonObject) rc.data().get("response");
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
             .end(respJson.encode());
+    }
+
+    private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
+        Buffer buffer = Buffer.buffer();
+        buffer.appendLong(EncodingUtils.NowUTCMillis().toEpochMilli());
+        buffer.appendBytes(nonce);
+        buffer.appendBytes(resp.encode().getBytes(StandardCharsets.UTF_8));
+
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
+        rc.response().end(Utils.toBase64String(EncryptionHelper.encryptGCM(buffer.getBytes(), keyBytes)));
     }
 }
 

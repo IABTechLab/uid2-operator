@@ -47,6 +47,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -105,7 +106,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
-        this.v2PayloadHandler = new V2PayloadHandler(config.getBoolean("enable_v2_encryption", true), clock);
+        this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), clock);
     }
 
     @Override
@@ -198,6 +199,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void setupV2Routes(Router mainRouter) {
         final Router v2Router = Router.router(vertx);
 
+        v2Router.post("/token/generate").handler(auth.handleV1(
+            rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
+        v2Router.post("/token/refresh").handler(auth.handleWithOptionalAuth(
+            rc -> v2PayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
         v2Router.post("/token/validate").handler(auth.handleV1(
             rc -> v2PayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
         v2Router.post("/identity/buckets").handler(auth.handleV1(
@@ -231,7 +236,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             handleKeysRequestCommon(rc, keys -> ResponseUtil.Success(rc, keys));
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -249,7 +254,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             handleKeysRequestCommon(rc, keys -> sendJsonResponse(rc, keys));
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -274,8 +279,21 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
+        String refreshToken = tokenList.get(0);
+        if (refreshToken.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
+            // V2 token sent by V1 JSSDK. Decrypt and extract original refresh token
+            V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, keyStore);
+            if (v2req.isValid()) {
+                refreshToken = (String) v2req.payload;
+            }
+            else {
+                ResponseUtil.ClientError(rc, v2req.errorMessage);
+                return;
+            }
+        }
+
         try {
-            RefreshResponse r = idService.refreshIdentity(tokenList.get(0));
+            RefreshResponse r = idService.refreshIdentity(refreshToken);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
@@ -293,10 +311,35 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
         }
+    }
 
+    private void handleTokenRefreshV2(RoutingContext rc) {
+        try {
+            String tokenStr = (String) rc.data().get("request");
+            RefreshResponse r = idService.refreshIdentity(tokenStr);
+            if (!r.isRefreshed()) {
+                if (r.isOptOut() || r.isDeprecated()) {
+                    ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
+                } else if (!AuthMiddleware.isAuthenticated(rc)) {
+                    // unauthenticated clients get a generic error
+                    ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                } else if (r.isInvalidToken()) {
+                    ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
+                } else if (r.isExpired()) {
+                    ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                } else {
+                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
+                }
+            } else {
+                ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
+            }
+        } catch (Exception e) {
+            LOGGER.error(e);
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
+        }
     }
 
     private void handleTokenValidateV1(RoutingContext rc) {
@@ -320,7 +363,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.Success(rc, Boolean.FALSE);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -333,7 +376,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (!checkTokenInput(input, rc)) {
                 return;
             }
-            if (ValidationInput.equals(input.getIdentityInput())) {
+            if (Arrays.equals(ValidationInput, input.getIdentityInput())) {
                 try {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
@@ -372,7 +415,28 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.Success(rc, toJsonV1(t));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
+            rc.fail(500);
+        }
+    }
+
+    private void handleTokenGenerateV2(RoutingContext rc) {
+        try {
+            JsonObject req = (JsonObject) rc.data().get("request");
+
+            final InputUtil.InputVal input = this.getTokenInputV2(req);
+            if (!checkTokenInput(input, rc)) {
+                return;
+            } else {
+                final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+                final IdentityTokens t = this.idService.generateIdentity(
+                    new IdentityRequest(
+                        new PublisherIdentity(clientKey.getSiteId(), 0, 0),
+                        input.toUserIdentity(IdentityScope.UID2, 1, Instant.now())));
+                ResponseUtil.SuccessV2(rc, toJsonV1(t));
+            }
+        } catch (Exception e) {
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -396,7 +460,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             sendJsonResponse(rc, toJson(t));
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -412,7 +476,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final RefreshResponse r = this.idService.refreshIdentity(tokenList.get(0));
             sendJsonResponse(rc, toJson(r.getTokens()));
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -435,7 +499,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc.response().end("not allowed");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }
@@ -605,6 +669,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private InputUtil.InputVal getTokenInputV2(JsonObject req) {
+        if (req == null)
+            return null;
+
         final String email = req.getString("email");
         final String emailHash = req.getString("email_hash");
 
@@ -667,8 +734,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.put("mapped", mapped);
             ResponseUtil.Success(rc, resp);
         } catch (Exception e) {
+            LOGGER.error(e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
-            e.printStackTrace();
         }
     }
 
@@ -756,7 +823,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.put("mapped", mapped);
             sendJsonResponse(rc, resp);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error(e);
             rc.fail(500);
         }
     }

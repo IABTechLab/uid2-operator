@@ -20,19 +20,22 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-
-if (window.googletag) {
-    googletag.encryptedSignalProviders.push({
-        id: 'uidapi.com',
-        collectorFunction: () => {
-            if (window.__uid2 && window.__uid2.getAdvertisingToken) {
-                return __uid2.getAdvertisingTokenAsync();
-            } else {
-                return Promise.reject(new Error("UID2 SDK not present"));
-            }
-        }
-    });
+function setupGoogleTag() {
+  if (window.googletag && window.googletag.encryptedSignalProviders) {
+      googletag.encryptedSignalProviders.push({
+          id: 'uidapi.com',
+          collectorFunction: () => {
+              if (window.__uid2 && window.__uid2.getAdvertisingToken) {
+                  return __uid2.getAdvertisingTokenAsync();
+              } else {
+                  return Promise.reject(new Error("UID2 SDK not present"));
+              }
+          }
+      });
+  }
 }
+
+setupGoogleTag();
 
 class UID2 {
     static get VERSION() {
@@ -348,4 +351,5 @@ window.__uid2 = new UID2();
 if (typeof exports !== 'undefined') {
   exports.UID2 = UID2;
   exports.window = window;
+  exports.setupGoogleTag = setupGoogleTag;
 }

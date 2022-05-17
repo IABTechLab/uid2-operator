@@ -69,6 +69,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
@@ -404,6 +405,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 } catch (Exception e) {
                     ResponseUtil.SuccessV2(rc, Boolean.FALSE);
                 }
+            } else if (Arrays.equals(ValidationInputPhoneHash, input.getIdentityInput())) {
+                try {
+                    final Instant now = Instant.now();
+                    final String token = req.getString("token");
+
+                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(IdentityScope.UID2, 0, now), now)) {
+                        ResponseUtil.SuccessV2(rc, Boolean.TRUE);
+                    } else {
+                        ResponseUtil.SuccessV2(rc, Boolean.FALSE);
+                    }
+                } catch (Exception e) {
+                    ResponseUtil.SuccessV2(rc, Boolean.FALSE);
+                }
             } else {
                 ResponseUtil.SuccessV2(rc, Boolean.FALSE);
             }
@@ -687,15 +701,35 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (req == null)
             return null;
 
-        final String email = req.getString("email");
-        final String emailHash = req.getString("email_hash");
+        Supplier<InputUtil.InputVal> getInput = null;
 
-        if ((email != null && emailHash != null) || (email == null && emailHash == null)) {
-            // One and only one of email and email_hash can be specified
-            return null;
+        final String email = req.getString("email");
+        if (email != null) {
+            getInput = () -> InputUtil.normalizeEmail(email);
         }
 
-        return email != null ? InputUtil.normalizeEmail(email) : InputUtil.normalizeEmailHash(emailHash);
+        final String emailHash = req.getString("email_hash");
+        if (emailHash != null) {
+            if (getInput != null)   // there can be only 1 set of valid input
+                return null;
+            getInput = () -> InputUtil.normalizeEmailHash(emailHash);
+        }
+
+        final String phone = req.getString("phone");
+        if (phone != null) {
+            if (getInput != null)        // there can be only 1 set of valid input
+                return null;
+            getInput = () -> InputUtil.normalizePhone(phone);
+        }
+
+        final String phoneHash = req.getString("phone_hash");
+        if (phoneHash != null) {
+            if (getInput != null)        // there can be only 1 set of valid input
+                return null;
+            getInput = () -> InputUtil.normalizePhoneHash(phoneHash);
+        }
+
+        return getInput != null ? getInput.get() : null;
     }
     
     private InputUtil.InputVal getTokenInputV1(RoutingContext rc) {
@@ -857,21 +891,49 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
             final JsonObject obj = (JsonObject) rc.data().get("request");
-            final InputUtil.InputVal[] inputList;
+
+            Supplier<InputUtil.InputVal[]> getInputList = null;
+
             final JsonArray emails = obj.getJsonArray("email");
+            if (emails != null && !emails.isEmpty()) {
+                getInputList = () -> createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
+            }
+
             final JsonArray emailHashes = obj.getJsonArray("email_hash");
-            if (emails == null && emailHashes == null) {
-                ResponseUtil.ClientError(rc, "Exactly one of email or email_hash must be specified");
-                return;
-            } else if (emails != null && !emails.isEmpty()) {
-                if (emailHashes != null && !emailHashes.isEmpty()) {
-                    ResponseUtil.ClientError(rc, "Only one of email or email_hash can be specified");
+            if (emailHashes != null && !emailHashes.isEmpty()) {
+                if (getInputList != null) {
+                    ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
                     return;
                 }
-                inputList = createInputList(emails, false);
-            } else {
-                inputList = createInputList(emailHashes, true);
+                getInputList = () -> createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
             }
+
+            final JsonArray phones = obj.getJsonArray("phone");
+            if (phones != null && !phones.isEmpty()) {
+                if (getInputList != null) {
+                    ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
+                    return;
+                }
+                getInputList = () -> createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
+            }
+
+            final JsonArray phoneHashes = obj.getJsonArray("phone_hash");
+            if (phoneHashes != null && !phoneHashes.isEmpty()) {
+                if (getInputList != null) {
+                    ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
+                    return;
+                }
+                getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);;
+            }
+
+            if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
+                ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
+                return;
+            }
+
+            final InputUtil.InputVal[] inputList = getInputList == null ?
+                createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
+                getInputList.get();
 
             recordIdentityMapStats(rc, inputList.length);
 

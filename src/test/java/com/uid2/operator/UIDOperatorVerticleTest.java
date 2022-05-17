@@ -392,7 +392,7 @@ public class UIDOperatorVerticleTest {
     }
 
     private void generateTokens(String apiVersion, Vertx vertx, String inputType, String input, Handler<JsonObject> handler) {
-        String v1Param = inputType + "=" + input;
+        String v1Param = inputType + "=" + urlEncode(input);
         JsonObject v2Payload = new JsonObject();
         v2Payload.put(inputType, input);
 
@@ -506,8 +506,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    //@ValueSource(strings = {"v1", "v2"})
-    @ValueSource(strings = {"v2"})
+    @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateNoEmailOrHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -1305,20 +1304,23 @@ public class UIDOperatorVerticleTest {
             });
         });
     }
-    
-    @Test
-    void tokenGenerateBothPhoneAndHashSpecified(Vertx vertx, VertxTestContext testContext) {
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateBothPhoneAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
         final String phoneHash = TokenUtils.getIdentityHashString(phone);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        get(vertx, "v1/token/generate?phone=" + urlEncode(phone) + "&phone_hash=" + urlEncode(phoneHash), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
+
+        String v1Param = "phone=" + urlEncode(phone) + "&phone_hash=" + urlEncode(phoneHash);
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("phone", phone);
+        v2Payload.put("phone_hash", phoneHash);
+
+        send(apiVersion, vertx, apiVersion + "/token/generate", true, v1Param, v2Payload, 400, json -> {
             assertFalse(json.containsKey("body"));
             assertEquals("client_error", json.getString("status"));
 
@@ -1326,19 +1328,22 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenGenerateBothPhoneAndEmailSpecified(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateBothPhoneAndEmailSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
         final String emailAddress = "test@uid2.com";
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        get(vertx, "v1/token/generate?phone=" + urlEncode(phone) + "&email=" + emailAddress, ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
+
+        String v1Param = "phone=" + urlEncode(phone) + "&email=" + emailAddress;
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("phone", phone);
+        v2Payload.put("email", emailAddress);
+
+        send(apiVersion, vertx, apiVersion + "/token/generate", true, v1Param, v2Payload, 400, json -> {
             assertFalse(json.containsKey("body"));
             assertEquals("client_error", json.getString("status"));
 
@@ -1346,8 +1351,9 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenGenerateBothPhoneHashAndEmailHashSpecified(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateBothPhoneHashAndEmailHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
         final String phoneHash = TokenUtils.getIdentityHashString(phone);
@@ -1356,11 +1362,13 @@ public class UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        get(vertx, "v1/token/generate?phone_hash=" + urlEncode(phoneHash) + "&email_hash=" + urlEncode(emailHash), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
+
+        String v1Param = "phone_hash=" + urlEncode(phoneHash) + "&email_hash=" + urlEncode(emailHash);
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("phone_hash", phoneHash);
+        v2Payload.put("email_hash", emailHash);
+
+        send(apiVersion, vertx, apiVersion + "/token/generate", true, v1Param, v2Payload, 400, json -> {
             assertFalse(json.containsKey("body"));
             assertEquals("client_error", json.getString("status"));
 
@@ -1368,18 +1376,20 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenGenerateForPhone(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        get(vertx, "v1/token/generate?phone=" + urlEncode(phone), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(200, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
+
+        String v1Param = "phone=" + urlEncode(phone);
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("phone", phone);
+
+        sendTokenGenerate(apiVersion, vertx, v1Param, v2Payload, 200, json -> {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
@@ -1389,7 +1399,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
             assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-            RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString("refresh_token"));
+            RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
             assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
             assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt), refreshToken.userIdentity.id);
 
@@ -1401,19 +1411,21 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenGenerateForPhoneHash(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void tokenGenerateForPhoneHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
         final String phoneHash = TokenUtils.getIdentityHashString(phone);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        get(vertx, "v1/token/generate?phone_hash=" + urlEncode(phoneHash), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse response = ar.result();
-            assertEquals(200, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
+
+        String v1Param = "phone_hash=" + urlEncode(phoneHash);
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("phone_hash", phoneHash);
+
+        sendTokenGenerate(apiVersion, vertx, v1Param, v2Payload, 200, json -> {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
@@ -1423,7 +1435,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
             assertArrayEquals(TokenUtils.getAdvertisingIdV2FromIdentity(phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-            RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString("refresh_token"));
+            RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
             assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
             assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt), refreshToken.userIdentity.id);
 
@@ -1437,7 +1449,7 @@ public class UIDOperatorVerticleTest {
 
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenRefreshForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
@@ -1445,7 +1457,7 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
 
-        generateTokens(apiVersion, vertx, "phone", urlEncode(phone), genRespJson -> {
+        generateTokens(apiVersion, vertx, "phone", phone, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             assertNotNull(bodyJson);
@@ -1481,7 +1493,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhone_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = UIDOperatorVerticle.ValidationInputPhone;
@@ -1489,7 +1501,7 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
 
-        generateTokens(apiVersion, vertx, "phone", urlEncode(phone), genRespJson -> {
+        generateTokens(apiVersion, vertx, "phone", phone, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
             JsonObject genBody = genRespJson.getJsonObject("body");
             assertNotNull(genBody);
@@ -1499,7 +1511,7 @@ public class UIDOperatorVerticleTest {
             String v1Param = "token=" + urlEncode(advertisingTokenString) + "&phone=" + urlEncode(phone);
             JsonObject v2Payload = new JsonObject();
             v2Payload.put("token", advertisingTokenString);
-            v2Payload.put("phone_hash", UIDOperatorVerticle.ValidationInputPhoneHash);
+            v2Payload.put("phone", phone);
 
             send(apiVersion, vertx, apiVersion + "/token/validate", true, v1Param, v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
@@ -1511,7 +1523,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhoneHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = UIDOperatorVerticle.ValidationInputPhone;
@@ -1520,7 +1532,7 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
 
-        generateTokens(apiVersion, vertx, "phone", urlEncode(phone), genRespJson -> {
+        generateTokens(apiVersion, vertx, "phone", phone, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
             JsonObject genBody = genRespJson.getJsonObject("body");
             assertNotNull(genBody);
@@ -1530,7 +1542,7 @@ public class UIDOperatorVerticleTest {
             String v1Param = "token=" + urlEncode(advertisingTokenString) + "&phone_hash=" + urlEncode(phoneHash);
             JsonObject v2Payload = new JsonObject();
             v2Payload.put("token", advertisingTokenString);
-            v2Payload.put("phone_hash", UIDOperatorVerticle.ValidationInputPhoneHash);
+            v2Payload.put("phone_hash", phoneHash);
 
             send(apiVersion, vertx, apiVersion + "/token/validate", true, v1Param, v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
@@ -1542,7 +1554,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithBothPhoneAndPhoneHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = UIDOperatorVerticle.ValidationInputPhone;
@@ -1551,7 +1563,7 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
 
-        generateTokens(apiVersion, vertx, "phone", urlEncode(phone), genRespJson -> {
+        generateTokens(apiVersion, vertx, "phone", phone, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
             JsonObject genBody = genRespJson.getJsonObject("body");
             assertNotNull(genBody);
@@ -1574,11 +1586,11 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void tokenRefreshOptOutForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
-        generateRefreshToken(apiVersion, vertx, "phone", urlEncode(phone), clientSiteId, genRespJson -> {
+        generateRefreshToken(apiVersion, vertx, "phone", phone, clientSiteId, genRespJson -> {
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             String refreshToken = bodyJson.getString("refresh_token");
 
@@ -1597,11 +1609,11 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void tokenRefreshOptOutBeforeLoginForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
-        generateRefreshToken(apiVersion, vertx, "phone", urlEncode(phone), clientSiteId, genRespJson -> {
+        generateRefreshToken(apiVersion, vertx, "phone", phone, clientSiteId, genRespJson -> {
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             String refreshToken = bodyJson.getString("refresh_token");
 
@@ -1690,7 +1702,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchBothPhoneAndHashEmpty(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -1710,7 +1722,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchBothPhoneAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -1734,7 +1746,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchPhones(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -1755,7 +1767,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchPhoneHashes(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -1781,7 +1793,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchPhonesOnePhoneInvalid(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -1803,7 +1815,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchPhonesNoPhones(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -1821,7 +1833,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1"})
+    @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchRequestTooLargeForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);

@@ -166,7 +166,7 @@ public class UIDOperatorServiceTest {
     @Test
     public void testTestOptOutKey() {
         final String email = "optout@email.com";
-        final InputUtil.InputVal inputVal = InputUtil.NormalizeEmail(email);
+        final InputUtil.InputVal inputVal = InputUtil.normalizeEmail(email);
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),

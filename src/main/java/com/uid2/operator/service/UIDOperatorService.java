@@ -50,7 +50,8 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final IOptOutStore optOutStore;
     private final ITokenEncoder encoder;
     private final Clock clock;
-    private final UserIdentity testOptOutIdentity;
+    private final UserIdentity testOptOutIdentityForEmail;
+    private final UserIdentity testOptOutIdentityForPhone;
 
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
@@ -66,8 +67,11 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.optOutStore = optOutStore;
         this.clock = clock;
 
-        this.testOptOutIdentity = getFirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Email,
-                InputUtil.NormalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
+        this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Email,
+                InputUtil.normalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
+        this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Phone,
+                InputUtil.normalizePhone("+0000000000").getIdentityInput(), Instant.now());
+
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
         this.identityExpiresAfter = Duration.ofSeconds(config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
@@ -118,7 +122,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             return RefreshResponse.Expired;
         }
 
-        if (token.userIdentity.matches(testOptOutIdentity)) {
+        if (token.userIdentity.matches(testOptOutIdentityForEmail) || token.userIdentity.matches(testOptOutIdentityForPhone)) {
             return RefreshResponse.Optout;
         }
 

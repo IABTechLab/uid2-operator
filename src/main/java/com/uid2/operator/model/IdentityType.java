@@ -24,7 +24,7 @@
 package com.uid2.operator.model;
 
 public enum IdentityType {
-    Email(0);
+    Email(0), Phone(1);
 
     public final int value;
 
@@ -33,6 +33,7 @@ public enum IdentityType {
     public static IdentityType fromValue(int value) {
         switch (value) {
             case 0: return Email;
+            case 1: return Phone;
             default: throw new IllegalArgumentException();
         }
     }

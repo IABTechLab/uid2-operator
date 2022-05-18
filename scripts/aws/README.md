@@ -8,10 +8,10 @@ Follow instructions below to deploy UID2 Operator in your AWS Account. There are
 
 1. AWS Account
 2. Amazon VPC with NAT gateway, private and public subnets
-3. UID2 Operator Key (contact - UID2partners@thetradedesk.com)
-4. UID2 Operator AMI (contact - UID2partners@thetradedesk.com)
+3. UID2 Operator Key
+4. UID2 Operator AMI
 
-If you do not have #3 and #4 of pre-requisites, please contact UID2 support team to get them.
+If you do not have #3 and #4 of pre-requisites, please contact UID2 support team (UID2partners@thetradedesk.com) to get them.
 
 
 ** Note - You can deploy UID2 Operator using either of the below Amazon Machine Image (AMI) configurations **
@@ -198,7 +198,7 @@ curl -H "Authorization: Bearer $CLIENT_KEY" $SCHEME://localhost/v1/token/generat
 
 You can add Inbound Rule to your security group `UID2SG` to allow TCP traffic to port 9080. You can check the health of UID2Operator application by typing `http://<EC2-public-domain-name>:9080/ops/healthcheck`
 
-If your Operator is not started in a few minutes, please double check your configuration, and contact UID2 support team at <<Shawn to add>>
+If your Operator is not started in a few minutes, please double check your configuration, and contact UID2 support team at UID2partners@thetradedesk.com
 
 ## Advanced Topic
 
@@ -208,7 +208,10 @@ Here we present useful services for production scenarios.
 
 For partners who wish to add more applications on host machine, one can build one's own AMI containing UID2 Operator.
 
-To setup new tools (metric scraper, for example), you can launch an EC2 instance with UID2 Operator AMI and install them onto the EC2 instance. Then build a new AMI based off of that EC2 instance.
+To setup new tools (metric scraper, for example), you can 
+1. launch an EC2 instance with UID2 Operator AMI (provided by UID2 team) 
+2. install new software or setup tools on the EC2 instance
+3. Create AMI from your EC2 instance (refer to *Create a Linux AMI from an instance* section of [AWS User Guide](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/creating-an-ami-ebs.html)).
 
 Follow the same steps to create ASG for the new AMI.
 

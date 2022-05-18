@@ -48,16 +48,16 @@ const makeIdentity = mocks.makeIdentity;
 describe('When google tag setup is called', () => {
   it('should not fail when there is no googletag', () => {
     sdk.window.googletag = null;
-    expect(() => sdk.setupGoogleTag()).not.toThrow(TypeError);
+    expect(() => sdk.UID2.setupGoogleTag()).not.toThrow(TypeError);
   });
   it('should not fail when there is no googletag encryptedSignalProviders', () => {
     sdk.window.googletag = {encryptedSignalProviders: null};
-    expect(() => sdk.setupGoogleTag()).not.toThrow(TypeError);
+    expect(() => sdk.UID2.setupGoogleTag()).not.toThrow(TypeError);
   });
   it('should push if googletag has encryptedSignalProviders', () => {
     const mockPush = jest.fn();
     sdk.window.googletag = {encryptedSignalProviders: {push: mockPush}};
-    sdk.setupGoogleTag();
+    sdk.UID2.setupGoogleTag();
     expect(mockPush.mock.calls.length).toBe(1);
   });
 });

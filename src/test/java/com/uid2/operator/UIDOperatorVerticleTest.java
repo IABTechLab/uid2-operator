@@ -1279,13 +1279,13 @@ public class UIDOperatorVerticleTest {
             get(vertx, "v1/token/generate?email=test@uid2.com", ar1 -> {
                 assertEquals(503, ar1.result().statusCode());
                 testContext.completeNow();
-            });
 
-            // Recovered
-            fakeCoreClient.notifyResponseStatusWatcher(200);
-            get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
-                assertEquals(200, ar2.result().statusCode());
-                testContext.completeNow();
+                // Recovered
+                fakeCoreClient.notifyResponseStatusWatcher(200);
+                get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
+                    assertEquals(200, ar2.result().statusCode());
+                    testContext.completeNow();
+                });
             });
         });
     }
@@ -1314,13 +1314,13 @@ public class UIDOperatorVerticleTest {
                 fakeCoreClient.notifyResponseStatusWatcher(500);
                 get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
                     assertEquals(503, ar2.result().statusCode());
-                });
 
-                // Recovered
-                fakeCoreClient.notifyResponseStatusWatcher(200);
-                get(vertx, "v1/token/generate?email=test@uid2.com", ar3 -> {
-                    assertEquals(200, ar3.result().statusCode());
-                    testContext.completeNow();
+                    // Recovered
+                    fakeCoreClient.notifyResponseStatusWatcher(200);
+                    get(vertx, "v1/token/generate?email=test@uid2.com", ar3 -> {
+                        assertEquals(200, ar3.result().statusCode());
+                        testContext.completeNow();
+                    });
                 });
             });
         });

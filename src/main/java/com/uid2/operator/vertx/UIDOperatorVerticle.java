@@ -93,7 +93,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final V2PayloadHandler v2PayloadHandler;
     private Handler<RoutingContext> disableHandler = null;
-    private final boolean v1PhoneSupport;
+    private final boolean phoneSupport;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -111,7 +111,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), clock);
-        this.v1PhoneSupport = config.getBoolean("enable_v1_phone_support", true);
+        this.phoneSupport = config.getBoolean("enable_phone_support", true);
     }
 
     @Override
@@ -349,8 +349,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleTokenValidateV1(RoutingContext rc) {
         try {
-            final InputUtil.InputVal input = this.v1PhoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
-            if (this.v1PhoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
+            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             }
             if (Arrays.equals(ValidationInputEmailHash, input.getIdentityInput())) {
@@ -389,7 +389,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonObject req = (JsonObject) rc.data().get("request");
 
             final InputUtil.InputVal input = getTokenInputV2(req);
-            if (!checkTokenInput(input, rc)) {
+            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             }
             if (Arrays.equals(ValidationInputEmailHash, input.getIdentityInput())) {
@@ -429,8 +429,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleTokenGenerateV1(RoutingContext rc) {
         try {
-            final InputUtil.InputVal input = this.v1PhoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-            if (this.v1PhoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
+            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             } else {
                 final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
@@ -454,7 +454,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             JsonObject req = (JsonObject) rc.data().get("request");
 
             final InputUtil.InputVal input = this.getTokenInputV2(req);
-            if (!checkTokenInput(input, rc)) {
+            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             } else {
                 final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
@@ -534,7 +534,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void handleLogoutAsync(RoutingContext rc) {
-        final InputUtil.InputVal input = this.v1PhoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
+        final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
         if (input.isValid()) {
             final Instant now = Instant.now();
             this.idService.invalidateTokensAsync(input.toUserIdentity(IdentityScope.UID2, 0, now), now, ar -> {
@@ -650,8 +650,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void handleIdentityMapV1(RoutingContext rc) {
-        final InputUtil.InputVal input = this.v1PhoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-        if (this.v1PhoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+        final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
+        if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
             return;
         }
         try {
@@ -723,14 +723,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             getInput = () -> InputUtil.normalizeEmailHash(emailHash);
         }
 
-        final String phone = req.getString("phone");
+        final String phone = this.phoneSupport ? req.getString("phone") : null;
         if (phone != null) {
             if (getInput != null)        // there can be only 1 set of valid input
                 return null;
             getInput = () -> InputUtil.normalizePhone(phone);
         }
 
-        final String phoneHash = req.getString("phone_hash");
+        final String phoneHash = this.phoneSupport ? req.getString("phone_hash") : null;
         if (phoneHash != null) {
             if (getInput != null)        // there can be only 1 set of valid input
                 return null;
@@ -867,7 +867,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapBatchV1(RoutingContext rc) {
         try {
-            final InputUtil.InputVal[] inputList = this.v1PhoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
+            final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
             if (inputList == null) return;
 
             recordIdentityMapStats(rc, inputList.length);
@@ -898,50 +898,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
-            final JsonObject obj = (JsonObject) rc.data().get("request");
-
-            Supplier<InputUtil.InputVal[]> getInputList = null;
-
-            final JsonArray emails = obj.getJsonArray("email");
-            if (emails != null && !emails.isEmpty()) {
-                getInputList = () -> createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
-            }
-
-            final JsonArray emailHashes = obj.getJsonArray("email_hash");
-            if (emailHashes != null && !emailHashes.isEmpty()) {
-                if (getInputList != null) {
+            final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
+            if (inputList == null) {
+                if (this.phoneSupport)
                     ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
-                    return;
-                }
-                getInputList = () -> createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
-            }
-
-            final JsonArray phones = obj.getJsonArray("phone");
-            if (phones != null && !phones.isEmpty()) {
-                if (getInputList != null) {
-                    ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
-                    return;
-                }
-                getInputList = () -> createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
-            }
-
-            final JsonArray phoneHashes = obj.getJsonArray("phone_hash");
-            if (phoneHashes != null && !phoneHashes.isEmpty()) {
-                if (getInputList != null) {
-                    ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
-                    return;
-                }
-                getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);;
-            }
-
-            if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
-                ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
+                else
+                    ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
                 return;
             }
-
-            final InputUtil.InputVal[] inputList = getInputList == null ?
-                createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
-                getInputList.get();
 
             recordIdentityMapStats(rc, inputList.length);
 
@@ -967,6 +931,49 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             LOGGER.error(e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
         }
+    }
+
+    private InputUtil.InputVal[] getIdentityMapV2Input(RoutingContext rc) {
+        final JsonObject obj = (JsonObject) rc.data().get("request");
+
+        Supplier<InputUtil.InputVal[]> getInputList = null;
+
+        final JsonArray emails = obj.getJsonArray("email");
+        if (emails != null && !emails.isEmpty()) {
+            getInputList = () -> createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
+        }
+
+        final JsonArray emailHashes = obj.getJsonArray("email_hash");
+        if (emailHashes != null && !emailHashes.isEmpty()) {
+            if (getInputList != null) {
+                return null;        // only one type of input is allowed
+            }
+            getInputList = () -> createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
+        }
+
+        final JsonArray phones = this.phoneSupport ? obj.getJsonArray("phone") : null;
+        if (phones != null && !phones.isEmpty()) {
+            if (getInputList != null) {
+                return null;        // only one type of input is allowed
+            }
+            getInputList = () -> createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
+        }
+
+        final JsonArray phoneHashes = this.phoneSupport ? obj.getJsonArray("phone_hash") : null;
+        if (phoneHashes != null && !phoneHashes.isEmpty()) {
+            if (getInputList != null) {
+                return null;        // only one type of input is allowed
+            }
+            getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);;
+        }
+
+        if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
+            return null;
+        }
+
+        return getInputList == null ?
+            createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
+            getInputList.get();
     }
 
     private void handleIdentityMapBatch(RoutingContext rc) {

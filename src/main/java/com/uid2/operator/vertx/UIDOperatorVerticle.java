@@ -497,7 +497,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenRefresh(RoutingContext rc) {
         final List<String> tokenList = rc.queryParam("refresh_token");
         if (tokenList == null || tokenList.size() == 0) {
-            rc.fail(500);
+            rc.fail(400);
             return;
         }
 
@@ -581,6 +581,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     .write(String.valueOf(timestamp))
                     .end();
             } catch (Exception ex) {
+                LOGGER.error(ex);
                 rc.fail(500);
             }
         } else {
@@ -662,6 +663,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             jsonObject.put("bucket_id", mappedIdentity.bucketId);
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
+            LOGGER.error(e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
         }
     }
@@ -669,12 +671,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleIdentityMap(RoutingContext rc) {
         final InputUtil.InputVal input = this.getTokenInput(rc);
 
-        if (input != null && input.isValid()) {
-            final Instant now = Instant.now();
-            final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(IdentityScope.UID2, 0, now), now);
-            rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-        } else {
-            rc.fail(400);
+        try {
+            if (input != null && input.isValid()) {
+                final Instant now = Instant.now();
+                final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(IdentityScope.UID2, 0, now), now);
+                rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+            } else {
+                rc.fail(400);
+            }
+        }
+        catch (Exception ex) {
+            LOGGER.error(ex);
+            rc.fail(500);
         }
     }
 

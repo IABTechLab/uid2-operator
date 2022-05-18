@@ -171,7 +171,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                     handler.handle(Future.succeededFuture(instant));
                 } else {
                     if (ar.cause() != null) {
-                        ar.cause().printStackTrace();
+                        LOGGER.error(ar.cause());
                     }
                     handler.handle(Future.failedFuture(ar.cause()));
 

@@ -50,6 +50,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final IOptOutStore optOutStore;
     private final ITokenEncoder encoder;
     private final Clock clock;
+    private final IdentityScope identityScope;
     private final UserIdentity testOptOutIdentityForEmail;
     private final UserIdentity testOptOutIdentityForPhone;
 
@@ -58,18 +59,20 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Duration refreshIdentityAfter;
 
     private final OperatorIdentity operatorIdentity;
-    private final TokenVersion tokenVersion;
-    private final boolean uid2EmailV3Enabled;
+    private final TokenVersion advertisingTokenVersion;
+    private final TokenVersion refreshTokenVersion;
+    private final boolean identityV3Enabled;
 
-    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock) {
+    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
         this.clock = clock;
+        this.identityScope = identityScope;
 
-        this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Email,
+        this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
                 InputUtil.normalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
-        this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Phone,
+        this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
                 InputUtil.normalizePhone("+0000000000").getIdentityInput(), Instant.now());
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
@@ -88,8 +91,9 @@ public class UIDOperatorService implements IUIDOperatorService {
             throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
 
-        this.tokenVersion = config.getBoolean("generate_v3_tokens", false) ? TokenVersion.V3 : TokenVersion.V2;
-        this.uid2EmailV3Enabled = config.getBoolean("uid2_email_v3", false);
+        this.advertisingTokenVersion = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
+        this.refreshTokenVersion = config.getBoolean("refresh_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
+        this.identityV3Enabled = config.getBoolean("identity_v3", false);
     }
 
     @Override
@@ -111,6 +115,11 @@ public class UIDOperatorService implements IUIDOperatorService {
             return RefreshResponse.Invalid;
         }
         if (token == null) {
+            return RefreshResponse.Invalid;
+        }
+
+        // should not be possible as different scopes should be using different keys, but just in case
+        if (token.userIdentity.identityScope != this.identityScope) {
             return RefreshResponse.Invalid;
         }
 
@@ -196,7 +205,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final SaltEntry rotatingSalt = this.saltProvider.getSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
 
         return new MappedIdentity(
-                this.uid2EmailV3Enabled
+                this.identityV3Enabled
                     ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, rotatingSalt.getSalt())
                     : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, rotatingSalt.getSalt()),
                 rotatingSalt.getHashedId());
@@ -220,7 +229,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private RefreshToken createRefreshToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
         return new RefreshToken(
-                tokenVersion,
+                this.refreshTokenVersion,
                 now,
                 now.plusMillis(refreshExpiresAfter.toMillis()),
                 this.operatorIdentity,
@@ -230,7 +239,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
         return new AdvertisingToken(
-                tokenVersion,
+                this.advertisingTokenVersion,
                 now,
                 now.plusMillis(identityExpiresAfter.toMillis()),
                 this.operatorIdentity,

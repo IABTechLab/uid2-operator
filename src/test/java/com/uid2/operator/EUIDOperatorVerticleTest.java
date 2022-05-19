@@ -21,29 +21,22 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-package com.uid2.operator.model;
+package com.uid2.operator;
 
-public enum IdentityScope {
-    UID2(0),
-    EUID(1);
+import com.uid2.operator.model.IdentityScope;
+import io.vertx.core.json.JsonObject;
 
-    public final int value;
-
-    IdentityScope(int value) { this.value = value; }
-
-    public static IdentityScope fromValue(int value) {
-        switch (value) {
-            case 0: return UID2;
-            case 1: return EUID;
-            default: throw new IllegalArgumentException();
-        }
+public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
+    @Override
+    public void setupConfig(JsonObject config) {
+        config.put("identity_scope", getIdentityScope().toString());
+        config.put("advertising_token_v3", true);
+        config.put("refresh_token_v3", true);
+        config.put("identity_v3", useIdentityV3());
     }
 
-    public static IdentityScope fromString(String str) {
-        switch (str.toLowerCase()) {
-            case "uid2": return UID2;
-            case "euid": return EUID;
-            default: throw new IllegalArgumentException();
-        }
-    }
+    @Override
+    protected boolean useIdentityV3() { return true; }
+    @Override
+    protected IdentityScope getIdentityScope() { return IdentityScope.EUID; }
 }

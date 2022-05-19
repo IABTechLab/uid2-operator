@@ -236,11 +236,14 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final IdentityScope identityScope = id.length == 32 ? IdentityScope.UID2 : decodeIdentityScopeV3(id[0]);
         final IdentityType identityType = id.length == 32 ? IdentityType.Email : decodeIdentityTypeV3(id[0]);
 
-        if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
-            throw new IllegalArgumentException("Identity scope mismatch");
-        }
-        if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
-            throw new IllegalArgumentException("Identity type mismatch");
+        if (id.length > 32)
+        {
+            if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
+                throw new IllegalArgumentException("Identity scope mismatch");
+            }
+            if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
+                throw new IllegalArgumentException("Identity type mismatch");
+            }
         }
 
         return new AdvertisingToken(
@@ -340,11 +343,11 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     static private byte encodeIdentityTypeV3(UserIdentity userIdentity) {
-        return (byte) ((userIdentity.identityScope.value << 4) | (userIdentity.identityType.value << 2) | 3);
+        return (byte) (TokenUtils.encodeIdentityScope(userIdentity.identityScope) | (userIdentity.identityType.value << 2) | 3);
     }
 
     static private IdentityScope decodeIdentityScopeV3(byte value) {
-        return IdentityScope.fromValue(value & 0x10);
+        return IdentityScope.fromValue((value & 0x10) >> 4);
     }
 
     static private IdentityType decodeIdentityTypeV3(byte value) {

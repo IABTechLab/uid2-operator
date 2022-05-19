@@ -28,6 +28,8 @@ clean:
 
 ./build/dante-1.4.3/sockd:
 	cd build; wget https://www.inet.no/dante/files/dante-1.4.3.tar.gz
+	cd build; echo "418a065fe1a4b8ace8fbf77c2da269a98f376e7115902e76cda7e741e4846a5d dante-1.4.3.tar.gz" > checksum
+	cd build; sha256sum --check checksum
 	cd build; tar -xf dante-1.4.3.tar.gz
 	cd build/dante-1.4.3; ./configure
 	cd build/dante-1.4.3; make

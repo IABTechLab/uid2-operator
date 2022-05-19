@@ -45,6 +45,23 @@ const setUid2Cookie = mocks.setUid2Cookie;
 const getUid2Cookie = mocks.getUid2Cookie;
 const makeIdentity = mocks.makeIdentity;
 
+describe('When google tag setup is called', () => {
+  it('should not fail when there is no googletag', () => {
+    sdk.window.googletag = null;
+    expect(() => sdk.UID2.setupGoogleTag()).not.toThrow(TypeError);
+  });
+  it('should not fail when there is no googletag encryptedSignalProviders', () => {
+    sdk.window.googletag = {encryptedSignalProviders: null};
+    expect(() => sdk.UID2.setupGoogleTag()).not.toThrow(TypeError);
+  });
+  it('should push if googletag has encryptedSignalProviders', () => {
+    const mockPush = jest.fn();
+    sdk.window.googletag = {encryptedSignalProviders: {push: mockPush}};
+    sdk.UID2.setupGoogleTag();
+    expect(mockPush.mock.calls.length).toBe(1);
+  });
+});
+
 describe('initial state before init() is called', () => {
   it('should be in initialising state', () => {
     expect(uid2).toBeInInitialisingState();

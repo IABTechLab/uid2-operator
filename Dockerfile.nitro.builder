@@ -1,6 +1,8 @@
 FROM ubuntu:22.04
 
 ENV enclave_platform="aws-nitro"
+ARG nsm_java_version=1.0.0
+ARG vsock_version=1.0.0
 
 # install build-essential, openjdk, maven, git
 RUN apt-get update -y \
@@ -23,12 +25,12 @@ RUN mvn package -B -Paws -DskipTests=true \
     && (mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]' > ./package.version)
 
 # build libjnsm.so
-RUN git clone https://github.com/IABTechLab/nsm-java.git \
+RUN git clone -b v${nsm_java_version} https://github.com/IABTechLab/nsm-java.git \
     && (cd nsm-java/jnsm; cargo build --lib --release; cd ../..) \
     && cp nsm-java/jnsm/target/release/libjnsm.so .
 
 # build vsockpx
-RUN git clone https://github.com/IABTechLab/vsock-skeleton-key.git \
+RUN git clone -b v${vsock_version} https://github.com/IABTechLab/vsock-skeleton-key.git \
     && mkdir vsock-skeleton-key/build \
     && (cd vsock-skeleton-key/build; cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo; make; cd ../..) \
     && cp vsock-skeleton-key/build/vsock-bridge/src/vsock-bridge ./vsockpx

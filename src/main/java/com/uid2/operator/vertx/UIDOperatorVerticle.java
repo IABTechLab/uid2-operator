@@ -385,25 +385,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             }
-            if (Arrays.equals(ValidationInputEmailHash, input.getIdentityInput())) {
+            if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidationInputEmailHash, input.getIdentityInput()))
+                    || (input.getIdentityType() == IdentityType.Phone && Arrays.equals(ValidationInputPhoneHash, input.getIdentityInput()))) {
                 try {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
 
                     if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(this.identityScope, 0, now), now)) {
-                        ResponseUtil.SuccessV2(rc, Boolean.TRUE);
-                    } else {
-                        ResponseUtil.SuccessV2(rc, Boolean.FALSE);
-                    }
-                } catch (Exception e) {
-                    ResponseUtil.SuccessV2(rc, Boolean.FALSE);
-                }
-            } else if (Arrays.equals(ValidationInputPhoneHash, input.getIdentityInput())) {
-                try {
-                    final Instant now = Instant.now();
-                    final String token = req.getString("token");
-
-                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(IdentityScope.UID2, 0, now), now)) {
                         ResponseUtil.SuccessV2(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.SuccessV2(rc, Boolean.FALSE);

@@ -18,22 +18,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class StatsCollectorHandler implements Handler<RoutingContext> {
     private static final Logger LOGGER = LoggerFactory.getLogger(StatsCollectorHandler.class);
-   private AtomicInteger _statCollectorCount;
-   private final int MAX_STAT_COLLECTORS = 1000;
-   private final Vertx vertx;
+    private AtomicInteger _statCollectorCount;
+    private final int MAX_STAT_COLLECTORS = 1000;
+    private final Vertx vertx;
 
-   private final ObjectMapper mapper;
-   private final Counter queueFullCounter;
+    private final ObjectMapper mapper;
+    private final Counter queueFullCounter;
 
-   public  StatsCollectorHandler(AtomicInteger _statColCount, Vertx vert) {
-       _statCollectorCount = _statColCount;
-       vertx = vert;
-       mapper = new ObjectMapper();
-       queueFullCounter = Counter
-               .builder("uid2.api_usage_queue_full")
-               .description("counter for how many usage messages are dropped because the queue is full")
-               .register(Metrics.globalRegistry);
-   }
+    public StatsCollectorHandler(AtomicInteger _statColCount, Vertx vert) {
+        _statCollectorCount = _statColCount;
+        vertx = vert;
+        mapper = new ObjectMapper();
+        queueFullCounter = Counter
+                .builder("uid2.api_usage_queue_full")
+                .description("counter for how many usage messages are dropped because the queue is full")
+                .register(Metrics.globalRegistry);
+    }
 
     @Override
     public void handle(RoutingContext routingContext) {
@@ -46,7 +46,7 @@ public class StatsCollectorHandler implements Handler<RoutingContext> {
         ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(routingContext);
         StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(path, referer, clientKey.getContact(), clientKey.getSiteId());
 
-        if(_statCollectorCount.get() >= MAX_STAT_COLLECTORS){
+        if (_statCollectorCount.get() >= MAX_STAT_COLLECTORS) {
             queueFullCounter.increment();
             return;
         }

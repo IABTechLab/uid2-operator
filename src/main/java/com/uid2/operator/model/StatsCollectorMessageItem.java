@@ -9,11 +9,11 @@ public class StatsCollectorMessageItem {
     //USED by json serial
     public StatsCollectorMessageItem(){}
 
-    public StatsCollectorMessageItem(String p, String r, String api, Integer s){
-        path = p;
-        referer = r;
-        apiContact = api;
-        siteId = s;
+    public StatsCollectorMessageItem(String path, String referer, String apiContact, Integer siteId){
+        this.path = path;
+        this.referer = referer;
+        this.apiContact = apiContact;
+        this.siteId = siteId;
     }
 
 

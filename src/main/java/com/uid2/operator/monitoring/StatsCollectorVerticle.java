@@ -94,8 +94,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         } else {
             try {
                 referer = new URI(referer).getHost();
-            } catch (URISyntaxException e) {
-                LOGGER.error(e.getMessage(), e);
+            } catch (URISyntaxException ignored) {
             }
         }
         String apiContact = messageItem.getApiContact();
@@ -151,7 +150,7 @@ public class StatsCollectorVerticle extends AbstractVerticle {
     }
 
 
-    public String GetEndpointStats() {
+    public String getEndpointStats() {
         Object[] stats = pathMap.values().toArray();
         StringBuilder completeStats = new StringBuilder();
         for (int i = 0; i < stats.length; i++) {
@@ -166,9 +165,9 @@ public class StatsCollectorVerticle extends AbstractVerticle {
     }
 
     static class DomainStat {
-        private String domain;
+        private final String domain;
         private Integer count;
-        private String apiContact;
+        private final String apiContact;
 
         public DomainStat(String d, Integer c, String a) {
             domain = d;
@@ -194,11 +193,11 @@ public class StatsCollectorVerticle extends AbstractVerticle {
     }
 
     class EndpointStat {
-        private String endpoint;
-        private Integer siteId;
-        private String apiVersion;
-        private ArrayList<DomainStat> domainList;
-        private HashMap<String, Integer> domainMap;
+        private final String endpoint;
+        private final Integer siteId;
+        private final String apiVersion;
+        private final ArrayList<DomainStat> domainList;
+        private final HashMap<String, Integer> domainMap;
 
         private final int MaxDomains = 1000;
 

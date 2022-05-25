@@ -90,7 +90,7 @@ public class StatsCollectorVerticleTest {
                 "{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v1\",\"domainList\":[{\"domain\":\"test.com\",\"count\":2,\"apiContact\":\"test\"}]}\n"
                         + "{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v0\",\"domainList\":[{\"domain\":\"test.com\",\"count\":3,\"apiContact\":\"test\"}]}\n";
 
-        String results = verticle.GetEndpointStats();
+        String results = verticle.getEndpointStats();
 
         Assertions.assertSame(results, expected);
 

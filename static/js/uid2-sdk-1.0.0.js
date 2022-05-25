@@ -21,28 +21,31 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-if (window.googletag) {
-    googletag.encryptedSignalProviders.push({
-        id: 'uidapi.com',
-        collectorFunction: () => {
-            if (window.__uid2 && window.__uid2.getAdvertisingToken) {
-                return __uid2.getAdvertisingTokenAsync();
-            } else {
-                return Promise.reject(new Error("UID2 SDK not present"));
-            }
-        }
-    });
-}
 
 class UID2 {
     static get VERSION() {
-        return "1.0.0";
+        return "1.0.1";
     }
     static get COOKIE_NAME() {
         return "__uid_2";
     }
     static get DEFAULT_REFRESH_RETRY_PERIOD_MS() {
         return 5000;
+    }
+
+    static setupGoogleTag() {
+      if (window.googletag && window.googletag.encryptedSignalProviders) {
+          googletag.encryptedSignalProviders.push({
+              id: 'uidapi.com',
+              collectorFunction: () => {
+                  if (window.__uid2 && window.__uid2.getAdvertisingToken) {
+                      return __uid2.getAdvertisingTokenAsync();
+                  } else {
+                      return Promise.reject(new Error("UID2 SDK not present"));
+                  }
+              }
+          });
+      }
     }
 
     constructor() {
@@ -344,6 +347,8 @@ class UID2 {
 })(UID2 || (UID2 = {}));
 
 window.__uid2 = new UID2();
+
+UID2.setupGoogleTag();
 
 if (typeof exports !== 'undefined') {
   exports.UID2 = UID2;

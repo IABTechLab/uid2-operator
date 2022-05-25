@@ -1,0 +1,13 @@
+name: Build and Test
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out repository $GITHUB_WORKSPACE
+      - uses: actions/checkout@v2
+      # Build and Run Unit Tests
+      - name: Build and Run Unit Tests
+        run: mvn -B clean test

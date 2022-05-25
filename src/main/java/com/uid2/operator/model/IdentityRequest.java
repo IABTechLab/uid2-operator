@@ -23,41 +23,12 @@
 
 package com.uid2.operator.model;
 
-import java.util.Objects;
-
 public final class IdentityRequest {
-    private final String emailSha;
-    private final int siteId;
-    private final int privacyBits;
+    public final PublisherIdentity publisherIdentity;
+    public final UserIdentity userIdentity;
 
-    public IdentityRequest(String emailSha, int siteId, int privacyBits) {
-        this.emailSha = emailSha;
-        this.siteId = siteId;
-        this.privacyBits = privacyBits;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        IdentityRequest that = (IdentityRequest) o;
-        return privacyBits == that.privacyBits &&
-            siteId == that.siteId &&
-            Objects.equals(emailSha, that.emailSha);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(emailSha, siteId, privacyBits);
-    }
-
-    public String getEmailSha() {
-        return emailSha;
-    }
-
-    public int getSiteId() { return siteId; }
-
-    public int getPrivacyBits() {
-        return privacyBits;
+    public IdentityRequest(PublisherIdentity publisherIdentity, UserIdentity userIdentity) {
+        this.publisherIdentity = publisherIdentity;
+        this.userIdentity = userIdentity;
     }
 }

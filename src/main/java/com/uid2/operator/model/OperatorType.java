@@ -21,30 +21,27 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-package com.uid2.operator.service;
+package com.uid2.operator.model;
 
-import com.uid2.operator.model.*;
-import com.uid2.shared.model.SaltEntry;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
+public enum OperatorType {
+    Service(1),
+    Snowflake(17),
+    Unknown(-1);
 
-import java.time.Instant;
-import java.util.List;
+    public final int value;
 
-public interface IUIDOperatorService {
+    OperatorType(int value) {
+        this.value = value;
+    }
 
-    IdentityTokens generateIdentity(IdentityRequest request);
-
-    RefreshResponse refreshIdentity(String refreshToken);
-
-    MappedIdentity map(UserIdentity userIdentity, Instant asOf);
-
-    List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
-
-    void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler);
-
-    boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf);
-
-    Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf);
-
+    public static OperatorType fromValue(int value) {
+        switch (value) {
+            case 1:
+                return Service;
+            case 17:
+                return Snowflake;
+            default:
+                return Unknown;
+        }
+    }
 }

@@ -25,6 +25,7 @@ package com.uid2.operator.service;
 
 import java.nio.charset.Charset;
 import java.security.MessageDigest;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
@@ -39,6 +40,10 @@ public class EncodingUtils {
     public static byte[] toBase64(byte[] b) {
         return Base64.getEncoder().encode(b);
     }
+
+    public static byte[] fromBase64(String s) { return Base64.getDecoder().decode(s); }
+
+    public static byte[] fromBase64(byte[] b) { return Base64.getDecoder().decode(b); }
 
     public static String getSha256(String input, String salt) {
         return toBase64String(getSha256Bytes(input, salt));
@@ -97,8 +102,8 @@ public class EncodingUtils {
         return Instant.now().truncatedTo(ChronoUnit.MILLIS);
     }
 
-    public static byte[] fromBase64(String s) {
-        return Base64.getDecoder().decode(s);
+    public static Instant NowUTCMillis(Clock clock) {
+        return Instant.now(clock).truncatedTo(ChronoUnit.MILLIS);
     }
 
     public static byte[] fromHexString(String hs) throws NumberFormatException {

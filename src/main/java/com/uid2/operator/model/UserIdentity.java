@@ -24,47 +24,30 @@
 package com.uid2.operator.model;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Objects;
 
 public class UserIdentity {
-    private final String id;
-    private final int siteId;
-    private final int privacyBits;
-    private final Instant established;
+    public final IdentityScope identityScope;
+    public final IdentityType identityType;
+    public final byte[] id;
+    public final int privacyBits;
+    public final Instant establishedAt;
+    public final Instant refreshedAt;
 
-    public UserIdentity(String id, int siteId, int privacyBits, Instant established) {
+    public UserIdentity(IdentityScope identityScope, IdentityType identityType, byte[] id, int privacyBits,
+                        Instant establishedAt, Instant refreshedAt) {
+        this.identityScope = identityScope;
+        this.identityType = identityType;
         this.id = id;
-        this.siteId = siteId;
         this.privacyBits = privacyBits;
-        this.established = established;
+        this.establishedAt = establishedAt;
+        this.refreshedAt = refreshedAt;
     }
 
-    public int getSiteId() {
-        return siteId;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public Instant getEstablished() {
-        return established;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        UserIdentity that = (UserIdentity) o;
-        return siteId == that.siteId && privacyBits == that.privacyBits && Objects.equals(id, that.id) && Objects.equals(established, that.established);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, siteId, privacyBits, established);
-    }
-
-    public int getPrivacyBits() {
-        return privacyBits;
+    public boolean matches(UserIdentity that) {
+        return this.identityScope.equals(that.identityScope) &&
+                this.identityType.equals(that.identityType) &&
+                Arrays.equals(this.id, that.id);
     }
 }

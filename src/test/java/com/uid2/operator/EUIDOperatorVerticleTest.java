@@ -21,15 +21,22 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-package com.uid2.operator.model;
+package com.uid2.operator;
 
-import com.uid2.shared.model.KeyIdentifier;
+import com.uid2.operator.model.IdentityScope;
+import io.vertx.core.json.JsonObject;
 
-public class SiteKeyIdentifier extends KeyIdentifier {
-    private final int siteId;
-
-    public SiteKeyIdentifier(int id, int siteId) {
-        super(id);
-        this.siteId = siteId;
+public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
+    @Override
+    public void setupConfig(JsonObject config) {
+        config.put("identity_scope", getIdentityScope().toString());
+        config.put("advertising_token_v3", true);
+        config.put("refresh_token_v3", true);
+        config.put("identity_v3", useIdentityV3());
     }
+
+    @Override
+    protected boolean useIdentityV3() { return true; }
+    @Override
+    protected IdentityScope getIdentityScope() { return IdentityScope.EUID; }
 }

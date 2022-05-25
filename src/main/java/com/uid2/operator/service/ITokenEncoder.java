@@ -31,19 +31,9 @@ import com.uid2.operator.model.UserToken;
 import java.time.Instant;
 
 public interface ITokenEncoder {
-    public byte[] encode(AdvertisingToken advertisingToken);
+    IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken, Instant refreshFrom, Instant asOf);
 
-    public byte[] encode(RefreshToken refreshToken);
+    AdvertisingToken decodeAdvertisingToken(String base64String);
 
-    public byte[] encode(UserToken userToken);
-
-    public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken, Instant refreshFrom);
-
-    public RefreshToken decode(String base64String);
-
-    public RefreshToken decode(byte[] bytes);
-
-    public AdvertisingToken decodeAdvertisingToken(String base64String);
-
-    public AdvertisingToken decodeAdvertisingToken(byte[] bytes);
+    RefreshToken decodeRefreshToken(String base64String);
 }

@@ -1,7 +1,9 @@
 [
   {
     "key": "test-admin-key",
+    "secret": "DELPabG/hsJsZk4Xm9Xr10Wb8qoKarg4ochUdY9e+Ow=",
     "name": "admin@uid2.com",
+    "secret": "",
     "contact": "admin@uid2.com",
     "created": 1617149276,
     "roles": [ "mapper", "generator" ],
@@ -9,7 +11,9 @@
   },
   {
     "key": "test-mapper-key",
+    "secret": "/aqPU4KHIaYx3m4ReYKb89i8XgjYJL59WFJmLR1Awio=",
     "name": "mapper@uid2.com",
+    "secret": "",
     "contact": "mapper@uid2.com",
     "created": 1617149276,
     "roles": [ "mapper", "generator" ],
@@ -17,6 +21,7 @@
   },
   {
     "key": "test-optout-key",
+    "secret": "734UijWRaviZ28bulrlO5yGsEUB5oQrTFHyVICWkCXo=",
     "name": "optout@uid2.com",
     "contact": "optout@uid2.com",
     "created": 1617149276,
@@ -25,6 +30,7 @@
   },
   {
     "key": "trusted-partner-key",
+    "secret": "wJ0hP19QU4hmpB64Y3fV2dAed8t/mupw3sjN5jNRFzg=",
     "name": "partner@uid2.com",
     "contact": "partner@uid2.com",
     "created": 1617149276,

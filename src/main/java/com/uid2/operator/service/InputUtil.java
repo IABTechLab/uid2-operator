@@ -23,38 +23,100 @@
 
 package com.uid2.operator.service;
 
+import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.IdentityType;
+import com.uid2.operator.model.UserIdentity;
+
+import java.time.Instant;
+
 public class InputUtil {
 
     private static String GMAILDOMAIN = "gmail.com";
 
-    public static InputVal NormalizeHash(String input) {
+    private static int MIN_PHONENUMBER_DIGITS = 10;
+    private static int MAX_PHONENUMBER_DIGITS = 15;
+
+    public static InputVal normalizeEmailHash(String input) {
         final int inputLength = input.length();
         if (inputLength == 44) {
             try {
                 EncodingUtils.fromBase64(input);
-                return InputVal.ValidHash(input, input);
+                return InputVal.validEmailHash(input, input);
             } catch (Exception e) {
             }
         } else if (inputLength == 64) {
             try {
                 final byte[] s = EncodingUtils.fromHexString(input);
-                return InputVal.ValidHash(input, EncodingUtils.toBase64String(s));
+                return InputVal.validEmailHash(input, EncodingUtils.toBase64String(s));
             } catch (Exception e) {
             }
         }
-        return InputVal.InvalidHash(input);
-
+        return InputVal.invalidEmailHash(input);
     }
 
-    public static InputVal NormalizeEmail(String email) {
-        final String normalize = NormalizeEmailString(email);
-        if (normalize != null && normalize.length() > 0) {
-            return InputVal.ValidEmail(email, normalize);
+    public static InputVal normalizePhoneHash(String input) {
+        final int inputLength = input.length();
+        if (inputLength == 44) {
+            try {
+                EncodingUtils.fromBase64(input);
+                return InputVal.validPhoneHash(input, input);
+            } catch (Exception e) {
+            }
+        } else if (inputLength == 64) {
+            try {
+                final byte[] s = EncodingUtils.fromHexString(input);
+                return InputVal.validPhoneHash(input, EncodingUtils.toBase64String(s));
+            } catch (Exception e) {
+            }
         }
-        return InputVal.InvalidEmail(email);
+        return InputVal.invalidPhoneHash(input);
     }
 
-    public static String NormalizeEmailString(String email) {
+    public static boolean isAsciiDigit(char d)
+    {
+        return d >= '0' && d <= '9';
+    }
+
+    public static boolean isPhoneNumberNormalized(String phoneNumber) {
+        // normalized phoneNumber must follow ITU E.164 standard, see https://www.wikipedia.com/en/E.164
+        if (phoneNumber == null || phoneNumber.length() < MIN_PHONENUMBER_DIGITS)
+            return false;
+
+        // first character must be '+' sign
+        if ('+' != phoneNumber.charAt(0))
+            return false;
+
+        // count the digits, return false if non-digit character is found
+        int totalDigits = 0;
+        for (int i = 1; i < phoneNumber.length(); ++i)
+        {
+            if (!InputUtil.isAsciiDigit(phoneNumber.charAt(i)))
+                return false;
+            ++totalDigits;
+        }
+
+        if (totalDigits < MIN_PHONENUMBER_DIGITS || totalDigits > MAX_PHONENUMBER_DIGITS)
+            return false;
+
+        return true;
+    }
+
+    public static InputVal normalizeEmail(String email) {
+        final String normalize = normalizeEmailString(email);
+        if (normalize != null && normalize.length() > 0) {
+            return InputVal.validEmail(email, normalize);
+        }
+        return InputVal.invalidEmail(email);
+    }
+
+    public static InputVal normalizePhone(String phone) {
+        if (isPhoneNumberNormalized(phone)) {
+            return InputVal.validPhone(phone, phone);
+        }
+        return InputVal.invalidPhone(phone);
+    }
+
+    public static String normalizeEmailString(String email) {
         final StringBuilder preSb = new StringBuilder();
         final StringBuilder preSbSpecialized = new StringBuilder();
         final StringBuilder sb = new StringBuilder();
@@ -130,8 +192,8 @@ public class InputUtil {
         return addressPartToUse.append('@').append(domainPart).toString();
     }
 
-    public static enum Type {
-        Email,
+    public enum IdentityInputType {
+        Raw,
         Hash
     }
 
@@ -146,43 +208,61 @@ public class InputUtil {
     public static class InputVal {
         private final String provided;
         private final String normalized;
-        private final Type type;
+        private final IdentityType identityType;
+        private final IdentityInputType inputType;
         private final boolean valid;
-        private final String identityInput;
+        private final byte[] identityInput;
 
-        public InputVal(String provided, String normalized, Type type, boolean valid) {
+        public InputVal(String provided, String normalized, IdentityType identityType, IdentityInputType inputType, boolean valid) {
             this.provided = provided;
             this.normalized = normalized;
-            this.type = type;
+            this.identityType = identityType;
+            this.inputType = inputType;
             this.valid = valid;
             if (valid) {
-                if (this.type == Type.Email) {
-                    this.identityInput = TokenUtils.getEmailHash(this.normalized);
+                if (this.inputType == IdentityInputType.Raw) {
+                    this.identityInput = TokenUtils.getIdentityHash(this.normalized);
                 } else {
-                    this.identityInput = this.normalized;
+                    this.identityInput = EncodingUtils.fromBase64(this.normalized);
                 }
             } else {
                 this.identityInput = null;
             }
         }
 
-        public static InputVal ValidEmail(String input, String normalized) {
-            return new InputVal(input, normalized, Type.Email, true);
+        public static InputVal validEmail(String input, String normalized) {
+            return new InputVal(input, normalized, IdentityType.Email, IdentityInputType.Raw, true);
         }
 
-        public static InputVal InvalidEmail(String input) {
-            return new InputVal(input, null, Type.Email, false);
+        public static InputVal invalidEmail(String input) {
+            return new InputVal(input, null, IdentityType.Email, IdentityInputType.Raw, false);
         }
 
-        public static InputVal ValidHash(String input, String normalized) {
-            return new InputVal(input, normalized, Type.Hash, true);
+        public static InputVal validEmailHash(String input, String normalized) {
+            return new InputVal(input, normalized, IdentityType.Email, IdentityInputType.Hash, true);
         }
 
-        public static InputVal InvalidHash(String input) {
-            return new InputVal(input, null, Type.Hash, false);
+        public static InputVal invalidEmailHash(String input) {
+            return new InputVal(input, null, IdentityType.Email, IdentityInputType.Hash, false);
         }
 
-        public String getIdentityInput() {
+        public static InputVal validPhone(String input, String normalized) {
+            return new InputVal(input, normalized, IdentityType.Phone, IdentityInputType.Raw, true);
+        }
+
+        public static InputVal invalidPhone(String input) {
+            return new InputVal(input, null, IdentityType.Phone, IdentityInputType.Raw, false);
+        }
+
+        public static InputVal validPhoneHash(String input, String normalized) {
+            return new InputVal(input, normalized, IdentityType.Phone, IdentityInputType.Hash, true);
+        }
+
+        public static InputVal invalidPhoneHash(String input) {
+            return new InputVal(input, null, IdentityType.Phone, IdentityInputType.Hash, false);
+        }
+
+        public byte[] getIdentityInput() {
             return this.identityInput;
         }
 
@@ -194,12 +274,24 @@ public class InputUtil {
             return normalized;
         }
 
-        public Type getType() {
-            return type;
+        public IdentityType getIdentityType() {
+            return identityType;
         }
+
+        public IdentityInputType getInputType() { return inputType; }
 
         public boolean isValid() {
             return valid;
+        }
+
+        public UserIdentity toUserIdentity(IdentityScope identityScope, int privacyBits, Instant establishedAt) {
+            return new UserIdentity(
+                    identityScope,
+                    this.identityType,
+                    getIdentityInput(),
+                    privacyBits,
+                    establishedAt,
+                    establishedAt);
         }
     }
 

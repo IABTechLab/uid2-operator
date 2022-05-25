@@ -23,14 +23,14 @@
 
 package com.uid2.operator.model;
 
-public enum TokenType {
-    AdvertisingToken(0),
-    UserToken(1),
-    RefreshToken(2);
+public class PublisherIdentity {
+    public final int siteId;
+    public final int clientKeyId;
+    public final long publisherId;
 
-    private int value;
-
-    TokenType(int value) {
-        this.value = value;
+    public PublisherIdentity(int siteId, int clientKeyId, long publisherId) {
+        this.siteId = siteId;
+        this.clientKeyId = clientKeyId;
+        this.publisherId = publisherId;
     }
 }

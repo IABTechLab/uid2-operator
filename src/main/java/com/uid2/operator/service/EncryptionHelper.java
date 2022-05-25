@@ -30,6 +30,7 @@ import io.vertx.core.buffer.Buffer;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.NoSuchAlgorithmException;
@@ -41,6 +42,12 @@ public class EncryptionHelper {
     // private static String cipherScheme = "AES/CBC/PKCS5Padding";
 
     private static String cipherScheme = "AES/CBC/PKCS5Padding";
+
+    private static String gcmCipherScheme = "AES/GCM/NoPadding";
+
+    public static final int GCM_AUTHTAG_LENGTH = 16;
+
+    public static final int GCM_IV_LENGTH = 12;
 
     private static ThreadLocal<SecureRandom> threadLocalSecureRandom = ThreadLocal.withInitial(() -> {
         try {
@@ -61,7 +68,7 @@ public class EncryptionHelper {
             final byte[] encryptedBytes = c.doFinal(b);
             return new EncryptedPayload(key.getKeyIdentifier(), Buffer.buffer().appendBytes(ivBytes).appendBytes(encryptedBytes).getBytes());
         } catch (Exception e) {
-            throw new RuntimeException("Unabble to Encrypt", e);
+            throw new RuntimeException("Unable to Encrypt", e);
         }
     }
 
@@ -91,7 +98,49 @@ public class EncryptionHelper {
         } catch (Exception e) {
             throw new RuntimeException("Unable to Encrypt", e);
         }
+    }
 
+    public static EncryptedPayload encryptGCM(byte[] b, EncryptionKey key) {
+        try {
+            byte[] encypted = encryptGCM(b, key.getKeyBytes());
+            return new EncryptedPayload(key.getKeyIdentifier(), encypted);
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to Encrypt", e);
+        }
+    }
+
+    public static byte[] encryptGCM(byte[] b, byte[] secretBytes) {
+        try {
+            final SecretKey k = new SecretKeySpec(secretBytes, "AES");
+            final Cipher c = Cipher.getInstance(gcmCipherScheme);
+            final byte[] ivBytes = new byte[GCM_IV_LENGTH];
+            threadLocalSecureRandom.get().nextBytes(ivBytes);
+            GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_AUTHTAG_LENGTH * 8, ivBytes);
+            c.init(Cipher.ENCRYPT_MODE, k, gcmParameterSpec);
+            return Buffer.buffer().appendBytes(ivBytes).appendBytes(c.doFinal(b)).getBytes();
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to Encrypt", e);
+        }
+    }
+
+    public static byte[] decryptGCM(byte[] encryptedBytes, int offset, EncryptionKey key) {
+        try {
+            return decryptGCM(encryptedBytes, offset, key.getKeyBytes());
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to Decrypt", e);
+        }
+    }
+
+    public static byte[] decryptGCM(byte[] encryptedBytes, int offset, byte[] secretBytes) {
+        try {
+            final SecretKey key = new SecretKeySpec(secretBytes, "AES");
+            final GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_AUTHTAG_LENGTH * 8, encryptedBytes, offset, GCM_IV_LENGTH);
+            final Cipher c = Cipher.getInstance(gcmCipherScheme);
+            c.init(Cipher.DECRYPT_MODE, key, gcmParameterSpec);
+            return c.doFinal(encryptedBytes, offset + GCM_IV_LENGTH, encryptedBytes.length - offset - GCM_IV_LENGTH);
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to Decrypt", e);
+        }
     }
 
     public static byte[] getRandomKeyBytes() {

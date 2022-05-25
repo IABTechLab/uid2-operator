@@ -26,20 +26,15 @@ package com.uid2.operator.model;
 import java.time.Instant;
 
 public class UserToken extends VersionedToken {
-    private final UserIdentity identity;
-    private final int siteId;
+    public final OperatorIdentity operatorIdentity;
+    public final PublisherIdentity publisherIdentity;
+    public final UserIdentity userIdentity;
 
-    public UserToken(int version, Instant createdAt, Instant expiresAt, UserIdentity identity, int siteId) {
+    public UserToken(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
+                     PublisherIdentity publisherIdentity, UserIdentity userIdentity) {
         super(version, createdAt, expiresAt);
-        this.identity = identity;
-        this.siteId = siteId;
-    }
-
-    public UserIdentity getIdentity() {
-        return identity;
-    }
-
-    public int getSiteId() {
-        return siteId;
+        this.operatorIdentity = operatorIdentity;
+        this.publisherIdentity = publisherIdentity;
+        this.userIdentity = userIdentity;
     }
 }

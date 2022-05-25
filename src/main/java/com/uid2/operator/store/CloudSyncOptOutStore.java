@@ -27,6 +27,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
+import com.uid2.operator.model.UserIdentity;
+import com.uid2.operator.service.EncodingUtils;
 import com.uid2.shared.Utils;
 import com.uid2.shared.cloud.CloudStorageException;
 import com.uid2.shared.cloud.ICloudStorage;
@@ -90,23 +92,22 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
-    public Instant getLatestEntry(String key) {
-        byte[] idBytes = OptOutUtils.base64StringTobyteArray(key);
-        long epochSecond = this.snapshot.get().getOptOutTimestamp(idBytes);
+    public Instant getLatestEntry(UserIdentity firstLevelHashIdentity) {
+        long epochSecond = this.snapshot.get().getOptOutTimestamp(firstLevelHashIdentity.id);
         Instant instant = epochSecond > 0 ? Instant.ofEpochSecond(epochSecond) : null;
         return instant;
     }
 
     @Override
-    public void addEntry(String key, String advertisingId, Handler<AsyncResult<Instant>> handler) {
+    public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
         if (remoteApiHost == null) {
             handler.handle(Future.failedFuture("remote api not set"));
             return;
         }
 
         this.webClient.get(remoteApiPort, remoteApiHost, remoteApiPath).
-            addQueryParam("identity_hash", key)
-            .addQueryParam("advertising_id", advertisingId)
+            addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.id))
+            .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId))
             .putHeader("Authorization", remoteApiBearerToken)
             .as(BodyCodec.string())
             .send(ar -> {
@@ -170,7 +171,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                     handler.handle(Future.succeededFuture(instant));
                 } else {
                     if (ar.cause() != null) {
-                        ar.cause().printStackTrace();
+                        LOGGER.error(ar.cause());
                     }
                     handler.handle(Future.failedFuture(ar.cause()));
 

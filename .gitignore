@@ -9,3 +9,4 @@ conf/*.json
 uid2-operator.iml
 build/**
 .DS_Store
+*/node_modules/*

@@ -22,7 +22,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 const sdk = require('../../static/js/uid2-sdk-1.0.0.js');
-const mocks = require('./mocks.js');
+const mocks = require('../mocks.js');
 
 let callback;
 let uid2;
@@ -41,7 +41,7 @@ afterEach(() => {
   mocks.resetFakeTime();
 });
 
-const makeIdentity = mocks.makeIdentity;
+const makeIdentity = mocks.makeIdentityV1;
 
 describe('when getAdvertisingTokenAsync is called before init', () => {
   describe('when initialising with a valid identity', () => {

@@ -5,8 +5,8 @@
   "author": "",
   "license": "BSD",
   "scripts": {
-    "lint": "eslint -c .eslintrc.js . ../../static/js/uid2-sdk-1.0.0.js",
-    "test": "jest"
+    "lint": "node_modules/.bin/eslint -c .eslintrc.js . ../../static/js/uid2-sdk-1.0.0.js",
+    "test": "node_modules/.bin/jest"
   },
   "jest": {
     "testEnvironment": "jsdom",

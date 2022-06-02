@@ -22,7 +22,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 const sdk = require('../../static/js/uid2-sdk-1.0.0.js');
-const mocks = require('./mocks.js');
+const mocks = require('../mocks.js');
 
 let callback;
 let uid2;
@@ -42,7 +42,7 @@ afterEach(() => {
 });
 
 const getUid2Cookie = mocks.getUid2Cookie;
-const makeIdentity = mocks.makeIdentity;
+const makeIdentity = mocks.makeIdentityV1;
 
 describe('when auto refreshing a non-expired identity which does not require a refresh', () => {
   beforeEach(() => {

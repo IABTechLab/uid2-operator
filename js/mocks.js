@@ -22,7 +22,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 const jsdom = require('jsdom');
-const sdk = require('../../static/js/uid2-sdk-1.0.0.js');
+const sdk = require('../static/js/uid2-sdk-1.0.0.js');
 
 class CookieMock {
   constructor(document) {
@@ -94,7 +94,7 @@ function getUid2Cookie() {
   }
 }
 
-function makeIdentity(overrides) {
+function makeIdentityV1(overrides) {
   return {
      advertising_token: 'test_advertising_token',
      refresh_token: 'test_refresh_token',
@@ -105,6 +105,17 @@ function makeIdentity(overrides) {
   };
 }
 
+function makeIdentityV2(overrides) {
+  return {
+    advertising_token: 'test_advertising_token',
+    refresh_token: 'test_refresh_token',
+    refresh_response_key: 'test_refresh_response_key',
+    refresh_from: Date.now() + 100000,
+    identity_expires: Date.now() + 200000,
+    refresh_expires: Date.now() + 300000,
+    ...(overrides || {}),
+  };
+}
 module.exports = {
   CookieMock: CookieMock,
   XhrMock: XhrMock,
@@ -113,5 +124,6 @@ module.exports = {
   setCookieMock: setCookieMock,
   setUid2Cookie: setUid2Cookie,
   getUid2Cookie: getUid2Cookie,
-  makeIdentity: makeIdentity,
+  makeIdentityV1: makeIdentityV1,
+  makeIdentityV2: makeIdentityV2,
 };

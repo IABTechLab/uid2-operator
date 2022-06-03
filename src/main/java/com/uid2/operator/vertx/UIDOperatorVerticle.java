@@ -47,7 +47,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -174,32 +173,36 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
-        // Current version APIs
-        router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
-        router.get("/v1/token/validate").handler(this::handleTokenValidateV1);
-        router.get("/v1/token/refresh").handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1));
-        router.get("/v1/identity/buckets").handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
-        router.get("/v1/identity/map").handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
-        router.post("/v1/identity/map").handler(auth.handle(this::handleIdentityMapBatchV1, Role.MAPPER));
-        router.get("/v1/key/latest").handler(auth.handle(this::handleKeysRequestV1, Role.ID_READER));
+        setupV2Routes(router);
 
-        // Deprecated APIs
-        router.get("/key/latest").handler(auth.handle(this::handleKeysRequest, Role.ID_READER));
-        router.get("/token/generate").handler(auth.handle(this::handleTokenGenerate, Role.GENERATOR));
-        router.get("/token/refresh").handler(this::handleTokenRefresh);
-        router.get("/token/validate").handler(this::handleValidate);
-        router.get("/identity/map").handler(auth.handle(this::handleIdentityMap, Role.MAPPER));
-        router.post("/identity/map").handler(auth.handle(this::handleIdentityMapBatch, Role.MAPPER));
-
-        // Internal service APIs and static data
-        router.get("/token/logout").handler(auth.handle(this::handleLogoutAsync, Role.OPTOUT));
+        // Static and health check
         router.get("/ops/healthcheck").handler(this::handleHealthCheck);
         router.route("/static/*").handler(StaticHandler.create("static"));
 
-        // only uncomment to do local testing
-        //router.get("/internal/optout/get").handler(auth.loopbackOnly(this::handleOptOutGet));
+        if (this.config.getBoolean(Const.Config.AllowLegacyAPIProp, true)) {
+            // V1 APIs
+            router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
+            router.get("/v1/token/validate").handler(this::handleTokenValidateV1);
+            router.get("/v1/token/refresh").handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1));
+            router.get("/v1/identity/buckets").handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
+            router.get("/v1/identity/map").handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
+            router.post("/v1/identity/map").handler(auth.handle(this::handleIdentityMapBatchV1, Role.MAPPER));
+            router.get("/v1/key/latest").handler(auth.handle(this::handleKeysRequestV1, Role.ID_READER));
 
-        setupV2Routes(router);
+            // Deprecated APIs
+            router.get("/key/latest").handler(auth.handle(this::handleKeysRequest, Role.ID_READER));
+            router.get("/token/generate").handler(auth.handle(this::handleTokenGenerate, Role.GENERATOR));
+            router.get("/token/refresh").handler(this::handleTokenRefresh);
+            router.get("/token/validate").handler(this::handleValidate);
+            router.get("/identity/map").handler(auth.handle(this::handleIdentityMap, Role.MAPPER));
+            router.post("/identity/map").handler(auth.handle(this::handleIdentityMapBatch, Role.MAPPER));
+
+            // Internal service APIs
+            router.get("/token/logout").handler(auth.handle(this::handleLogoutAsync, Role.OPTOUT));
+
+            // only uncomment to do local testing
+            //router.get("/internal/optout/get").handler(auth.loopbackOnly(this::handleOptOutGet));
+        }
 
         return router;
     }

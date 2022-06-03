@@ -24,7 +24,7 @@
 
 class UID2 {
     static get VERSION() {
-        return "1.0.1";
+        return "1.0.2";
     }
     static get COOKIE_NAME() {
         return "__uid_2";

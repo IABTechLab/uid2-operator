@@ -46,19 +46,34 @@ const getUid2Cookie = mocks.getUid2Cookie;
 const makeIdentity = mocks.makeIdentity;
 
 describe('When google tag setup is called', () => {
-  it('should not fail when there is no googletag', () => {
-    sdk.window.googletag = null;
-    expect(() => sdk.UID2.setupGoogleTag()).not.toThrow(TypeError);
-  });
-  it('should not fail when there is no googletag encryptedSignalProviders', () => {
-    sdk.window.googletag = {encryptedSignalProviders: null};
-    expect(() => sdk.UID2.setupGoogleTag()).not.toThrow(TypeError);
-  });
-  it('should push if googletag has encryptedSignalProviders', () => {
-    const mockPush = jest.fn();
-    sdk.window.googletag = {encryptedSignalProviders: {push: mockPush}};
+  it('should define googletag and encryptedSignalProviders and push the uidapi.com signal provider if googletag is not yet defined', () => {
+    sdk.window.googletag = undefined;
     sdk.UID2.setupGoogleTag();
-    expect(mockPush.mock.calls.length).toBe(1);
+    const providers = sdk.window.googletag.encryptedSignalProviders;
+    expect(providers.length).toBe(1);
+    expect(providers[0].id).toBe('uidapi.com')
+  });
+  it('should define encryptedSignalProviders and push the uidapi.com signal provider if encryptedSignalProviders is not defined', () => {
+    sdk.window.googletag = {};
+    sdk.UID2.setupGoogleTag();
+    const providers = sdk.window.googletag.encryptedSignalProviders;
+    expect(providers.length).toBe(1);
+    expect(providers[0].id).toBe('uidapi.com')
+  });
+  it('should push uidapi.com signal provider if googletag has encryptedSignalProviders defined already', () => {
+    sdk.window.googletag = {
+      encryptedSignalProviders: [
+        {
+          id: 'another-provider',
+          collectorFunction: () => {}
+        }
+      ]
+    };
+    sdk.UID2.setupGoogleTag();
+    const providers = sdk.window.googletag.encryptedSignalProviders;
+    expect(providers.length).toBe(2);
+    expect(providers[0].id).toBe('another-provider');
+    expect(providers[1].id).toBe('uidapi.com')
   });
 });
 

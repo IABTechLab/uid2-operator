@@ -53,6 +53,7 @@ class XhrMock {
     this.abort            = jest.fn();
     this.overrideMimeType = jest.fn();
     this.setRequestHeader = jest.fn();
+    this.responseText = "response_text";
     this.readyState       = this.DONE;
     this.applyTo = (window) => {
       jest.spyOn(window, 'XMLHttpRequest').mockImplementation(() => this);
@@ -60,6 +61,30 @@ class XhrMock {
 
     this.applyTo(window);
   }
+}
+
+class CryptoMock {
+  static decrypt_output = "decrypted_message";
+  constructor(window) {
+    this.getRandomValues = jest.fn();
+    this.subtle = {
+      encrypt: jest.fn(),
+      decrypt: jest.fn(),
+    };
+    let mockDecryptResponse = jest.fn();
+    mockDecryptResponse.mockImplementation((fn) => fn(CryptoMock.decrypt_output))
+
+    this.subtle.decrypt.mockImplementation((settings, key, data) => {
+      return {then: mockDecryptResponse, catch: jest.fn()}
+    });
+
+    this.applyTo = (window) => {
+      window.crypto = this;
+    }
+
+    this.applyTo(window);
+  }
+
 }
 
 function setupFakeTime() {
@@ -119,6 +144,7 @@ function makeIdentityV2(overrides) {
 module.exports = {
   CookieMock: CookieMock,
   XhrMock: XhrMock,
+  CryptoMock: CryptoMock,
   setupFakeTime: setupFakeTime,
   resetFakeTime: resetFakeTime,
   setCookieMock: setCookieMock,

@@ -24,7 +24,7 @@
 
 class UID2 {
     static get VERSION() {
-        return "1.0.1";
+        return "2.0.0";
     }
     static get COOKIE_NAME() {
         return "__uid_2";
@@ -268,7 +268,16 @@ class UID2 {
                 setRefreshTimer();
             }
         }
+
         const refreshToken = (identity) => {
+          if(_refreshVersion === 1){
+              refreshTokenV1(identity);
+          } else if (_refreshVersion === 2) {
+              refreshTokenV2(identity);
+          }
+        }
+
+        const refreshTokenV1 = (identity) => {
             const baseUrl = getOptionOrDefault(_opts.baseUrl, "https://prod.uidapi.com");
             const url = baseUrl + "/v1/token/refresh?refresh_token=" + encodeURIComponent(identity.refresh_token);
             const req = new XMLHttpRequest();
@@ -289,6 +298,46 @@ class UID2 {
                 }
             };
             req.send();
+        };
+
+        const refreshTokenV2 = (identity) => {
+            const baseUrl = getOptionOrDefault(_opts.baseUrl, "https://prod.uidapi.com");
+            const url = baseUrl + "/v2/token/refresh";
+            const req = new XMLHttpRequest();
+            _refreshReq = req;
+            req.overrideMimeType("application/json");
+            req.open("POST", url, true);
+            req.setRequestHeader('X-UID2-Client-Version', 'uid2-sdk-' + UID2.VERSION);
+            req.onreadystatechange = () => {
+                _refreshReq = undefined;
+                if (req.readyState !== req.DONE) return;
+                try {
+                    let decrypted_response = null;
+                    let encode_resp = new Uint8Array(req.responseText.length);
+                    for(let i=req.responseText.length; i--; )
+                        encode_resp[i] = req.responseText.charCodeAt(i);
+                    window.crypto.subtle.decrypt({
+                        name: "AES-GCM",
+                        iv: new ArrayBuffer(12), //The initialization vector you used to encrypt
+                        additionalData: ArrayBuffer, //The addtionalData you used to encrypt (if any)
+                        tagLength: 128, //The tagLength you used to encrypt (if any)
+                        },
+                        identity.refresh_response_key,
+                        encode_resp
+                    ).then(function (decrypted) {
+                        decrypted_response = String.fromCharCode.apply(String, new Uint8Array(decrypted));
+                    }).catch(function(err){
+                        handleRefreshFailure(identity, err.message);
+                    });
+                    const response = JSON.parse(decrypted_response);
+                    if (!checkResponseStatus(identity, response)) return;
+                    checkIdentity(response.body);
+                    setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
+                } catch (err) {
+                    handleRefreshFailure(identity, err.message);
+                }
+            };
+            req.send(identity.refresh_token);
         };
         const checkResponseStatus = (identity, response) => {
             if (typeof response !== 'object' || response === null) {

@@ -23,10 +23,12 @@
 
 const sdk = require('../../static/js/uid2-sdk-2.0.0.js');
 const mocks = require('../mocks.js');
+const {CryptoMock} = require("../mocks");
 
 let callback;
 let uid2;
 let xhrMock;
+let cryptoMock;
 
 mocks.setupFakeTime();
 
@@ -34,6 +36,7 @@ beforeEach(() => {
   callback = jest.fn();
   uid2 = new sdk.UID2();
   xhrMock = new mocks.XhrMock(sdk.window);
+  cryptoMock = new mocks.CryptoMock(sdk.window);
   mocks.setCookieMock(sdk.window.document);
 });
 
@@ -238,7 +241,7 @@ describe('when initialised without identity', () => {
     });
   });
 
-  describe('when uid2 cookie with expired but refreshable identity is available', () => {
+  describe('when uid2 v2 cookie with expired but refreshable identity is available', () => {
     const identity = makeIdentityV2({
       identity_expires: Date.now() - 100000,
       refresh_from: Date.now() - 100000
@@ -251,13 +254,36 @@ describe('when initialised without identity', () => {
 
     it('should initiate token refresh', () => {
       expect(xhrMock.send).toHaveBeenCalledTimes(1);
+      let url = "https://prod.uidapi.com/v2/token/refresh";
+      expect(xhrMock.open).toHaveBeenLastCalledWith("POST", url, true);
+      expect(xhrMock.send).toHaveBeenLastCalledWith(identity.refresh_token);
+      xhrMock.onreadystatechange();
+      expect(cryptoMock.subtle.decrypt).toHaveBeenCalled();
     });
+
     it('should not set refresh timer', () => {
       expect(setTimeout).not.toHaveBeenCalled();
       expect(clearTimeout).not.toHaveBeenCalled();
     });
     it('should be in initialising state', () => {
       expect(uid2).toBeInInitialisingState();
+    });
+  });
+  describe('when uid2 v1 cookie with expired but refreshable identity is available', () => {
+    const identity = makeIdentityV1({
+      identity_expires: Date.now() - 100000,
+      refresh_from: Date.now() - 100000
+    });
+
+    beforeEach(() => {
+      setUid2Cookie(identity);
+      uid2.init({ callback: callback });
+    });
+
+    it('should initiate token refresh', () => {
+      expect(xhrMock.send).toHaveBeenCalledTimes(1);
+      let url = "https://prod.uidapi.com/v1/token/refresh?refresh_token=" + identity.refresh_token;
+      expect(xhrMock.open).toHaveBeenLastCalledWith("GET", url, true);
     });
   });
 });

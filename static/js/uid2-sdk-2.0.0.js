@@ -291,7 +291,6 @@ class UID2 {
                 try {
                     const response = JSON.parse(req.responseText);
                     if (!checkResponseStatus(identity, response)) return;
-                    checkIdentity(response.body);
                     setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
                 } catch (err) {
                     handleRefreshFailure(identity, err.message);
@@ -331,7 +330,6 @@ class UID2 {
                     });
                     const response = JSON.parse(decrypted_response);
                     if (!checkResponseStatus(identity, response)) return;
-                    checkIdentity(response.body);
                     setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
                 } catch (err) {
                     handleRefreshFailure(identity, err.message);

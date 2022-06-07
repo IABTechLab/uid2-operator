@@ -288,16 +288,10 @@ class UID2 {
                 _refreshReq = undefined;
                 if (req.readyState !== req.DONE) return;
                 try {
-                    if(_refreshVersion === 1) {
-                        _refreshReq = undefined;
-                        if (req.readyState !== req.DONE) return;
-                        try {
-                            const response = JSON.parse(req.responseText);
-                            if (!checkResponseStatus(identity, response)) return;
-                            setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
-                        } catch (err) {
-                            handleRefreshFailure(identity, err.message);
-                        }
+                    if(_refreshVersion === 1 || req.status !== 200) {
+                        const response = JSON.parse(req.responseText);
+                        if (!checkResponseStatus(identity, response)) return;
+                        setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
                     } else  if(_refreshVersion === 2) {
                         let encode_resp = createArrayBuffer(atob(req.responseText));
                         window.crypto.subtle.importKey("raw", createArrayBuffer(atob(identity.refresh_response_key)),

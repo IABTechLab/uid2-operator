@@ -53,6 +53,7 @@ class XhrMock {
     this.abort            = jest.fn();
     this.overrideMimeType = jest.fn();
     this.setRequestHeader = jest.fn();
+    this.status = 200;
     this.responseText = btoa("response_text")
     this.readyState       = this.DONE;
     this.applyTo = (window) => {

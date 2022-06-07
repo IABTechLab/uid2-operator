@@ -474,7 +474,8 @@ describe('when still valid identity is refreshed on init', () => {
 
   describe('when token refresh returns expired token', () => {
     beforeEach(() => {
-      xhrMock.responseText = btoa(JSON.stringify({ status: 'expired_token' }));
+      xhrMock.responseText = JSON.stringify({ status: 'expired_token' });
+      xhrMock.status = 400;
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -682,7 +683,8 @@ describe('when expired identity is refreshed on init', () => {
 
   describe('when token refresh returns expired token', () => {
     beforeEach(() => {
-      xhrMock.responseText = btoa(JSON.stringify({ status: 'expired_token' }));
+      xhrMock.responseText = JSON.stringify({ status: 'expired_token' });
+      xhrMock.status = 400;
       xhrMock.onreadystatechange(new Event(''));
     });
 

@@ -293,27 +293,27 @@ class UID2 {
                         if (!checkResponseStatus(identity, response)) return;
                         setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
                     } else  if(_refreshVersion === 2) {
-                        let encode_resp = createArrayBuffer(atob(req.responseText));
+                        let encodeResp = createArrayBuffer(atob(req.responseText));
                         window.crypto.subtle.importKey("raw", createArrayBuffer(atob(identity.refresh_response_key)),
-                            {name: "AES-GCM",}, false, ["decrypt"]
-                        ).then(function (key) {
+                            { name: "AES-GCM" }, false, ["decrypt"]
+                        ).then((key) => {
                             //returns the symmetric key
                             window.crypto.subtle.decrypt({
                                     name: "AES-GCM",
-                                    iv: encode_resp.slice(0, 12), //The initialization vector you used to encrypt
+                                    iv: encodeResp.slice(0, 12), //The initialization vector you used to encrypt
                                     tagLength: 128, //The tagLength you used to encrypt (if any)
                                 },
                                 key,
-                                encode_resp.slice(12)
-                            ).then(function (decrypted) {
-                                const decrypted_response = String.fromCharCode.apply(String, new Uint8Array(decrypted));
-                                const response = JSON.parse(decrypted_response);
+                                encodeResp.slice(12)
+                            ).then((decrypted) => {
+                                const decryptedResponse = String.fromCharCode.apply(String, new Uint8Array(decrypted));
+                                const response = JSON.parse(decryptedResponse);
                                 if (!checkResponseStatus(identity, response)) return;
                                 setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
-                            }).catch(function (err) {
+                            }).catch((err) => {
                                 handleRefreshFailure(identity, err.message);
                             });
-                        }).catch(function (err) {
+                        }).catch((err) => {
                             console.error(err);
                         });
                     }

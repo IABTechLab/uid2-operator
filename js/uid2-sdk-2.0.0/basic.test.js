@@ -258,7 +258,7 @@ describe('when initialised without identity', () => {
       expect(xhrMock.open).toHaveBeenLastCalledWith("POST", url, true);
       expect(xhrMock.send).toHaveBeenLastCalledWith(identity.refresh_token);
       xhrMock.onreadystatechange();
-      expect(cryptoMock.subtle.decrypt).toHaveBeenCalled();
+      expect(cryptoMock.subtle.importKey).toHaveBeenCalled();
     });
 
     it('should not set refresh timer', () => {
@@ -282,8 +282,11 @@ describe('when initialised without identity', () => {
 
     it('should initiate token refresh', () => {
       expect(xhrMock.send).toHaveBeenCalledTimes(1);
-      let url = "https://prod.uidapi.com/v1/token/refresh?refresh_token=" + identity.refresh_token;
-      expect(xhrMock.open).toHaveBeenLastCalledWith("GET", url, true);
+      let url = "https://prod.uidapi.com/v2/token/refresh";
+      expect(xhrMock.open).toHaveBeenLastCalledWith("POST", url, true);
+      expect(xhrMock.send).toHaveBeenLastCalledWith(identity.refresh_token);
+      xhrMock.onreadystatechange();
+      expect(cryptoMock.subtle.importKey).toHaveBeenCalledTimes(0);
     });
   });
 });
@@ -399,7 +402,7 @@ describe('when still valid identity is refreshed on init', () => {
 
   describe('when token refresh succeeds', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'success', body: updatedIdentity });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'success', body: updatedIdentity }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -447,7 +450,7 @@ describe('when still valid identity is refreshed on init', () => {
 
   describe('when token refresh returns optout', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'optout' });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'optout' }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -471,7 +474,7 @@ describe('when still valid identity is refreshed on init', () => {
 
   describe('when token refresh returns expired token', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'expired_token' });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'expired_token' }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -631,7 +634,7 @@ describe('when expired identity is refreshed on init', () => {
 
   describe('when token refresh succeeds', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'success', body: updatedIdentity });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'success', body: updatedIdentity }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -655,7 +658,7 @@ describe('when expired identity is refreshed on init', () => {
 
   describe('when token refresh returns optout', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'optout' });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'optout' }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -679,7 +682,7 @@ describe('when expired identity is refreshed on init', () => {
 
   describe('when token refresh returns expired token', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'expired_token' });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'expired_token' }));
       xhrMock.onreadystatechange(new Event(''));
     });
 

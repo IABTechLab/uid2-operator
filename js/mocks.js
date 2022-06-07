@@ -53,7 +53,7 @@ class XhrMock {
     this.abort            = jest.fn();
     this.overrideMimeType = jest.fn();
     this.setRequestHeader = jest.fn();
-    this.responseText = "response_text";
+    this.responseText = btoa("response_text")
     this.readyState       = this.DONE;
     this.applyTo = (window) => {
       jest.spyOn(window, 'XMLHttpRequest').mockImplementation(() => this);
@@ -70,12 +70,24 @@ class CryptoMock {
     this.subtle = {
       encrypt: jest.fn(),
       decrypt: jest.fn(),
+      importKey: jest.fn(),
     };
     let mockDecryptResponse = jest.fn();
     mockDecryptResponse.mockImplementation((fn) => fn(CryptoMock.decrypt_output))
 
     this.subtle.decrypt.mockImplementation((settings, key, data) => {
-      return {then: mockDecryptResponse, catch: jest.fn()}
+      return {then: jest.fn().mockImplementation((func) => {
+        console.log(settings)
+        func(Buffer.concat([settings.iv, data]));
+        return {catch: jest.fn()}
+      })}
+    });
+
+    this.subtle.importKey.mockImplementation((format, key, algorithm, extractable, keyUsages) => {
+      return {then: jest.fn().mockImplementation((func) => {
+        func("key");
+        return {catch: jest.fn()}
+      })}
     });
 
     this.applyTo = (window) => {
@@ -134,7 +146,7 @@ function makeIdentityV2(overrides) {
   return {
     advertising_token: 'test_advertising_token',
     refresh_token: 'test_refresh_token',
-    refresh_response_key: 'test_refresh_response_key',
+    refresh_response_key: btoa('test_refresh_response_key'),
     refresh_from: Date.now() + 100000,
     identity_expires: Date.now() + 200000,
     refresh_expires: Date.now() + 300000,

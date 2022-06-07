@@ -24,7 +24,7 @@
 
 class UID2 {
     static get VERSION() {
-        return "1.0.1";
+        return "1.0.2";
     }
     static get COOKIE_NAME() {
         return "__uid_2";
@@ -34,18 +34,22 @@ class UID2 {
     }
 
     static setupGoogleTag() {
-      if (window.googletag && window.googletag.encryptedSignalProviders) {
-          googletag.encryptedSignalProviders.push({
-              id: 'uidapi.com',
-              collectorFunction: () => {
-                  if (window.__uid2 && window.__uid2.getAdvertisingToken) {
-                      return __uid2.getAdvertisingTokenAsync();
-                  } else {
-                      return Promise.reject(new Error("UID2 SDK not present"));
-                  }
-              }
-          });
-      }
+        if (!window.googletag) {
+            window.googletag = {};
+        }
+        if (!googletag.encryptedSignalProviders) {
+            googletag.encryptedSignalProviders = [];
+        }
+        googletag.encryptedSignalProviders.push({
+            id: "uidapi.com",
+            collectorFunction: () => {
+                if (window.__uid2 && window.__uid2.getAdvertisingTokenAsync) {
+                    return __uid2.getAdvertisingTokenAsync();
+                } else {
+                    return Promise.reject(new Error("UID2 SDK not present"));
+                }
+            },
+        });
     }
 
     constructor() {

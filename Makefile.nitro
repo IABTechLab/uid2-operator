@@ -4,11 +4,10 @@ DATA_DIR=/opt/uid2operator
 .PHONY: all
 all: build_eif
 
-install: ./build/uid2operator.eif ./build/dante-1.4.3/sockd ./scripts/aws/start.sh ./scripts/aws/stop.sh ./scripts/aws/allocator.template.yaml ./scripts/aws/proxies.host.yaml ./scripts/aws/uid2operator.service ./build/vsockpx
+install: ./build/uid2operator.eif ./build/dante-1.4.3/sockd ./scripts/aws/start.sh ./scripts/aws/stop.sh ./scripts/aws/proxies.host.yaml ./scripts/aws/uid2operator.service ./build/vsockpx
 	mkdir -p $(CONFIG_DIR)
 	mkdir -p $(DATA_DIR)
 	cp ./scripts/aws/proxies.host.yaml $(CONFIG_DIR)/proxy.yaml
-	cp ./scripts/aws/allocator.template.yaml $(CONFIG_DIR)/
 	cp ./build/uid2operator.eif $(DATA_DIR)/
 	cp ./scripts/aws/start.sh $(DATA_DIR)/start.sh
 	cp ./scripts/aws/stop.sh $(DATA_DIR)/stop.sh
@@ -29,6 +28,8 @@ clean:
 
 ./build/dante-1.4.3/sockd:
 	cd build; wget https://www.inet.no/dante/files/dante-1.4.3.tar.gz
+	cd build; echo "418a065fe1a4b8ace8fbf77c2da269a98f376e7115902e76cda7e741e4846a5d dante-1.4.3.tar.gz" > checksum
+	cd build; sha256sum --check checksum
 	cd build; tar -xf dante-1.4.3.tar.gz
 	cd build/dante-1.4.3; ./configure
 	cd build/dante-1.4.3; make

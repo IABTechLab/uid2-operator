@@ -12,5 +12,5 @@
   "refresh_token_v3": false,
   "identity_v3": false,
   "identity_scope": "uid2",
-  "enable_v2_encryption": true
+  "enable_v2_encryption": falseg
 }

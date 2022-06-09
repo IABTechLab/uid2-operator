@@ -46,7 +46,7 @@ public class V2RequestUtil {
 
     private static final byte VERSION = 1;
 
-    public static final int V2_REFRESH_PAYLOAD_LENGTH = 364;
+    public static final int V2_REFRESH_PAYLOAD_LENGTH = 388;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 

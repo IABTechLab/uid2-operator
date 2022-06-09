@@ -146,7 +146,7 @@ public class EncryptionHelper {
     public static byte[] getRandomKeyBytes() {
         try {
             final KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-            keyGen.init(128);
+            keyGen.init(256);
             return keyGen.generateKey().getEncoded();
         } catch (Exception e) {
             throw new RuntimeException("Trouble Generating Random Key Bytes", e);

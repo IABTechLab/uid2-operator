@@ -1,4 +1,4 @@
-FROM openjdk:11.0-jre-slim
+FROM openjdk:11.0-jre-slim-bullseye
 
 WORKDIR /app
 ARG JAR_NAME=uid2-operator

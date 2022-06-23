@@ -28,7 +28,7 @@ config['optout_api_token'] = overrides['api_token']
 config['service_instances'] = thread_count
 
 # allowed overrides
-apply_override(config, overrides, 'loki_enabled', int)
+apply_override(config, overrides, 'loki_enabled', bool)
 apply_override(config, overrides, 'optout_synthetic_logs_enabled', bool)
 apply_override(config, overrides, 'optout_synthetic_logs_count', int)
 

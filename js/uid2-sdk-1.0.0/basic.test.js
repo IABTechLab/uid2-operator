@@ -44,6 +44,7 @@ afterEach(() => {
 const setUid2Cookie = mocks.setUid2Cookie;
 const getUid2Cookie = mocks.getUid2Cookie;
 const makeIdentity = mocks.makeIdentityV1;
+const makeIdentity2 = mocks.makeIdentityV2;
 
 describe('When google tag setup is called', () => {
   it('should define googletag and encryptedSignalProviders and push the uidapi.com signal provider if googletag is not yet defined', () => {
@@ -236,6 +237,28 @@ describe('when initialised without identity', () => {
     });
   });
 
+  describe('when uid2 cookie with valid but refreshable identity v2 is available', () => {
+    const identity = makeIdentity2({
+      refresh_from: Date.now() - 100000
+    });
+
+    beforeEach(() => {
+      setUid2Cookie(identity);
+      uid2.init({ callback: callback });
+    });
+
+    it('should initiate token refresh', () => {
+      expect(xhrMock.send).toHaveBeenCalledTimes(1);
+    });
+    it('should not set refresh timer', () => {
+      expect(setTimeout).not.toHaveBeenCalled();
+      expect(clearTimeout).not.toHaveBeenCalled();
+    });
+    it('should be in initialising state', () => {
+      expect(uid2).toBeInInitialisingState();
+    });
+  });
+
   describe('when uid2 cookie with expired but refreshable identity is available', () => {
     const identity = makeIdentity({
       identity_expires: Date.now() - 100000,
@@ -286,6 +309,31 @@ describe('when initialised with specific identity', () => {
 
   describe('when valid identity is supplied', () => {
     const identity = makeIdentity();
+
+    beforeEach(() => {
+      uid2.init({ callback: callback, identity: identity });
+    });
+
+    it('should invoke the callback', () => {
+      expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertising_token: identity.advertising_token,
+        status: sdk.UID2.IdentityStatus.ESTABLISHED,
+      }));
+    });
+    it('should set cookie', () => {
+      expect(getUid2Cookie().advertising_token).toBe(identity.advertising_token);
+    });
+    it('should set refresh timer', () => {
+      expect(setTimeout).toHaveBeenCalledTimes(1);
+      expect(clearTimeout).not.toHaveBeenCalled();
+    });
+    it('should be in available state', () => {
+      expect(uid2).toBeInAvailableState(identity.advertising_token);
+    });
+  });
+
+  describe('when valid identity v2 is supplied', () => {
+    const identity = makeIdentity2();
 
     beforeEach(() => {
       uid2.init({ callback: callback, identity: identity });

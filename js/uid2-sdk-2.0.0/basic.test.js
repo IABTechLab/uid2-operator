@@ -173,22 +173,6 @@ describe('when initialised without identity', () => {
     it('should be in available state', () => {
       expect(uid2).toBeInAvailableState(identity.advertising_token);
     });
-    it('should set refresh version to v2', () => {
-      expect(uid2.getRefreshVersion()).toBe(2);
-    });
-  });
-
-  describe('when uid2 cookie with up-to-date identity is available v1', () => {
-    const identity = makeIdentityV1();
-
-    beforeEach(() => {
-      setUid2Cookie(identity);
-      uid2.init({ callback: callback });
-    });
-
-    it('should set refresh version to v1', () => {
-      expect(uid2.getRefreshVersion()).toBe(1);
-    });
   });
 
   describe('when uid2 cookie with expired refresh is available', () => {
@@ -337,21 +321,6 @@ describe('when initialised with specific identity', () => {
     });
     it('should be in available state', () => {
       expect(uid2).toBeInAvailableState(identity.advertising_token);
-    });
-    it('should set refresh version to v2', () => {
-      expect(uid2.getRefreshVersion()).toBe(2);
-    });
-  });
-
-  describe('when valid v1 identity is supplied', () => {
-    const identity = makeIdentityV1();
-
-    beforeEach(() => {
-      uid2.init({ callback: callback, identity: identity });
-    });
-
-    it('should set refresh version to v1', () => {
-      expect(uid2.getRefreshVersion()).toBe(1);
     });
   });
 

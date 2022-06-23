@@ -117,10 +117,6 @@ class UID2 {
             }
         };
 
-        this.getRefreshVersion = () => {
-          return _refreshVersion;
-        }
-
         // PRIVATE STATE
 
         let _initCalled = false;

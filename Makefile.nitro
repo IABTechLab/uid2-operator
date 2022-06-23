@@ -42,7 +42,7 @@ uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh b
 build/load_config.py: ./scripts/aws/load_config.py
 	cp ./scripts/aws/load_config.py ./build/
 
-build/load_config.py: ./scripts/aws/make_config.py
+build/make_config.py: ./scripts/aws/make_config.py
 	cp ./scripts/aws/make_config.py ./build/
 
 build/conf/prod-config.json: build_artifacts ./scripts/aws/conf/prod-config.json

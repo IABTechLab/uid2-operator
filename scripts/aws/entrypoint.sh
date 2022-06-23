@@ -1,4 +1,6 @@
-#!/bin/bash -euf -o pipefail
+#!/bin/bash -euf
+
+set -o pipefail
 
 ulimit -n 65536
 
@@ -29,7 +31,7 @@ get_config_value() {
 }
 
 echo "-- setup loki"
-[[ "$(get_config_override 'loki_enabled')" == "true" ]] \
+[[ "$(get_config_value 'loki_enabled')" == "true" ]] \
   && SETUP_LOKI_LINE="-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory -Dlogback.configurationFile=./conf/logback.loki.xml" \
   || SETUP_LOKI_LINE=""
 

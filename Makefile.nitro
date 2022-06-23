@@ -35,12 +35,15 @@ clean:
 
 build_eif: uid2operator.eif
 
-uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/conf/prod-config.json build/load_config.py	
+uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/conf/prod-config.json build/load_config.py build/make_config.py
 	cd build; docker build -t uid2operator . --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
 	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
 
 build/load_config.py: ./scripts/aws/load_config.py
 	cp ./scripts/aws/load_config.py ./build/
+
+build/load_config.py: ./scripts/aws/make_config.py
+	cp ./scripts/aws/make_config.py ./build/
 
 build/conf/prod-config.json: build_artifacts ./scripts/aws/conf/prod-config.json
 	cp ./scripts/aws/conf/prod-config.json ./build/conf/prod-config.json

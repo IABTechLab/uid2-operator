@@ -1,0 +1,421 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: UID 2.0 CloudFormation template
+Parameters:
+  APIToken:
+    Description: UID API Token
+    Type: String
+    NoEcho: true
+  CreateVPC:
+    Description: Create a New VPC or use Existing VPC?
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
+  TrustNetworkCidr:
+    Description: The IP address range that can be used to SSH and HTTPS to the EC2 instances
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 10.0.0.0/8
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  InstanceType:
+    Description: EC2 instance type, Minimum 4 Vcpu needed.
+    Type: String
+    Default: m5.4xlarge
+    AllowedValues:
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5a.2xlarge
+      - m5a.4xlarge
+      - m5n.2xlarge
+      - m5n.4xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+  RootVolumeSize:
+    Description: Instance root volume size
+    Type: Number
+    Default: 15
+  VpcId:
+    Type: String
+    Description: VpcId of your existing Virtual Private Cloud (VPC)
+    Default: ''
+    ConstraintDescription: must be the VPC Id of an existing Virtual Private Cloud.
+  VpcSubnet1:
+    Description: AZ1 SubnetId from existing VPC, if using existing VPC
+    Type: String
+    Default: ''
+  VpcSubnet2:
+    Description: AZ2 SubnetId from existing VPC, if using existing VPC
+    Type: String
+    Default: ''
+  NewVpcCidr:
+    Description: CIDR for New VPC
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 10.0.0.0/24
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  Subnet1Cidr:
+    Description: CIDR for Subnet in AZ1
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 10.0.0.0/25
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  Subnet2Cidr:
+    Description: CIDR for Subnet in AZ1
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 10.0.0.128/25
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  SSHKeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: Application Configuration
+        Parameters:
+          - APIToken
+      - Label:
+          default: Instance Configuration
+        Parameters:
+          - InstanceType
+          - RootVolumeSize
+          - SSHKeyName
+      - Label:
+          default: Infrastructure Configuration
+        Parameters:
+          - TrustNetworkCidr
+          - CreateVPC
+          - VpcId
+          - VpcSubnet1
+          - VpcSubnet2
+          - NewVpcCidr
+          - Subnet1Cidr
+          - Subnet2Cidr
+    ParameterLabels:
+      APIToken:
+        default: OPERATOR_KEY provided by UID Administrator
+      InstanceType:
+        default: Instance Type for EC2. Minimum 4 Vcpu needed. M5, M5a, M5n Instance types are tested. Choose 2xlarge or 4xlarge.
+      SSHKeyName:
+        default: Key Name for SSH to EC2 (required)
+      RootVolumeSize:
+        default: Instance root Volume size, enter in GB
+      TrustNetworkCidr:
+        default: Trusted Network CIDR (required)
+      CreateVPC:
+        default: Choose to use Existing VPC or Create new VPC (required)
+      VpcId:
+        default: If choose to use Existing VPC, enter existing VPC Id (required in case of existing VPC)
+      VpcSubnet:
+        default: If choose to use Existing VPC, enter existing Subnet Id (required in case of existing VPC)
+      NewVpcCidr:
+        default: If choose to create new VPC, enter CIDR for new VPC (required in case of new VPC)
+      CustomizeEnclaceResource:
+        default: Enclave resouce configuration auto calculated or manual
+      EnclavememoryinMB:
+        default: If choose to false for CustomizeEnclaceResource, enter memory for Enclave in MB
+      EnclaveCPUCount:
+        default: If choose to false for CustomizeEnclaceResource, enter CPU count for Enclave
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-057bf0278b8c964d3
+    us-east-2:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    us-west-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    us-west-2:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    eu-central-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    eu-west-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    eu-west-2:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    eu-west-3:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    eu-south-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    eu-north-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    me-south-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    ap-east-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    ap-south-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    ap-northeast-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    ap-northeast-2:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    ap-southeast-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    ap-southeast-2:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    sa-east-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    ca-central-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+    af-south-1:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+Conditions:
+  shouldCreateVpc:
+    !Equals [true, !Ref CreateVPC]
+Resources:
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties: 
+      Description: Key for Secret Encryption
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-default-1
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Effect: Allow
+            Principal:
+              AWS: 
+                - !GetAtt WorkerRole.Arn
+            Action:
+              - 'kms:Decrypt*'
+              - 'kms:GenerateDataKey*'
+              - 'kms:Describe*'
+            Resource: '*'
+  SSMKEYAlias:
+    Type: AWS::KMS::Alias
+    Properties: 
+      AliasName: alias/uid-secret
+      TargetKeyId: !Ref KMSKey
+  TokenSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: UID Token
+      KmsKeyId: !GetAtt KMSKey.Arn
+      Name: uid2-operator-config-key
+      SecretString: !Sub '{
+          "api_token":"${APIToken}",
+          "service_instances":6,
+          "enclave_cpu_count":6,
+          "enclave_memory_mb":24576,
+          "environment":"prod"
+        }'
+  WorkerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: kms-secret-access
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'kms:Decrypt*'
+                  - 'kms:GenerateDataKey*'
+                  - 'kms:Describe*'
+                Resource: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/uid-secret'
+              - Effect: Allow
+                Action: 'secretsmanager:GetSecretValue'
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:uid2-operator-config-key*'
+      ManagedPolicyArns: 
+        - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
+  WorkerInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref WorkerRole
+  VPC:
+    Condition: shouldCreateVpc
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      CidrBlock: !Ref NewVpcCidr
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+  Subnet1:
+    Condition: shouldCreateVpc
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref Subnet1Cidr
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select 
+        - 0
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: SubnetAZ1
+  Subnet2:
+    Condition: shouldCreateVpc
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref Subnet2Cidr
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select 
+        - 1
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: SubnetAZ2
+  InternetGateway:
+    Condition: shouldCreateVpc
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: Public
+  AttachGateway:
+    Condition: shouldCreateVpc
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  Route1:
+    Condition: shouldCreateVpc
+    Type: 'AWS::EC2::Route'
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  RouteTable:
+    Condition: shouldCreateVpc
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: Public
+  Subnet1RouteTableAssociation:
+    Condition: shouldCreateVpc
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref Subnet1
+      RouteTableId: !Ref RouteTable
+  Subnet2RouteTableAssociation:
+    Condition: shouldCreateVpc
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref Subnet2
+      RouteTableId: !Ref RouteTable
+  SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: UID EC2 Security Group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref TrustNetworkCidr
+          Description: "Allow SSH"
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: !Ref TrustNetworkCidr
+          Description: "Allow HTTP"
+        - IpProtocol: tcp
+          FromPort: '9080'
+          ToPort: '9080'
+          CidrIp: !Ref TrustNetworkCidr
+          Description: "Prometheus metrics"
+      SecurityGroupEgress:
+        - IpProtocol: 'tcp'
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: "Allow Outbound"
+      VpcId: !If 
+        - shouldCreateVpc
+        - !Ref VPC
+        - !Ref VpcId
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            Encrypted: true
+            VolumeSize: !Ref RootVolumeSize
+            VolumeType: gp3
+        IamInstanceProfile:
+          Name: !Ref WorkerInstanceProfile
+        ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
+        InstanceType: !Ref InstanceType
+        EnclaveOptions: 
+          Enabled: true
+        KeyName: !Ref SSHKeyName
+        SecurityGroupIds:
+          - !Ref SecurityGroup 
+        UserData: !Base64
+          Fn::Sub: |
+            #!/bin/bash -ex
+            sudo yum install -y nmap-ncat
+            sudo yum update -y --security
+            while ! nc -z localhost 80;do sleep 10;done
+            /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MetricsCollection:
+      - Granularity: 1Minute
+        Metrics:
+        - GroupTotalInstances
+      MaxSize: 1
+      MinSize: 1
+      VPCZoneIdentifier: !If 
+        - shouldCreateVpc
+        - - !Ref Subnet1
+          - !Ref Subnet2
+        - - !Ref VpcSubnet1
+          - !Ref VpcSubnet2    
+      Tags:
+      - Key: Name
+        Value: 'UID Instance'
+        PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT10M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        PauseTime: PT10M
+        WaitOnResourceSignals: true

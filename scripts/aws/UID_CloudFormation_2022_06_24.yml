@@ -5,6 +5,13 @@ Parameters:
     Description: UID API Token
     Type: String
     NoEcho: true
+  DeployToEnvironment:
+    Description: Deploy in UID2 production environment
+    Type: String
+    Default: prod
+    AllowedValues:
+      - prod
+      - integ
   CreateVPC:
     Description: Create a New VPC or use Existing VPC?
     Type: String
@@ -23,7 +30,7 @@ Parameters:
   InstanceType:
     Description: EC2 instance type, Minimum 4 Vcpu needed.
     Type: String
-    Default: m5.4xlarge
+    Default: m5.2xlarge
     AllowedValues:
       - m5.2xlarge
       - m5.4xlarge
@@ -84,6 +91,7 @@ Metadata:
           default: Application Configuration
         Parameters:
           - APIToken
+          - DeployToEnvironment
       - Label:
           default: Instance Configuration
         Parameters:
@@ -104,6 +112,8 @@ Metadata:
     ParameterLabels:
       APIToken:
         default: OPERATOR_KEY provided by UID Administrator
+      DeployToEnvironment:
+        default: UID2 environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
         default: Instance Type for EC2. Minimum 4 Vcpu needed. M5, M5a, M5n Instance types are tested. Choose 2xlarge or 4xlarge.
       SSHKeyName:
@@ -129,7 +139,7 @@ Metadata:
 Mappings:
   RegionMap:
     us-east-1:
-      AMI: ami-057bf0278b8c964d3
+      AMI: ami-xxxxxxxxxxxxxxxxx
     us-east-2:
       AMI: ami-xxxxxxxxxxxxxxxxx
     us-west-1:
@@ -189,7 +199,7 @@ Resources:
             Resource: '*'
           - Effect: Allow
             Principal:
-              AWS: 
+              AWS:
                 - !GetAtt WorkerRole.Arn
             Action:
               - 'kms:Decrypt*'
@@ -206,13 +216,13 @@ Resources:
     Properties: 
       Description: UID Token
       KmsKeyId: !GetAtt KMSKey.Arn
-      Name: uid2-operator-config-key
+      Name: !Sub 'uid2-config-stack-${AWS::StackName}'
       SecretString: !Sub '{
           "api_token":"${APIToken}",
           "service_instances":6,
           "enclave_cpu_count":6,
           "enclave_memory_mb":24576,
-          "environment":"prod"
+          "environment":"${DeployToEnvironment}"
         }'
   WorkerRole:
     Type: 'AWS::IAM::Role'
@@ -239,7 +249,7 @@ Resources:
                 Resource: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/uid-secret'
               - Effect: Allow
                 Action: 'secretsmanager:GetSecretValue'
-                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:uid2-operator-config-key*'
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:uid2-config-stack-${AWS::StackName}*'
       ManagedPolicyArns: 
         - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
   WorkerInstanceProfile:
@@ -385,6 +395,7 @@ Resources:
         UserData: !Base64
           Fn::Sub: |
             #!/bin/bash -ex
+            export UID2_CONFIG_SECRET_KEY="uid2-config-stack-${AWS::StackName}"
             sudo yum install -y nmap-ncat
             sudo yum update -y --security
             while ! nc -z localhost 80;do sleep 10;done

@@ -42,9 +42,7 @@ import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Handler;
-import io.vertx.core.Promise;
+import io.vertx.core.*;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
@@ -538,6 +536,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = getTokenInputV2(req);
         if (input.isValid()) {
             final Instant now = Instant.now();
+
+            Promise promise = Promise.promise();
             this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
@@ -546,7 +546,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 } else {
                     rc.fail(500);
                 }
+                promise.complete();
             });
+            rc.data().put("async", promise.future());
         } else {
             rc.fail(400);
         }

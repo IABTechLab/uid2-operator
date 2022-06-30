@@ -10,6 +10,8 @@ import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.store.IKeyStore;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
@@ -52,18 +54,14 @@ public class V2PayloadHandler {
 
         apiHandler.handle(rc);
 
-        if (rc.response().getStatusCode() != 200) {
-            return;
+        Future async = (Future)rc.data().get("async");
+        if (async == null) {
+            handleResponse(rc, request);
         }
-
-        try {
-            JsonObject respJson = (JsonObject) rc.data().get("response");
-
-            writeResponse(rc, request.nonce, respJson, request.encryptionKey);
-        }
-        catch (Exception ex){
-            LOGGER.error("Failed to generate response", ex);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+        else {
+            async.onComplete(ar -> {
+                handleResponse(rc, request);
+            });
         }
     }
 
@@ -171,6 +169,21 @@ public class V2PayloadHandler {
 
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
         rc.response().end(Utils.toBase64String(EncryptionHelper.encryptGCM(buffer.getBytes(), keyBytes)));
+    }
+
+    private void handleResponse(RoutingContext rc, V2RequestUtil.V2Request request) {
+        if (rc.response().getStatusCode() != 200) {
+            return;
+        }
+
+        try {
+            JsonObject respJson = (JsonObject) rc.data().get("response");
+
+            writeResponse(rc, request.nonce, respJson, request.encryptionKey);
+        } catch (Exception ex) {
+            LOGGER.error("Failed to generate response", ex);
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+        }
     }
 }
 

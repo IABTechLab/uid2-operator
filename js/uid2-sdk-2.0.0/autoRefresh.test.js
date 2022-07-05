@@ -21,12 +21,13 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-const sdk = require('../../static/js/uid2-sdk-1.0.0.js');
+const sdk = require('../../static/js/uid2-sdk-2.0.0.js');
 const mocks = require('../mocks.js');
 
 let callback;
 let uid2;
 let xhrMock;
+let cryptoMock;
 
 mocks.setupFakeTime();
 
@@ -34,6 +35,7 @@ beforeEach(() => {
   callback = jest.fn();
   uid2 = new sdk.UID2();
   xhrMock = new mocks.XhrMock(sdk.window);
+  cryptoMock = new mocks.CryptoMock(sdk.window);
   mocks.setCookieMock(sdk.window.document);
 });
 
@@ -99,7 +101,7 @@ describe('when auto refreshing a non-expired identity which requires a refresh',
 
   describe('when token refresh succeeds', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'success', body: updatedIdentity });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'success', body: updatedIdentity }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -123,7 +125,7 @@ describe('when auto refreshing a non-expired identity which requires a refresh',
 
   describe('when token refresh returns optout', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'optout' });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'optout' }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -147,7 +149,7 @@ describe('when auto refreshing a non-expired identity which requires a refresh',
 
   describe('when token refresh returns refresh token expired', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'expired_token' });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'expired_token' }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -250,7 +252,7 @@ describe('when auto refreshing an expired identity', () => {
 
   describe('when token refresh succeeds', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'success', body: updatedIdentity });
+    xhrMock.responseText = btoa(JSON.stringify({ status: 'success', body: updatedIdentity }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -274,7 +276,7 @@ describe('when auto refreshing an expired identity', () => {
 
   describe('when token refresh returns optout', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'optout' });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'optout' }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -298,7 +300,7 @@ describe('when auto refreshing an expired identity', () => {
 
   describe('when token refresh returns refresh token expired', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'expired_token' });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'expired_token' }));
       xhrMock.onreadystatechange(new Event(''));
     });
 

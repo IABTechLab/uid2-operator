@@ -21,12 +21,13 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-const sdk = require('../../static/js/uid2-sdk-1.0.0.js');
+const sdk = require('../../static/js/uid2-sdk-2.0.0.js');
 const mocks = require('../mocks.js');
 
 let callback;
 let uid2;
 let xhrMock;
+let cryptoMock;
 
 mocks.setupFakeTime();
 
@@ -34,6 +35,7 @@ beforeEach(() => {
   callback = jest.fn();
   uid2 = new sdk.UID2();
   xhrMock = new mocks.XhrMock(sdk.window);
+  cryptoMock = new mocks.CryptoMock(sdk.window);
   mocks.setCookieMock(sdk.window.document);
 });
 
@@ -78,6 +80,7 @@ describe('when getAdvertisingTokenAsync is called before init', () => {
       });
       uid2.init({ callback: callback, identity: originalIdentity });
       xhrMock.responseText = JSON.stringify({ status: 'optout' });
+      xhrMock.status = 400;
       xhrMock.onreadystatechange(new Event(''));
       return expect(p).rejects.toBeInstanceOf(Error);
     });
@@ -184,7 +187,7 @@ describe('when getAdvertisingTokenAsync is called before refresh on init complet
         expect(callback).toHaveBeenCalled();
         return token;
       });
-      xhrMock.responseText = JSON.stringify({ status: 'success', body: updatedIdentity });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'success', body: updatedIdentity }));
       xhrMock.onreadystatechange(new Event(''));
       return expect(p).resolves.toBe(updatedIdentity.advertising_token);
     });

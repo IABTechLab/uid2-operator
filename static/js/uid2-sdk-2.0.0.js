@@ -21,7 +21,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-
 class UID2 {
     static get VERSION() {
         return "2.0.0";
@@ -271,8 +270,9 @@ class UID2 {
 
         function createArrayBuffer(text) {
             let arrayBuffer = new Uint8Array(text.length);
-            for (let i = text.length; i--;)
+            for (let i = 0; i < text.length; i++) {
                 arrayBuffer[i] = text.charCodeAt(i);
+            }
             return arrayBuffer;
         }
 
@@ -310,12 +310,8 @@ class UID2 {
                                 const response = JSON.parse(decryptedResponse);
                                 if (!checkResponseStatus(identity, response)) return;
                                 setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
-                            }).catch((err) => {
-                                handleRefreshFailure(identity, err.message);
-                            });
-                        }).catch((err) => {
-                            console.error(err);
-                        });
+                            })
+                        })
                     }
                 } catch (err) {
                     handleRefreshFailure(identity, err.message);

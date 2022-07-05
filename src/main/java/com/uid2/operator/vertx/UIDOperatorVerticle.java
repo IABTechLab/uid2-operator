@@ -221,7 +221,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         v2Router.post("/key/latest").handler(auth.handleV1(
             rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         v2Router.post("/token/logout").handler(auth.handleV1(
-            rc -> v2PayloadHandler.handle(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
+            rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
         mainRouter.mountSubRouter("/v2", v2Router);
     }
@@ -531,7 +531,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleLogoutAsyncV2(RoutingContext rc) {
+    private Future handleLogoutAsyncV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
         if (input.isValid()) {
@@ -548,9 +548,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
                 promise.complete();
             });
-            rc.data().put("async", promise.future());
+            return promise.future();
         } else {
             rc.fail(400);
+            return Future.failedFuture("");
         }
     }
 

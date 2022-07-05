@@ -8,8 +8,8 @@ import com.uid2.operator.service.V2RequestUtil;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
-import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.store.IKeyStore;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
@@ -18,9 +18,7 @@ import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.RoutingContext;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
+import java.util.function.Function;
 
 public class V2PayloadHandler {
     private static final io.vertx.core.logging.Logger LOGGER = LoggerFactory.getLogger(V2PayloadHandler.class);
@@ -52,19 +50,25 @@ public class V2PayloadHandler {
 
         apiHandler.handle(rc);
 
-        if (rc.response().getStatusCode() != 200) {
+        handleResponse(rc, request);
+    }
+
+    public void handleAsync(RoutingContext rc, Function<RoutingContext, Future> apiHandler) {
+        if (!enableEncryption) {
+            apiHandler.apply(rc);
             return;
         }
 
-        try {
-            JsonObject respJson = (JsonObject) rc.data().get("response");
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.getBodyAsString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        if (!request.isValid()) {
+            ResponseUtil.ClientError(rc, request.errorMessage);
+            return;
+        }
+        rc.data().put("request", request.payload);
 
-            writeResponse(rc, request.nonce, respJson, request.encryptionKey);
-        }
-        catch (Exception ex){
-            LOGGER.error("Failed to generate response", ex);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
-        }
+        apiHandler.apply(rc).onComplete(ar -> {
+            handleResponse(rc, request);
+        });
     }
 
     public void handleTokenGenerate(RoutingContext rc, Handler<RoutingContext> apiHandler) {
@@ -171,6 +175,21 @@ public class V2PayloadHandler {
 
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
         rc.response().end(Utils.toBase64String(EncryptionHelper.encryptGCM(buffer.getBytes(), keyBytes)));
+    }
+
+    private void handleResponse(RoutingContext rc, V2RequestUtil.V2Request request) {
+        if (rc.response().getStatusCode() != 200) {
+            return;
+        }
+
+        try {
+            JsonObject respJson = (JsonObject) rc.data().get("response");
+
+            writeResponse(rc, request.nonce, respJson, request.encryptionKey);
+        } catch (Exception ex) {
+            LOGGER.error("Failed to generate response", ex);
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+        }
     }
 }
 

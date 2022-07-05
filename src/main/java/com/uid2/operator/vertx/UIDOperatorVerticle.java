@@ -42,9 +42,7 @@ import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Handler;
-import io.vertx.core.Promise;
+import io.vertx.core.*;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
@@ -223,7 +221,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         v2Router.post("/key/latest").handler(auth.handleV1(
             rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         v2Router.post("/token/logout").handler(auth.handleV1(
-            rc -> v2PayloadHandler.handle(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
+            rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
         mainRouter.mountSubRouter("/v2", v2Router);
     }
@@ -533,11 +531,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleLogoutAsyncV2(RoutingContext rc) {
+    private Future handleLogoutAsyncV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
         if (input.isValid()) {
             final Instant now = Instant.now();
+
+            Promise promise = Promise.promise();
             this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
@@ -546,9 +546,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 } else {
                     rc.fail(500);
                 }
+                promise.complete();
             });
+            return promise.future();
         } else {
             rc.fail(400);
+            return Future.failedFuture("");
         }
     }
 

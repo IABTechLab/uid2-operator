@@ -22,7 +22,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 const jsdom = require('jsdom');
-const sdk = require('../../static/js/uid2-sdk-1.0.0.js');
+const sdk = require('../static/js/uid2-sdk-1.0.0.js');
 
 class CookieMock {
   constructor(document) {
@@ -53,6 +53,8 @@ class XhrMock {
     this.abort            = jest.fn();
     this.overrideMimeType = jest.fn();
     this.setRequestHeader = jest.fn();
+    this.status = 200;
+    this.responseText = btoa("response_text")
     this.readyState       = this.DONE;
     this.applyTo = (window) => {
       jest.spyOn(window, 'XMLHttpRequest').mockImplementation(() => this);
@@ -60,6 +62,42 @@ class XhrMock {
 
     this.applyTo(window);
   }
+}
+
+class CryptoMock {
+  static decrypt_output = "decrypted_message";
+  constructor(window) {
+    this.getRandomValues = jest.fn();
+    this.subtle = {
+      encrypt: jest.fn(),
+      decrypt: jest.fn(),
+      importKey: jest.fn(),
+    };
+    let mockDecryptResponse = jest.fn();
+    mockDecryptResponse.mockImplementation((fn) => fn(CryptoMock.decrypt_output))
+
+    this.subtle.decrypt.mockImplementation((settings, key, data) => {
+      return {then: jest.fn().mockImplementation((func) => {
+        console.log(settings)
+        func(Buffer.concat([settings.iv, data]));
+        return {catch: jest.fn()}
+      })}
+    });
+
+    this.subtle.importKey.mockImplementation((format, key, algorithm, extractable, keyUsages) => {
+      return {then: jest.fn().mockImplementation((func) => {
+        func("key");
+        return {catch: jest.fn()}
+      })}
+    });
+
+    this.applyTo = (window) => {
+      window.crypto = this;
+    }
+
+    this.applyTo(window);
+  }
+
 }
 
 function setupFakeTime() {
@@ -94,7 +132,7 @@ function getUid2Cookie() {
   }
 }
 
-function makeIdentity(overrides) {
+function makeIdentityV1(overrides) {
   return {
      advertising_token: 'test_advertising_token',
      refresh_token: 'test_refresh_token',
@@ -105,13 +143,26 @@ function makeIdentity(overrides) {
   };
 }
 
+function makeIdentityV2(overrides) {
+  return {
+    advertising_token: 'test_advertising_token',
+    refresh_token: 'test_refresh_token',
+    refresh_response_key: btoa('test_refresh_response_key'),
+    refresh_from: Date.now() + 100000,
+    identity_expires: Date.now() + 200000,
+    refresh_expires: Date.now() + 300000,
+    ...(overrides || {}),
+  };
+}
 module.exports = {
   CookieMock: CookieMock,
   XhrMock: XhrMock,
+  CryptoMock: CryptoMock,
   setupFakeTime: setupFakeTime,
   resetFakeTime: resetFakeTime,
   setCookieMock: setCookieMock,
   setUid2Cookie: setUid2Cookie,
   getUid2Cookie: getUid2Cookie,
-  makeIdentity: makeIdentity,
+  makeIdentityV1: makeIdentityV1,
+  makeIdentityV2: makeIdentityV2,
 };

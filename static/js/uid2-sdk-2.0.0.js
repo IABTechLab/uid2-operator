@@ -268,7 +268,7 @@ class UID2 {
             }
         }
 
-        function createArrayBuffer(text) {
+        const createArrayBuffer = (text) => {
             let arrayBuffer = new Uint8Array(text.length);
             for (let i = 0; i < text.length; i++) {
                 arrayBuffer[i] = text.charCodeAt(i);

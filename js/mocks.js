@@ -132,6 +132,20 @@ function getUid2Cookie() {
   }
 }
 
+function setEuidCookie(value) {
+  document.cookie = "__euid" + '=' + encodeURIComponent(JSON.stringify(value));
+}
+
+function getEuidCookie() {
+  const docCookie = document.cookie;
+  if (docCookie) {
+    const payload = docCookie.split('; ').find(row => row.startsWith("__euid"+'='));
+    if (payload) {
+      return JSON.parse(decodeURIComponent(payload.split('=')[1]));
+    }
+  }
+}
+
 function makeIdentityV1(overrides) {
   return {
      advertising_token: 'test_advertising_token',
@@ -163,6 +177,8 @@ module.exports = {
   setCookieMock: setCookieMock,
   setUid2Cookie: setUid2Cookie,
   getUid2Cookie: getUid2Cookie,
+  setEuidCookie: setEuidCookie,
+  getEuidCookie: getEuidCookie,
   makeIdentityV1: makeIdentityV1,
   makeIdentityV2: makeIdentityV2,
 };

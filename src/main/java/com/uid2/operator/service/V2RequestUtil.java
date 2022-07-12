@@ -5,6 +5,8 @@ import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.store.IKeyStore;
+import com.uid2.shared.encryption.AesGcm;
+import com.uid2.shared.encryption.Random;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -42,7 +44,7 @@ public class V2RequestUtil {
     }
 
     // version: 1 byte, IV: 12 bytes, GCM tag: 16 bytes, timestamp: 8 bytes, nonce: 8 bytes
-    private static final int MIN_PAYLOAD_LENGTH = 1 + EncryptionHelper.GCM_IV_LENGTH + EncryptionHelper.GCM_AUTHTAG_LENGTH + 8 + 8;
+    private static final int MIN_PAYLOAD_LENGTH = 1 + AesGcm.GCM_IV_LENGTH + AesGcm.GCM_AUTHTAG_LENGTH + 8 + 8;
 
     private static final byte VERSION = 1;
 
@@ -73,7 +75,7 @@ public class V2RequestUtil {
 
         byte[] decryptedBody;
         try {
-            decryptedBody = EncryptionHelper.decryptGCM(bodyBytes, 1, ck.getSecretBytes());
+            decryptedBody = AesGcm.decrypt(bodyBytes, 1, ck.getSecretBytes());
         } catch (Exception ex) {
             return new V2Request("wrong data");
         }
@@ -126,7 +128,7 @@ public class V2RequestUtil {
 
         byte[] decrypted;
         try {
-            decrypted = EncryptionHelper.decryptGCM(bytes, 5, key);
+            decrypted = AesGcm.decrypt(bytes, 5, key);
         } catch (Exception ex) {
             LOGGER.error(ex);
             return new V2Request("wrong data");
@@ -149,13 +151,13 @@ public class V2RequestUtil {
 
         JsonObject tokenKeyJson = new JsonObject();
 
-        String refreshResponseKey = Utils.toBase64String(EncryptionHelper.getRandomKeyBytes());
+        String refreshResponseKey = Utils.toBase64String(Random.getRandomKeyBytes());
         tokenKeyJson.put("refresh_response_key", refreshResponseKey);
 
         String origToken = bodyJson.getString("refresh_token");
         tokenKeyJson.put("refresh_token", origToken);
 
-        byte[] encrypted = EncryptionHelper.encryptGCM(tokenKeyJson.encode().getBytes(StandardCharsets.UTF_8), refreshKey).getPayload();
+        byte[] encrypted = AesGcm.encrypt(tokenKeyJson.encode().getBytes(StandardCharsets.UTF_8), refreshKey).getPayload();
 
         String modifiedToken = Utils.toBase64String(Buffer.buffer()
             .appendByte(TokenUtils.encodeIdentityScope(identityScope))

@@ -2,13 +2,13 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.service.EncodingUtils;
-import com.uid2.operator.service.EncryptionHelper;
 import com.uid2.operator.service.ResponseUtil;
 import com.uid2.operator.service.V2RequestUtil;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.store.IKeyStore;
+import com.uid2.shared.encryption.AesGcm;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
@@ -140,7 +140,7 @@ public class V2PayloadHandler {
             if (request != null) {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
                 // Encrypt whole payload using key shared with client.
-                byte[] encryptedResp = EncryptionHelper.encryptGCM(
+                byte[] encryptedResp = AesGcm.encrypt(
                     respJson.encode().getBytes(StandardCharsets.UTF_8),
                     request.encryptionKey);
                 rc.response().end(Utils.toBase64String(encryptedResp));
@@ -174,7 +174,7 @@ public class V2PayloadHandler {
         buffer.appendBytes(resp.encode().getBytes(StandardCharsets.UTF_8));
 
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
-        rc.response().end(Utils.toBase64String(EncryptionHelper.encryptGCM(buffer.getBytes(), keyBytes)));
+        rc.response().end(Utils.toBase64String(AesGcm.encrypt(buffer.getBytes(), keyBytes)));
     }
 
     private void handleResponse(RoutingContext rc, V2RequestUtil.V2Request request) {

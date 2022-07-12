@@ -5,7 +5,7 @@
   "author": "",
   "license": "BSD",
   "scripts": {
-    "lint": "eslint -c .eslintrc.js . ../../static/js/uid2-sdk-1.0.0.js",
+    "lint": "eslint -c .eslintrc.js . ../static/js/uid2-sdk-2.0.0.js ../static/js/uid2-sdk-1.0.0.js",
     "test": "jest"
   },
   "jest": {

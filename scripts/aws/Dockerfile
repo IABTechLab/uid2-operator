@@ -1,4 +1,4 @@
-FROM openjdk:11.0-jre-slim
+FROM openjdk:11.0-jre-slim-bullseye
 
 WORKDIR /app
 ARG JAR_NAME=uid2-operator
@@ -20,6 +20,7 @@ COPY ./static /app/static
 COPY ./vsockpx /app/
 COPY ./libjnsm.so /app/lib/
 COPY ./load_config.py /app/
+COPY ./make_config.py /app/
 COPY ./entrypoint.sh /app/
 COPY ./proxies.nitro.yaml /app/
 COPY ./conf/default-config.json /app/conf/

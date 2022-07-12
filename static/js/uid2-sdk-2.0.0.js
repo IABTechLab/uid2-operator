@@ -21,10 +21,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-
 class UID2 {
     static get VERSION() {
-        return "1.0.2";
+        return "2.0.0";
     }
     static get COOKIE_NAME() {
         return "__uid_2";
@@ -73,7 +72,8 @@ class UID2 {
 
             _initCalled = true;
             _opts = opts;
-            applyIdentity(_opts.identity ? _opts.identity : loadIdentity());
+            let identity = _opts.identity ? _opts.identity : loadIdentity()
+            applyIdentity(identity);
         };
         this.getAdvertisingToken = () => {
             return _identity && !temporarilyUnavailable() ? _identity.advertising_token : undefined;
@@ -124,6 +124,7 @@ class UID2 {
         let _lastStatus;
         let _refreshTimerId;
         let _refreshReq;
+        let _refreshVersion;
         let _promises = [];
 
         // PRIVATE METHODS
@@ -196,6 +197,10 @@ class UID2 {
                 throw new InvalidIdentityError("advertising_token is not available or is not valid");
             } else if (!identity.refresh_token) {
                 throw new InvalidIdentityError("refresh_token is not available or is not valid");
+            } else if (identity.refresh_response_key) {
+                _refreshVersion = 2;
+            } else {
+                _refreshVersion = 1;
             }
         };
         const tryCheckIdentity = (identity) => {
@@ -262,27 +267,57 @@ class UID2 {
                 setRefreshTimer();
             }
         }
+
+        const createArrayBuffer = (text) => {
+            let arrayBuffer = new Uint8Array(text.length);
+            for (let i = 0; i < text.length; i++) {
+                arrayBuffer[i] = text.charCodeAt(i);
+            }
+            return arrayBuffer;
+        }
+
         const refreshToken = (identity) => {
             const baseUrl = getOptionOrDefault(_opts.baseUrl, "https://prod.uidapi.com");
-            const url = baseUrl + "/v1/token/refresh?refresh_token=" + encodeURIComponent(identity.refresh_token);
+            const url = baseUrl + "/v2/token/refresh";
             const req = new XMLHttpRequest();
             _refreshReq = req;
-            req.overrideMimeType("application/json");
-            req.open("GET", url, true);
+            req.overrideMimeType("text/plain");
+            req.open("POST", url, true);
             req.setRequestHeader('X-UID2-Client-Version', 'uid2-sdk-' + UID2.VERSION);
             req.onreadystatechange = () => {
                 _refreshReq = undefined;
                 if (req.readyState !== req.DONE) return;
                 try {
-                    const response = JSON.parse(req.responseText);
-                    if (!checkResponseStatus(identity, response)) return;
-                    checkIdentity(response.body);
-                    setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
+                    if(_refreshVersion === 1 || req.status !== 200) {
+                        const response = JSON.parse(req.responseText);
+                        if (!checkResponseStatus(identity, response)) return;
+                        setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
+                    } else  if(_refreshVersion === 2) {
+                        let encodeResp = createArrayBuffer(atob(req.responseText));
+                        window.crypto.subtle.importKey("raw", createArrayBuffer(atob(identity.refresh_response_key)),
+                            { name: "AES-GCM" }, false, ["decrypt"]
+                        ).then((key) => {
+                            //returns the symmetric key
+                            window.crypto.subtle.decrypt({
+                                    name: "AES-GCM",
+                                    iv: encodeResp.slice(0, 12), //The initialization vector you used to encrypt
+                                    tagLength: 128, //The tagLength you used to encrypt (if any)
+                                },
+                                key,
+                                encodeResp.slice(12)
+                            ).then((decrypted) => {
+                                const decryptedResponse = String.fromCharCode.apply(String, new Uint8Array(decrypted));
+                                const response = JSON.parse(decryptedResponse);
+                                if (!checkResponseStatus(identity, response)) return;
+                                setIdentity(response.body, UID2.IdentityStatus.REFRESHED, "Identity refreshed");
+                            })
+                        })
+                    }
                 } catch (err) {
                     handleRefreshFailure(identity, err.message);
                 }
             };
-            req.send();
+            req.send(identity.refresh_token);
         };
         const checkResponseStatus = (identity, response) => {
             if (typeof response !== 'object' || response === null) {

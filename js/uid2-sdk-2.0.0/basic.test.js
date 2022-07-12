@@ -21,12 +21,14 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-const sdk = require('../../static/js/uid2-sdk-1.0.0.js');
+const sdk = require('../../static/js/uid2-sdk-2.0.0.js');
 const mocks = require('../mocks.js');
+const {CryptoMock} = require("../mocks");
 
 let callback;
 let uid2;
 let xhrMock;
+let cryptoMock;
 
 mocks.setupFakeTime();
 
@@ -34,6 +36,7 @@ beforeEach(() => {
   callback = jest.fn();
   uid2 = new sdk.UID2();
   xhrMock = new mocks.XhrMock(sdk.window);
+  cryptoMock = new mocks.CryptoMock(sdk.window);
   mocks.setCookieMock(sdk.window.document);
 });
 
@@ -43,38 +46,23 @@ afterEach(() => {
 
 const setUid2Cookie = mocks.setUid2Cookie;
 const getUid2Cookie = mocks.getUid2Cookie;
-const makeIdentity = mocks.makeIdentityV1;
-const makeIdentity2 = mocks.makeIdentityV2;
+const makeIdentityV1 = mocks.makeIdentityV1;
+const makeIdentityV2 = mocks.makeIdentityV2;
 
 describe('When google tag setup is called', () => {
-  it('should define googletag and encryptedSignalProviders and push the uidapi.com signal provider if googletag is not yet defined', () => {
-    sdk.window.googletag = undefined;
-    sdk.UID2.setupGoogleTag();
-    const providers = sdk.window.googletag.encryptedSignalProviders;
-    expect(providers.length).toBe(1);
-    expect(providers[0].id).toBe('uidapi.com')
+  it('should not fail when there is no googletag', () => {
+    sdk.window.googletag = null;
+    expect(() => sdk.UID2.setupGoogleTag()).not.toThrow(TypeError);
   });
-  it('should define encryptedSignalProviders and push the uidapi.com signal provider if encryptedSignalProviders is not defined', () => {
-    sdk.window.googletag = {};
-    sdk.UID2.setupGoogleTag();
-    const providers = sdk.window.googletag.encryptedSignalProviders;
-    expect(providers.length).toBe(1);
-    expect(providers[0].id).toBe('uidapi.com')
+  it('should not fail when there is no googletag encryptedSignalProviders', () => {
+    sdk.window.googletag = {encryptedSignalProviders: null};
+    expect(() => sdk.UID2.setupGoogleTag()).not.toThrow(TypeError);
   });
-  it('should push uidapi.com signal provider if googletag has encryptedSignalProviders defined already', () => {
-    sdk.window.googletag = {
-      encryptedSignalProviders: [
-        {
-          id: 'another-provider',
-          collectorFunction: () => {}
-        }
-      ]
-    };
+  it('should push if googletag has encryptedSignalProviders', () => {
+    const mockPush = jest.fn();
+    sdk.window.googletag = {encryptedSignalProviders: {push: mockPush}};
     sdk.UID2.setupGoogleTag();
-    const providers = sdk.window.googletag.encryptedSignalProviders;
-    expect(providers.length).toBe(2);
-    expect(providers[0].id).toBe('another-provider');
-    expect(providers[1].id).toBe('uidapi.com')
+    expect(mockPush.mock.calls.length).toBe(1);
   });
 });
 
@@ -161,8 +149,8 @@ describe('when initialised without identity', () => {
     });
   });
 
-  describe('when uid2 cookie with up-to-date identity is available', () => {
-    const identity = makeIdentity();
+  describe('when uid2 cookie with up-to-date identity is available v2', () => {
+    const identity = makeIdentityV2();
 
     beforeEach(() => {
       setUid2Cookie(identity);
@@ -188,7 +176,7 @@ describe('when initialised without identity', () => {
   });
 
   describe('when uid2 cookie with expired refresh is available', () => {
-    const identity = makeIdentity({
+    const identity = makeIdentityV2({
       refresh_expires: Date.now() - 100000
     });
 
@@ -216,7 +204,7 @@ describe('when initialised without identity', () => {
   });
 
   describe('when uid2 cookie with valid but refreshable identity is available', () => {
-    const identity = makeIdentity({
+    const identity = makeIdentityV2({
       refresh_from: Date.now() - 100000
     });
 
@@ -237,30 +225,8 @@ describe('when initialised without identity', () => {
     });
   });
 
-  describe('when uid2 cookie with valid but refreshable identity v2 is available', () => {
-    const identity = makeIdentity2({
-      refresh_from: Date.now() - 100000
-    });
-
-    beforeEach(() => {
-      setUid2Cookie(identity);
-      uid2.init({ callback: callback });
-    });
-
-    it('should initiate token refresh', () => {
-      expect(xhrMock.send).toHaveBeenCalledTimes(1);
-    });
-    it('should not set refresh timer', () => {
-      expect(setTimeout).not.toHaveBeenCalled();
-      expect(clearTimeout).not.toHaveBeenCalled();
-    });
-    it('should be in initialising state', () => {
-      expect(uid2).toBeInInitialisingState();
-    });
-  });
-
-  describe('when uid2 cookie with expired but refreshable identity is available', () => {
-    const identity = makeIdentity({
+  describe('when uid2 v2 cookie with expired but refreshable identity is available', () => {
+    const identity = makeIdentityV2({
       identity_expires: Date.now() - 100000,
       refresh_from: Date.now() - 100000
     });
@@ -272,13 +238,39 @@ describe('when initialised without identity', () => {
 
     it('should initiate token refresh', () => {
       expect(xhrMock.send).toHaveBeenCalledTimes(1);
+      let url = "https://prod.uidapi.com/v2/token/refresh";
+      expect(xhrMock.open).toHaveBeenLastCalledWith("POST", url, true);
+      expect(xhrMock.send).toHaveBeenLastCalledWith(identity.refresh_token);
+      xhrMock.onreadystatechange();
+      expect(cryptoMock.subtle.importKey).toHaveBeenCalled();
     });
+
     it('should not set refresh timer', () => {
       expect(setTimeout).not.toHaveBeenCalled();
       expect(clearTimeout).not.toHaveBeenCalled();
     });
     it('should be in initialising state', () => {
       expect(uid2).toBeInInitialisingState();
+    });
+  });
+  describe('when uid2 v1 cookie with expired but refreshable identity is available', () => {
+    const identity = makeIdentityV1({
+      identity_expires: Date.now() - 100000,
+      refresh_from: Date.now() - 100000
+    });
+
+    beforeEach(() => {
+      setUid2Cookie(identity);
+      uid2.init({ callback: callback });
+    });
+
+    it('should initiate token refresh', () => {
+      expect(xhrMock.send).toHaveBeenCalledTimes(1);
+      let url = "https://prod.uidapi.com/v2/token/refresh";
+      expect(xhrMock.open).toHaveBeenLastCalledWith("POST", url, true);
+      expect(xhrMock.send).toHaveBeenLastCalledWith(identity.refresh_token);
+      xhrMock.onreadystatechange();
+      expect(cryptoMock.subtle.importKey).toHaveBeenCalledTimes(0);
     });
   });
 });
@@ -307,33 +299,8 @@ describe('when initialised with specific identity', () => {
     });
   });
 
-  describe('when valid identity is supplied', () => {
-    const identity = makeIdentity();
-
-    beforeEach(() => {
-      uid2.init({ callback: callback, identity: identity });
-    });
-
-    it('should invoke the callback', () => {
-      expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
-        advertising_token: identity.advertising_token,
-        status: sdk.UID2.IdentityStatus.ESTABLISHED,
-      }));
-    });
-    it('should set cookie', () => {
-      expect(getUid2Cookie().advertising_token).toBe(identity.advertising_token);
-    });
-    it('should set refresh timer', () => {
-      expect(setTimeout).toHaveBeenCalledTimes(1);
-      expect(clearTimeout).not.toHaveBeenCalled();
-    });
-    it('should be in available state', () => {
-      expect(uid2).toBeInAvailableState(identity.advertising_token);
-    });
-  });
-
-  describe('when valid identity v2 is supplied', () => {
-    const identity = makeIdentity2();
+  describe('when valid v2 identity is supplied', () => {
+    const identity = makeIdentityV2();
 
     beforeEach(() => {
       uid2.init({ callback: callback, identity: identity });
@@ -358,10 +325,10 @@ describe('when initialised with specific identity', () => {
   });
 
   describe('when valid identity is supplied and cookie is available', () => {
-    const initIdentity = makeIdentity({
+    const initIdentity = makeIdentityV2({
       advertising_token: 'init_advertising_token'
     });
-    const cookieIdentity = makeIdentity({
+    const cookieIdentity = makeIdentityV2({
       advertising_token: 'cookie_advertising_token'
     });
 
@@ -390,11 +357,11 @@ describe('when initialised with specific identity', () => {
 });
 
 describe('when still valid identity is refreshed on init', () => {
-  const originalIdentity = makeIdentity({
+  const originalIdentity = makeIdentityV2({
     advertising_token: 'original_advertising_token',
     refresh_from: Date.now() - 100000
   });
-  const updatedIdentity = makeIdentity({
+  const updatedIdentity = makeIdentityV2({
     advertising_token: 'updated_advertising_token'
   });
 
@@ -404,7 +371,7 @@ describe('when still valid identity is refreshed on init', () => {
 
   describe('when token refresh succeeds', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'success', body: updatedIdentity });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'success', body: updatedIdentity }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -452,7 +419,7 @@ describe('when still valid identity is refreshed on init', () => {
 
   describe('when token refresh returns optout', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'optout' });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'optout' }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -477,6 +444,7 @@ describe('when still valid identity is refreshed on init', () => {
   describe('when token refresh returns expired token', () => {
     beforeEach(() => {
       xhrMock.responseText = JSON.stringify({ status: 'expired_token' });
+      xhrMock.status = 400;
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -621,12 +589,12 @@ describe('when still valid identity is refreshed on init', () => {
 });
 
 describe('when expired identity is refreshed on init', () => {
-  const originalIdentity = makeIdentity({
+  const originalIdentity = makeIdentityV2({
     advertising_token: 'original_advertising_token',
     refresh_from: Date.now() - 100000,
     identity_expires: Date.now() - 1
   });
-  const updatedIdentity = makeIdentity({
+  const updatedIdentity = makeIdentityV2({
     advertising_token: 'updated_advertising_token'
   });
 
@@ -636,7 +604,7 @@ describe('when expired identity is refreshed on init', () => {
 
   describe('when token refresh succeeds', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'success', body: updatedIdentity });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'success', body: updatedIdentity }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -660,7 +628,7 @@ describe('when expired identity is refreshed on init', () => {
 
   describe('when token refresh returns optout', () => {
     beforeEach(() => {
-      xhrMock.responseText = JSON.stringify({ status: 'optout' });
+      xhrMock.responseText = btoa(JSON.stringify({ status: 'optout' }));
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -685,6 +653,7 @@ describe('when expired identity is refreshed on init', () => {
   describe('when token refresh returns expired token', () => {
     beforeEach(() => {
       xhrMock.responseText = JSON.stringify({ status: 'expired_token' });
+      xhrMock.status = 400;
       xhrMock.onreadystatechange(new Event(''));
     });
 
@@ -758,13 +727,13 @@ describe('when expired identity is refreshed on init', () => {
 
 describe('abort()', () => {
   it('should not clear cookie', () => {
-    const identity = makeIdentity();
+    const identity = makeIdentityV2();
     setUid2Cookie(identity);
     uid2.abort();
     expect(getUid2Cookie().advertising_token).toBe(identity.advertising_token);
   });
   it('should abort refresh timer', () => {
-    uid2.init({ callback: callback, identity: makeIdentity() });
+    uid2.init({ callback: callback, identity: makeIdentityV2() });
     expect(setTimeout).toHaveBeenCalledTimes(1);
     expect(clearTimeout).not.toHaveBeenCalled();
     uid2.abort();
@@ -772,7 +741,7 @@ describe('abort()', () => {
     expect(clearTimeout).toHaveBeenCalledTimes(1);
   });
   it('should not abort refresh timer if not timer is set', () => {
-    uid2.init({ callback: callback, identity: makeIdentity({ refresh_from: Date.now() - 100000 }) });
+    uid2.init({ callback: callback, identity: makeIdentityV2({ refresh_from: Date.now() - 100000 }) });
     expect(setTimeout).not.toHaveBeenCalled();
     expect(clearTimeout).not.toHaveBeenCalled();
     uid2.abort();
@@ -780,7 +749,7 @@ describe('abort()', () => {
     expect(clearTimeout).not.toHaveBeenCalled();
   });
   it('should abort refresh token request', () => {
-    uid2.init({ callback: callback, identity: makeIdentity({ refresh_from: Date.now() - 100000 }) });
+    uid2.init({ callback: callback, identity: makeIdentityV2({ refresh_from: Date.now() - 100000 }) });
     expect(xhrMock.send).toHaveBeenCalledTimes(1);
     expect(xhrMock.abort).not.toHaveBeenCalled();
     uid2.abort();
@@ -795,12 +764,12 @@ describe('abort()', () => {
 
 describe('disconnect()', () => {
   it('should clear cookie', () => {
-    setUid2Cookie(makeIdentity());
+    setUid2Cookie(makeIdentityV2());
     uid2.disconnect();
     expect(getUid2Cookie()).toBeUndefined();
   });
   it('should abort refresh timer', () => {
-    uid2.init({ callback: callback, identity: makeIdentity() });
+    uid2.init({ callback: callback, identity: makeIdentityV2() });
     expect(setTimeout).toHaveBeenCalledTimes(1);
     expect(clearTimeout).not.toHaveBeenCalled();
     uid2.disconnect();
@@ -808,7 +777,7 @@ describe('disconnect()', () => {
     expect(clearTimeout).toHaveBeenCalledTimes(1);
   });
   it('should abort refresh token request', () => {
-    uid2.init({ callback: callback, identity: makeIdentity({ refresh_from: Date.now() - 100000 }) });
+    uid2.init({ callback: callback, identity: makeIdentityV2({ refresh_from: Date.now() - 100000 }) });
     expect(xhrMock.send).toHaveBeenCalledTimes(1);
     expect(xhrMock.abort).not.toHaveBeenCalled();
     uid2.disconnect();
@@ -816,7 +785,7 @@ describe('disconnect()', () => {
     expect(xhrMock.abort).toHaveBeenCalledTimes(1);
   });
   it('should not invoke callback after aborting refresh token request', () => {
-    uid2.init({ callback: callback, identity: makeIdentity({ refresh_from: Date.now() - 100000 }) });
+    uid2.init({ callback: callback, identity: makeIdentityV2({ refresh_from: Date.now() - 100000 }) });
     uid2.disconnect();
     expect(callback).not.toHaveBeenCalled();
   });
@@ -825,7 +794,7 @@ describe('disconnect()', () => {
     expect(() => uid2.init({ callback: () => {} })).toThrow();
   });
   it('should switch to unavailable state', () => {
-    uid2.init({ callback: callback, identity: makeIdentity() });
+    uid2.init({ callback: callback, identity: makeIdentityV2() });
     uid2.disconnect();
     expect(uid2).toBeInUnavailableState();
   });

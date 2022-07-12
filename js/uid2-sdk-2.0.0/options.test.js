@@ -21,7 +21,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-const sdk = require('../../static/js/uid2-sdk-1.0.0.js');
+const sdk = require('../../static/js/uid2-sdk-2.0.0.js');
 const mocks = require('../mocks.js');
 
 let callback;
@@ -46,7 +46,7 @@ afterEach(() => {
   mocks.resetFakeTime();
 });
 
-const makeIdentity = mocks.makeIdentityV1;
+const makeIdentity = mocks.makeIdentityV2;
 
 describe('cookieDomain option', () => {
   describe('when using default value', () => {

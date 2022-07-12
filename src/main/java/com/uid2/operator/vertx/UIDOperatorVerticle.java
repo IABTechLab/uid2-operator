@@ -46,12 +46,9 @@ import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Handler;
-import io.vertx.core.Promise;
+import io.vertx.core.*;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -183,33 +180,36 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
-        router.route().handler(new StatsCollectorHandler(_statCollectorCount, vertx));
-        // Current version APIs
-        router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
-        router.get("/v1/token/validate").handler(this::handleTokenValidateV1);
-        router.get("/v1/token/refresh").handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1));
-        router.get("/v1/identity/buckets").handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
-        router.get("/v1/identity/map").handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
-        router.post("/v1/identity/map").handler(auth.handle(this::handleIdentityMapBatchV1, Role.MAPPER));
-        router.get("/v1/key/latest").handler(auth.handle(this::handleKeysRequestV1, Role.ID_READER));
+        setupV2Routes(router);
 
-        // Deprecated APIs
-        router.get("/key/latest").handler(auth.handle(this::handleKeysRequest, Role.ID_READER));
-        router.get("/token/generate").handler(auth.handle(this::handleTokenGenerate, Role.GENERATOR));
-        router.get("/token/refresh").handler(this::handleTokenRefresh);
-        router.get("/token/validate").handler(this::handleValidate);
-        router.get("/identity/map").handler(auth.handle(this::handleIdentityMap, Role.MAPPER));
-        router.post("/identity/map").handler(auth.handle(this::handleIdentityMapBatch, Role.MAPPER));
-
-        // Internal service APIs and static data
-        router.get("/token/logout").handler(auth.handle(this::handleLogoutAsync, Role.OPTOUT));
+        // Static and health check
         router.get("/ops/healthcheck").handler(this::handleHealthCheck);
         router.route("/static/*").handler(StaticHandler.create("static"));
 
-        // only uncomment to do local testing
-        //router.get("/internal/optout/get").handler(auth.loopbackOnly(this::handleOptOutGet));
+        if (this.config.getBoolean(Const.Config.AllowLegacyAPIProp, true)) {
+            // V1 APIs
+            router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
+            router.get("/v1/token/validate").handler(this::handleTokenValidateV1);
+            router.get("/v1/token/refresh").handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1));
+            router.get("/v1/identity/buckets").handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
+            router.get("/v1/identity/map").handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
+            router.post("/v1/identity/map").handler(auth.handle(this::handleIdentityMapBatchV1, Role.MAPPER));
+            router.get("/v1/key/latest").handler(auth.handle(this::handleKeysRequestV1, Role.ID_READER));
 
-        setupV2Routes(router);
+            // Deprecated APIs
+            router.get("/key/latest").handler(auth.handle(this::handleKeysRequest, Role.ID_READER));
+            router.get("/token/generate").handler(auth.handle(this::handleTokenGenerate, Role.GENERATOR));
+            router.get("/token/refresh").handler(this::handleTokenRefresh);
+            router.get("/token/validate").handler(this::handleValidate);
+            router.get("/identity/map").handler(auth.handle(this::handleIdentityMap, Role.MAPPER));
+            router.post("/identity/map").handler(auth.handle(this::handleIdentityMapBatch, Role.MAPPER));
+
+            // Internal service APIs
+            router.get("/token/logout").handler(auth.handle(this::handleLogoutAsync, Role.OPTOUT));
+
+            // only uncomment to do local testing
+            //router.get("/internal/optout/get").handler(auth.loopbackOnly(this::handleOptOutGet));
+        }
 
         return router;
     }
@@ -230,7 +230,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         v2Router.post("/key/latest").handler(auth.handleV1(
             rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         v2Router.post("/token/logout").handler(auth.handleV1(
-            rc -> v2PayloadHandler.handle(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
+            rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
         mainRouter.mountSubRouter("/v2", v2Router);
     }
@@ -540,11 +540,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    private void handleLogoutAsyncV2(RoutingContext rc) {
+    private Future handleLogoutAsyncV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
         if (input.isValid()) {
             final Instant now = Instant.now();
+
+            Promise promise = Promise.promise();
             this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
@@ -553,9 +555,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 } else {
                     rc.fail(500);
                 }
+                promise.complete();
             });
+            return promise.future();
         } else {
             rc.fail(400);
+            return Future.failedFuture("");
         }
     }
 

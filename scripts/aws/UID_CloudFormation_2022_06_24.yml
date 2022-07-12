@@ -209,7 +209,7 @@ Resources:
   SSMKEYAlias:
     Type: AWS::KMS::Alias
     Properties: 
-      AliasName: alias/uid-secret
+      AliasName: !Sub 'alias/uid-secret-${AWS::StackName}'
       TargetKeyId: !Ref KMSKey
   TokenSecret:
     Type: AWS::SecretsManager::Secret
@@ -246,7 +246,7 @@ Resources:
                   - 'kms:Decrypt*'
                   - 'kms:GenerateDataKey*'
                   - 'kms:Describe*'
-                Resource: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/uid-secret'
+                Resource: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/uid-secret-${AWS::StackName}'
               - Effect: Allow
                 Action: 'secretsmanager:GetSecretValue'
                 Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:uid2-config-stack-${AWS::StackName}*'

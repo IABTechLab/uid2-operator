@@ -23,9 +23,11 @@
 
 package com.uid2.operator;
 
-import com.uid2.operator.model.EncryptedPayload;
+import com.uid2.shared.encryption.AesCbc;
+import com.uid2.shared.encryption.Random;
 import com.uid2.shared.model.EncryptionKey;
-import com.uid2.operator.service.EncryptionHelper;
+import com.uid2.shared.model.EncryptedPayload;
+import com.uid2.shared.encryption.AesGcm;
 import junit.framework.TestCase;
 import org.junit.Assert;
 
@@ -45,11 +47,11 @@ public class EncryptionTest extends TestCase {
 
     public void testEncryption() throws Exception {
 
-        final EncryptionKey key = new EncryptionKey(1, EncryptionHelper.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), -1);
+        final EncryptionKey key = new EncryptionKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), -1);
         final String testString = "foo@bar.comasdadsjahjhafjhjkfhakjhfkjshdkjfhaskdjfh";
 
-        final EncryptedPayload payload = EncryptionHelper.encrypt(testString, key);
-        final byte[] decrypted = EncryptionHelper.decrypt(payload.getPayload(), key);
+        final EncryptedPayload payload = AesCbc.encrypt(testString, key);
+        final byte[] decrypted = AesCbc.decrypt(payload.getPayload(), key);
 
         final String decryptedString = new String(decrypted, "UTF-8");
         Assert.assertEquals(testString, decryptedString);
@@ -62,7 +64,7 @@ public class EncryptionTest extends TestCase {
         }
         System.out.println("Java VM property java.security.egd: " + System.getProperty("java.security.egd"));
         final int runs = 1000000;
-        final EncryptionKey key = new EncryptionKey(1, EncryptionHelper.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), -1);
+        final EncryptionKey key = new EncryptionKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), -1);
 
         final EncryptedPayload[] payloads = new EncryptedPayload[runs];
 
@@ -70,7 +72,7 @@ public class EncryptionTest extends TestCase {
         for (int i = 0; i < runs; ++i) {
             final String input = "foo@bar.com" + i;
             inputs[i] = input;
-            payloads[i] = EncryptionHelper.encrypt(input, key);
+            payloads[i] = AesCbc.encrypt(input, key);
         }
 
         long startBase = System.nanoTime();
@@ -82,7 +84,7 @@ public class EncryptionTest extends TestCase {
         final SecretKey decryptionKey = new SecretKeySpec(key.getKeyBytes(), "AES");
         long startDecrypt = System.nanoTime();
         for (int i = 0; i < runs; ++i) {
-            EncryptionHelper.decrypt(payloads[0].getPayload(), decryptionKey);
+            AesCbc.decrypt(payloads[0].getPayload(), decryptionKey);
         }
         long endDecrypt = System.nanoTime();
 
@@ -143,10 +145,10 @@ public class EncryptionTest extends TestCase {
     }
 
     public void testGCMEncryptionDecryption() {
-        final EncryptionKey key = new EncryptionKey(1, EncryptionHelper.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), -1);
+        final EncryptionKey key = new EncryptionKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), -1);
         String plaintxt = "hello world";
-        EncryptedPayload payload = EncryptionHelper.encryptGCM(plaintxt.getBytes(StandardCharsets.UTF_8), key);
-        String decryptedText = new String(EncryptionHelper.decryptGCM(payload.getPayload(), 0, key), StandardCharsets.UTF_8);
+        EncryptedPayload payload = AesGcm.encrypt(plaintxt.getBytes(StandardCharsets.UTF_8), key);
+        String decryptedText = new String(AesGcm.decrypt(payload.getPayload(), 0, key), StandardCharsets.UTF_8);
         assertEquals(plaintxt, decryptedText);
     }
 }

@@ -27,6 +27,8 @@ import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.model.EncryptionKey;
+import com.uid2.shared.encryption.AesCbc;
+import com.uid2.shared.encryption.AesGcm;
 import io.vertx.core.buffer.Buffer;
 
 import java.time.Instant;
@@ -59,7 +61,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         b2.appendLong(t.expiresAt.toEpochMilli());
         encodeSiteIdentityV2(b2, t.publisherIdentity, t.userIdentity, siteKey);
 
-        final byte[] encryptedId = EncryptionHelper.encrypt(b2.getBytes(), masterKey).getPayload();
+        final byte[] encryptedId = AesCbc.encrypt(b2.getBytes(), masterKey).getPayload();
 
         b.appendBytes(encryptedId);
 
@@ -79,13 +81,13 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         masterPayload.appendLong(t.createdAt.toEpochMilli());
         encodeOperatorIdentityV3(masterPayload, t.operatorIdentity);
         masterPayload.appendInt(siteKey.getId());
-        masterPayload.appendBytes(EncryptionHelper.encryptGCM(sitePayload.getBytes(), siteKey).getPayload());
+        masterPayload.appendBytes(AesGcm.encrypt(sitePayload.getBytes(), siteKey).getPayload());
 
         final Buffer b = Buffer.buffer(164);
         b.appendByte(encodeIdentityTypeV3(t.userIdentity));
         b.appendByte((byte) t.version.rawVersion);
         b.appendInt(masterKey.getId());
-        b.appendBytes(EncryptionHelper.encryptGCM(masterPayload.getBytes(), masterKey).getPayload());
+        b.appendBytes(AesGcm.encrypt(masterPayload.getBytes(), masterKey).getPayload());
 
         return b.getBytes();
     }
@@ -112,7 +114,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         final EncryptionKey key = this.keyStore.getSnapshot().getKey(keyId);
 
-        final byte[] decryptedPayload = EncryptionHelper.decrypt(b.slice(29, b.length()).getBytes(), key);
+        final byte[] decryptedPayload = AesCbc.decrypt(b.slice(29, b.length()).getBytes(), key);
 
         final Buffer b2 = Buffer.buffer(decryptedPayload);
 
@@ -140,7 +142,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final int keyId = b.getInt(2);
         final EncryptionKey key = this.keyStore.getSnapshot().getKey(keyId);
 
-        final byte[] decryptedPayload = EncryptionHelper.decryptGCM(bytes, 6, key);
+        final byte[] decryptedPayload = AesGcm.decrypt(bytes, 6, key);
 
         final Buffer b2 = Buffer.buffer(decryptedPayload);
         final Instant expiresAt = Instant.ofEpochMilli(b2.getLong(0));
@@ -183,14 +185,14 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         try {
             final int masterKeyId = b.getInt(1);
 
-            final byte[] decryptedPayload = EncryptionHelper.decrypt(b.slice(5, b.length()).getBytes(), this.keyStore.getSnapshot().getKey(masterKeyId));
+            final byte[] decryptedPayload = AesCbc.decrypt(b.slice(5, b.length()).getBytes(), this.keyStore.getSnapshot().getKey(masterKeyId));
 
             final Buffer b2 = Buffer.buffer(decryptedPayload);
 
             final long expiresMillis = b2.getLong(0);
             final int siteKeyId = b2.getInt(8);
 
-            final byte[] decryptedSitePayload = EncryptionHelper.decrypt(b2.slice(12, b2.length()).getBytes(), this.keyStore.getSnapshot().getKey(siteKeyId));
+            final byte[] decryptedSitePayload = AesCbc.decrypt(b2.slice(12, b2.length()).getBytes(), this.keyStore.getSnapshot().getKey(siteKeyId));
 
             final Buffer b3 = Buffer.buffer(decryptedSitePayload);
 
@@ -220,14 +222,14 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     public AdvertisingToken decodeAdvertisingTokenV3(Buffer b, byte[] bytes) {
         final int masterKeyId = b.getInt(2);
 
-        final byte[] masterPayloadBytes = EncryptionHelper.decryptGCM(bytes, 6, this.keyStore.getSnapshot().getKey(masterKeyId));
+        final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, this.keyStore.getSnapshot().getKey(masterKeyId));
         final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
         final Instant expiresAt = Instant.ofEpochMilli(masterPayload.getLong(0));
         final Instant createdAt = Instant.ofEpochMilli(masterPayload.getLong(8));
         final OperatorIdentity operatorIdentity = decodeOperatorIdentityV3(masterPayload, 16);
         final int siteKeyId = masterPayload.getInt(29);
 
-        final Buffer sitePayload = Buffer.buffer(EncryptionHelper.decryptGCM(masterPayloadBytes, 33, this.keyStore.getSnapshot().getKey(siteKeyId)));
+        final Buffer sitePayload = Buffer.buffer(AesGcm.decrypt(masterPayloadBytes, 33, this.keyStore.getSnapshot().getKey(siteKeyId)));
         final PublisherIdentity publisherIdentity = decodePublisherIdentityV3(sitePayload, 0);
         final int privacyBits = sitePayload.getInt(16);
         final Instant establishedAt = Instant.ofEpochMilli(sitePayload.getLong(20));
@@ -288,7 +290,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         b.appendByte(encodeIdentityTypeV3(t.userIdentity));
         b.appendByte((byte) t.version.rawVersion);
         b.appendInt(serviceKey.getId());
-        b.appendBytes(EncryptionHelper.encryptGCM(refreshPayload.getBytes(), serviceKey).getPayload());
+        b.appendBytes(AesGcm.encrypt(refreshPayload.getBytes(), serviceKey).getPayload());
 
         return b.getBytes();
     }
@@ -339,7 +341,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         }
         b.appendInt(identity.privacyBits);
         b.appendLong(identity.establishedAt.toEpochMilli());
-        return EncryptionHelper.encrypt(b.getBytes(), key).getPayload();
+        return AesCbc.encrypt(b.getBytes(), key).getPayload();
     }
 
     static private byte encodeIdentityTypeV3(UserIdentity userIdentity) {

@@ -2,10 +2,12 @@ package com.uid2.operator.monitoring;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
+import com.uid2.operator.model.IStatsCollectorQueue;
 import com.uid2.operator.model.StatsCollectorMessageItem;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
 import io.vertx.core.WorkerExecutor;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.logging.Logger;
@@ -19,7 +21,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
-public class StatsCollectorVerticle extends AbstractVerticle {
+public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCollectorQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(StatsCollectorVerticle.class);
     private HashMap<String, EndpointStat> pathMap;
 
@@ -37,11 +39,12 @@ public class StatsCollectorVerticle extends AbstractVerticle {
     private WorkerExecutor jsonSerializerExecutor;
 
     private final ObjectMapper mapper;
+    private final Counter queueFullCounter;
 
-    public StatsCollectorVerticle(long jsonIntervalMS, AtomicInteger statsCollectorCount) {
+    public StatsCollectorVerticle(long jsonIntervalMS) {
         pathMap = new HashMap<>();
 
-        _statsCollectorCount = statsCollectorCount;
+        _statsCollectorCount = new AtomicInteger();
         _runningSerializer = false;
 
         jsonProcessingInterval = jsonIntervalMS;
@@ -54,6 +57,10 @@ public class StatsCollectorVerticle extends AbstractVerticle {
         domainMissedCounter = Counter
                 .builder("uid2.api_usage_domain_missed")
                 .description("counter for how many domains are missed because the dictionary is full")
+                .register(Metrics.globalRegistry);
+        queueFullCounter = Counter
+                .builder("uid2.api_usage_queue_full")
+                .description("counter for how many usage messages are dropped because the queue is full")
                 .register(Metrics.globalRegistry);
 
         mapper = new ObjectMapper();
@@ -162,6 +169,21 @@ public class StatsCollectorVerticle extends AbstractVerticle {
             }
         }
         return completeStats.toString();
+    }
+
+    @Override
+    public void enqueue(Vertx sendersVertx, StatsCollectorMessageItem messageItem) {
+        if (_statsCollectorCount.get() >= MAX_AVAILABLE) {
+            queueFullCounter.increment();
+            return;
+        }
+
+        try {
+            vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
+            _statsCollectorCount.incrementAndGet();
+        } catch (JsonProcessingException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
     }
 
     static class DomainStat {

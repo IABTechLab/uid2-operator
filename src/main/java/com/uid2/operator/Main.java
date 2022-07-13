@@ -23,6 +23,7 @@
 
 package com.uid2.operator;
 
+import com.uid2.operator.model.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.store.*;
@@ -93,7 +94,7 @@ public class Main {
 
     private final OperatorMetrics metrics;
 
-    private final AtomicInteger _statsCollectorCount;
+    private IStatsCollectorQueue _statsCollectorQueue;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -157,8 +158,6 @@ public class Main {
         }
 
         metrics = new OperatorMetrics(keyStore, saltProvider);
-
-        _statsCollectorCount = new AtomicInteger(0);
     }
 
     public static void main(String[] args) throws Exception {
@@ -236,7 +235,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorCount);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;
@@ -246,7 +245,17 @@ public class Main {
         int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
         options.setInstances(svcInstances);
 
-        createStoreVerticles()
+        Promise<Void> compositePromise = Promise.promise();
+        List<Future> fs = new ArrayList<>();
+        fs.add(createAndDeployStatsCollector());
+        fs.add(createStoreVerticles());
+
+        CompositeFuture.all(fs).onComplete(ar -> {
+            if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
+            else compositePromise.complete();
+        });
+
+        compositePromise.future()
             .compose(v -> {
                 metrics.setup();
                 vertx.setPeriodic(60000, id -> metrics.update());
@@ -260,8 +269,6 @@ public class Main {
                 vertx.close();
                 System.exit(1);
             });
-
-        createAndDeployStatsCollector();
     }
 
     private Future<Void> createStoreVerticles() throws Exception {
@@ -308,8 +315,9 @@ public class Main {
 
     private Future<String> createAndDeployStatsCollector() {
         Promise<String> promise = Promise.promise();
-        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, this._statsCollectorCount);
+        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(6000);
         vertx.deployVerticle(statsCollectorVerticle, ar -> promise.handle(ar));
+        _statsCollectorQueue = statsCollectorVerticle;
         return promise.future();
     }
 

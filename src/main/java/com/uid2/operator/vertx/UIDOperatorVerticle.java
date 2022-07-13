@@ -98,7 +98,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
 
-    private AtomicInteger _statCollectorCount;
+    private IStatsCollectorQueue _statsCollectorQueue;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -107,7 +107,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                                ISaltProvider saltProvider,
                                IOptOutStore optOutStore,
                                Clock clock,
-                               AtomicInteger statCollectorCount) {
+                               IStatsCollectorQueue statsCollectorQueue) {
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -116,10 +116,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
-        _statCollectorCount = statCollectorCount;
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
         this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
+
+        _statsCollectorQueue = statsCollectorQueue;
     }
 
     @Override
@@ -179,6 +180,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             .allowedHeader("Access-Control-Allow-Headers")
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
+
+        router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
 
         setupV2Routes(router);
 

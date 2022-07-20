@@ -3,6 +3,7 @@ package com.uid2.operator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.model.StatsCollectorMessageItem;
+import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import io.vertx.core.Vertx;
 import io.vertx.core.logging.Logger;
@@ -29,13 +30,11 @@ public class StatsCollectorVerticleTest {
     @Mock
     private Logger loggerMock;
 
-    private AtomicInteger statsCollectorRunning;
 
     private StatsCollectorVerticle verticle;
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext) throws Throwable {
-        statsCollectorRunning = new AtomicInteger(0);
         loggerMock = mock(Logger.class);
         Field field = StatsCollectorVerticle.class.getDeclaredField( "LOGGER" );
         field.setAccessible(true);
@@ -47,7 +46,7 @@ public class StatsCollectorVerticleTest {
 
         field.set(null, loggerMock);
 
-        verticle = new StatsCollectorVerticle(1000, statsCollectorRunning);
+        verticle = new StatsCollectorVerticle(1000);
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
     }
 
@@ -55,19 +54,6 @@ public class StatsCollectorVerticleTest {
     @Test
     void verticleDeployed(Vertx vertx, VertxTestContext testContext) {
        testContext.completeNow();
-    }
-
-    @Test
-    void atomicIntDecremented(Vertx vertx, VertxTestContext testContext) throws JsonProcessingException, InterruptedException {
-        statsCollectorRunning.incrementAndGet();
-
-        ObjectMapper mapper = new ObjectMapper();
-        StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem("test", "https://test.com", "test", 1);
-
-        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
-        testContext.awaitCompletion(1000, TimeUnit.MILLISECONDS);
-        assert statsCollectorRunning.get() == 0;
-        testContext.completeNow();
     }
 
     @Test
@@ -92,7 +78,7 @@ public class StatsCollectorVerticleTest {
 
         String results = verticle.getEndpointStats();
 
-        Assertions.assertSame(results, expected);
+        Assertions.assertEquals(results, expected);
 
         testContext.completeNow();
     }

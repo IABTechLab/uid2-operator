@@ -23,10 +23,9 @@
 
 package com.uid2.operator.vertx;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
+import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
@@ -43,7 +42,6 @@ import com.uid2.shared.store.IKeyAclProvider;
 import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.*;
@@ -70,7 +68,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 

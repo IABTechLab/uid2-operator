@@ -23,7 +23,7 @@
 
 package com.uid2.operator;
 
-import com.uid2.operator.model.IStatsCollectorQueue;
+import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.store.*;
@@ -70,7 +70,6 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
@@ -315,7 +314,7 @@ public class Main {
 
     private Future<String> createAndDeployStatsCollector() {
         Promise<String> promise = Promise.promise();
-        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(6000);
+        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000);
         vertx.deployVerticle(statsCollectorVerticle, ar -> promise.handle(ar));
         _statsCollectorQueue = statsCollectorVerticle;
         return promise.future();

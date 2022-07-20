@@ -2,7 +2,6 @@ package com.uid2.operator.monitoring;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
-import com.uid2.operator.model.IStatsCollectorQueue;
 import com.uid2.operator.model.StatsCollectorMessageItem;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
@@ -17,6 +16,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.Temporal;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -27,7 +27,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
 
     private static final int MAX_AVAILABLE = 1000;
 
-    private final long jsonProcessingInterval;
+    private final Duration jsonProcessingInterval;
     private Instant lastJsonProcessTime;
 
     private final Counter logCycleSkipperCounter;
@@ -47,7 +47,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         _statsCollectorCount = new AtomicInteger();
         _runningSerializer = false;
 
-        jsonProcessingInterval = jsonIntervalMS;
+        jsonProcessingInterval = Duration.ofMillis(jsonIntervalMS-1);
 
         logCycleSkipperCounter = Counter
                 .builder("uid2.api_usage_log_cycle_skipped")
@@ -69,9 +69,10 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     @Override
     public void start() throws Exception {
         super.start();
-        vertx.eventBus().consumer(Const.Config.StatsCollectorEventBus, this::handleMessage);
         this.jsonSerializerExecutor = vertx.createSharedWorkerExecutor("stats-collector-json-worker-pool");
-        lastJsonProcessTime = Instant.ofEpochMilli(Instant.now().toEpochMilli() + jsonProcessingInterval - 1);
+        //lastJsonProcessTime = Instant.ofEpochMilli(Instant.now().toEpochMilli() + jsonProcessingInterval - 1);
+        lastJsonProcessTime = (Instant) jsonProcessingInterval.addTo(Instant.now());
+        vertx.eventBus().consumer(Const.Config.StatsCollectorEventBus, this::handleMessage);
     }
 
     public void handleMessage(Message message) {
@@ -89,7 +90,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         String apiVersion = "v0";
         String endpoint = path.substring(1);
 
-        if(path.charAt(1) == 'v') {
+        if(path.length() > 1 && path.charAt(1) == 'v') {
             int apiVIndex = path.indexOf("/", 1);
             apiVersion = path.substring(1, apiVIndex);
             endpoint = path.substring(apiVIndex+1);
@@ -115,7 +116,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
 
         _statsCollectorCount.decrementAndGet();
 
-        if(Duration.between(lastJsonProcessTime, Instant.now()).toMillis() >= jsonProcessingInterval){
+        if(Duration.between(lastJsonProcessTime, Instant.now()).compareTo(jsonProcessingInterval) >= 0){
             lastJsonProcessTime = Instant.now();
             if(_runningSerializer){
                logCycleSkipperCounter.increment();

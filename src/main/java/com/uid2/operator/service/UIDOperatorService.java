@@ -73,7 +73,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
                 InputUtil.normalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
         this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone("+0000000000").getIdentityInput(), Instant.now());
+                InputUtil.normalizePhone("+00000000000").getIdentityInput(), Instant.now());
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 

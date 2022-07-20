@@ -32,26 +32,6 @@ class EUID {
         return 5000;
     }
 
-    //TODO do we need/want this for EUID?
-    static setupGoogleTag() {
-        if (!window.googletag) {
-            window.googletag = {};
-        }
-        if (!googletag.encryptedSignalProviders) {
-            googletag.encryptedSignalProviders = [];
-        }
-        googletag.encryptedSignalProviders.push({
-            id: "euid.eu",
-            collectorFunction: () => {
-                if (window.__euid && window.__euid.getAdvertisingTokenAsync) {
-                    return __euid.getAdvertisingTokenAsync();
-                } else {
-                    return Promise.reject(new Error("EUID SDK not present"));
-                }
-            },
-        });
-    }
-
     constructor() {
         // PUBLIC METHODS
 
@@ -125,7 +105,6 @@ class EUID {
         let _lastStatus;
         let _refreshTimerId;
         let _refreshReq;
-        let _refreshVersion;
         let _promises = [];
 
         // PRIVATE METHODS
@@ -198,10 +177,12 @@ class EUID {
                 throw new InvalidIdentityError("advertising_token is not available or is not valid");
             } else if (!identity.refresh_token) {
                 throw new InvalidIdentityError("refresh_token is not available or is not valid");
-            } else if (identity.refresh_response_key) {
-                _refreshVersion = 2;
-            } else {
-                _refreshVersion = 1;
+            } else if (!identity.refresh_from) {
+                throw new InvalidIdentityError("refresh_from is not available or is not valid");
+            } else if (!identity.identity_expires) {
+                throw new InvalidIdentityError("identity_expires is not available or is not valid");
+            } else if (!identity.refresh_expires) {
+                throw new InvalidIdentityError("refresh_expires is not available or is not valid");
             }
         };
         const tryCheckIdentity = (identity) => {
@@ -229,14 +210,6 @@ class EUID {
             }
         };
 
-        const enrichIdentity = (identity, now) => {
-            return {
-                refresh_from: now,
-                refresh_expires: now + 7 * 86400 * 1000, // 7 days
-                identity_expires: now + 4 * 3600 * 1000, // 4 hours
-                ...identity,
-            };
-        };
         const applyIdentity = (identity) => {
             if (!identity) {
                 setFailedIdentity(EUID.IdentityStatus.NO_IDENTITY, "Identity not available");
@@ -249,7 +222,6 @@ class EUID {
             }
 
             const now = Date.now();
-            identity = enrichIdentity(identity, now);
             if (identity.refresh_expires < now) {
                 setFailedIdentity(EUID.IdentityStatus.REFRESH_EXPIRED, "Identity expired, refresh expired");
                 return;
@@ -289,11 +261,11 @@ class EUID {
                 _refreshReq = undefined;
                 if (req.readyState !== req.DONE) return;
                 try {
-                    if(_refreshVersion === 1 || req.status !== 200) {
+                    if(req.status !== 200) {
                         const response = JSON.parse(req.responseText);
                         if (!checkResponseStatus(identity, response)) return;
                         setIdentity(response.body, EUID.IdentityStatus.REFRESHED, "Identity refreshed");
-                    } else  if(_refreshVersion === 2) {
+                    } else {
                         let encodeResp = createArrayBuffer(atob(req.responseText));
                         window.crypto.subtle.importKey("raw", createArrayBuffer(atob(identity.refresh_response_key)),
                             { name: "AES-GCM" }, false, ["decrypt"]
@@ -387,8 +359,6 @@ class EUID {
 })(EUID || (EUID = {}));
 
 window.__euid = new EUID();
-
-EUID.setupGoogleTag();
 
 if (typeof exports !== 'undefined') {
   exports.EUID = EUID;

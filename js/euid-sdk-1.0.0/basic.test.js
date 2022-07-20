@@ -46,25 +46,7 @@ afterEach(() => {
 
 const setEuidCookie = mocks.setEuidCookie;
 const getEuidCookie = mocks.getEuidCookie;
-const makeIdentityV1 = mocks.makeIdentityV1;
 const makeIdentityV2 = mocks.makeIdentityV2;
-
-describe('When google tag setup is called', () => {
-  it('should not fail when there is no googletag', () => {
-    sdk.window.googletag = null;
-    expect(() => sdk.EUID.setupGoogleTag()).not.toThrow(TypeError);
-  });
-  it('should not fail when there is no googletag encryptedSignalProviders', () => {
-    sdk.window.googletag = {encryptedSignalProviders: null};
-    expect(() => sdk.EUID.setupGoogleTag()).not.toThrow(TypeError);
-  });
-  it('should push if googletag has encryptedSignalProviders', () => {
-    const mockPush = jest.fn();
-    sdk.window.googletag = {encryptedSignalProviders: {push: mockPush}};
-    sdk.EUID.setupGoogleTag();
-    expect(mockPush.mock.calls.length).toBe(1);
-  });
-});
 
 describe('initial state before init() is called', () => {
   it('should be in initialising state', () => {
@@ -93,6 +75,60 @@ describe('when initialising with invalid options', () => {
   });
   it('should fail on refreshRetryPeriod being less than 1 second', () => {
     expect(() => euid.init({ callback: () => {}, refreshRetryPeriod: 1 })).toThrow(RangeError);
+  });
+});
+
+describe('when called with incomplete identity', () => {
+
+  it('error on missing advertising_token', () => {
+    let identity = makeIdentityV2();
+    delete identity["advertising_token"];
+    euid.init({ callback: callback, identity: identity });
+    expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertising_token: undefined,
+        status: -2,
+        statusText: "advertising_token is not available or is not valid"
+    }));
+  });
+  it('error on missing refresh_token', () => {
+    let identity = makeIdentityV2();
+    delete identity["refresh_token"];
+    euid.init({ callback: callback, identity: identity });
+    expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      advertising_token: undefined,
+      status: -2,
+      statusText: "refresh_token is not available or is not valid"
+    }));
+  });
+  it('error on missing refresh_from', () => {
+    let identity = makeIdentityV2();
+    delete identity["refresh_from"];
+    euid.init({ callback: callback, identity: identity });
+    expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      advertising_token: undefined,
+      status: -2,
+      statusText: "refresh_from is not available or is not valid"
+    }));
+  });
+  it('error on missing identity_expires', () => {
+    let identity = makeIdentityV2();
+    delete identity["identity_expires"];
+    euid.init({ callback: callback, identity: identity });
+    expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      advertising_token: undefined,
+      status: -2,
+      statusText: "identity_expires is not available or is not valid"
+    }));
+  });
+  it('error on missing refresh_expires', () => {
+    let identity = makeIdentityV2();
+    delete identity["refresh_expires"];
+    euid.init({ callback: callback, identity: identity });
+    expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      advertising_token: undefined,
+      status: -2,
+      statusText: "refresh_expires is not available or is not valid"
+    }));
   });
 });
 
@@ -251,26 +287,6 @@ describe('when initialised without identity', () => {
     });
     it('should be in initialising state', () => {
       expect(euid).toBeInInitialisingState();
-    });
-  });
-  describe('when euid v1 cookie with expired but refreshable identity is available', () => {
-    const identity = makeIdentityV1({
-      identity_expires: Date.now() - 100000,
-      refresh_from: Date.now() - 100000
-    });
-
-    beforeEach(() => {
-      setEuidCookie(identity);
-      euid.init({ callback: callback });
-    });
-
-    it('should initiate token refresh', () => {
-      expect(xhrMock.send).toHaveBeenCalledTimes(1);
-      let url = "https://prod.euid.eu/v2/token/refresh";
-      expect(xhrMock.open).toHaveBeenLastCalledWith("POST", url, true);
-      expect(xhrMock.send).toHaveBeenLastCalledWith(identity.refresh_token);
-      xhrMock.onreadystatechange();
-      expect(cryptoMock.subtle.importKey).toHaveBeenCalledTimes(0);
     });
   });
 });

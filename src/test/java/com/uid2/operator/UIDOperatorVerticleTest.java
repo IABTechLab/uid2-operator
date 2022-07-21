@@ -23,9 +23,8 @@
 
 package com.uid2.operator;
 
-import com.uid2.operator.model.AdvertisingToken;
-import com.uid2.operator.model.IdentityScope;
-import com.uid2.operator.model.IdentityType;
+import com.uid2.operator.model.*;
+import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.service.*;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.shared.ApplicationVersion;
@@ -36,7 +35,6 @@ import com.uid2.shared.Utils;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.model.EncryptionKey;
-import com.uid2.operator.model.RefreshToken;
 import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.auth.ClientKey;
@@ -79,12 +77,15 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+
+
 
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
@@ -117,6 +118,15 @@ public class UIDOperatorVerticleTest {
 
     private UidCoreClient fakeCoreClient = new UidCoreClient("", "", new ApplicationVersion("test", "test"), CloudUtils.defaultProxy, new NoAttestationProvider(), false);
 
+
+    class TestStatsQueue implements IStatsCollectorQueue {
+        public int calls = 0;
+        @Override
+        public void enqueue(Vertx vertx, StatsCollectorMessageItem messageItem) {
+            calls++;
+        }
+    }
+    private TestStatsQueue statsCollectorQueue;
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext) throws Throwable {
         mocks = MockitoAnnotations.openMocks(this);
@@ -133,7 +143,9 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
 
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock);
+        statsCollectorQueue = new TestStatsQueue();
+
+        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
 
         OperatorDisableHandler h = new OperatorDisableHandler(Duration.ofHours(24), clock);
         fakeCoreClient.setResponseStatusWatcher(h::handleResponseStatus);
@@ -1724,7 +1736,23 @@ public class UIDOperatorVerticleTest {
             testContext.completeNow();
         });
     }
+    @Test void sendInformationToStatsCollector(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
 
+        vertx.eventBus().consumer(Const.Config.StatsCollectorEventBus, message -> {
+            String expected = "{\"path\":\"/v1/token/generate\",\"referer\":null,\"apiContact\":null,\"siteId\":201}";
+            assertSame(message.body().toString(), expected);
+        });
+
+        get(vertx, "v1/token/generate?email=" + emailAddress, ar -> {
+            assert statsCollectorQueue.calls == 1;
+            testContext.completeNow();
+        });
+    }
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchBothPhoneAndHashEmpty(String apiVersion, Vertx vertx, VertxTestContext testContext) {

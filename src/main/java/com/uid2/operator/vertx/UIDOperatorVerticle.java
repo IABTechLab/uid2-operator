@@ -25,6 +25,8 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
+import com.uid2.operator.monitoring.IStatsCollectorQueue;
+import com.uid2.operator.monitoring.StatsCollectorHandler;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.shared.Utils;
@@ -69,7 +71,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public class UIDOperatorVerticle extends AbstractVerticle {
+public class UIDOperatorVerticle extends AbstractVerticle{
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
 
     public static final String ValidationInputEmail = "validate@email.com";
@@ -93,13 +95,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
 
+    private IStatsCollectorQueue _statsCollectorQueue;
+
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
                                IKeyStore keyStore,
                                IKeyAclProvider keyAclProvider,
                                ISaltProvider saltProvider,
                                IOptOutStore optOutStore,
-                               Clock clock) {
+                               Clock clock,
+                               IStatsCollectorQueue statsCollectorQueue) {
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -111,6 +116,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
         this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
+
+        _statsCollectorQueue = statsCollectorQueue;
     }
 
     @Override
@@ -170,6 +177,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             .allowedHeader("Access-Control-Allow-Headers")
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
+
+        router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
 
         setupV2Routes(router);
 

@@ -47,7 +47,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         _statsCollectorCount = new AtomicInteger();
         _runningSerializer = false;
 
-        jsonProcessingInterval = Duration.ofMillis(jsonIntervalMS-1);
+        jsonProcessingInterval = Duration.ofMillis(jsonIntervalMS);
 
         logCycleSkipperCounter = Counter
                 .builder("uid2.api_usage_log_cycle_skipped")
@@ -70,7 +70,6 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     public void start() throws Exception {
         super.start();
         this.jsonSerializerExecutor = vertx.createSharedWorkerExecutor("stats-collector-json-worker-pool");
-        //lastJsonProcessTime = Instant.ofEpochMilli(Instant.now().toEpochMilli() + jsonProcessingInterval - 1);
         lastJsonProcessTime = (Instant) jsonProcessingInterval.addTo(Instant.now());
         vertx.eventBus().consumer(Const.Config.StatsCollectorEventBus, this::handleMessage);
     }

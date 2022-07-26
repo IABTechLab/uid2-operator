@@ -167,6 +167,7 @@ class UID2 {
             const advertisingToken = this.getAdvertisingToken();
 
             const result = {
+                advertisingToken: advertisingToken,
                 advertising_token: advertisingToken,
                 status: status,
                 statusText: statusText

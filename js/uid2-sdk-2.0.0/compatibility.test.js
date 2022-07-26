@@ -102,7 +102,7 @@ describe('when a v0 cookie is available', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
-        advertising_token: originalIdentity.advertising_token,
+        advertisingToken: originalIdentity.advertising_token,
         status: sdk.UID2.IdentityStatus.ESTABLISHED,
       }));
     });

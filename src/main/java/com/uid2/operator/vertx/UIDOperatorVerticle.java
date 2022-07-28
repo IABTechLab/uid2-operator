@@ -178,13 +178,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
+        router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
 
         setupV2Routes(router);
 
         // Static and health check
         router.get("/ops/healthcheck").handler(this::handleHealthCheck);
-        router.route("/static/*").handler(StaticHandler.create("static"));
 
         if (this.config.getBoolean(Const.Config.AllowLegacyAPIProp, true)) {
             // V1 APIs

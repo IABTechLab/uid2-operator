@@ -145,6 +145,11 @@
             <artifactId>aws-java-sdk-s3</artifactId>
             <version>1.11.969</version>
         </dependency>
+        <dependency>
+            <groupId>com.iabtcf</groupId>
+            <artifactId>iabtcf-decoder</artifactId>
+            <version>2.0.10</version>
+        </dependency>
     </dependencies>
     <profiles>
         <profile>

@@ -27,6 +27,10 @@ import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
+import com.uid2.operator.privacy.tcf.TransparentConsent;
+import com.uid2.operator.privacy.tcf.TransparentConsentParseResult;
+import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
+import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.shared.Utils;
@@ -94,6 +98,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final V2PayloadHandler v2PayloadHandler;
     private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
+    private final int tcfVendorId;
 
     private IStatsCollectorQueue _statsCollectorQueue;
 
@@ -116,8 +121,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
         this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
+        this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
 
-        _statsCollectorQueue = statsCollectorQueue;
+        this._statsCollectorQueue = statsCollectorQueue;
     }
 
     @Override
@@ -449,6 +455,29 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 return;
             } else {
                 final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+
+                if (identityScope.equals(IdentityScope.EUID)) {
+                    TransparentConsentParseResult tcResult = this.getUserConsentV2(req);
+                    if (!tcResult.isSuccess()) {
+                        rc.fail(400);
+                        return;
+                    }
+                    final boolean userConsent = tcResult.getTCString().hasConsent(tcfVendorId,
+                        TransparentConsentPurpose.STORE_INFO_ON_DEVICE,             // 1
+                        TransparentConsentPurpose.CREATE_PERSONALIZED_ADS_PROFILE,  // 3
+                        TransparentConsentPurpose.SELECT_PERSONALIZED_ADS,          // 4
+                        TransparentConsentPurpose.SELECT_BASIC_ADS,                 // 2
+                        TransparentConsentPurpose.MEASURE_AD_PERFORMANCE,           // 7
+                        TransparentConsentPurpose.DEVELOP_AND_IMPROVE_PRODUCTS      // 10
+                        );
+                    final boolean allowPreciseGeo = tcResult.getTCString().hasSpecialFeature(TransparentConsentSpecialFeature.PreciseGeolocationData);
+
+                    if (!userConsent || !allowPreciseGeo) {
+                        ResponseUtil.SuccessNoBodyV2(UIDOperatorVerticle.ResponseStatus.InsufficientUserConsent, rc);
+                        return;
+                    }
+                }
+
                 final IdentityTokens t = this.idService.generateIdentity(
                     new IdentityRequest(
                         new PublisherIdentity(clientKey.getSiteId(), 0, 0),
@@ -1090,6 +1119,20 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return resp;
     }
 
+    private TransparentConsentParseResult getUserConsentV2(JsonObject req) {
+        final String rawTcString = req.getString("tcf_consent_string");
+        if (rawTcString == null || rawTcString.isEmpty()) {
+            return new TransparentConsentParseResult("empty tcf_consent_string");
+        }
+
+        try {
+            final TransparentConsent consentPayload = new TransparentConsent(rawTcString);
+            return new TransparentConsentParseResult(consentPayload);
+        } catch (IllegalArgumentException e) {
+            return new TransparentConsentParseResult(e.getMessage());
+        }
+    }
+
     private JsonObject toJsonV1(IdentityTokens t) {
         final JsonObject json = new JsonObject();
         json.put("advertising_token", t.getAdvertisingToken());
@@ -1150,6 +1193,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         public static String ExpiredToken = "expired_token";
         public static String GenericError = "error";
         public static String UnknownError = "unknown";
+        public static String InsufficientUserConsent = "insufficient_user_consent";
     }
 }
 

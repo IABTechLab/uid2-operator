@@ -456,28 +456,24 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             } else {
                 final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
 
-                if (identityScope.equals(IdentityScope.EUID)) {
-                    TransparentConsentParseResult tcResult = this.getUserConsentV2(req);
-                    if (!tcResult.isSuccess()) {
+                switch (validateUserConsent(req)) {
+                    case INVALID: {
                         rc.fail(400);
                         return;
                     }
-                    final boolean userConsent = tcResult.getTCString().hasConsent(tcfVendorId,
-                        TransparentConsentPurpose.STORE_INFO_ON_DEVICE,             // 1
-                        TransparentConsentPurpose.CREATE_PERSONALIZED_ADS_PROFILE,  // 3
-                        TransparentConsentPurpose.SELECT_PERSONALIZED_ADS,          // 4
-                        TransparentConsentPurpose.SELECT_BASIC_ADS,                 // 2
-                        TransparentConsentPurpose.MEASURE_AD_PERFORMANCE,           // 7
-                        TransparentConsentPurpose.DEVELOP_AND_IMPROVE_PRODUCTS      // 10
-                        );
-                    final boolean allowPreciseGeo = tcResult.getTCString().hasSpecialFeature(TransparentConsentSpecialFeature.PreciseGeolocationData);
-
-                    if (!userConsent || !allowPreciseGeo) {
+                    case INSUFFICIENT: {
                         ResponseUtil.SuccessNoBodyV2(UIDOperatorVerticle.ResponseStatus.InsufficientUserConsent, rc);
                         return;
                     }
+                    case SUFFICIENT: {
+                        break;
+                    }
+                    default: {
+                        assert false : "Please update UIDOperatorVerticle.handleTokenGenerateV2 when changing UserConsentStatus";
+                        break;
+                    }
                 }
-
+                
                 final IdentityTokens t = this.idService.generateIdentity(
                     new IdentityRequest(
                         new PublisherIdentity(clientKey.getSiteId(), 0, 0),
@@ -1119,6 +1115,31 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return resp;
     }
 
+    private UserConsentStatus validateUserConsent(JsonObject req) {
+        if (identityScope.equals(IdentityScope.EUID)) {
+            TransparentConsentParseResult tcResult = this.getUserConsentV2(req);
+            if (!tcResult.isSuccess()) {
+                return UserConsentStatus.INVALID;
+            }
+            final boolean userConsent = tcResult.getTCString().hasConsent(tcfVendorId,
+                TransparentConsentPurpose.STORE_INFO_ON_DEVICE,             // 1
+                TransparentConsentPurpose.CREATE_PERSONALIZED_ADS_PROFILE,  // 3
+                TransparentConsentPurpose.SELECT_PERSONALIZED_ADS,          // 4
+                TransparentConsentPurpose.SELECT_BASIC_ADS,                 // 2
+                TransparentConsentPurpose.MEASURE_AD_PERFORMANCE,           // 7
+                TransparentConsentPurpose.DEVELOP_AND_IMPROVE_PRODUCTS      // 10
+                );
+            final boolean allowPreciseGeo = tcResult.getTCString().hasSpecialFeature(TransparentConsentSpecialFeature.PreciseGeolocationData);
+
+            if (!userConsent || !allowPreciseGeo) {
+                ResponseUtil.SuccessNoBodyV2(UIDOperatorVerticle.ResponseStatus.InsufficientUserConsent, rc);
+                return UserConsentStatus.INSUFFICIENT;
+            }
+
+            return UserConsentStatus.SUFFICIENT;
+        }
+    }
+
     private TransparentConsentParseResult getUserConsentV2(JsonObject req) {
         final String rawTcString = req.getString("tcf_consent_string");
         if (rawTcString == null || rawTcString.isEmpty()) {
@@ -1194,6 +1215,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         public static String GenericError = "error";
         public static String UnknownError = "unknown";
         public static String InsufficientUserConsent = "insufficient_user_consent";
+    }
+
+    public static enum UserConsentStatus {
+        SUFFICIENT,
+        INSUFFICIENT,
+        INVALID, 
     }
 }
 

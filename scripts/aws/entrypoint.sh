@@ -24,7 +24,7 @@ echo "AWS_REGION_NAME=$AWS_REGION_NAME"
 echo "127.0.0.1 secretsmanager.$AWS_REGION_NAME.amazonaws.com" >> /etc/hosts
 
 python3 /app/load_config.py >/app/conf/config-overrides.json
-python3 /app/make_config.py /app/conf/config.json /app/conf/config-overrides.json $(nproc) >/app/conf/config-final.json
+python3 /app/make_config.py /app/conf/config.json /app/conf/integ-config.json /app/conf/config-overrides.json $(nproc) >/app/conf/config-final.json
 
 get_config_value() {
   jq -r ".\"$1\"" /app/conf/config-final.json

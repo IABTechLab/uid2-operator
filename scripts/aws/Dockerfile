@@ -25,6 +25,7 @@ COPY ./entrypoint.sh /app/
 COPY ./proxies.nitro.yaml /app/
 COPY ./conf/default-config.json /app/conf/
 COPY ./conf/prod-config.json /app/conf/config.json
+COPY ./conf/integ-config.json /app/conf/integ-config.json
 COPY ./conf/*.xml /app/conf/
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh

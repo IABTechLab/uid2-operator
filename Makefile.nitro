@@ -37,11 +37,11 @@ build_eif: uid2operator.eif euidoperator.eif
 
 euidoperator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/conf/prod-euid-config.json build/conf/integ-euid-config.json build/load_config.py build/make_config.py
 	cd build; docker build -t euidoperator . --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
-	# cd build; nitro-cli build-enclave --docker-uri euidoperator --output-file euidoperator.eif
+	cd build; nitro-cli build-enclave --docker-uri euidoperator --output-file euidoperator.eif
 
 uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/conf/prod-config.json build/conf/euid-integ-config.json build/load_config.py build/make_config.py
 	cd build; docker build -t uid2operator . --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
-	# cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
+	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
 
 build/load_config.py: ./scripts/aws/load_config.py
 	cp ./scripts/aws/load_config.py ./build/

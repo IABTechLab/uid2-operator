@@ -6,5 +6,5 @@
   "optout_metadata_path": "https://optout-integ.euid.eu/optout/refresh",
   "core_attest_url": "https://core.integ.euid.eu/attest",
   "optout_api_uri": "https://optout.integ.euid.eu/optout/replicate",
-  "optout_s3_folder": "euid-optout-integ/"
+  "optout_s3_folder": "optout/"
 }

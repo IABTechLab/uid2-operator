@@ -14,7 +14,7 @@
   "optout_synthetic_logs_enabled": false,
   "optout_synthetic_logs_count": 0,
   "optout_inmem_cache": true,
-  "optout_s3_folder": "optout-v2/",
+  "optout_s3_folder": "optout/",
   "identity_token_expires_after_seconds": 14400,
   "refresh_token_expires_after_seconds": 2592000,
   "refresh_identity_token_after_seconds": 3600,

@@ -473,7 +473,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         break;
                     }
                 }
-                
+
                 final IdentityTokens t = this.idService.generateIdentity(
                     new IdentityRequest(
                         new PublisherIdentity(clientKey.getSiteId(), 0, 0),
@@ -1132,12 +1132,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final boolean allowPreciseGeo = tcResult.getTCString().hasSpecialFeature(TransparentConsentSpecialFeature.PreciseGeolocationData);
 
             if (!userConsent || !allowPreciseGeo) {
-                ResponseUtil.SuccessNoBodyV2(UIDOperatorVerticle.ResponseStatus.InsufficientUserConsent, rc);
                 return UserConsentStatus.INSUFFICIENT;
             }
-
-            return UserConsentStatus.SUFFICIENT;
         }
+
+        return UserConsentStatus.SUFFICIENT;
     }
 
     private TransparentConsentParseResult getUserConsentV2(JsonObject req) {

@@ -21,7 +21,7 @@ public class TransparentConsentTest {
             new int[] { 1, 3, 4 }, 
             new int[] { 2, 7, 10 },
             new int[] { 1 }));
-        
+
         Assert.assertTrue(tcs.hasConsent(21,
                 TransparentConsentPurpose.STORE_INFO_ON_DEVICE,
                 TransparentConsentPurpose.CREATE_PERSONALIZED_ADS_PROFILE,
@@ -41,6 +41,13 @@ public class TransparentConsentTest {
             new int[] { 2, 7, 10 },
             new int[] { 1 }));
         
+System.out.println(createConsentStringV2(
+    new int[] { 21 },
+    new int[] { 21 }, 
+    new int[] { 3, 4 },         // missing 4 TransparentConsentPurpose.SELECT_PERSONALIZED_ADS
+    new int[] { 2, 7, 10 },
+    new int[] { 1 }));
+
         Assert.assertFalse(tcs.hasConsent(21,
             TransparentConsentPurpose.STORE_INFO_ON_DEVICE,
             TransparentConsentPurpose.CREATE_PERSONALIZED_ADS_PROFILE,

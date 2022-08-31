@@ -402,6 +402,7 @@ Resources:
             /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: TokenSecret
     Properties:
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplate
@@ -417,7 +418,7 @@ Resources:
         - - !Ref Subnet1
           - !Ref Subnet2
         - - !Ref VpcSubnet1
-          - !Ref VpcSubnet2    
+          - !Ref VpcSubnet2
       Tags:
       - Key: Name
         Value: 'UID Instance'

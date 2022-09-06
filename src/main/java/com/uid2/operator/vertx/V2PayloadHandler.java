@@ -93,7 +93,10 @@ public class V2PayloadHandler {
         try {
             JsonObject respJson = (JsonObject) rc.data().get("response");
 
-            V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), keyStore, this.identityScope);
+            // DevNote: 200 does not guarantee a token.
+            if (respJson.containsKey("body")) {
+                V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), keyStore, this.identityScope);
+            }
 
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
         }

@@ -4,6 +4,7 @@ echo "$HOSTNAME" > /etc/uid2operator/HOSTNAME
 EIF_PATH=${EIF_PATH:-/opt/uid2operator/uid2operator.eif}
 CID=${CID:-42}
 AWS_REGION_NAME=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r '.region')
+UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s http://169.254.169.254/latest/user-data | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo ${BASH_REMATCH[1]} || echo "uid2-operator-config-key")
 
 function terminate_old_enclave() {
     ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
@@ -31,12 +32,12 @@ function default_mem() {
 }
 
 function read_allocation() {
-    USER_CUSTOMIZED=$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.customize_enclave')
+    USER_CUSTOMIZED=$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString' | jq -r '.customize_enclave')
     shopt -s nocasematch
     if [ "$USER_CUSTOMIZED" = "true" ]; then
         echo "Applying user customized CPU/Mem allocation..."
-        CPU_COUNT=${CPU_COUNT:-$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.enclave_cpu_count')}
-        MEMORY_MB=${MEMORY_MB:-$(aws secretsmanager get-secret-value --secret-id uid2-operator-config-key | jq -r '.SecretString' | jq -r '.enclave_memory_mb')}
+        CPU_COUNT=${CPU_COUNT:-$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString' | jq -r '.enclave_cpu_count')}
+        MEMORY_MB=${MEMORY_MB:-$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString' | jq -r '.enclave_memory_mb')}
     else
         echo "Applying default CPU/Mem allocation..."
         CPU_COUNT=6
@@ -81,7 +82,7 @@ function setup_aws_proxy() {
         echo "- {address: secretsmanager.$AWS_REGION_NAME.amazonaws.com, port: 443}" >> $AWS_VSOCK_CFG
     fi
 
-    nohup vsock-proxy 3308 secretsmanager.us-east-1.amazonaws.com 443 &
+    nohup vsock-proxy 3308 secretsmanager.$AWS_REGION_NAME.amazonaws.com 443 &
 }
 
 function run_enclave() {

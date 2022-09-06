@@ -169,7 +169,7 @@ public class UIDOperatorVerticleTest {
         when(keyStoreSnapshot.getActiveKeySet()).thenReturn(Arrays.asList(keys));
     }
 
-    private void fakeAuth(int siteId, Role... roles) {
+    protected void fakeAuth(int siteId, Role... roles) {
         ClientKey clientKey = new ClientKey("test-key", Utils.toBase64String(clientSecret))
             .withSiteId(siteId).withRoles(roles);
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
@@ -229,12 +229,14 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode,
+    protected void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode,
                                    Handler<JsonObject> handler) {
         if (apiVersion.equals("v2")) {
             ClientKey ck = (ClientKey) clientKeyProvider.get("");
 
             long nonce = new BigInteger(Random.getBytes(8)).longValue();
+
+            addAdditionalTokenGenerateParams(v2PostPayload);
 
             postV2(ck, vertx, apiVersion + "/token/generate", v2PostPayload, nonce, ar -> {
                 Assert.assertTrue(ar.succeeded());
@@ -297,16 +299,18 @@ public class UIDOperatorVerticleTest {
     }
 
     private void decodeV2RefreshToken(JsonObject respJson) {
-        JsonObject bodyJson = respJson.getJsonObject("body");
+        if (respJson.containsKey("body")) {
+            JsonObject bodyJson = respJson.getJsonObject("body");
 
-        byte[] tokenBytes = Utils.decodeBase64String(bodyJson.getString("refresh_token"));
-        EncryptionKey refreshKey = keyStore.getSnapshot().getKey(Buffer.buffer(tokenBytes).getInt(1));
+            byte[] tokenBytes = Utils.decodeBase64String(bodyJson.getString("refresh_token"));
+            EncryptionKey refreshKey = keyStore.getSnapshot().getKey(Buffer.buffer(tokenBytes).getInt(1));
 
-        byte[] decrypted = AesGcm.decrypt(tokenBytes, 5, refreshKey);
-        JsonObject tokenKeyJson = new JsonObject(new String(decrypted));
+            byte[] decrypted = AesGcm.decrypt(tokenBytes, 5, refreshKey);
+            JsonObject tokenKeyJson = new JsonObject(new String(decrypted));
 
-        String refreshToken = tokenKeyJson.getString("refresh_token");
-        bodyJson.put("decrypted_refresh_token", refreshToken);
+            String refreshToken = tokenKeyJson.getString("refresh_token");
+            bodyJson.put("decrypted_refresh_token", refreshToken);
+        }
     }
 
     private JsonObject tryParseResponse(HttpResponse resp) {
@@ -387,12 +391,12 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void setupSalts() {
+    protected void setupSalts() {
         when(saltProviderSnapshot.getFirstLevelSalt()).thenReturn(firstLevelSalt);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(rotatingSalt123);
     }
 
-    private void setupKeys() {
+    protected void setupKeys() {
         EncryptionKey masterKey = new EncryptionKey(101, makeAesKey("masterKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), -1);
         EncryptionKey siteKey = new EncryptionKey(102, makeAesKey("siteKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), Const.Data.AdvertisingTokenSiteId);
         EncryptionKey refreshKey = new EncryptionKey(103, makeAesKey("refreshKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), -2);
@@ -406,7 +410,7 @@ public class UIDOperatorVerticleTest {
         when(keyStoreSnapshot.getActiveKeySet()).thenReturn(Arrays.asList(new EncryptionKey[]{masterKey, siteKey, refreshKey}));
     }
 
-    private void setupSiteKey(int siteId, int keyId) {
+    protected void setupSiteKey(int siteId, int keyId) {
         EncryptionKey siteKey = new EncryptionKey(keyId, makeAesKey("siteKey" + siteId), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), siteId);
         when(keyStoreSnapshot.getActiveSiteKey(eq(siteId), any())).thenReturn(siteKey);
         when(keyStoreSnapshot.getKey(keyId)).thenReturn(siteKey);
@@ -439,6 +443,7 @@ public class UIDOperatorVerticleTest {
 
     protected boolean useIdentityV3() { return false; }
     protected IdentityScope getIdentityScope() { return IdentityScope.UID2; }
+    protected void addAdditionalTokenGenerateParams(JsonObject payload) {}
 
     @Test
     void verticleDeployed(Vertx vertx, VertxTestContext testContext) {

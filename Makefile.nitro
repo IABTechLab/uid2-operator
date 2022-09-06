@@ -36,7 +36,7 @@ clean:
 build_eif: uid2operator.eif euidoperator.eif
 
 euidoperator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py
-	cd build; docker build -t euidoperator . --build-arg REGION=`EUID` --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
+	cd build; docker build -t euidoperator . --build-arg REGION='EUID' --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
 	cd build; nitro-cli build-enclave --docker-uri euidoperator --output-file euidoperator.eif
 
 uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py

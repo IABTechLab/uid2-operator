@@ -36,7 +36,7 @@ clean:
 build_eif: uid2operator.eif euidoperator.eif
 
 euidoperator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py
-	cd build; docker build -t euidoperator . --build-arg REGION='EUID' --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
+	cd build; docker build -t euidoperator . --build-arg IDENTITY_SCOPE='EUID' --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
 	cd build; nitro-cli build-enclave --docker-uri euidoperator --output-file euidoperator.eif
 
 uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py
@@ -49,16 +49,16 @@ build/load_config.py: ./scripts/aws/load_config.py
 build/make_config.py: ./scripts/aws/make_config.py
 	cp ./scripts/aws/make_config.py ./build/
 
-build/configs: build/conf/prod-config.json build/conf/integ-config.json build/conf/prod-euid-config.json build/conf/integ-euid-config.json
+build/configs: build/conf/prod-uid2-config.json build/conf/integ-uid2-config.json build/conf/prod-euid-config.json build/conf/integ-euid-config.json
 
-build/conf/prod-config.json: build_artifacts ./scripts/aws/conf/prod-config.json
-	cp ./scripts/aws/conf/prod-config.json ./build/conf/prod-config.json
+build/conf/prod-uid2-config.json: build_artifacts ./scripts/aws/conf/prod-uid2-config.json
+	cp ./scripts/aws/conf/prod-uid2-config.json ./build/conf/prod-uid2-config.json
 
 build/conf/prod-euid-config.json: build_artifacts ./scripts/aws/conf/prod-euid-config.json
 	cp ./scripts/aws/conf/prod-euid-config.json ./build/conf/prod-euid-config.json
 
-build/conf/integ-config.json: build_artifacts ./scripts/aws/conf/integ-config.json
-	cp ./scripts/aws/conf/integ-config.json ./build/conf/integ-config.json
+build/conf/integ-uid2-config.json: build_artifacts ./scripts/aws/conf/integ-uid2-config.json
+	cp ./scripts/aws/conf/integ-uid2-config.json ./build/conf/integ-uid2-config.json
 
 build/conf/integ-euid-config.json: build_artifacts ./scripts/aws/conf/integ-euid-config.json
 	cp ./scripts/aws/conf/integ-euid-config.json ./build/conf/integ-euid-config.json

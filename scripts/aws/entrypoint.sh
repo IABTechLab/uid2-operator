@@ -25,9 +25,9 @@ echo "127.0.0.1 secretsmanager.$AWS_REGION_NAME.amazonaws.com" >> /etc/hosts
 
 python3 /app/load_config.py >/app/conf/config-overrides.json
 
-if [ $REGION = 'UID2' ]; then
-  python3 /app/make_config.py /app/conf/prod-config.json /app/conf/integ-config.json /app/conf/config-overrides.json $(nproc) >/app/conf/config-final.json
-elif [ $REGION = 'EUID' ]; then
+if [ "$IDENTITY_SCOPE" = 'UID2' ]; then
+  python3 /app/make_config.py /app/conf/prod-uid2-config.json /app/conf/integ-uid2-config.json /app/conf/config-overrides.json $(nproc) >/app/conf/config-final.json
+elif [ "$IDENTITY_SCOPE" = 'EUID' ]; then
   python3 /app/make_config.py /app/conf/prod-euid-config.json /app/conf/integ-euid-config.json /app/conf/config-overrides.json $(nproc) >/app/conf/config-final.json
 fi
 

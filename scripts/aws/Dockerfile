@@ -8,7 +8,7 @@ ARG REGION=UID2
 ENV JAR_NAME=${JAR_NAME}
 ENV JAR_VERSION=${JAR_VERSION}
 ENV IMAGE_VERSION=${IMAGE_VERSION}
-ENV REGION=${REGION}
+ENV IDENTITY_SCOPE=${IDENTITY_SCOPE}
 ENV ENCLAVE_ENVIRONMENT=aws-nitro
 ENV UID2_CONFIG_SECRET_KEY="uid2-operator-config-key"
 
@@ -26,8 +26,8 @@ COPY ./make_config.py /app/
 COPY ./entrypoint.sh /app/
 COPY ./proxies.nitro.yaml /app/
 COPY ./conf/default-config.json /app/conf/
-COPY ./conf/prod-config.json /app/conf/prod-config.json
-COPY ./conf/integ-config.json /app/conf/integ-config.json
+COPY conf/prod-uid2-config.json /app/conf/prod-uid2-config.json
+COPY conf/integ-uid2-config.json /app/conf/integ-uid2-config.json
 COPY ./conf/prod-euid-config.json /app/conf/prod-euid-config.json
 COPY ./conf/integ-euid-config.json /app/conf/integ-euid-config.json
 COPY ./conf/*.xml /app/conf/

@@ -85,6 +85,7 @@ describe('when called with incomplete identity', () => {
     delete identity["advertising_token"];
     euid.init({ callback: callback, identity: identity });
     expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: -2,
         statusText: "advertising_token is not available or is not valid"
@@ -95,6 +96,7 @@ describe('when called with incomplete identity', () => {
     delete identity["refresh_token"];
     euid.init({ callback: callback, identity: identity });
     expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      advertisingToken: undefined,
       advertising_token: undefined,
       status: -2,
       statusText: "refresh_token is not available or is not valid"
@@ -105,6 +107,7 @@ describe('when called with incomplete identity', () => {
     delete identity["refresh_from"];
     euid.init({ callback: callback, identity: identity });
     expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      advertisingToken: undefined,
       advertising_token: undefined,
       status: -2,
       statusText: "refresh_from is not available or is not valid"
@@ -115,6 +118,7 @@ describe('when called with incomplete identity', () => {
     delete identity["identity_expires"];
     euid.init({ callback: callback, identity: identity });
     expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      advertisingToken: undefined,
       advertising_token: undefined,
       status: -2,
       statusText: "identity_expires is not available or is not valid"
@@ -125,6 +129,7 @@ describe('when called with incomplete identity', () => {
     delete identity["refresh_expires"];
     euid.init({ callback: callback, identity: identity });
     expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      advertisingToken: undefined,
       advertising_token: undefined,
       status: -2,
       statusText: "refresh_expires is not available or is not valid"
@@ -145,6 +150,7 @@ describe('when initialised without identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.NO_IDENTITY,
       }));
@@ -169,6 +175,7 @@ describe('when initialised without identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.INVALID,
       }));
@@ -195,6 +202,7 @@ describe('when initialised without identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: identity.advertising_token,
         advertising_token: identity.advertising_token,
         status: sdk.EUID.IdentityStatus.ESTABLISHED,
       }));
@@ -223,6 +231,7 @@ describe('when initialised without identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.REFRESH_EXPIRED,
       }));
@@ -299,6 +308,7 @@ describe('when initialised with specific identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.INVALID,
       }));
@@ -324,6 +334,7 @@ describe('when initialised with specific identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: identity.advertising_token,
         advertising_token: identity.advertising_token,
         status: sdk.EUID.IdentityStatus.ESTABLISHED,
       }));
@@ -355,6 +366,7 @@ describe('when initialised with specific identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: initIdentity.advertising_token,
         advertising_token: initIdentity.advertising_token,
         status: sdk.EUID.IdentityStatus.ESTABLISHED,
       }));
@@ -393,6 +405,7 @@ describe('when still valid identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: updatedIdentity.advertising_token,
         advertising_token: updatedIdentity.advertising_token,
         status: sdk.EUID.IdentityStatus.REFRESHED,
       }));
@@ -417,6 +430,7 @@ describe('when still valid identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: originalIdentity.advertising_token,
         advertising_token: originalIdentity.advertising_token,
         status: sdk.EUID.IdentityStatus.ESTABLISHED,
       }));
@@ -441,6 +455,7 @@ describe('when still valid identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.OPTOUT,
       }));
@@ -466,6 +481,7 @@ describe('when still valid identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.REFRESH_EXPIRED,
       }));
@@ -490,6 +506,7 @@ describe('when still valid identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: originalIdentity.advertising_token,
         advertising_token: originalIdentity.advertising_token,
         status: sdk.EUID.IdentityStatus.ESTABLISHED,
       }));
@@ -514,6 +531,7 @@ describe('when still valid identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: originalIdentity.advertising_token,
         advertising_token: originalIdentity.advertising_token,
         status: sdk.EUID.IdentityStatus.ESTABLISHED,
       }));
@@ -538,6 +556,7 @@ describe('when still valid identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: originalIdentity.advertising_token,
         advertising_token: originalIdentity.advertising_token,
         status: sdk.EUID.IdentityStatus.ESTABLISHED,
       }));
@@ -562,6 +581,7 @@ describe('when still valid identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: originalIdentity.advertising_token,
         advertising_token: originalIdentity.advertising_token,
         status: sdk.EUID.IdentityStatus.ESTABLISHED,
       }));
@@ -587,6 +607,7 @@ describe('when still valid identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.REFRESH_EXPIRED,
       }));
@@ -626,6 +647,7 @@ describe('when expired identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: updatedIdentity.advertising_token,
         advertising_token: updatedIdentity.advertising_token,
         status: sdk.EUID.IdentityStatus.REFRESHED,
       }));
@@ -650,6 +672,7 @@ describe('when expired identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.OPTOUT,
       }));
@@ -675,6 +698,7 @@ describe('when expired identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.REFRESH_EXPIRED,
       }));
@@ -699,6 +723,7 @@ describe('when expired identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.EXPIRED,
       }));
@@ -724,6 +749,7 @@ describe('when expired identity is refreshed on init', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.EUID.IdentityStatus.REFRESH_EXPIRED,
       }));

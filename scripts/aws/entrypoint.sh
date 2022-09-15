@@ -11,7 +11,7 @@ ifconfig lo 127.0.0.1
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
 
 # -- load config via proxy
-export UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo ${BASH_REMATCH[1]} || echo "uid2-operator-config-key")
+export UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo ${BASH_REMATCH[1]} || echo "uid2-operator-config-key")
 export AWS_REGION_NAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r '.region')
 IAM_ROLE=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/iam/security-credentials/)
 echo "IAM_ROLE=$IAM_ROLE"

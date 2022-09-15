@@ -3,7 +3,7 @@
   "keys_metadata_path": "https://core.integ.euid.eu/key/refresh",
   "keys_acl_metadata_path": "https://core.integ.euid.eu/key/acl/refresh",
   "salts_metadata_path": "https://core.integ.euid.eu/salt/refresh",
-  "optout_metadata_path": "https://optout-integ.euid.eu/optout/refresh",
+  "optout_metadata_path": "https://optout.integ.euid.eu/optout/refresh",
   "core_attest_url": "https://core.integ.euid.eu/attest",
   "optout_api_uri": "https://optout.integ.euid.eu/optout/replicate",
   "optout_s3_folder": "optout/"

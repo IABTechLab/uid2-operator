@@ -4,7 +4,7 @@
   "keys_metadata_path": "https://core.prod.euid.eu/key/refresh",
   "keys_acl_metadata_path": "https://core.prod.euid.eu/key/acl/refresh",
   "salts_metadata_path": "https://core.prod.euid.eu/salt/refresh",
-  "optout_metadata_path": "https://optout-prod.euid.eu/optout/refresh",
+  "optout_metadata_path": "https://optout.prod.euid.eu/optout/refresh",
   "core_attest_url": "https://core.prod.euid.eu/attest",
   "core_api_token": "your-api-token",
   "optout_s3_path_compat": true,

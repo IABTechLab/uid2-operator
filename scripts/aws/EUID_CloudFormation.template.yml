@@ -113,7 +113,7 @@ Metadata:
       APIToken:
         default: OPERATOR_KEY provided by EUID Administrator
       DeployToEnvironment:
-        default: EUID environment to deploy to. Prod - production; Integ - integration test.
+        default: EUID environment to deploy to. prod - production; integ - integration test.
       InstanceType:
         default: Instance Type for EC2. Minimum 4 Vcpu needed. M5, M5a, M5n Instance types are tested. Choose 2xlarge or 4xlarge.
       SSHKeyName:

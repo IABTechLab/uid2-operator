@@ -9,6 +9,10 @@ on:
   pull_request:
     branches: [ $default-branch ]
 
+env:
+  WORKING_DIR: js
+
+
 jobs:
   build:
 
@@ -26,10 +30,10 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-        cache-dependency-path: js/package-lock.json
+        cache-dependency-path: ${{ env.WORKING_DIR }}/package-lock.json
     - run: npm ci
-      working-directory: js
+      working-directory: ${{ env.WORKING_DIR }}
     - run: npm run build --if-present
-      working-directory: js
+      working-directory: ${{ env.WORKING_DIR }}
     - run: npm test
-      working-directory: js
+      working-directory: ${{ env.WORKING_DIR }}

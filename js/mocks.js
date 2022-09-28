@@ -78,7 +78,6 @@ class CryptoMock {
 
     this.subtle.decrypt.mockImplementation((settings, key, data) => {
       return {then: jest.fn().mockImplementation((func) => {
-        console.log(settings)
         func(Buffer.concat([settings.iv, data]));
         return {catch: jest.fn()}
       })}

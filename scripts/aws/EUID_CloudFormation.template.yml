@@ -138,14 +138,6 @@ Metadata:
         default: If choose to false for CustomizeEnclaceResource, enter CPU count for Enclave
 Mappings:
   RegionMap:
-    us-east-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    us-east-2:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    us-west-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    us-west-2:
-      AMI: ami-xxxxxxxxxxxxxxxxx
     eu-central-1:
       AMI: ami-xxxxxxxxxxxxxxxxx
     eu-west-1:
@@ -157,26 +149,6 @@ Mappings:
     eu-south-1:
       AMI: ami-xxxxxxxxxxxxxxxxx
     eu-north-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    me-south-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-east-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-south-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-northeast-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-northeast-2:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-southeast-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-southeast-2:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    sa-east-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ca-central-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    af-south-1:
       AMI: ami-xxxxxxxxxxxxxxxxx
 Conditions:
   shouldCreateVpc:

@@ -23,6 +23,7 @@
 
 package com.uid2.operator;
 
+import ch.qos.logback.classic.LoggerContext;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
@@ -71,6 +72,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.logging.LogManager;
 
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
@@ -183,6 +185,7 @@ public class Main {
                 app.run();
             } catch (Exception e) {
                 LOGGER.fatal("Error: " +e.getMessage(), e);
+                ((LoggerContext)org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
                 vertx.close();
                 System.exit(1);
             }

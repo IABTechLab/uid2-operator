@@ -122,10 +122,9 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final int length = b2.getInt(4);
         final byte[] identity;
         try {
-
             identity = EncodingUtils.fromBase64(b2.slice(8, 8 + length).getBytes());
         } catch (Exception e) {
-            throw new RuntimeException("Couldn't decode Entity", e);
+            throw new RuntimeException("Failed to decode refreshTokenV2: Identity segment is not valid base64.", e);
         }
 
         final int privacyBits = b2.getInt(8 + length);
@@ -156,10 +155,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final byte[] id = b2.getBytes(58, 90);
 
         if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
-            throw new IllegalArgumentException("Identity scope mismatch");
+            throw new IllegalArgumentException("Failed to decode refreshTokenV3: Identity scope mismatch");
         }
         if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
-            throw new IllegalArgumentException("Identity type mismatch");
+            throw new IllegalArgumentException("Failed to decode refreshTokenV3: Identity type mismatch");
         }
 
         return new RefreshToken(
@@ -176,9 +175,9 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
             return decodeAdvertisingTokenV3(b, bytes);
         } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
             return decodeAdvertisingTokenV2(b);
+        } else {
+            throw new IllegalArgumentException("Invalid advertising token version");
         }
-
-        throw new IllegalArgumentException("Invalid advertising token version");
     }
 
     public AdvertisingToken decodeAdvertisingTokenV2(Buffer b) {
@@ -214,7 +213,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
             );
 
         } catch (Exception e) {
-            throw new RuntimeException("Couldn't decode Entity", e);
+            throw new RuntimeException("Couldn't decode advertisingTokenV2", e);
         }
 
     }
@@ -241,10 +240,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         if (id.length > 32)
         {
             if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
-                throw new IllegalArgumentException("Identity scope mismatch");
+                throw new IllegalArgumentException("Failed decoding advertisingTokenV3: Identity scope mismatch");
             }
             if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
-                throw new IllegalArgumentException("Identity type mismatch");
+                throw new IllegalArgumentException("Failed decoding advertisingTokenV3: Identity type mismatch");
             }
         }
 
@@ -331,17 +330,17 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     private byte[] encryptIdentityV2(PublisherIdentity publisherIdentity, UserIdentity identity, EncryptionKey key) {
         Buffer b = Buffer.buffer();
-        b.appendInt(publisherIdentity.siteId);
         try {
+            b.appendInt(publisherIdentity.siteId);
             final byte[] identityBytes = EncodingUtils.toBase64(identity.id);
             b.appendInt(identityBytes.length);
             b.appendBytes(identityBytes);
+            b.appendInt(identity.privacyBits);
+            b.appendLong(identity.establishedAt.toEpochMilli());
+            return AesCbc.encrypt(b.getBytes(), key).getPayload();
         } catch (Exception e) {
-            throw new RuntimeException("Could not turn Identity into UTF-8");
+            throw new RuntimeException("Could not turn Identity into UTF-8", e);
         }
-        b.appendInt(identity.privacyBits);
-        b.appendLong(identity.establishedAt.toEpochMilli());
-        return AesCbc.encrypt(b.getBytes(), key).getPayload();
     }
 
     static private byte encodeIdentityTypeV3(UserIdentity userIdentity) {

@@ -402,7 +402,9 @@ Resources:
             /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
-    DependsOn: TokenSecret
+    DependsOn:
+      - TokenSecret
+      - SSMKEYAlias
     Properties:
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplate

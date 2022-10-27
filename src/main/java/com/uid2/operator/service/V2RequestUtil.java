@@ -49,6 +49,7 @@ public class V2RequestUtil {
     private static final byte VERSION = 1;
 
     public static final int V2_REFRESH_PAYLOAD_LENGTH = 388;
+    public static final long V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES = 1;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
@@ -62,22 +63,22 @@ public class V2RequestUtil {
             bodyBytes = Utils.decodeBase64String(bodyString);
         }
         catch (IllegalArgumentException ex) {
-            return new V2Request("cannot decode body");
+            return new V2Request("Invalid body: Body is not valid base64.");
         }
 
         if (bodyBytes.length < MIN_PAYLOAD_LENGTH) {
-            return new V2Request("wrong size");
+            return new V2Request("Invalid body: Body too short. Check encryption method.");
         }
 
         if (bodyBytes[0] != VERSION) {
-            return new V2Request("wrong version");
+            return new V2Request("Invalid body: Version mismatch.");
         }
 
         byte[] decryptedBody;
         try {
             decryptedBody = AesGcm.decrypt(bodyBytes, 1, ck.getSecretBytes());
         } catch (Exception ex) {
-            return new V2Request("wrong data");
+            return new V2Request("Invalid body: Check encryption key (ClientSecret)");
         }
 
         // Request envelop format:
@@ -86,8 +87,9 @@ public class V2RequestUtil {
         //  byte 16-end: base64 encoded request json
         Buffer b = Buffer.buffer(decryptedBody);
         Instant tm = Instant.ofEpochMilli(b.getLong(0));
-        if (Math.abs(Duration.between(tm, Clock.systemUTC().instant()).toMinutes()) > 1.0) {
-            return new V2Request("invalid timestamp");
+        if (Math.abs(Duration.between(tm, Clock.systemUTC().instant()).toMinutes()) >
+                V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
+            return new V2Request("Invalid timestamp: Request too old or client time drift.");
         }
 
         JsonObject payload = null;
@@ -98,7 +100,7 @@ public class V2RequestUtil {
                 payload = new JsonObject(bodyStr);
             } catch (Exception ex) {
                 LOGGER.error(ex);
-                return new V2Request("cannot parse");
+                return new V2Request("Invalid payload in body: Data is not valid json string.");
             }
         }
 
@@ -115,7 +117,7 @@ public class V2RequestUtil {
             bytes = Utils.decodeBase64String(bodyString);
         }
         catch (IllegalArgumentException ex) {
-            return new V2Request("cannot decode body");
+            return new V2Request("Invalid body: Body is not valid base64.");
         }
 
         // Skip first identity scope byte
@@ -123,7 +125,7 @@ public class V2RequestUtil {
 
         EncryptionKey key = keyStore.getSnapshot().getKey(keyId);
         if (key == null) {
-            return new V2Request("key not found");
+            return new V2Request("Invalid key: Generator of this token does not exist.");
         }
 
         byte[] decrypted;
@@ -131,7 +133,7 @@ public class V2RequestUtil {
             decrypted = AesGcm.decrypt(bytes, 5, key);
         } catch (Exception ex) {
             LOGGER.error(ex);
-            return new V2Request("wrong data");
+            return new V2Request("Invalid data: Check encryption method and encryption key");
         }
 
         try {
@@ -142,7 +144,7 @@ public class V2RequestUtil {
             return new V2Request(null, refreshToken, responseKey);
         } catch (Exception ex) {
             LOGGER.error(ex);
-            return new V2Request("cannot parse");
+            return new V2Request("Invalid format: Payload is not valid json or missing required data");
         }
     }
 

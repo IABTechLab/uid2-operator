@@ -11,3 +11,10 @@ jobs:
       # Build and Run Unit Tests
       - name: Build and Run Unit Tests
         run: mvn -B clean test
+      - name: Generate Code Coverage
+        run: mvn jacoco:report
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-coverage-report
+          path: target/site/jacoco/*

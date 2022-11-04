@@ -1,26 +1,3 @@
-// Copyright (c) 2021 The Trade Desk, Inc
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice,
-//    this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
-
 package com.uid2.operator.service;
 
 import com.uid2.operator.Const;
@@ -122,10 +99,9 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final int length = b2.getInt(4);
         final byte[] identity;
         try {
-
             identity = EncodingUtils.fromBase64(b2.slice(8, 8 + length).getBytes());
         } catch (Exception e) {
-            throw new RuntimeException("Couldn't decode Entity", e);
+            throw new RuntimeException("Failed to decode refreshTokenV2: Identity segment is not valid base64.", e);
         }
 
         final int privacyBits = b2.getInt(8 + length);
@@ -156,10 +132,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final byte[] id = b2.getBytes(58, 90);
 
         if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
-            throw new IllegalArgumentException("Identity scope mismatch");
+            throw new IllegalArgumentException("Failed to decode refreshTokenV3: Identity scope mismatch");
         }
         if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
-            throw new IllegalArgumentException("Identity type mismatch");
+            throw new IllegalArgumentException("Failed to decode refreshTokenV3: Identity type mismatch");
         }
 
         return new RefreshToken(
@@ -176,9 +152,9 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
             return decodeAdvertisingTokenV3(b, bytes);
         } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
             return decodeAdvertisingTokenV2(b);
+        } else {
+            throw new IllegalArgumentException("Invalid advertising token version");
         }
-
-        throw new IllegalArgumentException("Invalid advertising token version");
     }
 
     public AdvertisingToken decodeAdvertisingTokenV2(Buffer b) {
@@ -214,7 +190,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
             );
 
         } catch (Exception e) {
-            throw new RuntimeException("Couldn't decode Entity", e);
+            throw new RuntimeException("Couldn't decode advertisingTokenV2", e);
         }
 
     }
@@ -241,10 +217,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         if (id.length > 32)
         {
             if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
-                throw new IllegalArgumentException("Identity scope mismatch");
+                throw new IllegalArgumentException("Failed decoding advertisingTokenV3: Identity scope mismatch");
             }
             if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
-                throw new IllegalArgumentException("Identity type mismatch");
+                throw new IllegalArgumentException("Failed decoding advertisingTokenV3: Identity type mismatch");
             }
         }
 
@@ -331,17 +307,17 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     private byte[] encryptIdentityV2(PublisherIdentity publisherIdentity, UserIdentity identity, EncryptionKey key) {
         Buffer b = Buffer.buffer();
-        b.appendInt(publisherIdentity.siteId);
         try {
+            b.appendInt(publisherIdentity.siteId);
             final byte[] identityBytes = EncodingUtils.toBase64(identity.id);
             b.appendInt(identityBytes.length);
             b.appendBytes(identityBytes);
+            b.appendInt(identity.privacyBits);
+            b.appendLong(identity.establishedAt.toEpochMilli());
+            return AesCbc.encrypt(b.getBytes(), key).getPayload();
         } catch (Exception e) {
-            throw new RuntimeException("Could not turn Identity into UTF-8");
+            throw new RuntimeException("Could not turn Identity into UTF-8", e);
         }
-        b.appendInt(identity.privacyBits);
-        b.appendLong(identity.establishedAt.toEpochMilli());
-        return AesCbc.encrypt(b.getBytes(), key).getPayload();
     }
 
     static private byte encodeIdentityTypeV3(UserIdentity userIdentity) {

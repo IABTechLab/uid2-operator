@@ -1,26 +1,3 @@
-// Copyright (c) 2021 The Trade Desk, Inc
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice,
-//    this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
-
 const sdk = require('../../static/js/uid2-sdk-2.0.0.js');
 const mocks = require('../mocks.js');
 
@@ -107,6 +84,7 @@ describe('when auto refreshing a non-expired identity which requires a refresh',
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: updatedIdentity.advertising_token,
         advertising_token: updatedIdentity.advertising_token,
         status: sdk.UID2.IdentityStatus.REFRESHED,
       }));
@@ -131,6 +109,7 @@ describe('when auto refreshing a non-expired identity which requires a refresh',
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.UID2.IdentityStatus.OPTOUT,
       }));
@@ -155,6 +134,7 @@ describe('when auto refreshing a non-expired identity which requires a refresh',
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.UID2.IdentityStatus.REFRESH_EXPIRED,
       }));
@@ -201,6 +181,7 @@ describe('when auto refreshing a non-expired identity which requires a refresh',
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.UID2.IdentityStatus.REFRESH_EXPIRED,
       }));
@@ -258,6 +239,7 @@ describe('when auto refreshing an expired identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: updatedIdentity.advertising_token,
         advertising_token: updatedIdentity.advertising_token,
         status: sdk.UID2.IdentityStatus.REFRESHED,
       }));
@@ -282,6 +264,7 @@ describe('when auto refreshing an expired identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.UID2.IdentityStatus.OPTOUT,
       }));
@@ -306,6 +289,7 @@ describe('when auto refreshing an expired identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.UID2.IdentityStatus.REFRESH_EXPIRED,
       }));
@@ -330,6 +314,7 @@ describe('when auto refreshing an expired identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.UID2.IdentityStatus.EXPIRED,
       }));
@@ -355,6 +340,7 @@ describe('when auto refreshing an expired identity', () => {
 
     it('should invoke the callback', () => {
       expect(callback).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        advertisingToken: undefined,
         advertising_token: undefined,
         status: sdk.UID2.IdentityStatus.REFRESH_EXPIRED,
       }));

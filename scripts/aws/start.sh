@@ -2,6 +2,7 @@
 
 echo "$HOSTNAME" > /etc/uid2operator/HOSTNAME
 EIF_PATH=${EIF_PATH:-/opt/uid2operator/uid2operator.eif}
+IDENTITY_SCOPE=${IDENTITY_SCOPE:-$(cat /opt/uid2operator/identity_scope)}
 CID=${CID:-42}
 AWS_REGION_NAME=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r '.region')
 if [ "$IDENTITY_SCOPE" = 'UID2' ]; then

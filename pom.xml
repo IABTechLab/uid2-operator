@@ -19,7 +19,7 @@
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
         <micrometer.version>1.1.0</micrometer.version>
         <enclave-api.version>1.1.0</enclave-api.version>
-        <uid2-shared.version>1.7.0</uid2-shared.version>
+        <uid2-shared.version>1.8.0</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
     <dependencies>

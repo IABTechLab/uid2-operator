@@ -87,4 +87,4 @@ build/build_artifacts.stamp build/vsockpx build/libjnsm.so: Dockerfile.nitro.bui
 	docker rm uid2-nitro-builder
 	touch build/build_artifacts.stamp
 
-.PHONY: install uninstall setup_nitro build_artifacts build_eif loki_override
+.PHONY: install uninstall setup_nitro build_artifacts build_eif loki_override build/configs

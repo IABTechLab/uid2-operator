@@ -2,9 +2,18 @@
 
 echo "$HOSTNAME" > /etc/uid2operator/HOSTNAME
 EIF_PATH=${EIF_PATH:-/opt/uid2operator/uid2operator.eif}
+IDENTITY_SCOPE=${IDENTITY_SCOPE:-$(cat /opt/uid2operator/identity_scope)}
 CID=${CID:-42}
 AWS_REGION_NAME=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r '.region')
-UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s http://169.254.169.254/latest/user-data | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo ${BASH_REMATCH[1]} || echo "uid2-operator-config-key")
+if [ "$IDENTITY_SCOPE" = 'UID2' ]; then
+  UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s http://169.254.169.254/latest/user-data | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo ${BASH_REMATCH[1]} || echo "uid2-operator-config-key")
+elif [ "$IDENTITY_SCOPE" = 'EUID' ]; then
+  UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s http://169.254.169.254/latest/user-data | grep EUID_CONFIG_SECRET_KEY=)" =~ ^export\ EUID_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo ${BASH_REMATCH[1]} || echo "euid-operator-config-key")
+else
+  echo "Unrecognized IDENTITY_SCOPE $IDENTITY_SCOPE"
+  exit 1
+fi
+
 
 function terminate_old_enclave() {
     ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")

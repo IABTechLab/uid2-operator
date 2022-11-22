@@ -14,8 +14,9 @@ def apply_override(config, overrides, key, type):
 
 
 config_path = sys.argv[1]
-overrides_path = sys.argv[2]
-thread_count = int(sys.argv[3])
+integ_config_path = sys.argv[2]
+overrides_path = sys.argv[3]
+thread_count = int(sys.argv[4])
 
 config = load_json(config_path)
 overrides = load_json(overrides_path)
@@ -34,13 +35,14 @@ apply_override(config, overrides, 'optout_synthetic_logs_count', int)
 
 # environment
 if overrides.get('environment') == 'integ':
-  config['clients_metadata_path'] = 'https://core-integ.uidapi.com/clients/refresh'
-  config['keys_metadata_path'] = 'https://core-integ.uidapi.com/key/refresh'
-  config['keys_acl_metadata_path'] = 'https://core-integ.uidapi.com/key/acl/refresh'
-  config['salts_metadata_path'] = 'https://core-integ.uidapi.com/salt/refresh'
-  config['optout_metadata_path'] = 'https://optout-integ.uidapi.com/optout/refresh'
-  config['core_attest_url'] = 'https://core-integ.uidapi.com/attest'
-  config['optout_api_uri'] = 'https://optout-integ.uidapi.com/optout/replicate'
-  config['optout_s3_folder'] = 'uid2-optout-integ/'
+  integ_config = load_json(integ_config_path)
+  apply_override(config, integ_config, 'clients_metadata_path', str)
+  apply_override(config, integ_config, 'keys_metadata_path', str)
+  apply_override(config, integ_config, 'keys_acl_metadata_path', str)
+  apply_override(config, integ_config, 'salts_metadata_path', str)
+  apply_override(config, integ_config, 'optout_metadata_path', str)
+  apply_override(config, integ_config, 'core_attest_url', str)
+  apply_override(config, integ_config, 'optout_api_uri', str)
+  apply_override(config, integ_config, 'optout_s3_folder', str)
 
 print(json.dumps(config))

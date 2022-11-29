@@ -23,8 +23,7 @@ import com.uid2.shared.store.IKeyAclProvider;
 import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
-import io.micrometer.core.instrument.DistributionSummary;
-import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.*;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
@@ -39,16 +38,14 @@ import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
 import java.io.IOException;
+import java.time.*;
 import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -71,6 +68,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final Clock clock;
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
+    private final Map<String, AtomicLong> _refreshDurationMetrics = new HashMap<>();
     private final IdentityScope identityScope;
     private final V2PayloadHandler v2PayloadHandler;
     private Handler<RoutingContext> disableHandler = null;
@@ -309,6 +307,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
+                this.recordRefreshDurationStats(rc, r.getDurationSinceLastRefresh());
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
             }
         } catch (Exception e) {
@@ -1018,7 +1017,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    private void recordIdentityMapStats(RoutingContext rc, int inputCount) {
+    private static String getApiContact(RoutingContext rc) {
         String apiContact;
         try {
             apiContact = (String) rc.data().get(AuthMiddleware.API_CONTACT_PROP);
@@ -1027,13 +1026,35 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             apiContact = "error: " + ex.getMessage();
         }
 
-        final String finalApiContact = apiContact;
+        return apiContact;
+    }
+
+    private void recordIdentityMapStats(RoutingContext rc, int inputCount) {
+        String apiContact = getApiContact(rc);
+
         DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(apiContact, k -> DistributionSummary
             .builder("uid2.operator.identity.map.inputs")
             .description("number of emails or email hashes passed to identity map batch endpoint")
-            .tags("api_contact", finalApiContact)
+            .tags("api_contact", apiContact)
             .register(Metrics.globalRegistry));
         ds.record(inputCount);
+    }
+
+    private void recordRefreshDurationStats(RoutingContext rc, Duration durationSinceLastRefresh) {
+        String apiContact = getApiContact(rc);
+
+        _refreshDurationMetrics.computeIfAbsent(apiContact, k -> {
+            AtomicLong durationSinceLastRefreshGauge = new AtomicLong(0);
+            Gauge
+                    .builder("uid2.token_refresh_durations", durationSinceLastRefreshGauge, AtomicLong::get)
+                    .strongReference(true)
+                    .tag("api_contact", apiContact)
+                    .register(Metrics.globalRegistry);
+
+            return durationSinceLastRefreshGauge;
+        });
+
+        _refreshDurationMetrics.get(apiContact).set(durationSinceLastRefresh.getSeconds());
     }
 
     private InputUtil.InputVal[] createInputList(JsonArray a, boolean inputAsHash) {

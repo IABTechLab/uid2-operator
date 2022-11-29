@@ -334,6 +334,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
+                this.recordRefreshDurationStats(rc, r.getDurationSinceLastRefresh());
                 ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
             }
         } catch (Exception e) {

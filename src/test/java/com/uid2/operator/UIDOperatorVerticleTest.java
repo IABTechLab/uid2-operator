@@ -135,6 +135,7 @@ public class UIDOperatorVerticleTest {
 
     @AfterEach
     void teardown() throws Exception {
+        Metrics.globalRegistry.getMeters().forEach(m -> Metrics.globalRegistry.remove(m.getId()));
         mocks.close();
     }
 

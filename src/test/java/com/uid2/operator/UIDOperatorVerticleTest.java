@@ -845,7 +845,7 @@ public class UIDOperatorVerticleTest {
             sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson-> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 assertEquals(300, Metrics.globalRegistry
-                        .get("uid2.token_refresh_durations")
+                        .get("uid2.token_refresh_duration_seconds")
                         .tag("api_contact", "unknown")
                         .summary().mean());
                 testContext.completeNow();

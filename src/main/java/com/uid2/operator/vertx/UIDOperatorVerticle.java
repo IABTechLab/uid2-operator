@@ -45,7 +45,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -68,7 +67,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final Clock clock;
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
-    private final Map<String, AtomicLong> _refreshDurationMetrics = new HashMap<>();
+    private final Map<String, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final IdentityScope identityScope;
     private final V2PayloadHandler v2PayloadHandler;
     private Handler<RoutingContext> disableHandler = null;
@@ -1044,18 +1043,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private void recordRefreshDurationStats(RoutingContext rc, Duration durationSinceLastRefresh) {
         String apiContact = getApiContact(rc);
 
-        _refreshDurationMetrics.computeIfAbsent(apiContact, k -> {
-            AtomicLong durationSinceLastRefreshGauge = new AtomicLong(0);
-            Gauge
-                    .builder("uid2.token_refresh_durations", durationSinceLastRefreshGauge, AtomicLong::get)
-                    .strongReference(true)
+        DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(apiContact, k ->
+            DistributionSummary
+                    .builder("uid2.token_refresh_duration_seconds")
+                    .description("duration between token refreshes")
                     .tag("api_contact", apiContact)
-                    .register(Metrics.globalRegistry);
-
-            return durationSinceLastRefreshGauge;
-        });
-
-        _refreshDurationMetrics.get(apiContact).set(durationSinceLastRefresh.getSeconds());
+                    .register(Metrics.globalRegistry)
+        );
+        ds.record(durationSinceLastRefresh.getSeconds());
     }
 
     private InputUtil.InputVal[] createInputList(JsonArray a, boolean inputAsHash) {

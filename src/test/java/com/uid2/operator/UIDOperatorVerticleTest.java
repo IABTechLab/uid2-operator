@@ -21,6 +21,8 @@ import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IKeyAclProvider;
 import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.store.ISaltProvider;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -133,6 +135,7 @@ public class UIDOperatorVerticleTest {
 
     @AfterEach
     void teardown() throws Exception {
+        Metrics.globalRegistry.getMeters().forEach(m -> Metrics.globalRegistry.remove(m.getId()));
         mocks.close();
     }
 
@@ -822,6 +825,32 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
         generateTokens(apiVersion, vertx, identityType, identity, handler);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void captureDurationsBetweenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        // Add a registry to the global registry so that metrics aren't no-oped
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        Metrics.globalRegistry.add(registry);
+
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        final String emailAddress = "test@uid2.com";
+        generateRefreshToken(apiVersion, vertx, "email", emailAddress, clientSiteId, genRespJson -> {
+            JsonObject bodyJson = genRespJson.getJsonObject("body");
+            String refreshToken = bodyJson.getString("refresh_token");
+            when(clock.instant()).thenAnswer(i -> Instant.now().plusSeconds(300));
+
+            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson-> {
+                assertEquals("success", refreshRespJson.getString("status"));
+                assertEquals(300, Metrics.globalRegistry
+                        .get("uid2.token_refresh_duration_seconds")
+                        .tag("api_contact", "unknown")
+                        .summary().mean());
+                testContext.completeNow();
+            });
+        });
     }
 
     @ParameterizedTest

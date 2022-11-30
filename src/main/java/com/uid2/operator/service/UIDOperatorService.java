@@ -116,7 +116,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             final Instant logoutEntry = this.optOutStore.getLatestEntry(token.userIdentity);
 
             if (logoutEntry == null || token.userIdentity.establishedAt.isAfter(logoutEntry)) {
-                Duration durationSinceLastRefresh = Duration.between(token.userIdentity.establishedAt, Instant.now(this.clock));
+                Duration durationSinceLastRefresh = Duration.between(token.createdAt, Instant.now(this.clock));
                 return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity), durationSinceLastRefresh);
             } else {
                 return RefreshResponse.Optout;

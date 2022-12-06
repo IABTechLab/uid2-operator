@@ -1,19 +1,4 @@
-FROM eclipse-temurin:11 as jre-build
-
-# Create a custom Java runtime
-RUN $JAVA_HOME/bin/jlink \
-         --add-modules java.base \
-         --strip-debug \
-         --no-man-pages \
-         --no-header-files \
-         --compress=2 \
-         --output /javaruntime
-
-# Define your base image
-FROM debian:buster-slim
-ENV JAVA_HOME=/opt/java/openjdk
-ENV PATH "${JAVA_HOME}/bin:${PATH}"
-COPY --from=jre-build /javaruntime $JAVA_HOME
+FROM openjdk:11 AS jre-build
 
 WORKDIR /app
 EXPOSE 8080
@@ -29,12 +14,44 @@ ENV LOGBACK_CONF=${LOGBACK_CONF:-./conf/logback.xml}
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-static.tar.gz /app/static.tar.gz
-COPY ./conf/default-config.json /app/conf/
+COPY ./conf/local-config.json /app/conf/
 COPY ./conf/*.xml /app/conf/
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
 
-CMD java \
+RUN jdeps \
+    --ignore-missing-deps \
+    -q \
+    --multi-release 17 \
+    --print-module-deps \
+    /app/${JAR_NAME}-${JAR_VERSION}.jar > jre-deps.info
+
+RUN jlink --verbose \
+    --compress 2 \
+    --strip-debug \
+    --no-header-files \
+    --no-man-pages \
+    --output jre \
+    --add-modules $(cat jre-deps.info)
+
+FROM debian:11
+WORKDIR /deployment
+
+ARG JAR_NAME=uid2-operator
+ARG JAR_VERSION=1.0.0-SNAPSHOT
+ARG IMAGE_VERSION=1.0.0.unknownhash
+ENV JAR_NAME=${JAR_NAME}
+ENV JAR_VERSION=${JAR_VERSION}
+ENV IMAGE_VERSION=${IMAGE_VERSION}
+ENV LOGBACK_CONF=${LOGBACK_CONF:-./conf/logback.xml}
+
+COPY --from=jre-build /app/jre jre
+COPY --from=jre-build /app/${JAR_NAME}-${JAR_VERSION}.jar ${JAR_NAME}-${JAR_VERSION}.jar
+COPY --from=jre-build /app/${JAR_NAME}-${JAR_VERSION}-sources.jar ${JAR_NAME}-${JAR_VERSION}-sources.jar
+COPY --from=jre-build /app/conf/local-config.json conf/local-config.json
+COPY --from=jre-build /app/conf/*.xml conf/*.xml
+
+CMD jre/bin/java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
     -Djava.security.egd=file:/dev/./urandom \
     -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \

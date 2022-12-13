@@ -844,6 +844,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals(300, Metrics.globalRegistry
                         .get("uid2.token_refresh_duration_seconds")
                         .tag("api_contact", "unknown")
+                        .tag("site_id", String.valueOf(clientSiteId))
                         .summary().mean());
                 testContext.completeNow();
             });

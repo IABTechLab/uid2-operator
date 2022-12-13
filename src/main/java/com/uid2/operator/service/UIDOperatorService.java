@@ -84,17 +84,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public RefreshResponse refreshIdentity(String refreshToken) {
-        final RefreshToken token;
-        try {
-            token = this.encoder.decodeRefreshToken(refreshToken);
-        } catch (Throwable t) {
-            return RefreshResponse.Invalid;
-        }
-        if (token == null) {
-            return RefreshResponse.Invalid;
-        }
-
+    public RefreshResponse refreshIdentity(RefreshToken token) {
         // should not be possible as different scopes should be using different keys, but just in case
         if (token.userIdentity.identityScope != this.identityScope) {
             return RefreshResponse.Invalid;

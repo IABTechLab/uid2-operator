@@ -64,9 +64,11 @@ jobs:
             IMAGE_VERSION=${{ steps.package.outputs.jar_version }}-${{ steps.package.outputs.git_commit }}
 
       - name: Scan image
-        uses: anchore/scan-activity@v3
+        uses: anchore/scan-action@v3
         with:
           image: ${{ steps.meta.outputs.tags }}
+          fail-build: true
+          severity-cutoff: high
 
       - name: Push to Docker
         uses: docker/build-push-action@v3

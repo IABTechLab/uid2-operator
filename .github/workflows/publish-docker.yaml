@@ -89,3 +89,7 @@ jobs:
           build-args: |
             JAR_VERSION=${{ steps.package.outputs.jar_version }}
             IMAGE_VERSION=${{ steps.package.outputs.jar_version }}-${{ steps.package.outputs.git_commit }}
+
+      - name: Check build result
+        if: ${{ failure() || cancelled() || steps.scan.outcome != 'success' }}
+        run: exit 1

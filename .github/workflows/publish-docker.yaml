@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      security-events: write
       packages: write
     outputs:
       jar_version: ${{ steps.package.outputs.jar_version }}

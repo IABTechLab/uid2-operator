@@ -79,7 +79,7 @@ jobs:
 
       - name: Push to Docker
         uses: docker/build-push-action@v3
-        if: !failure() && !cancelled()
+        if: ${{ !failure() && !cancelled() }}
         with:
           context: .
           push: true

@@ -66,6 +66,7 @@ jobs:
       - name: Scan image
         id: scan
         uses: anchore/scan-action@v3
+        continue-on-error: true
         with:
           image: ${{ steps.meta.outputs.tags }}
           fail-build: true
@@ -78,6 +79,7 @@ jobs:
 
       - name: Push to Docker
         uses: docker/build-push-action@v3
+        if: !failure() && !cancelled()
         with:
           context: .
           push: true

@@ -51,8 +51,25 @@ jobs:
           tags: |
             type=sha,prefix=${{ steps.package.outputs.jar_version }}-,suffix=-${{ github.event.inputs.cloud_provider }},format=short
             type=raw,value=${{ github.event.inputs.tag }}
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v2
+
+      - name: Build and export to Docker
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            JAR_VERSION=${{ steps.package.outputs.jar_version }}
+            IMAGE_VERSION=${{ steps.package.outputs.jar_version }}-${{ steps.package.outputs.git_commit }}
+
+      - name: Scan image
+        uses: anchore/scan-activity@v3
+        with:
+          image: ${{ steps.meta.outputs.tags }}
+
+      - name: Push to Docker
+        uses: docker/build-push-action@v3
         with:
           context: .
           push: true

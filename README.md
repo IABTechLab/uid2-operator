@@ -48,4 +48,22 @@ mvn clean compile exec:java -Dvertx-config-path=conf/integ-config.json
 5. Run ```docker run -it -p 8080:8080 uid-operator:latest ```
 6. Go to postman and test on endpoint `http://localhost:8080/v1/token/generate?email=exampleuser4@test.uidapi.com`
 
+## Running vulnerability scanning locally
+The Github actions will run Trivy for vulnerability scanning as part of the build-and-test and publish-docker pipelines. However, they can also be run locally to aid in resolving these.
+Trivy only runs on Linux, so you will need to install WSL.
 
+### Installation
+Once WSL is installed, follow these instructions:
+
+https://aquasecurity.github.io/trivy/v0.35/getting-started/installation/
+
+Once installed to check the code only (which is what the build-and-test pipeline does), run this command from the root directory:
+```
+wsl trivy fs .
+```
+
+To check the docker image (which is what the publish-docker pipeline does), run this command:
+```
+wsl trivy image <image reference>
+```
+where `<image reference`> is the built docker image you want to scan. 

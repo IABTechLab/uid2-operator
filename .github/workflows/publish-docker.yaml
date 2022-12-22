@@ -36,8 +36,8 @@ jobs:
         id: package
         run: |
           mvn -B package -P ${{ github.event.inputs.cloud_provider }} 
-          echo "jar_version::$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
-          echo "git_commit::$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
+          echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
+          echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
       - name: Log in to the Container registry
         uses: docker/login-action@v2
         with:

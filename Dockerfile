@@ -1,4 +1,4 @@
-FROM openjdk:11 AS jre-build
+FROM eclipse-temurin:11.0.17_8-jre-alpine
 
 WORKDIR /app
 EXPOSE 8080

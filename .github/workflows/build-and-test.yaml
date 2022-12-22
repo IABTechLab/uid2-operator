@@ -7,7 +7,7 @@ jobs:
 
     steps:
       # Check out repository $GITHUB_WORKSPACE
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       # Build and Run Unit Tests
       - name: Build and Run Unit Tests
         run: mvn -B clean test

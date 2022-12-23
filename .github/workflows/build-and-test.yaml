@@ -6,4 +6,4 @@ on:
 
 jobs:
   build:
-    uses: IABTechLan/uid2-shared-actions/.github/workflows/shared-build-and-test.yaml@main
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-build-and-test.yaml@main

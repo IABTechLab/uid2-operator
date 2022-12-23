@@ -1,45 +1,9 @@
 name: Build and Test
-on: [push]
+
+on: 
+  push:
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
-    steps:
-      # Check out repository $GITHUB_WORKSPACE
-      - uses: actions/checkout@v3
-      # Build and Run Unit Tests
-      - name: Build and Run Unit Tests
-        run: mvn -B clean test
-      - name: Generate Code Coverage
-        run: mvn jacoco:report
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v3
-        with:
-          name: code-coverage-report
-          path: target/site/jacoco/*
-
-      - name: Local vulnerability scanner 
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          format: 'sarif'
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: 'CRITICAL'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
+    uses: IABTechLan/uid2-shared-actions/.github/workflows/shared-build-and-test.yaml

@@ -10,97 +10,10 @@ on:
         required: false
         default: 'default'
         type: string
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-publish-docker:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-      packages: write
-    outputs:
-      jar_version: ${{ steps.package.outputs.jar_version }}
-    steps:
-      - name: Checkout Full history
-        uses: actions/checkout@v3
-        with:
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-      - name: Restore Timestamps
-        uses: thetradedesk/git-restore-mtime-action@v1
-      # Build and Run Unit Tests
-      - name: Package Jar 
-        id: package
-        run: |
-          mvn -B package -P ${{ github.event.inputs.cloud_provider }} 
-          echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
-          echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
-      - name: Log in to the Container registry
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,prefix=${{ steps.package.outputs.jar_version }}-,suffix=-${{ github.event.inputs.cloud_provider }},format=short
-            type=raw,value=${{ github.event.inputs.tag }}
-
-      - name: Build and export to Docker
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          load: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            JAR_VERSION=${{ steps.package.outputs.jar_version }}
-            IMAGE_VERSION=${{ steps.package.outputs.jar_version }}-${{ steps.package.outputs.git_commit }}
-
-      - name: Local vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'sarif'
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: 'CRITICAL'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-      - name: Push to Docker
-        uses: docker/build-push-action@v3
-        #if: ${{ !failure() && !cancelled() && steps.scan.outcome == 'success' }}
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            JAR_VERSION=${{ steps.package.outputs.jar_version }}
-            IMAGE_VERSION=${{ steps.package.outputs.jar_version }}-${{ steps.package.outputs.git_commit }}
-
-      #- name: Check build result
-      #  if: ${{ failure() || cancelled() || steps.scan.outcome != 'success' }}
-      #  run: exit 1
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker.yaml@main
+    with: 
+      tag: ${{ inputs.tag }}
+      cloud_provider: ${{ inputs.cloud_provider }}

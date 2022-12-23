@@ -19,6 +19,15 @@ jobs:
           name: code-coverage-report
           path: target/site/jacoco/*
 
+      - name: Local vulnerability scanner 
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:

@@ -64,6 +64,15 @@ jobs:
             JAR_VERSION=${{ steps.package.outputs.jar_version }}
             IMAGE_VERSION=${{ steps.package.outputs.jar_version }}-${{ steps.package.outputs.git_commit }}
 
+      - name: Local vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.meta.outputs.tags }}
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:

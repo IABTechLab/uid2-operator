@@ -19,6 +19,10 @@ COPY ./conf/*.xml /app/conf/
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
 
+RUN adduser -D uid2-operator && chmod 705 -R /app
+RUN mkdir -p /opt && chmod 777 -R /opt
+USER uid2-operator
+
 CMD java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
     -Djava.security.egd=file:/dev/./urandom \

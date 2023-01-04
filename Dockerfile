@@ -1,4 +1,4 @@
-FROM eclipse-temurin:11.0.17_8-jre-alpine
+FROM eclipse-temurin@sha256:c99492a6cf649269c2e39f468fa64dacca233e362059ce1deb218c56e51969a0
 
 WORKDIR /app
 EXPOSE 8080

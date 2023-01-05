@@ -1,5 +1,10 @@
 FROM eclipse-temurin@sha256:c99492a6cf649269c2e39f468fa64dacca233e362059ce1deb218c56e51969a0
 
+RUN adduser -D uid2-operator && mkdir -p /app && chmod 705 -R /app
+RUN mkdir -p /opt && chmod 777 -R /opt
+RUN mkdir -p /tmp && chmod 777 -R /tmp
+USER uid2-operator
+
 WORKDIR /app
 EXPOSE 8080
 
@@ -17,11 +22,10 @@ COPY ./target/${JAR_NAME}-${JAR_VERSION}-static.tar.gz /app/static.tar.gz
 COPY ./conf/default-config.json /app/conf/
 COPY ./conf/*.xml /app/conf/
 
+USER root
+
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
 
-RUN adduser -D uid2-operator && chmod 705 -R /app
-RUN mkdir -p /opt && chmod 777 -R /opt
-RUN mkdir -p /tmp && chmod 777 -R /tmp
 USER uid2-operator
 
 CMD java \

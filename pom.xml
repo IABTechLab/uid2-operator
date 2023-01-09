@@ -6,7 +6,7 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>1.11.0-SNAPSHOT</version>
+    <version>1.11.1</version>
     <repositories>
         <repository>
             <id>sonatype</id>
@@ -26,7 +26,7 @@
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
         <micrometer.version>1.1.0</micrometer.version>
         <enclave-api.version>1.1.0</enclave-api.version>
-        <uid2-shared.version>1.11.2-SNAPSHOT</uid2-shared.version>
+        <uid2-shared.version>1.11.2</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
     <dependencies>

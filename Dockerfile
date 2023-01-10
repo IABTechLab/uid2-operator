@@ -21,7 +21,6 @@ RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /
 
 RUN adduser -D uid2-operator
 RUN mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2
-RUN mkdir -p /tmp && chmod 777 -R /tmp
 RUN mkdir -p /app && chmod 705 -R /app
 RUN mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
 USER uid2-operator

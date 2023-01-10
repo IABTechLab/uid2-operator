@@ -17,3 +17,4 @@ jobs:
     with: 
       tag: ${{ inputs.tag }}
       cloud_provider: ${{ inputs.cloud_provider }}
+    secrets: inherit

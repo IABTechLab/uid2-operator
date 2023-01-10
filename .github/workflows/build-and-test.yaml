@@ -5,3 +5,4 @@ on: [pull_request, push, workflow_dispatch]
 jobs:
   build:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-build-and-test.yaml@main
+    secrets: inherit

@@ -6,14 +6,7 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>1.11.1</version>
-    <repositories>
-        <repository>
-            <id>sonatype</id>
-            <name>Sonatype Snapshots</name>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots/</url>
-        </repository>
-    </repositories>
+    <version>1.12.0</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -26,7 +19,7 @@
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
         <micrometer.version>1.1.0</micrometer.version>
         <enclave-api.version>1.1.0</enclave-api.version>
-        <uid2-shared.version>1.11.2</uid2-shared.version>
+        <uid2-shared.version>1.12.0</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
     <dependencies>

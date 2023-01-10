@@ -1,4 +1,4 @@
-FROM openjdk:11
+FROM eclipse-temurin@sha256:c99492a6cf649269c2e39f468fa64dacca233e362059ce1deb218c56e51969a0
 
 WORKDIR /app
 EXPOSE 8080
@@ -18,6 +18,9 @@ COPY ./conf/default-config.json /app/conf/
 COPY ./conf/*.xml /app/conf/
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
+
+RUN adduser -D uid2-operator && mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && mkdir -p /app && chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
+USER uid2-operator
 
 CMD java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \

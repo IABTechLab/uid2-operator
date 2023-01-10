@@ -44,8 +44,8 @@ mvn clean compile exec:java -Dvertx-config-path=conf/integ-config.json
 1. Change `COPY ./conf/default-config.json /app/conf/` in line 13 of `Dockerfile` to `COPY ./conf/docker-config.json /app/conf/local-config.json`
 2. Run ```mvn package```
 3. Go to `pom.xml` and find the version wrapped under `<version>` tag
-4. Run ```docker build -t uid-operator --build-arg JAR_VERSION={version you find in step 3} .```
-5. Run ```docker run -it -p 8080:8080 uid-operator:latest ```
+4. Run ```docker build -t uid2-operator --build-arg JAR_VERSION={version you find in step 3} .```
+5. Run ```docker run -it -p 8080:8080 uid2-operator:latest ```
 6. Go to postman and test on endpoint `http://localhost:8080/v1/token/generate?email=exampleuser4@test.uidapi.com`
 
 ## Running vulnerability scanning locally
@@ -62,8 +62,8 @@ Once installed to check the code only (which is what the build-and-test pipeline
 wsl trivy fs .
 ```
 
-To check the docker image (which is what the publish-docker pipeline does), run this command:
+To check the docker image (which is what the publish-docker pipeline does), build the docker image as outlined above and then run this command:
 ```
 wsl trivy image <image reference>
 ```
-where `<image reference`> is the built docker image you want to scan. 
+where `<image reference`> is the built docker image you want to scan (uid2-latest in the example above). 

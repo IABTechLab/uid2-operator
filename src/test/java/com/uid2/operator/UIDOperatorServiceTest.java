@@ -5,9 +5,11 @@ import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.InputUtil;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
-import com.uid2.shared.store.RotatingKeyStore;
+import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
+import com.uid2.shared.store.reader.RotatingKeyStore;
+import com.uid2.shared.store.scope.GlobalScope;
 import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +47,7 @@ public class UIDOperatorServiceTest {
 
         RotatingKeyStore keyStore = new RotatingKeyStore(
                 new EmbeddedResourceStorage(Main.class),
-                "/com.uid2.core/test/keys/metadata.json");
+                new GlobalScope(new CloudPath("/com.uid2.core/test/keys/metadata.json")));
         keyStore.loadContent();
 
         RotatingSaltProvider saltProvider = new RotatingSaltProvider(

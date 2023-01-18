@@ -410,7 +410,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 final IdentityTokens t = this.idService.generateIdentity(
                     new IdentityRequest(
                         new PublisherIdentity(clientKey.getSiteId(), 0, 0),
-                        input.toUserIdentity(this.identityScope, 1, Instant.now())));
+                        input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                        TokenGeneratePolicy.defaultPolicy()));
 
                 //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
@@ -453,9 +454,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 final IdentityTokens t = this.idService.generateIdentity(
                     new IdentityRequest(
                         new PublisherIdentity(clientKey.getSiteId(), 0, 0),
-                        input.toUserIdentity(this.identityScope, 1, Instant.now())));
+                        input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                        readTokenGeneratePolicy(req)));
                 ResponseUtil.SuccessV2(rc, toJsonV1(t));
             }
+        } catch (IllegalArgumentException iae) {
+            LOGGER.warn(iae);
+            ResponseUtil.ClientError(rc, "request body contains invalid argument(s)");
         } catch (Exception e) {
             LOGGER.error(e);
             rc.fail(500);
@@ -474,7 +479,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final IdentityTokens t = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(clientKey.getSiteId(), 0, 0),
-                            input.toUserIdentity(this.identityScope, 1, Instant.now())));
+                            input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                            TokenGeneratePolicy.defaultPolicy()));
 
             //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
@@ -1131,6 +1137,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         return UserConsentStatus.SUFFICIENT;
+    }
+
+    private static final String TOKEN_GENERATE_POLICY_PARAM = "policy";
+    private TokenGeneratePolicy readTokenGeneratePolicy(JsonObject req) {
+        return req.containsKey(TOKEN_GENERATE_POLICY_PARAM) ?
+            TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) :
+                TokenGeneratePolicy.defaultPolicy();
     }
 
     private TransparentConsentParseResult getUserConsentV2(JsonObject req) {

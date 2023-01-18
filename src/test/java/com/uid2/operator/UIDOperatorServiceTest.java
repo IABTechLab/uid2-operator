@@ -21,7 +21,9 @@ import java.security.Security;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 public class UIDOperatorServiceTest {
@@ -110,7 +112,8 @@ public class UIDOperatorServiceTest {
     public void testGenerateAndRefresh() {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                createUserIdentity("test-email-hash")
+                createUserIdentity("test-email-hash"),
+                TokenGeneratePolicy.JustGenerate
         );
         final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
         assertNotNull(tokens);
@@ -162,7 +165,8 @@ public class UIDOperatorServiceTest {
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(IdentityScope.UID2, 0, this.now)
+                inputVal.toUserIdentity(IdentityScope.UID2, 0, this.now),
+                TokenGeneratePolicy.JustGenerate
         );
         final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
         assertNotNull(tokens);
@@ -177,11 +181,40 @@ public class UIDOperatorServiceTest {
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(IdentityScope.EUID, 0, this.now)
+                inputVal.toUserIdentity(IdentityScope.EUID, 0, this.now),
+                TokenGeneratePolicy.JustGenerate
         );
         final IdentityTokens tokens = euidService.generateIdentity(identityRequest);
         assertNotNull(tokens);
 
         assertEquals(RefreshResponse.Invalid, uid2Service.refreshIdentity(tokens.getRefreshToken()));
+    }
+
+    @Test
+    public void testGenerateTokenForOptOutUser() {
+        final UserIdentity userIdentity = createUserIdentity("test-email-hash-previously-opted-out");
+
+        final IdentityRequest identityRequestForceGenerate = new IdentityRequest(
+                new PublisherIdentity(123, 124, 125),
+                userIdentity,
+                TokenGeneratePolicy.JustGenerate);
+
+        final IdentityRequest identityRequestRespectOptOut = new IdentityRequest(
+                new PublisherIdentity(123, 124, 125),
+                userIdentity,
+                TokenGeneratePolicy.RespectOptOut);
+
+        // the clock value shouldn't matter here
+        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
+
+        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequestForceGenerate);
+        AdvertisingToken advertisingToken = tokenEncoder.decodeAdvertisingToken(tokens.getAdvertisingToken());
+        assertNotNull(tokens);
+        assertNotNull(advertisingToken.userIdentity);
+
+        final IdentityTokens tokensAfterOptOut = uid2Service.generateIdentity(identityRequestRespectOptOut);
+        assertNotNull(tokensAfterOptOut);
+        assertTrue(tokensAfterOptOut.getAdvertisingToken() == null || tokensAfterOptOut.getAdvertisingToken().isEmpty());
     }
 }

@@ -80,7 +80,12 @@ public class UIDOperatorService implements IUIDOperatorService {
         final UserIdentity firstLevelHashIdentity = new UserIdentity(
                 request.userIdentity.identityScope, request.userIdentity.identityType, firstLevelHash, request.userIdentity.privacyBits,
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
-        return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
+
+        if (request.tokenGeneratePolicy.equals(TokenGeneratePolicy.RespectOptOut) && hasGlobalOptOut(firstLevelHashIdentity)) {
+            return IdentityTokens.LogoutToken;
+        } else {
+            return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
+        }
     }
 
     @Override
@@ -233,6 +238,10 @@ public class UIDOperatorService implements IUIDOperatorService {
                 this.operatorIdentity,
                 publisherIdentity,
                 userIdentity);
+    }
+
+    private boolean hasGlobalOptOut(UserIdentity userIdentity) {
+        return this.optOutStore.getLatestEntry(userIdentity) != null;
     }
 
 }

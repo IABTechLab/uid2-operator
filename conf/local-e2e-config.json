@@ -1,0 +1,19 @@
+{
+  "service_instances": 1,
+  "storage_mock": true,
+  "core_attest_url": "http://localhost:8088/attest",
+  "core_api_token": "OPINTdp9Dt0JVoGpynN4J8nMA7FxmzsavxJa8B9H74y9xdEE=",
+  "enforce_https": false,
+  "clients_metadata_path": "http://localhost:8088/clients/refresh",
+  "keys_metadata_path": "http://localhost:8088/key/refresh",
+  "keys_acl_metadata_path": "http://localhost:8088/key/acl/refresh",
+  "salts_metadata_path": "http://localhost:8088/salt/refresh",
+  "identity_token_expires_after_seconds": 3600,
+  "refresh_token_expires_after_seconds": 86400,
+  "refresh_identity_token_after_seconds": 900,
+  "advertising_token_v3": false,
+  "refresh_token_v3": false,
+  "identity_v3": false,
+  "identity_scope": "uid2",
+  "enable_v2_encryption": true
+}

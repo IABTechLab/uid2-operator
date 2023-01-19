@@ -23,5 +23,6 @@
   "aws_region": "us-east-2",
   "core_api_token": "azure-partner-key",
   "storage_mock": true,
-  "enclave_platform": "azure-sgx"
+  "enclave_platform": "azure-sgx",
+  "allow_legacy_api": false
 }

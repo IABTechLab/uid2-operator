@@ -10,5 +10,6 @@
   "optout_inmem_cache": true,
   "enclave_platform": "gcp-vmid",
   "enforce_https": true,
-  "service_instances": 16
+  "service_instances": 16,
+  "allow_legacy_api": false
 }

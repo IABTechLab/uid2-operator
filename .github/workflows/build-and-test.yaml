@@ -1,20 +1,8 @@
 name: Build and Test
-on: [push]
+
+on: [pull_request, push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
-    steps:
-      # Check out repository $GITHUB_WORKSPACE
-      - uses: actions/checkout@v2
-      # Build and Run Unit Tests
-      - name: Build and Run Unit Tests
-        run: mvn -B clean test
-      - name: Generate Code Coverage
-        run: mvn jacoco:report
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v3
-        with:
-          name: code-coverage-report
-          path: target/site/jacoco/*
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-build-and-test.yaml@main
+    secrets: inherit

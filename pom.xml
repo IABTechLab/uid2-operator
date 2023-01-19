@@ -6,11 +6,11 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>1.11.0</version>
+    <version>1.12.0</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <vertx.version>3.9.4</vertx.version>
+        <vertx.version>3.9.13</vertx.version>
         <vertx-maven-plugin.version>1.0.22</vertx-maven-plugin.version>
         <junit-jupiter.version>5.7.0</junit-jupiter.version>
         <junit-vintage.version>5.7.0</junit-vintage.version>
@@ -19,7 +19,7 @@
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
         <micrometer.version>1.1.0</micrometer.version>
         <enclave-api.version>1.1.0</enclave-api.version>
-        <uid2-shared.version>1.11.0</uid2-shared.version>
+        <uid2-shared.version>1.12.0</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
     <dependencies>
@@ -143,7 +143,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-s3</artifactId>
-            <version>1.11.969</version>
+            <version>1.12.368</version>
         </dependency>
         <dependency>
             <groupId>com.iabtcf</groupId>
@@ -240,6 +240,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>

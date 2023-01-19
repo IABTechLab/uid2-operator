@@ -493,7 +493,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void keySharingCorrectFiltering(Vertx vertx, VertxTestContext testContext) {
+    void keySharingCorrectIDS(Vertx vertx, VertxTestContext testContext) {
         String apiVersion = "v2";
         int siteId = 4;
         fakeAuth(siteId, Role.SHARER);
@@ -502,14 +502,11 @@ public class UIDOperatorVerticleTest {
                 new EncryptionKey(12, "sharingkey12".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 43),
                 new EncryptionKey(13, "sharingkey13".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 44),
                 new EncryptionKey(14, "sharingkey14".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 45),
-                new EncryptionKey(3, "masterKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), -1),
-                new EncryptionKey(6, "clientsKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 4),
-                new EncryptionKey(5, "publisherMaster".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 2),
         };
         addEncryptionKeys(encryptionKeys);
 
         //Creates a subset of all IDs
-        EncryptionKey[] expectedKeys = Arrays.copyOfRange(encryptionKeys, 1, 5);
+        EncryptionKey[] expectedKeys = Arrays.copyOfRange(encryptionKeys, 1, 3);
 
         // This sets ACL that the client can only access the calling keys
         for (EncryptionKey expectedKey : expectedKeys) {
@@ -521,6 +518,57 @@ public class UIDOperatorVerticleTest {
             assertEquals(siteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
             assertEquals(1, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(99999, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void keySharingCorrectFiltering(Vertx vertx, VertxTestContext testContext) {
+        //Call should return
+        // all keys they have access in ACL
+        // The master key -1
+        //Call Should not return
+        // The master key -2
+        // The publisher General 2
+        // Any other key without an ACL
+        //NOTE: canClientAccessKey returns True if there is no ACL for it
+        String apiVersion = "v2";
+        int siteId = 4;
+        fakeAuth(siteId, Role.SHARER);
+        EncryptionKey[] encryptionKeys = {
+                new EncryptionKey(6, "sharingkey6".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 42),
+                new EncryptionKey(12, "sharingkey12".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 43),
+                new EncryptionKey(13, "sharingkey13".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 44),
+                new EncryptionKey(14, "sharingkey14".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 45),
+                new EncryptionKey(3, "masterKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), -1),
+                new EncryptionKey(42, "masterKey2".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), -2),
+                new EncryptionKey(6, "clientsKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 4),
+                new EncryptionKey(5, "publisherMaster".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 2),
+        };
+        addEncryptionKeys(encryptionKeys);
+
+        //Creates a subset of all IDs
+        EncryptionKey[] expectedKeyACL = Arrays.copyOfRange(encryptionKeys, 1, 3);
+
+        // This sets ACL that the client can only access the calling keys
+        for (EncryptionKey expectedKey : expectedKeyACL) {
+            when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(expectedKey))).thenReturn(true);
+        }
+
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[4]))).thenReturn(true);
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[5]))).thenReturn(true);
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[6]))).thenReturn(true);
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[7]))).thenReturn(true);
+
+        //Add the expected Default keys to the expected Keys from filtering
+        EncryptionKey[] expectedKeysDefault = new EncryptionKey[]{encryptionKeys[4], encryptionKeys[6]};
+        EncryptionKey[] expectedKeys = new EncryptionKey[expectedKeyACL.length + expectedKeysDefault.length];
+        System.arraycopy(expectedKeyACL, 0, expectedKeys, 0, expectedKeyACL.length);
+        System.arraycopy(expectedKeysDefault, 0, expectedKeys, expectedKeyACL.length, expectedKeysDefault.length);
+
+
+        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+            System.out.println(respJson);
             checkEncryptionKeysSharing(respJson, siteId, expectedKeys);
             testContext.completeNow();
         });

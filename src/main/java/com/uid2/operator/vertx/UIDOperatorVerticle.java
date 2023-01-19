@@ -275,21 +275,23 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final List<EncryptionKey> keyStore = getEncryptionKeys();
 
             for (EncryptionKey key: keyStore) {
+                JsonObject keySet = new JsonObject();
+                if(clientKey.getSiteId() == key.getSiteId()) {
+                    keySet.put("keyset_id", DEFAULT_KEYSET_ID);
+                } else if (key.getSiteId() == -1) {
+                    keySet.put("keyset_id", DEFAULT_MASTER_KEYSET_ID);
+                } else if (key.getSiteId() < 0 || key.getSiteId() == 2) {
+                    continue;
+                }
                 if (!acls.canClientAccessKey(clientKey, key)) {
                     continue;
                 }
-                JsonObject keySet = new JsonObject();
                 keySet.put("id", key.getId());
                 keySet.put("created", key.getCreated().getEpochSecond());
                 keySet.put("activates", key.getActivates().getEpochSecond());
                 keySet.put("expires", key.getExpires().getEpochSecond());
                 keySet.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
 
-                if(clientKey.getSiteId() == key.getSiteId()) {
-                    keySet.put("keyset_id", DEFAULT_KEYSET_ID);
-                } else if (key.getSiteId() == -1) {
-                    keySet.put("keyset_id", DEFAULT_MASTER_KEYSET_ID);
-                }
 
                 keys.add(keySet);
             }

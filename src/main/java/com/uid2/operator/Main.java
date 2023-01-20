@@ -161,7 +161,7 @@ public class Main {
                 Main app = new Main(vertx, ar.result());
                 app.run();
             } catch (Exception e) {
-                LOGGER.fatal("Error: " +e.getMessage(), e);
+                LOGGER.fatal("Error: " + e.getMessage(), e);
                 ((LoggerContext)org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
                 vertx.close();
                 System.exit(1);

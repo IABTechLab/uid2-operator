@@ -25,6 +25,5 @@
   "salts_metadata_path": "https://core-prod.uidapi.com/salt/refresh",
   "optout_metadata_path": "https://optout-prod.uidapi.com/optout/refresh",
   "optout_inmem_cache": true,
-  "enclave_platform": "azure-sgx",
-  "allow_legacy_api": false
+  "enclave_platform": "azure-sgx"
 }

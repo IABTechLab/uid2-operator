@@ -9,6 +9,5 @@
   "optout_s3_folder": "optout-v2/",
   "optout_inmem_cache": true,
   "enclave_platform": "gcp-vmid",
-  "enforce_https": true,
-  "allow_legacy_api": false
+  "enforce_https": true
 }

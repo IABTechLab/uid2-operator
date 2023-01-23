@@ -29,10 +29,12 @@ public class StatsCollectorHandler implements Handler<RoutingContext> {
         routingContext.next();
         assert routingContext != null;
 
-        String path = routingContext.request().path();
-        String referer = routingContext.request().headers().get("Referer");
-        ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(routingContext);
-        StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(path, referer, clientKey.getContact(), clientKey.getSiteId());
+        final String path = routingContext.request().path();
+        final String referer = routingContext.request().headers().get("Referer");
+        final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(routingContext);
+        final String apiContact = clientKey == null ? null : clientKey.getContact();
+        final Integer siteId = clientKey == null ? null : clientKey.getSiteId();
+        final StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(path, referer, apiContact, siteId);
 
         _statCollectorQueue.enqueue(vertx, messageItem);
     }

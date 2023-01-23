@@ -158,8 +158,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
-        router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
+        router.route("/static/*").handler(StaticHandler.create("static"));
 
         setupV2Routes(router);
 

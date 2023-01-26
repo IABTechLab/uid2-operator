@@ -11,14 +11,16 @@ import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
 import com.uid2.shared.attest.AttestationFactory;
 import com.uid2.shared.attest.UidCoreClient;
-import com.uid2.shared.auth.RotatingClientKeyProvider;
-import com.uid2.shared.auth.RotatingKeyAclProvider;
 import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
-import com.uid2.shared.store.IMetadataVersionedStore;
-import com.uid2.shared.store.RotatingKeyStore;
+import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
+import com.uid2.shared.store.reader.IMetadataVersionedStore;
+import com.uid2.shared.store.reader.RotatingClientKeyProvider;
+import com.uid2.shared.store.reader.RotatingKeyAclProvider;
+import com.uid2.shared.store.reader.RotatingKeyStore;
+import com.uid2.shared.store.scope.GlobalScope;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
 import com.uid2.shared.vertx.RotatingStoreVerticle;
@@ -49,7 +51,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.logging.LogManager;
 
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
@@ -118,11 +119,11 @@ public class Main {
         }
 
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
-        this.clientKeyProvider = new RotatingClientKeyProvider(this.fsStores, clientsMdPath);
+        this.clientKeyProvider = new RotatingClientKeyProvider(this.fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
         String keysMdPath = this.config.getString(Const.Config.KeysMetadataPathProp);
-        this.keyStore = new RotatingKeyStore(this.fsStores, keysMdPath);
+        this.keyStore = new RotatingKeyStore(this.fsStores, new GlobalScope(new CloudPath(keysMdPath)));
         String keysAclMdPath = this.config.getString(Const.Config.KeysAclMetadataPathProp);
-        this.keyAclProvider = new RotatingKeyAclProvider(this.fsStores, keysAclMdPath);
+        this.keyAclProvider = new RotatingKeyAclProvider(this.fsStores, new GlobalScope(new CloudPath(keysAclMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(this.fsStores, saltsMdPath);
 

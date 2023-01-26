@@ -18,10 +18,7 @@ import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.store.IClientKeyProvider;
-import com.uid2.shared.store.IKeyAclProvider;
-import com.uid2.shared.store.IKeyStore;
-import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.*;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.*;
 import io.vertx.core.*;
@@ -226,7 +223,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final List<EncryptionKey> keys = this.keyStore.getSnapshot().getActiveKeySet()
             .stream().filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
             .collect(Collectors.toList());
-        final IKeyAclProvider.IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
+        final IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
         onSuccess.handle(toJson(keys, clientKey, acls));
     }
 
@@ -1158,7 +1155,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return json;
     }
 
-    private JsonArray toJson(List<EncryptionKey> keys, ClientKey clientKey, IKeyAclProvider.IKeysAclSnapshot acls) {
+    private JsonArray toJson(List<EncryptionKey> keys, ClientKey clientKey, IKeysAclSnapshot acls) {
         final JsonArray a = new JsonArray();
         for (int i = 0; i < keys.size(); ++i) {
             final EncryptionKey k = keys.get(i);

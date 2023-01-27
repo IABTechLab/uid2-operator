@@ -7,7 +7,7 @@
   "optout_metadata_path": "https://optout.prod.euid.eu/optout/refresh",
   "core_attest_url": "https://core.prod.euid.eu/attest",
   "core_api_token": "your-api-token",
-  "optout_s3_path_compat": true,
+  "optout_s3_path_compat": false,
   "optout_api_uri": "https://optout.prod.euid.eu/optout/replicate",
   "optout_api_token": "your-api-token",
   "enclave_platform": "aws-nitro",

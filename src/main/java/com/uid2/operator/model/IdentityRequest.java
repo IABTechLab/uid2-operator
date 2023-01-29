@@ -14,4 +14,8 @@ public final class IdentityRequest {
         this.userIdentity = userIdentity;
         this.tokenGeneratePolicy = tokenGeneratePolicy;
     }
+
+    public boolean shouldCheckOptOut() {
+        return tokenGeneratePolicy.equals(TokenGeneratePolicy.RespectOptOut);
+    }
 }

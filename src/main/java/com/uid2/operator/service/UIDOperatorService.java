@@ -81,7 +81,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.userIdentity.identityScope, request.userIdentity.identityType, firstLevelHash, request.userIdentity.privacyBits,
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
 
-        if (request.tokenGeneratePolicy.equals(TokenGeneratePolicy.RespectOptOut) && hasGlobalOptOut(firstLevelHashIdentity)) {
+        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity)) {
             return IdentityTokens.LogoutToken;
         } else {
             return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);

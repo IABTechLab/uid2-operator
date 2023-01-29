@@ -456,7 +456,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, 1, Instant.now()),
                         readTokenGeneratePolicy(req)));
-                ResponseUtil.SuccessV2(rc, toJsonV1(t));
+
+                if (t.isEmptyToken()) {
+                    ResponseUtil.OptOutV2(rc, toJsonV1(t));
+                } else {
+                    ResponseUtil.SuccessV2(rc, toJsonV1(t));
+                }
             }
         } catch (IllegalArgumentException iae) {
             LOGGER.warn(iae);

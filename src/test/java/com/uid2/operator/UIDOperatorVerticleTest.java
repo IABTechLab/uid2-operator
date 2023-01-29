@@ -37,6 +37,7 @@ import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -1914,6 +1915,36 @@ public class UIDOperatorVerticleTest {
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 413, json -> {
             testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v2"})
+    void tokenGenerateRespectOptOutOption(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        // the clock value shouldn't matter here
+        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
+
+        JsonObject req = new JsonObject();
+        req.put("email", "random-optout-user@email.io");
+        req.put("policy", 1);
+
+        // for EUID
+        addAdditionalTokenGenerateParams(req);
+
+        send(apiVersion, vertx, apiVersion + "/token/generate", false, null, req, 200, json -> {
+            try {
+                Assertions.assertEquals(UIDOperatorVerticle.ResponseStatus.OptOut, json.getString("status"));
+                Assertions.assertEquals("", json.getJsonObject("body").getString("advertising_token"));
+                testContext.completeNow();
+            } catch (Exception e) {
+                testContext.failNow(e);
+            }
         });
     }
 }

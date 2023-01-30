@@ -464,7 +464,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 }
             }
         } catch (IllegalArgumentException iae) {
-            LOGGER.warn(iae);
+            LOGGER.warn("request body contains invalid argument(s)", iae);
             ResponseUtil.ClientError(rc, "request body contains invalid argument(s)");
         } catch (Exception e) {
             LOGGER.error("Unknown error while generating token v2", e);

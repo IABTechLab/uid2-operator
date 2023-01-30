@@ -456,6 +456,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         input.toUserIdentity(this.identityScope, 1, Instant.now())));
                 ResponseUtil.SuccessV2(rc, toJsonV1(t));
             }
+        } catch (IllegalArgumentException iae) {
+            LOGGER.warn("request body contains invalid argument(s)", iae);
+            ResponseUtil.ClientError(rc, "request body contains invalid argument(s)");
         } catch (Exception e) {
             LOGGER.error("Unknown error while generating token v2", e);
             rc.fail(500);

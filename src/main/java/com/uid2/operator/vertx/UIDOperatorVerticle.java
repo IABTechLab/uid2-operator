@@ -578,7 +578,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     .write(String.valueOf(timestamp))
                     .end();
             } catch (Exception ex) {
-                LOGGER.error(ex);
+                LOGGER.error("Unexpected error while handling optout get", ex);
                 rc.fail(500);
             }
         } else {
@@ -678,7 +678,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
         }
         catch (Exception ex) {
-            LOGGER.error(ex);
+            LOGGER.error("Unexpected error while mapping identity", ex);
             rc.fail(500);
         }
     }

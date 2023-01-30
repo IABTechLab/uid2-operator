@@ -234,7 +234,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             handleKeysRequestCommon(rc, keys -> ResponseUtil.Success(rc, keys));
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while handling keys request v1", e);
             rc.fail(500);
         }
     }
@@ -243,7 +243,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             handleKeysRequestCommon(rc, keys -> ResponseUtil.SuccessV2(rc, keys));
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while handling keys request v2", e);
             rc.fail(500);
         }
     }
@@ -252,7 +252,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             handleKeysRequestCommon(rc, keys -> sendJsonResponse(rc, keys));
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while handling keys request", e);
             rc.fail(500);
         }
     }
@@ -310,7 +310,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
             }
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("unknown error while refreshing token", e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
         }
     }
@@ -337,7 +337,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
             }
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while refreshing token v2", e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
         }
     }
@@ -364,7 +364,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 ResponseUtil.Success(rc, Boolean.FALSE);
             }
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while validating token", e);
             rc.fail(500);
         }
     }
@@ -395,7 +395,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 ResponseUtil.SuccessV2(rc, Boolean.FALSE);
             }
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while validating token v2", e);
             rc.fail(500);
         }
     }
@@ -418,7 +418,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 ResponseUtil.Success(rc, toJsonV1(t));
             }
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while generating token v1", e);
             rc.fail(500);
         }
     }
@@ -467,7 +467,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             LOGGER.warn(iae);
             ResponseUtil.ClientError(rc, "request body contains invalid argument(s)");
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while generating token v2", e);
             rc.fail(500);
         }
     }
@@ -492,7 +492,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             sendJsonResponse(rc, toJson(t));
 
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while generating token", e);
             rc.fail(500);
         }
     }
@@ -508,7 +508,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final RefreshResponse r = this.idService.refreshIdentity(tokenList.get(0));
             sendJsonResponse(rc, toJson(r.getTokens()));
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while refreshing token", e);
             rc.fail(500);
         }
     }
@@ -531,7 +531,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 rc.response().end("not allowed");
             }
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while validating token", e);
             rc.fail(500);
         }
     }
@@ -671,7 +671,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             jsonObject.put("bucket_id", mappedIdentity.bucketId);
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while mapping identity v1", e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
         }
     }
@@ -899,7 +899,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             resp.put("mapped", mapped);
             ResponseUtil.Success(rc, resp);
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while mapping batched identity", e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
         }
     }
@@ -936,7 +936,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             resp.put("mapped", mapped);
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while mapping identity v2", e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
         }
     }
@@ -1023,7 +1023,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             resp.put("mapped", mapped);
             sendJsonResponse(rc, resp);
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unknown error while mapping batched identity", e);
             rc.fail(500);
         }
     }

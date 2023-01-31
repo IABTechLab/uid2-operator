@@ -11,11 +11,12 @@ on:
         required: false
         default: 'default'
         type: string
+  push:
 
 jobs:
   build-publish-docker:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@tjm-UID2-577-nightly-scan-image
     with: 
-      failure_severity: ${{ inputs.failure_severity }}
-      cloud_provider: ${{ inputs.cloud_provider }}
+      failure_severity: 'CRITICAL' #${{ inputs.failure_severity }}
+      cloud_provider: 'default' #${{ inputs.cloud_provider }}
     secrets: inherit

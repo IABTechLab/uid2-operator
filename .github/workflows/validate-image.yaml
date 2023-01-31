@@ -4,19 +4,31 @@ on:
       failure_severity:
         description: 'Must be one of CRITICAL, HIGH, MEDIUM'
         required: false
-        default: 'HIGH'
+        default: 'CRITICAL'
         type: string
-      cloud_provider:
-        description: 'Must be one of [aws, gcp, azure, default]'
-        required: false
-        default: 'default'
-        type: string
+  schedule:
+    - cron: '0 20 * * *'
   push:
 
+env:
+  failure: ${{ inputs.failure_severity || HIGH }}
+
 jobs:
-  build-publish-docker:
+  build-publish-docker-default:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@tjm-UID2-577-nightly-scan-image
     with: 
-      failure_severity: 'CRITICAL' #${{ inputs.failure_severity }}
-      cloud_provider: 'default' #${{ inputs.cloud_provider }}
+      failure_severity: ${{ env.failure }}
+      cloud_provider: 'default'
+    secrets: inherit
+  build-publish-docker-aws:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@tjm-UID2-577-nightly-scan-image
+    with: 
+      failure_severity: ${{ env.failure }}
+      cloud_provider: 'aws'
+    secrets: inherit
+  build-publish-docker-gcp:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@tjm-UID2-577-nightly-scan-image
+    with: 
+      failure_severity: ${{ env.failure }}
+      cloud_provider: 'gcp'
     secrets: inherit

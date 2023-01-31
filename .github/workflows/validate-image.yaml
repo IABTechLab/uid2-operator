@@ -17,6 +17,6 @@ jobs:
   build-publish-docker:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@tjm-UID2-577-nightly-scan-image
     with: 
-      failure_severity: 'CRITICAL' #${{ inputs.failure_severity }}
+      failure_severity: 'CRITICAL'  #${{ inputs.failure_severity }}
       cloud_provider: 'default' #${{ inputs.cloud_provider }}
     secrets: inherit

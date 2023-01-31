@@ -11,7 +11,7 @@ on:
   push:
 
 env:
-  failure: ${{ inputs.failure_severity || HIGH }}
+  failure: ${{ inputs.failure_severity || 'HIGH' }}
 
 jobs:
   build-publish-docker-default:

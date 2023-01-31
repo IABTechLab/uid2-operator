@@ -10,25 +10,22 @@ on:
     - cron: '0 20 * * *'
   push:
 
-env:
-  FAILURE: ${{ inputs.failure_severity || 'HIGH' }}
-
 jobs:
   build-publish-docker-default:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@tjm-UID2-577-nightly-scan-image
     with: 
-      failure_severity: ${{env.FAILURE}}
+      failure_severity: ${{ inputs.failure_severity || 'HIGH'}}
       cloud_provider: 'default'
     secrets: inherit
   build-publish-docker-aws:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@tjm-UID2-577-nightly-scan-image
     with: 
-      failure_severity: ${{env.FAILURE}}
+      failure_severity: ${{ inputs.failure_severity || 'HIGH'}}
       cloud_provider: 'aws'
     secrets: inherit
   build-publish-docker-gcp:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@tjm-UID2-577-nightly-scan-image
     with: 
-      failure_severity: ${{env.FAILURE}}
+      failure_severity: ${{ inputs.failure_severity || 'HIGH'}}
       cloud_provider: 'gcp'
     secrets: inherit

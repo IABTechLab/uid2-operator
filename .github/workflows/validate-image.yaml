@@ -1,0 +1,21 @@
+name: Validate Docker Image
+on:
+  workflow_dispatch:
+      failure_severity:
+        description: 'Must be one of CRITICAL, HIGH, MEDIUM'
+        required: false
+        default: 'HIGH'
+        type: string
+      cloud_provider:
+        description: 'Must be one of [aws, gcp, azure, default]'
+        required: false
+        default: 'default'
+        type: string
+
+jobs:
+  build-publish-docker:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@tjm-UID2-577-nightly-scan-image
+    with: 
+      failure_severity: ${{ inputs.failure_severity }}
+      cloud_provider: ${{ inputs.cloud_provider }}
+    secrets: inherit

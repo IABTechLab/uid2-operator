@@ -541,6 +541,7 @@ public class UIDOperatorVerticleTest {
                 new EncryptionKey(42, "masterKey2".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), -2),
                 new EncryptionKey(6, "clientsKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 4),
                 new EncryptionKey(5, "publisherMaster".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 2),
+                new EncryptionKey(9, "key with no ACL".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 2),
         };
         addEncryptionKeys(encryptionKeys);
 
@@ -549,13 +550,13 @@ public class UIDOperatorVerticleTest {
 
         // This sets ACL that the client can only access the calling keys
         for (EncryptionKey expectedKey : expectedKeyACL) {
-            when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(expectedKey))).thenReturn(true);
+            when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(expectedKey), any())).thenReturn(true);
         }
 
-        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[4]))).thenReturn(true);
-        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[5]))).thenReturn(true);
-        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[6]))).thenReturn(true);
-        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[7]))).thenReturn(true);
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[4]), any())).thenReturn(true);
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[5]), any())).thenReturn(true);
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[6]), any())).thenReturn(true);
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[7]), any())).thenReturn(false);
 
         //Add the expected Default keys to the expected Keys from filtering
         EncryptionKey[] expectedKeysDefault = new EncryptionKey[]{encryptionKeys[4], encryptionKeys[6]};

@@ -19,6 +19,7 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.*;
+import com.uid2.shared.store.ACLMode.LegacyDEP;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.*;
 import io.vertx.core.*;
@@ -225,9 +226,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final List<EncryptionKey> keys = this.keyStore.getSnapshot().getActiveKeySet()
-            .stream().filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
-            .collect(Collectors.toList());
+        final List<EncryptionKey> keys = getEncryptionKeys();
         final IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
         onSuccess.handle(toJson(keys, clientKey, acls));
     }
@@ -282,7 +281,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 } else if (key.getSiteId() < 0 || key.getSiteId() == 2) {
                     continue;
                 }
-                if (!acls.canClientAccessKey(clientKey, key)) {
+                if (!acls.canClientAccessKey(clientKey, key, LegacyDEP.noACLFalse)) {
                     continue;
                 }
                 keySet.put("id", key.getId());

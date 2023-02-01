@@ -1,15 +1,16 @@
 package com.uid2.operator;
 
 import com.uid2.operator.service.EncodingUtils;
-import com.uid2.shared.auth.RotatingClientKeyProvider;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
+import com.uid2.shared.store.CloudPath;
+import com.uid2.shared.store.reader.RotatingClientKeyProvider;
+import com.uid2.shared.store.scope.GlobalScope;
 import io.vertx.core.json.JsonObject;
 import org.junit.Test;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
-import static org.junit.Assume.assumeTrue;
 
 public class ClientKeyProviderTest {
     @Test
@@ -31,7 +32,7 @@ public class ClientKeyProviderTest {
     public void loadFromEmbeddedResourceStorage() throws Exception {
         RotatingClientKeyProvider fileProvider = new RotatingClientKeyProvider(
             new EmbeddedResourceStorage(Main.class),
-            "/com.uid2.core/test/clients/metadata.json");
+            new GlobalScope(new CloudPath("/com.uid2.core/test/clients/metadata.json")));
 
         JsonObject m = fileProvider.getMetadata();
         fileProvider.loadContent(m);

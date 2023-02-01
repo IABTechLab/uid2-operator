@@ -17,10 +17,7 @@ import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Role;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.store.IClientKeyProvider;
-import com.uid2.shared.store.IKeyAclProvider;
-import com.uid2.shared.store.IKeyStore;
-import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.*;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.AsyncResult;
@@ -78,7 +75,7 @@ public class UIDOperatorVerticleTest {
     @Mock
     private IKeyAclProvider keyAclProvider;
     @Mock
-    private IKeyAclProvider.IKeysAclSnapshot keyAclProviderSnapshot;
+    private IKeysAclSnapshot keyAclProviderSnapshot;
     @Mock
     private ISaltProvider saltProvider;
     @Mock

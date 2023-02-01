@@ -6,5 +6,6 @@
   "optout_metadata_path": "https://optout-integ.uidapi.com/optout/refresh",
   "core_attest_url": "https://core-integ.uidapi.com/attest",
   "optout_api_uri": "https://core-integ.uidapi.com/optout/replicate",
-  "optout_s3_folder": "uid-optout-integ/"
+  "optout_s3_folder": "uid-optout-integ/",
+  "allow_legacy_api": false
 }

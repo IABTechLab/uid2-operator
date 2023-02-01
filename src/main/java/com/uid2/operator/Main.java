@@ -11,14 +11,16 @@ import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
 import com.uid2.shared.attest.AttestationFactory;
 import com.uid2.shared.attest.UidCoreClient;
-import com.uid2.shared.auth.RotatingClientKeyProvider;
-import com.uid2.shared.auth.RotatingKeyAclProvider;
 import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
-import com.uid2.shared.store.IMetadataVersionedStore;
-import com.uid2.shared.store.RotatingKeyStore;
+import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
+import com.uid2.shared.store.reader.IMetadataVersionedStore;
+import com.uid2.shared.store.reader.RotatingClientKeyProvider;
+import com.uid2.shared.store.reader.RotatingKeyAclProvider;
+import com.uid2.shared.store.reader.RotatingKeyStore;
+import com.uid2.shared.store.scope.GlobalScope;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
 import com.uid2.shared.vertx.RotatingStoreVerticle;
@@ -49,7 +51,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.logging.LogManager;
 
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
@@ -61,7 +62,6 @@ public class Main {
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
-    private final ICloudStorage fsStores;
 
     private final RotatingClientKeyProvider clientKeyProvider;
     private final RotatingKeyStore keyStore;
@@ -89,10 +89,11 @@ public class Main {
 
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
+        DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
             String coreApiToken = this.config.getString(Const.Config.CoreApiTokenProp);
             UidCoreClient coreClient = createUidCoreClient(coreAttestUrl, coreApiToken);
-            this.fsStores = coreClient;
+            fsStores = coreClient;
             LOGGER.info("Salt/Key/Client stores - Using uid2-core attestation endpoint: " + coreAttestUrl);
 
             Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
@@ -105,26 +106,26 @@ public class Main {
                 this.fsOptOut = configureAttestedOptOutStore(coreClient, coreAttestUrl);
             }
         } else if (useStorageMock) {
-            this.fsStores = new EmbeddedResourceStorage(Main.class);
+            fsStores = new EmbeddedResourceStorage(Main.class);
             LOGGER.info("Salt/Key/Client stores - Using EmbeddedResourceStorage");
 
             this.fsOptOut = configureMockOptOutStore();
         } else {
             String coreBucket = this.config.getString(Const.Config.CoreS3BucketProp);
-            this.fsStores = CloudUtils.createStorage(coreBucket, config);
+            fsStores = CloudUtils.createStorage(coreBucket, config);
             LOGGER.info("Salt/Key/Client stores - Using the same storage as optout: s3://" + coreBucket);
 
             this.fsOptOut = configureCloudOptOutStore();
         }
 
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
-        this.clientKeyProvider = new RotatingClientKeyProvider(this.fsStores, clientsMdPath);
+        this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
         String keysMdPath = this.config.getString(Const.Config.KeysMetadataPathProp);
-        this.keyStore = new RotatingKeyStore(this.fsStores, keysMdPath);
+        this.keyStore = new RotatingKeyStore(fsStores, new GlobalScope(new CloudPath(keysMdPath)));
         String keysAclMdPath = this.config.getString(Const.Config.KeysAclMetadataPathProp);
-        this.keyAclProvider = new RotatingKeyAclProvider(this.fsStores, keysAclMdPath);
+        this.keyAclProvider = new RotatingKeyAclProvider(fsStores, new GlobalScope(new CloudPath(keysAclMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
-        this.saltProvider = new RotatingSaltProvider(this.fsStores, saltsMdPath);
+        this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
 
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
 
@@ -161,7 +162,7 @@ public class Main {
                 Main app = new Main(vertx, ar.result());
                 app.run();
             } catch (Exception e) {
-                LOGGER.fatal("Error: " +e.getMessage(), e);
+                LOGGER.fatal("Error: " + e.getMessage(), e);
                 ((LoggerContext)org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
                 vertx.close();
                 System.exit(1);

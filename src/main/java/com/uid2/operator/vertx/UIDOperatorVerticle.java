@@ -55,8 +55,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
 
-    public static final int DEFAULT_MASTER_KEYSET_ID = 1;
-    public static final int DEFAULT_KEYSET_ID = 99999;
+    private static final int DEFAULT_MASTER_KEYSET_ID = 1;
+    private static final int DEFAULT_KEYSET_ID = 99999;
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final JsonObject config;

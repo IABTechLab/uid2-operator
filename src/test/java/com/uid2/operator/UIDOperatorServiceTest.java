@@ -134,7 +134,7 @@ public class UIDOperatorServiceTest {
 
         setNow(Instant.now().plusSeconds(200));
 
-        final RefreshResponse refreshResponse = uid2Service.refreshIdentity(tokens.getRefreshToken());
+        final RefreshResponse refreshResponse = uid2Service.refreshIdentity(refreshToken);
         assertNotNull(refreshResponse);
         assertEquals(RefreshResponse.Status.Refreshed, refreshResponse.getStatus());
         assertNotNull(refreshResponse.getTokens());
@@ -169,7 +169,8 @@ public class UIDOperatorServiceTest {
         final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
         assertNotNull(tokens);
 
-        assertEquals(RefreshResponse.Optout, uid2Service.refreshIdentity(tokens.getRefreshToken()));
+        final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
+        assertEquals(RefreshResponse.Optout, uid2Service.refreshIdentity(refreshToken));
     }
 
     @Test
@@ -184,6 +185,7 @@ public class UIDOperatorServiceTest {
         final IdentityTokens tokens = euidService.generateIdentity(identityRequest);
         assertNotNull(tokens);
 
-        assertEquals(RefreshResponse.Invalid, uid2Service.refreshIdentity(tokens.getRefreshToken()));
+        final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
+        assertEquals(RefreshResponse.Invalid, uid2Service.refreshIdentity(refreshToken));
     }
 }

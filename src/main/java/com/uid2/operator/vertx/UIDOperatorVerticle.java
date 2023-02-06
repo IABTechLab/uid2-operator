@@ -18,10 +18,7 @@ import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.store.IClientKeyProvider;
-import com.uid2.shared.store.IKeyAclProvider;
-import com.uid2.shared.store.IKeyStore;
-import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.*;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.*;
 import io.vertx.core.*;
@@ -61,6 +58,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final JsonObject config;
     private final AuthMiddleware auth;
     private final IKeyStore keyStore;
+    private final ITokenEncoder encoder;
     private final IKeyAclProvider keyAclProvider;
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
@@ -88,6 +86,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
         this.keyStore = keyStore;
+        this.encoder = new EncryptedTokenEncoder(keyStore);
         this.keyAclProvider = keyAclProvider;
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
@@ -108,7 +107,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             this.config,
             this.optOutStore,
             this.saltProvider,
-            new EncryptedTokenEncoder(this.keyStore),
+            this.encoder,
             this.clock,
             this.identityScope
         );
@@ -158,8 +157,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             .allowedHeader("Content-Type"));
         router.route().handler(BodyHandler.create().setBodyLimit(MAX_REQUEST_BODY_SIZE));
 
-        router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
+        router.route("/static/*").handler(StaticHandler.create("static"));
 
         setupV2Routes(router);
 
@@ -226,7 +225,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final List<EncryptionKey> keys = this.keyStore.getSnapshot().getActiveKeySet()
             .stream().filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
             .collect(Collectors.toList());
-        final IKeyAclProvider.IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
+        final IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
         onSuccess.handle(toJson(keys, clientKey, acls));
     }
 
@@ -291,7 +290,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         try {
-            RefreshResponse r = idService.refreshIdentity(refreshToken);
+            final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
@@ -318,7 +317,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private void handleTokenRefreshV2(RoutingContext rc) {
         try {
             String tokenStr = (String) rc.data().get("request");
-            RefreshResponse r = idService.refreshIdentity(tokenStr);
+            final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
@@ -494,7 +493,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         try {
-            final RefreshResponse r = this.idService.refreshIdentity(tokenList.get(0));
+            final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
             sendJsonResponse(rc, toJson(r.getTokens()));
         } catch (Exception e) {
             LOGGER.error(e);
@@ -1040,13 +1039,29 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         ds.record(inputCount);
     }
 
+    private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
+        final RefreshToken refreshToken;
+        try {
+            refreshToken = this.encoder.decodeRefreshToken(tokenStr);
+        } catch (Throwable t) {
+            return RefreshResponse.Invalid;
+        }
+        if (refreshToken == null) {
+            return RefreshResponse.Invalid;
+        }
+        rc.put(Const.RoutingContextData.SiteId, refreshToken.publisherIdentity.siteId);
+        return this.idService.refreshIdentity(refreshToken);
+    }
+
     private void recordRefreshDurationStats(RoutingContext rc, Duration durationSinceLastRefresh) {
         String apiContact = getApiContact(rc);
+        Integer siteId = rc.get(Const.RoutingContextData.SiteId);
 
         DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(apiContact, k ->
             DistributionSummary
                     .builder("uid2.token_refresh_duration_seconds")
                     .description("duration between token refreshes")
+                    .tag("site_id", String.valueOf(siteId))
                     .tag("api_contact", apiContact)
                     .register(Metrics.globalRegistry)
         );
@@ -1158,7 +1173,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return json;
     }
 
-    private JsonArray toJson(List<EncryptionKey> keys, ClientKey clientKey, IKeyAclProvider.IKeysAclSnapshot acls) {
+    private JsonArray toJson(List<EncryptionKey> keys, ClientKey clientKey, IKeysAclSnapshot acls) {
         final JsonArray a = new JsonArray();
         for (int i = 0; i < keys.size(); ++i) {
             final EncryptionKey k = keys.get(i);

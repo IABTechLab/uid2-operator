@@ -12,7 +12,7 @@ public interface IUIDOperatorService {
 
     IdentityTokens generateIdentity(IdentityRequest request);
 
-    RefreshResponse refreshIdentity(String refreshToken);
+    RefreshResponse refreshIdentity(RefreshToken refreshToken);
 
     MappedIdentity map(UserIdentity userIdentity, Instant asOf);
 

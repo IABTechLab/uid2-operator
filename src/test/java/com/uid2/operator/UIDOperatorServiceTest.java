@@ -5,9 +5,11 @@ import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.InputUtil;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
-import com.uid2.shared.store.RotatingKeyStore;
+import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
+import com.uid2.shared.store.reader.RotatingKeyStore;
+import com.uid2.shared.store.scope.GlobalScope;
 import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +47,7 @@ public class UIDOperatorServiceTest {
 
         RotatingKeyStore keyStore = new RotatingKeyStore(
                 new EmbeddedResourceStorage(Main.class),
-                "/com.uid2.core/test/keys/metadata.json");
+                new GlobalScope(new CloudPath("/com.uid2.core/test/keys/metadata.json")));
         keyStore.loadContent();
 
         RotatingSaltProvider saltProvider = new RotatingSaltProvider(
@@ -132,7 +134,7 @@ public class UIDOperatorServiceTest {
 
         setNow(Instant.now().plusSeconds(200));
 
-        final RefreshResponse refreshResponse = uid2Service.refreshIdentity(tokens.getRefreshToken());
+        final RefreshResponse refreshResponse = uid2Service.refreshIdentity(refreshToken);
         assertNotNull(refreshResponse);
         assertEquals(RefreshResponse.Status.Refreshed, refreshResponse.getStatus());
         assertNotNull(refreshResponse.getTokens());
@@ -167,7 +169,8 @@ public class UIDOperatorServiceTest {
         final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
         assertNotNull(tokens);
 
-        assertEquals(RefreshResponse.Optout, uid2Service.refreshIdentity(tokens.getRefreshToken()));
+        final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
+        assertEquals(RefreshResponse.Optout, uid2Service.refreshIdentity(refreshToken));
     }
 
     @Test
@@ -182,6 +185,7 @@ public class UIDOperatorServiceTest {
         final IdentityTokens tokens = euidService.generateIdentity(identityRequest);
         assertNotNull(tokens);
 
-        assertEquals(RefreshResponse.Invalid, uid2Service.refreshIdentity(tokens.getRefreshToken()));
+        final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
+        assertEquals(RefreshResponse.Invalid, uid2Service.refreshIdentity(refreshToken));
     }
 }

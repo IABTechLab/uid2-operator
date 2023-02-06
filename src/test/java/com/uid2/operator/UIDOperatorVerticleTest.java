@@ -528,7 +528,6 @@ public class UIDOperatorVerticleTest {
         // The master key -2
         // The publisher General 2
         // Any other key without an ACL
-        //NOTE: canClientAccessKey returns True if there is no ACL for it
         String apiVersion = "v2";
         int siteId = 4;
         fakeAuth(siteId, Role.SHARER);
@@ -568,6 +567,31 @@ public class UIDOperatorVerticleTest {
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
             checkEncryptionKeysSharing(respJson, siteId, expectedKeys);
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void keySharingReturnsMasterAndSite(Vertx vertx, VertxTestContext testContext) {
+        String apiVersion = "v2";
+        int siteId = 4;
+        fakeAuth(siteId, Role.SHARER);
+        EncryptionKey[] encryptionKeys = {
+                new EncryptionKey(1, "master key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), -1),
+                new EncryptionKey(4, "site key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 4),
+        };
+        addEncryptionKeys(encryptionKeys);
+
+        //Creates a subset of all IDs
+        // This sets ACL that the client can only access the calling keys
+        for (EncryptionKey expectedKey : encryptionKeys) {
+            //returning false to prove that function always returns above keys
+            when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(expectedKey), any())).thenReturn(false);
+        }
+
+        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+            System.out.println(respJson);
+            checkEncryptionKeysSharing(respJson, siteId, encryptionKeys);
             testContext.completeNow();
         });
     }

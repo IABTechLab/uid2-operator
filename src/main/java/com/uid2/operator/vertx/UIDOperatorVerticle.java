@@ -280,8 +280,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     keySet.put("keyset_id", DEFAULT_MASTER_KEYSET_ID);
                 } else if (key.getSiteId() < 0 || key.getSiteId() == 2) {
                     continue;
-                }
-                if (!acls.canClientAccessKey(clientKey, key, LegacyDEP.noACLFalse)) {
+                } else if (!acls.canClientAccessKey(clientKey, key, LegacyDEP.noACLFalse)) {
                     continue;
                 }
                 keySet.put("id", key.getId());

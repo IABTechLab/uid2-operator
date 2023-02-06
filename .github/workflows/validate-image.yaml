@@ -22,9 +22,11 @@ jobs:
       failure_severity: ${{ inputs.failure_severity || 'CRITICAL'}}
       cloud_provider: 'aws'
     secrets: inherit
+    needs: [build-publish-docker-default]
   build-publish-docker-gcp:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@main
     with: 
       failure_severity: ${{ inputs.failure_severity || 'CRITICAL'}}
       cloud_provider: 'gcp'
     secrets: inherit
+    needs: [build-publish-docker-aws]

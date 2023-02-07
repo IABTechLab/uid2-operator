@@ -19,7 +19,7 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.*;
-import com.uid2.shared.store.ACLMode.LegacyDEP;
+import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.*;
 import io.vertx.core.*;
@@ -278,9 +278,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     keySet.put("keyset_id", DEFAULT_KEYSET_ID);
                 } else if (key.getSiteId() == -1) {
                     keySet.put("keyset_id", DEFAULT_MASTER_KEYSET_ID);
-                } else if (key.getSiteId() < 0 || key.getSiteId() == 2) {
-                    continue;
-                } else if (!acls.canClientAccessKey(clientKey, key, LegacyDEP.noACLFalse)) {
+                } else if (!acls.canClientAccessKey(clientKey, key, MissingAclMode.DENY_ALL)) {
                     continue;
                 }
                 keySet.put("id", key.getId());

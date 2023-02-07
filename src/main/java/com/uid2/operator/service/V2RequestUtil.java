@@ -99,7 +99,7 @@ public class V2RequestUtil {
                 String bodyStr = new String(decryptedBody, 16, decryptedBody.length - 16, StandardCharsets.UTF_8);
                 payload = new JsonObject(bodyStr);
             } catch (Exception ex) {
-                LOGGER.error(ex);
+                LOGGER.error("Invalid payload in body: Data is not valid json string.", ex);
                 return new V2Request("Invalid payload in body: Data is not valid json string.");
             }
         }
@@ -132,7 +132,7 @@ public class V2RequestUtil {
         try {
             decrypted = AesGcm.decrypt(bytes, 5, key);
         } catch (Exception ex) {
-            LOGGER.error(ex);
+            LOGGER.error("Invalid data: Check encryption method and encryption key", ex);
             return new V2Request("Invalid data: Check encryption method and encryption key");
         }
 
@@ -143,7 +143,7 @@ public class V2RequestUtil {
 
             return new V2Request(null, refreshToken, responseKey);
         } catch (Exception ex) {
-            LOGGER.error(ex);
+            LOGGER.error("Invalid format: Payload is not valid json or missing required data", ex);
             return new V2Request("Invalid format: Payload is not valid json or missing required data");
         }
     }

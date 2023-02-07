@@ -19,8 +19,8 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
@@ -148,7 +148,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                     handler.handle(Future.succeededFuture(instant));
                 } else {
                     if (ar.cause() != null) {
-                        LOGGER.error(ar.cause());
+                        LOGGER.error("remoteGetLatestEntry error", ar.cause());
                     }
                     handler.handle(Future.failedFuture(ar.cause()));
 

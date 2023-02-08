@@ -14,14 +14,14 @@ import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonObject;
-import org.slf4j.LoggerFactory;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.RoutingContext;
 
 import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
 
 public class V2PayloadHandler {
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(V2PayloadHandler.class);
+    private static final io.vertx.core.logging.Logger LOGGER = LoggerFactory.getLogger(V2PayloadHandler.class);
 
     private IKeyStore keyStore;
 

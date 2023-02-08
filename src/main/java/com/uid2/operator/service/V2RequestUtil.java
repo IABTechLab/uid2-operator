@@ -9,8 +9,8 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;

@@ -28,10 +28,12 @@ import com.uid2.shared.vertx.VertxUtils;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.impl.HttpUtils;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -355,6 +357,13 @@ public class Main {
             prometheusRegistry.config()
                 // providing common renaming for prometheus metric, e.g. "hello.world" to "hello_world"
                 .meterFilter(new PrometheusRenameFilter())
+                .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), actualPath -> {
+                    try {
+                        return HttpUtils.normalizePath(actualPath);
+                    } catch (IllegalArgumentException e) {
+                        return actualPath;
+                    }
+                }))
                 // adding common labels
                 .commonTags("application", "uid2-operator");
 

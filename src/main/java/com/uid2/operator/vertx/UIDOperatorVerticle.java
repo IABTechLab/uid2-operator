@@ -297,7 +297,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("handleKeysSharing", e);
             rc.fail(500);
         }
     }

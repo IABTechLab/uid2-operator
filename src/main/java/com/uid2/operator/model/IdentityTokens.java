@@ -44,4 +44,8 @@ public class IdentityTokens {
     public Instant getRefreshFrom() {
         return refreshFrom;
     }
+
+    public boolean isEmptyToken() {
+        return advertisingToken == null || advertisingToken.isEmpty();
+    }
 }

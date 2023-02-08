@@ -1,0 +1,32 @@
+name: Validate Docker Image
+on:
+  workflow_dispatch:
+      failure_severity:
+        description: 'Must be one of CRITICAL, HIGH, MEDIUM'
+        required: false
+        default: 'CRITICAL'
+        type: string
+  schedule:
+    - cron: '0 20 * * *' #every day at 20:00
+
+jobs:
+  build-publish-docker-default:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@main
+    with: 
+      failure_severity: ${{ inputs.failure_severity || 'CRITICAL'}}
+      cloud_provider: 'default'
+    secrets: inherit
+  build-publish-docker-aws:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@main
+    with: 
+      failure_severity: ${{ inputs.failure_severity || 'CRITICAL'}}
+      cloud_provider: 'aws'
+    secrets: inherit
+    needs: [build-publish-docker-default]
+  build-publish-docker-gcp:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@main
+    with: 
+      failure_severity: ${{ inputs.failure_severity || 'CRITICAL'}}
+      cloud_provider: 'gcp'
+    secrets: inherit
+    needs: [build-publish-docker-aws]

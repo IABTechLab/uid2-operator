@@ -80,21 +80,16 @@ public class UIDOperatorService implements IUIDOperatorService {
         final UserIdentity firstLevelHashIdentity = new UserIdentity(
                 request.userIdentity.identityScope, request.userIdentity.identityType, firstLevelHash, request.userIdentity.privacyBits,
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
-        return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
+
+        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity)) {
+            return IdentityTokens.LogoutToken;
+        } else {
+            return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
+        }
     }
 
     @Override
-    public RefreshResponse refreshIdentity(String refreshToken) {
-        final RefreshToken token;
-        try {
-            token = this.encoder.decodeRefreshToken(refreshToken);
-        } catch (Throwable t) {
-            return RefreshResponse.Invalid;
-        }
-        if (token == null) {
-            return RefreshResponse.Invalid;
-        }
-
+    public RefreshResponse refreshIdentity(RefreshToken token) {
         // should not be possible as different scopes should be using different keys, but just in case
         if (token.userIdentity.identityScope != this.identityScope) {
             return RefreshResponse.Invalid;
@@ -233,6 +228,10 @@ public class UIDOperatorService implements IUIDOperatorService {
                 this.operatorIdentity,
                 publisherIdentity,
                 userIdentity);
+    }
+
+    private boolean hasGlobalOptOut(UserIdentity userIdentity) {
+        return this.optOutStore.getLatestEntry(userIdentity) != null;
     }
 
 }

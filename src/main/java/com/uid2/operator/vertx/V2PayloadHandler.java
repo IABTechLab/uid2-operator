@@ -94,7 +94,7 @@ public class V2PayloadHandler {
             JsonObject respJson = (JsonObject) rc.data().get("response");
 
             // DevNote: 200 does not guarantee a token.
-            if (respJson.containsKey("body")) {
+            if (respJson.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && respJson.containsKey("body")) {
                 V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), keyStore, this.identityScope);
             }
 

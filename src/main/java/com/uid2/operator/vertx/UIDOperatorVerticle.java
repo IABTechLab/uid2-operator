@@ -19,6 +19,7 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.*;
+import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.*;
 import io.vertx.core.*;
@@ -53,6 +54,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public static final String ValidationInputPhone = "+12345678901";
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
+
+    private static final int DEFAULT_MASTER_KEYSET_ID = 1;
+    private static final int DEFAULT_KEYSET_ID = 99999;
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final JsonObject config;
@@ -208,6 +212,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
         v2Router.post("/key/latest").handler(bodyHandler).handler(auth.handleV1(
             rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
+        v2Router.post("/key/sharing").handler(bodyHandler).handler(auth.handleV1(
+                rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER));
         v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
             rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
@@ -222,9 +228,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final List<EncryptionKey> keys = this.keyStore.getSnapshot().getActiveKeySet()
-            .stream().filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
-            .collect(Collectors.toList());
+        final List<EncryptionKey> keys = getEncryptionKeys();
         final IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
         onSuccess.handle(toJson(keys, clientKey, acls));
     }
@@ -254,6 +258,55 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             LOGGER.error("Unknown error while handling keys request", e);
             rc.fail(500);
         }
+    }
+
+    public void handleKeysSharing(RoutingContext rc) {
+        try {
+            final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
+
+            final JsonObject resp = new JsonObject();
+            resp.put("caller_site_id", clientKey.getSiteId());
+            resp.put("master_keyset_id", DEFAULT_MASTER_KEYSET_ID);
+            resp.put("default_keyset_id", DEFAULT_KEYSET_ID);
+
+            final JsonArray keys = new JsonArray();
+            final IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
+
+            final List<EncryptionKey> keyStore = getEncryptionKeys();
+
+            for (EncryptionKey key: keyStore) {
+                JsonObject keySet = new JsonObject();
+                if(clientKey.getSiteId() == key.getSiteId()) {
+                    keySet.put("keyset_id", DEFAULT_KEYSET_ID);
+                } else if (key.getSiteId() == -1) {
+                    keySet.put("keyset_id", DEFAULT_MASTER_KEYSET_ID);
+                } else if (!acls.canClientAccessKey(clientKey, key, MissingAclMode.DENY_ALL)) {
+                    continue;
+                }
+                keySet.put("id", key.getId());
+                keySet.put("created", key.getCreated().getEpochSecond());
+                keySet.put("activates", key.getActivates().getEpochSecond());
+                keySet.put("expires", key.getExpires().getEpochSecond());
+                keySet.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
+
+
+                keys.add(keySet);
+            }
+
+            resp.put("keys", keys);
+
+            ResponseUtil.SuccessV2(rc, resp);
+        } catch (Exception e) {
+            LOGGER.error(e);
+            rc.fail(500);
+        }
+    }
+
+    private List<EncryptionKey> getEncryptionKeys() {
+        final List<EncryptionKey> keyStore = this.keyStore.getSnapshot().getActiveKeySet()
+                .stream().filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
+                .collect(Collectors.toList());
+        return keyStore;
     }
 
     private void handleHealthCheck(RoutingContext rc) {

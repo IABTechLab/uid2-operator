@@ -33,8 +33,8 @@ import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import io.vertx.micrometer.Label;
 import io.vertx.micrometer.MicrometerMetricsOptions;
 import io.vertx.micrometer.VertxPrometheusOptions;
@@ -154,7 +154,7 @@ public class Main {
         Vertx vertx = createVertx();
         VertxUtils.createConfigRetriever(vertx).getConfig(ar -> {
             if (ar.failed()) {
-                LOGGER.fatal("Unable to read config: " + ar.cause().getMessage(), ar.cause());
+                LOGGER.error("Unable to read config: " + ar.cause().getMessage(), ar.cause());
                 return;
             }
 
@@ -162,7 +162,7 @@ public class Main {
                 Main app = new Main(vertx, ar.result());
                 app.run();
             } catch (Exception e) {
-                LOGGER.fatal("Error: " + e.getMessage(), e);
+                LOGGER.error("Error: " + e.getMessage(), e);
                 ((LoggerContext)org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
                 vertx.close();
                 System.exit(1);
@@ -245,7 +245,7 @@ public class Main {
                 return promise.future();
             })
             .onFailure(t -> {
-                LOGGER.fatal("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
+                LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
                 vertx.close();
                 System.exit(1);
             });

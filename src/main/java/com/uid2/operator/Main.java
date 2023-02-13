@@ -28,14 +28,17 @@ import com.uid2.shared.vertx.VertxUtils;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.impl.HttpUtils;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.vertx.micrometer.Label;
+import io.vertx.micrometer.MetricsDomain;
 import io.vertx.micrometer.MicrometerMetricsOptions;
 import io.vertx.micrometer.VertxPrometheusOptions;
 import io.vertx.micrometer.backends.BackendRegistries;
@@ -46,10 +49,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Supplier;
 
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
@@ -355,6 +355,17 @@ public class Main {
             prometheusRegistry.config()
                 // providing common renaming for prometheus metric, e.g. "hello.world" to "hello_world"
                 .meterFilter(new PrometheusRenameFilter())
+                .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), actualPath -> {
+                    try {
+                        return HttpUtils.normalizePath(actualPath);
+                    } catch (IllegalArgumentException e) {
+                        return actualPath;
+                    }
+                }))
+                // Don't record metrics for 404s.
+                .meterFilter(MeterFilter.deny(id ->
+                    id.getName().startsWith(MetricsDomain.HTTP_SERVER.getPrefix()) &&
+                    Objects.equals(id.getTag(Label.HTTP_CODE.toString()), "404")))
                 // adding common labels
                 .commonTags("application", "uid2-operator");
 

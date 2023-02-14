@@ -18,6 +18,7 @@ import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Role;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.*;
+import com.uid2.shared.store.ACLMode.MissingAclMode;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.AsyncResult;
@@ -556,7 +557,8 @@ public class UIDOperatorVerticleTest {
         when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[4]), any())).thenReturn(true);
         when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[5]), any())).thenReturn(true);
         when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[6]), any())).thenReturn(true);
-        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[7]), any())).thenReturn(false);
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[7]), eq(MissingAclMode.DENY_ALL))).thenReturn(false);
+        when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[7]), eq(MissingAclMode.ALLOW_ALL))).thenReturn(true);
 
         //Add the expected Default keys to the expected Keys from filtering
         EncryptionKey[] expectedKeysDefault = new EncryptionKey[]{encryptionKeys[4], encryptionKeys[6]};
@@ -588,6 +590,33 @@ public class UIDOperatorVerticleTest {
         for (EncryptionKey expectedKey : encryptionKeys) {
             //returning false to prove that function always returns above keys
             when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(expectedKey), any())).thenReturn(false);
+        }
+
+        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+            System.out.println(respJson);
+            checkEncryptionKeysSharing(respJson, siteId, encryptionKeys);
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void keySharingIDREADER(Vertx vertx, VertxTestContext testContext) {
+        String apiVersion = "v2";
+        int siteId = 4;
+        fakeAuth(siteId, Role.ID_READER);
+        EncryptionKey[] encryptionKeys = {
+                new EncryptionKey(1, "master key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), -1),
+                new EncryptionKey(4, "site key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 4),
+                new EncryptionKey(2, "no acl key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 2),
+        };
+        addEncryptionKeys(encryptionKeys);
+
+        //Creates a subset of all IDs
+        // This sets ACL that the client can only access the calling keys
+        for (EncryptionKey expectedKey : encryptionKeys) {
+            //returning false to prove that function always returns above keys
+            when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(expectedKey), eq(MissingAclMode.ALLOW_ALL))).thenReturn(true);
+            when(keyAclProviderSnapshot.canClientAccessKey(any(), eq(expectedKey), eq(MissingAclMode.DENY_ALL))).thenReturn(false);
         }
 
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {

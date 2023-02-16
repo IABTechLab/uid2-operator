@@ -57,7 +57,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private static final int DEFAULT_MASTER_KEYSET_ID = 1;
     private static final int DEFAULT_KEYSET_ID = 99999;
-    private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+    private static final DateTimeFormatter API_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final JsonObject config;
     private final AuthMiddleware auth;
@@ -75,8 +76,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
     private final int tcfVendorId;
-
-    private IStatsCollectorQueue _statsCollectorQueue;
+    private final IStatsCollectorQueue _statsCollectorQueue;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -99,7 +99,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
-
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -303,10 +302,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private List<EncryptionKey> getEncryptionKeys() {
-        final List<EncryptionKey> keyStore = this.keyStore.getSnapshot().getActiveKeySet()
-                .stream().filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
+        return this.keyStore.getSnapshot().getActiveKeySet()
+                .stream()
+                .filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
                 .collect(Collectors.toList());
-        return keyStore;
     }
 
     private void handleHealthCheck(RoutingContext rc) {
@@ -667,7 +666,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     o.put("bucket_id", e.getHashedId());
                     Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
 
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
+                    o.put("last_updated", API_DATE_TIME_FORMATTER.format(lastUpdated));
                     resp.add(o);
                 }
                 ResponseUtil.Success(rc, resp);
@@ -698,7 +697,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     o.put("bucket_id", e.getHashedId());
                     Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
 
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
+                    o.put("last_updated", API_DATE_TIME_FORMATTER.format(lastUpdated));
                     resp.add(o);
                 }
                 ResponseUtil.SuccessV2(rc, resp);
@@ -1058,9 +1057,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
-            final int count = inputList.length;
-            for (int i = 0; i < count; ++i) {
-                final InputUtil.InputVal input = inputList[i];
+            for (final InputUtil.InputVal input : inputList) {
                 if (input != null && input.isValid()) {
                     final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                     final JsonObject resp = new JsonObject();
@@ -1245,8 +1242,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private JsonArray toJson(List<EncryptionKey> keys, ClientKey clientKey, IKeysAclSnapshot acls) {
         final JsonArray a = new JsonArray();
-        for (int i = 0; i < keys.size(); ++i) {
-            final EncryptionKey k = keys.get(i);
+        for (final EncryptionKey k : keys) {
             if (!acls.canClientAccessKey(clientKey, k)) {
                 continue;
             }
@@ -1295,7 +1291,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         public static String InsufficientUserConsent = "insufficient_user_consent";
     }
 
-    public static enum UserConsentStatus {
+    public enum UserConsentStatus {
         SUFFICIENT,
         INSUFFICIENT,
         INVALID,

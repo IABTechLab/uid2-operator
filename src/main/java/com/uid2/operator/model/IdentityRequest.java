@@ -5,11 +5,9 @@ public final class IdentityRequest {
     public final UserIdentity userIdentity;
     public final TokenGeneratePolicy tokenGeneratePolicy;
 
-    public IdentityRequest(
-            PublisherIdentity publisherIdentity,
-            UserIdentity userIdentity,
-            TokenGeneratePolicy tokenGeneratePolicy)
-    {
+    public IdentityRequest(PublisherIdentity publisherIdentity,
+                           UserIdentity userIdentity,
+                           TokenGeneratePolicy tokenGeneratePolicy) {
         this.publisherIdentity = publisherIdentity;
         this.userIdentity = userIdentity;
         this.tokenGeneratePolicy = tokenGeneratePolicy;

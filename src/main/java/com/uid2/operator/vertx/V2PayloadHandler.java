@@ -23,11 +23,9 @@ import java.util.function.Function;
 public class V2PayloadHandler {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(V2PayloadHandler.class);
 
-    private IKeyStore keyStore;
-
-    private Boolean enableEncryption;
-
-    private IdentityScope identityScope;
+    private final IKeyStore keyStore;
+    private final Boolean enableEncryption;
+    private final IdentityScope identityScope;
 
     public V2PayloadHandler(IKeyStore keyStore, Boolean enableEncryption, IdentityScope identityScope) {
         this.keyStore = keyStore;
@@ -144,13 +142,13 @@ public class V2PayloadHandler {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
                 // Encrypt whole payload using key shared with client.
                 byte[] encryptedResp = AesGcm.encrypt(
-                    respJson.encode().getBytes(StandardCharsets.UTF_8),
-                    request.encryptionKey);
+                        respJson.encode().getBytes(StandardCharsets.UTF_8),
+                        request.encryptionKey);
                 rc.response().end(Utils.toBase64String(encryptedResp));
             }
             else {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                    .end(respJson.encode());
+                        .end(respJson.encode());
             }
         }
         catch (Exception ex){
@@ -167,7 +165,7 @@ public class V2PayloadHandler {
         }
         JsonObject respJson = (JsonObject) rc.data().get("response");
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-            .end(respJson.encode());
+                .end(respJson.encode());
     }
 
     private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
@@ -195,4 +193,3 @@ public class V2PayloadHandler {
         }
     }
 }
-

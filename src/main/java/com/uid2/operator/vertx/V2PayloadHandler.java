@@ -115,7 +115,7 @@ public class V2PayloadHandler {
         String bodyString = rc.body().asString();
 
         V2RequestUtil.V2Request request = null;
-        if (bodyString.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
+        if (bodyString != null && bodyString.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
             request = V2RequestUtil.parseRefreshRequest(bodyString, this.keyStore);
             if (!request.isValid()) {
                 ResponseUtil.ClientError(rc, request.errorMessage);

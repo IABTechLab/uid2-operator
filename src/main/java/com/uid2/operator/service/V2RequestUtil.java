@@ -62,7 +62,7 @@ public class V2RequestUtil {
             //  byte 13-end: encrypted payload + GCM AUTH TAG
             bodyBytes = Utils.decodeBase64String(bodyString);
         }
-        catch (IllegalArgumentException ex) {
+        catch (IllegalArgumentException e) {
             return new V2Request("Invalid body: Body is not valid base64.");
         }
 
@@ -77,7 +77,7 @@ public class V2RequestUtil {
         byte[] decryptedBody;
         try {
             decryptedBody = AesGcm.decrypt(bodyBytes, 1, ck.getSecretBytes());
-        } catch (Exception ex) {
+        } catch (Exception e) {
             return new V2Request("Invalid body: Check encryption key (ClientSecret)");
         }
 
@@ -98,8 +98,8 @@ public class V2RequestUtil {
                 // Skip 8 bytes timestamp, 8 bytes nonce
                 String bodyStr = new String(decryptedBody, 16, decryptedBody.length - 16, StandardCharsets.UTF_8);
                 payload = new JsonObject(bodyStr);
-            } catch (Exception ex) {
-                LOGGER.error("Invalid payload in body: Data is not valid json string.", ex);
+            } catch (Exception e) {
+                LOGGER.error("Invalid payload in body: Data is not valid json string.", e);
                 return new V2Request("Invalid payload in body: Data is not valid json string.");
             }
         }
@@ -116,7 +116,7 @@ public class V2RequestUtil {
             //  byte 5-N: IV + encrypted body + GCM AUTH TAG
             bytes = Utils.decodeBase64String(bodyString);
         }
-        catch (IllegalArgumentException ex) {
+        catch (IllegalArgumentException e) {
             return new V2Request("Invalid body: Body is not valid base64.");
         }
 
@@ -131,8 +131,8 @@ public class V2RequestUtil {
         byte[] decrypted;
         try {
             decrypted = AesGcm.decrypt(bytes, 5, key);
-        } catch (Exception ex) {
-            LOGGER.error("Invalid data: Check encryption method and encryption key", ex);
+        } catch (Exception e) {
+            LOGGER.error("Invalid data: Check encryption method and encryption key", e);
             return new V2Request("Invalid data: Check encryption method and encryption key");
         }
 
@@ -142,8 +142,8 @@ public class V2RequestUtil {
             String refreshToken = tokenJson.getString("refresh_token");
 
             return new V2Request(null, refreshToken, responseKey);
-        } catch (Exception ex) {
-            LOGGER.error("Invalid format: Payload is not valid json or missing required data", ex);
+        } catch (Exception e) {
+            LOGGER.error("Invalid format: Payload is not valid json or missing required data", e);
             return new V2Request("Invalid format: Payload is not valid json or missing required data");
         }
     }

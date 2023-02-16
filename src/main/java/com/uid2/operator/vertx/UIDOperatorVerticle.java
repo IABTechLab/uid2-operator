@@ -638,8 +638,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 rc.response().setStatusCode(200)
                         .setChunked(true)
                         .write(String.valueOf(timestamp));
-            } catch (Exception ex) {
-                LOGGER.error("Unexpected error while handling optout get", ex);
+            } catch (Exception e) {
+                LOGGER.error("Unexpected error while handling optout get", e);
                 rc.fail(500);
             }
         } else {
@@ -738,8 +738,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 rc.fail(400);
             }
         }
-        catch (Exception ex) {
-            LOGGER.error("Unexpected error while mapping identity", ex);
+        catch (Exception e) {
+            LOGGER.error("Unexpected error while mapping identity", e);
             rc.fail(500);
         }
     }
@@ -1081,8 +1081,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             apiContact = (String) rc.data().get(AuthMiddleware.API_CONTACT_PROP);
             apiContact = apiContact == null ? "unknown" : apiContact;
-        } catch (Exception ex) {
-            apiContact = "error: " + ex.getMessage();
+        } catch (Exception e) {
+            apiContact = "error: " + e.getMessage();
         }
 
         return apiContact;

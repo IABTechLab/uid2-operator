@@ -98,8 +98,8 @@ public class V2PayloadHandler {
 
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
         }
-        catch (Exception ex){
-            LOGGER.error("Failed to generate token", ex);
+        catch (Exception e){
+            LOGGER.error("Failed to generate token", e);
             ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
         }
     }
@@ -151,8 +151,8 @@ public class V2PayloadHandler {
                         .end(respJson.encode());
             }
         }
-        catch (Exception ex){
-            LOGGER.error("Failed to refresh token", ex);
+        catch (Exception e){
+            LOGGER.error("Failed to refresh token", e);
             ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
         }
     }
@@ -187,8 +187,8 @@ public class V2PayloadHandler {
             JsonObject respJson = (JsonObject) rc.data().get("response");
 
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
-        } catch (Exception ex) {
-            LOGGER.error("Failed to generate response", ex);
+        } catch (Exception e) {
+            LOGGER.error("Failed to generate response", e);
             ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
         }
     }

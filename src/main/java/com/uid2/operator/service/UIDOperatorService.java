@@ -116,7 +116,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             } else {
                 return RefreshResponse.Optout;
             }
-        } catch (Exception ex) {
+        } catch (Exception e) {
             return RefreshResponse.Invalid;
         }
     }

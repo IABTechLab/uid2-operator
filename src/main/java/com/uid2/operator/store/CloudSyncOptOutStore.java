@@ -172,7 +172,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         public static IndexUpdateMessage fromJsonString(String str) {
             try {
                 return IndexUpdateMessage.mapper.readValue(str, IndexUpdateMessage.class);
-            } catch (JsonProcessingException ex) {
+            } catch (JsonProcessingException e) {
                 // IndexUpdateMessage is an internal message, any serialization and deserialization exception is logic error
                 // return null here
                 return null;
@@ -182,7 +182,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         public String toJsonString() {
             try {
                 return IndexUpdateMessage.mapper.writeValueAsString(this);
-            } catch (JsonProcessingException ex) {
+            } catch (JsonProcessingException e) {
                 // IndexUpdateMessage is an internal message, any serialization and deserialization exception is logic error
                 // return null here
                 return null;

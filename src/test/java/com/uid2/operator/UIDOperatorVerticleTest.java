@@ -294,7 +294,7 @@ public class UIDOperatorVerticleTest {
     private JsonObject tryParseResponse(HttpResponse resp) {
         try {
             return resp.bodyAsJsonObject();
-        } catch (Exception ex) {
+        } catch (Exception e) {
             return null;
         }
     }

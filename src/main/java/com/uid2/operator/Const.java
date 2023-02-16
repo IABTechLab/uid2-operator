@@ -13,5 +13,6 @@ public class Const extends com.uid2.shared.Const {
         public static final String StatsCollectorEventBus = "StatsCollector";
         public static final String FailureShutdownWaitHoursProp = "failure_shutdown_wait_hours";
         public static final String AllowLegacyAPIProp = "allow_legacy_api";
+        public static final String SharingTokenExpiryProp = "sharing_token_expiry_seconds";
     }
 }

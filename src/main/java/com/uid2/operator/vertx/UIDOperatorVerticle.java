@@ -278,7 +278,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final List<EncryptionKey> keyStore = getEncryptionKeys();
 
             MissingAclMode mode = MissingAclMode.DENY_ALL;
-            Object roleData = rc.data().get(API_CLIENT_PROP);
             IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
             if(roleAuthorize.hasRole(Role.ID_READER)) {
                 mode = MissingAclMode.ALLOW_ALL;
@@ -304,7 +303,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
 
             resp.put("keys", keys);
-
+            rc.response().putHeader("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);

@@ -3,7 +3,6 @@ package com.uid2.operator.model;
 import java.time.Duration;
 
 public class RefreshResponse {
-
     public static RefreshResponse Invalid = new RefreshResponse(Status.Invalid, IdentityTokens.LogoutToken);
     public static RefreshResponse Optout = new RefreshResponse(Status.Optout, IdentityTokens.LogoutToken);
     public static RefreshResponse Expired = new RefreshResponse(Status.Expired, IdentityTokens.LogoutToken);
@@ -65,5 +64,4 @@ public class RefreshResponse {
         Expired,
         Deprecated
     }
-
 }

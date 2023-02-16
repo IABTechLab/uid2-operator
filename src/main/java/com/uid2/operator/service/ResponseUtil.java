@@ -8,7 +8,6 @@ import io.vertx.ext.web.RoutingContext;
 import java.util.HashMap;
 
 public class ResponseUtil {
-
     public static void SuccessNoBody(String status, RoutingContext rc) {
         final JsonObject json = new JsonObject(new HashMap<String, Object>() {
             {
@@ -74,7 +73,5 @@ public class ResponseUtil {
         }
         rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
             .end(json.encode());
-
     }
-
 }

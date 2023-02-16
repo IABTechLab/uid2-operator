@@ -233,5 +233,4 @@ public class UIDOperatorService implements IUIDOperatorService {
     private boolean hasGlobalOptOut(UserIdentity userIdentity) {
         return this.optOutStore.getLatestEntry(userIdentity) != null;
     }
-
 }

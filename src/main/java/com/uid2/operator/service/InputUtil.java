@@ -7,7 +7,6 @@ import com.uid2.operator.model.UserIdentity;
 import java.time.Instant;
 
 public class InputUtil {
-
     private static String GMAILDOMAIN = "gmail.com";
 
     private static int MIN_PHONENUMBER_DIGITS = 10;
@@ -271,5 +270,4 @@ public class InputUtil {
                     establishedAt);
         }
     }
-
 }

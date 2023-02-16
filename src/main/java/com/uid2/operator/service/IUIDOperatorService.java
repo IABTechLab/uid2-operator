@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.List;
 
 public interface IUIDOperatorService {
-
     IdentityTokens generateIdentity(IdentityRequest request);
 
     RefreshResponse refreshIdentity(RefreshToken refreshToken);
@@ -23,5 +22,4 @@ public interface IUIDOperatorService {
     boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf);
 
     Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf);
-
 }

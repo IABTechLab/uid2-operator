@@ -21,7 +21,6 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
 public class AttestationTest {
-
 //    @Test
 //    public void testAttestation() throws Exception {
 //        String enclaveEnvironment = System.getenv("ENCLAVE_ENVIRONMENT");
@@ -87,5 +86,4 @@ public class AttestationTest {
 //
 //        assertEquals(payload, new String(plaintext, StandardCharsets.UTF_8));
 //    }
-
 }

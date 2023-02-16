@@ -41,7 +41,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.getBodyAsString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
         if (!request.isValid()) {
             ResponseUtil.ClientError(rc, request.errorMessage);
             return;
@@ -59,7 +59,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.getBodyAsString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
         if (!request.isValid()) {
             ResponseUtil.ClientError(rc, request.errorMessage);
             return;
@@ -77,7 +77,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.getBodyAsString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
         if (!request.isValid()) {
             ResponseUtil.ClientError(rc, request.errorMessage);
             return;
@@ -112,7 +112,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        String bodyString = rc.getBodyAsString();
+        String bodyString = rc.body().asString();
 
         V2RequestUtil.V2Request request = null;
         if (bodyString.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
@@ -160,7 +160,7 @@ public class V2PayloadHandler {
     }
 
     private void passThrough(RoutingContext rc, Handler<RoutingContext> apiHandler) {
-        rc.data().put("request", rc.getBodyAsJson());
+        rc.data().put("request", rc.body().asJsonObject());
         apiHandler.handle(rc);
         if (rc.response().getStatusCode() != 200) {
             return;

@@ -23,11 +23,11 @@ public class OperatorDisableHandler implements Handler<RoutingContext> {
     }
 
     @Override
-    public void handle(RoutingContext rc) {
+    public void handle(RoutingContext ctx) {
         if (canServe.get()) {
-            rc.next();
+            ctx.next();
         } else {
-            rc.fail(503);
+            ctx.fail(503);
         }
     }
 

@@ -200,30 +200,30 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final Router v2Router = Router.router(vertx);
 
         v2Router.post("/token/generate").handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
+                ctx -> v2PayloadHandler.handleTokenGenerate(ctx, this::handleTokenGenerateV2), Role.GENERATOR));
         v2Router.post("/token/refresh").handler(bodyHandler).handler(auth.handleWithOptionalAuth(
-                rc -> v2PayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
+                ctx -> v2PayloadHandler.handleTokenRefresh(ctx, this::handleTokenRefreshV2)));
         v2Router.post("/token/validate").handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
+                ctx -> v2PayloadHandler.handle(ctx, this::handleTokenValidateV2), Role.GENERATOR));
         v2Router.post("/identity/buckets").handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
+                ctx -> v2PayloadHandler.handle(ctx, this::handleBucketsV2), Role.MAPPER));
         v2Router.post("/identity/map").handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
+                ctx -> v2PayloadHandler.handle(ctx, this::handleIdentityMapV2), Role.MAPPER));
         v2Router.post("/key/latest").handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
+                ctx -> v2PayloadHandler.handle(ctx, this::handleKeysRequestV2), Role.ID_READER));
         v2Router.post("/key/sharing").handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER));
+                ctx -> v2PayloadHandler.handle(ctx, this::handleKeysSharing), Role.SHARER));
         v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
+                ctx -> v2PayloadHandler.handleAsync(ctx, this::handleLogoutAsyncV2), Role.OPTOUT));
 
         mainRouter.route("/v2/*").subRouter(v2Router);
     }
 
-    private void handleKeysRequestCommon(RoutingContext rc, Handler<JsonArray> onSuccess) {
-        final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
+    private void handleKeysRequestCommon(RoutingContext ctx, Handler<JsonArray> onSuccess) {
+        final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, ctx);
         final int clientSiteId = clientKey.getSiteId();
         if (!clientKey.hasValidSiteId()) {
-            ResponseUtil.Error("invalid_client", 401, rc, "Unexpected client site id " + Integer.toString(clientSiteId));
+            ResponseUtil.Error("invalid_client", 401, ctx, "Unexpected client site id " + Integer.toString(clientSiteId));
             return;
         }
 
@@ -232,36 +232,36 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         onSuccess.handle(toJson(keys, clientKey, acls));
     }
 
-    public void handleKeysRequestV1(RoutingContext rc) {
+    public void handleKeysRequestV1(RoutingContext ctx) {
         try {
-            handleKeysRequestCommon(rc, keys -> ResponseUtil.Success(rc, keys));
+            handleKeysRequestCommon(ctx, keys -> ResponseUtil.Success(ctx, keys));
         } catch (Exception e) {
             LOGGER.error("Unknown error while handling keys request v1", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    public void handleKeysRequestV2(RoutingContext rc) {
+    public void handleKeysRequestV2(RoutingContext ctx) {
         try {
-            handleKeysRequestCommon(rc, keys -> ResponseUtil.SuccessV2(rc, keys));
+            handleKeysRequestCommon(ctx, keys -> ResponseUtil.SuccessV2(ctx, keys));
         } catch (Exception e) {
             LOGGER.error("Unknown error while handling keys request v2", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    public void handleKeysRequest(RoutingContext rc) {
+    public void handleKeysRequest(RoutingContext ctx) {
         try {
-            handleKeysRequestCommon(rc, keys -> sendJsonResponse(rc, keys));
+            handleKeysRequestCommon(ctx, keys -> sendJsonResponse(ctx, keys));
         } catch (Exception e) {
             LOGGER.error("Unknown error while handling keys request", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    public void handleKeysSharing(RoutingContext rc) {
+    public void handleKeysSharing(RoutingContext ctx) {
         try {
-            final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
+            final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, ctx);
 
             final JsonObject resp = new JsonObject();
             resp.put("caller_site_id", clientKey.getSiteId());
@@ -294,10 +294,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             resp.put("keys", keys);
 
-            ResponseUtil.SuccessV2(rc, resp);
+            ResponseUtil.SuccessV2(ctx, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
@@ -308,11 +308,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 .collect(Collectors.toList());
     }
 
-    private void handleHealthCheck(RoutingContext rc) {
+    private void handleHealthCheck(RoutingContext ctx) {
         if (HealthManager.instance.isHealthy()) {
-            rc.response().end("OK");
+            ctx.response().end("OK");
         } else {
-            HttpServerResponse resp = rc.response();
+            HttpServerResponse resp = ctx.response();
             String reason = HealthManager.instance.reason();
             resp.setStatusCode(503);
             resp.setChunked(true);
@@ -321,10 +321,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    private void handleTokenRefreshV1(RoutingContext rc) {
-        final List<String> tokenList = rc.queryParam("refresh_token");
+    private void handleTokenRefreshV1(RoutingContext ctx) {
+        final List<String> tokenList = ctx.queryParam("refresh_token");
         if (tokenList == null || tokenList.size() == 0) {
-            ResponseUtil.ClientError(rc, "Required Parameter Missing: refresh_token");
+            ResponseUtil.ClientError(ctx, "Required Parameter Missing: refresh_token");
             return;
         }
 
@@ -336,96 +336,96 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 refreshToken = (String) v2req.payload;
             }
             else {
-                ResponseUtil.ClientError(rc, v2req.errorMessage);
+                ResponseUtil.ClientError(ctx, v2req.errorMessage);
                 return;
             }
         }
 
         try {
-            final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
+            final RefreshResponse r = this.refreshIdentity(ctx, refreshToken);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
-                    ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
-                } else if (!AuthMiddleware.isAuthenticated(rc)) {
+                    ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, ctx);
+                } else if (!AuthMiddleware.isAuthenticated(ctx)) {
                     // unauthenticated clients get a generic error
-                    ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                    ResponseUtil.Error(ResponseStatus.GenericError, 400, ctx, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
-                    ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
+                    ResponseUtil.Error(ResponseStatus.InvalidToken, 400, ctx, "Invalid Token presented " + tokenList.get(0));
                 } else if (r.isExpired()) {
-                    ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                    ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, ctx, "Expired Token presented");
                 } else {
-                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
+                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, ctx, "Unknown State");
                 }
             } else {
-                this.recordRefreshDurationStats(rc, r.getDurationSinceLastRefresh());
-                ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
+                this.recordRefreshDurationStats(ctx, r.getDurationSinceLastRefresh());
+                ResponseUtil.Success(ctx, toJsonV1(r.getTokens()));
             }
         } catch (Exception e) {
             LOGGER.error("unknown error while refreshing token", e);
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, ctx, "Service Error");
         }
     }
 
-    private void handleTokenRefreshV2(RoutingContext rc) {
+    private void handleTokenRefreshV2(RoutingContext ctx) {
         try {
-            String tokenStr = (String) rc.data().get("request");
-            final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
+            String tokenStr = (String) ctx.data().get("request");
+            final RefreshResponse r = this.refreshIdentity(ctx, tokenStr);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
-                    ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
-                } else if (!AuthMiddleware.isAuthenticated(rc)) {
+                    ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, ctx);
+                } else if (!AuthMiddleware.isAuthenticated(ctx)) {
                     // unauthenticated clients get a generic error
-                    ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                    ResponseUtil.Error(ResponseStatus.GenericError, 400, ctx, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
-                    ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
+                    ResponseUtil.Error(ResponseStatus.InvalidToken, 400, ctx, "Invalid Token presented");
                 } else if (r.isExpired()) {
-                    ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                    ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, ctx, "Expired Token presented");
                 } else {
-                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
+                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, ctx, "Unknown State");
                 }
             } else {
-                this.recordRefreshDurationStats(rc, r.getDurationSinceLastRefresh());
-                ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
+                this.recordRefreshDurationStats(ctx, r.getDurationSinceLastRefresh());
+                ResponseUtil.SuccessV2(ctx, toJsonV1(r.getTokens()));
             }
         } catch (Exception e) {
             LOGGER.error("Unknown error while refreshing token v2", e);
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, ctx, "Service Error");
         }
     }
 
-    private void handleTokenValidateV1(RoutingContext rc) {
+    private void handleTokenValidateV1(RoutingContext ctx) {
         try {
-            final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
-            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(ctx) : getTokenInput(ctx);
+            if (this.phoneSupport ? !checkTokenInputV1(input, ctx) : !checkTokenInput(input, ctx)) {
                 return;
             }
             if ((Arrays.equals(ValidationInputEmailHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Email)
                     || (Arrays.equals(ValidationInputPhoneHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Phone)) {
                 try {
                     final Instant now = Instant.now();
-                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
-                        ResponseUtil.Success(rc, Boolean.TRUE);
+                    if (this.idService.advertisingTokenMatches(ctx.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
+                        ResponseUtil.Success(ctx, Boolean.TRUE);
                     } else {
-                        ResponseUtil.Success(rc, Boolean.FALSE);
+                        ResponseUtil.Success(ctx, Boolean.FALSE);
                     }
                 } catch (Exception e) {
-                    ResponseUtil.Success(rc, Boolean.FALSE);
+                    ResponseUtil.Success(ctx, Boolean.FALSE);
                 }
             } else {
-                ResponseUtil.Success(rc, Boolean.FALSE);
+                ResponseUtil.Success(ctx, Boolean.FALSE);
             }
         } catch (Exception e) {
             LOGGER.error("Unknown error while validating token", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    private void handleTokenValidateV2(RoutingContext rc) {
+    private void handleTokenValidateV2(RoutingContext ctx) {
         try {
-            final JsonObject req = (JsonObject) rc.data().get("request");
+            final JsonObject req = (JsonObject) ctx.data().get("request");
 
             final InputUtil.InputVal input = getTokenInputV2(req);
-            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            if (this.phoneSupport ? !checkTokenInputV1(input, ctx) : !checkTokenInput(input, ctx)) {
                 return;
             }
             if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidationInputEmailHash, input.getIdentityInput()))
@@ -435,62 +435,62 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final String token = req.getString("token");
 
                     if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(this.identityScope, 0, now), now)) {
-                        ResponseUtil.SuccessV2(rc, Boolean.TRUE);
+                        ResponseUtil.SuccessV2(ctx, Boolean.TRUE);
                     } else {
-                        ResponseUtil.SuccessV2(rc, Boolean.FALSE);
+                        ResponseUtil.SuccessV2(ctx, Boolean.FALSE);
                     }
                 } catch (Exception e) {
-                    ResponseUtil.SuccessV2(rc, Boolean.FALSE);
+                    ResponseUtil.SuccessV2(ctx, Boolean.FALSE);
                 }
             } else {
-                ResponseUtil.SuccessV2(rc, Boolean.FALSE);
+                ResponseUtil.SuccessV2(ctx, Boolean.FALSE);
             }
         } catch (Exception e) {
             LOGGER.error("Unknown error while validating token v2", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    private void handleTokenGenerateV1(RoutingContext rc) {
+    private void handleTokenGenerateV1(RoutingContext ctx) {
         try {
-            final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(ctx) : this.getTokenInput(ctx);
+            if (this.phoneSupport ? !checkTokenInputV1(input, ctx) : !checkTokenInput(input, ctx)) {
                 return;
             } else {
-                final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+                final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(ctx);
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
                                 TokenGeneratePolicy.defaultPolicy()));
 
-                //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
+                //Integer.parseInt(ctx.queryParam("privacy_bits").get(0))));
 
-                ResponseUtil.Success(rc, toJsonV1(t));
+                ResponseUtil.Success(ctx, toJsonV1(t));
             }
         } catch (Exception e) {
             LOGGER.error("Unknown error while generating token v1", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    private void handleTokenGenerateV2(RoutingContext rc) {
+    private void handleTokenGenerateV2(RoutingContext ctx) {
         try {
-            JsonObject req = (JsonObject) rc.data().get("request");
+            JsonObject req = (JsonObject) ctx.data().get("request");
 
             final InputUtil.InputVal input = this.getTokenInputV2(req);
-            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            if (this.phoneSupport ? !checkTokenInputV1(input, ctx) : !checkTokenInput(input, ctx)) {
                 return;
             } else {
-                final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+                final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(ctx);
 
                 switch (validateUserConsent(req)) {
                     case INVALID: {
-                        rc.fail(400);
+                        ctx.fail(400);
                         return;
                     }
                     case INSUFFICIENT: {
-                        ResponseUtil.SuccessNoBodyV2(UIDOperatorVerticle.ResponseStatus.InsufficientUserConsent, rc);
+                        ResponseUtil.SuccessNoBodyV2(UIDOperatorVerticle.ResponseStatus.InsufficientUserConsent, ctx);
                         return;
                     }
                     case SUFFICIENT: {
@@ -509,102 +509,102 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                                 readTokenGeneratePolicy(req)));
 
                 if (t.isEmptyToken()) {
-                    ResponseUtil.OptOutV2(rc, toJsonV1(t));
+                    ResponseUtil.OptOutV2(ctx, toJsonV1(t));
                 } else {
-                    ResponseUtil.SuccessV2(rc, toJsonV1(t));
+                    ResponseUtil.SuccessV2(ctx, toJsonV1(t));
                 }
             }
         } catch (IllegalArgumentException iae) {
             LOGGER.warn("request body contains invalid argument(s)", iae);
-            ResponseUtil.ClientError(rc, "request body contains invalid argument(s)");
+            ResponseUtil.ClientError(ctx, "request body contains invalid argument(s)");
         } catch (Exception e) {
             LOGGER.error("Unknown error while generating token v2", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    private void handleTokenGenerate(RoutingContext rc) {
-        final InputUtil.InputVal input = this.getTokenInput(rc);
+    private void handleTokenGenerate(RoutingContext ctx) {
+        final InputUtil.InputVal input = this.getTokenInput(ctx);
         if (input == null || !input.isValid()) {
-            rc.fail(400);
+            ctx.fail(400);
             return;
         }
 
         try {
-            final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+            final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(ctx);
             final IdentityTokens t = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                             input.toUserIdentity(this.identityScope, 1, Instant.now()),
                             TokenGeneratePolicy.defaultPolicy()));
 
-            //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
+            //Integer.parseInt(ctx.queryParam("privacy_bits").get(0))));
 
-            sendJsonResponse(rc, toJson(t));
+            sendJsonResponse(ctx, toJson(t));
 
         } catch (Exception e) {
             LOGGER.error("Unknown error while generating token", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    private void handleTokenRefresh(RoutingContext rc) {
-        final List<String> tokenList = rc.queryParam("refresh_token");
+    private void handleTokenRefresh(RoutingContext ctx) {
+        final List<String> tokenList = ctx.queryParam("refresh_token");
         if (tokenList == null || tokenList.size() == 0) {
-            rc.fail(400);
+            ctx.fail(400);
             return;
         }
 
         try {
-            final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
-            sendJsonResponse(rc, toJson(r.getTokens()));
+            final RefreshResponse r = this.refreshIdentity(ctx, tokenList.get(0));
+            sendJsonResponse(ctx, toJson(r.getTokens()));
         } catch (Exception e) {
             LOGGER.error("Unknown error while refreshing token", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    private void handleValidate(RoutingContext rc) {
+    private void handleValidate(RoutingContext ctx) {
         try {
-            final InputUtil.InputVal input = getTokenInput(rc);
+            final InputUtil.InputVal input = getTokenInput(ctx);
             if (input != null && input.isValid() && Arrays.equals(ValidationInputEmailHash, input.getIdentityInput())) {
                 try {
                     final Instant now = Instant.now();
-                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
-                        rc.response().end("true");
+                    if (this.idService.advertisingTokenMatches(ctx.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
+                        ctx.response().end("true");
                     } else {
-                        rc.response().end("false");
+                        ctx.response().end("false");
                     }
                 } catch (Exception e) {
-                    rc.response().end("false");
+                    ctx.response().end("false");
                 }
             } else {
-                rc.response().end("not allowed");
+                ctx.response().end("not allowed");
             }
         } catch (Exception e) {
             LOGGER.error("Unknown error while validating token", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    private void handleLogoutAsync(RoutingContext rc) {
-        final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
+    private void handleLogoutAsync(RoutingContext ctx) {
+        final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(ctx) : getTokenInput(ctx);
         if (input.isValid()) {
             final Instant now = Instant.now();
             this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, ar -> {
                 if (ar.succeeded()) {
-                    rc.response().end("OK");
+                    ctx.response().end("OK");
                 } else {
-                    rc.fail(500);
+                    ctx.fail(500);
                 }
             });
         } else {
-            rc.fail(400);
+            ctx.fail(400);
         }
     }
 
-    private Future handleLogoutAsyncV2(RoutingContext rc) {
-        final JsonObject req = (JsonObject) rc.data().get("request");
+    private Future handleLogoutAsyncV2(RoutingContext ctx) {
+        final JsonObject req = (JsonObject) ctx.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
         if (input.isValid()) {
             final Instant now = Instant.now();
@@ -614,48 +614,48 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
                     body.put("optout", "OK");
-                    ResponseUtil.SuccessV2(rc, body);
+                    ResponseUtil.SuccessV2(ctx, body);
                 } else {
-                    rc.fail(500);
+                    ctx.fail(500);
                 }
                 promise.complete();
             });
             return promise.future();
         } else {
-            rc.fail(400);
+            ctx.fail(400);
             return Future.failedFuture("");
         }
     }
 
-    private void handleOptOutGet(RoutingContext rc) {
-        final InputUtil.InputVal input = getTokenInputV1(rc);
+    private void handleOptOutGet(RoutingContext ctx) {
+        final InputUtil.InputVal input = getTokenInputV1(ctx);
         if (input.isValid()) {
             try {
                 final Instant now = Instant.now();
                 final UserIdentity userIdentity = input.toUserIdentity(this.identityScope, 0, now);
                 final Instant result = this.idService.getLatestOptoutEntry(userIdentity, now);
                 long timestamp = result == null ? -1 : result.getEpochSecond();
-                rc.response().setStatusCode(200)
+                ctx.response().setStatusCode(200)
                         .setChunked(true)
                         .write(String.valueOf(timestamp));
             } catch (Exception e) {
                 LOGGER.error("Unexpected error while handling optout get", e);
-                rc.fail(500);
+                ctx.fail(500);
             }
         } else {
-            rc.fail(400);
+            ctx.fail(400);
         }
     }
 
-    private void handleBucketsV1(RoutingContext rc) {
-        final List<String> qp = rc.queryParam("since_timestamp");
+    private void handleBucketsV1(RoutingContext ctx) {
+        final List<String> qp = ctx.queryParam("since_timestamp");
         if (qp != null && qp.size() > 0) {
             final Instant sinceTimestamp;
             try {
                 LocalDateTime ld = LocalDateTime.parse(qp.get(0), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
                 sinceTimestamp = ld.toInstant(ZoneOffset.UTC);
             } catch (Exception e) {
-                ResponseUtil.ClientError(rc, "invalid date, must conform to ISO 8601");
+                ResponseUtil.ClientError(ctx, "invalid date, must conform to ISO 8601");
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
@@ -669,15 +669,15 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     o.put("last_updated", API_DATE_TIME_FORMATTER.format(lastUpdated));
                     resp.add(o);
                 }
-                ResponseUtil.Success(rc, resp);
+                ResponseUtil.Success(ctx, resp);
             }
         } else {
-            ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
+            ResponseUtil.ClientError(ctx, "missing parameter since_timestamp");
         }
     }
 
-    private void handleBucketsV2(RoutingContext rc) {
-        final JsonObject req = (JsonObject) rc.data().get("request");
+    private void handleBucketsV2(RoutingContext ctx) {
+        final JsonObject req = (JsonObject) ctx.data().get("request");
         final String qp = req.getString("since_timestamp");
 
         if (qp != null) {
@@ -686,7 +686,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 LocalDateTime ld = LocalDateTime.parse(qp, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
                 sinceTimestamp = ld.toInstant(ZoneOffset.UTC);
             } catch (Exception e) {
-                ResponseUtil.ClientError(rc, "invalid date, must conform to ISO 8601");
+                ResponseUtil.ClientError(ctx, "invalid date, must conform to ISO 8601");
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
@@ -700,16 +700,16 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     o.put("last_updated", API_DATE_TIME_FORMATTER.format(lastUpdated));
                     resp.add(o);
                 }
-                ResponseUtil.SuccessV2(rc, resp);
+                ResponseUtil.SuccessV2(ctx, resp);
             }
         } else {
-            ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
+            ResponseUtil.ClientError(ctx, "missing parameter since_timestamp");
         }
     }
 
-    private void handleIdentityMapV1(RoutingContext rc) {
-        final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-        if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+    private void handleIdentityMapV1(RoutingContext ctx) {
+        final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(ctx) : this.getTokenInput(ctx);
+        if (this.phoneSupport ? !checkTokenInputV1(input, ctx) : !checkTokenInput(input, ctx)) {
             return;
         }
         try {
@@ -719,35 +719,35 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             jsonObject.put("identifier", input.getProvided());
             jsonObject.put("advertising_id", mappedIdentity.advertisingId);
             jsonObject.put("bucket_id", mappedIdentity.bucketId);
-            ResponseUtil.Success(rc, jsonObject);
+            ResponseUtil.Success(ctx, jsonObject);
         } catch (Exception e) {
             LOGGER.error("Unknown error while mapping identity v1", e);
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, ctx, "Unknown State");
         }
     }
 
-    private void handleIdentityMap(RoutingContext rc) {
-        final InputUtil.InputVal input = this.getTokenInput(rc);
+    private void handleIdentityMap(RoutingContext ctx) {
+        final InputUtil.InputVal input = this.getTokenInput(ctx);
 
         try {
             if (input != null && input.isValid()) {
                 final Instant now = Instant.now();
                 final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
-                rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+                ctx.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
             } else {
-                rc.fail(400);
+                ctx.fail(400);
             }
         }
         catch (Exception e) {
             LOGGER.error("Unexpected error while mapping identity", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    private InputUtil.InputVal getTokenInput(RoutingContext rc) {
+    private InputUtil.InputVal getTokenInput(RoutingContext ctx) {
         final InputUtil.InputVal input;
-        final List<String> emailInput = rc.queryParam("email");
-        final List<String> emailHashInput = rc.queryParam("email_hash");
+        final List<String> emailInput = ctx.queryParam("email");
+        final List<String> emailHashInput = ctx.queryParam("email_hash");
         if (emailInput != null && emailInput.size() > 0) {
             if (emailHashInput != null && emailHashInput.size() > 0) {
                 // cannot specify both
@@ -798,11 +798,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return getInput != null ? getInput.get() : null;
     }
 
-    private InputUtil.InputVal getTokenInputV1(RoutingContext rc) {
-        final List<String> emailInput = rc.queryParam("email");
-        final List<String> emailHashInput = rc.queryParam("email_hash");
-        final List<String> phoneInput = rc.queryParam("phone");
-        final List<String> phoneHashInput = rc.queryParam("phone_hash");
+    private InputUtil.InputVal getTokenInputV1(RoutingContext ctx) {
+        final List<String> emailInput = ctx.queryParam("email");
+        final List<String> emailHashInput = ctx.queryParam("email_hash");
+        final List<String> phoneInput = ctx.queryParam("phone");
+        final List<String> phoneHashInput = ctx.queryParam("phone_hash");
 
         int validInputs = 0;
         if (emailInput != null && emailInput.size() > 0) {
@@ -836,39 +836,39 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return null;
     }
 
-    private boolean checkTokenInput(InputUtil.InputVal input, RoutingContext rc) {
+    private boolean checkTokenInput(InputUtil.InputVal input, RoutingContext ctx) {
         if (input == null) {
-            ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
+            ResponseUtil.ClientError(ctx, "Required Parameter Missing: exactly one of email or email_hash must be specified");
             return false;
         } else if (!input.isValid()) {
-            ResponseUtil.ClientError(rc, "Invalid Identifier");
+            ResponseUtil.ClientError(ctx, "Invalid Identifier");
             return false;
         }
         return true;
     }
 
-    private boolean checkTokenInputV1(InputUtil.InputVal input, RoutingContext rc) {
+    private boolean checkTokenInputV1(InputUtil.InputVal input, RoutingContext ctx) {
         if (input == null) {
-            ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified");
+            ResponseUtil.ClientError(ctx, "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified");
             return false;
         } else if (!input.isValid()) {
-            ResponseUtil.ClientError(rc, "Invalid Identifier");
+            ResponseUtil.ClientError(ctx, "Invalid Identifier");
             return false;
         }
         return true;
     }
 
-    private InputUtil.InputVal[] getIdentityBulkInput(RoutingContext rc) {
-        final JsonObject obj = rc.body().asJsonObject();
+    private InputUtil.InputVal[] getIdentityBulkInput(RoutingContext ctx) {
+        final JsonObject obj = ctx.body().asJsonObject();
         final JsonArray emails = obj.getJsonArray("email");
         final JsonArray emailHashes = obj.getJsonArray("email_hash");
         // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
         if (emails == null && emailHashes == null) {
-            ResponseUtil.ClientError(rc, "Exactly one of email or email_hash must be specified");
+            ResponseUtil.ClientError(ctx, "Exactly one of email or email_hash must be specified");
             return null;
         } else if (emails != null && !emails.isEmpty()) {
             if (emailHashes != null && !emailHashes.isEmpty()) {
-                ResponseUtil.ClientError(rc, "Only one of email or email_hash can be specified");
+                ResponseUtil.ClientError(ctx, "Only one of email or email_hash can be specified");
                 return null;
             }
             return createInputList(emails, false);
@@ -878,8 +878,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
 
-    private InputUtil.InputVal[] getIdentityBulkInputV1(RoutingContext rc) {
-        final JsonObject obj = rc.body().asJsonObject();
+    private InputUtil.InputVal[] getIdentityBulkInputV1(RoutingContext ctx) {
+        final JsonObject obj = ctx.body().asJsonObject();
         final JsonArray emails = obj.getJsonArray("email");
         final JsonArray emailHashes = obj.getJsonArray("email_hash");
         final JsonArray phones = obj.getJsonArray("phone");
@@ -905,7 +905,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         if (validInputs == 0 || nonEmptyInputs > 1) {
-            ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
+            ResponseUtil.ClientError(ctx, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
             return null;
         }
 
@@ -923,12 +923,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    private void handleIdentityMapBatchV1(RoutingContext rc) {
+    private void handleIdentityMapBatchV1(RoutingContext ctx) {
         try {
-            final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
+            final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(ctx) : getIdentityBulkInput(ctx);
             if (inputList == null) return;
 
-            recordIdentityMapStats(rc, inputList.length);
+            recordIdentityMapStats(ctx, inputList.length);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -947,25 +947,25 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
-            ResponseUtil.Success(rc, resp);
+            ResponseUtil.Success(ctx, resp);
         } catch (Exception e) {
             LOGGER.error("Unknown error while mapping batched identity", e);
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, ctx, "Unknown State");
         }
     }
 
-    private void handleIdentityMapV2(RoutingContext rc) {
+    private void handleIdentityMapV2(RoutingContext ctx) {
         try {
-            final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
+            final InputUtil.InputVal[] inputList = getIdentityMapV2Input(ctx);
             if (inputList == null) {
                 if (this.phoneSupport)
-                    ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
+                    ResponseUtil.ClientError(ctx, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
                 else
-                    ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
+                    ResponseUtil.ClientError(ctx, "Required Parameter Missing: exactly one of email or email_hash must be specified");
                 return;
             }
 
-            recordIdentityMapStats(rc, inputList.length);
+            recordIdentityMapStats(ctx, inputList.length);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -984,15 +984,15 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
-            ResponseUtil.SuccessV2(rc, resp);
+            ResponseUtil.SuccessV2(ctx, resp);
         } catch (Exception e) {
             LOGGER.error("Unknown error while mapping identity v2", e);
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, ctx, "Unknown State");
         }
     }
 
-    private InputUtil.InputVal[] getIdentityMapV2Input(RoutingContext rc) {
-        final JsonObject obj = (JsonObject) rc.data().get("request");
+    private InputUtil.InputVal[] getIdentityMapV2Input(RoutingContext ctx) {
+        final JsonObject obj = (JsonObject) ctx.data().get("request");
 
         Supplier<InputUtil.InputVal[]> getInputList = null;
 
@@ -1034,18 +1034,18 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 getInputList.get();
     }
 
-    private void handleIdentityMapBatch(RoutingContext rc) {
+    private void handleIdentityMapBatch(RoutingContext ctx) {
         try {
-            final JsonObject obj = rc.body().asJsonObject();
+            final JsonObject obj = ctx.body().asJsonObject();
             final InputUtil.InputVal[] inputList;
             final JsonArray emails = obj.getJsonArray("email");
             final JsonArray emailHashes = obj.getJsonArray("email_hash");
             if (emails == null && emailHashes == null) {
-                rc.fail(400);
+                ctx.fail(400);
                 return;
             } else if (emails != null && !emails.isEmpty()) {
                 if (emailHashes != null && !emailHashes.isEmpty()) {
-                    rc.fail(400);
+                    ctx.fail(400);
                     return;
                 }
                 inputList = createInputList(emails, false);
@@ -1053,7 +1053,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 inputList = createInputList(emailHashes, true);
             }
 
-            recordIdentityMapStats(rc, inputList.length);
+            recordIdentityMapStats(ctx, inputList.length);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1069,17 +1069,17 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
-            sendJsonResponse(rc, resp);
+            sendJsonResponse(ctx, resp);
         } catch (Exception e) {
             LOGGER.error("Unknown error while mapping batched identity", e);
-            rc.fail(500);
+            ctx.fail(500);
         }
     }
 
-    private static String getApiContact(RoutingContext rc) {
+    private static String getApiContact(RoutingContext ctx) {
         String apiContact;
         try {
-            apiContact = (String) rc.data().get(AuthMiddleware.API_CONTACT_PROP);
+            apiContact = (String) ctx.data().get(AuthMiddleware.API_CONTACT_PROP);
             apiContact = apiContact == null ? "unknown" : apiContact;
         } catch (Exception e) {
             apiContact = "error: " + e.getMessage();
@@ -1088,8 +1088,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return apiContact;
     }
 
-    private void recordIdentityMapStats(RoutingContext rc, int inputCount) {
-        String apiContact = getApiContact(rc);
+    private void recordIdentityMapStats(RoutingContext ctx, int inputCount) {
+        String apiContact = getApiContact(ctx);
 
         DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(apiContact, k -> DistributionSummary
                 .builder("uid2.operator.identity.map.inputs")
@@ -1099,7 +1099,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         ds.record(inputCount);
     }
 
-    private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
+    private RefreshResponse refreshIdentity(RoutingContext ctx, String tokenStr) {
         final RefreshToken refreshToken;
         try {
             refreshToken = this.encoder.decodeRefreshToken(tokenStr);
@@ -1109,13 +1109,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         if (refreshToken == null) {
             return RefreshResponse.Invalid;
         }
-        rc.put(Const.RoutingContextData.SiteId, refreshToken.publisherIdentity.siteId);
+        ctx.put(Const.RoutingContextData.SiteId, refreshToken.publisherIdentity.siteId);
         return this.idService.refreshIdentity(refreshToken);
     }
 
-    private void recordRefreshDurationStats(RoutingContext rc, Duration durationSinceLastRefresh) {
-        String apiContact = getApiContact(rc);
-        Integer siteId = rc.get(Const.RoutingContextData.SiteId);
+    private void recordRefreshDurationStats(RoutingContext ctx, Duration durationSinceLastRefresh) {
+        String apiContact = getApiContact(ctx);
+        Integer siteId = ctx.get(Const.RoutingContextData.SiteId);
 
         DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(apiContact, k ->
                 DistributionSummary
@@ -1269,13 +1269,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return json;
     }
 
-    private void sendJsonResponse(RoutingContext rc, JsonObject json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+    private void sendJsonResponse(RoutingContext ctx, JsonObject json) {
+        ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
     }
 
-    private void sendJsonResponse(RoutingContext rc, JsonArray json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+    private void sendJsonResponse(RoutingContext ctx, JsonArray json) {
+        ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
     }
 

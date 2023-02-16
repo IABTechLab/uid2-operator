@@ -29,7 +29,7 @@ public class TransparentConsent {
             .mapToInt(x -> x.value)
             .reduce(0, (f, x) -> f | 1 << x);
         return (IntStream.concat(
-                this.tcString.getVendorConsent().contains(vendorId) ? 
+                this.tcString.getVendorConsent().contains(vendorId) ?
                     this.tcString.getPurposesConsent().toStream() :
                     IntStream.of(),
                 this.tcString.getVendorLegitimateInterest().contains(vendorId) ?

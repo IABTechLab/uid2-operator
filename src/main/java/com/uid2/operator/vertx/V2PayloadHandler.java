@@ -33,163 +33,163 @@ public class V2PayloadHandler {
         this.identityScope = identityScope;
     }
 
-    public void handle(RoutingContext rc, Handler<RoutingContext> apiHandler) {
+    public void handle(RoutingContext ctx, Handler<RoutingContext> apiHandler) {
         if (!enableEncryption) {
-            passThrough(rc, apiHandler);
+            passThrough(ctx, apiHandler);
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(ctx.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, ctx));
         if (!request.isValid()) {
-            ResponseUtil.ClientError(rc, request.errorMessage);
+            ResponseUtil.ClientError(ctx, request.errorMessage);
             return;
         }
-        rc.data().put("request", request.payload);
+        ctx.data().put("request", request.payload);
 
-        apiHandler.handle(rc);
+        apiHandler.handle(ctx);
 
-        handleResponse(rc, request);
+        handleResponse(ctx, request);
     }
 
-    public void handleAsync(RoutingContext rc, Function<RoutingContext, Future> apiHandler) {
+    public void handleAsync(RoutingContext ctx, Function<RoutingContext, Future> apiHandler) {
         if (!enableEncryption) {
-            apiHandler.apply(rc);
+            apiHandler.apply(ctx);
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(ctx.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, ctx));
         if (!request.isValid()) {
-            ResponseUtil.ClientError(rc, request.errorMessage);
+            ResponseUtil.ClientError(ctx, request.errorMessage);
             return;
         }
-        rc.data().put("request", request.payload);
+        ctx.data().put("request", request.payload);
 
-        apiHandler.apply(rc).onComplete(ar -> {
-            handleResponse(rc, request);
+        apiHandler.apply(ctx).onComplete(ar -> {
+            handleResponse(ctx, request);
         });
     }
 
-    public void handleTokenGenerate(RoutingContext rc, Handler<RoutingContext> apiHandler) {
+    public void handleTokenGenerate(RoutingContext ctx, Handler<RoutingContext> apiHandler) {
         if (!enableEncryption) {
-            passThrough(rc, apiHandler);
+            passThrough(ctx, apiHandler);
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(ctx.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, ctx));
         if (!request.isValid()) {
-            ResponseUtil.ClientError(rc, request.errorMessage);
+            ResponseUtil.ClientError(ctx, request.errorMessage);
             return;
         }
-        rc.data().put("request", request.payload);
+        ctx.data().put("request", request.payload);
 
-        apiHandler.handle(rc);
+        apiHandler.handle(ctx);
 
-        if (rc.response().getStatusCode() != 200) {
+        if (ctx.response().getStatusCode() != 200) {
             return;
         }
 
         try {
-            JsonObject respJson = (JsonObject) rc.data().get("response");
+            JsonObject respJson = (JsonObject) ctx.data().get("response");
 
             // DevNote: 200 does not guarantee a token.
             if (respJson.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && respJson.containsKey("body")) {
                 V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), keyStore, this.identityScope);
             }
 
-            writeResponse(rc, request.nonce, respJson, request.encryptionKey);
+            writeResponse(ctx, request.nonce, respJson, request.encryptionKey);
         }
         catch (Exception e){
             LOGGER.error("Failed to generate token", e);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, ctx, "");
         }
     }
 
-    public void handleTokenRefresh(RoutingContext rc, Handler<RoutingContext> apiHandler) {
+    public void handleTokenRefresh(RoutingContext ctx, Handler<RoutingContext> apiHandler) {
         if (!enableEncryption) {
-            passThrough(rc, apiHandler);
+            passThrough(ctx, apiHandler);
             return;
         }
 
-        String bodyString = rc.body().asString();
+        String bodyString = ctx.body().asString();
 
         V2RequestUtil.V2Request request = null;
         if (bodyString.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
             request = V2RequestUtil.parseRefreshRequest(bodyString, this.keyStore);
             if (!request.isValid()) {
-                ResponseUtil.ClientError(rc, request.errorMessage);
+                ResponseUtil.ClientError(ctx, request.errorMessage);
                 return;
             }
-            rc.data().put("request", request.payload);
+            ctx.data().put("request", request.payload);
         }
         else {
-            rc.data().put("request", bodyString);
+            ctx.data().put("request", bodyString);
         }
 
-        apiHandler.handle(rc);
+        apiHandler.handle(ctx);
 
-        if (rc.response().getStatusCode() != 200) {
+        if (ctx.response().getStatusCode() != 200) {
             return;
         }
 
         try {
-            JsonObject respJson = (JsonObject) rc.data().get("response");
+            JsonObject respJson = (JsonObject) ctx.data().get("response");
 
             JsonObject bodyJson = respJson.getJsonObject("body");
             if (bodyJson != null)
                 V2RequestUtil.handleRefreshTokenInResponseBody(bodyJson, keyStore, this.identityScope);
 
             if (request != null) {
-                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
+                ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
                 // Encrypt whole payload using key shared with client.
                 byte[] encryptedResp = AesGcm.encrypt(
                         respJson.encode().getBytes(StandardCharsets.UTF_8),
                         request.encryptionKey);
-                rc.response().end(Utils.toBase64String(encryptedResp));
+                ctx.response().end(Utils.toBase64String(encryptedResp));
             }
             else {
-                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                         .end(respJson.encode());
             }
         }
         catch (Exception e){
             LOGGER.error("Failed to refresh token", e);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, ctx, "");
         }
     }
 
-    private void passThrough(RoutingContext rc, Handler<RoutingContext> apiHandler) {
-        rc.data().put("request", rc.body().asJsonObject());
-        apiHandler.handle(rc);
-        if (rc.response().getStatusCode() != 200) {
+    private void passThrough(RoutingContext ctx, Handler<RoutingContext> apiHandler) {
+        ctx.data().put("request", ctx.body().asJsonObject());
+        apiHandler.handle(ctx);
+        if (ctx.response().getStatusCode() != 200) {
             return;
         }
-        JsonObject respJson = (JsonObject) rc.data().get("response");
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+        JsonObject respJson = (JsonObject) ctx.data().get("response");
+        ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(respJson.encode());
     }
 
-    private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
+    private void writeResponse(RoutingContext ctx, byte[] nonce, JsonObject resp, byte[] keyBytes) {
         Buffer buffer = Buffer.buffer();
         buffer.appendLong(EncodingUtils.NowUTCMillis().toEpochMilli());
         buffer.appendBytes(nonce);
         buffer.appendBytes(resp.encode().getBytes(StandardCharsets.UTF_8));
 
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
-        rc.response().end(Utils.toBase64String(AesGcm.encrypt(buffer.getBytes(), keyBytes)));
+        ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
+        ctx.response().end(Utils.toBase64String(AesGcm.encrypt(buffer.getBytes(), keyBytes)));
     }
 
-    private void handleResponse(RoutingContext rc, V2RequestUtil.V2Request request) {
-        if (rc.response().getStatusCode() != 200) {
+    private void handleResponse(RoutingContext ctx, V2RequestUtil.V2Request request) {
+        if (ctx.response().getStatusCode() != 200) {
             return;
         }
 
         try {
-            JsonObject respJson = (JsonObject) rc.data().get("response");
+            JsonObject respJson = (JsonObject) ctx.data().get("response");
 
-            writeResponse(rc, request.nonce, respJson, request.encryptionKey);
+            writeResponse(ctx, request.nonce, respJson, request.encryptionKey);
         } catch (Exception e) {
             LOGGER.error("Failed to generate response", e);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, ctx, "");
         }
     }
 }

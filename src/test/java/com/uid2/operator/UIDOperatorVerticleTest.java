@@ -842,7 +842,7 @@ public class UIDOperatorVerticleTest {
             String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
             JsonObject v2Payload = new JsonObject();
             v2Payload.put("token", advertisingTokenString);
-            v2Payload.put("email_hash", UIDOperatorVerticle.ValidationInputEmailHash);
+            v2Payload.put("email_hash", EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
 
             send(apiVersion, vertx, apiVersion + "/token/validate", true, v1Param, v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
@@ -1130,7 +1130,7 @@ public class UIDOperatorVerticleTest {
 
         send(apiVersion, vertx, apiVersion + "/token/validate", true,
             "token=abcdef&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
-            new JsonObject().put("token", "abcdef").put("email_hash", UIDOperatorVerticle.ValidationInputEmailHash),
+            new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
             200,
             respJson -> {
                 assertFalse(respJson.getBoolean("body"));

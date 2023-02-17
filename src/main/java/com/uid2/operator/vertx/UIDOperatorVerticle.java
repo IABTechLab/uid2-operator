@@ -39,10 +39,7 @@ import java.io.IOException;
 import java.time.*;
 import java.time.Clock;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -718,7 +715,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
-            jsonObject.put("advertising_id", mappedIdentity.advertisingId);
+            jsonObject.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
             jsonObject.put("bucket_id", mappedIdentity.bucketId);
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
@@ -940,7 +937,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", mappedIdentity.advertisingId);
+                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
                     resp.put("bucket_id", mappedIdentity.bucketId);
                     mapped.add(resp);
                 }
@@ -977,7 +974,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final MappedIdentity mappedIdentity = idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", mappedIdentity.advertisingId);
+                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
                     resp.put("bucket_id", mappedIdentity.bucketId);
                     mapped.add(resp);
                 }
@@ -1065,7 +1062,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", mappedIdentity.advertisingId);
+                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
                     mapped.add(resp);
                 }
             }

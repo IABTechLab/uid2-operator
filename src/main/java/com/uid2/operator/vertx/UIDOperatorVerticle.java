@@ -636,6 +636,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 rc.response().setStatusCode(200)
                         .setChunked(true)
                         .write(String.valueOf(timestamp));
+                rc.response().end();
             } catch (Exception ex) {
                 LOGGER.error("Unexpected error while handling optout get", ex);
                 rc.fail(500);

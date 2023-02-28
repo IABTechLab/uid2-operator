@@ -13,6 +13,7 @@
   "identity_v3": false,
   "identity_scope": "uid2",
   "enable_v2_encryption": true,
+  "sharing_token_expiry_seconds": 86400,
   "cloud_download_threads": 8,
   "cloud_upload_threads": 2,
   "cloud_refresh_interval": 60,

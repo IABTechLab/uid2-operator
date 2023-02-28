@@ -12,6 +12,7 @@ import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
+import com.uid2.shared.auth.IRoleAuthorizable;
 import com.uid2.shared.auth.Role;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
@@ -45,6 +46,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle{
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
@@ -213,7 +216,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         v2Router.post("/key/latest").handler(bodyHandler).handler(auth.handleV1(
             rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         v2Router.post("/key/sharing").handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER));
+                rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
         v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
             rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
@@ -274,13 +277,20 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             final List<EncryptionKey> keyStore = getEncryptionKeys();
 
+            MissingAclMode mode = MissingAclMode.DENY_ALL;
+            // This will break if another Type is added to this map
+            IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
+            if(roleAuthorize.hasRole(Role.ID_READER)) {
+                mode = MissingAclMode.ALLOW_ALL;
+            }
+
             for (EncryptionKey key: keyStore) {
                 JsonObject keySet = new JsonObject();
                 if(clientKey.getSiteId() == key.getSiteId()) {
                     keySet.put("keyset_id", DEFAULT_KEYSET_ID);
                 } else if (key.getSiteId() == -1) {
                     keySet.put("keyset_id", DEFAULT_MASTER_KEYSET_ID);
-                } else if (!acls.canClientAccessKey(clientKey, key, MissingAclMode.DENY_ALL)) {
+                } else if (!acls.canClientAccessKey(clientKey, key, mode)) {
                     continue;
                 }
                 keySet.put("id", key.getId());
@@ -294,7 +304,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
 
             resp.put("keys", keys);
-
+            rc.response().putHeader("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);

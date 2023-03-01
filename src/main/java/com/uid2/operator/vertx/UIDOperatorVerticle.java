@@ -1299,4 +1299,3 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         INVALID,
     }
 }
-

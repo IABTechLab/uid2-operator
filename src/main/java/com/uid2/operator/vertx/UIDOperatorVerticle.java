@@ -723,7 +723,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
         try {
             final Instant now = Instant.now();
-            final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
+            final IdentityMapPolicy policy = IdentityMapPolicy.JustMap;
+            final MapRequest request = new MapRequest(input.toUserIdentity(this.identityScope, 0, now), policy, now);
+            final MappedIdentity mappedIdentity = this.idService.mapIdentity(request);
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
             jsonObject.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
@@ -741,7 +743,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             if (input != null && input.isValid()) {
                 final Instant now = Instant.now();
-                final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
+                final MappedIdentity mappedIdentity = this.idService.mapIdentity(
+                        new MapRequest(
+                                input.toUserIdentity(this.identityScope, 0, now),
+                                IdentityMapPolicy.JustMap,
+                                now));
                 rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
             } else {
                 rc.fail(400);
@@ -945,7 +951,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
+                    final MappedIdentity mappedIdentity = this.idService.mapIdentity(
+                            new MapRequest(
+                                    input.toUserIdentity(this.identityScope, 0, now),
+                                    IdentityMapPolicy.JustMap,
+                                    now));
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
                     resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
@@ -982,7 +992,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
+                    final MappedIdentity mappedIdentity = idService.mapIdentity(
+                            new MapRequest(
+                                    input.toUserIdentity(this.identityScope, 0, now),
+                                    IdentityMapPolicy.JustMap,
+                                    now));
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
                     resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
@@ -1070,7 +1084,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
+                    final MappedIdentity mappedIdentity = this.idService.mapIdentity(
+                            new MapRequest(
+                                    input.toUserIdentity(this.identityScope, 0, now),
+                                    IdentityMapPolicy.JustMap,
+                                    now));
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
                     resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));

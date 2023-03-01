@@ -721,11 +721,24 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
             return;
         }
+
+        final IdentityMapPolicy identityMapPolicy = rc.queryParam("policy").isEmpty() ?
+                IdentityMapPolicy.defaultPolicy() :
+                IdentityMapPolicy.fromValue(Integer.parseInt(rc.queryParam("policy").get(0)));
+
         try {
             final Instant now = Instant.now();
-            final IdentityMapPolicy policy = IdentityMapPolicy.JustMap;
-            final MapRequest request = new MapRequest(input.toUserIdentity(this.identityScope, 0, now), policy, now);
-            final MappedIdentity mappedIdentity = this.idService.mapIdentity(request);
+            final MappedIdentity mappedIdentity = this.idService.mapIdentity(
+                    new MapRequest(
+                            input.toUserIdentity(this.identityScope, 0, now),
+                            identityMapPolicy,
+                            now));
+
+            if (mappedIdentity.isOptedOut()) {
+                ResponseUtil.SuccessNoBody("optout", rc);
+                return;
+            }
+
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
             jsonObject.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
@@ -739,6 +752,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private void handleIdentityMap(RoutingContext rc) {
         final InputUtil.InputVal input = this.getTokenInput(rc);
+        final IdentityMapPolicy identityMapPolicy = rc.queryParam("policy").isEmpty() ?
+                IdentityMapPolicy.defaultPolicy() :
+                IdentityMapPolicy.fromValue(Integer.parseInt(rc.queryParam("policy").get(0)));
 
         try {
             if (input != null && input.isValid()) {
@@ -746,8 +762,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 final MappedIdentity mappedIdentity = this.idService.mapIdentity(
                         new MapRequest(
                                 input.toUserIdentity(this.identityScope, 0, now),
-                                IdentityMapPolicy.JustMap,
+                                identityMapPolicy,
                                 now));
+                if (mappedIdentity.isOptedOut()) {
+                    ResponseUtil.SuccessNoBody("optout", rc);
+                    return;
+                }
                 rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
             } else {
                 rc.fail(400);
@@ -944,9 +964,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             if (inputList == null) return;
 
             recordIdentityMapStats(rc, inputList.length);
+            IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(rc.getBodyAsJson());
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
+            final JsonArray failed = new JsonArray();
             final int count = inputList.length;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
@@ -954,18 +976,33 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final MappedIdentity mappedIdentity = this.idService.mapIdentity(
                             new MapRequest(
                                     input.toUserIdentity(this.identityScope, 0, now),
-                                    IdentityMapPolicy.JustMap,
+                                    identityMapPolicy,
                                     now));
+                    if (mappedIdentity.isOptedOut()) {
+                        final JsonObject resp = new JsonObject();
+                        resp.put("identifier", input.getProvided());
+                        resp.put("reason", "optout");
+                        failed.add(resp);
+                    } else {
+                        final JsonObject resp = new JsonObject();
+                        resp.put("identifier", input.getProvided());
+                        resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+                        resp.put("bucket_id", mappedIdentity.bucketId);
+                        mapped.add(resp);
+                    }
+                } else {
                     final JsonObject resp = new JsonObject();
-                    resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-                    resp.put("bucket_id", mappedIdentity.bucketId);
-                    mapped.add(resp);
+                    resp.put("identifier", input == null ? "null" : input.getProvided());
+                    resp.put("reason", "invalid identifier");
+                    failed.add(resp);
                 }
             }
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
+            if (!failed.isEmpty()) {
+                resp.put("failed", failed);
+            }
             ResponseUtil.Success(rc, resp);
         } catch (Exception e) {
             LOGGER.error("Unknown error while mapping batched identity", e);
@@ -985,9 +1022,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
 
             recordIdentityMapStats(rc, inputList.length);
+            IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy((JsonObject) rc.data().get("request"));
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
+            final JsonArray failed = new JsonArray();
             final int count = inputList.length;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
@@ -995,18 +1034,34 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final MappedIdentity mappedIdentity = idService.mapIdentity(
                             new MapRequest(
                                     input.toUserIdentity(this.identityScope, 0, now),
-                                    IdentityMapPolicy.JustMap,
+                                    identityMapPolicy,
                                     now));
+
+                    if (mappedIdentity.isOptedOut()) {
+                        final JsonObject resp = new JsonObject();
+                        resp.put("identifier", input.getProvided());
+                        resp.put("reason", "optout");
+                        failed.add(resp);
+                    } else {
+                        final JsonObject resp = new JsonObject();
+                        resp.put("identifier", input.getProvided());
+                        resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+                        resp.put("bucket_id", mappedIdentity.bucketId);
+                        mapped.add(resp);
+                    }
+                } else {
                     final JsonObject resp = new JsonObject();
-                    resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-                    resp.put("bucket_id", mappedIdentity.bucketId);
-                    mapped.add(resp);
+                    resp.put("identifier", input == null ? "null" : input.getProvided());
+                    resp.put("reason", "invalid identifier");
+                    failed.add(resp);
                 }
             }
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
+            if (!failed.isEmpty()) {
+                resp.put("failed", failed);
+            }
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("Unknown error while mapping identity v2", e);
@@ -1077,9 +1132,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
 
             recordIdentityMapStats(rc, inputList.length);
+            final IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(obj);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
+            final JsonArray failed = new JsonArray();
             final int count = inputList.length;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
@@ -1087,17 +1144,33 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final MappedIdentity mappedIdentity = this.idService.mapIdentity(
                             new MapRequest(
                                     input.toUserIdentity(this.identityScope, 0, now),
-                                    IdentityMapPolicy.JustMap,
+                                    identityMapPolicy,
                                     now));
+                    if (mappedIdentity.isOptedOut()) {
+                        final JsonObject resp = new JsonObject();
+                        resp.put("identifier", input.getProvided());
+                        resp.put("reason", "optout");
+                        failed.add(resp);
+                    } else {
+                        final JsonObject resp = new JsonObject();
+                        resp.put("identifier", input.getProvided());
+                        resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+                        resp.put("bucket_id", mappedIdentity.bucketId);
+                        mapped.add(resp);
+                    }
+                } else {
                     final JsonObject resp = new JsonObject();
-                    resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-                    mapped.add(resp);
+                    resp.put("identifier", input == null ? "null" : input.getProvided());
+                    resp.put("reason", "invalid identifier");
+                    failed.add(resp);
                 }
             }
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
+            if (!failed.isEmpty()) {
+                resp.put("failed", failed);
+            }
             sendJsonResponse(rc, resp);
         } catch (Exception e) {
             LOGGER.error("Unknown error while mapping batched identity", e);
@@ -1242,6 +1315,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return req.containsKey(TOKEN_GENERATE_POLICY_PARAM) ?
                 TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) :
                 TokenGeneratePolicy.defaultPolicy();
+    }
+
+    private static final String IDENTITY_MAP_POLICY_PARAM = "policy";
+    private IdentityMapPolicy readIdentityMapPolicy(JsonObject req) {
+        return req.containsKey(IDENTITY_MAP_POLICY_PARAM) ?
+                IdentityMapPolicy.fromValue(req.getInteger(IDENTITY_MAP_POLICY_PARAM)) :
+                IdentityMapPolicy.defaultPolicy();
     }
 
     private TransparentConsentParseResult getUserConsentV2(JsonObject req) {

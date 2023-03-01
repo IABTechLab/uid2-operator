@@ -11,4 +11,8 @@ public class MappedIdentity {
         this.advertisingId = advertisingId;
         this.bucketId = bucketId;
     }
+
+    public boolean isOptedOut() {
+        return this.equals(LogoutIdentity) || this.bucketId == null || this.bucketId.isEmpty();
+    }
 }

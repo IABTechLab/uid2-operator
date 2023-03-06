@@ -430,7 +430,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
             // find not expired and not indexed files
             IndexUpdateMessage ium = new IndexUpdateMessage();
-            HashSet<String> notIndexed = new HashSet<>(fileUtils.filterNonExpired(cachedPaths, now));
+            HashSet<String> notIndexed = new HashSet<>(cachedPaths);
             notIndexed.removeAll(indexedFiles);
 
             // filter out delta that are already merged into partition files

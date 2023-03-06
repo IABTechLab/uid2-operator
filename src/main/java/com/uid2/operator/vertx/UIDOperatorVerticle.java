@@ -40,10 +40,7 @@ import java.io.IOException;
 import java.time.*;
 import java.time.Clock;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -111,31 +108,30 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.healthComponent.setHealthStatus(false, "still starting");
 
         this.idService = new UIDOperatorService(
-            this.config,
-            this.optOutStore,
-            this.saltProvider,
-            this.encoder,
-            this.clock,
-            this.identityScope
+                this.config,
+                this.optOutStore,
+                this.saltProvider,
+                this.encoder,
+                this.clock,
+                this.identityScope
         );
 
         final Router router = createRoutesSetup();
         final int port = Const.Port.ServicePortForOperator + Utils.getPortOffset();
         LOGGER.info("starting service on http.port: " + port);
-        vertx
-            .createHttpServer()
-            .requestHandler(router::handle)
-            .listen(port, result -> {
-                if (result.succeeded()) {
-                    this.healthComponent.setHealthStatus(true);
-                    startPromise.complete();
-                } else {
-                    this.healthComponent.setHealthStatus(false, result.cause().getMessage());
-                    startPromise.fail(result.cause());
-                }
+        vertx.createHttpServer()
+                .requestHandler(router)
+                .listen(port, result -> {
+                    if (result.succeeded()) {
+                        this.healthComponent.setHealthStatus(true);
+                        startPromise.complete();
+                    } else {
+                        this.healthComponent.setHealthStatus(false, result.cause().getMessage());
+                        startPromise.fail(result.cause());
+                    }
 
-                LOGGER.info("UIDOperatorVerticle instance started");
-            });
+                    LOGGER.info("UIDOperatorVerticle instance started");
+                });
 
     }
 
@@ -152,16 +148,17 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         router.route().handler(new RequestCapturingHandler());
         router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js"));
-        router.route().handler(CorsHandler.create(".*.")
-            .allowedMethod(io.vertx.core.http.HttpMethod.GET)
-            .allowedMethod(io.vertx.core.http.HttpMethod.POST)
-            .allowedMethod(io.vertx.core.http.HttpMethod.OPTIONS)
-            .allowedHeader(com.uid2.shared.Const.Http.ClientVersionHeader)
-            .allowedHeader("Access-Control-Request-Method")
-            .allowedHeader("Access-Control-Allow-Credentials")
-            .allowedHeader("Access-Control-Allow-Origin")
-            .allowedHeader("Access-Control-Allow-Headers")
-            .allowedHeader("Content-Type"));
+        router.route().handler(CorsHandler.create()
+                .addRelativeOrigin(".*.")
+                .allowedMethod(io.vertx.core.http.HttpMethod.GET)
+                .allowedMethod(io.vertx.core.http.HttpMethod.POST)
+                .allowedMethod(io.vertx.core.http.HttpMethod.OPTIONS)
+                .allowedHeader(com.uid2.shared.Const.Http.ClientVersionHeader)
+                .allowedHeader("Access-Control-Request-Method")
+                .allowedHeader("Access-Control-Allow-Credentials")
+                .allowedHeader("Access-Control-Allow-Origin")
+                .allowedHeader("Access-Control-Allow-Headers")
+                .allowedHeader("Content-Type"));
         final BodyHandler bodyHandler = BodyHandler.create().setHandleFileUploads(false).setBodyLimit(MAX_REQUEST_BODY_SIZE);
 
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
@@ -204,23 +201,23 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final Router v2Router = Router.router(vertx);
 
         v2Router.post("/token/generate").handler(bodyHandler).handler(auth.handleV1(
-            rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
+                rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
         v2Router.post("/token/refresh").handler(bodyHandler).handler(auth.handleWithOptionalAuth(
-            rc -> v2PayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
+                rc -> v2PayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
         v2Router.post("/token/validate").handler(bodyHandler).handler(auth.handleV1(
-            rc -> v2PayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
+                rc -> v2PayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
         v2Router.post("/identity/buckets").handler(bodyHandler).handler(auth.handleV1(
-            rc -> v2PayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
+                rc -> v2PayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
         v2Router.post("/identity/map").handler(bodyHandler).handler(auth.handleV1(
-            rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
+                rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
         v2Router.post("/key/latest").handler(bodyHandler).handler(auth.handleV1(
-            rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
+                rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         v2Router.post("/key/sharing").handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
         v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
-            rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
+                rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
-        mainRouter.mountSubRouter("/v2", v2Router);
+        mainRouter.route("/v2/*").subRouter(v2Router);
     }
 
     private void handleKeysRequestCommon(RoutingContext rc, Handler<JsonArray> onSuccess) {
@@ -470,10 +467,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             } else {
                 final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
                 final IdentityTokens t = this.idService.generateIdentity(
-                    new IdentityRequest(
-                        new PublisherIdentity(clientKey.getSiteId(), 0, 0),
-                        input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                        TokenGeneratePolicy.defaultPolicy()));
+                        new IdentityRequest(
+                                new PublisherIdentity(clientKey.getSiteId(), 0, 0),
+                                input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                                TokenGeneratePolicy.defaultPolicy()));
 
                 //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
@@ -514,10 +511,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 }
 
                 final IdentityTokens t = this.idService.generateIdentity(
-                    new IdentityRequest(
-                        new PublisherIdentity(clientKey.getSiteId(), 0, 0),
-                        input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                        readTokenGeneratePolicy(req)));
+                        new IdentityRequest(
+                                new PublisherIdentity(clientKey.getSiteId(), 0, 0),
+                                input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                                readTokenGeneratePolicy(req)));
 
                 if (t.isEmptyToken()) {
                     ResponseUtil.OptOutV2(rc, toJsonV1(t));
@@ -647,9 +644,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 final Instant result = this.idService.getLatestOptoutEntry(userIdentity, now);
                 long timestamp = result == null ? -1 : result.getEpochSecond();
                 rc.response().setStatusCode(200)
-                    .setChunked(true)
-                    .write(String.valueOf(timestamp))
-                    .end();
+                        .setChunked(true)
+                        .write(String.valueOf(timestamp));
+                rc.response().end();
             } catch (Exception ex) {
                 LOGGER.error("Unexpected error while handling optout get", ex);
                 rc.fail(500);
@@ -729,7 +726,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
-            jsonObject.put("advertising_id", mappedIdentity.advertisingId);
+            jsonObject.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
             jsonObject.put("bucket_id", mappedIdentity.bucketId);
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
@@ -809,7 +806,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         return getInput != null ? getInput.get() : null;
     }
-    
+
     private InputUtil.InputVal getTokenInputV1(RoutingContext rc) {
         final List<String> emailInput = rc.queryParam("email");
         final List<String> emailHashInput = rc.queryParam("email_hash");
@@ -871,7 +868,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private InputUtil.InputVal[] getIdentityBulkInput(RoutingContext rc) {
-        final JsonObject obj = rc.getBodyAsJson();
+        final JsonObject obj = rc.body().asJsonObject();
         final JsonArray emails = obj.getJsonArray("email");
         final JsonArray emailHashes = obj.getJsonArray("email_hash");
         // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
@@ -891,7 +888,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
 
     private InputUtil.InputVal[] getIdentityBulkInputV1(RoutingContext rc) {
-        final JsonObject obj = rc.getBodyAsJson();
+        final JsonObject obj = rc.body().asJsonObject();
         final JsonArray emails = obj.getJsonArray("email");
         final JsonArray emailHashes = obj.getJsonArray("email_hash");
         final JsonArray phones = obj.getJsonArray("phone");
@@ -951,7 +948,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", mappedIdentity.advertisingId);
+                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
                     resp.put("bucket_id", mappedIdentity.bucketId);
                     mapped.add(resp);
                 }
@@ -988,7 +985,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final MappedIdentity mappedIdentity = idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", mappedIdentity.advertisingId);
+                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
                     resp.put("bucket_id", mappedIdentity.bucketId);
                     mapped.add(resp);
                 }
@@ -1042,13 +1039,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         return getInputList == null ?
-            createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
-            getInputList.get();
+                createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
+                getInputList.get();
     }
 
     private void handleIdentityMapBatch(RoutingContext rc) {
         try {
-            final JsonObject obj = rc.getBodyAsJson();
+            final JsonObject obj = rc.body().asJsonObject();
             final InputUtil.InputVal[] inputList;
             final JsonArray emails = obj.getJsonArray("email");
             final JsonArray emailHashes = obj.getJsonArray("email_hash");
@@ -1076,7 +1073,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", mappedIdentity.advertisingId);
+                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
                     mapped.add(resp);
                 }
             }
@@ -1106,10 +1103,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         String apiContact = getApiContact(rc);
 
         DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(apiContact, k -> DistributionSummary
-            .builder("uid2.operator.identity.map.inputs")
-            .description("number of emails or email hashes passed to identity map batch endpoint")
-            .tags("api_contact", apiContact)
-            .register(Metrics.globalRegistry));
+                .builder("uid2.operator.identity.map.inputs")
+                .description("number of emails or email hashes passed to identity map batch endpoint")
+                .tags("api_contact", apiContact)
+                .register(Metrics.globalRegistry));
         ds.record(inputCount);
     }
 
@@ -1132,12 +1129,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         Integer siteId = rc.get(Const.RoutingContextData.SiteId);
 
         DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(apiContact, k ->
-            DistributionSummary
-                    .builder("uid2.token_refresh_duration_seconds")
-                    .description("duration between token refreshes")
-                    .tag("site_id", String.valueOf(siteId))
-                    .tag("api_contact", apiContact)
-                    .register(Metrics.globalRegistry)
+                DistributionSummary
+                        .builder("uid2.token_refresh_duration_seconds")
+                        .description("duration between token refreshes")
+                        .tag("site_id", String.valueOf(siteId))
+                        .tag("api_contact", apiContact)
+                        .register(Metrics.globalRegistry)
         );
         ds.record(durationSinceLastRefresh.getSeconds());
     }
@@ -1205,13 +1202,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 return UserConsentStatus.INVALID;
             }
             final boolean userConsent = tcResult.getTCString().hasConsent(tcfVendorId,
-                TransparentConsentPurpose.STORE_INFO_ON_DEVICE,             // 1
-                TransparentConsentPurpose.CREATE_PERSONALIZED_ADS_PROFILE,  // 3
-                TransparentConsentPurpose.SELECT_PERSONALIZED_ADS,          // 4
-                TransparentConsentPurpose.SELECT_BASIC_ADS,                 // 2
-                TransparentConsentPurpose.MEASURE_AD_PERFORMANCE,           // 7
-                TransparentConsentPurpose.DEVELOP_AND_IMPROVE_PRODUCTS      // 10
-                );
+                    TransparentConsentPurpose.STORE_INFO_ON_DEVICE,             // 1
+                    TransparentConsentPurpose.CREATE_PERSONALIZED_ADS_PROFILE,  // 3
+                    TransparentConsentPurpose.SELECT_PERSONALIZED_ADS,          // 4
+                    TransparentConsentPurpose.SELECT_BASIC_ADS,                 // 2
+                    TransparentConsentPurpose.MEASURE_AD_PERFORMANCE,           // 7
+                    TransparentConsentPurpose.DEVELOP_AND_IMPROVE_PRODUCTS      // 10
+            );
             final boolean allowPreciseGeo = tcResult.getTCString().hasSpecialFeature(TransparentConsentSpecialFeature.PreciseGeolocationData);
 
             if (!userConsent || !allowPreciseGeo) {
@@ -1225,7 +1222,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private static final String TOKEN_GENERATE_POLICY_PARAM = "policy";
     private TokenGeneratePolicy readTokenGeneratePolicy(JsonObject req) {
         return req.containsKey(TOKEN_GENERATE_POLICY_PARAM) ?
-            TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) :
+                TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) :
                 TokenGeneratePolicy.defaultPolicy();
     }
 
@@ -1286,12 +1283,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private void sendJsonResponse(RoutingContext rc, JsonObject json) {
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-            .end(json.encode());
+                .end(json.encode());
     }
 
     private void sendJsonResponse(RoutingContext rc, JsonArray json) {
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-            .end(json.encode());
+                .end(json.encode());
     }
 
     public static class ResponseStatus {
@@ -1309,7 +1306,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public static enum UserConsentStatus {
         SUFFICIENT,
         INSUFFICIENT,
-        INVALID, 
+        INVALID,
     }
 }
-

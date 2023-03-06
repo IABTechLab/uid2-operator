@@ -10,7 +10,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <vertx.version>3.9.13</vertx.version>
+        <vertx.version>4.3.8</vertx.version>
         <vertx-maven-plugin.version>1.0.22</vertx-maven-plugin.version>
         <junit-jupiter.version>5.7.0</junit-jupiter.version>
         <junit-vintage.version>5.7.0</junit-vintage.version>
@@ -19,9 +19,10 @@
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
         <micrometer.version>1.1.0</micrometer.version>
         <enclave-api.version>1.1.0</enclave-api.version>
-        <uid2-shared.version>2.0.1</uid2-shared.version>
+        <uid2-shared.version>2.1.0</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.uid2</groupId>
@@ -156,6 +157,7 @@
             <version>2.0.10</version>
         </dependency>
     </dependencies>
+
     <profiles>
         <profile>
             <id>default</id>
@@ -213,8 +215,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.0</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>11</source>
+                    <target>11</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -233,7 +235,7 @@
                 <configuration>
                     <redeploy>true</redeploy>
                     <jvmArgs>
-                      <jvmArg>-Djava.security.egd=file:/dev/./urandom</jvmArg>
+                        <jvmArg>-Djava.security.egd=file:/dev/./urandom</jvmArg>
                     </jvmArgs>
                 </configuration>
             </plugin>
@@ -320,7 +322,7 @@
                         <id>default-cli</id>
                         <goals>
                             <goal>java</goal>
-                       </goals>
+                        </goals>
                         <configuration>
                             <mainClass>com.uid2.operator.Main</mainClass>
                         </configuration>

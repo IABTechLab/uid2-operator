@@ -560,7 +560,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             int newSnaps = iuc.getLoadedPartitions().size();
             if (newSnaps == 0) return this;
 
-            int totalSnaps = Math.min(1 + fileUtils.maxPartitionsWithSynthetic(), this.partitions.length + newSnaps);
+            int totalSnaps = this.partitions.length + newSnaps;
             OptOutPartition[] newPartitions = new OptOutPartition[totalSnaps];
 
             // reset and rebuild heap, with recent files after every partition load

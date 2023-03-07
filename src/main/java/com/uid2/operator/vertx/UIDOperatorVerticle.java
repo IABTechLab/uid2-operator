@@ -301,7 +301,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
 
             resp.put("keys", keys);
-            rc.response().putHeader("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
+            rc.response().putHeader("token-expiry-seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);

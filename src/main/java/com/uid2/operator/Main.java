@@ -280,7 +280,7 @@ public class Main {
     private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, int intervalMs) {
         Promise<String> promise = Promise.promise();
         RotatingStoreVerticle saltStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
-        vertx.deployVerticle(saltStoreVerticle, ar -> promise.handle(ar));
+        vertx.deployVerticle(saltStoreVerticle, promise);
         return promise.future();
     }
 
@@ -288,7 +288,7 @@ public class Main {
                                                                  ICloudSync cloudSync) {
         Promise<String> promise = Promise.promise();
         CloudSyncVerticle cloudSyncVerticle = new CloudSyncVerticle(name, fsCloud, fsLocal, cloudSync, config);
-        vertx.deployVerticle(cloudSyncVerticle, ar -> promise.handle(ar));
+        vertx.deployVerticle(cloudSyncVerticle, promise);
         return promise.future()
             .onComplete(v -> setupTimerEvent(cloudSyncVerticle.eventRefresh()));
     }
@@ -296,7 +296,7 @@ public class Main {
     private Future<String> createAndDeployStatsCollector() {
         Promise<String> promise = Promise.promise();
         StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000);
-        vertx.deployVerticle(statsCollectorVerticle, ar -> promise.handle(ar));
+        vertx.deployVerticle(statsCollectorVerticle, promise);
         _statsCollectorQueue = statsCollectorVerticle;
         return promise.future();
     }
@@ -357,7 +357,7 @@ public class Main {
                 .meterFilter(new PrometheusRenameFilter())
                 .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), actualPath -> {
                     try {
-                        return HttpUtils.normalizePath(actualPath);
+                        return HttpUtils.normalizePath(actualPath).split("\\?")[0];
                     } catch (IllegalArgumentException e) {
                         return actualPath;
                     }

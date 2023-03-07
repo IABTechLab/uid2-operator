@@ -241,7 +241,7 @@ public class Main {
                 vertx.setPeriodic(60000, id -> metrics.update());
 
                 Promise<String> promise = Promise.promise();
-                vertx.deployVerticle(operatorVerticleSupplier, options, ar -> promise.handle(ar));
+                vertx.deployVerticle(operatorVerticleSupplier, options, promise);
                 return promise.future();
             })
             .onFailure(t -> {

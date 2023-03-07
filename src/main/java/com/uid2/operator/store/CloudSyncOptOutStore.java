@@ -430,7 +430,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
             // find not expired and not indexed files
             IndexUpdateMessage ium = new IndexUpdateMessage();
-            HashSet<String> notIndexed = new HashSet<>(fileUtils.filterNonExpired(cachedPaths, now));
+            HashSet<String> notIndexed = new HashSet<>(cachedPaths);
             notIndexed.removeAll(indexedFiles);
 
             // filter out delta that are already merged into partition files
@@ -560,7 +560,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             int newSnaps = iuc.getLoadedPartitions().size();
             if (newSnaps == 0) return this;
 
-            int totalSnaps = Math.min(1 + fileUtils.maxPartitionsWithSynthetic(), this.partitions.length + newSnaps);
+            int totalSnaps = this.partitions.length + newSnaps;
             OptOutPartition[] newPartitions = new OptOutPartition[totalSnaps];
 
             // reset and rebuild heap, with recent files after every partition load

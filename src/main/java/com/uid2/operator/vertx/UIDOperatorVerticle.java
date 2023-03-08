@@ -268,6 +268,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             resp.put("caller_site_id", clientKey.getSiteId());
             resp.put("master_keyset_id", DEFAULT_MASTER_KEYSET_ID);
             resp.put("default_keyset_id", DEFAULT_KEYSET_ID);
+            resp.put("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
 
             final JsonArray keys = new JsonArray();
             final IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
@@ -301,7 +302,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
 
             resp.put("keys", keys);
-            rc.response().putHeader("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);

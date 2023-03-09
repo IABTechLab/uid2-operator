@@ -2100,7 +2100,7 @@ public class UIDOperatorVerticleTest {
         send(apiVersion, vertx, apiVersion + "/token/generate", false, null, req, 200, json -> {
             try {
                 Assertions.assertEquals(UIDOperatorVerticle.ResponseStatus.OptOut, json.getString("status"));
-                Assertions.assertEquals("", json.getJsonObject("body").getString("advertising_token"));
+                Assertions.assertNull(json.getJsonObject("body"));
                 testContext.completeNow();
             } catch (Exception e) {
                 testContext.failNow(e);

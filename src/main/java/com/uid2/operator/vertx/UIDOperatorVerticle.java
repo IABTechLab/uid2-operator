@@ -517,7 +517,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                                 readTokenGeneratePolicy(req)));
 
                 if (t.isEmptyToken()) {
-                    ResponseUtil.OptOutV2(rc, toJsonV1(t));
+                    ResponseUtil.SuccessNoBodyV2("optout", rc);
                 } else {
                     ResponseUtil.SuccessV2(rc, toJsonV1(t));
                 }

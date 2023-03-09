@@ -49,16 +49,6 @@ public class ResponseUtil {
         rc.data().put("response", json);
     }
 
-    public static void OptOutV2(RoutingContext rc, Object body) {
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
-            {
-                put("status", UIDOperatorVerticle.ResponseStatus.OptOut);
-                put("body", body);
-            }
-        });
-        rc.data().put("response", json);
-    }
-
     public static void ClientError(RoutingContext rc, String message) {
         Error(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, message);
     }

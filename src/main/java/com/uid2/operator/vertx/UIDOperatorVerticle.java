@@ -1339,7 +1339,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private void recordTokenGeneratePolicy(String apiContact, TokenGeneratePolicy policy) {
-        _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple2<>(apiContact, policy), pair -> Counter
+        _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple2<>(apiContact != null ? apiContact : "unknown", policy), pair -> Counter
                 .builder("uid2.token_generate_policy_usage")
                 .description("Counter for token generate policy usage")
                 .tags("api_contact", pair.getItem1(), "policy", String.valueOf(pair.getItem2()))
@@ -1347,7 +1347,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private void recordIdentityMapPolicy(String apiContact, IdentityMapPolicy policy) {
-        _identityMapPolicyCounters.computeIfAbsent(new Tuple2<>(apiContact, policy), pair -> Counter
+        _identityMapPolicyCounters.computeIfAbsent(new Tuple2<>(apiContact != null ? apiContact : "unknown", policy), pair -> Counter
                 .builder("uid2.identity_map_policy_usage")
                 .description("Counter for identity map policy usage")
                 .tags("api_contact", pair.getItem1(), "policy", String.valueOf(pair.getItem2()))

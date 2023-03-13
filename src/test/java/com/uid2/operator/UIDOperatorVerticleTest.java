@@ -2127,8 +2127,8 @@ public class UIDOperatorVerticleTest {
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 200, json -> {
             try {
-                Assertions.assertTrue(json.getJsonObject("body").getJsonArray("failed") == null ||
-                        json.getJsonObject("body").getJsonArray("mapped").isEmpty());
+                Assertions.assertTrue(json.getJsonObject("body").getJsonArray("unmapped") == null ||
+                        json.getJsonObject("body").getJsonArray("unmapped").isEmpty());
                 Assertions.assertEquals(1, json.getJsonObject("body").getJsonArray("mapped").size());
                 Assertions.assertEquals("random-optout-user@email.io", json.getJsonObject("body").getJsonArray("mapped").getJsonObject(0).getString("identifier"));
                 testContext.completeNow();
@@ -2159,9 +2159,9 @@ public class UIDOperatorVerticleTest {
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 200, json -> {
             try {
                 Assertions.assertTrue(json.getJsonObject("body").getJsonArray("mapped").isEmpty());
-                Assertions.assertEquals(1, json.getJsonObject("body").getJsonArray("failed").size());
-                Assertions.assertEquals("random-optout-user@email.io", json.getJsonObject("body").getJsonArray("failed").getJsonObject(0).getString("identifier"));
-                Assertions.assertEquals("optout", json.getJsonObject("body").getJsonArray("failed").getJsonObject(0).getString("reason"));
+                Assertions.assertEquals(1, json.getJsonObject("body").getJsonArray("unmapped").size());
+                Assertions.assertEquals("random-optout-user@email.io", json.getJsonObject("body").getJsonArray("unmapped").getJsonObject(0).getString("identifier"));
+                Assertions.assertEquals("optout", json.getJsonObject("body").getJsonArray("unmapped").getJsonObject(0).getString("reason"));
                 testContext.completeNow();
             } catch (Exception e) {
                 testContext.failNow(e);

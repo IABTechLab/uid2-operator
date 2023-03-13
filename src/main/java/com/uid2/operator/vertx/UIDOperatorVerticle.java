@@ -980,7 +980,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
-            final JsonArray failed = new JsonArray();
+            final JsonArray unmapped = new JsonArray();
             final int count = inputList.length;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
@@ -994,7 +994,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         final JsonObject resp = new JsonObject();
                         resp.put("identifier", input.getProvided());
                         resp.put("reason", "optout");
-                        failed.add(resp);
+                        unmapped.add(resp);
                     } else {
                         final JsonObject resp = new JsonObject();
                         resp.put("identifier", input.getProvided());
@@ -1006,14 +1006,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input == null ? "null" : input.getProvided());
                     resp.put("reason", "invalid identifier");
-                    failed.add(resp);
+                    unmapped.add(resp);
                 }
             }
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
-            if (!failed.isEmpty()) {
-                resp.put("failed", failed);
+            if (!unmapped.isEmpty()) {
+                resp.put("unmapped", unmapped);
             }
             ResponseUtil.Success(rc, resp);
         } catch (Exception e) {
@@ -1039,7 +1039,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
-            final JsonArray failed = new JsonArray();
+            final JsonArray unmapped = new JsonArray();
             final int count = inputList.length;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
@@ -1054,7 +1054,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         final JsonObject resp = new JsonObject();
                         resp.put("identifier", input.getProvided());
                         resp.put("reason", "optout");
-                        failed.add(resp);
+                        unmapped.add(resp);
                     } else {
                         final JsonObject resp = new JsonObject();
                         resp.put("identifier", input.getProvided());
@@ -1066,14 +1066,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input == null ? "null" : input.getProvided());
                     resp.put("reason", "invalid identifier");
-                    failed.add(resp);
+                    unmapped.add(resp);
                 }
             }
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
-            if (!failed.isEmpty()) {
-                resp.put("failed", failed);
+            if (!unmapped.isEmpty()) {
+                resp.put("unmapped", unmapped);
             }
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
@@ -1150,7 +1150,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
-            final JsonArray failed = new JsonArray();
+            final JsonArray unmapped = new JsonArray();
             final int count = inputList.length;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
@@ -1164,7 +1164,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         final JsonObject resp = new JsonObject();
                         resp.put("identifier", input.getProvided());
                         resp.put("reason", "optout");
-                        failed.add(resp);
+                        unmapped.add(resp);
                     } else {
                         final JsonObject resp = new JsonObject();
                         resp.put("identifier", input.getProvided());
@@ -1176,14 +1176,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input == null ? "null" : input.getProvided());
                     resp.put("reason", "invalid identifier");
-                    failed.add(resp);
+                    unmapped.add(resp);
                 }
             }
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
-            if (!failed.isEmpty()) {
-                resp.put("failed", failed);
+            if (!unmapped.isEmpty()) {
+                resp.put("unmapped", unmapped);
             }
             sendJsonResponse(rc, resp);
         } catch (Exception e) {

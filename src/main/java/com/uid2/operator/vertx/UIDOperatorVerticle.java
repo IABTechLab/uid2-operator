@@ -70,11 +70,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<String, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
+    private final Map<Tuple2<String, TokenGeneratePolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
+    private final Map<Tuple2<String, IdentityMapPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
     private final IdentityScope identityScope;
     private final V2PayloadHandler v2PayloadHandler;
     private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
     private final int tcfVendorId;
+
 
     private IStatsCollectorQueue _statsCollectorQueue;
 
@@ -466,13 +469,15 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 return;
             } else {
                 final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+                final TokenGeneratePolicy tokenGeneratePolicy = TokenGeneratePolicy.defaultPolicy();
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                TokenGeneratePolicy.defaultPolicy()));
+                                tokenGeneratePolicy));
 
                 //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
+                recordTokenGeneratePolicy(clientKey.getContact(), tokenGeneratePolicy);
 
                 ResponseUtil.Success(rc, toJsonV1(t));
             }
@@ -510,11 +515,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     }
                 }
 
+                final TokenGeneratePolicy tokenGeneratePolicy = readTokenGeneratePolicy(req);
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                readTokenGeneratePolicy(req)));
+                                tokenGeneratePolicy));
+                recordTokenGeneratePolicy(clientKey.getContact(), tokenGeneratePolicy);
 
                 if (t.isEmptyToken()) {
                     ResponseUtil.SuccessNoBodyV2("optout", rc);
@@ -540,12 +547,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         try {
             final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+            final TokenGeneratePolicy tokenGeneratePolicy = TokenGeneratePolicy.defaultPolicy();
             final IdentityTokens t = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                             input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                            TokenGeneratePolicy.defaultPolicy()));
-
+                            tokenGeneratePolicy));
+            recordTokenGeneratePolicy(clientKey.getContact(), tokenGeneratePolicy);
             //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
             sendJsonResponse(rc, toJson(t));
@@ -733,6 +741,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                             input.toUserIdentity(this.identityScope, 0, now),
                             identityMapPolicy,
                             now));
+            recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
 
             if (mappedIdentity.isOptedOut()) {
                 ResponseUtil.SuccessNoBody("optout", rc);
@@ -764,6 +773,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                                 input.toUserIdentity(this.identityScope, 0, now),
                                 identityMapPolicy,
                                 now));
+                recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
+
                 if (mappedIdentity.isOptedOut()) {
                     ResponseUtil.SuccessNoBody("optout", rc);
                     return;
@@ -965,6 +976,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             recordIdentityMapStats(rc, inputList.length);
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(rc.getBodyAsJson());
+            recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1023,6 +1035,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             recordIdentityMapStats(rc, inputList.length);
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy((JsonObject) rc.data().get("request"));
+            recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1133,6 +1146,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             recordIdentityMapStats(rc, inputList.length);
             final IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(obj);
+            recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1324,6 +1338,22 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 IdentityMapPolicy.defaultPolicy();
     }
 
+    private void recordTokenGeneratePolicy(String apiContact, TokenGeneratePolicy policy) {
+        _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple2<>(apiContact, policy), pair -> Counter
+                .builder("uid2.token_generate_policy_usage")
+                .description("Counter for token generate policy usage")
+                .tags("api_contact", pair.getItem1(), "policy", String.valueOf(pair.getItem2()))
+                .register(Metrics.globalRegistry)).increment();
+    }
+
+    private void recordIdentityMapPolicy(String apiContact, IdentityMapPolicy policy) {
+        _identityMapPolicyCounters.computeIfAbsent(new Tuple2<>(apiContact, policy), pair -> Counter
+                .builder("uid2.identity_map_policy_usage")
+                .description("Counter for identity map policy usage")
+                .tags("api_contact", pair.getItem1(), "policy", String.valueOf(pair.getItem2()))
+                .register(Metrics.globalRegistry)).increment();
+    }
+
     private TransparentConsentParseResult getUserConsentV2(JsonObject req) {
         final String rawTcString = req.getString("tcf_consent_string");
         if (rawTcString == null || rawTcString.isEmpty()) {
@@ -1387,6 +1417,33 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private void sendJsonResponse(RoutingContext rc, JsonArray json) {
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
+    }
+
+    private static class Tuple2<T1, T2> {
+        private final T1 item1;
+        private final T2 item2;
+
+        public Tuple2(T1 item1, T2 item2) {
+            assert item1 != null;
+            assert item2 != null;
+
+            this.item1 = item1;
+            this.item2 = item2;
+        }
+
+        public T1 getItem1() { return item1; }
+        public T2 getItem2() { return item2; }
+
+        @Override
+        public int hashCode() { return item1.hashCode() ^ item2.hashCode(); }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Tuple2)) return false;
+            Tuple2 pairo = (Tuple2) o;
+            return this.item1.equals(pairo.item1) &&
+                    this.item2.equals(pairo.item2);
+        }
     }
 
     public static class ResponseStatus {

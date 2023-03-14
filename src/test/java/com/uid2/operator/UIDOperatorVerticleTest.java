@@ -2107,5 +2107,66 @@ public class UIDOperatorVerticleTest {
             }
         });
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void identityMapDefaultOption(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        // the clock value shouldn't matter here
+        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = new JsonArray();
+        emails.add("random-optout-user@email.io");
+        req.put("email", emails);
+
+        send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 200, json -> {
+            try {
+                Assertions.assertTrue(json.getJsonObject("body").getJsonArray("unmapped") == null ||
+                        json.getJsonObject("body").getJsonArray("unmapped").isEmpty());
+                Assertions.assertEquals(1, json.getJsonObject("body").getJsonArray("mapped").size());
+                Assertions.assertEquals("random-optout-user@email.io", json.getJsonObject("body").getJsonArray("mapped").getJsonObject(0).getString("identifier"));
+                testContext.completeNow();
+            } catch (Exception e) {
+                testContext.failNow(e);
+            }
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void identityMapRespectOptOutOption(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        // the clock value shouldn't matter here
+        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = new JsonArray();
+        emails.add("random-optout-user@email.io");
+        req.put("email", emails);
+        req.put("policy", 1);
+
+        send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 200, json -> {
+            try {
+                Assertions.assertTrue(json.getJsonObject("body").getJsonArray("mapped").isEmpty());
+                Assertions.assertEquals(1, json.getJsonObject("body").getJsonArray("unmapped").size());
+                Assertions.assertEquals("random-optout-user@email.io", json.getJsonObject("body").getJsonArray("unmapped").getJsonObject(0).getString("identifier"));
+                Assertions.assertEquals("optout", json.getJsonObject("body").getJsonArray("unmapped").getJsonObject(0).getString("reason"));
+                testContext.completeNow();
+            } catch (Exception e) {
+                testContext.failNow(e);
+            }
+        });
+    }
 }
 

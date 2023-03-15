@@ -162,11 +162,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 .allowedHeader("Access-Control-Allow-Origin")
                 .allowedHeader("Access-Control-Allow-Headers")
                 .allowedHeader("Content-Type"));
-        final BodyHandler bodyHandler = BodyHandler.create().setHandleFileUploads(false).setBodyLimit(MAX_REQUEST_BODY_SIZE);
-
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
         router.route("/static/*").handler(StaticHandler.create("static"));
+        router.route().failureHandler(new GenericFailureHandler());
 
+        final BodyHandler bodyHandler = BodyHandler.create().setHandleFileUploads(false).setBodyLimit(MAX_REQUEST_BODY_SIZE);
         setupV2Routes(router, bodyHandler);
 
         // Static and health check

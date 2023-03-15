@@ -14,9 +14,6 @@ public interface IUIDOperatorService {
 
     RefreshResponse refreshIdentity(RefreshToken refreshToken);
 
-    MappedIdentity mapIdentity(MapRequest request);
-
-    @Deprecated
     MappedIdentity map(UserIdentity userIdentity, Instant asOf);
 
     List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);

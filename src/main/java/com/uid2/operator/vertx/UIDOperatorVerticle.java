@@ -72,6 +72,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final Map<String, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple2<String, TokenGeneratePolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
     private final Map<Tuple2<String, IdentityMapPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
+    private final Map<String, Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
+    private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
     private final IdentityScope identityScope;
     private final V2PayloadHandler v2PayloadHandler;
     private Handler<RoutingContext> disableHandler = null;
@@ -974,7 +976,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
             if (inputList == null) return;
 
-            recordIdentityMapStats(rc, inputList.length);
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(rc.getBodyAsJson());
             recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
 
@@ -982,6 +983,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final JsonArray mapped = new JsonArray();
             final JsonArray unmapped = new JsonArray();
             final int count = inputList.length;
+            int invalidCount = 0;
+            int optoutCount = 0;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
@@ -995,6 +998,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         resp.put("identifier", input.getProvided());
                         resp.put("reason", "optout");
                         unmapped.add(resp);
+                        optoutCount++;
                     } else {
                         final JsonObject resp = new JsonObject();
                         resp.put("identifier", input.getProvided());
@@ -1007,8 +1011,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     resp.put("identifier", input == null ? "null" : input.getProvided());
                     resp.put("reason", "invalid identifier");
                     unmapped.add(resp);
+                    invalidCount++;
                 }
             }
+
+            recordIdentityMapStats(rc, inputList.length, invalidCount, optoutCount);
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
@@ -1033,7 +1040,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 return;
             }
 
-            recordIdentityMapStats(rc, inputList.length);
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy((JsonObject) rc.data().get("request"));
             recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
 
@@ -1041,6 +1047,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final JsonArray mapped = new JsonArray();
             final JsonArray unmapped = new JsonArray();
             final int count = inputList.length;
+            int invalidCount = 0;
+            int optoutCount = 0;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
@@ -1055,6 +1063,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         resp.put("identifier", input.getProvided());
                         resp.put("reason", "optout");
                         unmapped.add(resp);
+                        optoutCount++;
                     } else {
                         final JsonObject resp = new JsonObject();
                         resp.put("identifier", input.getProvided());
@@ -1067,8 +1076,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     resp.put("identifier", input == null ? "null" : input.getProvided());
                     resp.put("reason", "invalid identifier");
                     unmapped.add(resp);
+                    invalidCount++;
                 }
             }
+
+            recordIdentityMapStats(rc, inputList.length, invalidCount, optoutCount);
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
@@ -1144,7 +1156,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 inputList = createInputList(emailHashes, true);
             }
 
-            recordIdentityMapStats(rc, inputList.length);
             final IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(obj);
             recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
 
@@ -1152,6 +1163,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final JsonArray mapped = new JsonArray();
             final JsonArray unmapped = new JsonArray();
             final int count = inputList.length;
+            int invalidCount = 0;
+            int optoutCount = 0;
             for (int i = 0; i < count; ++i) {
                 final InputUtil.InputVal input = inputList[i];
                 if (input != null && input.isValid()) {
@@ -1165,6 +1178,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         resp.put("identifier", input.getProvided());
                         resp.put("reason", "optout");
                         unmapped.add(resp);
+                        optoutCount++;
                     } else {
                         final JsonObject resp = new JsonObject();
                         resp.put("identifier", input.getProvided());
@@ -1177,8 +1191,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     resp.put("identifier", input == null ? "null" : input.getProvided());
                     resp.put("reason", "invalid identifier");
                     unmapped.add(resp);
+                    invalidCount++;
                 }
             }
+
+            recordIdentityMapStats(rc, inputList.length, invalidCount, optoutCount);
 
             final JsonObject resp = new JsonObject();
             resp.put("mapped", mapped);
@@ -1204,7 +1221,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return apiContact;
     }
 
-    private void recordIdentityMapStats(RoutingContext rc, int inputCount) {
+    private void recordIdentityMapStats(RoutingContext rc, int inputCount, int invalidCount, int optoutCount) {
         String apiContact = getApiContact(rc);
 
         DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(apiContact, k -> DistributionSummary
@@ -1213,6 +1230,25 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
         ds.record(inputCount);
+
+        Tuple2<Counter, Counter> ids = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact, k -> new Tuple2<>(
+                Counter.builder("uid2.operator.identity.map.unmapped")
+                        .description("invalid identifiers")
+                        .tags("api_contact", apiContact, "reason", "invalid")
+                        .register(Metrics.globalRegistry),
+                Counter.builder("uid2.operator.identity.map.unmapped")
+                        .description("optout identifiers")
+                        .tags("api_contact", apiContact, "reason", "optout")
+                        .register(Metrics.globalRegistry)));
+        if (invalidCount > 0) ids.item1.increment(invalidCount);
+        if (optoutCount > 0) ids.item2.increment(optoutCount);
+
+        Counter rs = _identityMapRequestWithUnmapped.computeIfAbsent(apiContact, k -> Counter
+                .builder("uid2.operator.identity.map.unmapped")
+                .description("number of requests with unmapped identifiers")
+                .tags("api_contact", apiContact)
+                .register(Metrics.globalRegistry));
+        rs.increment();
     }
 
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {

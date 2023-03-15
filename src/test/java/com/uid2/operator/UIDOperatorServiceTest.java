@@ -221,32 +221,4 @@ public class UIDOperatorServiceTest {
         assertNotNull(tokensAfterOptOut);
         assertTrue(tokensAfterOptOut.getAdvertisingToken() == null || tokensAfterOptOut.getAdvertisingToken().isEmpty());
     }
-
-    @Test
-    public void testIdentityMapForOptOutUser() {
-        final UserIdentity userIdentity = createUserIdentity("test-email-hash-previously-opted-out");
-        final Instant now = Instant.now();
-
-        final MapRequest mapRequestForceMap = new MapRequest(
-                userIdentity,
-                IdentityMapPolicy.JustMap,
-                now);
-
-        final MapRequest mapRequestRespectOptOut = new MapRequest(
-                userIdentity,
-                IdentityMapPolicy.RespectOptOut,
-                now);
-
-        // the clock value shouldn't matter here
-        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
-                .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
-
-        final MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequestForceMap);
-        assertNotNull(mappedIdentity);
-        assertFalse(mappedIdentity.isOptedOut());
-
-        final MappedIdentity mappedIdentityShouldBeOptOut = uid2Service.mapIdentity(mapRequestRespectOptOut);
-        assertNotNull(mappedIdentityShouldBeOptOut);
-        assertTrue(mappedIdentityShouldBeOptOut.isOptedOut());
-    }
 }

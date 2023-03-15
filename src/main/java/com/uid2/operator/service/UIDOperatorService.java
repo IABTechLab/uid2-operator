@@ -122,6 +122,16 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
+    public MappedIdentity mapIdentity(MapRequest request) {
+        final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.userIdentity, request.asOf);
+        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity)) {
+            return MappedIdentity.LogoutIdentity;
+        } else {
+            return getAdvertisingId(firstLevelHashIdentity, request.asOf);
+        }
+    }
+
+    @Override
     public MappedIdentity map(UserIdentity userIdentity, Instant asOf) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
         return getAdvertisingId(firstLevelHashIdentity, asOf);

@@ -1149,7 +1149,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         final JsonObject resp = new JsonObject();
                         resp.put("identifier", input.getProvided());
                         resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-                        resp.put("bucket_id", mappedIdentity.bucketId);
                         mapped.add(resp);
                     }
                 } else {

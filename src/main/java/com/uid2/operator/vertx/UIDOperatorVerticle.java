@@ -71,6 +71,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<String, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple2<String, TokenGeneratePolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
+    private final Map<String, Counter> _tokenGenerateOptoutCounters = new HashMap<>();
     private final Map<Tuple2<String, IdentityMapPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
     private final Map<String, Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
@@ -495,6 +496,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 return;
             } else {
                 final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+                final String apiContact = getApiContact(rc);
 
                 switch (validateUserConsent(req)) {
                     case INVALID: {
@@ -520,10 +522,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
                                 tokenGeneratePolicy));
-                recordTokenGeneratePolicy(clientKey.getContact(), tokenGeneratePolicy);
+                recordTokenGeneratePolicy(apiContact, tokenGeneratePolicy);
 
                 if (t.isEmptyToken()) {
                     ResponseUtil.SuccessNoBodyV2("optout", rc);
+                    recordTokenGenerateOptOut(apiContact);
                 } else {
                     ResponseUtil.SuccessV2(rc, toJsonV1(t));
                 }
@@ -944,7 +947,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             if (inputList == null) return;
             
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(rc.getBodyAsJson());
-            recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
+            recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1006,7 +1009,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
 
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy((JsonObject) rc.data().get("request"));
-            recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
+            recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1120,7 +1123,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
 
             final IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(obj);
-            recordIdentityMapPolicy(AuthMiddleware.getAuthClient(rc).getContact(), identityMapPolicy);
+            recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1336,15 +1339,23 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private void recordTokenGeneratePolicy(String apiContact, TokenGeneratePolicy policy) {
-        _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple2<>(apiContact != null ? apiContact : "unknown", policy), pair -> Counter
+        _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple2<>(apiContact, policy), pair -> Counter
                 .builder("uid2.token_generate_policy_usage")
                 .description("Counter for token generate policy usage")
                 .tags("api_contact", pair.getItem1(), "policy", String.valueOf(pair.getItem2()))
                 .register(Metrics.globalRegistry)).increment();
     }
 
+    private void recordTokenGenerateOptOut(String apiContact) {
+        _tokenGenerateOptoutCounters.computeIfAbsent(apiContact, k -> Counter
+                .builder("uid2.token_generate_optout")
+                .description("Counter for optout response on token generate")
+                .tags("api_contact", k)
+                .register(Metrics.globalRegistry)).increment();
+    }
+
     private void recordIdentityMapPolicy(String apiContact, IdentityMapPolicy policy) {
-        _identityMapPolicyCounters.computeIfAbsent(new Tuple2<>(apiContact != null ? apiContact : "unknown", policy), pair -> Counter
+        _identityMapPolicyCounters.computeIfAbsent(new Tuple2<>(apiContact, policy), pair -> Counter
                 .builder("uid2.identity_map_policy_usage")
                 .description("Counter for identity map policy usage")
                 .tags("api_contact", pair.getItem1(), "policy", String.valueOf(pair.getItem2()))

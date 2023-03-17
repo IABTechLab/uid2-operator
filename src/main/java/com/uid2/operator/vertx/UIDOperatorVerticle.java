@@ -1212,7 +1212,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 .description("number of requests with unmapped identifiers")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
-        rs.increment();
+        if (optoutCount > 0) {
+            rs.increment();
+        }
     }
 
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {

@@ -1208,7 +1208,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         if (optoutCount > 0) ids.getItem2().increment(optoutCount);
 
         Counter rs = _identityMapRequestWithUnmapped.computeIfAbsent(apiContact, k -> Counter
-                .builder("uid2.operator.identity.map.unmapped")
+                .builder("uid2.operator.identity.map.unmapped_requests")
                 .description("number of requests with unmapped identifiers")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));

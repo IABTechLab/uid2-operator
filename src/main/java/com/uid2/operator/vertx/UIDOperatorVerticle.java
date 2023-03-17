@@ -514,11 +514,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     }
                 }
 
+                final TokenGeneratePolicy tokenGeneratePolicy = readTokenGeneratePolicy(req);
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                readTokenGeneratePolicy(req)));
+                                tokenGeneratePolicy));
+                recordTokenGeneratePolicy(clientKey.getContact(), tokenGeneratePolicy);
 
                 if (t.isEmptyToken()) {
                     ResponseUtil.SuccessNoBodyV2("optout", rc);

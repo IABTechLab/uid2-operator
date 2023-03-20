@@ -120,7 +120,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final int port = Const.Port.ServicePortForOperator + Utils.getPortOffset();
         vertx.createHttpServer()
                 .requestHandler(router)
-                .exceptionHandler(t -> LOGGER.error("Error in UIDOperatorVerticle", t))
+                .exceptionHandler(error -> LOGGER.error("Error in UIDOperatorVerticle", error))
                 .listen(port, result -> {
                     if (result.succeeded()) {
                         this.healthComponent.setHealthStatus(true);
@@ -130,7 +130,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         startPromise.fail(result.cause());
                     }
 
-                    LOGGER.info("UIDOperatorVerticle instance started on HTTP port: [{}]", port);
+                    LOGGER.info("UIDOperatorVerticle instance started on HTTP port: {}", port);
                 });
 
     }

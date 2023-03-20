@@ -24,6 +24,8 @@ public class GenericFailureHandler implements Handler<RoutingContext> {
             LOGGER.error("URL: [{}] - Error response code [{}]", url, statusCode);
         }
 
-        response.setStatusCode(statusCode).end(EnglishReasonPhraseCatalog.INSTANCE.getReason(statusCode, null));
+        if (!response.ended()) {
+            response.setStatusCode(statusCode).end(EnglishReasonPhraseCatalog.INSTANCE.getReason(statusCode, null));
+        }
     }
 }

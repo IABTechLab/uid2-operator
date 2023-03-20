@@ -19,11 +19,13 @@ public class GenericFailureHandler implements Handler<RoutingContext> {
         Throwable t = ctx.failure();
 
         if (t != null) {
-            LOGGER.error("URL: [{}] - Error: ", url, t);
+            LOGGER.error("URL: [{}] - Error response code: [{}] - Error: [{}]", url, statusCode, t.getStackTrace());
         } else {
-            LOGGER.error("URL: [{}] - Error: Response code [{}]", url, statusCode);
+            LOGGER.error("URL: [{}] - Error response code [{}]", url, statusCode);
         }
 
-        response.setStatusCode(statusCode).end(EnglishReasonPhraseCatalog.INSTANCE.getReason(statusCode, null));
+        if (!response.ended()) {
+            response.setStatusCode(statusCode).end(EnglishReasonPhraseCatalog.INSTANCE.getReason(statusCode, null));
+        }
     }
 }

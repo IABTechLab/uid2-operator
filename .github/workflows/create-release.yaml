@@ -1,0 +1,44 @@
+name: Create Release
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "The current release version (temporary)"
+        required: true
+      previous_release_override:
+        description: "The commit hash of previous release. Leave empty to use releases/previous_release.hash"
+        required: false
+        default: ''
+
+jobs:
+  build:
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: pull version hashes
+        id: pull_version_hashes
+        run: |
+          echo "::set-output name=head_ref::$(git rev-parse HEAD)"
+          [[ -z "${{ github.event.inputs.previous_release_override }}" ]] && \
+            echo "::set-output name=base_ref::$(cat releases/previous_release.hash)" || \
+            echo "::set-output name=base_ref::${{ github.event.inputs.previous_release_override }}"
+
+      - name: pull change notes
+        id: generate_changelog
+        uses: nblagoev/pull-release-notes-action@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          head-ref: ${{ steps.pull_version_hashes.outputs.head_ref }}
+          base-ref: ${{ steps.pull_version_hashes.outputs.base_ref }}
+          repository: IABTechLab/uid2-operator
+
+      - name: create release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.release_version }}
+          release_name: UID2 Operator ${{ github.event.inputs.release_version }}
+          body: ${{ steps.generate_changelog.outputs.result }}
+          draft: true

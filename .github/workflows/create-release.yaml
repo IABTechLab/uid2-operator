@@ -12,6 +12,7 @@ on:
 
 jobs:
   build:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
@@ -42,3 +43,16 @@ jobs:
           release_name: UID2 Operator ${{ github.event.inputs.release_version }}
           body: ${{ steps.generate_changelog.outputs.result }}
           draft: true
+
+      - name: update previous release hash
+        if: github.event.inputs.is_release
+        working-directory: builder
+        run: echo "${{ steps.pull_version_hashes.outputs.head_ref }}" > releases/previous_release.hash
+      
+      - uses: EndBug/add-and-commit@v9
+        with:
+          add: 'releases/previous_release.hash'
+          author_name: Release Workflow
+          author_email: unifiedid-admin+release@thetradedesk.com
+          push: true
+          tag: '${{ github.event.inputs.release_version }}'

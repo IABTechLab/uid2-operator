@@ -4,12 +4,14 @@ import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
+import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.privacy.tcf.TransparentConsent;
 import com.uid2.operator.privacy.tcf.TransparentConsentParseResult;
 import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
 import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
+import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.IRoleAuthorizable;
@@ -70,10 +72,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<String, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
-    private final Map<Tuple2<String, TokenGeneratePolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
-    private final Map<String, Counter> _tokenGenerateOptoutCounters = new HashMap<>();
-    private final Map<Tuple2<String, IdentityMapPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
-    private final Map<String, Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
+    private final Map<Tuple.Tuple2<String, TokenGeneratePolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
+    private final Map<Tuple.Tuple2<String, IdentityMapPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
+    private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
     private final IdentityScope identityScope;
     private final V2PayloadHandler v2PayloadHandler;
@@ -355,22 +356,27 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         try {
             final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
+            Integer siteId = rc.get(Const.RoutingContextData.SiteId);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
-                } else if (!AuthMiddleware.isAuthenticated(rc)) {
+                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.OptOut);
+                } else if (!AuthMiddleware.isAuthenticated(rc) && siteId == null) {
                     // unauthenticated clients get a generic error
                     ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
                     ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
+                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.InvalidToken);
                 } else if (r.isExpired()) {
                     ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.ExpiredToken);
                 } else {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
-                this.recordRefreshDurationStats(rc, r.getDurationSinceLastRefresh());
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh());
+                TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.Success);
             }
         } catch (Exception e) {
             LOGGER.error("unknown error while refreshing token", e);
@@ -382,22 +388,27 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             String tokenStr = (String) rc.data().get("request");
             final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
+            Integer siteId = rc.get(Const.RoutingContextData.SiteId);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
-                } else if (!AuthMiddleware.isAuthenticated(rc)) {
+                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.OptOut);
+                } else if (!AuthMiddleware.isAuthenticated(rc) && siteId == null) {
                     // unauthenticated clients get a generic error
                     ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
                     ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
+                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.InvalidToken);
                 } else if (r.isExpired()) {
                     ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.ExpiredToken);
                 } else {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
-                this.recordRefreshDurationStats(rc, r.getDurationSinceLastRefresh());
                 ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh());
+                TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.Success);
             }
         } catch (Exception e) {
             LOGGER.error("Unknown error while refreshing token v2", e);
@@ -479,6 +490,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
                 ResponseUtil.Success(rc, toJsonV1(t));
+                TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success);
             }
         } catch (Exception e) {
             LOGGER.error("Unknown error while generating token v1", e);
@@ -500,10 +512,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 switch (validateUserConsent(req)) {
                     case INVALID: {
                         rc.fail(400);
+                        TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidUserConsentString);
                         return;
                     }
                     case INSUFFICIENT: {
                         ResponseUtil.SuccessNoBodyV2(UIDOperatorVerticle.ResponseStatus.InsufficientUserConsent, rc);
+                        TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.InsufficientUserConsent);
                         return;
                     }
                     case SUFFICIENT: {
@@ -525,9 +539,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
                 if (t.isEmptyToken()) {
                     ResponseUtil.SuccessNoBodyV2("optout", rc);
-                    recordTokenGenerateOptOut(apiContact);
+                    TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut);
                 } else {
                     ResponseUtil.SuccessV2(rc, toJsonV1(t));
+                    TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
                 }
             }
         } catch (IllegalArgumentException iae) {
@@ -556,6 +571,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
+            TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success);
             sendJsonResponse(rc, toJson(t));
 
         } catch (Exception e) {
@@ -573,6 +589,24 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         try {
             final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
+
+            Integer siteId = rc.get(Const.RoutingContextData.SiteId);
+            if (!r.isRefreshed()) {
+                if (r.isOptOut() || r.isDeprecated()) {
+                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.OptOut);
+                }
+                if (siteId != null) {
+                    if (r.isInvalidToken()) {
+                        TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.InvalidToken);
+                    } else if (r.isExpired()) {
+                        TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.ExpiredToken);
+                    }
+                }
+            } else {
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh());
+                TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.Success);
+            }
+
             sendJsonResponse(rc, toJson(r.getTokens()));
         } catch (Exception e) {
             LOGGER.error("Unknown error while refreshing token", e);
@@ -1193,7 +1227,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 .register(Metrics.globalRegistry));
         ds.record(inputCount);
 
-        Tuple2<Counter, Counter> ids = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact, k -> new Tuple2<>(
+        Tuple.Tuple2<Counter, Counter> ids = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact, k -> new Tuple.Tuple2<>(
                 Counter.builder("uid2.operator.identity.map.unmapped")
                         .description("invalid identifiers")
                         .tags("api_contact", apiContact, "reason", "invalid")
@@ -1229,10 +1263,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return this.idService.refreshIdentity(refreshToken);
     }
 
-    private void recordRefreshDurationStats(RoutingContext rc, Duration durationSinceLastRefresh) {
-        String apiContact = getApiContact(rc);
-        Integer siteId = rc.get(Const.RoutingContextData.SiteId);
-
+    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh) {
         DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(apiContact, k ->
                 DistributionSummary
                         .builder("uid2.token_refresh_duration_seconds")
@@ -1339,23 +1370,15 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private void recordTokenGeneratePolicy(String apiContact, TokenGeneratePolicy policy) {
-        _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple2<>(apiContact, policy), pair -> Counter
+        _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple.Tuple2<>(apiContact, policy), pair -> Counter
                 .builder("uid2.token_generate_policy_usage")
                 .description("Counter for token generate policy usage")
                 .tags("api_contact", pair.getItem1(), "policy", String.valueOf(pair.getItem2()))
                 .register(Metrics.globalRegistry)).increment();
     }
 
-    private void recordTokenGenerateOptOut(String apiContact) {
-        _tokenGenerateOptoutCounters.computeIfAbsent(apiContact, k -> Counter
-                .builder("uid2.token_generate_optout")
-                .description("Counter for optout response on token generate")
-                .tags("api_contact", k)
-                .register(Metrics.globalRegistry)).increment();
-    }
-
     private void recordIdentityMapPolicy(String apiContact, IdentityMapPolicy policy) {
-        _identityMapPolicyCounters.computeIfAbsent(new Tuple2<>(apiContact, policy), pair -> Counter
+        _identityMapPolicyCounters.computeIfAbsent(new Tuple.Tuple2<>(apiContact, policy), pair -> Counter
                 .builder("uid2.identity_map_policy_usage")
                 .description("Counter for identity map policy usage")
                 .tags("api_contact", pair.getItem1(), "policy", String.valueOf(pair.getItem2()))
@@ -1445,30 +1468,5 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         INVALID,
     }
 
-    private static class Tuple2<T1, T2> {
-        private final T1 item1;
-        private final T2 item2;
 
-        public Tuple2(T1 item1, T2 item2) {
-            assert item1 != null;
-            assert item2 != null;
-
-            this.item1 = item1;
-            this.item2 = item2;
-        }
-
-        public T1 getItem1() { return item1; }
-        public T2 getItem2() { return item2; }
-
-        @Override
-        public int hashCode() { return item1.hashCode() ^ item2.hashCode(); }
-
-        @Override
-        public boolean equals(Object o) {
-            if (!(o instanceof Tuple2)) return false;
-            Tuple2 pairo = (Tuple2) o;
-            return this.item1.equals(pairo.item1) &&
-                    this.item2.equals(pairo.item2);
-        }
-    }
 }

@@ -360,24 +360,22 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
-                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.OptOut);
-                } else if (!AuthMiddleware.isAuthenticated(rc) && siteId == null) {
+                } else if (!AuthMiddleware.isAuthenticated(rc)) {
                     // unauthenticated clients get a generic error
                     ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
                     ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
-                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.InvalidToken);
                 } else if (r.isExpired()) {
                     ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
-                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.ExpiredToken);
                 } else {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
                 this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh());
-                TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.Success);
             }
+
+            TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, r);
         } catch (Exception e) {
             LOGGER.error("unknown error while refreshing token", e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
@@ -392,24 +390,21 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
-                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.OptOut);
-                } else if (!AuthMiddleware.isAuthenticated(rc) && siteId == null) {
+                } else if (!AuthMiddleware.isAuthenticated(rc)) {
                     // unauthenticated clients get a generic error
                     ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
                     ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
-                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.InvalidToken);
                 } else if (r.isExpired()) {
                     ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
-                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.ExpiredToken);
                 } else {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
                 ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
                 this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh());
-                TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.Success);
             }
+            TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, r);
         } catch (Exception e) {
             LOGGER.error("Unknown error while refreshing token v2", e);
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Service Error");
@@ -590,24 +585,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
 
-            Integer siteId = rc.get(Const.RoutingContextData.SiteId);
-            if (!r.isRefreshed()) {
-                if (r.isOptOut() || r.isDeprecated()) {
-                    TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.OptOut);
-                }
-                if (siteId != null) {
-                    if (r.isInvalidToken()) {
-                        TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.InvalidToken);
-                    } else if (r.isExpired()) {
-                        TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.ExpiredToken);
-                    }
-                }
-            } else {
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh());
-                TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.Success);
-            }
-
             sendJsonResponse(rc, toJson(r.getTokens()));
+
+            Integer siteId = rc.get(Const.RoutingContextData.SiteId);
+            if (r.isRefreshed()) {
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh());
+            }
+            TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, r);
         } catch (Exception e) {
             LOGGER.error("Unknown error while refreshing token", e);
             rc.fail(500);

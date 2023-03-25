@@ -2,6 +2,7 @@ package com.uid2.operator;
 
 import com.uid2.operator.model.*;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
+import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.*;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.shared.ApplicationVersion;
@@ -86,6 +87,7 @@ public class UIDOperatorVerticleTest {
     private IOptOutStore optOutStore;
     @Mock
     private Clock clock;
+    private SimpleMeterRegistry registry;
 
     private static final String firstLevelSalt = "first-level-salt";
     private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123");
@@ -130,11 +132,14 @@ public class UIDOperatorVerticleTest {
         verticle.setDisableHandler(h);
 
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
+
+        registry = new SimpleMeterRegistry();
+        Metrics.globalRegistry.add(registry);
     }
 
     @AfterEach
     void teardown() throws Exception {
-        Metrics.globalRegistry.getMeters().forEach(m -> Metrics.globalRegistry.remove(m.getId()));
+        Metrics.globalRegistry.remove(registry);
         mocks.close();
     }
 
@@ -432,6 +437,15 @@ public class UIDOperatorVerticleTest {
     private static void assertEqualsClose(Instant expected, Instant actual, int withinSeconds) {
         assertTrue(expected.minusSeconds(withinSeconds).isBefore(actual));
         assertTrue(expected.plusSeconds(withinSeconds).isAfter(actual));
+    }
+
+    private void assertTokenStatusMetrics(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus) {
+        assertEquals(1, Metrics.globalRegistry
+                .get("uid2.token_response_status_count")
+                .tag("site_id", String.valueOf(siteId))
+                .tag("token_endpoint", String.valueOf(endpoint))
+                .tag("token_response_status", String.valueOf(responseStatus))
+                .counter().count());
     }
 
     private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
@@ -817,6 +831,15 @@ public class UIDOperatorVerticleTest {
                 assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
                 assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_from")), 10);
 
+                assertTokenStatusMetrics(
+                        clientSiteId,
+                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.GenerateV1 : TokenResponseStatsCollector.Endpoint.GenerateV2,
+                        TokenResponseStatsCollector.ResponseStatus.Success);
+                assertTokenStatusMetrics(
+                        clientSiteId,
+                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                        TokenResponseStatsCollector.ResponseStatus.Success);
+
                 testContext.completeNow();
             });
         });
@@ -955,6 +978,10 @@ public class UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.GENERATOR);
         sendTokenRefresh(apiVersion, vertx, "", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
+            assertTokenStatusMetrics(
+                    clientSiteId,
+                    apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                    TokenResponseStatsCollector.ResponseStatus.InvalidToken);
             testContext.completeNow();
         });
     }
@@ -967,6 +994,10 @@ public class UIDOperatorVerticleTest {
 
         sendTokenRefresh(apiVersion, vertx, "abcd", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
+            assertTokenStatusMetrics(
+                    clientSiteId,
+                    apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                    TokenResponseStatsCollector.ResponseStatus.InvalidToken);
             testContext.completeNow();
         });
     }
@@ -990,10 +1021,6 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void captureDurationsBetweenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext) {
-        // Add a registry to the global registry so that metrics aren't no-oped
-        SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        Metrics.globalRegistry.add(registry);
-
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         final String emailAddress = "test@uid2.com";
@@ -1063,6 +1090,10 @@ public class UIDOperatorVerticleTest {
 
             sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("optout", refreshRespJson.getString("status"));
+                assertTokenStatusMetrics(
+                        clientSiteId,
+                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                        TokenResponseStatsCollector.ResponseStatus.OptOut);
                 testContext.completeNow();
             });
         });
@@ -1810,6 +1841,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals(200, response.statusCode());
                 JsonObject json = response.bodyAsJsonObject();
                 assertEquals("optout", json.getString("status"));
+                assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.OptOut);
 
                 testContext.completeNow();
             });
@@ -2101,6 +2133,7 @@ public class UIDOperatorVerticleTest {
             try {
                 Assertions.assertEquals(UIDOperatorVerticle.ResponseStatus.OptOut, json.getString("status"));
                 Assertions.assertNull(json.getJsonObject("body"));
+                assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut);
                 testContext.completeNow();
             } catch (Exception e) {
                 testContext.failNow(e);

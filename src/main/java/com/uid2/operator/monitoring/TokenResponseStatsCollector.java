@@ -33,9 +33,9 @@ public class TokenResponseStatsCollector {
         if (siteId == null) return;
 
         TokenResponseCounters.computeIfAbsent(new Tuple.Tuple3<>(siteId, endpoint, responseStatus), k -> Counter
-                .builder("uid2.token_generate_optout")
-                .description("Counter for optout response on token generate")
-                .tags("site_id", String.valueOf(k.getItem1()), "token_type", String.valueOf(k.getItem2()), "token_response_status", String.valueOf(k.getItem3()))
+                .builder("uid2.token_response_status_count")
+                .description("Counter for token response statuses")
+                .tags("site_id", String.valueOf(k.getItem1()), "token_endpoint", String.valueOf(k.getItem2()), "token_response_status", String.valueOf(k.getItem3()))
                 .register(Metrics.globalRegistry)).increment();
     }
 
@@ -43,8 +43,7 @@ public class TokenResponseStatsCollector {
         if (!r.isRefreshed()) {
             if (r.isOptOut() || r.isDeprecated()) {
                 TokenResponseStatsCollector.record(siteId, endpoint, TokenResponseStatsCollector.ResponseStatus.OptOut);
-            }
-            if (r.isInvalidToken()) {
+            } else if (r.isInvalidToken()) {
                 TokenResponseStatsCollector.record(siteId, endpoint, TokenResponseStatsCollector.ResponseStatus.InvalidToken);
             } else if (r.isExpired()) {
                 TokenResponseStatsCollector.record(siteId, endpoint, TokenResponseStatsCollector.ResponseStatus.ExpiredToken);

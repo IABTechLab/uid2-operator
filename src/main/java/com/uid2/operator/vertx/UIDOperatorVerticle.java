@@ -1236,6 +1236,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
         final RefreshToken refreshToken;
         try {
+            if (AuthMiddleware.isAuthenticated(rc)) {
+                rc.put(Const.RoutingContextData.SiteId, AuthMiddleware.getAuthClient(ClientKey.class, rc).getSiteId());
+            }
+
             refreshToken = this.encoder.decodeRefreshToken(tokenStr);
         } catch (Throwable t) {
             return RefreshResponse.Invalid;
@@ -1243,7 +1247,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         if (refreshToken == null) {
             return RefreshResponse.Invalid;
         }
-        rc.put(Const.RoutingContextData.SiteId, refreshToken.publisherIdentity.siteId);
+        if (!AuthMiddleware.isAuthenticated(rc)) {
+            rc.put(Const.RoutingContextData.SiteId, refreshToken.publisherIdentity.siteId);
+        }
+
         return this.idService.refreshIdentity(refreshToken);
     }
 

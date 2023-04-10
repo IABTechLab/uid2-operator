@@ -78,7 +78,7 @@ public class Main {
         this.vertx = vertx;
         this.config = config;
 
-        this.appVersion = ApplicationVersion.load("uid2-operator", "uid2-shared", "enclave-attestation-api");
+        this.appVersion = ApplicationVersion.load("uid2-operator", "uid2-shared", "uid2-attestation-api");
 
         // allow to switch between in-mem optout file cache and on-disk file cache
         if (config.getBoolean(Const.Config.OptOutInMemCacheProp)) {

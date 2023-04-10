@@ -23,12 +23,12 @@ RUN mvn package -B -Paws -DskipTests=true \
     && (mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]' > ./package.version)
 
 # build libjnsm.so
-RUN git clone https://github.com/IABTechLab/nsm-java.git \
-    && (cd nsm-java/jnsm; cargo build --lib --release; cd ../..) \
-    && cp nsm-java/jnsm/target/release/libjnsm.so .
+RUN git clone https://github.com/IABTechLab/uid2-attestation-aws.git \
+    && (cd uid2-attestation-aws/jnsm; cargo build --lib --release; cd ../..) \
+    && cp uid2-attestation-aws/jnsm/target/release/libjnsm.so .
 
 # build vsockpx
-RUN git clone https://github.com/IABTechLab/vsock-skeleton-key.git \
-    && mkdir vsock-skeleton-key/build \
-    && (cd vsock-skeleton-key/build; cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo; make; cd ../..) \
-    && cp vsock-skeleton-key/build/vsock-bridge/src/vsock-bridge ./vsockpx
+RUN git clone https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git \
+    && mkdir uid2-aws-enclave-vsockproxy/build \
+    && (cd uid2-aws-enclave-vsockproxy/build; cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo; make; cd ../..) \
+    && cp uid2-aws-enclave-vsockproxy/build/vsock-bridge/src/vsock-bridge ./vsockpx

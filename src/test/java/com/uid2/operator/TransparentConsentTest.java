@@ -17,7 +17,7 @@ public class TransparentConsentTest {
     public void smokeTest() {
         final TransparentConsent tcs = new TransparentConsent(createConsentStringV2(
             new int[] { 21 },
-            new int[] { 21 }, 
+            new int[] { 21 },
             new int[] { 1, 3, 4 }, 
             new int[] { 2, 7, 10 },
             new int[] { 1 }));
@@ -30,6 +30,20 @@ public class TransparentConsentTest {
                 TransparentConsentPurpose.MEASURE_AD_PERFORMANCE,
                 TransparentConsentPurpose.DEVELOP_AND_IMPROVE_PRODUCTS
             ));
+    }
+
+    @Test
+    public void smokeTest2() {
+        final TransparentConsent tcs = new TransparentConsent("CPp18yKPp18yKDzAAAENCZCoAAAAAAAAAAAAAwwAgAKgBhAAAAAA.YAAAAAAAAAA");
+
+        Assert.assertTrue(tcs.hasConsent(21,
+                TransparentConsentPurpose.STORE_INFO_ON_DEVICE,
+                TransparentConsentPurpose.CREATE_PERSONALIZED_ADS_PROFILE,
+                TransparentConsentPurpose.SELECT_PERSONALIZED_ADS,
+                TransparentConsentPurpose.SELECT_BASIC_ADS,
+                TransparentConsentPurpose.MEASURE_AD_PERFORMANCE,
+                TransparentConsentPurpose.DEVELOP_AND_IMPROVE_PRODUCTS
+        ));
     }
 
     @Test
@@ -113,7 +127,7 @@ public class TransparentConsentTest {
             .version(2)
             .created(Instant.now())
             .lastUpdated(Instant.now())
-            .cmpId(1)
+            .cmpId(243)
             .cmpVersion(12)
             .consentScreen(1)
             .consentLanguage("FR")

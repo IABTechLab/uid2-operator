@@ -118,7 +118,7 @@
         </dependency>
         <dependency>
             <groupId>com.uid2</groupId>
-            <artifactId>enclave-attestation-api</artifactId>
+            <artifactId>uid2-attestation-api</artifactId>
             <version>${enclave-api.version}</version>
         </dependency>
         <dependency>

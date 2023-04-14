@@ -3,7 +3,6 @@ package com.uid2.operator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.model.StatsCollectorMessageItem;
-import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import io.vertx.core.Vertx;
 import org.slf4j.Logger;
@@ -18,25 +17,20 @@ import org.mockito.Mock;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.*;
-
 
 @ExtendWith(VertxExtension.class)
 public class StatsCollectorVerticleTest {
-
     @Mock
     private Logger loggerMock;
-
 
     private StatsCollectorVerticle verticle;
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext) throws Throwable {
         loggerMock = mock(Logger.class);
-        Field field = StatsCollectorVerticle.class.getDeclaredField( "LOGGER" );
+        Field field = StatsCollectorVerticle.class.getDeclaredField("LOGGER");
         field.setAccessible(true);
 
         // remove final modifier from field
@@ -57,7 +51,7 @@ public class StatsCollectorVerticleTest {
     }
 
     @Test
-    void testJSONSerialize(Vertx vertx, VertxTestContext testContext) throws InterruptedException, JsonProcessingException {
+    void testJSONSerializeWithV0AndV1Paths(Vertx vertx, VertxTestContext testContext) throws InterruptedException, JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem("/test", "https://test.com", "test", 1);
 
@@ -75,6 +69,33 @@ public class StatsCollectorVerticleTest {
         String expected =
                 "{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v1\",\"domainList\":[{\"domain\":\"test.com\",\"count\":2,\"apiContact\":\"test\"}]}\n"
                         + "{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v0\",\"domainList\":[{\"domain\":\"test.com\",\"count\":3,\"apiContact\":\"test\"}]}\n";
+
+        String results = verticle.getEndpointStats();
+
+        Assertions.assertEquals(results, expected);
+
+        testContext.completeNow();
+    }
+
+    @Test
+    void testJSONSerializeWithV2AndUnknownPaths(Vertx vertx, VertxTestContext testContext) throws InterruptedException, JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem("/v2/test", "https://test.com", "test", 1);
+
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
+
+        messageItem = new StatsCollectorMessageItem("/v2", "https://test.com", "test", 1);
+
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
+        vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
+
+        testContext.awaitCompletion(2000, TimeUnit.MILLISECONDS);
+
+        String expected =
+                "{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v2\",\"domainList\":[{\"domain\":\"test.com\",\"count\":3,\"apiContact\":\"test\"}]}\n"
+                        + "{\"endpoint\":\"v2\",\"siteId\":1,\"apiVersion\":\"unknown\",\"domainList\":[{\"domain\":\"test.com\",\"count\":2,\"apiContact\":\"test\"}]}\n";
 
         String results = verticle.getEndpointStats();
 

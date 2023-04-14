@@ -54,6 +54,10 @@ public class V2RequestUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
     public static V2Request parseRequest(String bodyString, ClientKey ck) {
+        if (bodyString == null) {
+            return new V2Request("Invalid body: Body is missing.");
+        }
+
         byte[] bodyBytes;
         try {
             // Payload envelop format:
@@ -61,8 +65,7 @@ public class V2RequestUtil {
             //  byte 1-12: GCM IV
             //  byte 13-end: encrypted payload + GCM AUTH TAG
             bodyBytes = Utils.decodeBase64String(bodyString);
-        }
-        catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException ex) {
             return new V2Request("Invalid body: Body is not valid base64.");
         }
 
@@ -162,10 +165,10 @@ public class V2RequestUtil {
         byte[] encrypted = AesGcm.encrypt(tokenKeyJson.encode().getBytes(StandardCharsets.UTF_8), refreshKey).getPayload();
 
         String modifiedToken = Utils.toBase64String(Buffer.buffer()
-            .appendByte(TokenUtils.encodeIdentityScope(identityScope))
-            .appendInt(refreshKey.getId())
-            .appendBytes(encrypted)
-            .getBytes());
+                .appendByte(TokenUtils.encodeIdentityScope(identityScope))
+                .appendInt(refreshKey.getId())
+                .appendBytes(encrypted)
+                .getBytes());
         assert modifiedToken.length() == V2_REFRESH_PAYLOAD_LENGTH;
 
         bodyJson.put("refresh_token", modifiedToken);

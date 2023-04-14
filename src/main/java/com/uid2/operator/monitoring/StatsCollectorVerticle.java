@@ -16,10 +16,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.Temporal;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-
 
 public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCollectorQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(StatsCollectorVerticle.class);
@@ -75,7 +73,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     }
 
     public void handleMessage(Message message) {
-        StatsCollectorMessageItem messageItem = null;
+        StatsCollectorMessageItem messageItem;
         try {
             messageItem = mapper.readValue(message.body().toString(), StatsCollectorMessageItem.class);
         } catch (JsonProcessingException e) {
@@ -91,12 +89,16 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
 
         if(path.length() > 1 && path.charAt(1) == 'v') {
             int apiVIndex = path.indexOf("/", 1);
-            apiVersion = path.substring(1, apiVIndex);
-            endpoint = path.substring(apiVIndex+1);
+            if (apiVIndex > 1) {
+                apiVersion = path.substring(1, apiVIndex);
+                endpoint = path.substring(apiVIndex + 1);
+            } else {
+                apiVersion = "unknown";
+            }
         }
 
         String referer = messageItem.getReferer();
-        if(referer == null){
+        if(referer == null) {
             referer = "unknown";
         } else {
             try {
@@ -115,10 +117,10 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
 
         _statsCollectorCount.decrementAndGet();
 
-        if(Duration.between(lastJsonProcessTime, Instant.now()).compareTo(jsonProcessingInterval) >= 0){
+        if (Duration.between(lastJsonProcessTime, Instant.now()).compareTo(jsonProcessingInterval) >= 0) {
             lastJsonProcessTime = Instant.now();
-            if(_runningSerializer){
-               logCycleSkipperCounter.increment();
+            if (_runningSerializer) {
+                logCycleSkipperCounter.increment();
             } else {
                 _runningSerializer = true;
                 Object[] stats = pathMap.values().toArray();
@@ -133,16 +135,15 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
                 );
                 pathMap.clear();
             }
-
         }
     }
 
-    Void serializeToLogs(Object[] stats) {
+    private Void serializeToLogs(Object[] stats) {
         LOGGER.debug("Starting JSON Serialize");
         ObjectMapper mapper = new ObjectMapper();
-        for (int i = 0; i < stats.length; i++) {
+        for (Object stat : stats) {
             try {
-                String jsonString = mapper.writeValueAsString(stats[i]);
+                String jsonString = mapper.writeValueAsString(stat);
                 LOGGER.info(jsonString);
             } catch (JsonProcessingException e) {
                 LOGGER.error(e.getMessage(), e);
@@ -160,9 +161,9 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     public String getEndpointStats() {
         Object[] stats = pathMap.values().toArray();
         StringBuilder completeStats = new StringBuilder();
-        for (int i = 0; i < stats.length; i++) {
+        for (Object stat : stats) {
             try {
-                String jsonString = mapper.writeValueAsString(stats[i]);
+                String jsonString = mapper.writeValueAsString(stat);
                 completeStats.append(jsonString).append("\n");
             } catch (JsonProcessingException e) {
                 LOGGER.error(e.getMessage(), e);

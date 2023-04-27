@@ -1,5 +1,6 @@
 CONFIG_DIR=/etc/uid2operator
 DATA_DIR=/opt/uid2operator
+SCRIPT_DIR=scripts/aws
 
 .PHONY: all
 all: build_eif
@@ -44,7 +45,7 @@ uid2operator.eif: build_artifacts loki_override build/proxies.nitro.yaml build/e
 	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
 
 build/load_config.py: ./scripts/aws/load_config.py
-	cp ./scripts/aws/load_config.py ./build/
+	cp $(SCRIPT_DIR)/load_config.py ./build/
 
 build/make_config.py: ./scripts/aws/make_config.py
 	cp ./scripts/aws/make_config.py ./build/
@@ -76,7 +77,7 @@ build/proxies.nitro.yaml: build_artifacts ./scripts/aws/proxies.nitro.yaml
 	cp ./scripts/aws/proxies.nitro.yaml ./build/
 
 build/entrypoint.sh: build_artifacts
-	cp ./scripts/aws/entrypoint.sh ./build/
+	cp $(SCRIPT_DIR)/entrypoint.sh ./build/
 
 build_artifacts: build/build_artifacts.stamp
 

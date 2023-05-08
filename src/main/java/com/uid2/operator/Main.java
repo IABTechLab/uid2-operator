@@ -372,7 +372,7 @@ public class Main {
                     public DistributionStatisticConfig configure(Meter.Id id, DistributionStatisticConfig config) {
                         if (id.getName().equals(httpServerResponseTime)) {
                             return DistributionStatisticConfig.builder()
-                                .percentiles(0.95, 0.99)
+                                .percentiles(0.90, 0.95, 0.99)
                                 .build()
                                 .merge(config);
                         }

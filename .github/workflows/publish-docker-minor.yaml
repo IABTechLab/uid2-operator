@@ -1,0 +1,16 @@
+name: Publish Minor Version to Docker
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to apply to the Docker file'
+        type: string
+
+jobs:
+  build-publish-docker:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
+    with: 
+      tag: ${{ inputs.tag }}
+      cloud_provider: 'default'
+      release_type: 'Minor'
+    secrets: inherit

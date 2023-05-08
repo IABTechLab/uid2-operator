@@ -24,7 +24,7 @@ public class StatsCollectorHandler implements Handler<RoutingContext> {
         //setAuthClient() has not yet been called, so getAuthClient() would return null. This is resolved by using addBodyEndHandler()
         routingContext.addBodyEndHandler(v -> addStatsMessageToQueue(routingContext));
 
-        routingContext.next();
+        routingContext.next(); //previously this next() call was at the top of this function. In V1 APIs, that happened to be an auth handler, but in v2 it was a bodyHandler. Moving next() to the end of the function ensures we don't accidentally depend on a handler that comes later.
     }
 
     private void addStatsMessageToQueue(RoutingContext routingContext) {

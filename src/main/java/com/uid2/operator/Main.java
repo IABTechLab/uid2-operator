@@ -26,21 +26,20 @@ import com.uid2.shared.vertx.ICloudSync;
 import com.uid2.shared.vertx.RotatingStoreVerticle;
 import com.uid2.shared.vertx.VertxUtils;
 import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.config.MeterFilter;
+import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.impl.HttpUtils;
 import io.vertx.core.json.JsonObject;
+import io.vertx.micrometer.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.vertx.micrometer.Label;
-import io.vertx.micrometer.MetricsDomain;
-import io.vertx.micrometer.MicrometerMetricsOptions;
-import io.vertx.micrometer.VertxPrometheusOptions;
 import io.vertx.micrometer.backends.BackendRegistries;
 
 import javax.management.*;
@@ -366,6 +365,20 @@ public class Main {
                 .meterFilter(MeterFilter.deny(id ->
                     id.getName().startsWith(MetricsDomain.HTTP_SERVER.getPrefix()) &&
                     Objects.equals(id.getTag(Label.HTTP_CODE.toString()), "404")))
+                .meterFilter(new MeterFilter() {
+                    private final String httpServerResponseTime = MetricsDomain.HTTP_SERVER.getPrefix() + MetricsNaming.v4Names().getHttpResponseTime();
+
+                    @Override
+                    public DistributionStatisticConfig configure(Meter.Id id, DistributionStatisticConfig config) {
+                        if (id.getName().equals(httpServerResponseTime)) {
+                            return DistributionStatisticConfig.builder()
+                                .percentiles(0.90, 0.95, 0.99)
+                                .build()
+                                .merge(config);
+                        }
+                        return config;
+                    }
+                })
                 // adding common labels
                 .commonTags("application", "uid2-operator");
 

@@ -44,6 +44,8 @@ uid2operator.eif: build_artifacts loki_override build/proxies.nitro.yaml build/e
 	cd build; docker build -t uid2operator . --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
 	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
 
+before_enclave: build_artifacts loki_override build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py
+
 build/load_config.py: ./scripts/aws/load_config.py
 	cp $(SCRIPT_DIR)/load_config.py ./build/
 
@@ -88,4 +90,4 @@ build/build_artifacts.stamp build/vsockpx build/libjnsm.so: Dockerfile.nitro.bui
 	docker rm uid2-nitro-builder
 	touch build/build_artifacts.stamp
 
-.PHONY: install uninstall setup_nitro build_artifacts build_eif loki_override build/configs
+.PHONY: install uninstall setup_nitro build_artifacts build_eif loki_override build/configs before_enclave

@@ -39,7 +39,7 @@ echo "-- setup loki"
 
 # retrieve hostname from node - will not work for multiple enclaves per node
 echo "-- retrieve hostname"
-HOSTNAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/local-hostname)
+HOSTNAME=$(curl -s "http://127.0.0.1:27015/operator/hostname")
 echo "HOSTNAME=$HOSTNAME"
 
 # -- set pwd to /app so we can find default configs

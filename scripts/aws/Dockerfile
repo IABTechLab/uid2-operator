@@ -15,7 +15,7 @@ ENV UID2_CONFIG_SECRET_KEY="uid2-operator-config-key"
 RUN apt update -y \
     && apt install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip \
     && rm -rf /var/lib/apt/lists/*
-RUN pip3 install boto3==1.16.9
+RUN pip3 install boto3==1.16.9 && pip3 install requests
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
 COPY ./static /app/static

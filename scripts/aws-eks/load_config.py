@@ -2,7 +2,7 @@ import json
 import requests
 
 def get_secret(key):
-    res = requests.get("http://operator-config-service.uid-test.svc.cluster.local/operator/" + key)
+    res = requests.get("http://127.0.0.1:27015/operator/" + key)
     return res.text
 
 def get_config():

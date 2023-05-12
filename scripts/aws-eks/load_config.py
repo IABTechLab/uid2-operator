@@ -8,7 +8,7 @@ def get_secret(key):
 def get_config():
     result = {
         "api_token": get_secret("API_TOKEN"),
-        "environment": get_config("UID2_ENVIRONMENT"),
+        "environment": get_secret("UID2_ENVIRONMENT"),
     }
     print(json.dumps(result))
 

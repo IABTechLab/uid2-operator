@@ -1,8 +1,6 @@
 package com.uid2.operator;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-
+import com.uid2.operator.model.TokenVersion;
 import org.junit.jupiter.api.Test;
 
 import com.uid2.operator.model.IdentityScope;
@@ -12,17 +10,12 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.junit5.VertxTestContext;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
     @Override
-    public void setupConfig(JsonObject config) {
-        config.put("identity_scope", getIdentityScope().toString());
-        config.put("advertising_token_v3", true);
-        config.put("refresh_token_v3", true);
-        config.put("identity_v3", useIdentityV3());
-    }
+    protected TokenVersion getTokenVersion() {return TokenVersion.V3;}
 
-    @Override
-    protected boolean useIdentityV3() { return true; }
     @Override
     protected IdentityScope getIdentityScope() { return IdentityScope.EUID; }
     @Override
@@ -43,9 +36,7 @@ public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
         final JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", emailAddress);
         v2Payload.put("tcf_consent_string", "invalid_consent_string");
-        sendTokenGenerate("v2", vertx, "", v2Payload, 400, json -> {
-            testContext.completeNow();
-        });
+        sendTokenGenerate("v2", vertx, "", v2Payload, 400, json -> testContext.completeNow());
     }
 
     @Test
@@ -67,3 +58,4 @@ public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
         });
     }
 }
+

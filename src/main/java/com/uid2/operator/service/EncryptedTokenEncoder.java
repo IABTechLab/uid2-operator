@@ -9,6 +9,7 @@ import com.uid2.shared.encryption.AesGcm;
 import io.vertx.core.buffer.Buffer;
 
 import java.time.Instant;
+import java.util.Base64;
 
 public class EncryptedTokenEncoder implements ITokenEncoder {
 
@@ -23,9 +24,9 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final EncryptionKey siteEncryptionKey = EncryptionKeyUtil.getActiveSiteKey(
                 this.keyStore.getSnapshot(), t.publisherIdentity.siteId, Const.Data.AdvertisingTokenSiteId, asOf);
 
-        return t.version == TokenVersion.V3
-            ? encodeV3(t, masterKey, siteEncryptionKey)
-            : encodeV2(t, masterKey, siteEncryptionKey);
+        return t.version == TokenVersion.V2
+                ? encodeV2(t, masterKey, siteEncryptionKey)
+                : encodeV3(t, masterKey, siteEncryptionKey); //TokenVersion.V4 also calls encodeV3() since the byte array is identical between V3 and V4
     }
 
     private byte[] encodeV2(AdvertisingToken t, EncryptionKey masterKey, EncryptionKey siteKey) {
@@ -144,17 +145,38 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     @Override
-    public AdvertisingToken decodeAdvertisingToken(String s) {
-        final byte[] bytes = EncodingUtils.fromBase64(s);
-        final Buffer b = Buffer.buffer(bytes);
+    public AdvertisingToken decodeAdvertisingToken(String base64AdvertisingToken) {
+        if (base64AdvertisingToken.length() < 4) {
+            throw new IllegalArgumentException("Advertising token is too short");
+        }
 
-        if (b.getByte(1) == TokenVersion.V3.rawVersion) {
-            return decodeAdvertisingTokenV3(b, bytes);
-        } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
+        String headerStr = base64AdvertisingToken.substring(0, 4);
+        boolean isBase64UrlEncoding = (headerStr.indexOf('-') != -1 || headerStr.indexOf('_') != -1);
+        byte[] headerBytes = isBase64UrlEncoding ? Uid2Base64UrlCoder.decode(headerStr) : Base64.getDecoder().decode(headerStr);
+
+        if (headerBytes[0] == TokenVersion.V2.rawVersion) {
+            final byte[] bytes = EncodingUtils.fromBase64(base64AdvertisingToken);
+            final Buffer b = Buffer.buffer(bytes);
             return decodeAdvertisingTokenV2(b);
+        }
+
+        //Java's byte is signed, so we convert to unsigned before checking the enum
+        int unsignedByte = ((int) headerBytes[1]) & 0xff;
+
+        byte[] bytes;
+        TokenVersion tokenVersion;
+        if (unsignedByte == TokenVersion.V3.rawVersion) {
+            bytes = EncodingUtils.fromBase64(base64AdvertisingToken);
+            tokenVersion = TokenVersion.V3;
+        } else if (unsignedByte == TokenVersion.V4.rawVersion) {
+            bytes = Uid2Base64UrlCoder.decode(base64AdvertisingToken);  //same as V3 but use Base64URL encoding
+            tokenVersion = TokenVersion.V4;
         } else {
             throw new IllegalArgumentException("Invalid advertising token version");
         }
+
+        final Buffer b = Buffer.buffer(bytes);
+        return decodeAdvertisingTokenV3orV4(b, bytes, tokenVersion);
     }
 
     public AdvertisingToken decodeAdvertisingTokenV2(Buffer b) {
@@ -195,7 +217,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     }
 
-    public AdvertisingToken decodeAdvertisingTokenV3(Buffer b, byte[] bytes) {
+    public AdvertisingToken decodeAdvertisingTokenV3orV4(Buffer b, byte[] bytes, TokenVersion tokenVersion) {
         final int masterKeyId = b.getInt(2);
 
         final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, this.keyStore.getSnapshot().getKey(masterKeyId));
@@ -225,7 +247,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         }
 
         return new AdvertisingToken(
-                TokenVersion.V3, createdAt, expiresAt, operatorIdentity, publisherIdentity,
+                tokenVersion, createdAt, expiresAt, operatorIdentity, publisherIdentity,
                 new UserIdentity(identityScope, identityType, id, privacyBits, establishedAt, refreshedAt)
         );
     }
@@ -233,9 +255,13 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     public byte[] encode(RefreshToken t, Instant asOf) {
         final EncryptionKey serviceKey = this.keyStore.getSnapshot().getRefreshKey(asOf);
 
-        return t.version == TokenVersion.V3
-                ? encodeV3(t, serviceKey)
-                : encodeV2(t, serviceKey);
+        if (t.version == TokenVersion.V2) {
+            return encodeV2(t, serviceKey);
+        } else if (t.version == TokenVersion.V3) {
+            return encodeV3(t, serviceKey);
+        } else {
+            throw new IllegalArgumentException("RefreshToken version " + t.version + " not supported");
+        }
     }
 
     public byte[] encodeV2(RefreshToken t, EncryptionKey serviceKey) {
@@ -271,13 +297,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return b.getBytes();
     }
 
-    private byte[] encodeSiteIdentityV2(Buffer b, PublisherIdentity publisherIdentity, UserIdentity userIdentity, EncryptionKey siteEncryptionKey) {
-
+    private void encodeSiteIdentityV2(Buffer b, PublisherIdentity publisherIdentity, UserIdentity userIdentity, EncryptionKey siteEncryptionKey) {
         b.appendInt(siteEncryptionKey.getId());
         final byte[] encryptedIdentity = encryptIdentityV2(publisherIdentity, userIdentity, siteEncryptionKey);
         b.appendBytes(encryptedIdentity);
-
-        return b.getBytes();
     }
 
     public byte[] encode(UserToken t, Instant asOf) {
@@ -293,10 +316,19 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return b.getBytes();
     }
 
+    public static String bytesToBase64Token(byte[] advertisingTokenBytes, TokenVersion tokenVersion) {
+        return (tokenVersion == TokenVersion.V4) ?
+                Uid2Base64UrlCoder.encode(advertisingTokenBytes) : EncodingUtils.toBase64String(advertisingTokenBytes);
+    }
+
     @Override
     public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken, Instant refreshFrom, Instant asOf) {
+
+        final byte[] advertisingTokenBytes = encode(advertisingToken, asOf);
+        final String base64AdvertisingToken = bytesToBase64Token(advertisingTokenBytes, advertisingToken.version);
+
         return new IdentityTokens(
-                EncodingUtils.toBase64String(encode(advertisingToken, asOf)),
+                base64AdvertisingToken,
                 EncodingUtils.toBase64String(encode(userToken, asOf)),
                 EncodingUtils.toBase64String(encode(refreshToken, asOf)),
                 advertisingToken.expiresAt,
@@ -322,6 +354,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     static private byte encodeIdentityTypeV3(UserIdentity userIdentity) {
         return (byte) (TokenUtils.encodeIdentityScope(userIdentity.identityScope) | (userIdentity.identityType.value << 2) | 3);
+        // "| 3" is used so that the 2nd char matches the version when V3 or higher. Eg "3" for V3 and "4" for V4
     }
 
     static private IdentityScope decodeIdentityScopeV3(byte value) {

@@ -135,7 +135,13 @@ public class UIDOperatorVerticleTest {
         mocks.close();
     }
 
-    public void setupConfig(JsonObject config) {}
+    public void setupConfig(JsonObject config) {
+        config.put("identity_scope", getIdentityScope().toString());
+        config.put("advertising_token_v3", getTokenVersion() == TokenVersion.V3);
+        config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
+        config.put("refresh_token_v3", useIdentityV3());
+        config.put("identity_v3", useIdentityV3());
+    }
 
     private static byte[] makeAesKey(String prefix) {
         return String.format("%1$16s", prefix).getBytes();
@@ -451,10 +457,22 @@ public class UIDOperatorVerticleTest {
     }
 
     private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return !useIdentityV3()
-                ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt)
-                : TokenUtils.getAdvertisingIdV3FromIdentity(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt);
+        return getRawUid(identityType, identityString, firstLevelSalt, rotatingSalt, getIdentityScope(), useIdentityV3());
     }
+
+    private static byte[] getRawUid(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt, IdentityScope identityScope, boolean useIdentityV3) {
+        return !useIdentityV3
+                ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt)
+                : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt);
+    }
+
+    public static byte[] getRawUid(IdentityType identityType, String identityString, IdentityScope identityScope, boolean useIdentityV3) {
+        return !useIdentityV3
+                ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt123.getSalt())
+                : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt123.getSalt());
+    }
+
+
 
     private byte[] getAdvertisingIdFromIdentityHash(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
         return !useIdentityV3()
@@ -462,7 +480,9 @@ public class UIDOperatorVerticleTest {
                 : TokenUtils.getAdvertisingIdV3FromIdentityHash(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt);
     }
 
-    protected boolean useIdentityV3() { return false; }
+    protected TokenVersion getTokenVersion() {return TokenVersion.V2;}
+
+    final boolean useIdentityV3() { return getTokenVersion() != TokenVersion.V2; }
     protected IdentityScope getIdentityScope() { return IdentityScope.UID2; }
     protected void addAdditionalTokenGenerateParams(JsonObject payload) {}
 
@@ -728,6 +748,37 @@ public class UIDOperatorVerticleTest {
         assertEquals(siteId, messageItem.getSiteId());
     }
 
+    private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder encoder, JsonObject body, IdentityType identityType) { //See UID2-79+Token+and+ID+format+v3
+        final String advertisingTokenString = body.getString("advertising_token");
+        validateAdvertisingToken(advertisingTokenString, getTokenVersion(), getIdentityScope(), identityType);
+        return encoder.decodeAdvertisingToken(advertisingTokenString);
+    }
+
+    public static void validateAdvertisingToken(String advertisingTokenString, TokenVersion tokenVersion, IdentityScope identityScope, IdentityType identityType) {
+        if (tokenVersion == TokenVersion.V2) {
+            assertEquals("Ag", advertisingTokenString.substring(0, 2));
+        } else {
+            String firstChar = advertisingTokenString.substring(0, 1);
+            if (identityScope == IdentityScope.UID2) {
+                assertEquals(identityType == IdentityType.Email ? "A" : "B", firstChar);
+            } else {
+                assertEquals(identityType == IdentityType.Email ? "E" : "F", firstChar);
+            }
+
+            String secondChar = advertisingTokenString.substring(1, 2);
+            if (tokenVersion == TokenVersion.V3) {
+                assertEquals("3", secondChar);
+            } else {
+                assertEquals("4", secondChar);
+
+                //No URL-unfriendly characters allowed:
+                assertEquals(-1, advertisingTokenString.indexOf('='));
+                assertEquals(-1, advertisingTokenString.indexOf('+'));
+                assertEquals(-1, advertisingTokenString.indexOf('/'));
+            }
+        }
+    }
+
 
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
@@ -750,7 +801,8 @@ public class UIDOperatorVerticleTest {
                 assertNotNull(body);
                 EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-                AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
+                AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
+
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                 assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
@@ -789,8 +841,7 @@ public class UIDOperatorVerticleTest {
                 assertNotNull(body);
                 EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-                String advTokenStr = body.getString("advertising_token");
-                AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(advTokenStr);
+                AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                 assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email, emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
@@ -832,7 +883,7 @@ public class UIDOperatorVerticleTest {
                 assertNotNull(refreshBody);
                 EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-                AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(refreshBody.getString("advertising_token"));
+                AdvertisingToken advertisingToken = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                 assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
@@ -972,7 +1023,7 @@ public class UIDOperatorVerticleTest {
             assertNotNull(body);
             EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
+            AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
             verify(keyStoreSnapshot).getKey(eq(siteKeyId));
             verify(keyStoreSnapshot, times(0)).getKey(eq(Const.Data.AdvertisingTokenSiteId));
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
@@ -1647,7 +1698,8 @@ public class UIDOperatorVerticleTest {
             assertNotNull(body);
             EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
+            AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Phone);
+
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
             assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
@@ -1683,7 +1735,7 @@ public class UIDOperatorVerticleTest {
             assertNotNull(body);
             EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-            AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(body.getString("advertising_token"));
+            AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Phone);
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
             assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
@@ -1725,7 +1777,7 @@ public class UIDOperatorVerticleTest {
                 assertNotNull(refreshBody);
                 EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-                AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(refreshBody.getString("advertising_token"));
+                AdvertisingToken advertisingToken = validateAndGetToken(encoder, refreshBody, IdentityType.Phone);
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                 assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 

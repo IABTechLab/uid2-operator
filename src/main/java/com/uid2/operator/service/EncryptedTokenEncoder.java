@@ -146,6 +146,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     @Override
     public AdvertisingToken decodeAdvertisingToken(String base64AdvertisingToken) {
+        //Logic and code copied from: https://github.com/IABTechLab/uid2-client-java/blob/0220ef43c1661ecf3b8f4ed2db524e2db31c06b5/src/main/java/com/uid2/client/Uid2Encryption.java#L37
         if (base64AdvertisingToken.length() < 4) {
             throw new IllegalArgumentException("Advertising token is too short");
         }

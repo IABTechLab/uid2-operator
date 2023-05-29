@@ -1,8 +1,10 @@
 package com.uid2.operator.service;
 
+//Copied from https://github.com/IABTechLab/uid2-client-java/blob/master/src/main/java/com/uid2/client/Uid2Base64UrlCoder.java
+
 import java.util.Base64;
 
-class Uid2Base64UrlCoder {
+public class Uid2Base64UrlCoder {
     //always use this interface to encode/decode Base64URL standard with no padding
     //as specified on https://www.rfc-editor.org/rfc/rfc4648#section-5
     //as unit test assumes that we are testing the encoding/decoding lib used here

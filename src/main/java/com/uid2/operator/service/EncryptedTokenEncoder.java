@@ -256,12 +256,13 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     public byte[] encode(RefreshToken t, Instant asOf) {
         final EncryptionKey serviceKey = this.keyStore.getSnapshot().getRefreshKey(asOf);
 
-        if (t.version == TokenVersion.V2) {
-            return encodeV2(t, serviceKey);
-        } else if (t.version == TokenVersion.V3) {
-            return encodeV3(t, serviceKey);
-        } else {
-            throw new IllegalArgumentException("RefreshToken version " + t.version + " not supported");
+        switch (t.version) {
+            case V2:
+                return encodeV2(t, serviceKey);
+            case V3:
+                return encodeV3(t, serviceKey);
+            default:
+                throw new IllegalArgumentException("RefreshToken version " + t.version + " not supported");
         }
     }
 

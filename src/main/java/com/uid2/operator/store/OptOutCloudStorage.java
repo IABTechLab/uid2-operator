@@ -28,8 +28,7 @@ public class OptOutCloudStorage extends URLStorageWithMetadata {
 
     @Override
     protected List<String> extractListFromMetadata() throws CloudStorageException {
-        InputStream input = this.coreClient.download(metadataPath);
-        try {
+        try (InputStream input = this.coreClient.download(metadataPath)) {
             OptOutMetadata m = OptOutMetadata.fromJsonString(Utils.readToEnd(input));
             return m.optoutLogs.stream().map(o -> o.location).collect(Collectors.toList());
         } catch (IOException e) {

@@ -26,6 +26,7 @@ import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Instant;
@@ -678,7 +679,9 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                 // read the byte[] directly to skip double buffering
                 return ((MemCachedStorage)fsLocal).getBytes(filePath);
             } else {
-                return Utils.streamToByteArray(fsLocal.download(filePath));
+                try (InputStream inputStream = fsLocal.download(filePath)) {
+                    return Utils.streamToByteArray(inputStream);
+                }
             }
         }
     }

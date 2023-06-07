@@ -5,6 +5,15 @@ on:
       tag:
         description: 'The tag to apply to the Docker file'
         type: string
+      cloud_provider:
+        type: choice
+        description: 'The Cloud Provider to build for'
+        options:
+        - default
+        - aws
+        - gcp
+        - azure
+        default: default
 
 jobs:
   build-publish-docker:

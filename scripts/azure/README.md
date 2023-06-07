@@ -39,7 +39,7 @@ Build the enclave and the docker image and specify the config file to use:
 
 The build script will produce a few artifacts:
 
- - `dev.docker.adsrvr.org/uid2/operator/occlum:dev` -- docker image containing occlum and the UID2
+ - `ghcr.io/iabtechlab/uid2-operator-azure-occlum:dev` -- docker image containing occlum and the UID2
    operator service enclave
  - `build/uid2-operator-azure-sgx.tar.gz` -- tarball of the docker image above
  - `build/uid2-operator/uid2-operator.tar.gz` -- tarball of the occlum enclave package
@@ -96,7 +96,7 @@ docker run \
         --device /dev/sgx/enclave --device /dev/sgx/provision \
         -p 8080:8080 \
         -p 9091:9091 \
-        dev.docker.adsrvr.org/uid2/operator/occlum:dev
+        ghcr.io/iabtechlab/uid2-operator-azure-occlum:dev
 ```
 
 ### Direct invocation of occlum (advanced, not recommended)

@@ -20,6 +20,6 @@ jobs:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
     with: 
       tag: ${{ inputs.tag }}
-      cloud_provider: 'default'
+      cloud_provider: ${{ inputs.cloud_provider }}
       release_type: 'Snapshot'
     secrets: inherit

@@ -69,7 +69,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final Clock clock;
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
-    private final Map<String, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
+    private final Map<Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
+    private final Map<Tuple3<String, Boolean, Boolean>, Counter> _advertiserTokenExpiryStatus = new HashMap<>();
     private final Map<Tuple2<String, TokenGeneratePolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
     private final Map<String, Counter> _tokenGenerateOptoutCounters = new HashMap<>();
     private final Map<Tuple2<String, IdentityMapPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
@@ -1232,16 +1233,30 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private void recordRefreshDurationStats(RoutingContext rc, Duration durationSinceLastRefresh) {
         String apiContact = getApiContact(rc);
         Integer siteId = rc.get(Const.RoutingContextData.SiteId);
+        boolean isWebRequest = rc.request().headers().contains("Origin");
 
-        DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(apiContact, k ->
+        DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(new Tuple2<>(apiContact, isWebRequest), k ->
                 DistributionSummary
                         .builder("uid2.token_refresh_duration_seconds")
                         .description("duration between token refreshes")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("api_contact", apiContact)
+                        .tag("is_web_request", isWebRequest ? "true" : "false")
                         .register(Metrics.globalRegistry)
         );
         ds.record(durationSinceLastRefresh.getSeconds());
+
+        boolean isExpired = durationSinceLastRefresh.compareTo(this.idService.getIdentityExpiryDuration()) > 0;
+        Counter c = _advertiserTokenExpiryStatus.computeIfAbsent(new Tuple3<>(String.valueOf(siteId), isWebRequest, isExpired), k ->
+                Counter
+                        .builder("uid2.advertiser_token_expiry_status")
+                        .description("status of advertiser token expiry")
+                        .tag("site_id", String.valueOf(siteId))
+                        .tag("is_web_request", isWebRequest ? "true" : "false")
+                        .tag("is_expired", isExpired ? "true" : "false")
+                        .register(Metrics.globalRegistry)
+        );
+        c.increment();
     }
 
     private InputUtil.InputVal[] createInputList(JsonArray a, boolean inputAsHash) {
@@ -1469,6 +1484,38 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             Tuple2 pairo = (Tuple2) o;
             return this.item1.equals(pairo.item1) &&
                     this.item2.equals(pairo.item2);
+        }
+    }
+
+    private static class Tuple3<T1, T2, T3> {
+        private final T1 item1;
+        private final T2 item2;
+        private final T3 item3;
+
+        public Tuple3(T1 item1, T2 item2, T3 item3) {
+            assert item1 != null;
+            assert item2 != null;
+            assert item3 != null;
+
+            this.item1 = item1;
+            this.item2 = item2;
+            this.item3 = item3;
+        }
+
+        public T1 getItem1() { return item1; }
+        public T2 getItem2() { return item2; }
+        public T3 getItem3() { return item3; }
+
+        @Override
+        public int hashCode() { return item1.hashCode() ^ item2.hashCode() ^ item3.hashCode(); }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Tuple3)) return false;
+            Tuple3 pairo = (Tuple3) o;
+            return this.item1.equals(pairo.item1) &&
+                    this.item2.equals(pairo.item2) &&
+                    this.item3.equals(pairo.item3);
         }
     }
 }

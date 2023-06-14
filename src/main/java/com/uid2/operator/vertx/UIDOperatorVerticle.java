@@ -1255,25 +1255,25 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return this.idService.refreshIdentity(refreshToken);
     }
 
-    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean isWebRequest) {
-        DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(new Tuple.Tuple2<>(apiContact, isWebRequest), k ->
+    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader) {
+        DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(new Tuple.Tuple2<>(apiContact, hasOriginHeader), k ->
                 DistributionSummary
                         .builder("uid2.token_refresh_duration_seconds")
                         .description("duration between token refreshes")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("api_contact", apiContact)
-                        .tag("is_web_request", isWebRequest ? "true" : "false")
+                        .tag("has_origin_header", hasOriginHeader ? "true" : "false")
                         .register(Metrics.globalRegistry)
         );
         ds.record(durationSinceLastRefresh.getSeconds());
 
         boolean isExpired = durationSinceLastRefresh.compareTo(this.idService.getIdentityExpiryDuration()) > 0;
-        Counter c = _advertiserTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), isWebRequest, isExpired), k ->
+        Counter c = _advertiserTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), hasOriginHeader, isExpired), k ->
                 Counter
                         .builder("uid2.advertiser_token_expiry_status")
                         .description("status of advertiser token expiry")
                         .tag("site_id", String.valueOf(siteId))
-                        .tag("is_web_request", isWebRequest ? "true" : "false")
+                        .tag("has_origin_header", hasOriginHeader ? "true" : "false")
                         .tag("is_expired", isExpired ? "true" : "false")
                         .register(Metrics.globalRegistry)
         );

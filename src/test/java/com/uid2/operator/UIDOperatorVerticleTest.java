@@ -1104,7 +1104,7 @@ public class UIDOperatorVerticleTest {
                         .summary().mean());
 
                 assertEquals(1, Metrics.globalRegistry
-                        .get("uid2.advertiser_token_expiry_status")
+                        .get("uid2.advertiser_token_expired_on_refresh")
                         .tag("site_id", String.valueOf(clientSiteId))
                         .tag("is_expired", "false")
                         .counter().count());
@@ -1129,7 +1129,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 assertEquals(1, Metrics.globalRegistry
-                        .get("uid2.advertiser_token_expiry_status")
+                        .get("uid2.advertiser_token_expired_on_refresh")
                         .tag("site_id", String.valueOf(clientSiteId))
                         .tag("is_expired", "true")
                         .counter().count());

@@ -1270,7 +1270,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         boolean isExpired = durationSinceLastRefresh.compareTo(this.idService.getIdentityExpiryDuration()) > 0;
         Counter c = _advertiserTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), hasOriginHeader, isExpired), k ->
                 Counter
-                        .builder("uid2.advertiser_token_expiry_status")
+                        .builder("uid2.advertiser_token_expired_on_refresh")
                         .description("status of advertiser token expiry")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("has_origin_header", hasOriginHeader ? "true" : "false")

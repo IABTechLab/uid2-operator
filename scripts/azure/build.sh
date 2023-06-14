@@ -4,8 +4,8 @@ config="${1-local}"; shift
 enable_docker_push=
 jar_version=1.0.0
 git_commit="$(git show --format="%h" --no-patch)"
-build_container_name=dev.docker.adsrvr.org/uid2/occlum-build:dev
-container_name=dev.docker.adsrvr.org/uid2/operator/occlum
+build_container_name=ghcr.io/iabtechlab/uid2-operator-azure-occlum-build:dev
+container_name=ghcr.io/iabtechlab/uid2-operator-azure-occlum
 container_version=${jar_version}.${git_commit}
 occlum_glibc=/opt/occlum/glibc/lib
 work_dir="${PWD}"

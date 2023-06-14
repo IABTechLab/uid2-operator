@@ -68,7 +68,11 @@ public class UIDOperatorService implements IUIDOperatorService {
             throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
 
-        this.advertisingTokenVersion = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
+        if (config.getBoolean("advertising_token_v4", false)) {
+            this.advertisingTokenVersion = TokenVersion.V4;
+        } else {
+            this.advertisingTokenVersion = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
+        }
         this.refreshTokenVersion = config.getBoolean("refresh_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
         this.identityV3Enabled = config.getBoolean("identity_v3", false);
     }

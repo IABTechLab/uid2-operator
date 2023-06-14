@@ -1,0 +1,25 @@
+name: Publish Major Version to Docker
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to apply to the Docker file'
+        type: string
+      cloud_provider:
+        type: choice
+        description: 'The Cloud Provider to build for'
+        options:
+        - default
+        - aws
+        - gcp
+        - azure
+        default: default
+
+jobs:
+  build-publish-docker:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
+    with: 
+      tag: ${{ inputs.tag }}
+      cloud_provider: ${{ inputs.cloud_provider }}
+      release_type: 'Major'
+    secrets: inherit

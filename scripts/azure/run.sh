@@ -19,6 +19,6 @@ docker run \
 	--device /dev/sgx/enclave --device /dev/sgx/provision \
 	-p 8080:8080 -p 9091:9091 \
 	$vars \
-	dev.docker.adsrvr.org/uid2/operator/occlum:dev \
+	ghcr.io/iabtechlab/uid2-operator-azure-occlum:dev \
 	"$@"
 

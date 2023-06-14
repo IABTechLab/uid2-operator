@@ -23,7 +23,6 @@ import java.security.Security;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Base64;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -110,6 +109,11 @@ public class UIDOperatorServiceTest {
         );
     }
 
+    private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString) {
+        UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, TokenVersion.V2, IdentityScope.UID2, IdentityType.Email);
+        return tokenEncoder.decodeAdvertisingToken(advertisingTokenString);
+    }
+
     @Test
     public void testGenerateAndRefresh() {
         final IdentityRequest identityRequest = new IdentityRequest(
@@ -120,7 +124,7 @@ public class UIDOperatorServiceTest {
         final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
         assertNotNull(tokens);
 
-        AdvertisingToken advertisingToken = tokenEncoder.decodeAdvertisingToken(tokens.getAdvertisingToken());
+        AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken());
         assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken.expiresAt);
         assertEquals(identityRequest.publisherIdentity.siteId, advertisingToken.publisherIdentity.siteId);
         assertEquals(identityRequest.userIdentity.identityScope, advertisingToken.userIdentity.identityScope);
@@ -142,7 +146,7 @@ public class UIDOperatorServiceTest {
         assertEquals(RefreshResponse.Status.Refreshed, refreshResponse.getStatus());
         assertNotNull(refreshResponse.getTokens());
 
-        AdvertisingToken advertisingToken2 = tokenEncoder.decodeAdvertisingToken(refreshResponse.getTokens().getAdvertisingToken());
+        AdvertisingToken advertisingToken2 = validateAndGetToken(tokenEncoder, refreshResponse.getTokens().getAdvertisingToken());
         assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken2.expiresAt);
         assertEquals(advertisingToken.publisherIdentity.siteId, advertisingToken2.publisherIdentity.siteId);
         assertEquals(advertisingToken.userIdentity.identityScope, advertisingToken2.userIdentity.identityScope);
@@ -213,7 +217,7 @@ public class UIDOperatorServiceTest {
                 .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
 
         final IdentityTokens tokens = uid2Service.generateIdentity(identityRequestForceGenerate);
-        AdvertisingToken advertisingToken = tokenEncoder.decodeAdvertisingToken(tokens.getAdvertisingToken());
+        AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken());
         assertNotNull(tokens);
         assertNotNull(advertisingToken.userIdentity);
 

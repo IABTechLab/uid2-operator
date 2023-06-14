@@ -1102,6 +1102,38 @@ public class UIDOperatorVerticleTest {
                         .tag("api_contact", "test-contact")
                         .tag("site_id", String.valueOf(clientSiteId))
                         .summary().mean());
+
+                assertEquals(1, Metrics.globalRegistry
+                        .get("uid2.advertising_token_expired_on_refresh")
+                        .tag("site_id", String.valueOf(clientSiteId))
+                        .tag("is_expired", "false")
+                        .counter().count());
+
+                testContext.completeNow();
+            });
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void captureExpiredAdvertisingTokenStatus(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        final String emailAddress = "test@uid2.com";
+        generateRefreshToken(apiVersion, vertx, "email", emailAddress, clientSiteId, genRespJson -> {
+            JsonObject bodyJson = genRespJson.getJsonObject("body");
+            String refreshToken = bodyJson.getString("refresh_token");
+            when(clock.instant()).thenAnswer(i -> Instant.now().plusSeconds(identityExpiresAfter.toSeconds() + 1));
+
+            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson-> {
+                assertEquals("success", refreshRespJson.getString("status"));
+
+                assertEquals(1, Metrics.globalRegistry
+                        .get("uid2.advertising_token_expired_on_refresh")
+                        .tag("site_id", String.valueOf(clientSiteId))
+                        .tag("is_expired", "true")
+                        .counter().count());
+
                 testContext.completeNow();
             });
         });

@@ -175,6 +175,11 @@ public class UIDOperatorService implements IUIDOperatorService {
         return this.optOutStore.getLatestEntry(firstLevelHashIdentity);
     }
 
+    @Override
+    public Duration getIdentityExpiryDuration() {
+        return this.identityExpiresAfter;
+    }
+
     private UserIdentity getFirstLevelHashIdentity(UserIdentity userIdentity, Instant asOf) {
         return getFirstLevelHashIdentity(userIdentity.identityScope, userIdentity.identityType, userIdentity.id, asOf);
     }

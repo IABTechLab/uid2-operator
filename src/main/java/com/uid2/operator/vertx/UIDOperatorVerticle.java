@@ -71,7 +71,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final Clock clock;
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
-    private final Map<String, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
+    private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
+    private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
     private final Map<Tuple.Tuple2<String, TokenGeneratePolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
     private final Map<Tuple.Tuple2<String, IdentityMapPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
@@ -372,7 +373,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 }
             } else {
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh());
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains("Origin"));
             }
 
             TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, r);
@@ -402,7 +403,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 }
             } else {
                 ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh());
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains("Origin"));
             }
             TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, r);
         } catch (Exception e) {
@@ -589,7 +590,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             Integer siteId = rc.get(Const.RoutingContextData.SiteId);
             if (r.isRefreshed()) {
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh());
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains("Origin"));
             }
             TokenResponseStatsCollector.record(siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, r);
         } catch (Exception e) {
@@ -1254,16 +1255,29 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return this.idService.refreshIdentity(refreshToken);
     }
 
-    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh) {
-        DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(apiContact, k ->
+    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader) {
+        DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(new Tuple.Tuple2<>(apiContact, hasOriginHeader), k ->
                 DistributionSummary
                         .builder("uid2.token_refresh_duration_seconds")
                         .description("duration between token refreshes")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("api_contact", apiContact)
+                        .tag("has_origin_header", hasOriginHeader ? "true" : "false")
                         .register(Metrics.globalRegistry)
         );
         ds.record(durationSinceLastRefresh.getSeconds());
+
+        boolean isExpired = durationSinceLastRefresh.compareTo(this.idService.getIdentityExpiryDuration()) > 0;
+        Counter c = _advertisingTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), hasOriginHeader, isExpired), k ->
+                Counter
+                        .builder("uid2.advertising_token_expired_on_refresh")
+                        .description("status of advertiser token expiry")
+                        .tag("site_id", String.valueOf(siteId))
+                        .tag("has_origin_header", hasOriginHeader ? "true" : "false")
+                        .tag("is_expired", isExpired ? "true" : "false")
+                        .register(Metrics.globalRegistry)
+        );
+        c.increment();
     }
 
     private InputUtil.InputVal[] createInputList(JsonArray a, boolean inputAsHash) {
@@ -1458,6 +1472,4 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         INSUFFICIENT,
         INVALID,
     }
-
-
 }

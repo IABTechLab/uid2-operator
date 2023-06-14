@@ -5,6 +5,7 @@ import com.uid2.shared.model.SaltEntry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -27,4 +28,5 @@ public interface IUIDOperatorService {
 
     Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf);
 
+    Duration getIdentityExpiryDuration();
 }

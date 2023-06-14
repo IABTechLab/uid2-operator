@@ -72,7 +72,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
-    private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertiserTokenExpiryStatus = new HashMap<>();
+    private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
     private final Map<Tuple.Tuple2<String, TokenGeneratePolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
     private final Map<Tuple.Tuple2<String, IdentityMapPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
@@ -1268,9 +1268,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         ds.record(durationSinceLastRefresh.getSeconds());
 
         boolean isExpired = durationSinceLastRefresh.compareTo(this.idService.getIdentityExpiryDuration()) > 0;
-        Counter c = _advertiserTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), hasOriginHeader, isExpired), k ->
+        Counter c = _advertisingTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), hasOriginHeader, isExpired), k ->
                 Counter
-                        .builder("uid2.advertiser_token_expired_on_refresh")
+                        .builder("uid2.advertising_token_expired_on_refresh")
                         .description("status of advertiser token expiry")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("has_origin_header", hasOriginHeader ? "true" : "false")

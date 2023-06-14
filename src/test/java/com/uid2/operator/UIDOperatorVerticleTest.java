@@ -1104,7 +1104,7 @@ public class UIDOperatorVerticleTest {
                         .summary().mean());
 
                 assertEquals(1, Metrics.globalRegistry
-                        .get("uid2.advertiser_token_expired_on_refresh")
+                        .get("uid2.advertising_token_expired_on_refresh")
                         .tag("site_id", String.valueOf(clientSiteId))
                         .tag("is_expired", "false")
                         .counter().count());
@@ -1116,7 +1116,7 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
-    void captureExpiredAdvertiserTokenStatus(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    void captureExpiredAdvertisingTokenStatus(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         final String emailAddress = "test@uid2.com";
@@ -1129,7 +1129,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 assertEquals(1, Metrics.globalRegistry
-                        .get("uid2.advertiser_token_expired_on_refresh")
+                        .get("uid2.advertising_token_expired_on_refresh")
                         .tag("site_id", String.valueOf(clientSiteId))
                         .tag("is_expired", "true")
                         .counter().count());

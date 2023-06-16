@@ -1,6 +1,6 @@
 package com.uid2.operator;
 
-import com.uid2.operator.model.TokenVersion;
+import com.uid2.shared.model.TokenVersion;
 import org.junit.jupiter.api.Test;
 
 import com.uid2.operator.model.IdentityScope;

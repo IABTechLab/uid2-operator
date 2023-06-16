@@ -20,6 +20,7 @@ import com.uid2.shared.auth.Role;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
+import com.uid2.shared.model.TokenVersion;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.AsyncResult;

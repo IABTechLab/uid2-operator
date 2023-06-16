@@ -8,6 +8,7 @@ import com.uid2.shared.encryption.Uid2Base64UrlCoder;
 import com.uid2.shared.encryption.AesCbc;
 import com.uid2.shared.encryption.AesGcm;
 import io.vertx.core.buffer.Buffer;
+import com.uid2.shared.model.TokenVersion;
 
 import java.time.Instant;
 import java.util.Base64;

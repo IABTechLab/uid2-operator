@@ -4,6 +4,7 @@ import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.model.EncryptionKey;
+import com.uid2.shared.encryption.Uid2Base64UrlCoder;
 import com.uid2.shared.encryption.AesCbc;
 import com.uid2.shared.encryption.AesGcm;
 import io.vertx.core.buffer.Buffer;

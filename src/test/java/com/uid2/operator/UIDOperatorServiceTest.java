@@ -10,6 +10,7 @@ import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.store.reader.RotatingKeyStore;
 import com.uid2.shared.store.scope.GlobalScope;
+import com.uid2.shared.model.TokenVersion;
 import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

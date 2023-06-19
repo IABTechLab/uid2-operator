@@ -5,6 +5,7 @@ import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.TokenUtils;
 import com.uid2.shared.model.EncryptionKey;
+import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;

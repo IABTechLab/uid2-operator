@@ -1,6 +1,6 @@
 package com.uid2.operator;
 
-import com.uid2.operator.model.TokenVersion;
+import com.uid2.shared.model.TokenVersion;
 
 public class EUIDOperatorVerticleTestV4 extends EUIDOperatorVerticleTest {
     @Override

@@ -1,6 +1,7 @@
 package com.uid2.operator.model;
 
 import java.time.Instant;
+import com.uid2.shared.model.TokenVersion;
 
 public class RefreshToken extends VersionedToken {
     public final OperatorIdentity operatorIdentity;

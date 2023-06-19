@@ -1,6 +1,7 @@
 package com.uid2.operator.model;
 
 import java.time.Instant;
+import com.uid2.shared.model.TokenVersion;
 
 public class AdvertisingToken extends VersionedToken {
     public final OperatorIdentity operatorIdentity;

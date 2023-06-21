@@ -282,7 +282,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             final List<EncryptionKey> keyStore = getEncryptionKeys();
 
             MissingAclMode mode = MissingAclMode.DENY_ALL;
-            // This will break if another Type is added to this map
+            // This casting will break if another Type is added to Role enum and shared lib version is not updated
             IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
             if(roleAuthorize.hasRole(Role.ID_READER)) {
                 mode = MissingAclMode.ALLOW_ALL;

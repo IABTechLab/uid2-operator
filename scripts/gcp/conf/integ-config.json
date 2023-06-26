@@ -8,7 +8,7 @@
   "optout_api_uri": "https://optout-integ.uidapi.com/optout/replicate",
   "optout_s3_folder": "optout-v2/",
   "optout_inmem_cache": true,
-  "identity_token_expires_after_seconds": 14400,
+  "identity_token_expires_after_seconds": 604800,
   "refresh_token_expires_after_seconds": 2592000,
   "refresh_identity_token_after_seconds": 3600,
   "enclave_platform": "gcp-vmid",

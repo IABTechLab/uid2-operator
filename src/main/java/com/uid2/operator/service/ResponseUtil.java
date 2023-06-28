@@ -1,8 +1,6 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.vertx.UIDOperatorVerticle;
-import com.uid2.shared.auth.ClientKey;
-import com.uid2.shared.middleware.AuthMiddleware;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -59,7 +57,7 @@ public class ResponseUtil {
     }
 
     public static void Error(String errorStatus, int statusCode, RoutingContext rc, String message) {
-        logError(errorStatus, statusCode, rc, message);
+        logError(errorStatus, statusCode, message, new RoutingContextReader(rc));
         final JsonObject json = new JsonObject(new HashMap<String, Object>() {
             {
                 put("status", errorStatus);
@@ -73,30 +71,15 @@ public class ResponseUtil {
 
     }
 
-    private static void logError(String errorStatus, int statusCode, RoutingContext rc, String message) {
-        try {
-            LOGGER.error(
-                    "Error response to http request. { " +
-                            "\"errorStatus\": \"{}\", " +
-                            "\"contact\": \"{}\", " +
-                            "\"path\": \"{}\", " +
-                            "\"statusCode\": {}, " +
-                            "\"message\": \"{}\" }",
-                    errorStatus,
-                    safeGetClientKey(rc),
-                    rc.request().path(),
-                    statusCode,
-                    message
-            );
-        } catch (Exception ignored) {}
+    private static void logError(String errorStatus, int statusCode, String message, RoutingContextReader contextReader) {
+        String errorMessage = "Error response to http request. " + JsonObject.of(
+                "errorStatus", errorStatus,
+                "contact", contextReader.getContact(),
+                "siteId", contextReader.getSiteId(),
+                "path", contextReader.getPath(),
+                "statusCode", statusCode,
+                "message", message
+        ).encode();
+        LOGGER.error(errorMessage);
     }
-
-    private static String safeGetClientKey(RoutingContext rc) {
-        try {
-            return AuthMiddleware.getAuthClient(rc).getContact();
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
 }

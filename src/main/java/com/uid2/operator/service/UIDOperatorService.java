@@ -213,7 +213,6 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         return this.encoder.encode(
                 this.createAdvertisingToken(publisherIdentity, advertisingIdentity, nowUtc),
-                this.createUserToken(publisherIdentity, advertisingIdentity, nowUtc),
                 this.createRefreshToken(publisherIdentity, firstLevelHashIdentity, nowUtc),
                 nowUtc.plusMillis(refreshIdentityAfter.toMillis()),
                 nowUtc
@@ -233,16 +232,6 @@ public class UIDOperatorService implements IUIDOperatorService {
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
         return new AdvertisingToken(
                 this.advertisingTokenVersion,
-                now,
-                now.plusMillis(identityExpiresAfter.toMillis()),
-                this.operatorIdentity,
-                publisherIdentity,
-                userIdentity);
-    }
-
-    private UserToken createUserToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
-        return new UserToken(
-                TokenVersion.V2,
                 now,
                 now.plusMillis(identityExpiresAfter.toMillis()),
                 this.operatorIdentity,

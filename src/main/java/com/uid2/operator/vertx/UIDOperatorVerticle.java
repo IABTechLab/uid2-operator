@@ -1407,7 +1407,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private JsonObject toJsonV1(IdentityTokens t) {
         final JsonObject json = new JsonObject();
         json.put("advertising_token", t.getAdvertisingToken());
-        json.put("user_token", t.getUserToken());
         json.put("refresh_token", t.getRefreshToken());
         json.put("identity_expires", t.getIdentityExpires().toEpochMilli());
         json.put("refresh_expires", t.getRefreshExpires().toEpochMilli());
@@ -1439,7 +1438,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final JsonObject json = new JsonObject();
         json.put("advertisement_token", t.getAdvertisingToken());
         json.put("advertising_token", t.getAdvertisingToken());
-        json.put("user_token", t.getUserToken());
         json.put("refresh_token", t.getRefreshToken());
 
         return json;

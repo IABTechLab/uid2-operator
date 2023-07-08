@@ -46,9 +46,7 @@ import javax.crypto.KeyAgreement;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.spec.ECGenParameterSpec;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
+import java.security.spec.*;
 import java.time.*;
 import java.time.Clock;
 import java.time.format.DateTimeFormatter;
@@ -253,7 +251,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
 
-        final Buffer publicKeyBuffer = Buffer.buffer(Base64.getEncoder().encode(ecdhKeyPair.getPublic().getEncoded()));
+        //final Buffer publicKeyBuffer = Buffer.buffer(Base64.getEncoder().encode(ecdhKeyPair.getPublic().getEncoded()));
+        final Buffer publicKeyBuffer = Buffer.buffer("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==");
         //Public: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg=="
         //Private: "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug=="
 
@@ -269,7 +268,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private void handleClientSideTokenGenerate(RoutingContext rc) {
         try {
             handleClientSideTokenGenerateImpl(rc);
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException e) {
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException e) { //todo - should match other request exception handling
             throw new RuntimeException(e);
         }
     }
@@ -287,17 +286,17 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         // Perform key agreement
         final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
 
-        ka.init(ecdhKeyPair.getPrivate());
 
 
         final String privateKeyStr = "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
         final byte[] privateKeyBytes = Base64.getDecoder().decode(privateKeyStr);
-        final X509EncodedKeySpec keySpec = new X509EncodedKeySpec(privateKeyBytes);
-        //final PrivateKey privateKey =
+        //final X509EncodedKeySpec keySpec = new X509EncodedKeySpec(privateKeyBytes);
+        //final ECPrivateKeySpec keySpec = new ECPrivateKeySpec(privateKeyBytes);
+        final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+        PrivateKey privateKey = kf.generatePrivate(keySpec);
+        ka.init(privateKey);
 
-
-
-        //ka.init("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==");
+        //ka.init(ecdhKeyPair.getPrivate());
 
         ka.doPhase(otherPublicKey, true);
 

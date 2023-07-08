@@ -2,6 +2,7 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
@@ -16,6 +17,7 @@ import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.IRoleAuthorizable;
 import com.uid2.shared.auth.Role;
+import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
@@ -25,7 +27,9 @@ import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.*;
+import io.netty.buffer.Unpooled;
 import io.vertx.core.*;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
@@ -38,7 +42,13 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
+import javax.crypto.KeyAgreement;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.*;
+import java.security.spec.ECGenParameterSpec;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.*;
 import java.time.Clock;
 import java.time.format.DateTimeFormatter;
@@ -83,6 +93,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final boolean phoneSupport;
     private final int tcfVendorId;
 
+    //(Client Side Token Generate (CSTG) fields:
+    //TODO - probably belong in their own class
+    private final KeyPair ecdhKeyPair;
+
     private IStatsCollectorQueue _statsCollectorQueue;
 
     public UIDOperatorVerticle(JsonObject config,
@@ -108,6 +122,21 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
 
         this._statsCollectorQueue = statsCollectorQueue;
+
+        //CSTG
+        final String ecdhCurvenameString = "secp256r1";
+        // standard curvennames
+        // secp256r1 [NIST P-256, X9.62 prime256v1]
+        // secp384r1 [NIST P-384]
+        // secp521r1 [NIST P-521]
+        try {
+            final KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC", "SunEC");
+            final ECGenParameterSpec ecParameterSpec = new ECGenParameterSpec(ecdhCurvenameString);
+            keyPairGenerator.initialize(ecParameterSpec);
+            ecdhKeyPair = keyPairGenerator.genKeyPair();
+        } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException | NoSuchProviderException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -223,8 +252,87 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
+
+        final Buffer publicKeyBuffer = Buffer.buffer(Base64.getEncoder().encode(ecdhKeyPair.getPublic().getEncoded()));
+        //Public: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg=="
+        //Private: "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug=="
+
+
+        final Buffer privateKeyBuffer = Buffer.buffer(Base64.getEncoder().encode(ecdhKeyPair.getPrivate().getEncoded()));
+        v2Router.get("/cstg/ecdh/public").handler(rc -> rc.end(publicKeyBuffer));
+        v2Router.post("/token/client-generate").handler(bodyHandler).handler(rc -> handleClientSideTokenGenerate(rc));
+
         mainRouter.route("/v2/*").subRouter(v2Router);
     }
+
+
+    private void handleClientSideTokenGenerate(RoutingContext rc) {
+        try {
+            handleClientSideTokenGenerateImpl(rc);
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void handleClientSideTokenGenerateImpl(RoutingContext rc)  throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
+        final JsonObject body = rc.body().asJsonObject();
+        final String clientPublicKey = body.getString("publicKey");
+        final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKey);
+
+        final KeyFactory kf = KeyFactory.getInstance("EC");
+
+        final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
+        final PublicKey otherPublicKey = kf.generatePublic(pkSpec);
+
+        // Perform key agreement
+        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
+
+        ka.init(ecdhKeyPair.getPrivate());
+
+
+        final String privateKeyStr = "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
+        final byte[] privateKeyBytes = Base64.getDecoder().decode(privateKeyStr);
+        final X509EncodedKeySpec keySpec = new X509EncodedKeySpec(privateKeyBytes);
+        //final PrivateKey privateKey =
+
+
+
+        //ka.init("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==");
+
+        ka.doPhase(otherPublicKey, true);
+
+        // Read shared secret
+        final byte[] sharedSecret = ka.generateSecret();
+
+        final String encryptedEmail = body.getString("email");
+        final byte[] encryptedEmailBytes = Base64.getDecoder().decode(encryptedEmail);
+
+        final String iv = body.getString("iv");
+        final byte[] ivBytes = Base64.getDecoder().decode(iv);
+
+        final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedEmailBytes.length);
+        System.arraycopy(encryptedEmailBytes, 0, ivAndCiphertext, 12, encryptedEmailBytes.length);
+
+        final byte[] emailBytes = AesGcm.decrypt(ivAndCiphertext, 0, sharedSecret);
+        final String email = new String(emailBytes, StandardCharsets.UTF_8);
+
+        final InputUtil.InputVal input = InputUtil.normalizeEmail(email);
+        final int siteId = 6;
+
+        final IdentityTokens identityTokens = this.idService.generateIdentity(
+                new IdentityRequest(
+                        new PublisherIdentity(siteId, 0, 0),
+                        input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                        TokenGeneratePolicy.JustGenerate));
+
+        final JsonObject response = JsonObject.of("token", identityTokens.getAdvertisingToken());
+
+        final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
+
+        rc.response().end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+    }
+
+
 
     private void handleKeysRequestCommon(RoutingContext rc, Handler<JsonArray> onSuccess) {
         final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);

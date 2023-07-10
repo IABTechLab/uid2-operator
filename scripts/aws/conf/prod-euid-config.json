@@ -1,8 +1,8 @@
 {
   "service_instances": 4,
   "clients_metadata_path": "https://core.prod.euid.eu/clients/refresh",
-  "keys_metadata_path": "https://core.prod.euid.eu/key/refresh",
-  "keys_acl_metadata_path": "https://core.prod.euid.eu/key/acl/refresh",
+  "keysets_metadata_path": "https://core.prod.euid.eu/key/keyset/refresh",
+  "keyset_keys_metadata_path": "https://core.prod.euid.eu/key/keyset-keys/refresh",
   "salts_metadata_path": "https://core.prod.euid.eu/salt/refresh",
   "optout_metadata_path": "https://optout.prod.euid.eu/optout/refresh",
   "core_attest_url": "https://core.prod.euid.eu/attest",

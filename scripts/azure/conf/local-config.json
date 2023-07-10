@@ -1,8 +1,8 @@
 {
   "service_instances": 8,
   "clients_metadata_path": "http://172.17.0.1:8088/clients/refresh",
-  "keys_metadata_path": "http://172.17.0.1:8088/key/refresh",
-  "keys_acl_metadata_path": "http://172.17.0.1:8088/key/acl/refresh",
+  "keysets_metadata_path": "http://172.17.0.1:8088/key/keyset/refresh",
+  "keyset_keys_metadata_path": "http://172.17.0.1:8088/key/keyset-keys/refresh",
   "salts_metadata_path": "http://172.17.0.1:8088/salt/refresh",
   "core_attest_url": "http://172.17.0.1:8088/attest",
   "optout_s3_path_compat": false,

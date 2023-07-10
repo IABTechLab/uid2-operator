@@ -11,6 +11,7 @@ import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
 import com.uid2.shared.attest.AttestationFactory;
 import com.uid2.shared.attest.UidCoreClient;
+import com.uid2.shared.auth.KeysetSnapshot;
 import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
@@ -18,8 +19,8 @@ import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.store.reader.IMetadataVersionedStore;
 import com.uid2.shared.store.reader.RotatingClientKeyProvider;
-import com.uid2.shared.store.reader.RotatingKeyAclProvider;
-import com.uid2.shared.store.reader.RotatingKeyStore;
+import com.uid2.shared.store.reader.RotatingKeysetProvider;
+import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
 import com.uid2.shared.store.scope.GlobalScope;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
@@ -63,8 +64,8 @@ public class Main {
     private final ICloudStorage fsOptOut;
 
     private final RotatingClientKeyProvider clientKeyProvider;
-    private final RotatingKeyStore keyStore;
-    private final RotatingKeyAclProvider keyAclProvider;
+    private final RotatingKeysetKeyStore keysetKeyStore;
+    private final RotatingKeysetProvider keysetProvider;
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
     private OperatorDisableHandler disableHandler = null;
@@ -119,10 +120,10 @@ public class Main {
 
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
         this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
-        String keysMdPath = this.config.getString(Const.Config.KeysMetadataPathProp);
-        this.keyStore = new RotatingKeyStore(fsStores, new GlobalScope(new CloudPath(keysMdPath)));
-        String keysAclMdPath = this.config.getString(Const.Config.KeysAclMetadataPathProp);
-        this.keyAclProvider = new RotatingKeyAclProvider(fsStores, new GlobalScope(new CloudPath(keysAclMdPath)));
+        String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
+        this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)));
+        String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
+        this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
 
@@ -130,12 +131,12 @@ public class Main {
 
         if (useStorageMock && coreAttestUrl == null) {
             this.clientKeyProvider.loadContent();
-            this.keyStore.loadContent();
-            this.keyAclProvider.loadContent();
             this.saltProvider.loadContent();
+            this.keysetProvider.loadContent();
+            this.keysetKeyStore.loadContent();
         }
 
-        metrics = new OperatorMetrics(keyStore, saltProvider);
+        metrics = new OperatorMetrics(keysetKeyStore, keysetProvider.getSnapshot(), saltProvider);
     }
 
     public static void main(String[] args) throws Exception {
@@ -214,7 +215,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keysetKeyStore, keysetProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;
@@ -253,8 +254,8 @@ public class Main {
     private Future<Void> createStoreVerticles() throws Exception {
         // load metadatas for the first time
         clientKeyProvider.getMetadata();
-        keyStore.getMetadata();
-        keyAclProvider.getMetadata();
+        keysetKeyStore.getMetadata();
+        keysetProvider.getMetadata();
         saltProvider.getMetadata();
 
         // create cloud sync for optout store
@@ -265,8 +266,8 @@ public class Main {
         Promise<Void> promise = Promise.promise();
         List<Future> fs = new ArrayList<>();
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("key", keyStore, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("keys_acl", keyAclProvider, 10000));
+        fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, 10000));
+        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, 10000));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {

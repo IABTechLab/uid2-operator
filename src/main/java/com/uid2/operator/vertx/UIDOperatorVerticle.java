@@ -13,16 +13,15 @@ import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Utils;
-import com.uid2.shared.auth.ClientKey;
-import com.uid2.shared.auth.IRoleAuthorizable;
-import com.uid2.shared.auth.Role;
+import com.uid2.shared.auth.*;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
-import com.uid2.shared.model.EncryptionKey;
+import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
+import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.*;
 import io.vertx.core.*;
@@ -57,16 +56,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public static final String ValidationInputPhone = "+12345678901";
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
-
-    private static final int DEFAULT_MASTER_KEYSET_ID = 1;
-    private static final int DEFAULT_KEYSET_ID = 99999;
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final JsonObject config;
     private final AuthMiddleware auth;
-    private final IKeyStore keyStore;
+    private final IKeysetKeyStore keysetKeyStore;
     private final ITokenEncoder encoder;
-    private final IKeyAclProvider keyAclProvider;
+    private final RotatingKeysetProvider keysetProvider;
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final Clock clock;
@@ -88,8 +84,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
-                               IKeyStore keyStore,
-                               IKeyAclProvider keyAclProvider,
+                               IKeysetKeyStore keysetKeyStore,
+                               RotatingKeysetProvider keysetProvider,
                                ISaltProvider saltProvider,
                                IOptOutStore optOutStore,
                                Clock clock,
@@ -97,14 +93,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
-        this.keyStore = keyStore;
-        this.encoder = new EncryptedTokenEncoder(keyStore);
-        this.keyAclProvider = keyAclProvider;
+        this.keysetKeyStore = keysetKeyStore;
+        this.encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+        this.keysetProvider = keysetProvider;
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
-        this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
+        this.v2PayloadHandler = new V2PayloadHandler(keysetKeyStore, keysetProvider, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
 
@@ -236,9 +232,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final List<EncryptionKey> keys = getEncryptionKeys();
-        final IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
-        onSuccess.handle(toJson(keys, clientKey, acls));
+        final List<KeysetKey> keys = getKeysetKeys();
+        onSuccess.handle(toJson(keys, clientKey, this.keysetProvider));
     }
 
     public void handleKeysRequestV1(RoutingContext rc) {
@@ -271,44 +266,53 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public void handleKeysSharing(RoutingContext rc) {
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
-
-            final JsonObject resp = new JsonObject();
-            resp.put("caller_site_id", clientKey.getSiteId());
-            resp.put("master_keyset_id", DEFAULT_MASTER_KEYSET_ID);
-            resp.put("default_keyset_id", DEFAULT_KEYSET_ID);
-            resp.put("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
-
             final JsonArray keys = new JsonArray();
-            final IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
-
-            final List<EncryptionKey> keyStore = getEncryptionKeys();
+            final KeysetSnapshot keysetSnapshot = this.keysetProvider.getSnapshot();
+            final List<KeysetKey> keysetKeyStore = getKeysetKeys();
 
             MissingAclMode mode = MissingAclMode.DENY_ALL;
             // This will break if another Type is added to this map
             IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
-            if(roleAuthorize.hasRole(Role.ID_READER)) {
+            if (roleAuthorize.hasRole(Role.ID_READER)) {
                 mode = MissingAclMode.ALLOW_ALL;
             }
 
-            for (EncryptionKey key: keyStore) {
-                JsonObject keySet = new JsonObject();
-                if(clientKey.getSiteId() == key.getSiteId()) {
-                    keySet.put("keyset_id", DEFAULT_KEYSET_ID);
-                } else if (key.getSiteId() == -1) {
-                    keySet.put("keyset_id", DEFAULT_MASTER_KEYSET_ID);
-                } else if (!acls.canClientAccessKey(clientKey, key, mode)) {
-                    continue;
-                }
-                keySet.put("id", key.getId());
-                keySet.put("created", key.getCreated().getEpochSecond());
-                keySet.put("activates", key.getActivates().getEpochSecond());
-                keySet.put("expires", key.getExpires().getEpochSecond());
-                keySet.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
-
-
-                keys.add(keySet);
+            KeysetKey masterKey = EncryptionKeyUtil.getActiveKeyBySiteId(this.keysetKeyStore.getSnapshot(), keysetSnapshot, Const.Data.MasterKeySiteId, Instant.now());
+            if (masterKey == null) {
+                throw new RuntimeException(String.format("Cannot get active master key with SITE ID %d.", Const.Data.MasterKeySiteId));
             }
 
+            // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
+            int defaultKeysetId = EncryptionKeyUtil.getActiveKeyBySiteIdWithFallback(this.keysetKeyStore.getSnapshot(), keysetSnapshot, clientKey.getSiteId(), Const.Data.AdvertisingTokenSiteId, Instant.now()).getKeysetId();
+
+            // include 'keyset_id' field, if:
+            //   (a) a key belongs to caller's site
+            //   (b) a key belongs to master_keyset
+            // otherwise, when a key is accessible by caller, the key can be used for decryption only. skip 'keyset_id' field.
+            for (KeysetKey key: keysetKeyStore) {
+                JsonObject keyObj = new JsonObject();
+                Keyset keyset = this.keysetProvider.getSnapshot().getKeyset(key.getKeysetId());
+                if(clientKey.getSiteId() == keyset.getSiteId() && keyset.isEnabled()) {
+                    keyObj.put("keyset_id", key.getKeysetId());
+                } else if (keyset.getSiteId() == Const.Data.MasterKeySiteId && keyset.isEnabled()) {
+                    keyObj.put("keyset_id", key.getKeysetId());
+                } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
+                    continue;
+                }
+                keyObj.put("id", key.getId());
+                keyObj.put("created", key.getCreated().getEpochSecond());
+                keyObj.put("activates", key.getActivates().getEpochSecond());
+                keyObj.put("expires", key.getExpires().getEpochSecond());
+                keyObj.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
+
+                keys.add(keyObj);
+            }
+
+            final JsonObject resp = new JsonObject();
+            resp.put("caller_site_id", clientKey.getSiteId());
+            resp.put("master_keyset_id", masterKey.getKeysetId());
+            resp.put("default_keyset_id", defaultKeysetId);
+            resp.put("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
             resp.put("keys", keys);
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
@@ -317,11 +321,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    private List<EncryptionKey> getEncryptionKeys() {
-        final List<EncryptionKey> keyStore = this.keyStore.getSnapshot().getActiveKeySet()
-                .stream().filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
+    private List<KeysetKey> getKeysetKeys() {
+        Map<Integer, Keyset> keysetMap = this.keysetProvider.getSnapshot().getAllKeysets();
+        IKeysetKeyStore.IkeysetKeyStoreSnapshot keysetKeyStoreSnapshot = this.keysetKeyStore.getSnapshot();
+        List<KeysetKey> keys = keysetKeyStoreSnapshot.getActiveKeysetKeys();
+        final List<KeysetKey> keysetKeyStore = keys
+                .stream().filter(k -> keysetMap.get(k.getKeysetId()).getSiteId() != Const.Data.RefreshKeySiteId)
                 .collect(Collectors.toList());
-        return keyStore;
+        return keysetKeyStore;
     }
 
     private void handleHealthCheck(RoutingContext rc) {
@@ -347,7 +354,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         String refreshToken = tokenList.get(0);
         if (refreshToken.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
             // V2 token sent by V1 JSSDK. Decrypt and extract original refresh token
-            V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, keyStore);
+            V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, keysetKeyStore);
             if (v2req.isValid()) {
                 refreshToken = (String) v2req.payload;
             }
@@ -1416,11 +1423,18 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return json;
     }
 
-    private JsonArray toJson(List<EncryptionKey> keys, ClientKey clientKey, IKeysAclSnapshot acls) {
+    private JsonArray toJson(List<KeysetKey> keys, ClientKey clientKey, RotatingKeysetProvider keysetProvider) {
+        /* Reviewers to confirm: whether we need to check MissingAclMode by client's role.
+        MissingAclMode mode = MissingAclMode.DENY_ALL;
+        if (clientKey.getRoles().contains(Role.ID_READER)) {
+            mode = MissingAclMode.ALLOW_ALL;
+        }*/
+        MissingAclMode mode = MissingAclMode.ALLOW_ALL;
+        KeysetSnapshot keysetSnapshot = keysetProvider.getSnapshot();
         final JsonArray a = new JsonArray();
         for (int i = 0; i < keys.size(); ++i) {
-            final EncryptionKey k = keys.get(i);
-            if (!acls.canClientAccessKey(clientKey, k)) {
+            final KeysetKey k = keys.get(i);
+            if (!keysetSnapshot.canClientAccessKey(clientKey, k, mode)) {
                 continue;
             }
 
@@ -1430,7 +1444,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             o.put("activates", k.getActivates().getEpochSecond());
             o.put("expires", k.getExpires().getEpochSecond());
             o.put("secret", EncodingUtils.toBase64String(k.getKeyBytes()));
-            o.put("site_id", k.getSiteId());
+            o.put("site_id", keysetSnapshot.getKeyset(k.getKeysetId()).getSiteId());
             a.add(o);
         }
         return a;

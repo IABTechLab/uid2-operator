@@ -1,12 +1,16 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.IdentityScope;
+import com.uid2.shared.Const;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
-import com.uid2.shared.model.EncryptionKey;
-import com.uid2.shared.store.IKeyStore;
+import com.uid2.shared.auth.KeysetSnapshot;
+import com.uid2.shared.model.KeysetKey;
+import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
+import com.uid2.shared.auth.KeysetSnapshot;
+import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -110,7 +114,7 @@ public class V2RequestUtil {
         return new V2Request(b.slice(8, 16).getBytes(), payload, ck.getSecretBytes());
     }
 
-    public static V2Request parseRefreshRequest(String bodyString, IKeyStore keyStore) {
+    public static V2Request parseRefreshRequest(String bodyString, IKeysetKeyStore keysetKeyStore) {
         byte[] bytes;
         try {
             // Refresh token envelop format:
@@ -126,7 +130,7 @@ public class V2RequestUtil {
         // Skip first identity scope byte
         int keyId = Buffer.buffer(bytes).getInt(1);
 
-        EncryptionKey key = keyStore.getSnapshot().getKey(keyId);
+        KeysetKey key = keysetKeyStore.getSnapshot().getKey(keyId);
         if (key == null) {
             return new V2Request("Invalid key: Generator of this token does not exist.");
         }
@@ -151,8 +155,9 @@ public class V2RequestUtil {
         }
     }
 
-    public static void handleRefreshTokenInResponseBody(JsonObject bodyJson, IKeyStore keyStore, IdentityScope identityScope) throws Exception {
-        EncryptionKey refreshKey = keyStore.getSnapshot().getRefreshKey(Clock.systemUTC().instant());
+    public static void handleRefreshTokenInResponseBody(JsonObject bodyJson, IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider, IdentityScope identityScope) throws Exception {
+        KeysetKey refreshKey = EncryptionKeyUtil.getActiveKeyBySiteId(
+            keysetKeyStore.getSnapshot(), keysetProvider.getSnapshot(), Const.Data.RefreshKeySiteId, Instant.now());
 
         JsonObject tokenKeyJson = new JsonObject();
 

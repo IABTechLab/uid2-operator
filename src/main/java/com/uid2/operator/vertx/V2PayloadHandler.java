@@ -7,8 +7,9 @@ import com.uid2.operator.service.V2RequestUtil;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
-import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.encryption.AesGcm;
+import com.uid2.shared.store.IKeysetKeyStore;
+import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
@@ -23,14 +24,17 @@ import java.util.function.Function;
 public class V2PayloadHandler {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(V2PayloadHandler.class);
 
-    private IKeyStore keyStore;
+    private IKeysetKeyStore keysetKeyStore;
+
+    private RotatingKeysetProvider keysetProvider;
 
     private Boolean enableEncryption;
 
     private IdentityScope identityScope;
 
-    public V2PayloadHandler(IKeyStore keyStore, Boolean enableEncryption, IdentityScope identityScope) {
-        this.keyStore = keyStore;
+    public V2PayloadHandler(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider, Boolean enableEncryption, IdentityScope identityScope) {
+        this.keysetKeyStore = keysetKeyStore;
+        this.keysetProvider = keysetProvider;
         this.enableEncryption = enableEncryption;
         this.identityScope = identityScope;
     }
@@ -95,7 +99,7 @@ public class V2PayloadHandler {
 
             // DevNote: 200 does not guarantee a token.
             if (respJson.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && respJson.containsKey("body")) {
-                V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), keyStore, this.identityScope);
+                V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), this.keysetKeyStore, this.keysetProvider, this.identityScope);
             }
 
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
@@ -116,7 +120,7 @@ public class V2PayloadHandler {
 
         V2RequestUtil.V2Request request = null;
         if (bodyString != null && bodyString.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
-            request = V2RequestUtil.parseRefreshRequest(bodyString, this.keyStore);
+            request = V2RequestUtil.parseRefreshRequest(bodyString, this.keysetKeyStore);
             if (!request.isValid()) {
                 ResponseUtil.ClientError(rc, request.errorMessage);
                 return;
@@ -138,7 +142,7 @@ public class V2PayloadHandler {
 
             JsonObject bodyJson = respJson.getJsonObject("body");
             if (bodyJson != null)
-                V2RequestUtil.handleRefreshTokenInResponseBody(bodyJson, keyStore, this.identityScope);
+                V2RequestUtil.handleRefreshTokenInResponseBody(bodyJson, this.keysetKeyStore, this.keysetProvider, this.identityScope);
 
             if (request != null) {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");

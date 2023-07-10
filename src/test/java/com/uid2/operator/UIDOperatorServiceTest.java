@@ -8,7 +8,8 @@ import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
-import com.uid2.shared.store.reader.RotatingKeyStore;
+import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
+import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import com.uid2.shared.store.scope.GlobalScope;
 import com.uid2.shared.model.TokenVersion;
 import io.vertx.core.json.JsonObject;
@@ -47,10 +48,15 @@ public class UIDOperatorServiceTest {
 
         Security.setProperty("crypto.policy", "unlimited");
 
-        RotatingKeyStore keyStore = new RotatingKeyStore(
+        RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
                 new EmbeddedResourceStorage(Main.class),
-                new GlobalScope(new CloudPath("/com.uid2.core/test/keys/metadata.json")));
-        keyStore.loadContent();
+                new GlobalScope(new CloudPath("/com.uid2.core/test/keyset_keys/metadata.json")));
+        keysetKeyStore.loadContent();
+
+        RotatingKeysetProvider keysetProvider = new RotatingKeysetProvider(
+                new EmbeddedResourceStorage(Main.class),
+                new GlobalScope(new CloudPath("/com.uid2.core/test/keysets/metadata.json")));
+        keysetProvider.loadContent();
 
         RotatingSaltProvider saltProvider = new RotatingSaltProvider(
                 new EmbeddedResourceStorage(Main.class),
@@ -62,7 +68,7 @@ public class UIDOperatorServiceTest {
         config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
 
-        tokenEncoder = new EncryptedTokenEncoder(keyStore);
+        tokenEncoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
 
         setNow(Instant.now());
 

@@ -1,0 +1,92 @@
+[
+  {
+    "keyset_id": 101,
+    "site_id": -1,
+    "name": "Master keyset",
+    "allowed_sites": [1, 2, 3, 4, 5, 6, 7, 8],
+    "created": 1617149276,
+    "enabled": true,
+    "default": true
+  },
+  {
+    "keyset_id": 201,
+    "site_id": -2,
+    "name": "Refresh keyset",
+    "allowed_sites": [1, 2, 3, 4, 5, 6, 7, 8],
+    "created": 1617149276,
+    "enabled": true,
+    "default": true
+  },
+  {
+    "keyset_id": 202,
+    "site_id": 2,
+    "name": "Publisher keyset",
+    "allowed_sites": [1, 2, 3, 4, 5, 6, 7, 8],
+    "created": 1617149276,
+    "enabled": true,
+    "default": true
+  },
+  {
+    "keyset_id": 501,
+    "site_id": 5,
+    "name": "My keyset #5-1",
+    "allowed_sites": [2, 3, 4],
+    "created": 1617149276,
+    "enabled": true,
+    "default": false
+  },
+  {
+    "keyset_id": 502,
+    "site_id": 5,
+    "name": "My keyset #5-2",
+    "allowed_sites": [2, 3, 4],
+    "created": 1617149276,
+    "enabled": true,
+    "default": true
+  },
+  {
+    "keyset_id": 503,
+    "site_id": 5,
+    "name": "My keyset #5-3",
+    "allowed_sites": [2, 3, 4],
+    "created": 1617149276,
+    "enabled": false,
+    "default": false
+  },
+  {
+    "keyset_id": 601,
+    "site_id": 6,
+    "name": "My keyset #6-1",
+    "allowed_sites": [2, 3, 4],
+    "created": 1617149276,
+    "enabled": true,
+    "default": true
+  },
+  {
+    "keyset_id": 602,
+    "site_id": 6,
+    "name": "My keyset #6-2",
+    "allowed_sites": [2, 3, 4],
+    "created": 1617149276,
+    "enabled": true,
+    "default": false
+  },
+  {
+    "keyset_id": 701,
+    "site_id": 7,
+    "name": "My keyset #7",
+    "allowed_sites": [2, 3, 4],
+    "created": 1617149276,
+    "enabled": true,
+    "default": true
+  },
+  {
+    "keyset_id": 801,
+    "site_id": 8,
+    "name": "My keyset #5",
+    "allowed_sites": [2, 3, 4],
+    "created": 1617149276,
+    "enabled": true,
+    "default": true
+  }
+]

@@ -91,9 +91,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final boolean phoneSupport;
     private final int tcfVendorId;
 
-    //(Client Side Token Generate (CSTG) fields:
-    //TODO - probably belong in their own class
-    private final KeyPair ecdhKeyPair;
 
     private IStatsCollectorQueue _statsCollectorQueue;
 
@@ -120,21 +117,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
 
         this._statsCollectorQueue = statsCollectorQueue;
-
-        //CSTG
-        final String ecdhCurvenameString = "secp256r1";
-        // standard curvennames
-        // secp256r1 [NIST P-256, X9.62 prime256v1]
-        // secp384r1 [NIST P-384]
-        // secp521r1 [NIST P-521]
-        try {
-            final KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC", "SunEC");
-            final ECGenParameterSpec ecParameterSpec = new ECGenParameterSpec(ecdhCurvenameString);
-            keyPairGenerator.initialize(ecParameterSpec);
-            ecdhKeyPair = keyPairGenerator.genKeyPair();
-        } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException | NoSuchProviderException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override
@@ -251,13 +233,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
 
-        //final Buffer publicKeyBuffer = Buffer.buffer(Base64.getEncoder().encode(ecdhKeyPair.getPublic().getEncoded()));
         final Buffer publicKeyBuffer = Buffer.buffer("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==");
         //Public: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg=="
         //Private: "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug=="
 
-
-        final Buffer privateKeyBuffer = Buffer.buffer(Base64.getEncoder().encode(ecdhKeyPair.getPrivate().getEncoded()));
         v2Router.get("/cstg/ecdh/public").handler(rc -> rc.end(publicKeyBuffer));
         v2Router.post("/token/client-generate").handler(bodyHandler).handler(rc -> handleClientSideTokenGenerate(rc));
 

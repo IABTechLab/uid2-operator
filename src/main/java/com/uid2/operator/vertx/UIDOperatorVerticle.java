@@ -233,12 +233,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
 
-        final Buffer publicKeyBuffer = Buffer.buffer("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==");
-        //Public: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg=="
-        //Private: "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug=="
-
-        v2Router.get("/cstg/ecdh/public").handler(rc -> rc.end(publicKeyBuffer));
-        v2Router.post("/token/client-generate").handler(bodyHandler).handler(rc -> handleClientSideTokenGenerate(rc));
+        if (config.getBoolean("client_side_token_generate", false))
+            v2Router.post("/token/client-generate").handler(bodyHandler).handler(rc -> handleClientSideTokenGenerate(rc));
 
         mainRouter.route("/v2/*").subRouter(v2Router);
     }
@@ -252,6 +248,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
+    private String getPrivateKeyForClientSideTokenGenerate() {
+        //Public: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg=="
+        //Private: "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug=="
+        return "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
+    }
+
     private void handleClientSideTokenGenerateImpl(RoutingContext rc)  throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body = rc.body().asJsonObject();
         final String clientPublicKey = body.getString("publicKey");
@@ -262,20 +264,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
         final PublicKey otherPublicKey = kf.generatePublic(pkSpec);
 
-        // Perform key agreement
-        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
-
-
-
-        final String privateKeyStr = "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
+        final String privateKeyStr = getPrivateKeyForClientSideTokenGenerate();
         final byte[] privateKeyBytes = Base64.getDecoder().decode(privateKeyStr);
-        //final X509EncodedKeySpec keySpec = new X509EncodedKeySpec(privateKeyBytes);
-        //final ECPrivateKeySpec keySpec = new ECPrivateKeySpec(privateKeyBytes);
         final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
         PrivateKey privateKey = kf.generatePrivate(keySpec);
-        ka.init(privateKey);
 
-        //ka.init(ecdhKeyPair.getPrivate());
+        // Perform key agreement
+        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
+        ka.init(privateKey);
 
         ka.doPhase(otherPublicKey, true);
 
@@ -301,7 +297,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 new IdentityRequest(
                         new PublisherIdentity(siteId, 0, 0),
                         input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                        TokenGeneratePolicy.JustGenerate));
+                        TokenGeneratePolicy.RespectOptOut));
 
         final JsonObject response = JsonObject.of("token", identityTokens.getAdvertisingToken());
 

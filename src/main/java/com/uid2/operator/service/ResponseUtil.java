@@ -42,13 +42,18 @@ public class ResponseUtil {
         rc.data().put("response", json);
     }
 
-    public static void SuccessV2(RoutingContext rc, Object body) {
+    public static JsonObject SuccessV2(Object body) {
         final JsonObject json = new JsonObject(new HashMap<String, Object>() {
             {
                 put("status", UIDOperatorVerticle.ResponseStatus.Success);
                 put("body", body);
             }
         });
+        return json;
+    }
+
+    public static void SuccessV2(RoutingContext rc, Object body) {
+        final JsonObject json = SuccessV2(body);
         rc.data().put("response", json);
     }
 

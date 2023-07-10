@@ -291,19 +291,26 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final String email = new String(emailBytes, StandardCharsets.UTF_8);
 
         final InputUtil.InputVal input = InputUtil.normalizeEmail(email);
-        final int siteId = 6;
+        final int siteId = 6; //todo, retrieve this from subscription_id
+
+        final int privacyBits = 1;
 
         final IdentityTokens identityTokens = this.idService.generateIdentity(
                 new IdentityRequest(
                         new PublisherIdentity(siteId, 0, 0),
-                        input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                        input.toUserIdentity(this.identityScope, privacyBits, Instant.now()),
                         TokenGeneratePolicy.RespectOptOut));
 
-        final JsonObject response = JsonObject.of("token", identityTokens.getAdvertisingToken());
-
-        final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
-
-        rc.response().end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+        if (identityTokens.isEmptyToken()) {
+            //todo handle optout (probably not like this)
+            //ResponseUtil.SuccessNoBodyV2("optout", rc);
+            //TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut);
+        } else {
+            final JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
+            final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
+            rc.response().end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+            //TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
+        }
     }
 
 

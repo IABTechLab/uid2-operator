@@ -307,33 +307,19 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         b.appendBytes(encryptedIdentity);
     }
 
-    public byte[] encode(UserToken t, Instant asOf) {
-        return encodeV2(t, asOf);
-    }
-
-    private byte[] encodeV2(UserToken t, Instant asOf) {
-        final EncryptionKey siteEncryptionKey = EncryptionKeyUtil.getActiveSiteKey(
-                this.keyStore.getSnapshot(), t.publisherIdentity.siteId, Const.Data.AdvertisingTokenSiteId, asOf);
-        final Buffer b = Buffer.buffer();
-        b.appendByte((byte) TokenVersion.V2.rawVersion);
-        encodeSiteIdentityV2(b, t.publisherIdentity, t.userIdentity, siteEncryptionKey);
-        return b.getBytes();
-    }
-
     public static String bytesToBase64Token(byte[] advertisingTokenBytes, TokenVersion tokenVersion) {
         return (tokenVersion == TokenVersion.V4) ?
                 Uid2Base64UrlCoder.encode(advertisingTokenBytes) : EncodingUtils.toBase64String(advertisingTokenBytes);
     }
 
     @Override
-    public IdentityTokens encode(AdvertisingToken advertisingToken, UserToken userToken, RefreshToken refreshToken, Instant refreshFrom, Instant asOf) {
+    public IdentityTokens encode(AdvertisingToken advertisingToken, RefreshToken refreshToken, Instant refreshFrom, Instant asOf) {
 
         final byte[] advertisingTokenBytes = encode(advertisingToken, asOf);
         final String base64AdvertisingToken = bytesToBase64Token(advertisingTokenBytes, advertisingToken.version);
 
         return new IdentityTokens(
                 base64AdvertisingToken,
-                EncodingUtils.toBase64String(encode(userToken, asOf)),
                 EncodingUtils.toBase64String(encode(refreshToken, asOf)),
                 advertisingToken.expiresAt,
                 refreshToken.expiresAt,

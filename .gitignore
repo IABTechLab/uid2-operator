@@ -11,3 +11,4 @@ build/**
 .DS_Store
 */node_modules/*
 *.iml
+.pre-commit-trivy-cache/

@@ -234,7 +234,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
 
         if (config.getBoolean("client_side_token_generate", false))
-            v2Router.post("/token/client-generate").handler(bodyHandler).handler(rc -> handleClientSideTokenGenerate(rc));
+            v2Router.post("/token/client-generate").handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
         mainRouter.route("/v2/*").subRouter(v2Router);
     }
@@ -248,10 +248,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    class ClientSideKeyPair
+    static class ClientSideKeyPair //todo move this
     {
-        private String privateKey;
-        int siteId;
+        private final String privateKey;
+        private final int siteId;
         //this class will be enhanced in UID2-1374
 
         public ClientSideKeyPair(int siteId, String privateKey) {
@@ -272,8 +272,32 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return new ClientSideKeyPair(123, config.getString("client_site_test_private_key"));
         }
         else {
-            //todo throw 400
+            //todo http 400
             return null;
+        }
+    }
+
+    class PrivacyBits {
+        private int bits;
+        public PrivacyBits() {
+        }
+
+        public int getAsInt() {
+            return bits;
+        }
+
+        public void setClientSideTokenGenerate() {
+            setBit(1);
+        }
+        public void setLegacyBit() {
+            setBit(0);//unknown why this bit is set in https://github.com/IABTechLab/uid2-operator/blob/dbab58346e367c9d4122ad541ff9632dc37bd410/src/main/java/com/uid2/operator/vertx/UIDOperatorVerticle.java#L534
+        }
+
+        private void setBit(int position) {
+            bits |= (1 << position);
+        }
+        private boolean isBitSet(int position) {
+            return (bits & (1 << position)) != 0;
         }
     }
 
@@ -281,10 +305,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final JsonObject body = rc.body().asJsonObject();
         final String encryptedEmail = body.getString("email");
         final String iv = body.getString("iv");
-        final JsonObject clientSideConfig = body.getJsonObject("clientSideConfig");
-        final String subscriptionId = clientSideConfig.getString("subscription_id");
-        final String clientPublicKeyString = clientSideConfig.getString("publicKey");
-
+        final String subscriptionId = body.getString("subscription_id");
+        final String clientPublicKeyString = body.getString("publicKey");
 
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 
@@ -318,14 +340,15 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final String email = new String(emailBytes, StandardCharsets.UTF_8);
 
         final InputUtil.InputVal input = InputUtil.normalizeEmail(email);
-        final int siteId = 6; //todo, retrieve this from subscription_id
 
-        final int privacyBits = 1;
+        PrivacyBits privacyBits = new PrivacyBits();
+        privacyBits.setLegacyBit();
+        privacyBits.setClientSideTokenGenerate();
 
         final IdentityTokens identityTokens = this.idService.generateIdentity(
                 new IdentityRequest(
-                        new PublisherIdentity(siteId, 0, 0),
-                        input.toUserIdentity(this.identityScope, privacyBits, Instant.now()),
+                        new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
+                        input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                         TokenGeneratePolicy.RespectOptOut));
 
         if (identityTokens.isEmptyToken()) {

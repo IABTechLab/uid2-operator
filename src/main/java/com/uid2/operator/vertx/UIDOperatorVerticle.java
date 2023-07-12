@@ -67,7 +67,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private static final int DEFAULT_MASTER_KEYSET_ID = 1;
     private static final int DEFAULT_KEYSET_ID = 99999;
-    private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+    private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final JsonObject config;
     private final AuthMiddleware auth;
@@ -92,7 +92,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final int tcfVendorId;
 
 
-    private IStatsCollectorQueue _statsCollectorQueue;
+    private final IStatsCollectorQueue _statsCollectorQueue;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -279,8 +279,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private void handleClientSideTokenGenerateImpl(RoutingContext rc)  throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body = rc.body().asJsonObject();
+        final String encryptedEmail = body.getString("email");
+        final String iv = body.getString("iv");
+        final JsonObject clientSideConfig = body.getJsonObject("clientSideConfig");
+        final String subscriptionId = clientSideConfig.getString("subscription_id");
+        final String clientPublicKeyString = clientSideConfig.getString("publicKey");
 
-        final String clientPublicKeyString = body.getString("publicKey");
+
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
@@ -288,7 +293,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
         final PublicKey clientPublicKey = kf.generatePublic(pkSpec);
 
-        final String subscriptionId = body.getString("subscription_id");
         final ClientSideKeyPair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
         final byte[] privateKeyBytes = Base64.getDecoder().decode(clientSideKeyPair.getPrivateKeyString());
         final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
@@ -303,10 +307,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();
 
-        final String encryptedEmail = body.getString("email");
         final byte[] encryptedEmailBytes = Base64.getDecoder().decode(encryptedEmail);
 
-        final String iv = body.getString("iv");
         final byte[] ivBytes = Base64.getDecoder().decode(iv);
 
         final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedEmailBytes.length);

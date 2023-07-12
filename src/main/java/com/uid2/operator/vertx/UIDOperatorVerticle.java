@@ -252,7 +252,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     {
         private String privateKey;
         int siteId;
-        //more fields will be added as part of UID2-1374
+        //this class will be enhanced in UID2-1374
 
         public ClientSideKeyPair(int siteId, String privateKey) {
             this.privateKey = privateKey;
@@ -269,9 +269,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private ClientSideKeyPair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
         if ("abcdefg".equals(subscriptionId)) {
-            //Public: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg=="
-            //Private: "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug=="
-            return new ClientSideKeyPair(123, "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==");
+            return new ClientSideKeyPair(123, config.getString("client_site_test_private_key"));
         }
         else {
             //todo throw 400

@@ -274,7 +274,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return new ClientSideKeyPair(123, config.getString("client_site_test_private_key"));
         }
         else {
-            //todo http 400
             return null;
         }
     }
@@ -318,6 +317,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final PublicKey clientPublicKey = kf.generatePublic(pkSpec);
 
         final ClientSideKeyPair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
+        if (clientSideKeyPair == null) {
+            rc.fail(401);
+            return;
+        }
+
         final byte[] privateKeyBytes = Base64.getDecoder().decode(clientSideKeyPair.getPrivateKeyString());
         final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
         PrivateKey privateKey = kf.generatePrivate(keySpec);

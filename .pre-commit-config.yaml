@@ -10,4 +10,6 @@ repos:
           - /src/trivy-secret.yaml
           - --skip-dirs
           - /src/target
+          - --skip-dirs
+          - /src/.idea
           - .

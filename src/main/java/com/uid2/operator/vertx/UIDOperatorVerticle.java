@@ -248,24 +248,51 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    private String getPrivateKeyForClientSideTokenGenerate() {
-        //Public: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg=="
-        //Private: "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug=="
-        return "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
+    class ClientSideKeyPair
+    {
+        private String privateKey;
+        int siteId;
+        //more fields will be added as part of UID2-1374
+
+        public ClientSideKeyPair(int siteId, String privateKey) {
+            this.privateKey = privateKey;
+            this.siteId = siteId;
+        }
+
+        public String getPrivateKeyString() {
+            return privateKey;
+        }
+        public int getSiteId() {
+            return siteId;
+        }
+    }
+
+    private ClientSideKeyPair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
+        if ("abcdefg".equals(subscriptionId)) {
+            //Public: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg=="
+            //Private: "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug=="
+            return new ClientSideKeyPair(123, "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==");
+        }
+        else {
+            //todo throw 400
+            return null;
+        }
     }
 
     private void handleClientSideTokenGenerateImpl(RoutingContext rc)  throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body = rc.body().asJsonObject();
-        final String clientPublicKey = body.getString("publicKey");
-        final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKey);
+
+        final String clientPublicKeyString = body.getString("publicKey");
+        final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
 
         final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
-        final PublicKey otherPublicKey = kf.generatePublic(pkSpec);
+        final PublicKey clientPublicKey = kf.generatePublic(pkSpec);
 
-        final String privateKeyStr = getPrivateKeyForClientSideTokenGenerate();
-        final byte[] privateKeyBytes = Base64.getDecoder().decode(privateKeyStr);
+        final String subscriptionId = body.getString("subscription_id");
+        final ClientSideKeyPair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
+        final byte[] privateKeyBytes = Base64.getDecoder().decode(clientSideKeyPair.getPrivateKeyString());
         final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
         PrivateKey privateKey = kf.generatePrivate(keySpec);
 
@@ -273,7 +300,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
         ka.init(privateKey);
 
-        ka.doPhase(otherPublicKey, true);
+        ka.doPhase(clientPublicKey, true);
 
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();

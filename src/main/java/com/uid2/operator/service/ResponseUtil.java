@@ -13,7 +13,7 @@ public class ResponseUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResponseUtil.class);
 
     public static void SuccessNoBody(String status, RoutingContext rc) {
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+        final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", status);
             }
@@ -23,7 +23,7 @@ public class ResponseUtil {
     }
 
     public static void Success(RoutingContext rc, Object body) {
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+        final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", UIDOperatorVerticle.ResponseStatus.Success);
                 put("body", body);
@@ -34,7 +34,7 @@ public class ResponseUtil {
     }
 
     public static void SuccessNoBodyV2(String status, RoutingContext rc) {
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+        final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", status);
             }
@@ -43,13 +43,12 @@ public class ResponseUtil {
     }
 
     public static JsonObject SuccessV2(Object body) {
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+        return new JsonObject(new HashMap<>() {
             {
                 put("status", UIDOperatorVerticle.ResponseStatus.Success);
                 put("body", body);
             }
         });
-        return json;
     }
 
     public static void SuccessV2(RoutingContext rc, Object body) {
@@ -63,7 +62,7 @@ public class ResponseUtil {
 
     public static void Error(String errorStatus, int statusCode, RoutingContext rc, String message) {
         logError(errorStatus, statusCode, message, new RoutingContextReader(rc));
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+        final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", errorStatus);
             }

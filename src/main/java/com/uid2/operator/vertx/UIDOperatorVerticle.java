@@ -34,6 +34,7 @@ import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.AllowForwardHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.vertx.ext.web.Router;
@@ -161,6 +162,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             router.route().handler(this.disableHandler);
         }
 
+        router.allowForward(AllowForwardHeaders.X_FORWARD);
         router.route().handler(new RequestCapturingHandler());
         router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js"));
         router.route().handler(CorsHandler.create()
@@ -1546,7 +1548,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private JsonObject toJsonV1(IdentityTokens t) {
         final JsonObject json = new JsonObject();
         json.put("advertising_token", t.getAdvertisingToken());
-        json.put("user_token", t.getUserToken());
         json.put("refresh_token", t.getRefreshToken());
         json.put("identity_expires", t.getIdentityExpires().toEpochMilli());
         json.put("refresh_expires", t.getRefreshExpires().toEpochMilli());
@@ -1578,7 +1579,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final JsonObject json = new JsonObject();
         json.put("advertisement_token", t.getAdvertisingToken());
         json.put("advertising_token", t.getAdvertisingToken());
-        json.put("user_token", t.getUserToken());
         json.put("refresh_token", t.getRefreshToken());
 
         return json;

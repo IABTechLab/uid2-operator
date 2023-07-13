@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/mxab/pre-commit-trivy.git
+    rev: v0.5.1
+    hooks:
+      - id: trivyfs-docker
+        args:
+          - --scanners
+          - secret
+          - --secret-config
+          - /src/trivy-secret.yaml
+          - --skip-dirs
+          - /src/target
+          - --skip-dirs
+          - /src/.idea
+          - .

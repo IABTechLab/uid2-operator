@@ -28,6 +28,7 @@ import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.*;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
@@ -43,7 +44,9 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
-import javax.crypto.KeyAgreement;
+import javax.crypto.*;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
@@ -70,6 +73,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private static final int DEFAULT_KEYSET_ID = 99999;
     private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
+    private final Cipher aesGcm;
     private final JsonObject config;
     private final AuthMiddleware auth;
     private final IKeyStore keyStore;
@@ -103,6 +107,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                                IOptOutStore optOutStore,
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue) {
+        try {
+            aesGcm = Cipher.getInstance("AES/GCM/NoPadding");
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            throw new RuntimeException(e);
+        }
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -278,7 +287,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    static class PrivacyBits { //todo move this
+    class PrivacyBits {
         private int bits;
         public PrivacyBits() {
         }
@@ -304,10 +313,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private void handleClientSideTokenGenerateImpl(RoutingContext rc)  throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body = rc.body().asJsonObject();
-        final String encryptedEmail = body.getString("email");
+        final String encryptedPayload = body.getString("payload");
         final String iv = body.getString("iv");
         final String subscriptionId = body.getString("subscription_id");
-        final String clientPublicKeyString = body.getString("publicKey");
+        final String clientPublicKeyString = body.getString("public_key");
+        final long timestamp = body.getLong("timestamp");
 
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 
@@ -335,17 +345,29 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();
 
-        final byte[] encryptedEmailBytes = Base64.getDecoder().decode(encryptedEmail);
+        final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
 
         final byte[] ivBytes = Base64.getDecoder().decode(iv);
 
-        final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedEmailBytes.length);
-        System.arraycopy(encryptedEmailBytes, 0, ivAndCiphertext, 12, encryptedEmailBytes.length);
+        final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedPayloadBytes.length);
+        System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
 
-        final byte[] emailBytes = AesGcm.decrypt(ivAndCiphertext, 0, sharedSecret);
-        final String email = new String(emailBytes, StandardCharsets.UTF_8);
+        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
 
-        final InputUtil.InputVal input = InputUtil.normalizeEmail(email);
+        final byte[] requestPayloadBytes;
+        try {
+            requestPayloadBytes = decrypt(ivAndCiphertext, 0, sharedSecret, aad);
+        } catch (InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+            rc.response()
+                    .setStatusCode(HttpResponseStatus.BAD_REQUEST.code())
+                    .end();
+            return;
+        }
+
+        final JsonObject requestPayload = new JsonObject(Buffer.buffer(Unpooled.wrappedBuffer(requestPayloadBytes)));
+        final String emailHash = requestPayload.getString("email_hash");
+
+        final InputUtil.InputVal input = InputUtil.normalizeEmailHash(emailHash);
 
         PrivacyBits privacyBits = new PrivacyBits();
         privacyBits.setLegacyBit();
@@ -369,7 +391,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-
+    private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        SecretKey key = new SecretKeySpec(secretBytes, "AES");
+        GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, encryptedBytes, offset, 12);
+        aesGcm.init(Cipher.DECRYPT_MODE, key, gcmParameterSpec);
+        aesGcm.updateAAD(aad);
+        return aesGcm.doFinal(encryptedBytes, offset + 12, encryptedBytes.length - offset - 12);
+    }
 
     private void handleKeysRequestCommon(RoutingContext rc, Handler<JsonArray> onSuccess) {
         final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
@@ -1108,7 +1136,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
             if (inputList == null) return;
-            
+
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(rc.getBodyAsJson());
             recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
 

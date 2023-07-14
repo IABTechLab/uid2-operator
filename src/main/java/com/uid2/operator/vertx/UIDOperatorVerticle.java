@@ -278,7 +278,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    class PrivacyBits {
+    static class PrivacyBits { //todo move this
         private int bits;
         public PrivacyBits() {
         }

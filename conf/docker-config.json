@@ -28,7 +28,7 @@
   "keys_metadata_path": "/com.uid2.core/test/keys/metadata.json",
   "keys_acl_metadata_path": "/com.uid2.core/test/keys_acl/metadata.json",
   "salts_metadata_path": "/com.uid2.core/test/salts/metadata.json",
-  "identity_token_expires_after_seconds": 604800,
+  "identity_token_expires_after_seconds": 3600,
   "optout_metadata_path": null,
   "optout_inmem_cache": false,
   "enclave_platform": null,

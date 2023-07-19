@@ -1,6 +1,5 @@
 name: Publish GCP OIDC Enclave Docker
 on:
-  push:
   workflow_dispatch:
     inputs:
       tag:
@@ -68,7 +67,7 @@ jobs:
           mvn -B package -P ${{ env.MAVEN_PROFILE }} 
           echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
           echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
-          cp -r targets ${{ env.DOCKER_CONTEXT_PATH }}/
+          cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
 
       - name: Commit pom.xml and version.json
         uses: EndBug/add-and-commit@v9

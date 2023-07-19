@@ -1,5 +1,6 @@
 name: Publish GCP OIDC Enclave Docker
 on:
+  push:
   workflow_dispatch:
     inputs:
       tag:

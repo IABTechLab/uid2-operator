@@ -36,6 +36,7 @@ if [ ! -f "${TARGET_CONFIG}" ]; then
 fi
 
 FINAL_CONFIG="/tmp/final-config.json"
+echo "-- copying ${TARGET_CONFIG} to ${FINAL_CONFIG}"
 cp ${TARGET_CONFIG} ${FINAL_CONFIG}
 if [ $? -ne 0 ]; then
   echo "Failed to create ${FINAL_CONFIG} with error code $?"
@@ -45,6 +46,7 @@ fi
 # -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
 # -- using hardcoded domains is fine because they should not be changed frequently
 if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONMENT}" != 'prod' ]; then
+    echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
     sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
     sed -i "s#https://core.integ.euid.eu#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
 

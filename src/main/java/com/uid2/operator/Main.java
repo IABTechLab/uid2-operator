@@ -408,6 +408,11 @@ public class Main {
             LOGGER.info("creating uid core client with gcp vmid attestation protocol");
             return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getGcpVmidAttestation(), enforceHttps);
         }
+        else if(enclavePlatform != null && enclavePlatform.equals("gcp-oidc"))
+        {
+            LOGGER.info("creating uid core client with gcp oidc attestation protocol");
+            return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getGcpOidcAttestation(), enforceHttps);
+        }
         else if(enclavePlatform != null && enclavePlatform.equals("azure-sgx"))
         {
             LOGGER.info("creating uid core client with azure sgx attestation protocol");

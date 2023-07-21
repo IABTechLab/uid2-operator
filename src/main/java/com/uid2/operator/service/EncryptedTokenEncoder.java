@@ -2,6 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
+import com.uid2.shared.Const.Data;
 import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.encryption.Uid2Base64UrlCoder;
@@ -26,13 +27,13 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     public byte[] encode(AdvertisingToken t, Instant asOf) {
         final KeysetKey masterKey = EncryptionKeyUtil.getActiveKeyBySiteId(
-                this.keysetKeyStore.getSnapshot(), keysetProvider.getSnapshot(), Const.Data.MasterKeySiteId, asOf);
+                this.keysetKeyStore.getSnapshot(), keysetProvider.getSnapshot(), Data.MasterKeySiteId, asOf);
         if (masterKey == null) {
-            throw new RuntimeException(String.format("Cannot get active master key with SITE ID %d.", Const.Data.MasterKeySiteId));
+            throw new RuntimeException(String.format("Cannot get active master key with SITE ID %d.", Data.MasterKeySiteId));
         }
 
         final KeysetKey siteEncryptionKey = EncryptionKeyUtil.getActiveKeyBySiteIdWithFallback(
-                this.keysetKeyStore.getSnapshot(), this.keysetProvider.getSnapshot(), t.publisherIdentity.siteId, Const.Data.AdvertisingTokenSiteId, asOf);
+                this.keysetKeyStore.getSnapshot(), this.keysetProvider.getSnapshot(), t.publisherIdentity.siteId, Data.AdvertisingTokenSiteId, asOf);
 
         return t.version == TokenVersion.V2
                 ? encodeV2(t, masterKey, siteEncryptionKey)
@@ -265,9 +266,9 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     public byte[] encode(RefreshToken t, Instant asOf) {
         final KeysetKey serviceKey = EncryptionKeyUtil.getActiveKeyBySiteId(
-                this.keysetKeyStore.getSnapshot(), this.keysetProvider.getSnapshot(), Const.Data.RefreshKeySiteId, asOf);
+                this.keysetKeyStore.getSnapshot(), this.keysetProvider.getSnapshot(), Data.RefreshKeySiteId, asOf);
         if (serviceKey == null) {
-            throw new RuntimeException(String.format("Cannot get active refresh key with SITE ID %d", Const.Data.RefreshKeySiteId));
+            throw new RuntimeException(String.format("Cannot get active refresh key with SITE ID %d", Data.RefreshKeySiteId));
         }
 
         switch (t.version) {

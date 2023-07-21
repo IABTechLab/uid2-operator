@@ -1,6 +1,8 @@
 package com.uid2.operator;
 
 public class Const extends com.uid2.shared.Const {
+    public static Object Data;
+
     public class Config extends com.uid2.shared.Const.Config {
         public static final String ServiceInstancesProp = "service_instances";
         public static final String OptOutBloomFilterSizeProp = "optout_bloom_filter_size";

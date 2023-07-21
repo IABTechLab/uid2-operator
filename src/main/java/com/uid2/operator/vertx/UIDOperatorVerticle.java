@@ -14,6 +14,7 @@ import com.uid2.operator.store.*;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.*;
+import com.uid2.shared.Const.Data;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
@@ -277,13 +278,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 mode = MissingAclMode.ALLOW_ALL;
             }
 
-            KeysetKey masterKey = EncryptionKeyUtil.getActiveKeyBySiteId(this.keysetKeyStore.getSnapshot(), keysetSnapshot, Const.Data.MasterKeySiteId, Instant.now());
+            KeysetKey masterKey = EncryptionKeyUtil.getActiveKeyBySiteId(this.keysetKeyStore.getSnapshot(), keysetSnapshot, Data.MasterKeySiteId, Instant.now());
             if (masterKey == null) {
-                throw new RuntimeException(String.format("Cannot get active master key with SITE ID %d.", Const.Data.MasterKeySiteId));
+                throw new RuntimeException(String.format("Cannot get active master key with SITE ID %d.", Data.MasterKeySiteId));
             }
 
             // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
-            int defaultKeysetId = EncryptionKeyUtil.getActiveKeyBySiteIdWithFallback(this.keysetKeyStore.getSnapshot(), keysetSnapshot, clientKey.getSiteId(), Const.Data.AdvertisingTokenSiteId, Instant.now()).getKeysetId();
+            int defaultKeysetId = EncryptionKeyUtil.getActiveKeyBySiteIdWithFallback(this.keysetKeyStore.getSnapshot(), keysetSnapshot, clientKey.getSiteId(), Data.AdvertisingTokenSiteId, Instant.now()).getKeysetId();
 
             // include 'keyset_id' field, if:
             //   (a) a key belongs to caller's site
@@ -294,7 +295,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 Keyset keyset = this.keysetProvider.getSnapshot().getKeyset(key.getKeysetId());
                 if(clientKey.getSiteId() == keyset.getSiteId() && keyset.isEnabled()) {
                     keyObj.put("keyset_id", key.getKeysetId());
-                } else if (keyset.getSiteId() == Const.Data.MasterKeySiteId && keyset.isEnabled()) {
+                } else if (keyset.getSiteId() == Data.MasterKeySiteId && keyset.isEnabled()) {
                     keyObj.put("keyset_id", key.getKeysetId());
                 } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
                     continue;
@@ -326,7 +327,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         IKeysetKeyStore.IkeysetKeyStoreSnapshot keysetKeyStoreSnapshot = this.keysetKeyStore.getSnapshot();
         List<KeysetKey> keys = keysetKeyStoreSnapshot.getActiveKeysetKeys();
         final List<KeysetKey> keysetKeyStore = keys
-                .stream().filter(k -> keysetMap.get(k.getKeysetId()).getSiteId() != Const.Data.RefreshKeySiteId)
+                .stream().filter(k -> keysetMap.get(k.getKeysetId()).getSiteId() != Data.RefreshKeySiteId)
                 .collect(Collectors.toList());
         return keysetKeyStore;
     }

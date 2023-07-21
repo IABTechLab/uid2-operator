@@ -5,6 +5,7 @@ import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.TokenUtils;
 import com.uid2.shared.auth.Keyset;
+import com.uid2.shared.Const;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.CloudPath;

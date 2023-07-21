@@ -21,6 +21,7 @@ public class EncryptionKeyUtil {
     }
 
     public static KeysetKey getActiveKeyBySiteId(IKeysetKeyStore.IkeysetKeyStoreSnapshot keysetKeyStoreSnapshot, KeysetSnapshot keysetSnapshot, int siteId, Instant now) {
+        //keyManager.getActiveKeyBySiteId(site id, now)
         Map<Integer, Keyset> keysetMap = keysetSnapshot.getAllKeysets();
 
         // ID_READER can get null keyset

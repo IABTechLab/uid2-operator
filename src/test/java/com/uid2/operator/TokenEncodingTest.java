@@ -5,7 +5,7 @@ import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.TokenUtils;
 import com.uid2.shared.auth.Keyset;
-import com.uid2.shared.Const;
+import com.uid2.shared.Const.Data;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.CloudPath;
@@ -85,7 +85,7 @@ public class TokenEncodingTest {
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 25 : 2);
         KeysetKey key = this.keysetKeyStoreInstance.getSnapshot().getKey(keyId);
         Keyset keyset = this.keysetProviderInstance.getSnapshot().getKeyset(key.getKeysetId());
-        assertEquals(Const.Data.RefreshKeySiteId, keyset.getSiteId());
+        assertEquals(Data.RefreshKeySiteId, keyset.getSiteId());
     }
 
     @ParameterizedTest
@@ -120,6 +120,6 @@ public class TokenEncodingTest {
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 1 : 2); //TODO - extract master key from token should be a helper function
         KeysetKey key = this.keysetKeyStoreInstance.getSnapshot().getKey(keyId);
         Keyset keyset = this.keysetProviderInstance.getSnapshot().getKeyset(key.getKeysetId());
-        assertEquals(Const.Data.MasterKeySiteId, keyset.getSiteId());
+        assertEquals(Data.MasterKeySiteId, keyset.getSiteId());
     }
 }

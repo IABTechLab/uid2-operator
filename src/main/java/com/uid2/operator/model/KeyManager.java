@@ -2,7 +2,6 @@ package com.uid2.operator.model;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.uid2.shared.auth.Keyset;
@@ -12,11 +11,11 @@ import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 
 public class KeyManager {
-    private final IKeysetKeyStore keysetKeyStore;
-    private final RotatingKeysetProvider keysetProvider;
+    private final IKeysetKeyStore.IkeysetKeyStoreSnapshot keysetKeyStoreSnapshot;
+    private final KeysetSnapshot keysetSnapshot;
     public KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider) {
-        this.keysetKeyStore = keysetKeyStore;
-        this.keysetProvider = keysetProvider;
+        this.keysetKeyStoreSnapshot = keysetKeyStore.getSnapshot();
+        this.keysetSnapshot = keysetProvider.getSnapshot();
     }
     public KeysetKey getActiveKeyBySiteIdWithFallback(int siteId, int fallbackSiteId, Instant now) {
         KeysetKey key = getActiveKeyBySiteId(siteId, now);
@@ -27,29 +26,26 @@ public class KeyManager {
         return key;
     }
 
+    // Retrieve an active key from default keyset by caller's site id.
     public KeysetKey getActiveKeyBySiteId(int siteId, Instant now) {
-        IKeysetKeyStore.IkeysetKeyStoreSnapshot keysetKeyStoreSnapshot = this.keysetKeyStore.getSnapshot();
-        KeysetSnapshot keysetSnapshot = this.keysetProvider.getSnapshot();
 
-        Map<Integer, Keyset> keysetMap = keysetSnapshot.getAllKeysets();
-
-        // ID_READER can get null keyset
-        if (keysetMap == null) return null;
-
-        List<Keyset> keysets = keysetMap.values().stream()
-                .filter(s -> s.getSiteId() == siteId && s.isDefault() && s.isEnabled())
+        List<Keyset> keysets = keysetSnapshot.getAllKeysets().values().stream()
+                .filter(s -> s.isEnabled() && s.isDefault() && s.getSiteId() == siteId)
                 .collect(Collectors.toList());
 
-        if (keysets.size() > 1) {
-            throw new RuntimeException(String.format("Multiple default keysets are enabled with SITE ID %d.", siteId));
+        if (keysets.size() != 1) {
+            if (keysets.isEmpty()) {
+                throw new IllegalArgumentException("Cannot get active key in default keyset with SITE ID " + siteId);
+            } else {
+                throw new IllegalArgumentException("Multiple default keysets are enabled with SITE ID " + siteId);
+            }
         }
 
-        Keyset defaultKeyset = !keysets.isEmpty() ? keysets.get(0) : null;
-        if (defaultKeyset == null) {
-            return null;
-        }
-
-        KeysetKey activeKey = keysetKeyStoreSnapshot.getActiveKey(defaultKeyset.getKeysetId(), now);
+        KeysetKey activeKey = keysetKeyStoreSnapshot.getActiveKey(keysets.get(0).getKeysetId(), now);
         return activeKey;
+    }
+
+    public KeysetKey getActiveKey(int keysetId, Instant now) {
+        return keysetKeyStoreSnapshot.getActiveKey(keysetId, now);
     }
 }

@@ -8,5 +8,8 @@
   "core_attest_url": "http://localhost:8088/attest",
   "core_api_token": "trusted-partner-key",
   "optout_api_token": "test-operator-key",
-  "optout_api_uri": "http://localhost:8081/optout/replicate"
+  "optout_api_uri": "http://localhost:8081/optout/replicate",
+  "master_key_keyset_id": 1,
+  "refresh_key_keyset_id": 2,
+  "publisher_key_keyset_id": 3
 }

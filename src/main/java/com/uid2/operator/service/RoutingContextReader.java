@@ -1,6 +1,6 @@
 package com.uid2.operator.service;
 
-import com.uid2.shared.Const;
+import com.uid2.operator.Const;
 import com.uid2.shared.auth.IAuthorizable;
 import com.uid2.shared.middleware.AuthMiddleware;
 import io.vertx.ext.web.RoutingContext;

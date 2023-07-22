@@ -158,7 +158,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 .allowedMethod(io.vertx.core.http.HttpMethod.GET)
                 .allowedMethod(io.vertx.core.http.HttpMethod.POST)
                 .allowedMethod(io.vertx.core.http.HttpMethod.OPTIONS)
-                .allowedHeader(com.uid2.shared.Const.Http.ClientVersionHeader)
+                .allowedHeader(Const.Http.ClientVersionHeader)
                 .allowedHeader("Access-Control-Request-Method")
                 .allowedHeader("Access-Control-Allow-Credentials")
                 .allowedHeader("Access-Control-Allow-Origin")
@@ -327,7 +327,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         IKeysetKeyStore.IkeysetKeyStoreSnapshot keysetKeyStoreSnapshot = this.keysetKeyStore.getSnapshot();
         List<KeysetKey> keys = keysetKeyStoreSnapshot.getActiveKeysetKeys();
         final List<KeysetKey> keysetKeyStore = keys
-                .stream().filter(k -> keysetMap.get(k.getKeysetId()).getSiteId() != Data.RefreshKeySiteId)
+                .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && keysetMap.get(k.getKeysetId()).getSiteId() != Data.RefreshKeySiteId)
                 .collect(Collectors.toList());
         return keysetKeyStore;
     }

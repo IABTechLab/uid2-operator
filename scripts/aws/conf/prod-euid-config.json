@@ -24,5 +24,8 @@
   "refresh_token_v3": true,
   "enable_phone_support": false,
   "enable_v1_phone_support": false,
-  "enable_v2_encryption": true
+  "enable_v2_encryption": true,
+  "master_key_keyset_id": 1,
+  "refresh_key_keyset_id": 2,
+  "publisher_key_keyset_id": 3
 }

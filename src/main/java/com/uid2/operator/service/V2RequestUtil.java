@@ -1,15 +1,14 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.IdentityScope;
-import com.uid2.shared.Const;
+import com.uid2.operator.Const;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
-import com.uid2.shared.auth.KeysetSnapshot;
+import com.uid2.shared.Const.Data;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
-import com.uid2.shared.auth.KeysetSnapshot;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
@@ -157,7 +156,7 @@ public class V2RequestUtil {
 
     public static void handleRefreshTokenInResponseBody(JsonObject bodyJson, IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider, IdentityScope identityScope) throws Exception {
         KeysetKey refreshKey = EncryptionKeyUtil.getActiveKeyBySiteId(
-            keysetKeyStore.getSnapshot(), keysetProvider.getSnapshot(), Const.Data.RefreshKeySiteId, Instant.now());
+            keysetKeyStore.getSnapshot(), keysetProvider.getSnapshot(), Data.RefreshKeySiteId, Instant.now());
 
         JsonObject tokenKeyJson = new JsonObject();
 

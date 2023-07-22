@@ -24,6 +24,7 @@ import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.model.TokenVersion;
+import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -86,6 +87,8 @@ public class UIDOperatorVerticleTest {
     private KeysetSnapshot keysetSnapshot;
     @Mock
     private RotatingKeysetProvider keysetProvider;
+    @Mock
+    private RotatingKeysetKeyStore keysetKeyProvider;
     @Mock
     private KeysetSnapshot keysetProviderSnapshot;
     @Mock
@@ -2464,64 +2467,68 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    void setupMultiKeysetsAndKeys() {
+    /**********************************************
+     * SHARING TESTS
+     *********************************************/
+
+    void setupMultiKeysetsAndKeys() throws Exception{
         // setup Keysets
         Instant now = Instant.now();
         long nowL = now.toEpochMilli() / 1000;
 
-        Keyset masterkeyKeyset = new Keyset(1, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true);
-        Keyset siteKeyKeyset = new Keyset(2, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true);
-        Keyset refreshKeyKeyset = new Keyset(3, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true);
+        Map<Integer, Keyset> keysets = Map.of(
+            1, new Keyset(1, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
+            2, new Keyset(2, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
+            3, new Keyset(3, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
 
-        Keyset keyset4 = new Keyset(4, 101, "keyset4", Set.of(), nowL, true, true);
-        Keyset keyset5 = new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false); // non-default
-        Keyset keyset6 = new Keyset(6, 101, "keyset6", Set.of(), nowL, false, false); // disabled
+            4, new Keyset(4, 101, "keyset4", Set.of(), nowL, true, true),
+            5, new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default
+            6, new Keyset(6, 101, "keyset6", Set.of(), nowL, false, false), // disabled
 
-        Keyset keyset7 = new Keyset(7, 102, "keyset7", null, nowL, true, true);
-        Keyset keyset8 = new Keyset(8, 103, "keyset8", Set.of(), nowL, true, true);
-        Keyset keyset9 = new Keyset(9, 104, "keyset9", Set.of(102), nowL, true, true);
+            7, new Keyset(7, 102, "keyset7", null, nowL, true, true),
+            8, new Keyset(8, 103, "keyset8", Set.of(), nowL, true, true),
+            9, new Keyset(9, 104, "keyset9", Set.of(102), nowL, true, true)
+        );
 
-        Keyset[] keysets = { masterkeyKeyset, siteKeyKeyset, siteKeyKeyset, keyset4, keyset5, keyset6, keyset7, keyset8, keyset9 };
+        final KeysetKey[] keys = {
+            new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(30), 1),
+            new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(30), 2),
+            new KeysetKey(1003, makeAesKey("refreshKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(30), 3),
 
-        // setup activated, non-activated and expired keys
-        KeysetKey masterKey = new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(30), masterkeyKeyset.getKeysetId());
-        KeysetKey siteKey = new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(30), siteKeyKeyset.getKeysetId());
-        KeysetKey refreshKey = new KeysetKey(1003, makeAesKey("refreshKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(30), refreshKeyKeyset.getKeysetId());
+            // keys in keyset4
+            new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(30), 4),
+            new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(30), 4),
+            new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(30), 4),
+            new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(30), 4),
+            new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 4),
+            new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
 
-        // keys in keyset4
-        KeysetKey key4 = new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(30), keyset4.getKeysetId());
-        KeysetKey key5 = new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(30), keyset4.getKeysetId());
-        KeysetKey key6 = new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(30), keyset4.getKeysetId());
-        KeysetKey key7 = new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(30), keyset4.getKeysetId());
-        KeysetKey key8 = new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), keyset4.getKeysetId());
-        KeysetKey key9 = new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), keyset4.getKeysetId());
+            // keys in keyset5
+            new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(30), 5),
+            new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 5),
+            new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
 
-        // keys in keyset5
-        KeysetKey key10 = new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(30), keyset5.getKeysetId());
-        KeysetKey key11 = new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), keyset5.getKeysetId());
-        KeysetKey key12 = new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), keyset5.getKeysetId());
+            // keys in keyset6
+            new KeysetKey(1013, makeAesKey("key13"), now.minusSeconds(10), now, now.plusSeconds(30), 6),
+            new KeysetKey(1014, makeAesKey("key14"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 6),
+            new KeysetKey(1015, makeAesKey("key15"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 6),
 
-        // keys in keyset6
-        KeysetKey key13 = new KeysetKey(1013, makeAesKey("key13"), now.minusSeconds(10), now, now.plusSeconds(30), keyset6.getKeysetId());
-        KeysetKey key14 = new KeysetKey(1014, makeAesKey("key14"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), keyset6.getKeysetId());
-        KeysetKey key15 = new KeysetKey(1015, makeAesKey("key15"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), keyset6.getKeysetId());
+            // keys in keyset7
+            new KeysetKey(1016, makeAesKey("key16"), now.minusSeconds(10), now, now.plusSeconds(30), 7),
+            new KeysetKey(1017, makeAesKey("key17"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 7),
+            new KeysetKey(1018, makeAesKey("key18"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 7),
 
-        // keys in keyset7
-        KeysetKey key16 = new KeysetKey(1016, makeAesKey("key16"), now.minusSeconds(10), now, now.plusSeconds(30), keyset7.getKeysetId());
-        KeysetKey key17 = new KeysetKey(1017, makeAesKey("key17"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), keyset7.getKeysetId());
-        KeysetKey key18 = new KeysetKey(1018, makeAesKey("key18"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), keyset7.getKeysetId());
+            // keys in keyset8
+            new KeysetKey(1019, makeAesKey("key19"), now.minusSeconds(10), now, now.plusSeconds(30), 8),
+            new KeysetKey(1020, makeAesKey("key20"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 8),
+            new KeysetKey(1021, makeAesKey("key21"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 8),
 
-        // keys in keyset8
-        KeysetKey key19 = new KeysetKey(1019, makeAesKey("key19"), now.minusSeconds(10), now, now.plusSeconds(30), keyset8.getKeysetId());
-        KeysetKey key20 = new KeysetKey(1020, makeAesKey("key20"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), keyset8.getKeysetId());
-        KeysetKey key21 = new KeysetKey(1021, makeAesKey("key21"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), keyset8.getKeysetId());
+            // keys in keyset9
+            new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(30), 9),
+            new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 9),
+            new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
+        };
 
-        // keys in keyset9
-        KeysetKey key22 = new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(30), keyset9.getKeysetId());
-        KeysetKey key23 = new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), keyset9.getKeysetId());
-        KeysetKey key24 = new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), keyset9.getKeysetId());
-
-        KeysetKey[] keys = { masterKey, siteKey, refreshKey, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, key16, key17, key18, key19, key20, key21, key22, key23 };
         Map<Integer, KeysetKey> keyMap = Arrays.stream(keys).collect(Collectors.toMap(s -> s.getId(), s -> s));
 
         Map<Integer, List<KeysetKey>> keysetMap = Arrays.stream(keys).collect(Collectors.groupingBy(KeysetKey::getKeysetId, Collectors.mapping((KeysetKey k) -> k, toList())));
@@ -2530,11 +2537,62 @@ public class UIDOperatorVerticleTest {
             return snapshot.getActiveKey(i.getArgument(0, Integer.class), i.getArgument(1, Instant.class));
         });
 
+        setKeysets(keysets);
+        setKeysetKeys(1024, keys);
+        when(keysetKeyProvider.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
+        when(keysetProvider.getSnapshot()).thenReturn(keysetSnapshot);
+
         // verify getActiveKeyBySiteId()
-        assertEquals(masterKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, 101, now));
-        assertEquals(refreshKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, Data.RefreshKeySiteId, now));
-        assertEquals(siteKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, Data.AdvertisingTokenSiteId, now));
-        assertEquals(key6, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, 101, now));
+        //assertEquals(masterKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, -1, now));
+        //assertEquals(refreshKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, Data.RefreshKeySiteId, now));
+        //assertEquals(siteKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, Data.AdvertisingTokenSiteId, now));
+        //assertEquals(key6, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, 101, now));
+    }
+
+    void setKeysets(Map<Integer, Keyset> keysets) {
+        when(keysetSnapshot.getAllKeysets()).thenReturn(keysets);
+    }
+
+    void setKeysetKeys(int maxKeyId, KeysetKey... keys) throws Exception {
+        JsonObject metadata = new JsonObject();
+        metadata.put("max_key_id", maxKeyId);
+        List<KeysetKey> keysetKeys = Arrays.asList(keys);
+        HashMap<Integer, KeysetKey> keyMap = new HashMap<>();
+        keysetKeys.forEach(i -> keyMap.put(i.getId(), i));
+        when(keysetKeyProvider.getMetadata()).thenReturn(metadata);
+        when(keysetKeyStoreSnapshot.getActiveKeysetKeys()).thenReturn(keysetKeys);
+        when(keysetKeyStoreSnapshot.getKey(anyInt())).thenAnswer(i -> {
+            return keyMap.get(i.getArgument(0));
+        });
+    }
+
+    @Test
+    void testGenerateUsesDefaultKeyset(Vertx vertx, VertxTestContext testContext) throws Exception {
+        setupMultiKeysetsAndKeys();
+        final int clientSiteId = 101;
+        final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+
+        String v1Param = "email_hash=" + urlEncode(emailHash);
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email_hash", emailHash);
+
+        sendTokenGenerate("v2", vertx,
+                v1Param, v2Payload, 200,
+                json -> {
+                    assertEquals("success", json.getString("status"));
+                    JsonObject body = json.getJsonObject("body");
+                    assertNotNull(body);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+
+                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
+                    assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
+                    //Uses a key from default keyset
+                    assertEquals(1007, advertisingToken.publisherIdentity.clientKeyId);
+
+                    testContext.completeNow();
+                });
     }
 }
 

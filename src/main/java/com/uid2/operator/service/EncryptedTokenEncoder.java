@@ -218,8 +218,8 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                     TokenVersion.V2,
                     Instant.ofEpochMilli(establishedMillis),
                     Instant.ofEpochMilli(expiresMillis),
-                    new OperatorIdentity(0, OperatorType.Service, 0, 0),
-                    new PublisherIdentity(siteId, 0, 0),
+                    new OperatorIdentity(0, OperatorType.Service, 0, masterKeyId),
+                    new PublisherIdentity(siteId, siteKeyId, 0),
                     new UserIdentity(IdentityScope.UID2, IdentityType.Email, advertisingId, privacyBits, Instant.ofEpochMilli(establishedMillis), null)
             );
 

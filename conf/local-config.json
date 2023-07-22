@@ -27,5 +27,8 @@
   "optout_delta_backtrack_in_days": 1,
   "optout_heap_default_capacity": 8192,
   "optout_max_partitions": 30,
-  "optout_partition_interval": 86400
+  "optout_partition_interval": 86400,
+  "master_key_keyset_id": 1,
+  "refresh_key_keyset_id": 2,
+  "publisher_key_keyset_id": 3
 }

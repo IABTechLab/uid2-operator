@@ -26,5 +26,8 @@
   "optout_metadata_path": "https://optout-integ.uidapi.com/optout/refresh",
   "optout_inmem_cache": true,
   "enclave_platform": "azure-sgx",
-  "allow_legacy_api": false
+  "allow_legacy_api": false,
+  "master_key_keyset_id": 1,
+  "refresh_key_keyset_id": 2,
+  "publisher_key_keyset_id": 3
 }

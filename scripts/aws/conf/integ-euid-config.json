@@ -7,5 +7,8 @@
   "core_attest_url": "https://core.integ.euid.eu/attest",
   "optout_api_uri": "https://optout.integ.euid.eu/optout/replicate",
   "optout_s3_folder": "optout/",
-  "allow_legacy_api": false
+  "allow_legacy_api": false,
+  "master_key_keyset_id": 1,
+  "refresh_key_keyset_id": 2,
+  "publisher_key_keyset_id": 3
 }

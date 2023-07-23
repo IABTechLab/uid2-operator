@@ -2554,6 +2554,8 @@ public class UIDOperatorVerticleTest {
         when(keysetKeyProvider.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
         when(keysetProvider.getSnapshot()).thenReturn(keysetSnapshot);
 
+        linkKeysToKeysets(keys, keysets.values().toArray(new Keyset[0]));
+
         // verify getActiveKeyBySiteId()
         //assertEquals(masterKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, -1, now));
         //assertEquals(refreshKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, Data.RefreshKeySiteId, now));
@@ -2580,10 +2582,10 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void testGenerateUsesDefaultKeyset(Vertx vertx, VertxTestContext testContext) throws Exception {
-        setupMultiKeysetsAndKeys();
         final int clientSiteId = 101;
         final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
         fakeAuth(clientSiteId, Role.GENERATOR);
+        setupMultiKeysetsAndKeys();
         setupSalts();
 
         String v1Param = "email_hash=" + urlEncode(emailHash);
@@ -2601,8 +2603,7 @@ public class UIDOperatorVerticleTest {
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                     //Uses a key from default keyset
-                    assertEquals(1007, advertisingToken.publisherIdentity.clientKeyId);
-
+                    assertEquals(advertisingToken.version.equals(TokenVersion.V2) ? 1007 : 0, advertisingToken.publisherIdentity.clientKeyId);
                     testContext.completeNow();
                 });
     }

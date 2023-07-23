@@ -46,7 +46,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static java.util.stream.Collectors.toList;
-import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -65,8 +64,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -425,10 +423,12 @@ public class UIDOperatorVerticleTest {
             assertEquals(expectedKey.getActivates().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("activates")));
             assertEquals(expectedKey.getExpires().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("expires")));
             Keyset keyset = this.keysetProvider.getSnapshot().getKeyset(expectedKey.getKeysetId());
-            if(keyset.getSiteId() == siteId && keyset.isEnabled()) {
+            assertNotNull(keyset);
+            assertTrue(keyset.isEnabled());
+            if(keyset.getSiteId() == siteId) {
                 assertEquals(expectedKey.getKeysetId(), actualKey.getInteger("keyset_id"));
             }
-            else if(keyset.getSiteId() == Data.MasterKeySiteId && keyset.isEnabled()) {
+            else if(keyset.getSiteId() == Data.MasterKeySiteId) {
                 assertEquals(expectedKey.getKeysetId(), actualKey.getInteger("keyset_id"));
             }
             else {
@@ -645,11 +645,6 @@ public class UIDOperatorVerticleTest {
         //Creates a subset of all IDs
         KeysetKey[] expectedKeys = Arrays.copyOfRange(encryptionKeys, 0, 6);
 
-        // This sets ACL that the client can only access the calling keys
-        for (KeysetKey expectedKey : expectedKeys) {
-            when(keysetProviderSnapshot.canClientAccessKey(any(), eq(expectedKey), any())).thenReturn(true);
-        }
-
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
             assertEquals(siteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
@@ -741,13 +736,6 @@ public class UIDOperatorVerticleTest {
         addEncryptionKeys(encryptionKeys);
         linkKeysToKeysets(encryptionKeys, keysets);
 
-        //Creates a subset of all IDs
-        // This sets ACL that the client can only access the calling keys
-        for (KeysetKey expectedKey : encryptionKeys) {
-            //returning false to prove that function always returns above keys
-            when(keysetProviderSnapshot.canClientAccessKey(any(), eq(expectedKey), any())).thenReturn(false);
-        }
-
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
             checkEncryptionKeysSharing(respJson, siteId, encryptionKeys);
@@ -763,7 +751,7 @@ public class UIDOperatorVerticleTest {
         Keyset[] keysets = {
                 new Keyset(101, Data.MasterKeySiteId, "test", null, Instant.now().getEpochSecond(), true, true),
                 new Keyset(102, 4, "siteKeyset", null, Instant.now().getEpochSecond(), true, true),
-                new Keyset(103, Data.AdvertisingTokenSiteId, "PublisherKeyset", null, Instant.now().getEpochSecond(), true, true),
+                new Keyset(103, Data.AdvertisingTokenSiteId, "PublisherKeyset", Set.of(), Instant.now().getEpochSecond(), true, true),
         };
         addKeysets(keysets);
         KeysetKey[] encryptionKeys = {
@@ -774,17 +762,9 @@ public class UIDOperatorVerticleTest {
         addEncryptionKeys(encryptionKeys);
         linkKeysToKeysets(encryptionKeys, keysets);
 
-        //Creates a subset of all IDs
-        // This sets ACL that the client can only access the calling keys
-        for (KeysetKey expectedKey : encryptionKeys) {
-            //returning false to prove that function always returns above keys
-            when(keysetProviderSnapshot.canClientAccessKey(any(), eq(expectedKey), eq(MissingAclMode.ALLOW_ALL))).thenReturn(true);
-            when(keysetProviderSnapshot.canClientAccessKey(any(), eq(expectedKey), eq(MissingAclMode.DENY_ALL))).thenReturn(false);
-        }
-
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
-            checkEncryptionKeysSharing(respJson, siteId, encryptionKeys);
+            checkEncryptionKeysSharing(respJson, siteId, Arrays.copyOfRange(encryptionKeys, 0, 2)); // expected keys: key1 & key4
             testContext.completeNow();
         });
     }
@@ -935,7 +915,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", json.getString("status"));
                 JsonObject body = json.getJsonObject("body");
                 assertNotNull(body);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                 AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
 
@@ -975,7 +955,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", json.getString("status"));
                 JsonObject body = json.getJsonObject("body");
                 assertNotNull(body);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                 AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
@@ -1017,7 +997,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                 AdvertisingToken advertisingToken = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
@@ -1158,7 +1138,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
@@ -1863,7 +1843,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Phone);
 
@@ -1900,7 +1880,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Phone);
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
@@ -1942,7 +1922,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                 AdvertisingToken advertisingToken = validateAndGetToken(encoder, refreshBody, IdentityType.Phone);
                 assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
@@ -2492,7 +2472,7 @@ public class UIDOperatorVerticleTest {
             2, new Keyset(2, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
             3, new Keyset(3, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
 
-            4, new Keyset(4, 101, "keyset4", Set.of(), nowL, true, true),
+            4, new Keyset(4, 101, "keyset4", null, nowL, true, true),
             5, new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default
             6, new Keyset(6, 101, "keyset6", Set.of(), nowL, false, false), // disabled
 
@@ -2502,49 +2482,49 @@ public class UIDOperatorVerticleTest {
         );
 
         final KeysetKey[] keys = {
-            new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(30), 1),
-            new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(30), 2),
-            new KeysetKey(1003, makeAesKey("refreshKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(30), 3),
+            new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 1),
+            new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 2),
+            new KeysetKey(1003, makeAesKey("refreshKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 3),
 
             // keys in keyset4
-            new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(30), 4),
-            new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(30), 4),
-            new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(30), 4),
-            new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(30), 4),
-            new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 4),
+            new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(3600), 4),
+            new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(3600), 4),
+            new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(3600), 4),
+            new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(3600), 4),
+            new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 4),
             new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
 
             // keys in keyset5
-            new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(30), 5),
-            new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 5),
+            new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(3600), 5),
+            new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 5),
             new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
 
             // keys in keyset6
-            new KeysetKey(1013, makeAesKey("key13"), now.minusSeconds(10), now, now.plusSeconds(30), 6),
-            new KeysetKey(1014, makeAesKey("key14"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 6),
+            new KeysetKey(1013, makeAesKey("key13"), now.minusSeconds(10), now, now.plusSeconds(3600), 6),
+            new KeysetKey(1014, makeAesKey("key14"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 6),
             new KeysetKey(1015, makeAesKey("key15"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 6),
 
             // keys in keyset7
-            new KeysetKey(1016, makeAesKey("key16"), now.minusSeconds(10), now, now.plusSeconds(30), 7),
-            new KeysetKey(1017, makeAesKey("key17"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 7),
+            new KeysetKey(1016, makeAesKey("key16"), now.minusSeconds(10), now, now.plusSeconds(3600), 7),
+            new KeysetKey(1017, makeAesKey("key17"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 7),
             new KeysetKey(1018, makeAesKey("key18"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 7),
 
             // keys in keyset8
-            new KeysetKey(1019, makeAesKey("key19"), now.minusSeconds(10), now, now.plusSeconds(30), 8),
-            new KeysetKey(1020, makeAesKey("key20"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 8),
+            new KeysetKey(1019, makeAesKey("key19"), now.minusSeconds(10), now, now.plusSeconds(3600), 8),
+            new KeysetKey(1020, makeAesKey("key20"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 8),
             new KeysetKey(1021, makeAesKey("key21"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 8),
 
             // keys in keyset9
-            new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(30), 9),
-            new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(30), 9),
+            new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(3600), 9),
+            new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 9),
             new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
-        Map<Integer, KeysetKey> keyMap = Arrays.stream(keys).collect(Collectors.toMap(s -> s.getId(), s -> s));
+        Map<Integer, KeysetKey> keyMap = Arrays.stream(keys).collect(Collectors.toMap(KeysetKey::getId, s -> s));
 
         Map<Integer, List<KeysetKey>> keysetMap = Arrays.stream(keys).collect(Collectors.groupingBy(KeysetKey::getKeysetId, Collectors.mapping((KeysetKey k) -> k, toList())));
         when(keysetKeyStoreSnapshot.getActiveKey(anyInt(), any())).then(i -> {
-            KeysetKeyStoreSnapshot snapshot = new KeysetKeyStoreSnapshot(new HashMap(keyMap), new HashMap(keysetMap));
+            KeysetKeyStoreSnapshot snapshot = new KeysetKeyStoreSnapshot(new HashMap<>(keyMap), new HashMap<>(keysetMap));
             return snapshot.getActiveKey(i.getArgument(0, Integer.class), i.getArgument(1, Instant.class));
         });
 
@@ -2597,7 +2577,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("success", json.getString("status"));
                     JsonObject body = json.getJsonObject("body");
                     assertNotNull(body);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
@@ -2606,5 +2586,28 @@ public class UIDOperatorVerticleTest {
                     testContext.completeNow();
                 });
     }
-}
 
+    //@Test
+    void keySharingMissingAllowedSites(Vertx vertx, VertxTestContext testContext) throws Exception {
+        String apiVersion = "v2";
+        int clientSiteId = 102;
+        fakeAuth(clientSiteId, Role.ID_READER);
+        setupMultiKeysetsAndKeys();
+
+        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+            System.out.println(respJson);
+            assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
+            assertEquals(1, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(7, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+
+            //ID_READER has access to a keyset with a missing allowed_sites
+            System.out.println(respJson);
+            assertEquals("success", respJson.getString("status"));
+            final JsonArray responseKeys = respJson.getJsonObject("body").getJsonArray("keys");
+            assertNotNull(responseKeys);
+            //assertEquals(responseKeys.length, responseKeys.size());
+
+            testContext.completeNow();
+        });
+    }
+}

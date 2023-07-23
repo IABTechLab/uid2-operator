@@ -68,7 +68,7 @@ public class UIDOperatorServiceTest {
         config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
 
-        tokenEncoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+        tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
         setNow(Instant.now());
 

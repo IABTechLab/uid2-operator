@@ -2,37 +2,31 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
 import com.uid2.shared.Const.Data;
-import com.uid2.shared.store.IKeysetKeyStore;
-import com.uid2.shared.model.KeysetKey;
-import com.uid2.shared.encryption.Uid2Base64UrlCoder;
 import com.uid2.shared.encryption.AesCbc;
 import com.uid2.shared.encryption.AesGcm;
-import com.uid2.shared.store.reader.RotatingKeysetProvider;
-import io.vertx.core.buffer.Buffer;
+import com.uid2.shared.encryption.Uid2Base64UrlCoder;
+import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.TokenVersion;
+import io.vertx.core.buffer.Buffer;
 
 import java.time.Instant;
 import java.util.Base64;
 
 public class EncryptedTokenEncoder implements ITokenEncoder {
 
-    private final IKeysetKeyStore keysetKeyStore;
-    private final RotatingKeysetProvider keysetProvider;
+    private KeyManager keyManager;
 
-    public EncryptedTokenEncoder(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider) {
-        this.keysetKeyStore = keysetKeyStore;
-        this.keysetProvider = keysetProvider;
+    public EncryptedTokenEncoder(KeyManager keyManager) {
+        this.keyManager = keyManager;
     }
 
     public byte[] encode(AdvertisingToken t, Instant asOf) {
-        final KeysetKey masterKey = EncryptionKeyUtil.getActiveKeyBySiteId(
-                this.keysetKeyStore.getSnapshot(), keysetProvider.getSnapshot(), Data.MasterKeySiteId, asOf);
+        final KeysetKey masterKey = this.keyManager.getActiveKeyBySiteId(Data.MasterKeySiteId, asOf);
         if (masterKey == null) {
             throw new RuntimeException(String.format("Cannot get active master key with SITE ID %d.", Data.MasterKeySiteId));
         }
 
-        final KeysetKey siteEncryptionKey = EncryptionKeyUtil.getActiveKeyBySiteIdWithFallback(
-                this.keysetKeyStore.getSnapshot(), this.keysetProvider.getSnapshot(), t.publisherIdentity.siteId, Data.AdvertisingTokenSiteId, asOf);
+        final KeysetKey siteEncryptionKey = this.keyManager.getActiveKeyBySiteIdWithFallback(t.publisherIdentity.siteId, Data.AdvertisingTokenSiteId, asOf);
 
         return t.version == TokenVersion.V2
                 ? encodeV2(t, masterKey, siteEncryptionKey)
@@ -100,7 +94,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final Instant validTill = Instant.ofEpochMilli(b.getLong(17));
         final int keyId = b.getInt(25);
 
-        final KeysetKey key = this.keysetKeyStore.getSnapshot().getKey(keyId);
+        final KeysetKey key = this.keyManager.getKey(keyId);
 
         final byte[] decryptedPayload = AesCbc.decrypt(b.slice(29, b.length()).getBytes(), key);
 
@@ -127,7 +121,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     private RefreshToken decodeRefreshTokenV3(Buffer b, byte[] bytes) {
         final int keyId = b.getInt(2);
-        final KeysetKey key = this.keysetKeyStore.getSnapshot().getKey(keyId);
+        final KeysetKey key = this.keyManager.getKey(keyId);
 
         final byte[] decryptedPayload = AesGcm.decrypt(bytes, 6, key);
 
@@ -194,14 +188,14 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         try {
             final int masterKeyId = b.getInt(1);
 
-            final byte[] decryptedPayload = AesCbc.decrypt(b.slice(5, b.length()).getBytes(), this.keysetKeyStore.getSnapshot().getKey(masterKeyId));
+            final byte[] decryptedPayload = AesCbc.decrypt(b.slice(5, b.length()).getBytes(), this.keyManager.getKey(masterKeyId));
 
             final Buffer b2 = Buffer.buffer(decryptedPayload);
 
             final long expiresMillis = b2.getLong(0);
             final int siteKeyId = b2.getInt(8);
 
-            final byte[] decryptedSitePayload = AesCbc.decrypt(b2.slice(12, b2.length()).getBytes(), this.keysetKeyStore.getSnapshot().getKey(siteKeyId));
+            final byte[] decryptedSitePayload = AesCbc.decrypt(b2.slice(12, b2.length()).getBytes(), this.keyManager.getKey(siteKeyId));
 
             final Buffer b3 = Buffer.buffer(decryptedSitePayload);
 
@@ -231,14 +225,14 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     public AdvertisingToken decodeAdvertisingTokenV3orV4(Buffer b, byte[] bytes, TokenVersion tokenVersion) {
         final int masterKeyId = b.getInt(2);
 
-        final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, this.keysetKeyStore.getSnapshot().getKey(masterKeyId));
+        final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, this.keyManager.getKey(masterKeyId));
         final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
         final Instant expiresAt = Instant.ofEpochMilli(masterPayload.getLong(0));
         final Instant createdAt = Instant.ofEpochMilli(masterPayload.getLong(8));
         final OperatorIdentity operatorIdentity = decodeOperatorIdentityV3(masterPayload, 16);
         final int siteKeyId = masterPayload.getInt(29);
 
-        final Buffer sitePayload = Buffer.buffer(AesGcm.decrypt(masterPayloadBytes, 33, this.keysetKeyStore.getSnapshot().getKey(siteKeyId)));
+        final Buffer sitePayload = Buffer.buffer(AesGcm.decrypt(masterPayloadBytes, 33, this.keyManager.getKey(siteKeyId)));
         final PublisherIdentity publisherIdentity = decodePublisherIdentityV3(sitePayload, 0);
         final int privacyBits = sitePayload.getInt(16);
         final Instant establishedAt = Instant.ofEpochMilli(sitePayload.getLong(20));
@@ -264,8 +258,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     public byte[] encode(RefreshToken t, Instant asOf) {
-        final KeysetKey serviceKey = EncryptionKeyUtil.getActiveKeyBySiteId(
-                this.keysetKeyStore.getSnapshot(), this.keysetProvider.getSnapshot(), Data.RefreshKeySiteId, asOf);
+        final KeysetKey serviceKey = this.keyManager.getActiveKeyBySiteId(Data.RefreshKeySiteId, asOf);
         if (serviceKey == null) {
             throw new RuntimeException(String.format("Cannot get active refresh key with SITE ID %d", Data.RefreshKeySiteId));
         }

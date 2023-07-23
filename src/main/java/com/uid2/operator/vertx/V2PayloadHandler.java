@@ -1,22 +1,21 @@
 package com.uid2.operator.vertx;
 
 import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.ResponseUtil;
 import com.uid2.operator.service.V2RequestUtil;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
-import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.encryption.AesGcm;
-import com.uid2.shared.store.IKeysetKeyStore;
-import com.uid2.shared.store.reader.RotatingKeysetProvider;
+import com.uid2.shared.middleware.AuthMiddleware;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonObject;
-import org.slf4j.LoggerFactory;
 import io.vertx.ext.web.RoutingContext;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
@@ -24,17 +23,14 @@ import java.util.function.Function;
 public class V2PayloadHandler {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(V2PayloadHandler.class);
 
-    private IKeysetKeyStore keysetKeyStore;
-
-    private RotatingKeysetProvider keysetProvider;
+    private KeyManager keyManager;
 
     private Boolean enableEncryption;
 
     private IdentityScope identityScope;
 
-    public V2PayloadHandler(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider, Boolean enableEncryption, IdentityScope identityScope) {
-        this.keysetKeyStore = keysetKeyStore;
-        this.keysetProvider = keysetProvider;
+    public V2PayloadHandler(KeyManager keyManager, Boolean enableEncryption, IdentityScope identityScope) {
+        this.keyManager = keyManager;
         this.enableEncryption = enableEncryption;
         this.identityScope = identityScope;
     }
@@ -99,7 +95,7 @@ public class V2PayloadHandler {
 
             // DevNote: 200 does not guarantee a token.
             if (respJson.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && respJson.containsKey("body")) {
-                V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), this.keysetKeyStore, this.keysetProvider, this.identityScope);
+                V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), this.keyManager, this.identityScope);
             }
 
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
@@ -120,7 +116,7 @@ public class V2PayloadHandler {
 
         V2RequestUtil.V2Request request = null;
         if (bodyString != null && bodyString.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
-            request = V2RequestUtil.parseRefreshRequest(bodyString, this.keysetKeyStore);
+            request = V2RequestUtil.parseRefreshRequest(bodyString, this.keyManager);
             if (!request.isValid()) {
                 ResponseUtil.ClientError(rc, request.errorMessage);
                 return;
@@ -142,7 +138,7 @@ public class V2PayloadHandler {
 
             JsonObject bodyJson = respJson.getJsonObject("body");
             if (bodyJson != null)
-                V2RequestUtil.handleRefreshTokenInResponseBody(bodyJson, this.keysetKeyStore, this.keysetProvider, this.identityScope);
+                V2RequestUtil.handleRefreshTokenInResponseBody(bodyJson, this.keyManager, this.identityScope);
 
             if (request != null) {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");

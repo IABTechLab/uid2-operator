@@ -1,17 +1,18 @@
 package com.uid2.operator;
 
 import ch.qos.logback.classic.LoggerContext;
+import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
-import com.uid2.operator.store.*;
+import com.uid2.operator.store.CloudSyncOptOutStore;
+import com.uid2.operator.store.OptOutCloudStorage;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
 import com.uid2.shared.attest.AttestationFactory;
 import com.uid2.shared.attest.UidCoreClient;
-import com.uid2.shared.auth.KeysetSnapshot;
 import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
@@ -19,8 +20,8 @@ import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.store.reader.IMetadataVersionedStore;
 import com.uid2.shared.store.reader.RotatingClientKeyProvider;
-import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
+import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import com.uid2.shared.store.scope.GlobalScope;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
@@ -39,9 +40,9 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.impl.HttpUtils;
 import io.vertx.core.json.JsonObject;
 import io.vertx.micrometer.*;
+import io.vertx.micrometer.backends.BackendRegistries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.vertx.micrometer.backends.BackendRegistries;
 
 import javax.management.*;
 import java.lang.management.ManagementFactory;
@@ -69,9 +70,8 @@ public class Main {
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
     private OperatorDisableHandler disableHandler = null;
-
     private final OperatorMetrics metrics;
-
+    private KeyManager keyManager;
     private IStatsCollectorQueue _statsCollectorQueue;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
@@ -126,7 +126,6 @@ public class Main {
         this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
-
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
 
         if (useStorageMock && coreAttestUrl == null) {
@@ -135,8 +134,8 @@ public class Main {
             this.keysetProvider.loadContent();
             this.keysetKeyStore.loadContent();
         }
-
-        metrics = new OperatorMetrics(keysetKeyStore, keysetProvider.getSnapshot(), saltProvider);
+        this.keyManager = new KeyManager(this.keysetKeyStore, this.keysetProvider);
+        metrics = new OperatorMetrics(keyManager, saltProvider);
     }
 
     public static void main(String[] args) throws Exception {

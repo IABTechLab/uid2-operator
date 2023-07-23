@@ -52,7 +52,7 @@ public class TokenEncodingTest {
     @ParameterizedTest
     @EnumSource(TokenVersion.class)
     public void testRefreshTokenEncoding(TokenVersion tokenVersion) {
-        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStoreInstance, keysetProviderInstance);
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStoreInstance, keysetProviderInstance));
         final Instant now = EncodingUtils.NowUTCMillis();
 
         final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity("test@example.com", "some-salt");
@@ -91,7 +91,7 @@ public class TokenEncodingTest {
     @ParameterizedTest
     @EnumSource(TokenVersion.class)
     public void testAdvertisingTokenEncodings(TokenVersion tokenVersion) {
-        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keysetKeyStoreInstance, keysetProviderInstance);
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStoreInstance, keysetProviderInstance));
         final Instant now = EncodingUtils.NowUTCMillis();
 
         final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, "test@example.com", IdentityScope.UID2, tokenVersion != TokenVersion.V2);

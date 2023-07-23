@@ -2,6 +2,7 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
@@ -61,9 +62,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final JsonObject config;
     private final AuthMiddleware auth;
-    private final IKeysetKeyStore keysetKeyStore;
     private final ITokenEncoder encoder;
-    private final RotatingKeysetProvider keysetProvider;
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final Clock clock;
@@ -80,8 +79,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
     private final int tcfVendorId;
-
     private IStatsCollectorQueue _statsCollectorQueue;
+    private KeyManager keyManager;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -91,17 +90,16 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                                IOptOutStore optOutStore,
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue) {
+        this.keyManager = new KeyManager(keysetKeyStore, keysetProvider);
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
-        this.keysetKeyStore = keysetKeyStore;
-        this.encoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
-        this.keysetProvider = keysetProvider;
+        this.encoder = new EncryptedTokenEncoder(keyManager);
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
-        this.v2PayloadHandler = new V2PayloadHandler(keysetKeyStore, keysetProvider, config.getBoolean("enable_v2_encryption", true), this.identityScope);
+        this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
 
@@ -234,7 +232,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         final List<KeysetKey> keys = getKeysetKeys();
-        onSuccess.handle(toJson(keys, clientKey, this.keysetProvider));
+        onSuccess.handle(toJson(keys, clientKey));
     }
 
     public void handleKeysRequestV1(RoutingContext rc) {
@@ -268,7 +266,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
             final JsonArray keys = new JsonArray();
-            final KeysetSnapshot keysetSnapshot = this.keysetProvider.getSnapshot();
             final List<KeysetKey> keysetKeyStore = getKeysetKeys();
 
             MissingAclMode mode = MissingAclMode.DENY_ALL;
@@ -278,13 +275,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 mode = MissingAclMode.ALLOW_ALL;
             }
 
-            KeysetKey masterKey = EncryptionKeyUtil.getActiveKeyBySiteId(this.keysetKeyStore.getSnapshot(), keysetSnapshot, Data.MasterKeySiteId, Instant.now());
+            KeysetKey masterKey = keyManager.getActiveKeyBySiteId(Data.MasterKeySiteId, Instant.now());
             if (masterKey == null) {
                 throw new RuntimeException(String.format("Cannot get active master key with SITE ID %d.", Data.MasterKeySiteId));
             }
 
             // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
-            int defaultKeysetId = EncryptionKeyUtil.getActiveKeyBySiteIdWithFallback(this.keysetKeyStore.getSnapshot(), keysetSnapshot, clientKey.getSiteId(), Data.AdvertisingTokenSiteId, Instant.now()).getKeysetId();
+            int defaultKeysetId = keyManager.getActiveKeyBySiteIdWithFallback(clientKey.getSiteId(), Data.AdvertisingTokenSiteId, Instant.now()).getKeysetId();
 
             // include 'keyset_id' field, if:
             //   (a) a key belongs to caller's site
@@ -292,12 +289,15 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             // otherwise, when a key is accessible by caller, the key can be used for decryption only. skip 'keyset_id' field.
             for (KeysetKey key: keysetKeyStore) {
                 JsonObject keyObj = new JsonObject();
-                Keyset keyset = this.keysetProvider.getSnapshot().getKeyset(key.getKeysetId());
+                Keyset keyset = this.keyManager.getKeyset(key.getKeysetId());
+                if (keyset == null) {
+                    continue;
+                }
                 if(clientKey.getSiteId() == keyset.getSiteId() && keyset.isEnabled()) {
                     keyObj.put("keyset_id", key.getKeysetId());
                 } else if (keyset.getSiteId() == Data.MasterKeySiteId && keyset.isEnabled()) {
                     keyObj.put("keyset_id", key.getKeysetId());
-                } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
+                } else if (!this.keyManager.canClientAccessKey(clientKey, key, mode)) {
                     continue;
                 }
                 keyObj.put("id", key.getId());
@@ -323,9 +323,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private List<KeysetKey> getKeysetKeys() {
-        Map<Integer, Keyset> keysetMap = this.keysetProvider.getSnapshot().getAllKeysets();
-        IKeysetKeyStore.IkeysetKeyStoreSnapshot keysetKeyStoreSnapshot = this.keysetKeyStore.getSnapshot();
-        List<KeysetKey> keys = keysetKeyStoreSnapshot.getActiveKeysetKeys();
+        Map<Integer, Keyset> keysetMap = this.keyManager.getAllKeysets();
+        List<KeysetKey> keys = this.keyManager.getActiveKeysetKeys();
         final List<KeysetKey> keysetKeyStore = keys
                 .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && keysetMap.get(k.getKeysetId()).getSiteId() != Data.RefreshKeySiteId)
                 .collect(Collectors.toList());
@@ -355,7 +354,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         String refreshToken = tokenList.get(0);
         if (refreshToken.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
             // V2 token sent by V1 JSSDK. Decrypt and extract original refresh token
-            V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, keysetKeyStore);
+            V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, this.keyManager);
             if (v2req.isValid()) {
                 refreshToken = (String) v2req.payload;
             }
@@ -1424,18 +1423,17 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return json;
     }
 
-    private JsonArray toJson(List<KeysetKey> keys, ClientKey clientKey, RotatingKeysetProvider keysetProvider) {
+    private JsonArray toJson(List<KeysetKey> keys, ClientKey clientKey) {
         /* Reviewers to confirm: whether we need to check MissingAclMode by client's role.
         MissingAclMode mode = MissingAclMode.DENY_ALL;
         if (clientKey.getRoles().contains(Role.ID_READER)) {
             mode = MissingAclMode.ALLOW_ALL;
         }*/
         MissingAclMode mode = MissingAclMode.ALLOW_ALL;
-        KeysetSnapshot keysetSnapshot = keysetProvider.getSnapshot();
         final JsonArray a = new JsonArray();
         for (int i = 0; i < keys.size(); ++i) {
             final KeysetKey k = keys.get(i);
-            if (!keysetSnapshot.canClientAccessKey(clientKey, k, mode)) {
+            if (!this.keyManager.canClientAccessKey(clientKey, k, mode)) {
                 continue;
             }
 
@@ -1445,7 +1443,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             o.put("activates", k.getActivates().getEpochSecond());
             o.put("expires", k.getExpires().getEpochSecond());
             o.put("secret", EncodingUtils.toBase64String(k.getKeyBytes()));
-            o.put("site_id", keysetSnapshot.getKeyset(k.getKeysetId()).getSiteId());
+            o.put("site_id", this.keyManager.getKeyset(k.getKeysetId()).getSiteId());
             a.add(o);
         }
         return a;

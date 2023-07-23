@@ -1,12 +1,8 @@
 package com.uid2.operator.benchmark;
 
-import com.uid2.operator.ClientKeyProviderTest;
 import com.uid2.operator.Const;
 import com.uid2.operator.Main;
-import com.uid2.operator.model.IdentityScope;
-import com.uid2.operator.model.IdentityType;
-import com.uid2.operator.model.PublisherIdentity;
-import com.uid2.operator.model.UserIdentity;
+import com.uid2.operator.model.*;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.UIDOperatorService;
@@ -72,7 +68,7 @@ public class BenchmarkCommon {
         config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
 
-        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
         final List<String> optOutPartitionFiles = new ArrayList<>();
         final ICloudStorage optOutLocalStorage = make1mOptOutEntryStorage(
                 saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
@@ -100,7 +96,7 @@ public class BenchmarkCommon {
                 new GlobalScope(new CloudPath("/com.uid2.core/test/keysets/metadata.json")));
         keysetKeyStore.loadContent();
 
-        return new EncryptedTokenEncoder(keysetKeyStore, keysetProvider);
+        return new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
     }
 
     static JsonObject make1mOptOutEntryConfig() {

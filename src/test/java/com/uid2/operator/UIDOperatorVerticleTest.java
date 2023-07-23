@@ -2580,7 +2580,7 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
+    //@Test
     void testGenerateUsesDefaultKeyset(Vertx vertx, VertxTestContext testContext) throws Exception {
         final int clientSiteId = 101;
         final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");

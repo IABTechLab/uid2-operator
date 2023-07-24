@@ -23,6 +23,15 @@ public class KeyManager {
         this.keysetProvider = keysetProvider;
     }
 
+    public KeysetKey getActiveKeyBySiteIdWithFallback(int siteId, int fallbackSiteId, Instant asOf) {
+        KeysetKey key = getActiveKeyBySiteId(siteId, asOf);
+        if (key == null) key = getActiveKeyBySiteId(fallbackSiteId, asOf);
+        if (key == null) {
+            throw new RuntimeException(String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId));
+        }
+        return key;
+    }
+
     // Retrieve an active key from default keyset by caller's site id.
     public KeysetKey getActiveKeyBySiteId(int siteId, Instant asOf) {
         List<Keyset> keysets = this.keysetProvider.getSnapshot().getAllKeysets().values().stream()

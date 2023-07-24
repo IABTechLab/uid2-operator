@@ -27,7 +27,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
             throw new RuntimeException(String.format("Cannot get active master key with keyset ID %d.", Const.Config.MasterKeyKeysetId));
         }
 
-        final KeysetKey siteEncryptionKey = this.keyManager.getActiveKeyBySiteId(t.publisherIdentity.siteId, asOf);
+        final KeysetKey siteEncryptionKey = this.keyManager.getActiveKeyBySiteIdWithFallback(t.publisherIdentity.siteId, Data.AdvertisingTokenSiteId, asOf);
 
         return t.version == TokenVersion.V2
                 ? encodeV2(t, masterKey, siteEncryptionKey)

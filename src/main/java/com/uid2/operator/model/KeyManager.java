@@ -55,12 +55,8 @@ public class KeyManager {
     }
 
     private List<KeysetKey> getActiveKeysetKeys() {
-        return getActiveKeysetKeys(Instant.now());
-    }
-
-    private List<KeysetKey> getActiveKeysetKeys(Instant asOf) {
-        return this.keysetKeyStore.getSnapshot().getActiveKeysetKeys().stream()
-                .filter(s -> !s.isExpired(asOf)).collect(Collectors.toList());
+        // return all keys without expiry check
+        return this.keysetKeyStore.getSnapshot().getActiveKeysetKeys();
     }
 
     public List<KeysetKey> getKeysetKeys() {

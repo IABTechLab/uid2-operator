@@ -22,6 +22,7 @@ import com.uid2.shared.auth.Role;
 import com.uid2.shared.cloud.CloudUtils;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
+import com.uid2.shared.encryption.Uid2Base64UrlCoder;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.model.TokenVersion;
@@ -2764,7 +2765,25 @@ public class UIDOperatorVerticleTest {
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                     //Uses a key from default keyset
-                    assertEquals(advertisingToken.version.equals(TokenVersion.V2) ? 1007 : 0, advertisingToken.publisherIdentity.clientKeyId);
+                    int clientKeyId = 0;
+                    if(advertisingToken.version == TokenVersion.V3 || advertisingToken.version == TokenVersion.V4) {
+                        String advertisingTokenString = body.getString("advertising_token");
+                        byte[] bytes = null;
+                        if (advertisingToken.version == TokenVersion.V3) {
+                            bytes = EncodingUtils.fromBase64(advertisingTokenString);
+                        } else if (advertisingToken.version == TokenVersion.V4) {
+                            bytes = Uid2Base64UrlCoder.decode(advertisingTokenString);  //same as V3 but use Base64URL encoding
+                        }
+                        final Buffer b = Buffer.buffer(bytes);
+                        final int masterKeyId = b.getInt(2);
+
+                        final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, this.keysetKeyStoreSnapshot.getKey(masterKeyId));
+                        final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
+                        clientKeyId = masterPayload.getInt(29);
+                    } else {
+                        clientKeyId = advertisingToken.publisherIdentity.clientKeyId;
+                    }
+                    assertEquals(1007, clientKeyId);
                     testContext.completeNow();
                 });
     }
@@ -2808,19 +2827,19 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(3600), 4),
                 new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(3600), 4),
                 new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 4),
-                //new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
+                new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
                 // keys in keyset5
                 new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(3600), 5),
                 new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 5),
-                //new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
+                new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
                 // keys in keyset7
                 new KeysetKey(1016, makeAesKey("key16"), now.minusSeconds(10), now, now.plusSeconds(3600), 7),
                 new KeysetKey(1017, makeAesKey("key17"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 7),
-                //new KeysetKey(1018, makeAesKey("key18"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 7),
+                new KeysetKey(1018, makeAesKey("key18"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 7),
                 // keys in keyset9
                 new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(3600), 9),
                 new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 9),
-                //new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
+                new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
@@ -2873,15 +2892,15 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(3600), 4),
                 new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(3600), 4),
                 new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 4),
-                //new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
+                new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
                 // keys in keyset5
                 new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(3600), 5),
                 new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 5),
-                //new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
+                new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
                 // keys in keyset9
                 new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(3600), 9),
                 new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 9),
-                //new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
+                new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
@@ -2902,9 +2921,9 @@ public class UIDOperatorVerticleTest {
         when(keysetKeyStore.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
         when(keysetProvider.getSnapshot()).thenReturn(keysetProviderSnapshot);
     }
-    //@Test
+
     @ParameterizedTest
-    @ValueSource(strings = {"test1", "test2", "test3", "test4", "test5"})
+    @ValueSource(strings = {"test1", "test2", "test3", "test5", "test6"})
         // Tests1:
         //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
         //   ID_READER has access to a keyset with a missing allowed_sites              - access through sharing
@@ -2943,62 +2962,79 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(3600), 4),
                 new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(3600), 4),
                 new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 4),
+                new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
                 // keys in keyset5
                 new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(3600), 5),
                 new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 5),
+                new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
                 // keys in keyset7
                 new KeysetKey(1016, makeAesKey("key16"), now.minusSeconds(10), now, now.plusSeconds(3600), 7),
                 new KeysetKey(1017, makeAesKey("key17"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 7),
+                new KeysetKey(1018, makeAesKey("key18"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 7),
                 // keys in keyset9
                 new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(3600), 9),
-                new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 9)
+                new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 9),
+                new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
         ));
 
         // a. Add a keyset with keys (1 active & 1 expired). Test '/key/sharing' includes the new active key
-        if (test_run.equals("test2")) {
-            Keyset keyset11 = new Keyset(11, 107, "keyset11", Set.of(101), nowL, true, true);
-            KeysetKey key128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 11);
-            KeysetKey key129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
-            test.AddKeyset(11, keyset11);
-            test.AddKey(1128, key128);
-            test.AddKey(1129, key129); // key129 is expired and should not return
-            resetMocks();
-            test.setupMockitoApiInterception();
-            expectedKeys.add(key128);
-        }
+        switch (test_run) {
+            case "test2":
+                Keyset keyset11 = new Keyset(11, 107, "keyset11", Set.of(101), nowL, true, true);
+                KeysetKey key128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 11);
+                KeysetKey key129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
+                test.AddKeyset(11, keyset11);
+                test.AddKey(1128, key128);
+                test.AddKey(1129, key129); // key129 is expired but should return
+                resetMocks();
+                test.setupMockitoApiInterception();
+                expectedKeys.add(key128);
+                expectedKeys.add(key129);
+                break;
 
-        // b. Add keys to existing keysets (1 default, 1 non-default, 1 disabled, 1 shared). Test '/key/sharing' includes the new keys from enabled, default & allowed access keysets
-        else if (test_run.equals("test3")) {
-            KeysetKey key229 = new KeysetKey(1229, makeAesKey("key229"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 4); // default keyset
-            KeysetKey key230 = new KeysetKey(1230, makeAesKey("key230"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 5); // non-default keyset
-            KeysetKey key231 = new KeysetKey(1231, makeAesKey("key231"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 6); // disabled keyset
-            KeysetKey key232 = new KeysetKey(1232, makeAesKey("key232"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 9); // sharing through 'allowed_site'
-            test.AddKey(1229, key229);
-            test.AddKey(1230, key230);
-            test.AddKey(1231, key231); // keyset6 is disabled
-            test.AddKey(1232, key232);
-            resetMocks();
-            test.setupMockitoApiInterception();
-            expectedKeys.add(key229);
-            expectedKeys.add(key230);
-            expectedKeys.add(key232);
-        }
+            // b. Add keys to existing keysets (1 default, 1 non-default, 1 disabled, 1 shared). Test '/key/sharing' includes the new keys from enabled, default & allowed access keysets
+            case "test3":
+                KeysetKey key229 = new KeysetKey(1229, makeAesKey("key229"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 4); // default keyset
+                KeysetKey key230 = new KeysetKey(1230, makeAesKey("key230"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 5); // non-default keyset
+                KeysetKey key231 = new KeysetKey(1231, makeAesKey("key231"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 6); // disabled keyset
+                KeysetKey key232 = new KeysetKey(1232, makeAesKey("key232"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 9); // sharing through 'allowed_site'
+                test.AddKey(1229, key229);
+                test.AddKey(1230, key230);
+                test.AddKey(1231, key231); // keyset6 is disabled
+                test.AddKey(1232, key232);
+                resetMocks();
+                test.setupMockitoApiInterception();
+                expectedKeys.add(key229);
+                expectedKeys.add(key230);
+                expectedKeys.add(key232);
+                break;
 
-        // c. Rotate keys within a keyset. Test /key/sharing shows the rotation
-        // d. Disable a key within a keyset. Test /key/sharing no longer shows the disabled key
-        else if (test_run.equals("test4")) {
-            test.SetKeyExpire(1008, Instant.now().minusSeconds(5));
-            resetMocks();
-            test.setupMockitoApiInterception();
-            expectedKeys.removeIf(x -> x.getId() == 1008); // key108 is expired and should not return.
-        }
+            // d. Disable a key within a keyset. Test /key/sharing no longer shows the disabled key
+            //case "test4":
+            //    test.SetKeyExpire(1008, Instant.now().minusSeconds(5));
+            //    resetMocks();
+            //    test.setupMockitoApiInterception();
+            //    expectedKeys.removeIf(x -> x.getId() == 1008); // key108 is expired but should not return.
+            //    break;
 
-        // e. Disable a keyset. Test /key/sharing no longer shows keys from the disabled keyset
-        else if (test_run.equals("test5")) {
-            test.SetKeysetEnabled(5, false); // disable keyset5 that contains key10 & key11
-            resetMocks();
-            test.setupMockitoApiInterception();
-            expectedKeys.removeIf(x -> x.getId() == 1010 || x.getId() == 1011); // key10 & key11 should not return.
+            // e. Disable a keyset. Test /key/sharing no longer shows keys from the disabled keyset
+            case "test5":
+                test.SetKeysetEnabled(5, false); // disable keyset5 that contains key10 & key11
+                resetMocks();
+                test.setupMockitoApiInterception();
+                expectedKeys.removeIf(x -> x.getId() == 1010 || x.getId() == 1011 || x.getId() == 1012); // key10, key11, key12 should not return.
+                break;
+
+            // c. Rotate keys within a keyset. Test /key/sharing shows the rotation
+            case "test6":
+                KeysetKey key329 = new KeysetKey(1329, makeAesKey("key229"), now.minusSeconds(10), now, now.plusSeconds(3600), 4); // default keyset
+                test.AddKey(1329, key329);
+                resetMocks();
+                test.setupMockitoApiInterception();
+                expectedKeys.add(key329);
+                KeysetKey actual = keysetKeyStoreSnapshot.getActiveKey(4, Instant.now());
+                assertEquals(key329, actual);
+                break;
         }
 
         // test and validate results

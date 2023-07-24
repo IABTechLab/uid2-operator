@@ -80,23 +80,37 @@ public class KeyManager {
     }
 
     public KeysetKey getMasterKey() {
-        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.MasterKeyKeysetId, Instant.now());
+        return getMasterKey(Instant.now());
     }
     public KeysetKey getMasterKey(Instant asOf) {
-        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.MasterKeyKeysetId, asOf);
+        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.MasterKeyKeysetId, asOf);
+        if (key == null) {
+            throw new RuntimeException(String.format("Cannot get a master key with keyset ID %d.", Const.Config.MasterKeyKeysetId));
+        }
+        return key;
     }
 
     public KeysetKey getPublisherKey() {
-        return this.keysetKeyStore.getSnapshot(Instant.now()).getActiveKey(Const.Config.PublisherKeyKeysetId, Instant.now());
+        return getPublisherKey(Instant.now());
     }
+
     public KeysetKey getPublisherKey(Instant asOf) {
-        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.PublisherKeyKeysetId, asOf);
+        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.PublisherKeyKeysetId, asOf);
+        if (key == null) {
+            throw new RuntimeException(String.format("Cannot get a publisher key with keyset ID %d.", Const.Config.PublisherKeyKeysetId));
+        }
+        return key;
     }
 
     public KeysetKey getRefreshKey() {
-        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.RefreshKeyKeysetId, Instant.now());
+        return getRefreshKey(Instant.now());
     }
+
     public KeysetKey getRefreshKey(Instant asOf) {
-        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.RefreshKeyKeysetId, asOf);
+        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.RefreshKeyKeysetId, asOf);
+        if (key == null) {
+            throw new RuntimeException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Config.RefreshKeyKeysetId));
+        }
+        return key;
     }
 }

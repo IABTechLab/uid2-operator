@@ -2,7 +2,6 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
@@ -11,42 +10,51 @@ import com.uid2.operator.privacy.tcf.TransparentConsentParseResult;
 import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
 import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
-import com.uid2.operator.store.*;
+import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.util.Tuple;
-import com.uid2.shared.Utils;
-import com.uid2.shared.auth.*;
 import com.uid2.shared.Const.Data;
+import com.uid2.shared.Utils;
+import com.uid2.shared.auth.ClientKey;
+import com.uid2.shared.auth.IRoleAuthorizable;
+import com.uid2.shared.auth.Keyset;
+import com.uid2.shared.auth.Role;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
-import com.uid2.shared.store.reader.RotatingKeysetProvider;
+import com.uid2.shared.store.IClientKeyProvider;
+import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
-import io.micrometer.core.instrument.*;
-import io.vertx.core.*;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Metrics;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.AllowForwardHeaders;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.*;
-import java.time.Clock;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
@@ -275,9 +283,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
 
             KeysetKey masterKey = this.keyManager.getMasterKey();
-            if (masterKey == null) {
-                throw new RuntimeException(String.format("Cannot get active master key with keyset ID %d.", Const.Config.MasterKeyKeysetId));
-            }
 
             // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
             int defaultKeysetId = this.keyManager.getActiveKeyBySiteId(clientKey.getSiteId(), Instant.now()).getKeysetId();

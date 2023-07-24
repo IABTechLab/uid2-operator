@@ -23,10 +23,6 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     public byte[] encode(AdvertisingToken t, Instant asOf) {
         final KeysetKey masterKey = this.keyManager.getMasterKey(asOf);
-        if (masterKey == null) {
-            throw new RuntimeException(String.format("Cannot get active master key with keyset ID %d.", Const.Config.MasterKeyKeysetId));
-        }
-
         final KeysetKey siteEncryptionKey = this.keyManager.getActiveKeyBySiteIdWithFallback(t.publisherIdentity.siteId, Data.AdvertisingTokenSiteId, asOf);
 
         return t.version == TokenVersion.V2
@@ -260,9 +256,6 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     public byte[] encode(RefreshToken t, Instant asOf) {
         final KeysetKey serviceKey = this.keyManager.getRefreshKey(asOf);
-        if (serviceKey == null) {
-            throw new RuntimeException(String.format("Cannot get active refresh key with keyset ID %d", Const.Config.RefreshKeyKeysetId));
-        }
 
         switch (t.version) {
             case V2:

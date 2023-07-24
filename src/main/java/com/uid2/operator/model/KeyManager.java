@@ -54,11 +54,11 @@ public class KeyManager {
         return this.keysetKeyStore.getSnapshot().getKey(keyId);
     }
 
-    public List<KeysetKey> getActiveKeysetKeys() {
+    private List<KeysetKey> getActiveKeysetKeys() {
         return getActiveKeysetKeys(Instant.now());
     }
 
-    public List<KeysetKey> getActiveKeysetKeys(Instant asOf) {
+    private List<KeysetKey> getActiveKeysetKeys(Instant asOf) {
         return this.keysetKeyStore.getSnapshot().getActiveKeysetKeys().stream()
                 .filter(s -> !s.isExpired(asOf)).collect(Collectors.toList());
     }

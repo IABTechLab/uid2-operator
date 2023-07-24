@@ -127,7 +127,7 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
 
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keysetKeyStore, keysetProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
+        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, clock, statsCollectorQueue);
 
         OperatorDisableHandler h = new OperatorDisableHandler(Duration.ofHours(24), clock);
         fakeCoreClient.setResponseStatusWatcher(h::handleResponseStatus);

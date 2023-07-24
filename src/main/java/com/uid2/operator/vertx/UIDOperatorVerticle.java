@@ -84,17 +84,16 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
-                               IKeysetKeyStore keysetKeyStore,
-                               RotatingKeysetProvider keysetProvider,
+                               KeyManager keyManager,
                                ISaltProvider saltProvider,
                                IOptOutStore optOutStore,
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue) {
-        this.keyManager = new KeyManager(keysetKeyStore, keysetProvider);
+        this.keyManager = keyManager;
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
-        this.encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+        this.encoder = new EncryptedTokenEncoder(keyManager);
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;

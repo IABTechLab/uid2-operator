@@ -1,27 +1,27 @@
 [
   {
-    "keyset_id": 101,
+    "keyset_id": 1,
     "site_id": -1,
     "name": "Master keyset",
-    "allowed_sites": [1, 2, 3, 4, 5, 6, 7, 8],
+    "allowed_sites": [-1, -2, 2, 3, 4, 5, 6, 7, 8],
     "created": 1617149276,
     "enabled": true,
     "default": true
   },
   {
-    "keyset_id": 201,
+    "keyset_id": 2,
     "site_id": -2,
     "name": "Refresh keyset",
-    "allowed_sites": [1, 2, 3, 4, 5, 6, 7, 8],
+    "allowed_sites": [-1, -2, 2, 3, 4, 5, 6, 7, 8],
     "created": 1617149276,
     "enabled": true,
     "default": true
   },
   {
-    "keyset_id": 202,
+    "keyset_id": 3,
     "site_id": 2,
     "name": "Publisher keyset",
-    "allowed_sites": [1, 2, 3, 4, 5, 6, 7, 8],
+    "allowed_sites": [-1, -2, 2, 3, 4, 5, 6, 7, 8],
     "created": 1617149276,
     "enabled": true,
     "default": true

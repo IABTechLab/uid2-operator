@@ -230,7 +230,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final List<KeysetKey> keys = getKeysetKeys();
+        final List<KeysetKey> keys = this.keyManager.getKeysetKeys();
         onSuccess.handle(toJson(keys, clientKey));
     }
 
@@ -265,7 +265,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
             final JsonArray keys = new JsonArray();
-            final List<KeysetKey> keysetKeyStore = getKeysetKeys();
+            final List<KeysetKey> keysetKeyStore = this.keyManager.getKeysetKeys();
 
             MissingAclMode mode = MissingAclMode.DENY_ALL;
             // This will break if another Type is added to this map
@@ -274,13 +274,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 mode = MissingAclMode.ALLOW_ALL;
             }
 
-            KeysetKey masterKey = this.keyManager.getActiveKeyBySiteId(Data.MasterKeySiteId, Instant.now());
+            KeysetKey masterKey = this.keyManager.getMasterKey();
             if (masterKey == null) {
-                throw new RuntimeException(String.format("Cannot get active master key with SITE ID %d.", Data.MasterKeySiteId));
+                throw new RuntimeException(String.format("Cannot get active master key with keyset ID %d.", Const.Config.MasterKeyKeysetId));
             }
 
             // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
-            int defaultKeysetId = this.keyManager.getActiveKeyBySiteIdWithFallback(clientKey.getSiteId(), Data.AdvertisingTokenSiteId, Instant.now()).getKeysetId();
+            int defaultKeysetId = this.keyManager.getActiveKeyBySiteId(clientKey.getSiteId(), Instant.now()).getKeysetId();
+            //int defaultKeysetId = this.keyManager.getActiveKeyBySiteIdWithFallback(clientKey.getSiteId(), Data.AdvertisingTokenSiteId, Instant.now()).getKeysetId();
 
             // include 'keyset_id' field, if:
             //   (a) a key belongs to caller's site
@@ -319,14 +320,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             LOGGER.error("handleKeysSharing", e);
             rc.fail(500);
         }
-    }
-
-    private List<KeysetKey> getKeysetKeys() {
-        Map<Integer, Keyset> keysetMap = this.keyManager.getAllKeysets();
-        List<KeysetKey> keys = this.keyManager.getActiveKeysetKeys();
-        return keys
-                .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && k.getKeysetId() != Const.Config.RefreshKeyKeysetId)
-                .sorted(Comparator.comparing(KeysetKey::getId)).collect(Collectors.toList()); // sort by keyId for easy validation of json body
     }
 
     private void handleHealthCheck(RoutingContext rc) {

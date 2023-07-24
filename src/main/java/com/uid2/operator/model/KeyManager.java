@@ -9,6 +9,7 @@ import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -20,15 +21,6 @@ public class KeyManager {
     public KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider) {
         this.keysetKeyStore = keysetKeyStore;
         this.keysetProvider = keysetProvider;
-    }
-
-    public KeysetKey getActiveKeyBySiteIdWithFallback(int siteId, int fallbackSiteId, Instant asOf) {
-        KeysetKey key = getActiveKeyBySiteId(siteId, asOf);
-        if (key == null) key = getActiveKeyBySiteId(fallbackSiteId, asOf);
-        if (key == null) {
-            throw new RuntimeException(String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId));
-        }
-        return key;
     }
 
     // Retrieve an active key from default keyset by caller's site id.
@@ -62,6 +54,14 @@ public class KeyManager {
                 .filter(s -> !s.isExpired(asOf)).collect(Collectors.toList());
     }
 
+    public List<KeysetKey> getKeysetKeys() {
+        Map<Integer, Keyset> keysetMap = this.keysetProvider.getSnapshot().getAllKeysets();
+        List<KeysetKey> keys = getActiveKeysetKeys();
+        return keys
+                .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && k.getKeysetId() != Const.Config.RefreshKeyKeysetId)
+                .sorted(Comparator.comparing(KeysetKey::getId)).collect(Collectors.toList());
+    }
+
     public Keyset getKeyset(int keysetId) {
         return this.keysetProvider.getSnapshot().getKeyset(keysetId);
     }
@@ -82,7 +82,7 @@ public class KeyManager {
     }
 
     public KeysetKey getPublisherKey() {
-        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.PublisherKeyKeysetId, Instant.now());
+        return this.keysetKeyStore.getSnapshot(Instant.now()).getActiveKey(Const.Config.PublisherKeyKeysetId, Instant.now());
     }
     public KeysetKey getPublisherKey(Instant asOf) {
         return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.PublisherKeyKeysetId, asOf);

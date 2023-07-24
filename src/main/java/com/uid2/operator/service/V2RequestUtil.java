@@ -2,6 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
+import com.uid2.shared.Const;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -153,7 +154,7 @@ public class V2RequestUtil {
     }
 
     public static void handleRefreshTokenInResponseBody(JsonObject bodyJson, KeyManager keyManager, IdentityScope identityScope) throws Exception {
-        KeysetKey refreshKey = keyManager.getActiveKeyBySiteId(Data.RefreshKeySiteId, Instant.now());
+        KeysetKey refreshKey = keyManager.getRefreshKey();
 
         JsonObject tokenKeyJson = new JsonObject();
 

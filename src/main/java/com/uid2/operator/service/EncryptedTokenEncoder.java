@@ -1,5 +1,6 @@
 package com.uid2.operator.service;
 
+import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.encryption.AesCbc;
@@ -21,12 +22,12 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     public byte[] encode(AdvertisingToken t, Instant asOf) {
-        final KeysetKey masterKey = this.keyManager.getActiveKeyBySiteId(Data.MasterKeySiteId, asOf);
+        final KeysetKey masterKey = this.keyManager.getMasterKey(asOf);
         if (masterKey == null) {
-            throw new RuntimeException(String.format("Cannot get active master key with SITE ID %d.", Data.MasterKeySiteId));
+            throw new RuntimeException(String.format("Cannot get active master key with keyset ID %d.", Const.Config.MasterKeyKeysetId));
         }
 
-        final KeysetKey siteEncryptionKey = this.keyManager.getActiveKeyBySiteIdWithFallback(t.publisherIdentity.siteId, Data.AdvertisingTokenSiteId, asOf);
+        final KeysetKey siteEncryptionKey = this.keyManager.getActiveKeyBySiteId(t.publisherIdentity.siteId, asOf);
 
         return t.version == TokenVersion.V2
                 ? encodeV2(t, masterKey, siteEncryptionKey)
@@ -258,9 +259,9 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     public byte[] encode(RefreshToken t, Instant asOf) {
-        final KeysetKey serviceKey = this.keyManager.getActiveKeyBySiteId(Data.RefreshKeySiteId, asOf);
+        final KeysetKey serviceKey = this.keyManager.getRefreshKey(asOf);
         if (serviceKey == null) {
-            throw new RuntimeException(String.format("Cannot get active refresh key with SITE ID %d", Data.RefreshKeySiteId));
+            throw new RuntimeException(String.format("Cannot get active refresh key with keyset ID %d", Const.Config.RefreshKeyKeysetId));
         }
 
         switch (t.version) {

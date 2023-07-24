@@ -22,6 +22,7 @@ import com.uid2.shared.auth.Role;
 import com.uid2.shared.cloud.CloudUtils;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
+import com.uid2.shared.encryption.Uid2Base64UrlCoder;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.model.TokenVersion;
@@ -2764,7 +2765,25 @@ public class UIDOperatorVerticleTest {
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                     //Uses a key from default keyset
-                    assertEquals(advertisingToken.version.equals(TokenVersion.V2) ? 1007 : 0, advertisingToken.publisherIdentity.clientKeyId);
+                    int clientKeyId = 0;
+                    if(advertisingToken.version == TokenVersion.V3 || advertisingToken.version == TokenVersion.V4) {
+                        String advertisingTokenString = body.getString("advertising_token");
+                        byte[] bytes = null;
+                        if (advertisingToken.version == TokenVersion.V3) {
+                            bytes = EncodingUtils.fromBase64(advertisingTokenString);
+                        } else if (advertisingToken.version == TokenVersion.V4) {
+                            bytes = Uid2Base64UrlCoder.decode(advertisingTokenString);  //same as V3 but use Base64URL encoding
+                        }
+                        final Buffer b = Buffer.buffer(bytes);
+                        final int masterKeyId = b.getInt(2);
+
+                        final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, this.keysetKeyStoreSnapshot.getKey(masterKeyId));
+                        final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
+                        clientKeyId = masterPayload.getInt(29);
+                    } else {
+                        clientKeyId = advertisingToken.publisherIdentity.clientKeyId;
+                    }
+                    assertEquals(1007, clientKeyId);
                     testContext.completeNow();
                 });
     }

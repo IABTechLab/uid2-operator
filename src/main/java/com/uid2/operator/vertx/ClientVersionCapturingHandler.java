@@ -1,6 +1,6 @@
 package com.uid2.operator.vertx;
 
-import com.uid2.operator.Const;
+import com.uid2.shared.Const;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.Handler;

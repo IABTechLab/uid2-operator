@@ -325,7 +325,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         Map<Integer, Keyset> keysetMap = this.keyManager.getAllKeysets();
         List<KeysetKey> keys = this.keyManager.getActiveKeysetKeys();
         return keys
-                .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && keysetMap.get(k.getKeysetId()).getSiteId() != Data.RefreshKeySiteId)
+                .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && k.getKeysetId() != Const.Config.RefreshKeyKeysetId)
                 .sorted(Comparator.comparing(KeysetKey::getId)).collect(Collectors.toList()); // sort by keyId for easy validation of json body
     }
 

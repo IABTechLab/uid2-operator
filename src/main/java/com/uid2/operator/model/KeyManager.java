@@ -1,16 +1,17 @@
 package com.uid2.operator.model;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
+import com.uid2.operator.Const;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Keyset;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class KeyManager {
     private final IKeysetKeyStore keysetKeyStore;
@@ -21,9 +22,9 @@ public class KeyManager {
         this.keysetProvider = keysetProvider;
     }
 
-    public KeysetKey getActiveKeyBySiteIdWithFallback(int siteId, int fallbackSiteId, Instant now) {
-        KeysetKey key = getActiveKeyBySiteId(siteId, now);
-        if (key == null) key = getActiveKeyBySiteId(fallbackSiteId, now);
+    public KeysetKey getActiveKeyBySiteIdWithFallback(int siteId, int fallbackSiteId, Instant asOf) {
+        KeysetKey key = getActiveKeyBySiteId(siteId, asOf);
+        if (key == null) key = getActiveKeyBySiteId(fallbackSiteId, asOf);
         if (key == null) {
             throw new RuntimeException(String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId));
         }
@@ -31,7 +32,7 @@ public class KeyManager {
     }
 
     // Retrieve an active key from default keyset by caller's site id.
-    public KeysetKey getActiveKeyBySiteId(int siteId, Instant now) {
+    public KeysetKey getActiveKeyBySiteId(int siteId, Instant asOf) {
         List<Keyset> keysets = this.keysetProvider.getSnapshot().getAllKeysets().values().stream()
                 .filter(s -> s.isEnabled() && s.isDefault() && s.getSiteId() == siteId)
                 .collect(Collectors.toList());
@@ -41,7 +42,7 @@ public class KeyManager {
         if (keysets.size() > 1) {
             throw new IllegalArgumentException("Multiple default keysets are enabled with SITE ID " + siteId);
         }
-        return getActiveKey(keysets.get(0).getKeysetId(), now);
+        return getActiveKey(keysets.get(0).getKeysetId(), asOf);
     }
 
     public KeysetKey getActiveKey(int keysetId, Instant now) {
@@ -53,7 +54,12 @@ public class KeyManager {
     }
 
     public List<KeysetKey> getActiveKeysetKeys() {
-        return this.keysetKeyStore.getSnapshot().getActiveKeysetKeys();
+        return getActiveKeysetKeys(Instant.now());
+    }
+
+    public List<KeysetKey> getActiveKeysetKeys(Instant asOf) {
+        return this.keysetKeyStore.getSnapshot().getActiveKeysetKeys().stream()
+                .filter(s -> !s.isExpired(asOf)).collect(Collectors.toList());
     }
 
     public Keyset getKeyset(int keysetId) {
@@ -66,5 +72,26 @@ public class KeyManager {
 
     public Boolean canClientAccessKey(ClientKey clientKey, KeysetKey key, MissingAclMode mode) {
         return this.keysetProvider.getSnapshot().canClientAccessKey(clientKey, key, mode);
+    }
+
+    public KeysetKey getMasterKey() {
+        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.MasterKeyKeysetId, Instant.now());
+    }
+    public KeysetKey getMasterKey(Instant asOf) {
+        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.MasterKeyKeysetId, asOf);
+    }
+
+    public KeysetKey getPublisherKey() {
+        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.PublisherKeyKeysetId, Instant.now());
+    }
+    public KeysetKey getPublisherKey(Instant asOf) {
+        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.PublisherKeyKeysetId, asOf);
+    }
+
+    public KeysetKey getRefreshKey() {
+        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.RefreshKeyKeysetId, Instant.now());
+    }
+    public KeysetKey getRefreshKey(Instant asOf) {
+        return this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.RefreshKeyKeysetId, asOf);
     }
 }

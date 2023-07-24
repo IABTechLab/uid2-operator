@@ -94,7 +94,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
-        this.encoder = new EncryptedTokenEncoder(keyManager);
+        this.encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
@@ -275,13 +275,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 mode = MissingAclMode.ALLOW_ALL;
             }
 
-            KeysetKey masterKey = keyManager.getActiveKeyBySiteId(Data.MasterKeySiteId, Instant.now());
+            KeysetKey masterKey = this.keyManager.getActiveKeyBySiteId(Data.MasterKeySiteId, Instant.now());
             if (masterKey == null) {
                 throw new RuntimeException(String.format("Cannot get active master key with SITE ID %d.", Data.MasterKeySiteId));
             }
 
             // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
-            int defaultKeysetId = keyManager.getActiveKeyBySiteIdWithFallback(clientKey.getSiteId(), Data.AdvertisingTokenSiteId, Instant.now()).getKeysetId();
+            int defaultKeysetId = this.keyManager.getActiveKeyBySiteIdWithFallback(clientKey.getSiteId(), Data.AdvertisingTokenSiteId, Instant.now()).getKeysetId();
 
             // include 'keyset_id' field, if:
             //   (a) a key belongs to caller's site
@@ -325,10 +325,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private List<KeysetKey> getKeysetKeys() {
         Map<Integer, Keyset> keysetMap = this.keyManager.getAllKeysets();
         List<KeysetKey> keys = this.keyManager.getActiveKeysetKeys();
-        final List<KeysetKey> keysetKeyStore = keys
+        return keys
                 .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && keysetMap.get(k.getKeysetId()).getSiteId() != Data.RefreshKeySiteId)
-                .collect(Collectors.toList());
-        return keysetKeyStore;
+                .sorted(Comparator.comparing(KeysetKey::getId)).collect(Collectors.toList()); // sort by keyId for easy validation of json body
     }
 
     private void handleHealthCheck(RoutingContext rc) {

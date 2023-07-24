@@ -132,10 +132,7 @@ write_files:
       "enclave_platform": "gcp-vmid",
       "enforce_https": true,
       "service_instances": 16,
-      "allow_legacy_api": false,
-      "master_key_keyset_id": "1",
-      "refresh_key_keyset_id": "2",
-      "publisher_key_keyset_id": "3"
+      "allow_legacy_api": false
     }
 ```
 

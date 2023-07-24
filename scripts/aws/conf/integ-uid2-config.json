@@ -7,8 +7,5 @@
   "core_attest_url": "https://core-integ.uidapi.com/attest",
   "optout_api_uri": "https://core-integ.uidapi.com/optout/replicate",
   "optout_s3_folder": "uid-optout-integ/",
-  "allow_legacy_api": false,
-  "master_key_keyset_id": 1,
-  "refresh_key_keyset_id": 2,
-  "publisher_key_keyset_id": 3
+  "allow_legacy_api": false
 }

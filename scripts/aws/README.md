@@ -50,10 +50,7 @@ UID2 Operator application reads configuration from [AWS Secrets Manager](https:/
   "keyset_keys_metadata_path": "https://core-integ.uidapi.com/key/keyset-keys/refresh",
   "optout_metadata_path": "https://optout-integ.uidapi.com/optout/refresh",
   "optout_api_uri": "https://core-integ.uidapi.com/optout/replicate",
-  "core_attest_url": "https://core-integ.uidapi.com/attest",
-  "master_key_keyset_id": "1",
-  "refresh_key_keyset_id": "2",
-  "publisher_key_keyset_id": "3"
+  "core_attest_url": "https://core-integ.uidapi.com/attest"
 }
 ```
 Important Notes:

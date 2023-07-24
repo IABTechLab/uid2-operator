@@ -83,8 +83,6 @@ public class UIDOperatorVerticleTest {
     @Mock
     private RotatingKeysetProvider keysetProvider;
     @Mock
-    private RotatingKeysetKeyStore keysetKeyProvider;
-    @Mock
     private KeysetSnapshot keysetProviderSnapshot;
     @Mock
     private ISaltProvider saltProvider;
@@ -2528,7 +2526,7 @@ public class UIDOperatorVerticleTest {
 
         setKeysets(keysets);
         setKeysetKeys(1024, keys);
-        when(keysetKeyProvider.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
+        when(keysetKeyStore.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
         when(keysetProvider.getSnapshot()).thenReturn(keysetProviderSnapshot);
 
         linkKeysToKeysets(keys, keysets.values().toArray(new Keyset[0]));
@@ -2550,7 +2548,6 @@ public class UIDOperatorVerticleTest {
         List<KeysetKey> keysetKeys = Arrays.asList(keys);
         HashMap<Integer, KeysetKey> keyMap = new HashMap<>();
         keysetKeys.forEach(i -> keyMap.put(i.getId(), i));
-        when(keysetKeyProvider.getMetadata()).thenReturn(metadata);
         when(keysetKeyStoreSnapshot.getActiveKeysetKeys()).thenReturn(keysetKeys);
         when(keysetKeyStoreSnapshot.getKey(anyInt())).thenAnswer(i -> {
             return keyMap.get(i.getArgument(0));

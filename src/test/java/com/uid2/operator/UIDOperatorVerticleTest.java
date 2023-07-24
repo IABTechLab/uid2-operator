@@ -2742,17 +2742,50 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void testGenerateUsesDefaultKeyset(Vertx vertx, VertxTestContext testContext) throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"test1", "test2", "test3", "test4"})
+    void testGenerate_RuntimeKeyset_GENERATOR(String test_run, Vertx vertx, VertxTestContext testContext) throws Exception {
         final int clientSiteId = 101;
         final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
         fakeAuth(clientSiteId, Role.GENERATOR);
-        setupMultiKeysetsAndKeys();
+        //setupMultiKeysetsAndKeys();
+        MultipleKeysetsTests test = new MultipleKeysetsTests();
+        Instant now = Instant.now();
+        long nowL = now.toEpochMilli() / 1000;
         setupSalts();
 
         String v1Param = "email_hash=" + urlEncode(emailHash);
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email_hash", emailHash);
+
+        switch (test_run) {
+            // a. Add a keyset with a key to a publisher. Test /token/generate encrypts with the correct (old) key
+            case "test2":
+                Keyset keyset11 = new Keyset(11, 107, "keyset11", Set.of(101), nowL, true, true);
+                KeysetKey key128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 11);
+                KeysetKey key129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
+                test.AddKeyset(11, keyset11);
+                test.AddKey(1128, key128);
+                test.AddKey(1129, key129);
+                resetMocks();
+                test.setupMockitoApiInterception();
+                break;
+            // b. Rotate keys within a keyset. Test /token/generate encrypts with the correct (new) key
+            case "test3":
+                KeysetKey key329 = new KeysetKey(1329, makeAesKey("key229"), now.minusSeconds(10), now, now.plusSeconds(3600), 4); // default keyset
+                test.AddKey(1329, key329);
+                resetMocks();
+                test.setupMockitoApiInterception();
+                KeysetKey actual = keysetKeyStoreSnapshot.getActiveKey(4, Instant.now());
+                assertEquals(key329, actual);
+                break;
+            // c. Disable a publisher's default keyset. Test /token/generate behaves like it does today (eg encrypts with fallback key)
+            case "test4":
+                test.SetKeysetEnabled(4, false); // disable client default keyset: keyset4
+                resetMocks();
+                test.setupMockitoApiInterception();
+                break;
+        }
 
         sendTokenGenerate("v2", vertx,
                 v1Param, v2Payload, 200,
@@ -2783,7 +2816,21 @@ public class UIDOperatorVerticleTest {
                     } else {
                         clientKeyId = advertisingToken.publisherIdentity.clientKeyId;
                     }
-                    assertEquals(1007, clientKeyId);
+                    switch (test_run) {
+                        case "test1":
+                            assertEquals(1007, clientKeyId); // encrypt with active key in default keyset
+                            break;
+                        case "test2":
+                            assertEquals(1007, clientKeyId); // encrypt with old key
+                            break;
+                        case "test3":
+                            assertEquals(1329, clientKeyId); // encrypt with new key
+                            break;
+                        case "test4":
+                            assertEquals(1002., clientKeyId); // encrypt with fallback key
+                            break;
+                    }
+
                     testContext.completeNow();
                 });
     }

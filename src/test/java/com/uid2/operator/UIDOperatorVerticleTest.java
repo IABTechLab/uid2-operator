@@ -81,8 +81,6 @@ public class UIDOperatorVerticleTest {
     @Mock
     private IKeysetKeyStore.IkeysetKeyStoreSnapshot keysetKeyStoreSnapshot;
     @Mock
-    private KeysetSnapshot keysetSnapshot;
-    @Mock
     private RotatingKeysetProvider keysetProvider;
     @Mock
     private RotatingKeysetKeyStore keysetKeyProvider;
@@ -778,7 +776,7 @@ public class UIDOperatorVerticleTest {
             new KeysetKey(102, "key102".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 202),
         };
         addEncryptionKeys(encryptionKeys);
-        when(keysetSnapshot.canClientAccessKey(any(), any(), any())).thenReturn(true);
+        when(keysetProviderSnapshot.canClientAccessKey(any(), any(), any())).thenReturn(true);
 
         send(apiVersion, vertx, apiVersion + "/key/latest", true, null, null, 401, respJson -> testContext.completeNow());
     }
@@ -2531,19 +2529,19 @@ public class UIDOperatorVerticleTest {
         setKeysets(keysets);
         setKeysetKeys(1024, keys);
         when(keysetKeyProvider.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
-        when(keysetProvider.getSnapshot()).thenReturn(keysetSnapshot);
+        when(keysetProvider.getSnapshot()).thenReturn(keysetProviderSnapshot);
 
         linkKeysToKeysets(keys, keysets.values().toArray(new Keyset[0]));
 
         // verify getActiveKeyBySiteId()
-        //assertEquals(masterKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, -1, now));
-        //assertEquals(refreshKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, Data.RefreshKeySiteId, now));
-        //assertEquals(siteKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, Data.AdvertisingTokenSiteId, now));
-        //assertEquals(key6, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetSnapshot, 101, now));
+        //assertEquals(masterKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetProviderSnapshot, -1, now));
+        //assertEquals(refreshKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetProviderSnapshot, Data.RefreshKeySiteId, now));
+        //assertEquals(siteKey, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetProviderSnapshot, Data.AdvertisingTokenSiteId, now));
+        //assertEquals(key6, EncryptionKeyUtil.getActiveKeyBySiteId(keysetKeyStoreSnapshot, keysetProviderSnapshot, 101, now));
     }
 
     void setKeysets(Map<Integer, Keyset> keysets) {
-        when(keysetSnapshot.getAllKeysets()).thenReturn(keysets);
+        when(keysetProviderSnapshot.getAllKeysets()).thenReturn(keysets);
     }
 
     void setKeysetKeys(int maxKeyId, KeysetKey... keys) throws Exception {
@@ -2587,7 +2585,7 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    //@Test
+    @Test
     void keySharingMissingAllowedSites(Vertx vertx, VertxTestContext testContext) throws Exception {
         String apiVersion = "v2";
         int clientSiteId = 102;

@@ -1,12 +1,15 @@
 package com.uid2.operator.model;
 
 import com.uid2.operator.Const;
+import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Keyset;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.Comparator;
@@ -15,6 +18,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class KeyManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
     private final IKeysetKeyStore keysetKeyStore;
     private final RotatingKeysetProvider keysetProvider;
 
@@ -27,7 +31,9 @@ public class KeyManager {
         KeysetKey key = getActiveKeyBySiteId(siteId, asOf);
         if (key == null) key = getActiveKeyBySiteId(fallbackSiteId, asOf);
         if (key == null) {
-            throw new RuntimeException(String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId));
+            String error = String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId);
+            LOGGER.error(error);
+            throw new IllegalArgumentException(error);
         }
         return key;
     }
@@ -38,10 +44,13 @@ public class KeyManager {
                 .filter(s -> s.isEnabled() && s.isDefault() && s.getSiteId() == siteId)
                 .collect(Collectors.toList());
         if (keysets.isEmpty()) {
+            LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d.", siteId));
             return null;
         }
         if (keysets.size() > 1) {
-            throw new IllegalArgumentException("Multiple default keysets are enabled with SITE ID " + siteId);
+            String error = String.format("Multiple default keysets are enabled with SITE ID %d.", siteId);
+            LOGGER.error(error);
+            throw new IllegalArgumentException(error);
         }
         return getActiveKey(keysets.get(0).getKeysetId(), asOf);
     }

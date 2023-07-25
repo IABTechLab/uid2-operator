@@ -1419,12 +1419,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private JsonArray toJson(List<KeysetKey> keys, ClientKey clientKey) {
-        /* Reviewers to confirm: whether we need to check MissingAclMode by client's role.
         MissingAclMode mode = MissingAclMode.DENY_ALL;
         if (clientKey.getRoles().contains(Role.ID_READER)) {
             mode = MissingAclMode.ALLOW_ALL;
-        }*/
-        MissingAclMode mode = MissingAclMode.ALLOW_ALL;
+        }
         final JsonArray a = new JsonArray();
         for (int i = 0; i < keys.size(); ++i) {
             final KeysetKey k = keys.get(i);

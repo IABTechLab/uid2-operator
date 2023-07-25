@@ -1424,6 +1424,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         if (clientKey.getRoles().contains(Role.ID_READER)) {
             mode = MissingAclMode.ALLOW_ALL;
         }
+        Map<Integer, Keyset> keysets = this.keyManager.getAllKeysets();
         final JsonArray a = new JsonArray();
         for (int i = 0; i < keys.size(); ++i) {
             final KeysetKey k = keys.get(i);
@@ -1437,7 +1438,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             o.put("activates", k.getActivates().getEpochSecond());
             o.put("expires", k.getExpires().getEpochSecond());
             o.put("secret", EncodingUtils.toBase64String(k.getKeyBytes()));
-            o.put("site_id", this.keyManager.getKeyset(k.getKeysetId()).getSiteId());
+            o.put("site_id", keysets.get(k.getKeysetId()).getSiteId());
             a.add(o);
         }
         return a;

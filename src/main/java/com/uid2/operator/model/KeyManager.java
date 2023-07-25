@@ -56,8 +56,11 @@ public class KeyManager {
         return getActiveKey(keysets.get(0).getKeysetId(), asOf);
     }
 
-    public KeysetKey getActiveKey(int keysetId, Instant now) {
-        return this.keysetKeyStore.getSnapshot().getActiveKey(keysetId, now);
+    public KeysetKey getActiveKey(int keysetId) {
+        return getActiveKey(keysetId, Instant.now());
+    }
+    private KeysetKey getActiveKey(int keysetId, Instant asOf) {
+        return this.keysetKeyStore.getSnapshot().getActiveKey(keysetId, asOf);
     }
 
     public KeysetKey getKey(int keyId) {

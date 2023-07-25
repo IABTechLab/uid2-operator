@@ -26,8 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TokenEncodingTest {
 
-    private final IKeysetKeyStore keysetKeyStoreInstance;
-    private final RotatingKeysetProvider keysetProviderInstance;
+    private KeyManager keyManager;
 
     public TokenEncodingTest() throws Exception {
         RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
@@ -37,8 +36,6 @@ public class TokenEncodingTest {
         JsonObject m1 = keysetKeyStore.getMetadata();
         keysetKeyStore.loadContent(m1);
 
-        this.keysetKeyStoreInstance = keysetKeyStore;
-
         RotatingKeysetProvider keysetProvider = new RotatingKeysetProvider(
                 new EmbeddedResourceStorage(Main.class),
                 new GlobalScope(new CloudPath("/com.uid2.core/test/keysets/metadata.json")));
@@ -46,13 +43,13 @@ public class TokenEncodingTest {
         JsonObject m2 = keysetProvider.getMetadata();
         keysetProvider.loadContent(m2);
 
-        this.keysetProviderInstance = keysetProvider;
+        this.keyManager = new KeyManager(keysetKeyStore, keysetProvider);
     }
 
     @ParameterizedTest
     @EnumSource(TokenVersion.class)
     public void testRefreshTokenEncoding(TokenVersion tokenVersion) {
-        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStoreInstance, keysetProviderInstance));
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
 
         final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity("test@example.com", "some-salt");
@@ -83,15 +80,15 @@ public class TokenEncodingTest {
 
         Buffer b = Buffer.buffer(encodedBytes);
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 25 : 2);
-        KeysetKey key = this.keysetKeyStoreInstance.getSnapshot().getKey(keyId);
-        Keyset keyset = this.keysetProviderInstance.getSnapshot().getKeyset(key.getKeysetId());
+        KeysetKey key = this.keyManager.getKey(keyId);
+        Keyset keyset = this.keyManager.getKeyset(key.getKeysetId());
         assertEquals(Data.RefreshKeySiteId, keyset.getSiteId());
     }
 
     @ParameterizedTest
     @EnumSource(TokenVersion.class)
     public void testAdvertisingTokenEncodings(TokenVersion tokenVersion) {
-        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStoreInstance, keysetProviderInstance));
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
 
         final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, "test@example.com", IdentityScope.UID2, tokenVersion != TokenVersion.V2);
@@ -118,8 +115,8 @@ public class TokenEncodingTest {
 
         Buffer b = Buffer.buffer(encodedBytes);
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 1 : 2); //TODO - extract master key from token should be a helper function
-        KeysetKey key = this.keysetKeyStoreInstance.getSnapshot().getKey(keyId);
-        Keyset keyset = this.keysetProviderInstance.getSnapshot().getKeyset(key.getKeysetId());
+        KeysetKey key = this.keyManager.getKey(keyId);
+        Keyset keyset = this.keyManager.getKeyset(key.getKeysetId());
         assertEquals(Data.MasterKeySiteId, keyset.getSiteId());
     }
 }

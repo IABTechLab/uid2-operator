@@ -1,7 +1,7 @@
 package com.uid2.operator.model;
 
-import com.uid2.operator.Const;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
+import com.uid2.shared.Const;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Keyset;
 import com.uid2.shared.model.KeysetKey;
@@ -72,7 +72,7 @@ public class KeyManager {
         Map<Integer, Keyset> keysetMap = this.keysetProvider.getSnapshot().getAllKeysets();
         List<KeysetKey> keys = getActiveKeysetKeys();
         return keys
-                .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && k.getKeysetId() != Const.Config.RefreshKeyKeysetId)
+                .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && k.getKeysetId() != Const.Data.RefreshKeysetId)
                 .sorted(Comparator.comparing(KeysetKey::getId)).collect(Collectors.toList());
     }
 
@@ -92,9 +92,9 @@ public class KeyManager {
         return getMasterKey(Instant.now());
     }
     public KeysetKey getMasterKey(Instant asOf) {
-        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.MasterKeyKeysetId, asOf);
+        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.MasterKeysetId, asOf);
         if (key == null) {
-            throw new RuntimeException(String.format("Cannot get a master key with keyset ID %d.", Const.Config.MasterKeyKeysetId));
+            throw new RuntimeException(String.format("Cannot get a master key with keyset ID %d.", Const.Data.MasterKeysetId));
         }
         return key;
     }
@@ -104,9 +104,9 @@ public class KeyManager {
     }
 
     public KeysetKey getPublisherKey(Instant asOf) {
-        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.PublisherKeyKeysetId, asOf);
+        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.FallbackPublisherKeysetId, asOf);
         if (key == null) {
-            throw new RuntimeException(String.format("Cannot get a publisher key with keyset ID %d.", Const.Config.PublisherKeyKeysetId));
+            throw new RuntimeException(String.format("Cannot get a publisher key with keyset ID %d.", Const.Data.FallbackPublisherKeysetId));
         }
         return key;
     }
@@ -116,9 +116,9 @@ public class KeyManager {
     }
 
     public KeysetKey getRefreshKey(Instant asOf) {
-        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Config.RefreshKeyKeysetId, asOf);
+        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.RefreshKeysetId, asOf);
         if (key == null) {
-            throw new RuntimeException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Config.RefreshKeyKeysetId));
+            throw new RuntimeException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
         }
         return key;
     }

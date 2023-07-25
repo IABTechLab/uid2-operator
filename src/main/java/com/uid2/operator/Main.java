@@ -71,7 +71,6 @@ public class Main {
     private final CloudSyncOptOutStore optOutStore;
     private OperatorDisableHandler disableHandler = null;
     private final OperatorMetrics metrics;
-    private KeyManager keyManager;
     private IStatsCollectorQueue _statsCollectorQueue;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
@@ -134,8 +133,11 @@ public class Main {
             this.keysetProvider.loadContent();
             this.keysetKeyStore.loadContent();
         }
-        this.keyManager = new KeyManager(this.keysetKeyStore, this.keysetProvider);
-        metrics = new OperatorMetrics(keyManager, saltProvider);
+        metrics = new OperatorMetrics(getKeyManager(), saltProvider);
+    }
+
+    private KeyManager getKeyManager() {
+        return new KeyManager(this.keysetKeyStore, this.keysetProvider);
     }
 
     public static void main(String[] args) throws Exception {
@@ -214,7 +216,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;

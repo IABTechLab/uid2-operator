@@ -457,15 +457,15 @@ public class UIDOperatorVerticleTest {
     }
 
     protected void setupKeys() {
-        KeysetKey masterKey = new KeysetKey(101, makeAesKey("masterKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), Const.Config.MasterKeyKeysetId);
-        KeysetKey refreshKey = new KeysetKey(102, makeAesKey("refreshKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), Const.Config.RefreshKeyKeysetId);
-        KeysetKey publisherKey = new KeysetKey(103, makeAesKey("publisherKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), Const.Config.PublisherKeyKeysetId);
+        KeysetKey masterKey = new KeysetKey(101, makeAesKey("masterKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId);
+        KeysetKey refreshKey = new KeysetKey(102, makeAesKey("refreshKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), Const.Data.RefreshKeysetId);
+        KeysetKey publisherKey = new KeysetKey(103, makeAesKey("publisherKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId);
         KeysetKey siteKey = new KeysetKey(104, makeAesKey("siteKey"), Instant.now().minusSeconds(7), Instant.now(), Instant.now().plusSeconds(10), 4);
 
         when(keysetProviderSnapshot.canClientAccessKey(any(), any(), any())).thenReturn(true);
-        when(keysetKeyStoreSnapshot.getActiveKey(eq(Const.Config.MasterKeyKeysetId), any())).thenReturn(masterKey);
-        when(keysetKeyStoreSnapshot.getActiveKey(eq(Const.Config.RefreshKeyKeysetId), any())).thenReturn(refreshKey);
-        when(keysetKeyStoreSnapshot.getActiveKey(eq(Const.Config.PublisherKeyKeysetId), any())).thenReturn(publisherKey);
+        when(keysetKeyStoreSnapshot.getActiveKey(eq(Const.Data.MasterKeysetId), any())).thenReturn(masterKey);
+        when(keysetKeyStoreSnapshot.getActiveKey(eq(Const.Data.RefreshKeysetId), any())).thenReturn(refreshKey);
+        when(keysetKeyStoreSnapshot.getActiveKey(eq(Const.Data.FallbackPublisherKeysetId), any())).thenReturn(publisherKey);
         when(keysetKeyStoreSnapshot.getActiveKey(eq(4), any())).thenReturn(siteKey);
         when(keysetKeyStoreSnapshot.getKey(eq(101))).thenReturn(masterKey);
         when(keysetKeyStoreSnapshot.getKey(eq(102))).thenReturn(refreshKey);
@@ -473,19 +473,19 @@ public class UIDOperatorVerticleTest {
         when(keysetKeyStoreSnapshot.getKey(eq(104))).thenReturn(siteKey);
         when(keysetKeyStoreSnapshot.getActiveKeysetKeys()).thenReturn(Arrays.asList(masterKey, refreshKey, publisherKey, siteKey));
 
-        Keyset keyset1 = new Keyset(Const.Config.MasterKeyKeysetId, Data.MasterKeySiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
-        Keyset keyset2 = new Keyset(Const.Config.RefreshKeyKeysetId, Data.RefreshKeySiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
-        Keyset keyset3 = new Keyset(Const.Config.PublisherKeyKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
+        Keyset keyset1 = new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
+        Keyset keyset2 = new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
+        Keyset keyset3 = new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
         Keyset keyset4 = new Keyset(4, 201, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
         Map<Integer, Keyset> keysets = new HashMap<>() {{
-            put(Const.Config.MasterKeyKeysetId, keyset1);
-            put(Const.Config.RefreshKeyKeysetId, keyset2);
-            put(Const.Config.PublisherKeyKeysetId, keyset3);
+            put(Const.Data.MasterKeysetId, keyset1);
+            put(Const.Data.RefreshKeysetId, keyset2);
+            put(Const.Data.FallbackPublisherKeysetId, keyset3);
             put(4, keyset4);
         }};
-        when(keysetProviderSnapshot.getKeyset(eq(Const.Config.MasterKeyKeysetId))).thenReturn(keyset1);
-        when(keysetProviderSnapshot.getKeyset(eq(Const.Config.RefreshKeyKeysetId))).thenReturn(keyset2);
-        when(keysetProviderSnapshot.getKeyset(eq(Const.Config.PublisherKeyKeysetId))).thenReturn(keyset3);
+        when(keysetProviderSnapshot.getKeyset(eq(Const.Data.MasterKeysetId))).thenReturn(keyset1);
+        when(keysetProviderSnapshot.getKeyset(eq(Const.Data.RefreshKeysetId))).thenReturn(keyset2);
+        when(keysetProviderSnapshot.getKeyset(eq(Const.Data.FallbackPublisherKeysetId))).thenReturn(keyset3);
         when(keysetProviderSnapshot.getKeyset(eq(4))).thenReturn(keyset4);
         when(keysetProviderSnapshot.getAllKeysets()).thenReturn(keysets);
     }
@@ -560,15 +560,15 @@ public class UIDOperatorVerticleTest {
     void keyLatestNoAcl(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(205, Role.ID_READER);
         Keyset[] keysets = {
-            new Keyset(Const.Config.MasterKeyKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Config.RefreshKeyKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Config.PublisherKeyKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+            new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+            new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+            new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
             new Keyset(14, 5, "test", Set.of(-1, -2, 2), Instant.now().getEpochSecond(), true, true)
         };
         addKeysets(keysets);
 
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(101, "key101".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.PublisherKeyKeysetId),
+            new KeysetKey(101, "key101".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId),
             new KeysetKey(102, "key102".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 14),
         };
         addEncryptionKeys(encryptionKeys);
@@ -589,9 +589,9 @@ public class UIDOperatorVerticleTest {
     void keyLatestWithAcl(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(205, Role.ID_READER);
         Keyset[] keysets = {
-            new Keyset(Const.Config.MasterKeyKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Config.RefreshKeyKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Config.PublisherKeyKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+            new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+            new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+            new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
             new Keyset(14, 5, "test", Set.of(-1, -2, 2, 6), Instant.now().getEpochSecond(), true, true),
             new Keyset(15, 6, "test", Set.of(-1, -2, 2), Instant.now().getEpochSecond(), true, true),
         };
@@ -624,9 +624,9 @@ public class UIDOperatorVerticleTest {
         int siteId = 8;
         fakeAuth(siteId, Role.SHARER);
         Keyset[] keysets = {
-            new Keyset(Const.Config.MasterKeyKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Config.RefreshKeyKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Config.PublisherKeyKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+            new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+            new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+            new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
             new Keyset(42, 5, "test", Set.of(-1, -2, 2, 6), Instant.now().getEpochSecond(), true, true),
             new Keyset(43, 8, "test", Set.of(-1, -2, 2), Instant.now().getEpochSecond(), true, true),
             new Keyset(44, 5, "test", Set.of(-1, -2, 2, 6), Instant.now().getEpochSecond(), true, true),
@@ -634,9 +634,9 @@ public class UIDOperatorVerticleTest {
         };
         addKeysets(keysets);
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(101, makeAesKey("masterKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.MasterKeyKeysetId),
-            new KeysetKey(102, makeAesKey("siteKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.RefreshKeyKeysetId),
-            new KeysetKey(103, makeAesKey("refreshKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.PublisherKeyKeysetId),
+            new KeysetKey(101, makeAesKey("masterKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId),
+            new KeysetKey(102, makeAesKey("siteKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.RefreshKeysetId),
+            new KeysetKey(103, makeAesKey("refreshKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId),
             new KeysetKey(6, "sharingkey6".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 42),
             new KeysetKey(12, "sharingkey12".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 43),
             new KeysetKey(13, "sharingkey13".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 44),
@@ -651,7 +651,7 @@ public class UIDOperatorVerticleTest {
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
             assertEquals(siteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(Const.Config.MasterKeyKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(Const.Data.MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(43, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             testContext.completeNow();
         });
@@ -670,9 +670,9 @@ public class UIDOperatorVerticleTest {
         int siteId = 4;
         fakeAuth(siteId, Role.SHARER);
         Keyset[] keysets = {
-                new Keyset(Const.Config.MasterKeyKeysetId, Data.MasterKeySiteId, "test", Set.of(-1, -2, 2, 4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
-                new Keyset(Const.Config.RefreshKeyKeysetId, Data.RefreshKeySiteId, "test", Set.of(-1, -2, 2, 4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
-                new Keyset(Const.Config.PublisherKeyKeysetId, Data.AdvertisingTokenSiteId, "test", null, Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(-1, -2, 2, 4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(-1, -2, 2, 4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", null, Instant.now().getEpochSecond(), true, true),
                 new Keyset(104, 42, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
                 new Keyset(105, 43, "test", Set.of(4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
                 new Keyset(106, 44, "test", Set.of(4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
@@ -685,11 +685,11 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(12, "sharingkey12".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 105), // siteId = 43
                 new KeysetKey(13, "sharingkey13".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 106), // siteId = 44
                 new KeysetKey(14, "sharingkey14".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 107), // siteId = 45
-                new KeysetKey(3, "masterKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.MasterKeyKeysetId), // siteId = -1
-                new KeysetKey(42, "masterKey2".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.RefreshKeyKeysetId), // siteId = -2
+                new KeysetKey(3, "masterKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId), // siteId = -1
+                new KeysetKey(42, "masterKey2".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.RefreshKeysetId), // siteId = -2
                 new KeysetKey(7, "clientsKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 108), // siteId = 4
-                new KeysetKey(5, "publisherMaster".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.PublisherKeyKeysetId), // siteId = 2
-                new KeysetKey(9, "key with no ACL".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.PublisherKeyKeysetId), // siteId = 2
+                new KeysetKey(5, "publisherMaster".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId), // siteId = 2
+                new KeysetKey(9, "key with no ACL".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId), // siteId = 2
         };
         addEncryptionKeys(encryptionKeys);
         linkKeysToKeysets(encryptionKeys, keysets);
@@ -728,12 +728,12 @@ public class UIDOperatorVerticleTest {
         int siteId = 4;
         fakeAuth(siteId, Role.SHARER);
         Keyset[] keysets = {
-                new Keyset(Const.Config.MasterKeyKeysetId, Data.MasterKeySiteId, "test", null, Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", null, Instant.now().getEpochSecond(), true, true),
                 new Keyset(102, 4, "siteKeyset", null, Instant.now().getEpochSecond(), true, true),
         };
         addKeysets(keysets);
         KeysetKey[] encryptionKeys = {
-                new KeysetKey(1, "master key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.MasterKeyKeysetId), // siteId = -1
+                new KeysetKey(1, "master key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId), // siteId = -1
                 new KeysetKey(4, "site key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 102), // siteId = 4
         };
         addEncryptionKeys(encryptionKeys);
@@ -753,15 +753,15 @@ public class UIDOperatorVerticleTest {
         int siteId = 4;
         fakeAuth(siteId, Role.ID_READER);
         Keyset[] keysets = {
-                new Keyset(Const.Config.MasterKeyKeysetId, Data.MasterKeySiteId, "test", null, Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", null, Instant.now().getEpochSecond(), true, true),
                 new Keyset(12, 4, "siteKeyset", null, Instant.now().getEpochSecond(), true, true),
-                new Keyset(Const.Config.PublisherKeyKeysetId, Data.AdvertisingTokenSiteId, "PublisherKeyset", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "PublisherKeyset", Set.of(), Instant.now().getEpochSecond(), true, true),
         };
         addKeysets(keysets);
         KeysetKey[] encryptionKeys = {
-                new KeysetKey(1, "master key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.MasterKeyKeysetId), // siteId = -1
+                new KeysetKey(1, "master key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId), // siteId = -1
                 new KeysetKey(4, "site key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 12), // siteId = 4
-                new KeysetKey(2, "no acl key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.PublisherKeyKeysetId), // siteId = 2
+                new KeysetKey(2, "no acl key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId), // siteId = 2
         };
         addEncryptionKeys(encryptionKeys);
         linkKeysToKeysets(encryptionKeys, keysets);
@@ -792,16 +792,16 @@ public class UIDOperatorVerticleTest {
     void keyLatestHideRefreshKey(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(205, Role.ID_READER);
         Keyset[] keysets = {
-                new Keyset(Const.Config.MasterKeyKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-                new Keyset(Const.Config.RefreshKeyKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-                new Keyset(Const.Config.PublisherKeyKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
                 new Keyset(14, 5, "test", Set.of(-1, -2, 2, 6), Instant.now().getEpochSecond(), true, true),
                 new Keyset(15, 6, "test", Set.of(-1, -2, 2), Instant.now().getEpochSecond(), true, true),
         };
         addKeysets(keysets);
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(101, "key101".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.MasterKeyKeysetId),
-            new KeysetKey(102, "key102".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Config.RefreshKeyKeysetId),
+            new KeysetKey(101, "key101".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId),
+            new KeysetKey(102, "key102".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.RefreshKeysetId),
             new KeysetKey(103, "key103".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 14),
         };
         addEncryptionKeys(encryptionKeys);
@@ -811,7 +811,7 @@ public class UIDOperatorVerticleTest {
         send(apiVersion, vertx, apiVersion + "/key/latest", true, null, null, 200, respJson -> {
             System.out.println(respJson);
             checkEncryptionKeysResponse(respJson,
-                Arrays.stream(encryptionKeys).filter(k -> k.getKeysetId() != Const.Config.RefreshKeyKeysetId).toArray(KeysetKey[]::new));
+                Arrays.stream(encryptionKeys).filter(k -> k.getKeysetId() != Const.Data.RefreshKeysetId).toArray(KeysetKey[]::new));
             testContext.completeNow();
         });
     }
@@ -2470,13 +2470,15 @@ public class UIDOperatorVerticleTest {
         private HashMap<Integer, Keyset> keysetMap;
         private HashMap<Integer, KeysetKey> keyMap;
         public MultipleKeysetsTests() {
+            resetMocks();
+
             Instant now = Instant.now();
             long nowL = now.toEpochMilli() / 1000;
 
             this.keysetMap = new HashMap<>(Map.of(
-                    1, new Keyset(Const.Config.MasterKeyKeysetId, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
-                    2, new Keyset(Const.Config.RefreshKeyKeysetId, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
-                    3, new Keyset(Const.Config.PublisherKeyKeysetId, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
+                    1, new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
+                    2, new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
+                    3, new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
 
                     4, new Keyset(4, 101, "keyset4", null, nowL, true, true),
                     5, new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default
@@ -2489,9 +2491,9 @@ public class UIDOperatorVerticleTest {
             ));
 
             KeysetKey[] keys = {
-                    new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Config.MasterKeyKeysetId),
-                    new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Config.PublisherKeyKeysetId),
-                    new KeysetKey(1003, makeAesKey("refreshKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Config.RefreshKeyKeysetId),
+                    new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
+                    new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.FallbackPublisherKeysetId),
+                    new KeysetKey(1003, makeAesKey("refreshKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.RefreshKeysetId),
 
                     // keys in keyset4
                     new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(3600), 4),
@@ -2562,14 +2564,21 @@ public class UIDOperatorVerticleTest {
                     .collect(Collectors.groupingBy(KeysetKey::getKeysetId, Collectors.mapping((KeysetKey k) -> k, toList()))));
         }
 
-        public void AddKey(int keyId, KeysetKey key) {
+        public void addKey(int keyId, KeysetKey key) {
             if (this.keyMap.containsKey(keyId)) {
                 throw new RuntimeException(String.format("Cannot insert a key with duplicate Key ID %d.", keyId));
             }
             this.keyMap.put(keyId, key);
         }
 
-        public void AddKeyset(int keysetId, Keyset keyset) {
+        public void deleteKey(int keyId) {
+            if (!this.keyMap.containsKey(keyId)) {
+                throw new RuntimeException(String.format("Cannot find a key with Key ID %d.", keyId));
+            }
+            this.keyMap.remove(keyId);
+        }
+
+        public void addKeyset(int keysetId, Keyset keyset) {
             if (this.keysetMap.containsKey(keysetId)) {
                 throw new RuntimeException(String.format("Cannot insert a keyset with duplicate Keyset ID %d.", keysetId));
             }
@@ -2586,7 +2595,7 @@ public class UIDOperatorVerticleTest {
             this.keyMap.put(keyId, t);
         }
 
-        public void SetKeyActivate(int keyId, Instant asOf) {
+        public void setKeyActivate(int keyId, Instant asOf) {
             if (!this.keyMap.containsKey(keyId)) {
                 throw new RuntimeException(String.format("Cannot find a key with Key ID %d.", keyId));
             }
@@ -2596,7 +2605,7 @@ public class UIDOperatorVerticleTest {
             this.keyMap.put(keyId, t);
         }
 
-        public void SetKeysetDefault(int keysetId, Boolean newValue) {
+        public void setKeysetDefault(int keysetId, Boolean newValue) {
             if (!this.keysetMap.containsKey(keysetId)) {
                 throw new RuntimeException(String.format("Cannot find a keyset with Keyset ID %d.", keysetId));
             }
@@ -2606,7 +2615,7 @@ public class UIDOperatorVerticleTest {
             this.keysetMap.put(keysetId, t);
         }
 
-        public void SetKeysetAllowedSites(int keysetId, Set<Integer> newList) {
+        public void setKeysetAllowedSites(int keysetId, Set<Integer> newList) {
             if (!this.keysetMap.containsKey(keysetId)) {
                 throw new RuntimeException(String.format("Cannot find a keyset with Keyset ID %d.", keysetId));
             }
@@ -2616,7 +2625,7 @@ public class UIDOperatorVerticleTest {
             this.keysetMap.put(keysetId, t);
         }
 
-        public void SetKeysetEnabled(int keysetId, Boolean newValue) {
+        public void setKeysetEnabled(int keysetId, Boolean newValue) {
             if (!this.keysetMap.containsKey(keysetId)) {
                 throw new RuntimeException(String.format("Cannot find a keyset with Keyset ID %d.", keysetId));
             }
@@ -2625,22 +2634,13 @@ public class UIDOperatorVerticleTest {
             this.keysetMap.remove(keysetId);
             this.keysetMap.put(keysetId, t);
         }
-    }
 
-    void setKeysets(Map<Integer, Keyset> keysets) {
-        when(keysetProviderSnapshot.getAllKeysets()).thenReturn(keysets);
-    }
-
-    void setKeysetKeys(int maxKeyId, KeysetKey... keys) throws Exception {
-        JsonObject metadata = new JsonObject();
-        metadata.put("max_key_id", maxKeyId);
-        List<KeysetKey> keysetKeys = Arrays.asList(keys);
-        HashMap<Integer, KeysetKey> keyMap = new HashMap<>();
-        keysetKeys.forEach(i -> keyMap.put(i.getId(), i));
-        when(keysetKeyStoreSnapshot.getActiveKeysetKeys()).thenReturn(keysetKeys);
-        when(keysetKeyStoreSnapshot.getKey(anyInt())).thenAnswer(i -> {
-            return keyMap.get(i.getArgument(0));
-        });
+        public void resetMocks() {
+            reset(keysetKeyStoreSnapshot);
+            reset(keysetProviderSnapshot);
+            when(keysetKeyStore.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
+            when(keysetProvider.getSnapshot()).thenReturn(keysetProviderSnapshot);
+        }
     }
 
     @ParameterizedTest
@@ -2664,25 +2664,25 @@ public class UIDOperatorVerticleTest {
                 Keyset keyset11 = new Keyset(11, 107, "keyset11", Set.of(101), nowL, true, true);
                 KeysetKey key128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 11);
                 KeysetKey key129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
-                test.AddKeyset(11, keyset11);
-                test.AddKey(1128, key128);
-                test.AddKey(1129, key129);
-                resetMocks();
+                test.addKeyset(11, keyset11);
+                test.addKey(1128, key128);
+                test.addKey(1129, key129);
+                test.resetMocks();
                 test.setupMockitoApiInterception();
                 break;
             // b. Rotate keys within a keyset. Test /token/generate encrypts with the correct (new) key
             case "test3":
                 KeysetKey key329 = new KeysetKey(1329, makeAesKey("key229"), now.minusSeconds(10), now, now.plusSeconds(3600), 4); // default keyset
-                test.AddKey(1329, key329);
-                resetMocks();
+                test.addKey(1329, key329);
+                test.resetMocks();
                 test.setupMockitoApiInterception();
                 KeysetKey actual = keysetKeyStoreSnapshot.getActiveKey(4, Instant.now());
                 assertEquals(key329, actual);
                 break;
             // c. Disable a publisher's default keyset. Test /token/generate behaves like it does today (eg encrypts with fallback key)
             case "test4":
-                test.SetKeysetEnabled(4, false); // disable client default keyset: keyset4
-                resetMocks();
+                test.setKeysetEnabled(4, false); // disable client default keyset: keyset4
+                test.resetMocks();
                 test.setupMockitoApiInterception();
                 break;
         }
@@ -2766,8 +2766,8 @@ public class UIDOperatorVerticleTest {
         Instant now = Instant.now();
         long nowL = now.toEpochMilli() / 1000;
         KeysetKey[] expectedKeys = {
-                new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Config.MasterKeyKeysetId),
-                new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Config.RefreshKeyKeysetId),
+                new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
+                new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.RefreshKeysetId),
                 // keys in keyset4
                 new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(3600), 4),
                 new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(3600), 4),
@@ -2794,7 +2794,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(Const.Config.MasterKeyKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(Const.Data.MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
             testContext.completeNow();
@@ -2832,7 +2832,7 @@ public class UIDOperatorVerticleTest {
         Instant now = Instant.now();
         long nowL = now.toEpochMilli() / 1000;
         KeysetKey[] expectedKeys = {
-                new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Config.MasterKeyKeysetId),
+                new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
                 // keys in keyset4
                 new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(3600), 4),
                 new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(3600), 4),
@@ -2855,23 +2855,16 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(Const.Config.MasterKeyKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(Const.Data.MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
             testContext.completeNow();
         });
     }
 
-    private void resetMocks() {
-        reset(keysetKeyStoreSnapshot);
-        reset(keysetProviderSnapshot);
-        when(keysetKeyStore.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
-        when(keysetProvider.getSnapshot()).thenReturn(keysetProviderSnapshot);
-    }
-
     @ParameterizedTest
-    @ValueSource(strings = {"test1", "test2", "test3", "test5", "test6"})
-        // Tests1:
+    @ValueSource(strings = {"test1", "test2", "test3", "test4", "test5", "test6"})
+        // "test1"
         //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
         //   ID_READER has access to a keyset with a missing allowed_sites              - access through sharing
         //   ID_READER has access to a keyset with allowed_sites that includes us       - access through sharing
@@ -2901,8 +2894,8 @@ public class UIDOperatorVerticleTest {
         Instant now = Instant.now();
         long nowL = now.toEpochMilli() / 1000;
         List<KeysetKey> expectedKeys = new ArrayList<>(Arrays.asList(
-                new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Config.MasterKeyKeysetId),
-                new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Config.RefreshKeyKeysetId),
+                new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
+                new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.RefreshKeysetId),
                 // keys in keyset4
                 new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(3600), 4),
                 new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(3600), 4),
@@ -2924,16 +2917,16 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
         ));
 
-        // a. Add a keyset with keys (1 active & 1 expired). Test '/key/sharing' includes the new active key
         switch (test_run) {
+            // a. Add a keyset with keys (1 active & 1 expired). Test '/key/sharing' includes the new active key
             case "test2":
                 Keyset keyset11 = new Keyset(11, 107, "keyset11", Set.of(101), nowL, true, true);
                 KeysetKey key128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 11);
                 KeysetKey key129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
-                test.AddKeyset(11, keyset11);
-                test.AddKey(1128, key128);
-                test.AddKey(1129, key129); // key129 is expired but should return
-                resetMocks();
+                test.addKeyset(11, keyset11);
+                test.addKey(1128, key128);
+                test.addKey(1129, key129); // key129 is expired but should return
+                test.resetMocks();
                 test.setupMockitoApiInterception();
                 expectedKeys.add(key128);
                 expectedKeys.add(key129);
@@ -2945,43 +2938,45 @@ public class UIDOperatorVerticleTest {
                 KeysetKey key230 = new KeysetKey(1230, makeAesKey("key230"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 5); // non-default keyset
                 KeysetKey key231 = new KeysetKey(1231, makeAesKey("key231"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 6); // disabled keyset
                 KeysetKey key232 = new KeysetKey(1232, makeAesKey("key232"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 9); // sharing through 'allowed_site'
-                test.AddKey(1229, key229);
-                test.AddKey(1230, key230);
-                test.AddKey(1231, key231); // keyset6 is disabled
-                test.AddKey(1232, key232);
-                resetMocks();
+                test.addKey(1229, key229);
+                test.addKey(1230, key230);
+                test.addKey(1231, key231); // keyset6 is disabled
+                test.addKey(1232, key232);
+                test.resetMocks();
                 test.setupMockitoApiInterception();
                 expectedKeys.add(key229);
                 expectedKeys.add(key230);
                 expectedKeys.add(key232);
                 break;
 
-            // d. Disable a key within a keyset. Test /key/sharing no longer shows the disabled key
-            //case "test4":
-            //    test.SetKeyExpire(1008, Instant.now().minusSeconds(5));
-            //    resetMocks();
-            //    test.setupMockitoApiInterception();
-            //    expectedKeys.removeIf(x -> x.getId() == 1008); // key108 is expired but should not return.
-            //    break;
-
-            // e. Disable a keyset. Test /key/sharing no longer shows keys from the disabled keyset
-            case "test5":
-                test.SetKeysetEnabled(5, false); // disable keyset5 that contains key10 & key11
-                resetMocks();
-                test.setupMockitoApiInterception();
-                expectedKeys.removeIf(x -> x.getId() == 1010 || x.getId() == 1011 || x.getId() == 1012); // key10, key11, key12 should not return.
-                break;
-
             // c. Rotate keys within a keyset. Test /key/sharing shows the rotation
-            case "test6":
+            case "test4":
                 KeysetKey key329 = new KeysetKey(1329, makeAesKey("key229"), now.minusSeconds(10), now, now.plusSeconds(3600), 4); // default keyset
-                test.AddKey(1329, key329);
-                resetMocks();
+                test.addKey(1329, key329);
+                test.resetMocks();
                 test.setupMockitoApiInterception();
                 expectedKeys.add(key329);
                 KeysetKey actual = keysetKeyStoreSnapshot.getActiveKey(4, Instant.now());
                 assertEquals(key329, actual);
                 break;
+
+            // d. Disable(delete) a key within a keyset. Test /key/sharing no longer shows the disabled key
+            case "test5":
+                test.deleteKey(1008);
+                test.resetMocks();
+                test.setupMockitoApiInterception();
+                expectedKeys.removeIf(x -> x.getId() == 1008); // key108 is deleted and should not return.
+                break;
+
+            // e. Disable a keyset. Test /key/sharing no longer shows keys from the disabled keyset
+            case "test6":
+                test.setKeysetEnabled(5, false); // disable keyset5 that contains key10 & key11
+                test.resetMocks();
+                test.setupMockitoApiInterception();
+                expectedKeys.removeIf(x -> x.getId() == 1010 || x.getId() == 1011 || x.getId() == 1012); // key10, key11, key12 should not return.
+                break;
+
+
         }
 
         // test and validate results
@@ -2990,7 +2985,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(Const.Config.MasterKeyKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(Const.Data.MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys.toArray(new KeysetKey[0]));
             testContext.completeNow();

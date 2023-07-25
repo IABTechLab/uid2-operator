@@ -4,6 +4,7 @@ import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.Const;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Keyset;
+import com.uid2.shared.auth.KeysetSnapshot;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IKeysetKeyStore;
@@ -121,5 +122,9 @@ public class KeyManager {
             throw new RuntimeException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
         }
         return key;
+    }
+
+    public KeysetSnapshot getKeysetSnapshot() {
+        return this.keysetProvider.getSnapshot();
     }
 }

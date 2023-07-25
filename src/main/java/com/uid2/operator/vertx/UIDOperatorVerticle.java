@@ -14,10 +14,7 @@ import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
-import com.uid2.shared.auth.ClientKey;
-import com.uid2.shared.auth.IRoleAuthorizable;
-import com.uid2.shared.auth.Keyset;
-import com.uid2.shared.auth.Role;
+import com.uid2.shared.auth.*;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
@@ -1424,11 +1421,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         if (clientKey.getRoles().contains(Role.ID_READER)) {
             mode = MissingAclMode.ALLOW_ALL;
         }
+
         Map<Integer, Keyset> keysets = this.keyManager.getAllKeysets();
+        KeysetSnapshot keysetSnapshot = this.keyManager.getKeysetSnapshot();
+
         final JsonArray a = new JsonArray();
         for (int i = 0; i < keys.size(); ++i) {
             final KeysetKey k = keys.get(i);
-            if (!this.keyManager.canClientAccessKey(clientKey, k, mode)) {
+            if (!keysetSnapshot.canClientAccessKey(clientKey, k, mode)) {
                 continue;
             }
 

@@ -270,7 +270,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
             final JsonArray keys = new JsonArray();
-            final List<KeysetKey> keysetKeyStore = this.keyManager.getKeysetKeys();
+            KeyManager keyManagerSnapshot = this.keyManager.getSnapshot();
+            final List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
 
             MissingAclMode mode = MissingAclMode.DENY_ALL;
             // This will break if another Type is added to this map
@@ -279,12 +280,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 mode = MissingAclMode.ALLOW_ALL;
             }
 
-            KeysetKey masterKey = this.keyManager.getMasterKey();
+            KeysetKey masterKey = keyManagerSnapshot.getMasterKey();
 
             // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
-            int defaultKeysetId = this.keyManager.getActiveKeyBySiteId(clientKey.getSiteId(), Instant.now()).getKeysetId();
-            Map<Integer, Keyset> keysets = this.keyManager.getAllKeysets();
-            KeysetSnapshot keysetSnapshot = this.keyManager.getKeysetSnapshot();
+            int defaultKeysetId = keyManagerSnapshot.getActiveKeyBySiteId(clientKey.getSiteId(), Instant.now()).getKeysetId();
+            Map<Integer, Keyset> keysets = keyManagerSnapshot.getAllKeysets();
+
 
             // include 'keyset_id' field, if:
             //   (a) a key belongs to caller's site
@@ -300,7 +301,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     keyObj.put("keyset_id", key.getKeysetId());
                 } else if (keyset.getSiteId() == Data.MasterKeySiteId) {
                     keyObj.put("keyset_id", key.getKeysetId());
-                } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
+                } else if (!keyManagerSnapshot.canClientAccessKey(clientKey, key, mode)) {
                     continue;
                 }
                 keyObj.put("id", key.getId());
@@ -1423,13 +1424,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             mode = MissingAclMode.ALLOW_ALL;
         }
 
-        Map<Integer, Keyset> keysets = this.keyManager.getAllKeysets();
-        KeysetSnapshot keysetSnapshot = this.keyManager.getKeysetSnapshot();
+        KeyManager kayManagerSnapshot = this.keyManager.getSnapshot();
+        Map<Integer, Keyset> keysets = kayManagerSnapshot.getAllKeysets();
 
         final JsonArray a = new JsonArray();
         for (int i = 0; i < keys.size(); ++i) {
             final KeysetKey k = keys.get(i);
-            if (!keysetSnapshot.canClientAccessKey(clientKey, k, mode)) {
+            if (!kayManagerSnapshot.canClientAccessKey(clientKey, k, mode)) {
                 continue;
             }
 

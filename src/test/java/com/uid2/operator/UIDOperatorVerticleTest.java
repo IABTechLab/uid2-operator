@@ -2463,15 +2463,13 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    /**********************************************
-     * SHARING TESTS
-     *********************************************/
+    /********************************************************
+     * MULTIPLE-KEYSETS TESTS: KEY SHARING & TOKEN GENERATE
+     ********************************************************/
     public class MultipleKeysetsTests {
         private HashMap<Integer, Keyset> keysetMap;
         private HashMap<Integer, KeysetKey> keyMap;
         public MultipleKeysetsTests() {
-            resetMocks();
-
             Instant now = Instant.now();
             long nowL = now.toEpochMilli() / 1000;
 
@@ -2538,6 +2536,7 @@ public class UIDOperatorVerticleTest {
         }
 
         public void setupMockitoApiInterception() {
+            resetMocks();
             when(keysetProviderSnapshot.getKeyset(anyInt())).then((i) -> {
                 return this.keysetMap.get(i.getArgument(0, Integer.class));
             });
@@ -2635,7 +2634,7 @@ public class UIDOperatorVerticleTest {
             this.keysetMap.put(keysetId, t);
         }
 
-        public void resetMocks() {
+        private void resetMocks() {
             reset(keysetKeyStoreSnapshot);
             reset(keysetProviderSnapshot);
             when(keysetKeyStore.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
@@ -2644,8 +2643,8 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"test1", "test2", "test3", "test4"})
-    void testGenerate_RuntimeKeyset_GENERATOR(String test_run, Vertx vertx, VertxTestContext testContext) throws Exception {
+    @ValueSource(strings = {"MultiKeysets", "AddKey", "RotateKey", "DisableActiveKey", "DisableDefaultKeyset"})
+    void tokenGenerateRotatingKeysets_GENERATOR(String test_run, Vertx vertx, VertxTestContext testContext) throws Exception {
         final int clientSiteId = 101;
         final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -2658,31 +2657,38 @@ public class UIDOperatorVerticleTest {
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email_hash", emailHash);
 
+        KeysetKey activeKey = keysetKeyStoreSnapshot.getActiveKey(4, Instant.now());
+        assertEquals(activeKey.getId(), 1007);
+
         switch (test_run) {
-            // a. Add a keyset with a key to a publisher. Test /token/generate encrypts with the correct (old) key
-            case "test2":
+            case "MultiKeysets":
+                break;
+            // a. Add a keyset with a key to a publisher. '/token/generate' encrypts with the old key
+            case "AddKey":
                 Keyset keyset11 = new Keyset(11, 107, "keyset11", Set.of(101), nowL, true, true);
-                KeysetKey key128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 11);
+                KeysetKey key128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 11);
                 KeysetKey key129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
                 test.addKeyset(11, keyset11);
-                test.addKey(1128, key128);
-                test.addKey(1129, key129);
-                test.resetMocks();
+                test.addKey(1128, key128); // not activated
+                test.addKey(1129, key129); // expired
                 test.setupMockitoApiInterception();
                 break;
-            // b. Rotate keys within a keyset. Test /token/generate encrypts with the correct (new) key
-            case "test3":
+            // b. Rotate keys within a keyset. '/token/generate' encrypts with the new key
+            case "RotateKey":
                 KeysetKey key329 = new KeysetKey(1329, makeAesKey("key229"), now.minusSeconds(10), now, now.plusSeconds(3600), 4); // default keyset
-                test.addKey(1329, key329);
-                test.resetMocks();
+                test.addKey(1329, key329); // activates now
                 test.setupMockitoApiInterception();
                 KeysetKey actual = keysetKeyStoreSnapshot.getActiveKey(4, Instant.now());
                 assertEquals(key329, actual);
                 break;
-            // c. Disable a publisher's default keyset. Test /token/generate behaves like it does today (eg encrypts with fallback key)
-            case "test4":
-                test.setKeysetEnabled(4, false); // disable client default keyset: keyset4
-                test.resetMocks();
+            // c. Disable the active key within a keyset. '/token/generate' no longer encrypts with that key
+            case "DisableActiveKey":
+                test.deleteKey(1007); // disable active key
+                test.setupMockitoApiInterception();
+                break;
+            // d. Disable a publisher's default keyset. '/token/generate' should encrypt with publisher fallback key
+            case "DisableDefaultKeyset":
+                test.setKeysetEnabled(4, false);
                 test.setupMockitoApiInterception();
                 break;
         }
@@ -2717,17 +2723,20 @@ public class UIDOperatorVerticleTest {
                         clientKeyId = advertisingToken.publisherIdentity.clientKeyId;
                     }
                     switch (test_run) {
-                        case "test1":
-                            assertEquals(1007, clientKeyId); // encrypt with active key in default keyset
+                        case "MultiKeysets":
+                            assertEquals(1007, clientKeyId); // should encrypt with active key in default keyset
                             break;
-                        case "test2":
-                            assertEquals(1007, clientKeyId); // encrypt with old key
+                        case "AddKey":
+                            assertEquals(1007, clientKeyId); // should encrypt with old key
                             break;
-                        case "test3":
-                            assertEquals(1329, clientKeyId); // encrypt with new key
+                        case "RotateKey":
+                            assertEquals(1329, clientKeyId); // should encrypt with new key
                             break;
-                        case "test4":
-                            assertEquals(1002., clientKeyId); // encrypt with fallback key
+                        case "DisableActiveKey":
+                            assertNotEquals(1007, clientKeyId); // should no longer encrypt with disabled key
+                            break;
+                        case "DisableDefaultKeyset":
+                            assertEquals(1002, clientKeyId); // should encrypt with publisher fallback key
                             break;
                     }
 
@@ -2743,7 +2752,7 @@ public class UIDOperatorVerticleTest {
     //   ID_READER has no access to a keyset that is disabled                       - direct reject
     //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
     //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharingMultiKeysets_IDREADER(Vertx vertx, VertxTestContext testContext) throws Exception {
+    void keySharingKeysets_IDREADER(Vertx vertx, VertxTestContext testContext) throws Exception {
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.ID_READER);
@@ -2809,7 +2818,7 @@ public class UIDOperatorVerticleTest {
         //   SHARER has no access to a keyset with a missing allowed_sites           - reject by sharing
         //   SHARER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   SHARER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharing_MultiKeysets_SHARER(Vertx vertx, VertxTestContext testContext) throws Exception {
+    void keySharingKeysets_SHARER(Vertx vertx, VertxTestContext testContext) throws Exception {
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.SHARER);
@@ -2863,15 +2872,15 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"test1", "test2", "test3", "test4", "test5", "test6"})
-        // "test1"
+    @ValueSource(strings = {"KeysetAccess", "AddKeyset", "AddKey", "RotateKey", "DisableKey", "DisableKeyset"})
+        // "KeysetAccess"
         //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
         //   ID_READER has access to a keyset with a missing allowed_sites              - access through sharing
         //   ID_READER has access to a keyset with allowed_sites that includes us       - access through sharing
         //   ID_READER has no access to a keyset that is disabled                       - direct reject
         //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharing_RuntimeKeysets_IDREADER(String test_run, Vertx vertx, VertxTestContext testContext) throws Exception {
+    void keySharingRotatingKeysets_IDREADER(String test_run, Vertx vertx, VertxTestContext testContext) throws Exception {
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.ID_READER);
@@ -2919,21 +2928,20 @@ public class UIDOperatorVerticleTest {
 
         switch (test_run) {
             // a. Add a keyset with keys (1 active & 1 expired). Test '/key/sharing' includes the new active key
-            case "test2":
+            case "AddKeyset":
                 Keyset keyset11 = new Keyset(11, 107, "keyset11", Set.of(101), nowL, true, true);
                 KeysetKey key128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 11);
                 KeysetKey key129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
                 test.addKeyset(11, keyset11);
                 test.addKey(1128, key128);
                 test.addKey(1129, key129); // key129 is expired but should return
-                test.resetMocks();
                 test.setupMockitoApiInterception();
                 expectedKeys.add(key128);
                 expectedKeys.add(key129);
                 break;
 
             // b. Add keys to existing keysets (1 default, 1 non-default, 1 disabled, 1 shared). Test '/key/sharing' includes the new keys from enabled, default & allowed access keysets
-            case "test3":
+            case "AddKey":
                 KeysetKey key229 = new KeysetKey(1229, makeAesKey("key229"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 4); // default keyset
                 KeysetKey key230 = new KeysetKey(1230, makeAesKey("key230"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 5); // non-default keyset
                 KeysetKey key231 = new KeysetKey(1231, makeAesKey("key231"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 6); // disabled keyset
@@ -2942,7 +2950,6 @@ public class UIDOperatorVerticleTest {
                 test.addKey(1230, key230);
                 test.addKey(1231, key231); // keyset6 is disabled
                 test.addKey(1232, key232);
-                test.resetMocks();
                 test.setupMockitoApiInterception();
                 expectedKeys.add(key229);
                 expectedKeys.add(key230);
@@ -2950,10 +2957,9 @@ public class UIDOperatorVerticleTest {
                 break;
 
             // c. Rotate keys within a keyset. Test /key/sharing shows the rotation
-            case "test4":
-                KeysetKey key329 = new KeysetKey(1329, makeAesKey("key229"), now.minusSeconds(10), now, now.plusSeconds(3600), 4); // default keyset
+            case "RotateKey":
+                KeysetKey key329 = new KeysetKey(1329, makeAesKey("key229"), now.minusSeconds(10), now /* activate immediately */, now.plusSeconds(3600), 4); // default keyset
                 test.addKey(1329, key329);
-                test.resetMocks();
                 test.setupMockitoApiInterception();
                 expectedKeys.add(key329);
                 KeysetKey actual = keysetKeyStoreSnapshot.getActiveKey(4, Instant.now());
@@ -2961,22 +2967,18 @@ public class UIDOperatorVerticleTest {
                 break;
 
             // d. Disable(delete) a key within a keyset. Test /key/sharing no longer shows the disabled key
-            case "test5":
+            case "DisableKey":
                 test.deleteKey(1008);
-                test.resetMocks();
                 test.setupMockitoApiInterception();
                 expectedKeys.removeIf(x -> x.getId() == 1008); // key108 is deleted and should not return.
                 break;
 
             // e. Disable a keyset. Test /key/sharing no longer shows keys from the disabled keyset
-            case "test6":
+            case "DisableKeyset":
                 test.setKeysetEnabled(5, false); // disable keyset5 that contains key10 & key11
-                test.resetMocks();
                 test.setupMockitoApiInterception();
                 expectedKeys.removeIf(x -> x.getId() == 1010 || x.getId() == 1011 || x.getId() == 1012); // key10, key11, key12 should not return.
                 break;
-
-
         }
 
         // test and validate results

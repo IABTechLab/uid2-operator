@@ -22,10 +22,36 @@ public class KeyManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
     private final IKeysetKeyStore keysetKeyStore;
     private final RotatingKeysetProvider keysetProvider;
+    private final Boolean snapshotMode;
+    private final IKeysetKeyStore.IkeysetKeyStoreSnapshot keysetKeyStoreSnapshot;
+    private final KeysetSnapshot keysetSnapshot;
 
     public KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider) {
         this.keysetKeyStore = keysetKeyStore;
         this.keysetProvider = keysetProvider;
+        this.snapshotMode = false;
+        this.keysetKeyStoreSnapshot = null;
+        this.keysetSnapshot = null;
+    }
+
+    private KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider, Boolean snapshotMode) {
+        this.keysetKeyStore = keysetKeyStore;
+        this.keysetProvider = keysetProvider;
+        this.snapshotMode = snapshotMode;
+        this.keysetKeyStoreSnapshot = snapshotMode ? this.keysetKeyStore.getSnapshot() : null;
+        this.keysetSnapshot = snapshotMode ? this.keysetProvider.getSnapshot() : null;
+    }
+
+    public KeyManager getSnapshot() {
+        return new KeyManager(this.keysetKeyStore, this.keysetProvider, true);
+    }
+
+    private IKeysetKeyStore.IkeysetKeyStoreSnapshot getKeysetKeyStoreSnapshot() {
+        return snapshotMode ? this.keysetKeyStoreSnapshot : this.keysetKeyStore.getSnapshot();
+    }
+
+    private KeysetSnapshot getKeysetSnapshot() {
+        return snapshotMode ? this.keysetSnapshot : this.keysetProvider.getSnapshot();
     }
 
     public KeysetKey getActiveKeyBySiteIdWithFallback(int siteId, int fallbackSiteId, Instant asOf) {
@@ -41,7 +67,7 @@ public class KeyManager {
 
     // Retrieve an active key from default keyset by caller's site id.
     public KeysetKey getActiveKeyBySiteId(int siteId, Instant asOf) {
-        List<Keyset> keysets = this.keysetProvider.getSnapshot().getAllKeysets().values().stream()
+        List<Keyset> keysets = getKeysetSnapshot().getAllKeysets().values().stream()
                 .filter(s -> s.isEnabled() && s.isDefault() && s.getSiteId() == siteId)
                 .collect(Collectors.toList());
         if (keysets.isEmpty()) {
@@ -60,20 +86,20 @@ public class KeyManager {
         return getActiveKey(keysetId, Instant.now());
     }
     private KeysetKey getActiveKey(int keysetId, Instant asOf) {
-        return this.keysetKeyStore.getSnapshot().getActiveKey(keysetId, asOf);
+        return getKeysetKeyStoreSnapshot().getActiveKey(keysetId, asOf);
     }
 
     public KeysetKey getKey(int keyId) {
-        return this.keysetKeyStore.getSnapshot().getKey(keyId);
+        return getKeysetKeyStoreSnapshot().getKey(keyId);
     }
 
     private List<KeysetKey> getActiveKeysetKeys() {
         // return all keys without expiry check
-        return this.keysetKeyStore.getSnapshot().getActiveKeysetKeys();
+        return getKeysetKeyStoreSnapshot().getActiveKeysetKeys();
     }
 
     public List<KeysetKey> getKeysetKeys() {
-        Map<Integer, Keyset> keysetMap = this.keysetProvider.getSnapshot().getAllKeysets();
+        Map<Integer, Keyset> keysetMap = getKeysetSnapshot().getAllKeysets();
         List<KeysetKey> keys = getActiveKeysetKeys();
         return keys
                 .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && k.getKeysetId() != Const.Data.RefreshKeysetId)
@@ -81,22 +107,22 @@ public class KeyManager {
     }
 
     public Keyset getKeyset(int keysetId) {
-        return this.keysetProvider.getSnapshot().getKeyset(keysetId);
+        return getKeysetSnapshot().getKeyset(keysetId);
     }
 
     public Map<Integer, Keyset> getAllKeysets() {
-        return this.keysetProvider.getSnapshot().getAllKeysets();
+        return getKeysetSnapshot().getAllKeysets();
     }
 
     public Boolean canClientAccessKey(ClientKey clientKey, KeysetKey key, MissingAclMode mode) {
-        return this.keysetProvider.getSnapshot().canClientAccessKey(clientKey, key, mode);
+        return getKeysetSnapshot().canClientAccessKey(clientKey, key, mode);
     }
 
     public KeysetKey getMasterKey() {
         return getMasterKey(Instant.now());
     }
     public KeysetKey getMasterKey(Instant asOf) {
-        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.MasterKeysetId, asOf);
+        KeysetKey key = getKeysetKeyStoreSnapshot().getActiveKey(Const.Data.MasterKeysetId, asOf);
         if (key == null) {
             throw new RuntimeException(String.format("Cannot get a master key with keyset ID %d.", Const.Data.MasterKeysetId));
         }
@@ -108,7 +134,7 @@ public class KeyManager {
     }
 
     public KeysetKey getPublisherKey(Instant asOf) {
-        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.FallbackPublisherKeysetId, asOf);
+        KeysetKey key = getKeysetKeyStoreSnapshot().getActiveKey(Const.Data.FallbackPublisherKeysetId, asOf);
         if (key == null) {
             throw new RuntimeException(String.format("Cannot get a publisher key with keyset ID %d.", Const.Data.FallbackPublisherKeysetId));
         }
@@ -120,14 +146,10 @@ public class KeyManager {
     }
 
     public KeysetKey getRefreshKey(Instant asOf) {
-        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.RefreshKeysetId, asOf);
+        KeysetKey key = getKeysetKeyStoreSnapshot().getActiveKey(Const.Data.RefreshKeysetId, asOf);
         if (key == null) {
             throw new RuntimeException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
         }
         return key;
-    }
-
-    public KeysetSnapshot getKeysetSnapshot() {
-        return this.keysetProvider.getSnapshot();
     }
 }

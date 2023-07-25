@@ -284,6 +284,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
             int defaultKeysetId = this.keyManager.getActiveKeyBySiteId(clientKey.getSiteId(), Instant.now()).getKeysetId();
             Map<Integer, Keyset> keysets = this.keyManager.getAllKeysets();
+            KeysetSnapshot keysetSnapshot = this.keyManager.getKeysetSnapshot();
 
             // include 'keyset_id' field, if:
             //   (a) a key belongs to caller's site
@@ -299,7 +300,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     keyObj.put("keyset_id", key.getKeysetId());
                 } else if (keyset.getSiteId() == Data.MasterKeySiteId) {
                     keyObj.put("keyset_id", key.getKeysetId());
-                } else if (!this.keyManager.canClientAccessKey(clientKey, key, mode)) {
+                } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
                     continue;
                 }
                 keyObj.put("id", key.getId());

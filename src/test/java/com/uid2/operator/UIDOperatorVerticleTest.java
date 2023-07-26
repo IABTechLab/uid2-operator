@@ -124,6 +124,7 @@ public class UIDOperatorVerticleTest {
         config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, refreshExpiresAfter.toMillis() / 1000);
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, refreshIdentityAfter.toMillis() / 1000);
         config.put(Const.Config.FailureShutdownWaitHoursProp, 24);
+        config.put(Const.Config.SharingTokenExpiryProp, 2592000);
 
         setupConfig(config);
 

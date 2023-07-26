@@ -22,6 +22,7 @@ import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
+import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
@@ -47,11 +48,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
@@ -270,8 +269,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
             final JsonArray keys = new JsonArray();
-            KeyManager keyManagerSnapshot = this.keyManager.getSnapshot();
-            final List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
+
+            KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
+            KeysetKey masterKey = keyManagerSnapshot.getMasterKey();
+            List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
+            Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getKeysetMap();
+            KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
+            // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
+            Keyset defaultKeyset = keyManagerSnapshot.getDefaultKeyset();
 
             MissingAclMode mode = MissingAclMode.DENY_ALL;
             // This will break if another Type is added to this map
@@ -280,28 +285,27 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 mode = MissingAclMode.ALLOW_ALL;
             }
 
-            KeysetKey masterKey = keyManagerSnapshot.getMasterKey();
-
-            // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
-            int defaultKeysetId = keyManagerSnapshot.getActiveKeyBySiteId(clientKey.getSiteId(), Instant.now()).getKeysetId();
-            Map<Integer, Keyset> keysets = keyManagerSnapshot.getAllKeysets();
-
+            final JsonObject resp = new JsonObject();
+            resp.put("caller_site_id", clientKey.getSiteId());
+            resp.put("master_keyset_id", masterKey.getKeysetId());
+            if (defaultKeyset != null) {
+                resp.put("default_keyset_id", defaultKeyset.getKeysetId());
+            }
+            resp.put("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
 
             // include 'keyset_id' field, if:
-            //   (a) a key belongs to caller's site
+            //   (a) a key belongs to caller's enabled site
             //   (b) a key belongs to master_keyset
             // otherwise, when a key is accessible by caller, the key can be used for decryption only. skip 'keyset_id' field.
             for (KeysetKey key: keysetKeyStore) {
                 JsonObject keyObj = new JsonObject();
-                Keyset keyset = keysets.get(key.getKeysetId());
+                Keyset keyset = keysetMap.get(key.getKeysetId());
+
                 if (keyset == null || !keyset.isEnabled()) {
                     continue;
-                }
-                if(clientKey.getSiteId() == keyset.getSiteId()) {
+                } else if (clientKey.getSiteId() == keyset.getSiteId() || key.getKeysetId() == Data.MasterKeysetId) {
                     keyObj.put("keyset_id", key.getKeysetId());
-                } else if (keyset.getSiteId() == Data.MasterKeySiteId) {
-                    keyObj.put("keyset_id", key.getKeysetId());
-                } else if (!keyManagerSnapshot.canClientAccessKey(clientKey, key, mode)) {
+                } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
                     continue;
                 }
                 keyObj.put("id", key.getId());
@@ -309,16 +313,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 keyObj.put("activates", key.getActivates().getEpochSecond());
                 keyObj.put("expires", key.getExpires().getEpochSecond());
                 keyObj.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
-
                 keys.add(keyObj);
             }
-
-            final JsonObject resp = new JsonObject();
-            resp.put("caller_site_id", clientKey.getSiteId());
-            resp.put("master_keyset_id", masterKey.getKeysetId());
-            resp.put("default_keyset_id", defaultKeysetId);
-            resp.put("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
             resp.put("keys", keys);
+
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);
@@ -1424,13 +1422,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             mode = MissingAclMode.ALLOW_ALL;
         }
 
-        KeyManager kayManagerSnapshot = this.keyManager.getSnapshot();
-        Map<Integer, Keyset> keysets = kayManagerSnapshot.getAllKeysets();
+        KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
+        Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getKeysetMap();
+        KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
 
         final JsonArray a = new JsonArray();
         for (int i = 0; i < keys.size(); ++i) {
             final KeysetKey k = keys.get(i);
-            if (!kayManagerSnapshot.canClientAccessKey(clientKey, k, mode)) {
+            if (!keysetSnapshot.canClientAccessKey(clientKey, k, mode)) {
                 continue;
             }
 
@@ -1440,7 +1439,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             o.put("activates", k.getActivates().getEpochSecond());
             o.put("expires", k.getExpires().getEpochSecond());
             o.put("secret", EncodingUtils.toBase64String(k.getKeyBytes()));
-            o.put("site_id", keysets.get(k.getKeysetId()).getSiteId());
+            o.put("site_id", keysetMap.get(k.getKeysetId()).getSiteId());
             a.add(o);
         }
         return a;

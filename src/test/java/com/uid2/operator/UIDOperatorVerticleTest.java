@@ -158,36 +158,11 @@ public class UIDOperatorVerticleTest {
     }
 
     private void addEncryptionKeys(KeysetKey... keys) {
-        // keyMap: keyId -> key
         Map<Integer, KeysetKey> keyMap = Arrays.stream(keys).collect(Collectors.toMap(s -> s.getId(), s -> s));
         when(keysetKeyStoreSnapshot.getKey(anyInt())).then((i) -> {
             return keyMap.get(i.getArgument(0, Integer.class));
         });
         when(keysetKeyStoreSnapshot.getActiveKeysetKeys()).thenReturn(Arrays.asList(keys));
-    }
-
-    private void addKeysets(Keyset... keysets) {
-        Map<Integer, Keyset> keysetMap = Arrays.stream(keysets).collect(Collectors.toMap(s -> s.getKeysetId(), s -> s));
-        when(keysetProviderSnapshot.getKeyset(anyInt())).then((i) -> {
-            return keysetMap.get(i.getArgument(0, Integer.class));
-        });
-        when(keysetProviderSnapshot.getAllKeysets()).thenReturn(keysetMap);
-    }
-
-    private void linkKeysToKeysets(KeysetKey[] keys, Keyset[] keysets) {
-        Map<Integer, KeysetKey> keyMap = Collections.emptyMap();
-        if (keys.length > 0) {
-            keyMap = Arrays.stream(keys).collect(Collectors.toMap(s -> s.getId(), s -> s));
-        }
-
-        Map<Integer, List<KeysetKey>> keysetMap;
-        if (keysets.length >0) {
-            keysetMap = Arrays.stream(keys).collect(Collectors.groupingBy(KeysetKey::getKeysetId, Collectors.mapping((KeysetKey k) -> k, toList())));
-            when(keysetKeyStoreSnapshot.getActiveKey(anyInt(), any())).then(i -> {
-                KeysetKeyStoreSnapshot snapshot = new KeysetKeyStoreSnapshot(new HashMap(keysetProviderSnapshot.getAllKeysets()), new HashMap(keysetMap));
-                return snapshot.getActiveKey(i.getArgument(0, Integer.class), i.getArgument(1, Instant.class));
-            });
-        }
     }
 
     protected void fakeAuth(int siteId, Role... roles) {
@@ -253,7 +228,6 @@ public class UIDOperatorVerticleTest {
                                      Handler<JsonObject> handler) {
         sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler);
     }
-
 
     private void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode, String referer, Handler<JsonObject> handler) {
         if (apiVersion.equals("v2")) {
@@ -557,28 +531,22 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
-    void keyLatestNoAcl(String apiVersion, Vertx vertx, VertxTestContext testContext) {
-        fakeAuth(205, Role.ID_READER);
+    void keyLatestKeysetsNoAcl(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(5, Role.ID_READER);
         Keyset[] keysets = {
-            new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(14, 5, "test", Set.of(-1, -2, 2), Instant.now().getEpochSecond(), true, true)
+            new Keyset(Data.MasterKeysetId, Data.MasterKeySiteId, "masterKeyset", null, Instant.now().getEpochSecond(), true, true),
+            new Keyset(11, 5, "test", null, Instant.now().getEpochSecond(), true, true),
+            new Keyset(12, 6, "test", null, Instant.now().getEpochSecond(), true, true)
         };
-        addKeysets(keysets);
-
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(101, "key101".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId),
-            new KeysetKey(102, "key102".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 14),
+            new KeysetKey(100, "masterKey".getBytes(), Instant.now(), Instant.now().minusSeconds(15), Instant.now().plusSeconds(20), Data.MasterKeysetId),
+            new KeysetKey(101, "key101".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 11),
+            new KeysetKey(102, "key102".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 12),
         };
-        addEncryptionKeys(encryptionKeys);
-        linkKeysToKeysets(encryptionKeys, keysets);
-
-        when(keysetProviderSnapshot.canClientAccessKey(any(), any(), any())).thenReturn(true);
-
-        assertEquals(encryptionKeys[1], keysetKeyStoreSnapshot.getActiveKey(keysets[3].getKeysetId(), Instant.now()));
-
+        MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
+        Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/latest", true, null, null, 200, respJson -> {
+            System.out.println(respJson);
             checkEncryptionKeysResponse(respJson, encryptionKeys);
             testContext.completeNow();
         });
@@ -586,189 +554,25 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
-    void keyLatestWithAcl(String apiVersion, Vertx vertx, VertxTestContext testContext) {
-        fakeAuth(205, Role.ID_READER);
+    void keyLatestKeysetsWithAcl(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(5, Role.ID_READER);
         Keyset[] keysets = {
-            new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(14, 5, "test", Set.of(-1, -2, 2, 6), Instant.now().getEpochSecond(), true, true),
-            new Keyset(15, 6, "test", Set.of(-1, -2, 2), Instant.now().getEpochSecond(), true, true),
+            new Keyset(Data.MasterKeysetId, Data.MasterKeySiteId, "masterKeyset", null, Instant.now().getEpochSecond(), true, true),
+            new Keyset(11, 5, "test", Set.of(6), Instant.now().getEpochSecond(), true, true),
+            new Keyset(12, 6, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
         };
-        addKeysets(keysets);
-
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(101, "key101".getBytes(), Instant.now(), Instant.now().minusSeconds(20), Instant.now().plusSeconds(20), 14),
-            new KeysetKey(102, "key102".getBytes(), Instant.now(), Instant.now().minusSeconds(15), Instant.now().plusSeconds(20), 14),
-            new KeysetKey(103, "key103".getBytes(), Instant.now(), Instant.now().plusSeconds(10), Instant.now().plusSeconds(20), 15),
+            new KeysetKey(100, "masterKey".getBytes(), Instant.now(), Instant.now().minusSeconds(15), Instant.now().plusSeconds(20), Data.MasterKeysetId),
+            new KeysetKey(101, "key101".getBytes(), Instant.now(), Instant.now().minusSeconds(15), Instant.now().plusSeconds(20), 11),
+            new KeysetKey(102, "key102".getBytes(), Instant.now(), Instant.now().plusSeconds(10), Instant.now().plusSeconds(20), 12),
         };
-        addEncryptionKeys(encryptionKeys);
-        linkKeysToKeysets(encryptionKeys, keysets);
+        MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
 
-        when(keysetProviderSnapshot.canClientAccessKey(any(), any(), any())).then((i) -> {
-            return i.getArgument(1, KeysetKey.class).getId() > 101;
-        });
-
-        assertEquals(encryptionKeys[1], keysetKeyStoreSnapshot.getActiveKey(keysets[3].getKeysetId(), Instant.now()));
-        assertEquals(null, keysetKeyStoreSnapshot.getActiveKey(keysets[4].getKeysetId(), Instant.now())); // key103 is inactive
-
-        send(apiVersion, vertx, apiVersion + "/key/latest", true, null, null, 200, respJson -> {
-            checkEncryptionKeysResponse(respJson, Arrays.copyOfRange(encryptionKeys, 1, 3));
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void keySharingCorrectIDS(Vertx vertx, VertxTestContext testContext) {
-        String apiVersion = "v2";
-        int siteId = 8;
-        fakeAuth(siteId, Role.SHARER);
-        Keyset[] keysets = {
-            new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-            new Keyset(42, 5, "test", Set.of(-1, -2, 2, 6), Instant.now().getEpochSecond(), true, true),
-            new Keyset(43, 8, "test", Set.of(-1, -2, 2), Instant.now().getEpochSecond(), true, true),
-            new Keyset(44, 5, "test", Set.of(-1, -2, 2, 6), Instant.now().getEpochSecond(), true, true),
-            new Keyset(45, 6, "test", Set.of(-1, -2, 2), Instant.now().getEpochSecond(), true, true),
-        };
-        addKeysets(keysets);
-        KeysetKey[] encryptionKeys = {
-            new KeysetKey(101, makeAesKey("masterKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId),
-            new KeysetKey(102, makeAesKey("siteKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.RefreshKeysetId),
-            new KeysetKey(103, makeAesKey("refreshKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId),
-            new KeysetKey(6, "sharingkey6".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 42),
-            new KeysetKey(12, "sharingkey12".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 43),
-            new KeysetKey(13, "sharingkey13".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 44),
-            new KeysetKey(14, "sharingkey14".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 45),
-        };
-        addEncryptionKeys(encryptionKeys);
-        linkKeysToKeysets(encryptionKeys, keysets);
-
-        //Creates a subset of all IDs
-        KeysetKey[] expectedKeys = Arrays.copyOfRange(encryptionKeys, 0, 6);
-
-        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
-            System.out.println(respJson);
-            assertEquals(siteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(Const.Data.MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
-            assertEquals(43, respJson.getJsonObject("body").getInteger("default_keyset_id"));
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void keySharingCorrectFiltering(Vertx vertx, VertxTestContext testContext) {
-        //Call should return
-        // all keys they have access in ACL
-        // The master key -1
-        //Call Should not return
-        // The master key -2
-        // The publisher General 2
-        // Any other key without an ACL
-        String apiVersion = "v2";
-        int siteId = 4;
-        fakeAuth(siteId, Role.SHARER);
-        Keyset[] keysets = {
-                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(-1, -2, 2, 4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
-                new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(-1, -2, 2, 4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
-                new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", null, Instant.now().getEpochSecond(), true, true),
-                new Keyset(104, 42, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-                new Keyset(105, 43, "test", Set.of(4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
-                new Keyset(106, 44, "test", Set.of(4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
-                new Keyset(107, 45, "test", Set.of(4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
-                new Keyset(108, 4, "test", Set.of(4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
-        };
-        addKeysets(keysets);
-        KeysetKey[] encryptionKeys = {
-                new KeysetKey(6, "sharingkey6".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 104), // siteId = 42
-                new KeysetKey(12, "sharingkey12".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 105), // siteId = 43
-                new KeysetKey(13, "sharingkey13".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 106), // siteId = 44
-                new KeysetKey(14, "sharingkey14".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 107), // siteId = 45
-                new KeysetKey(3, "masterKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId), // siteId = -1
-                new KeysetKey(42, "masterKey2".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.RefreshKeysetId), // siteId = -2
-                new KeysetKey(7, "clientsKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 108), // siteId = 4
-                new KeysetKey(5, "publisherMaster".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId), // siteId = 2
-                new KeysetKey(9, "key with no ACL".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId), // siteId = 2
-        };
-        addEncryptionKeys(encryptionKeys);
-        linkKeysToKeysets(encryptionKeys, keysets);
-
-        //Creates a subset of all IDs
-        KeysetKey[] expectedKeyACL = Arrays.copyOfRange(encryptionKeys, 1, 3); // key 12, key 13
-
-        // This sets ACL that the client can only access the calling keys
-        for (KeysetKey expectedKey : expectedKeyACL) {
-            when(keysetProviderSnapshot.canClientAccessKey(any(), eq(expectedKey), any())).thenReturn(true); // key 12, key 13
-        }
-
-        when(keysetProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[4]), any())).thenReturn(true); // key 3
-        when(keysetProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[5]), any())).thenReturn(true); // key 42
-        when(keysetProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[6]), any())).thenReturn(true); // key 7
-        when(keysetProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[7]), eq(MissingAclMode.DENY_ALL))).thenReturn(false); // key 9
-        when(keysetProviderSnapshot.canClientAccessKey(any(), eq(encryptionKeys[7]), eq(MissingAclMode.ALLOW_ALL))).thenReturn(true); // key 9
-
-        //Add the expected Default keys to the expected Keys from filtering
-        KeysetKey[] expectedKeysDefault = new KeysetKey[]{encryptionKeys[4], encryptionKeys[6]}; // key3 & key7
-        KeysetKey[] expectedKeys = new KeysetKey[expectedKeyACL.length + expectedKeysDefault.length];
-        System.arraycopy(expectedKeyACL, 0, expectedKeys, 0, expectedKeyACL.length);
-        System.arraycopy(expectedKeysDefault, 0, expectedKeys, expectedKeyACL.length, expectedKeysDefault.length);
-
+        KeysetKey[] expectedKeys = new KeysetKey[] { encryptionKeys[0], encryptionKeys[1] }; // encryptionKeys[1] is shared but not activated. should not return encryptionKeys[1].
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
-        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+        send(apiVersion, vertx, apiVersion + "/key/latest", true, null, null, 200, respJson -> {
             System.out.println(respJson);
-            checkEncryptionKeysSharing(respJson, siteId, expectedKeys);
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void keySharingReturnsMasterAndSite(Vertx vertx, VertxTestContext testContext) {
-        String apiVersion = "v2";
-        int siteId = 4;
-        fakeAuth(siteId, Role.SHARER);
-        Keyset[] keysets = {
-                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", null, Instant.now().getEpochSecond(), true, true),
-                new Keyset(102, 4, "siteKeyset", null, Instant.now().getEpochSecond(), true, true),
-        };
-        addKeysets(keysets);
-        KeysetKey[] encryptionKeys = {
-                new KeysetKey(1, "master key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId), // siteId = -1
-                new KeysetKey(4, "site key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 102), // siteId = 4
-        };
-        addEncryptionKeys(encryptionKeys);
-        linkKeysToKeysets(encryptionKeys, keysets);
-
-        Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
-        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
-            System.out.println(respJson);
-            checkEncryptionKeysSharing(respJson, siteId, encryptionKeys);
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void keySharingIDREADER(Vertx vertx, VertxTestContext testContext) {
-        String apiVersion = "v2";
-        int siteId = 4;
-        fakeAuth(siteId, Role.ID_READER);
-        Keyset[] keysets = {
-                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", null, Instant.now().getEpochSecond(), true, true),
-                new Keyset(12, 4, "siteKeyset", null, Instant.now().getEpochSecond(), true, true),
-                new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "PublisherKeyset", Set.of(), Instant.now().getEpochSecond(), true, true),
-        };
-        addKeysets(keysets);
-        KeysetKey[] encryptionKeys = {
-                new KeysetKey(1, "master key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId), // siteId = -1
-                new KeysetKey(4, "site key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 12), // siteId = 4
-                new KeysetKey(2, "no acl key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId), // siteId = 2
-        };
-        addEncryptionKeys(encryptionKeys);
-        linkKeysToKeysets(encryptionKeys, keysets);
-
-        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
-            System.out.println(respJson);
-            checkEncryptionKeysSharing(respJson, siteId, Arrays.copyOfRange(encryptionKeys, 0, 2)); // expected keys: key1 & key4
+            checkEncryptionKeysResponse(respJson, expectedKeys);
             testContext.completeNow();
         });
     }
@@ -790,24 +594,20 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void keyLatestHideRefreshKey(String apiVersion, Vertx vertx, VertxTestContext testContext) {
-        fakeAuth(205, Role.ID_READER);
+        fakeAuth(5, Role.ID_READER);
         Keyset[] keysets = {
-                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-                new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", null, Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", null, Instant.now().getEpochSecond(), true, true),
                 new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
-                new Keyset(14, 5, "test", Set.of(-1, -2, 2, 6), Instant.now().getEpochSecond(), true, true),
-                new Keyset(15, 6, "test", Set.of(-1, -2, 2), Instant.now().getEpochSecond(), true, true),
+                new Keyset(10, 5, "test", Set.of(-1, -2, 2), Instant.now().getEpochSecond(), true, true),
         };
-        addKeysets(keysets);
         KeysetKey[] encryptionKeys = {
             new KeysetKey(101, "key101".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId),
             new KeysetKey(102, "key102".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.RefreshKeysetId),
-            new KeysetKey(103, "key103".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 14),
+            new KeysetKey(103, "key103".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 10),
         };
-        addEncryptionKeys(encryptionKeys);
-        linkKeysToKeysets(encryptionKeys, keysets);
-        when(keysetProviderSnapshot.canClientAccessKey(any(), any(), any())).thenReturn(true);
-
+        MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
+        Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/latest", true, null, null, 200, respJson -> {
             System.out.println(respJson);
             checkEncryptionKeysResponse(respJson,
@@ -815,7 +615,6 @@ public class UIDOperatorVerticleTest {
             testContext.completeNow();
         });
     }
-
 
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
@@ -2469,6 +2268,13 @@ public class UIDOperatorVerticleTest {
     public class MultipleKeysetsTests {
         private HashMap<Integer, Keyset> keysetMap;
         private HashMap<Integer, KeysetKey> keyMap;
+
+        public MultipleKeysetsTests(List<Keyset> keysets, List<KeysetKey> keys) {
+            this.keysetMap = new HashMap<>(keysets.stream().collect(Collectors.toMap(s -> s.getKeysetId(), s -> s)));
+            this.keyMap = new HashMap<>(keys.stream().collect(Collectors.toMap(s -> s.getId(), s -> s)));
+            setupMockitoApiInterception();
+        }
+
         public MultipleKeysetsTests() {
             Instant now = Instant.now();
             long nowL = now.toEpochMilli() / 1000;
@@ -2644,7 +2450,7 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"MultiKeysets", "AddKey", "RotateKey", "DisableActiveKey", "DisableDefaultKeyset"})
-    void tokenGenerateRotatingKeysets_GENERATOR(String test_run, Vertx vertx, VertxTestContext testContext) throws Exception {
+    void tokenGenerateRotatingKeysets_GENERATOR(String testRun, Vertx vertx, VertxTestContext testContext) throws Exception {
         final int clientSiteId = 101;
         final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -2660,7 +2466,7 @@ public class UIDOperatorVerticleTest {
         KeysetKey activeKey = keysetKeyStoreSnapshot.getActiveKey(4, Instant.now());
         assertEquals(activeKey.getId(), 1007);
 
-        switch (test_run) {
+        switch (testRun) {
             case "MultiKeysets":
                 break;
             // a. Add a keyset with a key to a publisher. '/token/generate' encrypts with the old key
@@ -2722,7 +2528,7 @@ public class UIDOperatorVerticleTest {
                     } else {
                         clientKeyId = advertisingToken.publisherIdentity.clientKeyId;
                     }
-                    switch (test_run) {
+                    switch (testRun) {
                         case "MultiKeysets":
                             assertEquals(1007, clientKeyId); // should encrypt with active key in default keyset
                             break;
@@ -2742,6 +2548,50 @@ public class UIDOperatorVerticleTest {
 
                     testContext.completeNow();
                 });
+    }
+
+    @Test
+    void keySharingKeysets_CorrectFiltering(Vertx vertx, VertxTestContext testContext) {
+        //Call should return
+        // all keys they have access in ACL
+        // The master key -1
+        //Call Should not return
+        // The master key -2
+        // The publisher General 2
+        // Any other key without an ACL
+        String apiVersion = "v2";
+        int siteId = 4;
+        fakeAuth(siteId, Role.SHARER);
+        Keyset[] keysets = {
+                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(-1, -2, 2, 4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", null, Instant.now().getEpochSecond(), true, true),
+                new Keyset(104, 42, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(105, 43, "test", Set.of(4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
+                new Keyset(106, 44, "test", Set.of(4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
+                new Keyset(107, 45, "test", Set.of(4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
+                new Keyset(108, 4, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+        };
+        KeysetKey[] encryptionKeys = {
+                new KeysetKey(6, "sharingkey6".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 104), // siteId = 42
+                new KeysetKey(12, "sharingkey12".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 105), // siteId = 43
+                new KeysetKey(13, "sharingkey13".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 106), // siteId = 44
+                new KeysetKey(14, "sharingkey14".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 107), // siteId = 45
+                new KeysetKey(3, "masterKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId), // siteId = -1
+                new KeysetKey(42, "masterKey2".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.RefreshKeysetId), // siteId = -2
+                new KeysetKey(7, "clientsKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 108), // siteId = 4
+                new KeysetKey(5, "publisherMaster".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId), // siteId = 2
+                new KeysetKey(9, "key with no ACL".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId), // siteId = 2
+        };
+        MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
+        KeysetKey[] expectedKeys = new KeysetKey[] { encryptionKeys[4], encryptionKeys[6], encryptionKeys[1], encryptionKeys[2], encryptionKeys[3] };
+        Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
+
+        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+            System.out.println(respJson);
+            checkEncryptionKeysSharing(respJson, siteId, expectedKeys);
+            testContext.completeNow();
+        });
     }
 
     @Test
@@ -2871,6 +2721,94 @@ public class UIDOperatorVerticleTest {
         });
     }
 
+    @Test
+    void keySharingKeysets_ReturnsMasterAndSite(Vertx vertx, VertxTestContext testContext) {
+        String apiVersion = "v2";
+        int siteId = 5;
+        fakeAuth(siteId, Role.SHARER);
+        Keyset[] keysets = {
+                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", null, Instant.now().getEpochSecond(), true, true),
+                new Keyset(10, 5, "siteKeyset", null, Instant.now().getEpochSecond(), true, true),
+        };
+        KeysetKey[] encryptionKeys = {
+                new KeysetKey(101, "master key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId),
+                new KeysetKey(102, "site key".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 10),
+        };
+        MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
+
+        Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
+        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+            System.out.println(respJson);
+            checkEncryptionKeysSharing(respJson, siteId, encryptionKeys);
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"NoKeyset", "NoKey", "SharedKey"})
+    void keySharingKeysets_CorrectIDS(String testRun, Vertx vertx, VertxTestContext testContext) {
+        String apiVersion = "v2";
+        int siteId = 0;
+        KeysetKey[] keys = null;
+
+        Keyset[] keysets = {
+                new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(4, 10, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(5, 11, "test", Set.of(10), Instant.now().getEpochSecond(), true, true),
+                new Keyset(6, 12, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
+                new Keyset(7, 13, "test", Set.of(12), Instant.now().getEpochSecond(), true, true),
+        };
+        KeysetKey[] encryptionKeys = {
+                new KeysetKey(1, makeAesKey("masterKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId),
+                new KeysetKey(2, makeAesKey("siteKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.RefreshKeysetId),
+                new KeysetKey(3, makeAesKey("refreshKey"), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId),
+                new KeysetKey(4, "key4".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 7),
+        };
+        MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
+
+        switch (testRun) {
+            case "NoKeyset":
+                siteId = 8;
+                keys = new KeysetKey[] { encryptionKeys[0] }; // only master key should return. 'default_keyset_id' should not exist in json
+                break;
+            case "NoKey":
+                siteId = 10;
+                keys = new KeysetKey[] { encryptionKeys[0] }; // only master key should return. 'default_keyset_id' should be 4
+                break;
+            case "SharedKey":
+                siteId = 12;
+                keys = new KeysetKey[] { encryptionKeys[0], encryptionKeys[3] }; // master key and key4 should return. 'default_keyset_id' should be 6
+                break;
+        }
+
+        final int clientSiteId = siteId;
+        fakeAuth(clientSiteId, Role.SHARER);
+        final KeysetKey[] expectedKeys = Arrays.copyOfRange(keys, 0, keys.length);
+        Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
+
+        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+            System.out.println(respJson);
+            assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
+            assertEquals(Const.Data.MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+
+            switch (testRun) {
+                case "NoKeyset":
+                    assertEquals(null, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+                    break;
+                case "NoKey":
+                    assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+                    break;
+                case "SharedKey":
+                    assertEquals(6, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+                    break;
+            }
+            checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
+            testContext.completeNow();
+        });
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"KeysetAccess", "AddKeyset", "AddKey", "RotateKey", "DisableKey", "DisableKeyset"})
         // "KeysetAccess"
@@ -2880,7 +2818,7 @@ public class UIDOperatorVerticleTest {
         //   ID_READER has no access to a keyset that is disabled                       - direct reject
         //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharingRotatingKeysets_IDREADER(String test_run, Vertx vertx, VertxTestContext testContext) throws Exception {
+    void keySharingRotatingKeysets_IDREADER(String testRun, Vertx vertx, VertxTestContext testContext) throws Exception {
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.ID_READER);
@@ -2926,7 +2864,7 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
         ));
 
-        switch (test_run) {
+        switch (testRun) {
             // a. Add a keyset with keys (1 active & 1 expired). Test '/key/sharing' includes the new active key
             case "AddKeyset":
                 Keyset keyset11 = new Keyset(11, 107, "keyset11", Set.of(101), nowL, true, true);

@@ -1,5 +1,6 @@
 package com.uid2.operator.model;
 
+import com.uid2.operator.model.KeyManagerSnapshot;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.Const;
 import com.uid2.shared.auth.ClientKey;
@@ -22,36 +23,29 @@ public class KeyManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
     private final IKeysetKeyStore keysetKeyStore;
     private final RotatingKeysetProvider keysetProvider;
-    private final Boolean snapshotMode;
-    private final IKeysetKeyStore.IkeysetKeyStoreSnapshot keysetKeyStoreSnapshot;
-    private final KeysetSnapshot keysetSnapshot;
 
     public KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider) {
         this.keysetKeyStore = keysetKeyStore;
         this.keysetProvider = keysetProvider;
-        this.snapshotMode = false;
-        this.keysetKeyStoreSnapshot = null;
-        this.keysetSnapshot = null;
     }
 
-    private KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider, Boolean snapshotMode) {
-        this.keysetKeyStore = keysetKeyStore;
-        this.keysetProvider = keysetProvider;
-        this.snapshotMode = snapshotMode;
-        this.keysetKeyStoreSnapshot = snapshotMode ? this.keysetKeyStore.getSnapshot() : null;
-        this.keysetSnapshot = snapshotMode ? this.keysetProvider.getSnapshot() : null;
-    }
-
-    public KeyManager getSnapshot() {
-        return new KeyManager(this.keysetKeyStore, this.keysetProvider, true);
+    public KeyManagerSnapshot getKeyManagerSnapshot(int siteId) {
+        synchronized (this) {
+            return new KeyManagerSnapshot(
+                    getKeysetSnapshot(),
+                    getAllKeysets(),
+                    getKeysetKeys(),
+                    getMasterKey(),
+                    getDefaultKeysetBySiteId(siteId));
+        }
     }
 
     private IKeysetKeyStore.IkeysetKeyStoreSnapshot getKeysetKeyStoreSnapshot() {
-        return snapshotMode ? this.keysetKeyStoreSnapshot : this.keysetKeyStore.getSnapshot();
+        return this.keysetKeyStore.getSnapshot();
     }
 
     private KeysetSnapshot getKeysetSnapshot() {
-        return snapshotMode ? this.keysetSnapshot : this.keysetProvider.getSnapshot();
+        return this.keysetProvider.getSnapshot();
     }
 
     public KeysetKey getActiveKeyBySiteIdWithFallback(int siteId, int fallbackSiteId, Instant asOf) {
@@ -63,6 +57,13 @@ public class KeyManager {
             throw new IllegalArgumentException(error);
         }
         return key;
+    }
+
+    public Keyset getDefaultKeysetBySiteId(int siteId) {
+        List<Keyset> keysets = this.keysetProvider.getSnapshot().getAllKeysets().values().stream()
+                .filter(s -> s.isEnabled() && s.isDefault() && s.getSiteId() == siteId).collect(Collectors.toList());
+        if (keysets.isEmpty()) return null;
+        return keysets.get(0);
     }
 
     // Retrieve an active key from default keyset by caller's site id.

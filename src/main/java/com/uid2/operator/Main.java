@@ -139,6 +139,9 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
+
+        java.security.Security.setProperty("networkaddress.cache.ttl" , "60");
+
         final String vertxConfigPath = System.getProperty(Const.Config.VERTX_CONFIG_PATH_PROP);
         if (vertxConfigPath != null) {
             System.out.format("Running CUSTOM CONFIG mode, config: %s\n", vertxConfigPath);

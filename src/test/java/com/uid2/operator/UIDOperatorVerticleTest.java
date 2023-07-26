@@ -2264,15 +2264,15 @@ public class UIDOperatorVerticleTest {
     }
 
     /********************************************************
-     * MULTIPLE-KEYSETS TESTS: KEY SHARING & TOKEN GENERATE
+     * MULTIPLE-KEYSETS TESTS: KEY SHARING & TOKEN GENERATE *
      ********************************************************/
     public class MultipleKeysetsTests {
-        private HashMap<Integer, Keyset> keysetMap;
-        private HashMap<Integer, KeysetKey> keyMap;
+        private final HashMap<Integer, Keyset> keysetMap;
+        private final HashMap<Integer, KeysetKey> keyMap;
 
         public MultipleKeysetsTests(List<Keyset> keysets, List<KeysetKey> keys) {
-            this.keysetMap = new HashMap<>(keysets.stream().collect(Collectors.toMap(s -> s.getKeysetId(), s -> s)));
-            this.keyMap = new HashMap<>(keys.stream().collect(Collectors.toMap(s -> s.getId(), s -> s)));
+            this.keysetMap = new HashMap<>(keysets.stream().collect(Collectors.toMap(Keyset::getKeysetId, s -> s)));
+            this.keyMap = new HashMap<>(keys.stream().collect(Collectors.toMap(KeysetKey::getId, s -> s)));
             setupMockitoApiInterception();
         }
 
@@ -2343,26 +2343,11 @@ public class UIDOperatorVerticleTest {
         }
 
         public void setupMockitoApiInterception() {
-            resetMocks();
-            when(keysetProviderSnapshot.getKeyset(anyInt())).then((i) -> {
-                return this.keysetMap.get(i.getArgument(0, Integer.class));
-            });
-            when(keysetProviderSnapshot.getAllKeysets()).thenReturn(new HashMap<>(this.keysetMap));
+            keysetKeyStoreSnapshot = new KeysetKeyStoreSnapshot(this.keyMap, getKeysetHashMap());
+            keysetProviderSnapshot = new KeysetSnapshot(new HashMap<>(this.keysetMap));
 
-            when(keysetKeyStoreSnapshot.getKey(anyInt())).then((i) -> {
-                return this.keyMap.get(i.getArgument(0, Integer.class));
-            });
-            when(keysetKeyStoreSnapshot.getActiveKeysetKeys()).thenReturn(new ArrayList<>(this.keyMap.values()));
-
-            when(keysetProviderSnapshot.canClientAccessKey(any(), any(), any())).then((i) -> {
-                KeysetSnapshot snapshot = new KeysetSnapshot(new HashMap<>(this.keysetMap));
-                return snapshot.canClientAccessKey(i.getArgument(0, ClientKey.class), i.getArgument(1, KeysetKey.class), i.getArgument(2, MissingAclMode.class));
-            });
-
-            when(keysetKeyStoreSnapshot.getActiveKey(anyInt(), any())).then(i -> {
-                KeysetKeyStoreSnapshot snapshot = new KeysetKeyStoreSnapshot(this.keyMap, getKeysetHashMap());
-                return snapshot.getActiveKey(i.getArgument(0, Integer.class), i.getArgument(1, Instant.class));
-            });
+            when(keysetKeyStore.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
+            when(keysetProvider.getSnapshot()).thenReturn(keysetProviderSnapshot);
         }
 
         private HashMap<Integer, List<KeysetKey>> getKeysetHashMap() {
@@ -2439,13 +2424,6 @@ public class UIDOperatorVerticleTest {
             Keyset t = new Keyset(k.getKeysetId(), k.getSiteId(), k.getName(), k.getAllowedSites(), k.getCreated(), newValue, k.isDefault());
             this.keysetMap.remove(keysetId);
             this.keysetMap.put(keysetId, t);
-        }
-
-        private void resetMocks() {
-            reset(keysetKeyStoreSnapshot);
-            reset(keysetProviderSnapshot);
-            when(keysetKeyStore.getSnapshot()).thenReturn(keysetKeyStoreSnapshot);
-            when(keysetProvider.getSnapshot()).thenReturn(keysetProviderSnapshot);
         }
     }
 

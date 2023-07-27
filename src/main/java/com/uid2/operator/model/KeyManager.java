@@ -42,9 +42,7 @@ public class KeyManager {
         KeysetKey key = getActiveKeyBySiteId(siteId, asOf);
         if (key == null) key = getActiveKeyBySiteId(fallbackSiteId, asOf);
         if (key == null) {
-            String error = String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId);
-            LOGGER.error(error);
-            throw new IllegalArgumentException(error);
+            throw new IllegalArgumentException(String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId));
         }
         return key;
     }
@@ -66,9 +64,7 @@ public class KeyManager {
             return null;
         }
         if (keysets.size() > 1) {
-            String error = String.format("Multiple default keysets are enabled with SITE ID %d.", siteId);
-            LOGGER.error(error);
-            throw new IllegalArgumentException(error);
+            throw new IllegalArgumentException(String.format("Multiple default keysets are enabled with SITE ID %d.", siteId));
         }
         return getActiveKey(keysets.get(0).getKeysetId(), asOf);
     }

@@ -28,5 +28,9 @@
   "optout_delta_backtrack_in_days": 1,
   "optout_heap_default_capacity": 8192,
   "optout_max_partitions": 30,
-  "optout_partition_interval": 86400
+  "optout_partition_interval": 86400,
+  "aws_kms_jwt_signing_key_id": "ff275b92-0def-4dfc-b0f6-87c96b26c6c7",
+  "aws_region": "us-east-2",
+  "aws_access_key_id": "no access key needed for test",
+  "aws_secret_access_key": "no secret key needed for test"
 }

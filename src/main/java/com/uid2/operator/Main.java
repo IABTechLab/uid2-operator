@@ -87,48 +87,42 @@ public class Main {
         }
 
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
-        String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
-        DownloadCloudStorage fsStores;
-        if (coreAttestUrl != null) {
-            String coreApiToken = this.config.getString(Const.Config.CoreApiTokenProp);
-            UidCoreClient coreClient = createUidCoreClient(coreAttestUrl, coreApiToken);
-            fsStores = coreClient;
-            LOGGER.info("Salt/Key/Client stores - Using uid2-core attestation endpoint: " + coreAttestUrl);
 
-            Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
-            this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
-            coreClient.setResponseStatusWatcher(this.disableHandler::handleResponseStatus);
-
-            if (useStorageMock) {
-                this.fsOptOut = configureMockOptOutStore();
-            } else {
-                this.fsOptOut = configureAttestedOptOutStore(coreClient, coreAttestUrl);
-            }
-        } else if (useStorageMock) {
-            fsStores = new EmbeddedResourceStorage(Main.class);
+        DownloadCloudStorage contentStorage;
+        if (useStorageMock) {
             LOGGER.info("Salt/Key/Client stores - Using EmbeddedResourceStorage");
-
+            contentStorage = new EmbeddedResourceStorage(Main.class);
             this.fsOptOut = configureMockOptOutStore();
         } else {
-            String coreBucket = this.config.getString(Const.Config.CoreS3BucketProp);
-            fsStores = CloudUtils.createStorage(coreBucket, config);
-            LOGGER.info("Salt/Key/Client stores - Using the same storage as optout: s3://" + coreBucket);
+            String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
+            if (coreAttestUrl == null) {
+                throw new Exception("Missing configuration: " + Const.Config.CoreAttestUrlProp);
+            }
+            String coreApiToken = this.config.getString(Const.Config.CoreApiTokenProp);
+            UidCoreClient coreClient = createUidCoreClient(coreAttestUrl, coreApiToken);
+            contentStorage = coreClient;
+            LOGGER.info("Salt/Key/Client stores - Using uid2-core attestation endpoint: " + coreAttestUrl);
 
-            this.fsOptOut = configureCloudOptOutStore();
+            Duration disableWaitTime = Duration.ofHours(this.config.getInteger(
+                    Const.Config.FailureShutdownWaitHoursProp,
+                    120));
+            this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
+            coreClient.setResponseStatusWatcher(this.disableHandler::handleResponseStatus);
+            this.fsOptOut = configureAttestedOptOutStore(coreClient, coreAttestUrl);
         }
 
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
-        this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
+        this.clientKeyProvider = new RotatingClientKeyProvider(contentStorage, new GlobalScope(new CloudPath(clientsMdPath)));
         String keysMdPath = this.config.getString(Const.Config.KeysMetadataPathProp);
-        this.keyStore = new RotatingKeyStore(fsStores, new GlobalScope(new CloudPath(keysMdPath)));
+        this.keyStore = new RotatingKeyStore(contentStorage, new GlobalScope(new CloudPath(keysMdPath)));
         String keysAclMdPath = this.config.getString(Const.Config.KeysAclMetadataPathProp);
-        this.keyAclProvider = new RotatingKeyAclProvider(fsStores, new GlobalScope(new CloudPath(keysAclMdPath)));
+        this.keyAclProvider = new RotatingKeyAclProvider(contentStorage, new GlobalScope(new CloudPath(keysAclMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
-        this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
+        this.saltProvider = new RotatingSaltProvider(contentStorage, saltsMdPath);
 
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
 
-        if (useStorageMock && coreAttestUrl == null) {
+        if (useStorageMock) {
             this.clientKeyProvider.loadContent();
             this.keyStore.loadContent();
             this.keyAclProvider.loadContent();

@@ -6,7 +6,6 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-
     <version>3.0.3-b98b5df10e</version>
 
     <properties>

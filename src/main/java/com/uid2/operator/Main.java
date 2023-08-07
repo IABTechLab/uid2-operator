@@ -405,8 +405,6 @@ public class Main {
         AttestationTokenRetriever attestationTokenRetriever;
 
         switch (enclavePlatform) {
-            default:
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
             case "aws-nitro":
                 LOGGER.info("creating uid core client with aws attestation protocol");
                 attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher);
@@ -423,6 +421,8 @@ public class Main {
                 LOGGER.info("creating uid core client with azure sgx attestation protocol");
                 attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher);
                 break;
+            default:
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
         }
 
         return new UidCoreClient(userToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);

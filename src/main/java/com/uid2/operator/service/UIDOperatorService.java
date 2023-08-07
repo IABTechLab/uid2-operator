@@ -1,6 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.util.Tuple;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
@@ -32,6 +33,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final UserIdentity testOptOutIdentityForEmail;
     private final UserIdentity testOptOutIdentityForPhone;
 
+    private final UserIdentity testAlwaysOptInIdentityForEmail;
+    private final UserIdentity testAlwaysOptInIdentityForPhone;
+
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
     private final Duration refreshIdentityAfter;
@@ -52,6 +56,10 @@ public class UIDOperatorService implements IUIDOperatorService {
                 InputUtil.normalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
         this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
                 InputUtil.normalizePhone("+00000000000").getIdentityInput(), Instant.now());
+        this.testAlwaysOptInIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
+                InputUtil.normalizeEmail("valid-token@email.com").getIdentityInput(), Instant.now());
+        this.testAlwaysOptInIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
+                InputUtil.normalizePhone("+00000000001").getIdentityInput(), Instant.now());
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
@@ -86,7 +94,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.userIdentity.identityScope, request.userIdentity.identityType, firstLevelHash, request.userIdentity.privacyBits,
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
 
-        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity)) {
+        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity).getItem1()) {
             return IdentityTokens.LogoutToken;
         } else {
             return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
@@ -108,14 +116,11 @@ public class UIDOperatorService implements IUIDOperatorService {
             return RefreshResponse.Expired;
         }
 
-        if (token.userIdentity.matches(testOptOutIdentityForEmail) || token.userIdentity.matches(testOptOutIdentityForPhone)) {
-            return RefreshResponse.Optout;
-        }
-
         try {
-            final Instant logoutEntry = this.optOutStore.getLatestEntry(token.userIdentity);
+            final Tuple.Tuple2<Boolean, Instant> logoutEntry = hasGlobalOptOut(token.userIdentity);
+            boolean optedOut = logoutEntry.getItem1();
 
-            if (logoutEntry == null || token.userIdentity.establishedAt.isAfter(logoutEntry)) {
+            if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getItem2())) {
                 Duration durationSinceLastRefresh = Duration.between(token.createdAt, Instant.now(this.clock));
                 return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity), durationSinceLastRefresh);
             } else {
@@ -129,7 +134,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public MappedIdentity mapIdentity(MapRequest request) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.userIdentity, request.asOf);
-        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity)) {
+        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity).getItem1()) {
             return MappedIdentity.LogoutIdentity;
         } else {
             return getAdvertisingId(firstLevelHashIdentity, request.asOf);
@@ -239,8 +244,15 @@ public class UIDOperatorService implements IUIDOperatorService {
                 userIdentity);
     }
 
-    private boolean hasGlobalOptOut(UserIdentity userIdentity) {
-        return this.optOutStore.getLatestEntry(userIdentity) != null;
+    private Tuple.Tuple2<Boolean, Instant> hasGlobalOptOut(UserIdentity userIdentity) {
+        if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
+            return new Tuple.Tuple2<>(true, Instant.now());
+        }
+        else if (userIdentity.matches(testAlwaysOptInIdentityForEmail) || userIdentity.matches(testAlwaysOptInIdentityForPhone)) {
+            return new Tuple.Tuple2<>(false, null);
+        }
+        Instant result = this.optOutStore.getLatestEntry(userIdentity);
+        return new Tuple.Tuple2<>(result != null, result);
     }
 
 }

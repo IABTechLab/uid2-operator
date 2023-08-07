@@ -309,11 +309,12 @@ public class UIDOperatorServiceTest {
         assertNotNull(tokens);
     }
 
-    //UID2 uses v2 tokens but v2 doesn't handle phone number type correctly
-    //so passing in a phone number and it will be casted as an email type in UserIdentity
+    //UID2 uses v2 tokens but v2 doesn't handle phone number IdentityType correctly
+    //so passing in a phone number and it will be still casted as an email type in UserIdentity
     //and UserIdentity won't match to the default UIDOperatorService.testAlwaysOptInIdentityForPhone
+    //as the IdentityType won't match
     //will only test when we switch to v4 token
-    //this works for EUID because EUID is on v3 token already
+    //this works for EUID because EUID is on v3 token already which persists to correct IdentityType
     @ParameterizedTest
     @CsvSource({"email,optout@email.com,UID2", "email,optout@email.com,EUID", "phone,+00000000000,EUID"})
     public void testSpecialIdentityOptOutTokenRefresh(String type, String id, IdentityScope scope) {

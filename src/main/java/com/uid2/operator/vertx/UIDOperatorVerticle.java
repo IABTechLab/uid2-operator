@@ -22,7 +22,6 @@ import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
-import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
@@ -50,10 +49,10 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
+@SuppressWarnings("SpellCheckingInspection")
 public class UIDOperatorVerticle extends AbstractVerticle{
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
 
@@ -84,7 +83,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final boolean phoneSupport;
     private final int tcfVendorId;
     private IStatsCollectorQueue _statsCollectorQueue;
-    private KeyManager keyManager;
+    private final KeyManager keyManager;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -273,7 +272,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
             KeysetKey masterKey = keyManagerSnapshot.getMasterKey();
             List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
-            Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getKeysetMap();
+            Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
             KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
             // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
             Keyset defaultKeyset = keyManagerSnapshot.getDefaultKeyset();
@@ -1423,12 +1422,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
-        Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getKeysetMap();
+        Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
         KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
 
         final JsonArray a = new JsonArray();
-        for (int i = 0; i < keys.size(); ++i) {
-            final KeysetKey k = keys.get(i);
+        for (KeysetKey k : keys) {
             if (!keysetSnapshot.canClientAccessKey(clientKey, k, mode)) {
                 continue;
             }

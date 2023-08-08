@@ -1,5 +1,5 @@
 {
-  "service_instances": 1,
+  "service_instances": 4,
   "storage_mock": true,
   "clients_metadata_path": "/com.uid2.core/test/clients/metadata.json",
   "keysets_metadata_path": "/com.uid2.core/test/keysets/metadata.json",

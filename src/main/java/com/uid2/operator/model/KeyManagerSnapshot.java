@@ -22,7 +22,7 @@ public class KeyManagerSnapshot {
         this.defaultKeyset = defaultKeyset;
     }
 
-    public Map<Integer, Keyset> getKeysetMap() {
+    public Map<Integer, Keyset> getAllKeysets() {
         return this.keysetMap;
     }
 

@@ -4,12 +4,9 @@ import com.uid2.operator.model.*;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.TokenUtils;
-import com.uid2.shared.auth.Keyset;
 import com.uid2.shared.Const.Data;
-import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.CloudPath;
-import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
@@ -26,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TokenEncodingTest {
 
-    private KeyManager keyManager;
+    private final KeyManager keyManager;
 
     public TokenEncodingTest() throws Exception {
         RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
@@ -80,9 +77,7 @@ public class TokenEncodingTest {
 
         Buffer b = Buffer.buffer(encodedBytes);
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 25 : 2);
-        KeysetKey key = this.keyManager.getKey(keyId);
-        Keyset keyset = this.keyManager.getKeyset(key.getKeysetId());
-        assertEquals(Data.RefreshKeySiteId, keyset.getSiteId());
+        assertEquals(Data.RefreshKeySiteId, keyManager.getSiteIdFromKeyId(keyId));
     }
 
     @ParameterizedTest
@@ -115,8 +110,6 @@ public class TokenEncodingTest {
 
         Buffer b = Buffer.buffer(encodedBytes);
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 1 : 2); //TODO - extract master key from token should be a helper function
-        KeysetKey key = this.keyManager.getKey(keyId);
-        Keyset keyset = this.keyManager.getKeyset(key.getKeysetId());
-        assertEquals(Data.MasterKeySiteId, keyset.getSiteId());
+        assertEquals(Data.MasterKeySiteId, keyManager.getSiteIdFromKeyId(keyId));
     }
 }

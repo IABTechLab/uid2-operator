@@ -260,8 +260,8 @@ public class UIDOperatorServiceTest {
 
     //UID2-1224
     @ParameterizedTest
-    @CsvSource({"email,optout@email.com", "phone,+00000000000"})
-    public void testSpecialIdentityOptOutTokenGenerate(String type, String id) {
+    @CsvSource({"email,optout@email.com,UID2", "email,optout@email.com,EUID", "phone,+00000000000,EUID"})
+    public void testSpecialIdentityOptOutTokenGenerate(String type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal;
         if(type.equals("email"))
         {
@@ -276,10 +276,16 @@ public class UIDOperatorServiceTest {
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(IdentityScope.UID2, 0, this.now),
+                inputVal.toUserIdentity(scope, 0, this.now),
                 TokenGeneratePolicy.RespectOptOut
         );
-        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
+        IdentityTokens tokens;
+        if(scope == IdentityScope.EUID) {
+            tokens = euidService.generateIdentity(identityRequest);
+        }
+        else {
+            tokens = uid2Service.generateIdentity(identityRequest);
+        }
         assertEquals(tokens, IdentityTokens.LogoutToken);
     }
 

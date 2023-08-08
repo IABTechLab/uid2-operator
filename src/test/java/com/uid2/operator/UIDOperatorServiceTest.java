@@ -283,32 +283,6 @@ public class UIDOperatorServiceTest {
         assertEquals(tokens, IdentityTokens.LogoutToken);
     }
 
-    //UID2-1224
-    @ParameterizedTest
-    @CsvSource({"email,valid-token@email.com", "phone,+00000000001"})
-    public void testSpecialIdentityOptInTokenGenerate(String type, String id) {
-        InputUtil.InputVal inputVal;
-        if(type.equals("email"))
-        {
-            inputVal = InputUtil.normalizeEmail(id);
-        }
-        else
-        {
-            inputVal = InputUtil.normalizePhone(id);
-        }
-
-        //make sure it doesn't get opted out even if there's a record
-        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
-        final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(IdentityScope.UID2, 0, this.now),
-                TokenGeneratePolicy.RespectOptOut
-        );
-        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
-        assertNotEquals(tokens, IdentityTokens.LogoutToken);
-        assertNotNull(tokens);
-    }
-
     //UID2 uses v2 tokens but v2 doesn't handle phone number IdentityType correctly
     //so passing in a phone number and it will be still casted as an email type in UserIdentity
     //and UserIdentity won't match to the default UIDOperatorService.testAlwaysOptInIdentityForPhone
@@ -348,43 +322,6 @@ public class UIDOperatorServiceTest {
         final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
         assertEquals(RefreshResponse.Optout, (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(refreshToken));
     }
-
-    @ParameterizedTest
-    @CsvSource({"email,valid-token@email.com,UID2", "email,valid-token@email.com,EUID", "phone,+00000000001,EUID"})
-    public void testSpecialIdentityOptInTokenRefresh(String type, String id, IdentityScope scope) {
-        InputUtil.InputVal inputVal;
-        if(type.equals("email"))
-        {
-            inputVal = InputUtil.normalizeEmail(id);
-        }
-        else
-        {
-            inputVal = InputUtil.normalizePhone(id);
-        }
-        //make sure this still works with an optout record
-        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
-        final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(scope, 0, this.now),
-                TokenGeneratePolicy.JustGenerate
-        );
-
-        IdentityTokens tokens;
-        if(scope == IdentityScope.EUID) {
-            tokens = euidService.generateIdentity(identityRequest);
-        }
-        else {
-            tokens = uid2Service.generateIdentity(identityRequest);
-        }
-        assertNotNull(tokens);
-
-        final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
-        RefreshResponse refreshResponse = (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(refreshToken);
-        assertTrue(refreshResponse.isRefreshed());
-        assertNotNull(refreshResponse.getTokens());
-        assertNotEquals(RefreshResponse.Optout, refreshResponse);
-    }
-
 
     @ParameterizedTest
     @CsvSource({"email,blah@unifiedid.com,UID2", "phone,+61401234567,EUID", "email,blah@unifiedid.com,EUID"})

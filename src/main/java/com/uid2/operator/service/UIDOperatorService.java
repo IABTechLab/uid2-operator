@@ -32,10 +32,6 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final IdentityScope identityScope;
     private final UserIdentity testOptOutIdentityForEmail;
     private final UserIdentity testOptOutIdentityForPhone;
-
-    private final UserIdentity testAlwaysOptInIdentityForEmail;
-    private final UserIdentity testAlwaysOptInIdentityForPhone;
-
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
     private final Duration refreshIdentityAfter;
@@ -56,10 +52,6 @@ public class UIDOperatorService implements IUIDOperatorService {
                 InputUtil.normalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
         this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
                 InputUtil.normalizePhone("+00000000000").getIdentityInput(), Instant.now());
-        this.testAlwaysOptInIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail("valid-token@email.com").getIdentityInput(), Instant.now());
-        this.testAlwaysOptInIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone("+00000000001").getIdentityInput(), Instant.now());
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
@@ -247,9 +239,6 @@ public class UIDOperatorService implements IUIDOperatorService {
     private Tuple.Tuple2<Boolean, Instant> hasGlobalOptOut(UserIdentity userIdentity) {
         if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
             return new Tuple.Tuple2<>(true, Instant.now());
-        }
-        else if (userIdentity.matches(testAlwaysOptInIdentityForEmail) || userIdentity.matches(testAlwaysOptInIdentityForPhone)) {
-            return new Tuple.Tuple2<>(false, null);
         }
         Instant result = this.optOutStore.getLatestEntry(userIdentity);
         return new Tuple.Tuple2<>(result != null, result);

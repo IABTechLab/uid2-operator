@@ -86,7 +86,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.userIdentity.identityScope, request.userIdentity.identityType, firstLevelHash, request.userIdentity.privacyBits,
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
 
-        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity).getItem1()) {
+        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity).isOptedOut()) {
             return IdentityTokens.LogoutToken;
         } else {
             return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
@@ -109,10 +109,10 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
 
         try {
-            final Tuple.Tuple2<Boolean, Instant> logoutEntry = hasGlobalOptOut(token.userIdentity);
-            boolean optedOut = logoutEntry.getItem1();
+            final GlobalOptoutResult logoutEntry = hasGlobalOptOut(token.userIdentity);
+            boolean optedOut = logoutEntry.isOptedOut();
 
-            if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getItem2())) {
+            if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getTime())) {
                 Duration durationSinceLastRefresh = Duration.between(token.createdAt, Instant.now(this.clock));
                 return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity), durationSinceLastRefresh);
             } else {
@@ -126,7 +126,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public MappedIdentity mapIdentity(MapRequest request) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.userIdentity, request.asOf);
-        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity).getItem1()) {
+        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity).isOptedOut()) {
             return MappedIdentity.LogoutIdentity;
         } else {
             return getAdvertisingId(firstLevelHashIdentity, request.asOf);
@@ -236,12 +236,33 @@ public class UIDOperatorService implements IUIDOperatorService {
                 userIdentity);
     }
 
-    private Tuple.Tuple2<Boolean, Instant> hasGlobalOptOut(UserIdentity userIdentity) {
+    protected class GlobalOptoutResult {
+        private boolean isOptedOut;
+        //can be null if isOptedOut is false!
+        private Instant time;
+
+        //providedTime can be null if isOptedOut is false!
+        GlobalOptoutResult(boolean providedIsOptedOut, Instant providedTime)
+        {
+            isOptedOut = providedIsOptedOut;
+            time = providedTime;
+        }
+
+        public boolean isOptedOut() {
+            return isOptedOut;
+        }
+
+        public Instant getTime() {
+            return time;
+        }
+    }
+
+    private GlobalOptoutResult hasGlobalOptOut(UserIdentity userIdentity) {
         if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
-            return new Tuple.Tuple2<>(true, Instant.now());
+            return new GlobalOptoutResult(true, Instant.now());
         }
         Instant result = this.optOutStore.getLatestEntry(userIdentity);
-        return new Tuple.Tuple2<>(result != null, result);
+        return new GlobalOptoutResult(result != null, result);
     }
 
 }

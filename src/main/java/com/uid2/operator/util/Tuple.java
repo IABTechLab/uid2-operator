@@ -8,7 +8,7 @@ public class Tuple {
         public Tuple2(T1 item1, T2 item2) {
             assert item1 != null;
             assert item2 != null;
-            
+
             this.item1 = item1;
             this.item2 = item2;
         }

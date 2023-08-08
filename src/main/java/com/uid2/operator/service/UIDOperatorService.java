@@ -237,9 +237,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     protected class GlobalOptoutResult {
-        private boolean isOptedOut;
+        private final boolean isOptedOut;
         //can be null if isOptedOut is false!
-        private Instant time;
+        private final Instant time;
 
         //providedTime can be null if isOptedOut is false!
         GlobalOptoutResult(boolean providedIsOptedOut, Instant providedTime)

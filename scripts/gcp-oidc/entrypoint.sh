@@ -43,6 +43,12 @@ if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONME
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
 
+# -- debug
+if [ "${DEPLOYMENT_ENVIRONMENT}" = 'integ' ]; then
+    echo "OIDC token:"
+    cat /run/container_launcher/attestation_verifier_claims_token
+fi
+
 # -- start operator
 echo "-- starting java application"
 java \

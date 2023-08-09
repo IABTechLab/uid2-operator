@@ -36,6 +36,10 @@ public class DomainNameCheckUtil {
         return allowedDomainNameSet.contains(topLevelDomainName);
     }
 
+    // this method can be reused down the line by admin service
+    //to make sure admin and operator use the same method to parse top level domain name
+    //so we can catch parsing error when we first add the publisher's domain name into the allowed list in admin
+    //service (not when operator is starting getting CSTG requests from publisher websites)
     public static String getTopLevelDomainName(String origin) throws MalformedURLException
     {
         URL url = new URL(origin);

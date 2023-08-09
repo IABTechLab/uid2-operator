@@ -336,16 +336,15 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
         String origin = rc.request().getHeader("origin");
 
+        // if you want to see what http origin header is provided, uncomment this line
+        // LOGGER.info("origin: " + origin);
+
         boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
         if(!allowedDomain) {
             ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
             return;
         }
 
-        //return for now for the purpose of domain name check as no working integrated test for cstg feature yet
-        ResponseUtil.Success(rc, "domain name check passed");
-        return;
-/*
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
@@ -417,8 +416,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             rc.response().end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
             //TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
         }
-
- */
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

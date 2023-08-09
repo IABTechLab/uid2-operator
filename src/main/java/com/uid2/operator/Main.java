@@ -1,7 +1,6 @@
 package com.uid2.operator;
 
 import ch.qos.logback.classic.LoggerContext;
-import com.uid2.enclave.IAttestationProvider;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
@@ -401,32 +400,31 @@ public class Main {
 
     private UidCoreClient createUidCoreClient(String attestationUrl, String userToken, Handler<Integer> responseWatcher) throws Exception {
         String enclavePlatform = this.config.getString("enclave_platform", "");
+        if (enclavePlatform == null) {
+            enclavePlatform = "";
+        }
         Boolean enforceHttps = this.config.getBoolean("enforce_https", true);
         AttestationTokenRetriever attestationTokenRetriever;
 
-        if (enclavePlatform == null) {
-            attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
-        } else {
-            switch (enclavePlatform) {
-                case "aws-nitro":
-                    LOGGER.info("creating uid core client with aws attestation protocol");
-                    attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher);
-                    break;
-                case "gcp-vmid":
-                    LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-                    attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher);
-                    break;
-                case "gcp-oidc":
-                    LOGGER.info("creating uid core client with gcp oidc attestation protocol");
-                    attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher);
-                    break;
-                case "azure-sgx":
-                    LOGGER.info("creating uid core client with azure sgx attestation protocol");
-                    attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher);
-                    break;
-                default:
-                    attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
-            }
+        switch (enclavePlatform) {
+            case "aws-nitro":
+                LOGGER.info("creating uid core client with aws attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher);
+                break;
+            case "gcp-vmid":
+                LOGGER.info("creating uid core client with gcp vmid attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher);
+                break;
+            case "gcp-oidc":
+                LOGGER.info("creating uid core client with gcp oidc attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher);
+                break;
+            case "azure-sgx":
+                LOGGER.info("creating uid core client with azure sgx attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher);
+                break;
+            default:
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
         }
         return new UidCoreClient(userToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
     }

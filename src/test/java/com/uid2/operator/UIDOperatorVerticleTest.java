@@ -6,8 +6,8 @@ import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.*;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.shared.ApplicationVersion;
+import com.uid2.shared.IClock;
 import com.uid2.shared.attest.AttestationTokenRetriever;
-import com.uid2.shared.attest.NoAttestationProvider;
 import com.uid2.shared.attest.UidCoreClient;
 import com.uid2.shared.cloud.CloudUtils;
 import com.uid2.shared.Utils;
@@ -50,8 +50,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -88,6 +90,10 @@ public class UIDOperatorVerticleTest {
     private IOptOutStore optOutStore;
     @Mock
     private Clock clock;
+    @Mock
+    private HttpClient httpClient;
+    @Mock
+    IClock mockIClock;
     private SimpleMeterRegistry registry;
 
     private static final String firstLevelSalt = "first-level-salt";
@@ -96,12 +102,18 @@ public class UIDOperatorVerticleTest {
     private static final Duration refreshExpiresAfter = Duration.ofMinutes(15);
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
     private static final byte[] clientSecret = Random.getRandomKeyBytes();
-    private Handler<Integer> responseWatcher = mock(Handler.class);
-    private AttestationTokenRetriever attestationTokenRetriever;
+
+    private AttestationTokenRetriever fakeAttestationTokenRetriever ;
     private UidCoreClient fakeCoreClient;
+
+    private OperatorDisableHandler operatorDisableHandler;
+
 
     @Mock
     private IStatsCollectorQueue statsCollectorQueue;
+
+    public UIDOperatorVerticleTest() {
+    }
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext) {
@@ -110,6 +122,10 @@ public class UIDOperatorVerticleTest {
         when(keyAclProvider.getSnapshot()).thenReturn(keyAclProviderSnapshot);
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(clock.instant()).thenAnswer(i -> Instant.now());
+
+        this.operatorDisableHandler = new OperatorDisableHandler(Duration.ofHours(24), clock);
+        this.fakeAttestationTokenRetriever = new AttestationTokenRetriever(vertx, null, null, new ApplicationVersion("test", "test"), null, operatorDisableHandler::handleResponseStatus, mockIClock, null, null);
+        this.fakeCoreClient = new UidCoreClient("dummyToken", CloudUtils.defaultProxy, false, fakeAttestationTokenRetriever, null);
 
         final JsonObject config = new JsonObject();
         config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, identityExpiresAfter.toMillis() / 1000);
@@ -121,12 +137,7 @@ public class UIDOperatorVerticleTest {
 
         UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
 
-        OperatorDisableHandler h = new OperatorDisableHandler(Duration.ofHours(24), clock);
-
-        attestationTokenRetriever = new AttestationTokenRetriever(vertx, "", "", new ApplicationVersion("test", "test"), new NoAttestationProvider(), h::handleResponseStatus);
-        fakeCoreClient = new UidCoreClient("", CloudUtils.defaultProxy, true, attestationTokenRetriever);
-
-        verticle.setDisableHandler(h);
+        verticle.setDisableHandler(this.operatorDisableHandler);
 
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
 
@@ -1577,6 +1588,72 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", respJson.getString("status"));
             assertEquals("OK", respJson.getJsonObject("body").getString("optout"));
             testContext.completeNow();
+        });
+    }
+
+    @Test
+    void disableOnDeauthorization(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        get(vertx, "v1/token/generate?email=test@uid2.com", ar -> {
+            // Request should succeed before revoking auth
+            assertEquals(200, ar.result().statusCode());
+
+            // Revoke auth
+            this.operatorDisableHandler.handleResponseStatus(401);
+
+            // Request should fail after revoking auth
+            get(vertx, "v1/token/generate?email=test@uid2.com", ar1 -> {
+                assertEquals(503, ar1.result().statusCode());
+                testContext.completeNow();
+
+                // Recovered
+                this.operatorDisableHandler.handleResponseStatus(200);
+                get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
+                    assertEquals(200, ar2.result().statusCode());
+                    testContext.completeNow();
+                });
+            });
+        });
+    }
+
+    @Test
+    void disableOnFailure(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        // Verify success before revoking auth
+        get(vertx, "v1/token/generate?email=test@uid2.com", ar -> {
+            assertEquals(200, ar.result().statusCode());
+
+            // Failure starts
+            this.operatorDisableHandler.handleResponseStatus(500);
+
+            // Can server before waiting period passes
+            when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
+            this.operatorDisableHandler.handleResponseStatus(500);
+            get(vertx, "v1/token/generate?email=test@uid2.com", ar1 -> {
+                assertEquals(200, ar1.result().statusCode());
+
+                // Can't serve after waiting period passes
+                when(clock.instant()).thenAnswer(i -> Instant.now().plus(24, ChronoUnit.HOURS));
+                this.operatorDisableHandler.handleResponseStatus(500);
+                get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
+                    assertEquals(503, ar2.result().statusCode());
+
+                    // Recovered
+                    this.operatorDisableHandler.handleResponseStatus(200);
+                    get(vertx, "v1/token/generate?email=test@uid2.com", ar3 -> {
+                        assertEquals(200, ar3.result().statusCode());
+                        testContext.completeNow();
+                    });
+                });
+            });
         });
     }
 

@@ -13,51 +13,30 @@ public class DomainNameCheckUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(DomainNameCheckUtil.class);
     private static final String LOCALHOST_DOMAIN_NAME = "localhost";
     public static boolean isDomainNameAllowed(String origin, Set<String> allowedDomainNameSet) {
-        URL url;
+        String topLevelDomainName;
         try
         {
-            url = new URL(origin);
+            topLevelDomainName = getTopLevelDomainName(origin);
         }
-        catch (MalformedURLException e)
-        {
+        catch (MalformedURLException e) {
             LOGGER.error("isDomainNameAllowed Origin="+origin+" is malformed URL. Rejecting.");
             return false;
         }
-
-        //InternetDomainName will normalise the domain name to lower case already
-        InternetDomainName name = InternetDomainName.from(url.getHost());
-        //if the domain name has a proper TLD suffix
-        if(name.isUnderPublicSuffix())
-        {
-            try
-            {
-                String topPrivateDomain = name.topPrivateDomain().toString();
-                return allowedDomainNameSet.contains(topPrivateDomain);
-            }
-            catch(Exception e)
-            {
-                LOGGER.error("isDomainNameAllowed Origin"+origin+" not producing top level domain name correctly:." + e);
-                return false;
-            }
-
+        catch (Exception e) {
+            LOGGER.error("isDomainNameAllowed Origin"+origin+" not producing top level domain name correctly:." + e +" Rejecting.");
+            return false;
         }
-        //we make an except for localhost for testing purpose only (and only if we allow it in the
-        //allowed domain name set
-        else if(allowedDomainNameSet.contains(LOCALHOST_DOMAIN_NAME))
+
+        if(topLevelDomainName == null)
         {
-            if(name.hasParent() && name.parent().toString().equals(LOCALHOST_DOMAIN_NAME))
-            {
-                return true;
-            }
-            else if(name.toString().equals(LOCALHOST_DOMAIN_NAME))
-            {
-                return true;
-            }
+            LOGGER.error("isDomainNameAllowed Origin"+origin+" returns null top level domain name value. Rejecting.");
+            return false;
         }
-        return false;
+
+        return allowedDomainNameSet.contains(topLevelDomainName);
     }
 
-    public String getTopLevelDomainName(String origin) throws MalformedURLException
+    public static String getTopLevelDomainName(String origin) throws MalformedURLException
     {
         URL url = new URL(origin);
 
@@ -72,12 +51,11 @@ public class DomainNameCheckUtil {
             }
             catch(Exception e)
             {
-                return null;
+                throw e;
             }
 
         }
-        //we make an except for localhost for testing purpose only (and only if we allow it in the
-        //allowed domain name set
+        //we make an exception for localhost for testing purpose only
         if(name.hasParent() && name.parent().toString().equals(LOCALHOST_DOMAIN_NAME))
         {
             return LOCALHOST_DOMAIN_NAME;
@@ -86,5 +64,6 @@ public class DomainNameCheckUtil {
         {
             return LOCALHOST_DOMAIN_NAME;
         }
+        return null;
     }
 }

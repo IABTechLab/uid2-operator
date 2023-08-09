@@ -1,6 +1,6 @@
 {
   "service_verbose": true,
-  "service_instances": 4,
+  "service_instances": 16,
   "core_s3_bucket": null,
   "core_attest_url": null,
   "core_api_token": null,
@@ -25,6 +25,11 @@
   "keys_acl_metadata_path": "keys_acl/metadata.json",
   "salts_metadata_path": "salts/metadata.json",
   "optout_metadata_path": null,
-  "optout_inmem_cache": false,
-  "enclave_platform": "gcp-oidc"
+  "enclave_platform": "gcp-oidc",
+  "optout_inmem_cache": true,
+  "identity_token_expires_after_seconds": 86400,
+  "refresh_token_expires_after_seconds": 2592000,
+  "refresh_identity_token_after_seconds": 3600,
+  "enforce_https": true,
+  "allow_legacy_api": false
 }

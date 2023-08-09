@@ -291,7 +291,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
         if ("abcdefg".equals(subscriptionId)) {
             Set<String> result = new HashSet<>();
-            Arrays.stream(config.getString("client_site_domain_name_list").split(",")).map(d -> result.add(d));
+            Arrays.stream(config.getString("client_side_token_generate_domain_name_list").split(",")).forEach(d -> result.add(d));
             return result;
         }
         else {
@@ -329,7 +329,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final String iv = body.getString("iv");
         final String subscriptionId = body.getString("subscription_id");
         final String clientPublicKeyString = body.getString("public_key");
-        final long timestamp = body.getLong("timestamp");
+        //instead of crashing use a default value
+        final long timestamp = body.getLong("timestamp", 0L);
 
 
         final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
@@ -337,10 +338,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
         if(!allowedDomain) {
-            rc.fail(401);
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
             return;
         }
 
+        //return for now for the purpose of domain name check as no working integrated test for cstg feature yet
+        ResponseUtil.Success(rc, "domain name check passed");
+        return;
+/*
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
@@ -353,6 +358,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             rc.fail(401);
             return;
         }
+
 
         final byte[] privateKeyBytes = Base64.getDecoder().decode(clientSideKeyPair.getPrivateKeyString());
         final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
@@ -411,6 +417,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             rc.response().end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
             //TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
         }
+
+ */
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
@@ -1658,6 +1666,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         public static String GenericError = "error";
         public static String UnknownError = "unknown";
         public static String InsufficientUserConsent = "insufficient_user_consent";
+
+        public static String InvalidHttpOrigin = "invalid_http_origin";
     }
 
     public static enum UserConsentStatus {

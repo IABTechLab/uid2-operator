@@ -142,6 +142,8 @@ public class UIDOperatorVerticleTest {
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
         config.put("refresh_token_v3", useIdentityV3());
         config.put("identity_v3", useIdentityV3());
+        config.put("client_side_token_generate", true);
+        config.put("client_side_token_generate_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -716,6 +718,7 @@ public class UIDOperatorVerticleTest {
             v1Param, v2Payload, 400,
             json -> {
                 assertFalse(json.containsKey("body"));
+
                 assertEquals("client_error", json.getString("status"));
                 testContext.completeNow();
             });
@@ -2343,6 +2346,51 @@ public class UIDOperatorVerticleTest {
                     testContext.completeNow();
                 });
     }
+
+    private void postCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
+        WebClient client = WebClient.create(vertx);
+        HttpRequest<Buffer> req = client.postAbs(getUrlForEndpoint(endpoint));
+        req.putHeader("origin", httpOriginHeader);
+        req.sendJsonObject(body, handler);
+    }
+
+    private void sendCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject postPayload, int expectedHttpCode, Handler<JsonObject> handler) {
+        postCstg(vertx, endpoint, httpOriginHeader, postPayload, ar -> {
+            assertTrue(ar.succeeded());
+            assertEquals(expectedHttpCode, ar.result().statusCode());
+            handler.handle(tryParseResponse(ar.result()));
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"https://blahblah.com", "http://local1host:8080"})
+    void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) {
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                httpOrigin,
+                new JsonObject().put("subscription_id", "abcdefg"),
+                403,
+                respJson -> {
+                    assertFalse(respJson.containsKey("body"));
+                    assertEquals("invalid_http_origin", respJson.getString("status"));
+                    testContext.completeNow();
+                });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"https://cstg.co.uk", "https://cstg2.com", "http://localhost:8080"})
+    void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) {
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                httpOrigin,
+                new JsonObject().put("subscription_id", "abcdefg"),
+                200,
+                respJson -> {
+                    assertEquals("success", respJson.getString("status"));
+                    testContext.completeNow();
+                });
+    }
+
 
 
 }

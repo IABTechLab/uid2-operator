@@ -12,6 +12,7 @@ import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
 import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
+import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -287,6 +288,17 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
+    private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
+        if ("abcdefg".equals(subscriptionId)) {
+            Set<String> result = new HashSet<>();
+            Arrays.stream(config.getString("client_site_domain_name_list").split(",")).map(d -> result.add(d));
+            return result;
+        }
+        else {
+            return null;
+        }
+    }
+
     static class PrivacyBits { //todo move this
         private int bits;
         public PrivacyBits() {
@@ -318,6 +330,16 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final String subscriptionId = body.getString("subscription_id");
         final String clientPublicKeyString = body.getString("public_key");
         final long timestamp = body.getLong("timestamp");
+
+
+        final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
+        String origin = rc.request().getHeader("origin");
+
+        boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+        if(!allowedDomain) {
+            rc.fail(401);
+            return;
+        }
 
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 

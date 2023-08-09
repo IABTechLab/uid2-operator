@@ -52,7 +52,6 @@ import java.util.function.Supplier;
 
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
-@SuppressWarnings("SpellCheckingInspection")
 public class UIDOperatorVerticle extends AbstractVerticle{
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
 

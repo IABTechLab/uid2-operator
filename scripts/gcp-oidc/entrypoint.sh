@@ -20,16 +20,7 @@ if [ "${DEPLOYMENT_ENVIRONMENT}" != 'prod' -a "${DEPLOYMENT_ENVIRONMENT}" != 'in
   exit 1
 fi
 
-if [ -z "${IDENTITY_SCOPE}" ]; then
-  echo "IDENTITY_SCOPE cannot be empty"
-  exit 1
-fi
-if [ "${IDENTITY_SCOPE}" != 'uid2' -a "${IDENTITY_SCOPE}" != 'euid' ]; then
-  echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"
-  exit 1
-fi
-
-TARGET_CONFIG="/app/conf/${DEPLOYMENT_ENVIRONMENT}-${IDENTITY_SCOPE}-config.json"
+TARGET_CONFIG="/app/conf/${DEPLOYMENT_ENVIRONMENT}-uid2-config.json"
 if [ ! -f "${TARGET_CONFIG}" ]; then
   echo "Unrecognized config ${TARGET_CONFIG}"
   exit 1
@@ -48,10 +39,8 @@ fi
 if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONMENT}" != 'prod' ]; then
     echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
     sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
-    sed -i "s#https://core.integ.euid.eu#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
 
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
-    sed -i "s#https://optout.integ.euid.eu#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
 
 # -- start operator

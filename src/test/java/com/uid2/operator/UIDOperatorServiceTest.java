@@ -82,7 +82,6 @@ public class UIDOperatorServiceTest {
         );
 
         config.put("advertising_token_v3", true);
-        config.put("refresh_token_v3", true);
         config.put("identity_v3", true);
 
         euidService = new UIDOperatorService(
@@ -140,7 +139,7 @@ public class UIDOperatorServiceTest {
 
         RefreshToken refreshToken = tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
         assertEquals(this.now, refreshToken.createdAt);
-        assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS+60), refreshToken.expiresAt);
+        assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), refreshToken.expiresAt);
         assertEquals(identityRequest.publisherIdentity.siteId, refreshToken.publisherIdentity.siteId);
         assertEquals(identityRequest.userIdentity.identityScope, refreshToken.userIdentity.identityScope);
         assertEquals(identityRequest.userIdentity.identityType, refreshToken.userIdentity.identityType);
@@ -163,7 +162,7 @@ public class UIDOperatorServiceTest {
 
         RefreshToken refreshToken2 = tokenEncoder.decodeRefreshToken(refreshResponse.getTokens().getRefreshToken());
         assertEquals(this.now, refreshToken2.createdAt);
-        assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS+60), refreshToken2.expiresAt);
+        assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), refreshToken2.expiresAt);
         assertEquals(refreshToken.publisherIdentity.siteId, refreshToken2.publisherIdentity.siteId);
         assertEquals(refreshToken.userIdentity.identityScope, refreshToken2.userIdentity.identityScope);
         assertEquals(refreshToken.userIdentity.identityType, refreshToken2.userIdentity.identityType);

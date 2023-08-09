@@ -16,6 +16,8 @@ import io.vertx.core.json.JsonObject;
 import org.junit.Assert;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
+
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,7 +46,7 @@ public class TokenEncodingTest {
     }
 
     @ParameterizedTest
-    @EnumSource(TokenVersion.class)
+    @EnumSource(value = TokenVersion.class, names = {"V3", "V4"})
     public void testRefreshTokenEncoding(TokenVersion tokenVersion) {
         final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();

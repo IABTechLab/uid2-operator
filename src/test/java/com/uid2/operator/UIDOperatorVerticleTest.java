@@ -2376,6 +2376,7 @@ public class UIDOperatorVerticleTest {
 
     private void setupCstgBackend()
     {
+        //must match up to whatever getPrivateKeyForClientSideTokenGenerate returns for now
         final int clientSiteId = 123;
         final int siteKeyId = 1201;
         setupSalts();

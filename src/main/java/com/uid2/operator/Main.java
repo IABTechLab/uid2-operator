@@ -10,6 +10,8 @@ import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
 import com.uid2.shared.attest.AttestationFactory;
+import com.uid2.shared.attest.AttestationTokenRetriever;
+import com.uid2.shared.attest.NoAttestationProvider;
 import com.uid2.shared.attest.UidCoreClient;
 import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
@@ -91,13 +93,11 @@ public class Main {
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
             String coreApiToken = this.config.getString(Const.Config.CoreApiTokenProp);
-            UidCoreClient coreClient = createUidCoreClient(coreAttestUrl, coreApiToken);
-            fsStores = coreClient;
-            LOGGER.info("Salt/Key/Client stores - Using uid2-core attestation endpoint: " + coreAttestUrl);
-
             Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
             this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
-            coreClient.setResponseStatusWatcher(this.disableHandler::handleResponseStatus);
+            UidCoreClient coreClient = createUidCoreClient(coreAttestUrl, coreApiToken, this.disableHandler::handleResponseStatus);
+            fsStores = coreClient;
+            LOGGER.info("Salt/Key/Client stores - Using uid2-core attestation endpoint: " + coreAttestUrl);
 
             if (useStorageMock) {
                 this.fsOptOut = configureMockOptOutStore();
@@ -139,6 +139,9 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
+
+        java.security.Security.setProperty("networkaddress.cache.ttl" , "60");
+
         final String vertxConfigPath = System.getProperty(Const.Config.VERTX_CONFIG_PATH_PROP);
         if (vertxConfigPath != null) {
             System.out.format("Running CUSTOM CONFIG mode, config: %s\n", vertxConfigPath);
@@ -395,25 +398,34 @@ public class Main {
                 .register(globalRegistry);
     }
 
-    private UidCoreClient createUidCoreClient(String attestationUrl, String userToken) throws Exception {
-        String enclavePlatform = this.config.getString("enclave_platform");
+    private UidCoreClient createUidCoreClient(String attestationUrl, String userToken, Handler<Integer> responseWatcher) throws Exception {
+        String enclavePlatform = this.config.getString("enclave_platform", "");
+        if (enclavePlatform == null) {
+            enclavePlatform = "";
+        }
         Boolean enforceHttps = this.config.getBoolean("enforce_https", true);
-        if(enclavePlatform != null && enclavePlatform.equals("aws-nitro"))
-        {
-            LOGGER.info("creating uid core client with aws attestation protocol");
-            return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getNitroAttestation(), enforceHttps);
-        }
-        else if(enclavePlatform != null && enclavePlatform.equals("gcp-vmid"))
-        {
-            LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-            return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getGcpVmidAttestation(), enforceHttps);
-        }
-        else if(enclavePlatform != null && enclavePlatform.equals("azure-sgx"))
-        {
-            LOGGER.info("creating uid core client with azure sgx attestation protocol");
-            return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getAzureAttestation(), enforceHttps);
-        }
+        AttestationTokenRetriever attestationTokenRetriever;
 
-        return UidCoreClient.createNoAttest(attestationUrl, userToken, this.appVersion, enforceHttps);
+        switch (enclavePlatform) {
+            case "aws-nitro":
+                LOGGER.info("creating uid core client with aws attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher);
+                break;
+            case "gcp-vmid":
+                LOGGER.info("creating uid core client with gcp vmid attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher);
+                break;
+            case "gcp-oidc":
+                LOGGER.info("creating uid core client with gcp oidc attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher);
+                break;
+            case "azure-sgx":
+                LOGGER.info("creating uid core client with azure sgx attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher);
+                break;
+            default:
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
+        }
+        return new UidCoreClient(userToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
     }
 }

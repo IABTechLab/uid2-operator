@@ -1,6 +1,5 @@
 package com.uid2.operator;
 
-import com.google.common.net.InternetDomainName;
 import com.uid2.operator.model.*;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.InputUtil;
@@ -20,8 +19,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.time.Clock;

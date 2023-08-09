@@ -97,6 +97,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final boolean phoneSupport;
     private final int tcfVendorId;
 
+    private final boolean cstgDoDomainNameCheck;
+
 
     private final IStatsCollectorQueue _statsCollectorQueue;
 
@@ -126,7 +128,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
-
+        this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_do_domain_name_check", true);
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -333,16 +335,18 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final long timestamp = body.getLong("timestamp", 0L);
 
 
-        final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
-        String origin = rc.request().getHeader("origin");
+        if(cstgDoDomainNameCheck) {
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
+            String origin = rc.request().getHeader("origin");
 
-        // if you want to see what http origin header is provided, uncomment this line
-        // LOGGER.info("origin: " + origin);
+            // if you want to see what http origin header is provided, uncomment this line
+            // LOGGER.info("origin: " + origin);
 
-        boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-        if(!allowedDomain) {
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
-            return;
+            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+            if(!allowedDomain) {
+                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
+                return;
+            }
         }
 
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);

@@ -21,6 +21,7 @@
   "cloud_upload_threads": 2,
   "cloud_refresh_interval": 60,
   "clients_metadata_path": "clients/metadata.json",
+  "client_side_keypairs_metadata_path": "client_side_keypairs/metadata.json",
   "keys_metadata_path": "keys/metadata.json",
   "salts_metadata_path": "salts/metadata.json",
   "optout_metadata_path": null,

@@ -75,6 +75,10 @@ public class UIDOperatorVerticleTest {
     @Mock
     private IClientKeyProvider clientKeyProvider;
     @Mock
+    private IClientSideKeypairStore clientSideKeypairProvider;
+    @Mock
+    private IClientSideKeypairStore.IClientSideKeypairStoreSnapshot clientSideKeypairSnapshot;
+    @Mock
     private IKeyStore keyStore;
     @Mock
     private IKeyStore.IKeyStoreSnapshot keyStoreSnapshot;
@@ -135,7 +139,7 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
 
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
+        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
 
         verticle.setDisableHandler(this.operatorDisableHandler);
 

@@ -25,6 +25,7 @@
   "cloud_upload_threads": 2,
   "cloud_refresh_interval": 60,
   "clients_metadata_path": "/com.uid2.core/test/clients/metadata.json",
+  "client_side_keypairs_metadata_path": "/com.uid2.core/test/client_side_keypairs/metadata.json",
   "keys_metadata_path": "/com.uid2.core/test/keys/metadata.json",
   "keys_acl_metadata_path": "/com.uid2.core/test/keys_acl/metadata.json",
   "salts_metadata_path": "/com.uid2.core/test/salts/metadata.json",

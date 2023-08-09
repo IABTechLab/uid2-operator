@@ -5,6 +5,7 @@
   "core_attest_url": "http://localhost:8088/attest",
   "core_api_token": "OPLCLdp9Dt0JVoGpynN4J8nMA7FxmzsavxJa8B9H74y9xdEE=",
   "clients_metadata_path": "http://localhost:8088/clients/refresh",
+  "client_side_keypairs_metadata_path": "http://localhost:8088/client_side_keypairs/refresh",
   "keys_metadata_path": "http://localhost:8088/key/refresh",
   "keys_acl_metadata_path": "http://localhost:8088/key/acl/refresh",
   "salts_metadata_path": "http://localhost:8088/salt/refresh",

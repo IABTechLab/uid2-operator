@@ -10,9 +10,14 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.junit5.VertxTestContext;
 
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
+    public EUIDOperatorVerticleTest() throws IOException {
+    }
+
     @Override
     protected TokenVersion getTokenVersion() {return TokenVersion.V3;}
 

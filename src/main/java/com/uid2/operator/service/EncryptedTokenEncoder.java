@@ -1,6 +1,5 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.encryption.AesCbc;
@@ -15,7 +14,7 @@ import java.util.Base64;
 
 public class EncryptedTokenEncoder implements ITokenEncoder {
 
-    private KeyManager keyManager;
+    private final KeyManager keyManager;
 
     public EncryptedTokenEncoder(KeyManager keyManager) {
         this.keyManager = keyManager;

@@ -9,21 +9,21 @@ import java.util.Map;
 
 public class KeyManagerSnapshot {
     private final KeysetSnapshot keysetSnapshot;
-    private final Map<Integer, Keyset> keysetMap;
+    private final Map<Integer, Keyset> keysetIdToKeyset;
     private final List<KeysetKey> keysetKeys;
     private final KeysetKey masterKey;
     private final Keyset defaultKeyset;
 
-    KeyManagerSnapshot(KeysetSnapshot keysetSnapshot, Map<Integer, Keyset> keysetMap, List<KeysetKey> keysetKeys, KeysetKey masterKey, Keyset defaultKeyset) {
+    KeyManagerSnapshot(KeysetSnapshot keysetSnapshot, Map<Integer, Keyset> keysetIdToKeyset, List<KeysetKey> keysetKeys, KeysetKey masterKey, Keyset defaultKeyset) {
         this.keysetSnapshot = keysetSnapshot;
-        this.keysetMap = keysetMap;
+        this.keysetIdToKeyset = keysetIdToKeyset;
         this.keysetKeys = keysetKeys;
         this.masterKey = masterKey;
         this.defaultKeyset = defaultKeyset;
     }
 
     public Map<Integer, Keyset> getAllKeysets() {
-        return this.keysetMap;
+        return this.keysetIdToKeyset;
     }
 
     public List<KeysetKey> getKeysetKeys() {

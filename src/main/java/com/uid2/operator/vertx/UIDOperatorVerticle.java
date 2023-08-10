@@ -232,8 +232,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final List<KeysetKey> keys = this.keyManager.getKeysetKeys();
-        onSuccess.handle(toJson(keys, clientKey));
+        final List<KeysetKey> keys = this.keyManager.getKeysForSharingOrDsps();
+        onSuccess.handle(getAccessibleKeysAsJson(keys, clientKey));
     }
 
     public void handleKeysRequestV1(RoutingContext rc) {
@@ -263,6 +263,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
+    private String getSharingTokenExpirySeconds() {
+        return config.getString(Const.Config.SharingTokenExpiryProp);
+    }
+
     public void handleKeysSharing(RoutingContext rc) {
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
@@ -289,7 +293,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             if (defaultKeyset != null) {
                 resp.put("default_keyset_id", defaultKeyset.getKeysetId());
             }
-            resp.put("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
+            resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
 
             // include 'keyset_id' field, if:
             //   (a) a key belongs to caller's enabled site
@@ -1414,7 +1418,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return json;
     }
 
-    private JsonArray toJson(List<KeysetKey> keys, ClientKey clientKey) {
+    private JsonArray getAccessibleKeysAsJson(List<KeysetKey> keys, ClientKey clientKey) {
         MissingAclMode mode = MissingAclMode.DENY_ALL;
         if (clientKey.getRoles().contains(Role.ID_READER)) {
             mode = MissingAclMode.ALLOW_ALL;

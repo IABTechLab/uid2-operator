@@ -29,7 +29,7 @@ public class KeyManager {
         return new KeyManagerSnapshot(
                 this.keysetProvider.getSnapshot(),
                 this.getAllKeysets(),
-                this.getKeysetKeys(),
+                this.getKeysForSharingOrDsps(),
                 this.getMasterKey(),
                 this.getDefaultKeysetBySiteId(siteId));
     }
@@ -46,23 +46,26 @@ public class KeyManager {
     private Keyset getDefaultKeysetBySiteId(int siteId) {
         List<Keyset> keysets = this.keysetProvider.getSnapshot().getAllKeysets().values().stream()
                 .filter(s -> s.isEnabled() && s.isDefault() && s.getSiteId() == siteId).collect(Collectors.toList());
-        if (keysets.isEmpty()) return null;
-        return keysets.get(0);
-    }
-
-    // Retrieve an active key from default keyset by caller's site id.
-    public KeysetKey getActiveKeyBySiteId(int siteId, Instant asOf) {
-        List<Keyset> keysets = this.keysetProvider.getSnapshot().getAllKeysets().values().stream()
-                .filter(s -> s.isEnabled() && s.isDefault() && s.getSiteId() == siteId)
-                .collect(Collectors.toList());
         if (keysets.isEmpty()) {
             LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d.", siteId));
             return null;
         }
+
         if (keysets.size() > 1) {
             throw new IllegalArgumentException(String.format("Multiple default keysets are enabled with SITE ID %d.", siteId));
         }
-        return getActiveKey(keysets.get(0).getKeysetId(), asOf);
+
+        return keysets.get(0);
+    }
+
+    // Retrieve an key from default keyset by caller's site id.
+    public KeysetKey getActiveKeyBySiteId(int siteId, Instant asOf) {
+        Keyset keyset = getDefaultKeysetBySiteId(siteId);
+        if (keyset == null) {
+            return null;
+        }
+
+        return getActiveKey(keyset.getKeysetId(), asOf);
     }
 
     private KeysetKey getActiveKey(int keysetId, Instant asOf) {
@@ -73,14 +76,10 @@ public class KeyManager {
         return this.keysetKeyStore.getSnapshot().getKey(keyId);
     }
 
-    private List<KeysetKey> getActiveKeysetKeys() {
-        // return all keys without expiry check
-        return this.keysetKeyStore.getSnapshot().getActiveKeysetKeys();
-    }
 
-    public List<KeysetKey> getKeysetKeys() {
+    public List<KeysetKey> getKeysForSharingOrDsps() {
         Map<Integer, Keyset> keysetMap = this.keysetProvider.getSnapshot().getAllKeysets();
-        List<KeysetKey> keys = getActiveKeysetKeys();
+        List<KeysetKey> keys = keysetKeyStore.getSnapshot().getActiveKeysetKeys(); //getActiveKeysetKeys() is incorrectly named, as this includes expired keys
         return keys
                 .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && k.getKeysetId() != Const.Data.RefreshKeysetId)
                 .sorted(Comparator.comparing(KeysetKey::getId)).collect(Collectors.toList());

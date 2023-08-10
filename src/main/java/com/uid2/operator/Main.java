@@ -89,6 +89,7 @@ public class Main {
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
+            String coreApiToken = this.config.getString(Const.Config.CoreApiTokenProp);
             Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
             this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
 
@@ -398,42 +399,34 @@ public class Main {
                 .register(globalRegistry);
     }
 
-    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String userToken) throws Exception {
+    private UidCoreClient createUidCoreClient(String attestationUrl, String userToken, Handler<Integer> responseWatcher) throws Exception {
         String enclavePlatform = this.config.getString("enclave_platform", "");
-        Boolean enforceHttps = this.config.getBoolean("enforce_https", true);
-        UidCoreClient coreClient;
-        UidOptOutClient optOutClient;
-        switch (enclavePlatform){
-            case "aws-nitro": {
-                LOGGER.info("creating uid core client with aws attestation protocol");
-                var tokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getNitroAttestation(), this.disableHandler::handleResponseStatus);
-                coreClient = new UidCoreClient(userToken, CloudUtils.defaultProxy, enforceHttps, tokenRetriever);
-                optOutClient = new UidOptOutClient(userToken, CloudUtils.defaultProxy, enforceHttps, tokenRetriever);
-                break;
-            }
-            case "gcp-vmid" : {
-                LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-                var tokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), this.disableHandler::handleResponseStatus);
-                coreClient = new UidCoreClient(userToken, CloudUtils.defaultProxy, enforceHttps, tokenRetriever);
-                optOutClient = new UidOptOutClient(userToken, CloudUtils.defaultProxy, enforceHttps, tokenRetriever);
-                break;
-            }
-            case "azure-sgx" : {
-                LOGGER.info("creating uid core client with azure sgx attestation protocol");
-                var tokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getAzureAttestation(), this.disableHandler::handleResponseStatus);
-                coreClient = new UidCoreClient(userToken, CloudUtils.defaultProxy, enforceHttps, tokenRetriever);
-                optOutClient = new UidOptOutClient(userToken, CloudUtils.defaultProxy, enforceHttps, tokenRetriever);
-                break;
-            }
-            default: {
-                var tokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, new NoAttestationProvider(), this.disableHandler::handleResponseStatus);
-                coreClient = UidCoreClient.createNoAttest(userToken, enforceHttps, tokenRetriever);
-                optOutClient =  UidOptOutClient.createNoAttest(userToken, enforceHttps, tokenRetriever);
-                break;
-            }
+        if (enclavePlatform == null) {
+            enclavePlatform = "";
         }
+        Boolean enforceHttps = this.config.getBoolean("enforce_https", true);
+        AttestationTokenRetriever attestationTokenRetriever;
 
-        var clients = new AbstractMap.SimpleEntry(coreClient, optOutClient);
-        return clients;
+        switch (enclavePlatform) {
+            case "aws-nitro":
+                LOGGER.info("creating uid core client with aws attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher);
+                break;
+            case "gcp-vmid":
+                LOGGER.info("creating uid core client with gcp vmid attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher);
+                break;
+            case "gcp-oidc":
+                LOGGER.info("creating uid core client with gcp oidc attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher);
+                break;
+            case "azure-sgx":
+                LOGGER.info("creating uid core client with azure sgx attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher);
+                break;
+            default:
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
+        }
+        return new UidCoreClient(userToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
     }
 }

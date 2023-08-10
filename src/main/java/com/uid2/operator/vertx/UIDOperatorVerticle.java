@@ -265,6 +265,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private ClientSideKeypair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
         ClientSideKeypair keyPair = this.clientSideKeypairProvider.getSnapshot().getKeypair(subscriptionId);
+        LOGGER.info(keyPair.getSubscriptionId());
+        LOGGER.info(keyPair.encodePublicKeyToString());
+        LOGGER.info(keyPair.encodePrivateKeyToString());
+        LOGGER.info(String.valueOf(keyPair.getSiteId()));
+        LOGGER.info(keyPair.getContact());
+        LOGGER.info(String.valueOf(keyPair.getCreated().getEpochSecond()));
+        LOGGER.info(String.valueOf(keyPair.isDisabled()));
         if(keyPair == null || keyPair.isDisabled()){
             return null;
         } else {

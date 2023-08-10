@@ -1,6 +1,7 @@
 package com.uid2.operator;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.InputUtil;
 import com.uid2.operator.service.UIDOperatorService;
@@ -258,19 +259,47 @@ public class UIDOperatorServiceTest {
         assertTrue(mappedIdentityShouldBeOptOut.isOptedOut());
     }
 
+    private enum TestIdentityInputType {
+        Email(0),
+        Phone(1),
+        EmailHash(2),
+        PhoneHash(3);
+
+        public final int type;
+
+        TestIdentityInputType(int type) { this.type = type; }
+    }
+
+    private InputUtil.InputVal generateInputVal(TestIdentityInputType type, String id) {
+        InputUtil.InputVal inputVal;
+        switch(type) {
+            case Email:
+                inputVal = InputUtil.normalizeEmail(id);
+                break;
+            case Phone:
+                inputVal = InputUtil.normalizePhone(id);
+                break;
+            case EmailHash:
+                inputVal = InputUtil.normalizeEmailHash(EncodingUtils.getSha256(id));
+                break;
+            default: //PhoneHash
+                inputVal = InputUtil.normalizePhoneHash(EncodingUtils.getSha256(id));
+        }
+        return inputVal;
+    }
+
+
     //UID2-1224
     @ParameterizedTest
-    @CsvSource({"email,optout@email.com,UID2", "email,optout@email.com,EUID", "phone,+00000000000,EUID"})
-    public void testSpecialIdentityOptOutTokenGenerate(String type, String id, IdentityScope scope) {
-        InputUtil.InputVal inputVal;
-        if(type.equals("email"))
-        {
-            inputVal = InputUtil.normalizeEmail(id);
-        }
-        else
-        {
-            inputVal = InputUtil.normalizePhone(id);
-        }
+    @CsvSource({"Email,optout@email.com,UID2",
+            "EmailHash,optout@email.com,UID2",
+            "Email,optout@email.com,EUID",
+            "EmailHash,optout@email.com,EUID",
+            "Phone,+00000000000,EUID",
+            "PhoneHash,+00000000000,EUID"})
+    public void testSpecialIdentityOptOutTokenGenerate(TestIdentityInputType type, String id, IdentityScope scope) {
+        InputUtil.InputVal inputVal = generateInputVal(type, id);
+
         //make sure this still works without optout record
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
@@ -296,17 +325,14 @@ public class UIDOperatorServiceTest {
     //will only test when we switch to v4 token
     //this works for EUID because EUID is on v3 token already which persists to correct IdentityType
     @ParameterizedTest
-    @CsvSource({"email,optout@email.com,UID2", "email,optout@email.com,EUID", "phone,+00000000000,EUID"})
-    public void testSpecialIdentityOptOutTokenRefresh(String type, String id, IdentityScope scope) {
-        InputUtil.InputVal inputVal;
-        if(type.equals("email"))
-        {
-            inputVal = InputUtil.normalizeEmail(id);
-        }
-        else
-        {
-            inputVal = InputUtil.normalizePhone(id);
-        }
+    @CsvSource({"Email,optout@email.com,UID2",
+            "EmailHash,optout@email.com,UID2",
+            "Email,optout@email.com,EUID",
+            "EmailHash,optout@email.com,EUID",
+            "Phone,+00000000000,EUID",
+            "PhoneHash,+00000000000,EUID"})
+    public void testSpecialIdentityOptOutTokenRefresh(TestIdentityInputType type, String id, IdentityScope scope) {
+        InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
@@ -330,17 +356,14 @@ public class UIDOperatorServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"email,blah@unifiedid.com,UID2", "phone,+61401234567,EUID", "email,blah@unifiedid.com,EUID"})
-    public void testNormalIdentityOptIn(String type, String id, IdentityScope scope) {
-        InputUtil.InputVal inputVal;
-        if(type.equals("email"))
-        {
-            inputVal = InputUtil.normalizeEmail(id);
-        }
-        else
-        {
-            inputVal = InputUtil.normalizePhone(id);
-        }
+    @CsvSource({"Email,blah@unifiedid.com,UID2",
+            "EmailHash,blah@unifiedid.com,UID2",
+            "Phone,+61401234567,EUID",
+            "PhoneHash,+61401234567,EUID",
+            "Email,blah@unifiedid.com,EUID",
+            "EmailHash,blah@unifiedid.com,EUID"})
+    public void testNormalIdentityOptIn(TestIdentityInputType type, String id, IdentityScope scope) {
+        InputUtil.InputVal inputVal = generateInputVal(type, id);
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
                 inputVal.toUserIdentity(scope, 0, this.now),

@@ -1,7 +1,6 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
-import com.uid2.operator.util.Tuple;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
@@ -242,9 +241,9 @@ public class UIDOperatorService implements IUIDOperatorService {
         private final Instant time;
 
         //providedTime can be null if isOptedOut is false!
-        GlobalOptoutResult(boolean providedIsOptedOut, Instant providedTime)
+        GlobalOptoutResult(Instant providedTime)
         {
-            isOptedOut = providedIsOptedOut;
+            isOptedOut = providedTime != null;
             time = providedTime;
         }
 
@@ -259,10 +258,10 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private GlobalOptoutResult hasGlobalOptOut(UserIdentity userIdentity) {
         if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
-            return new GlobalOptoutResult(true, Instant.now());
+            return new GlobalOptoutResult(Instant.now());
         }
         Instant result = this.optOutStore.getLatestEntry(userIdentity);
-        return new GlobalOptoutResult(result != null, result);
+        return new GlobalOptoutResult(result);
     }
 
 }

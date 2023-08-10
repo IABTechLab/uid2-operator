@@ -3,7 +3,7 @@
   "storage_mock": true,
   "enforce_https": false,
   "core_attest_url": "http://localhost:8088/attest",
-  "core_api_token": "trusted-partner-key",
+  "core_api_token": "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=",
   "clients_metadata_path": "http://localhost:8088/clients/refresh",
   "client_side_keypairs_metadata_path": "http://localhost:8088/client_side_keypairs/refresh",
   "keys_metadata_path": "http://localhost:8088/key/refresh",

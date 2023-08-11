@@ -22,6 +22,13 @@ public class DomainNameCheckUtilTest {
 
         Set<String> allowedDomainNamesForProd = new HashSet<>(Arrays.asList("examplewebsite.com","e-wb.org","aussiedomain.id.au"));
 
+        //a few malformed URLs
+        assertFalse(isDomainNameAllowed("examplewebsite.com", allowedDomainNamesForProd));
+        assertFalse(isDomainNameAllowed("examplewebsite.com:999999", allowedDomainNamesForProd));
+        assertFalse(isDomainNameAllowed("abc:examplewebsite.com", allowedDomainNamesForProd));
+        assertFalse(isDomainNameAllowed("/:$2231examplewebsite.com", allowedDomainNamesForProd));
+        assertFalse(isDomainNameAllowed("/:$2231examplewebsite.com/23423/sfs.html", allowedDomainNamesForProd));
+
         //most basic examples
         assertTrue(isDomainNameAllowed("http://examplewebsite.com", allowedDomainNamesForProd));
         assertTrue(isDomainNameAllowed("https://examplewebsite.com", allowedDomainNamesForProd));

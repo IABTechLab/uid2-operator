@@ -2409,36 +2409,39 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"https://blahblah.com", "http://local1host:8080"})
-    void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) {
+    void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
         setupCstgBackend();
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest();
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
-                cstgRequestJson,
-                null,
+                data.getItem1(),
+                data.getItem2(),
                 403,
                 respJson -> {
-            //it's encrypted now but since this test didn't have a legit secret key we can't decrypt it
-//                    assertFalse(respJson.containsKey("body"));
-//                    assertEquals("invalid_http_origin", respJson.getString("status"));
+                    //it's encrypted now but since this test didn't have a legit secret key we can't decrypt it
+                    assertFalse(respJson.containsKey("body"));
+                    assertEquals("invalid_http_origin", respJson.getString("status"));
                     testContext.completeNow();
                 });
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"https://cstg.co.uk", "https://cstg2.com", "http://localhost:8080"})
-    void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) {
+    void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
         setupCstgBackend();
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest();
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
-                cstgRequestJson,
-                null,
+                data.getItem1(),
+                data.getItem2(),
                 200,
                 respJson -> {
                     //the response is below but it's encrypted so we won't try to verify the response
                     //for this test - checking the returned 200 http response code is enough for now
-                    //GuSea5jA7AYp8ZPQaOYH6ZI82pFc7z8tnLVDrYbXccGtxLukrrx5m0jIfwUIZZGzEbF3TWbLCgP2Wmx6C9GzEczxl9Uq/0shKd4zbh12eUkqOpsyQ35+yNJpQYdkMzb7YJ4n5vIPjGEvVCX7UekJD8wHmJE8E1wXp+/0CbyAX39DDvN87P7jTJJcvVxVo8s3zjKeQ7gnihhJUZOcYU9BtnqbXULZKGTXSYR8xoxSeeSoR5ZPYg2252baxbMy8GgLtJlStkA7D0ANcSN50EFGaBnX4oCGwnMmfJIeSIsBTNjhkwJ3X4C0C0qgcBTd87BhS8BPAzBCZPvZJW930Ttw6c1CERxzbWAmC8Q5gbBOw/8YFr4siKrbtV/kfzlMumbySCi2OP+mQVnZxaeWWTa27E5BsEeJBmpuy0goNCYCFXUZjOZZ8L6YwG12kGl6MDrwPjTrrsP7o4SuthhVYtH06ZLNxYcj/tKxJxAURyUmRSmaZ7VgEJz1MiC8+EPTmiRY5TH33JCLmP8JROlfDznxMtsGzg+v3qVUr/Efaz0cu9dqn3S6vedQ25z3MuIiqf8N4sP2BAeOx0Pj9Qt/QbqJusBA2WKDmd2uM0QawDvGgcAUsAFxn3WHTgJlS3sy+mLPQpmgas8E1oFkkwxsW44YVD9ZFPlb8yllTyQLKrO2i1ORAy59HimneObXCiiVeSQD530oIWsGuWQTDPY/T+EA/OTedlAAmpsHzJgl/qkH8WOO/NFO/yprI0y1pGnli3Q50M+l
+                    assertTrue(respJson.containsKey("body"));
+                    assertEquals("success", respJson.getString("status"));
                     testContext.completeNow();
                 });
     }

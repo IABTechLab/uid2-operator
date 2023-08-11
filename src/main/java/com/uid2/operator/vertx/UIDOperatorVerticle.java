@@ -371,9 +371,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
             if(!allowedDomain) {
-                final JsonObject response = ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, "unexpected http origin");
+                final JsonObject response = ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, "unexpected http origin");
                 final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
-                rc.response().end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+                rc.response().setStatusCode(403).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
 
                 return;
             }

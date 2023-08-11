@@ -24,6 +24,7 @@ RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /
 COPY ./entrypoint.sh /app/
 RUN chmod a+x /app/entrypoint.sh
 
-RUN mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && mkdir -p /app && chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
+RUN adduser -D uid2-operator && mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && mkdir -p /app && chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
+RUN mkdir -p /run/container_launcher && chmod a+rx /run && chmod a+rx /run/container_launcher
 
 CMD ["/app/entrypoint.sh"]

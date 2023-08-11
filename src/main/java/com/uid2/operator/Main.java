@@ -9,10 +9,7 @@ import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
-import com.uid2.shared.attest.AttestationFactory;
-import com.uid2.shared.attest.AttestationTokenRetriever;
-import com.uid2.shared.attest.NoAttestationProvider;
-import com.uid2.shared.attest.UidCoreClient;
+import com.uid2.shared.attest.*;
 import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
@@ -94,14 +91,17 @@ public class Main {
             String coreApiToken = this.config.getString(Const.Config.CoreApiTokenProp);
             Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
             this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
-            UidCoreClient coreClient = createUidCoreClient(coreAttestUrl, coreApiToken, this.disableHandler::handleResponseStatus);
+
+            var clients = createUidClients(this.vertx, coreAttestUrl, coreApiToken, this.disableHandler::handleResponseStatus);
+            UidCoreClient coreClient = clients.getKey();
+            UidOptOutClient optOutClient = clients.getValue();
             fsStores = coreClient;
             LOGGER.info("Salt/Key/Client stores - Using uid2-core attestation endpoint: " + coreAttestUrl);
 
             if (useStorageMock) {
                 this.fsOptOut = configureMockOptOutStore();
             } else {
-                this.fsOptOut = configureAttestedOptOutStore(coreClient, coreAttestUrl);
+                this.fsOptOut = configureAttestedOptOutStore(optOutClient, coreAttestUrl);
             }
         } else if (useStorageMock) {
             fsStores = new EmbeddedResourceStorage(Main.class);
@@ -188,10 +188,10 @@ public class Main {
         return this.wrapCloudStorageForOptOut(CloudUtils.createStorage(optOutBucket, config));
     }
 
-    private ICloudStorage configureAttestedOptOutStore(UidCoreClient coreClient, String coreAttestUrl) {
+    private ICloudStorage configureAttestedOptOutStore(UidOptOutClient optOutClient, String coreAttestUrl) {
         String optOutMdPath = this.config.getString(Const.Config.OptOutMetadataPathProp);
         LOGGER.info("OptOut stores- Using uid2-core attestation endpoint: " + coreAttestUrl);
-        return this.wrapCloudStorageForOptOut(new OptOutCloudStorage(coreClient, optOutMdPath, CloudUtils.defaultProxy));
+        return this.wrapCloudStorageForOptOut(new OptOutCloudStorage(optOutClient, optOutMdPath, CloudUtils.defaultProxy));
     }
 
     private ICloudStorage wrapCloudStorageForOptOut(ICloudStorage cloudStorage) {
@@ -402,7 +402,7 @@ public class Main {
                 .register(globalRegistry);
     }
 
-    private UidCoreClient createUidCoreClient(String attestationUrl, String userToken, Handler<Integer> responseWatcher) throws Exception {
+    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Integer> responseWatcher) throws Exception {
         String enclavePlatform = this.config.getString("enclave_platform", "");
         if (enclavePlatform == null) {
             enclavePlatform = "";
@@ -413,23 +413,25 @@ public class Main {
         switch (enclavePlatform) {
             case "aws-nitro":
                 LOGGER.info("creating uid core client with aws attestation protocol");
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher);
                 break;
             case "gcp-vmid":
                 LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher);
                 break;
             case "gcp-oidc":
                 LOGGER.info("creating uid core client with gcp oidc attestation protocol");
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher);
                 break;
             case "azure-sgx":
                 LOGGER.info("creating uid core client with azure sgx attestation protocol");
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher);
                 break;
             default:
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, userToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
         }
-        return new UidCoreClient(userToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
+        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
+        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
+        return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }
 }

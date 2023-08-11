@@ -40,7 +40,6 @@ import io.vertx.micrometer.backends.BackendRegistries;
 
 import javax.management.*;
 import java.lang.management.ManagementFactory;
-import java.nio.channels.CancelledKeyException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Clock;

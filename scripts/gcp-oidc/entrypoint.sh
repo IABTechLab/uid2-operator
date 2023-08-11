@@ -2,6 +2,10 @@
 #
 # This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
+# -- switch user
+chown uid2-operator /run/container_launcher
+su uid2-operator
+
 # -- set API tokens
 if [ -z "${API_TOKEN}" ]; then
   echo "API_TOKEN cannot be empty"

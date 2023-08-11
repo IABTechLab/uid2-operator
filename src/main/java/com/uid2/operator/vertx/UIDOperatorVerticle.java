@@ -335,21 +335,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         //instead of crashing use a default value
         final long timestamp = body.getLong("timestamp", 0L);
 
-
-        if(cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
-            String origin = rc.request().getHeader("origin");
-
-            // if you want to see what http origin header is provided, uncomment this line
-            // LOGGER.info("origin: " + origin);
-
-            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-            if(!allowedDomain) {
-                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
-                return;
-            }
-        }
-
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
@@ -376,6 +361,24 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();
+
+        if(cstgDoDomainNameCheck) {
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
+            String origin = rc.request().getHeader("origin");
+
+            // if you want to see what http origin header is provided, uncomment this line
+            // LOGGER.info("origin: " + origin);
+
+            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+            if(!allowedDomain) {
+                final JsonObject response = ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, "unexpected http origin");
+                final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
+                rc.response().end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+
+                return;
+            }
+        }
+
 
         final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
 

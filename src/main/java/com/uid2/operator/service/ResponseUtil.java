@@ -60,8 +60,7 @@ public class ResponseUtil {
         Error(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, message);
     }
 
-    public static void Error(String errorStatus, int statusCode, RoutingContext rc, String message) {
-        logError(errorStatus, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+    public static JsonObject Error(String errorStatus, int statusCode,  String message) {
         final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", errorStatus);
@@ -70,9 +69,16 @@ public class ResponseUtil {
         if (message != null) {
             json.put("message", message);
         }
+        return json;
+    }
+
+    public static void Error(String errorStatus, int statusCode, RoutingContext rc, String message) {
+        logError(errorStatus, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+        final JsonObject json = Error(errorStatus, statusCode, message);
         rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
     }
+
 
     private static void logError(String errorStatus, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
         String errorMessage = "Error response to http request. " + JsonObject.of(

@@ -45,8 +45,11 @@ fi
 
 # -- debug
 if [ "${DEPLOYMENT_ENVIRONMENT}" = 'integ' ]; then
+    OIDC_TOKEN_FILE="/run/container_launcher/attestation_verifier_claims_token"
+    echo "OIDC token file permissions:"
+    ls -l ${OIDC_TOKEN_FILE}
     echo "OIDC token:"
-    cat /run/container_launcher/attestation_verifier_claims_token
+    cat ${OIDC_TOKEN_FILE}
 fi
 
 # -- start operator

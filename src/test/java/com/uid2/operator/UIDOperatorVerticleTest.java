@@ -13,9 +13,6 @@ import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
-import com.uid2.operator.service.*;
-import com.uid2.operator.vertx.OperatorDisableHandler;
-import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.IClock;
 import com.uid2.shared.attest.AttestationTokenRetriever;
 import com.uid2.shared.attest.UidCoreClient;
@@ -136,7 +133,8 @@ public class UIDOperatorVerticleTest {
         config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, refreshExpiresAfter.toMillis() / 1000);
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, refreshIdentityAfter.toMillis() / 1000);
         config.put(Const.Config.FailureShutdownWaitHoursProp, 24);
-        config.put(Const.Config.SharingTokenExpiryProp, 2592000);
+        final int sharingExpirySeconds = 60*60*24*30;
+        config.put(Const.Config.SharingTokenExpiryProp, sharingExpirySeconds);
 
         setupConfig(config);
 
@@ -2318,47 +2316,47 @@ public class UIDOperatorVerticleTest {
             ));
 
             KeysetKey[] keys = {
-                    new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
-                    new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.FallbackPublisherKeysetId),
-                    new KeysetKey(1003, makeAesKey("refreshKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.RefreshKeysetId),
+                    createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
+                    createKey(1002, now.minusSeconds(5), now.plusSeconds(3600), Const.Data.FallbackPublisherKeysetId),
+                    createKey(1003, now.minusSeconds(5), now.plusSeconds(3600), Const.Data.RefreshKeysetId),
 
                     // keys in keyset4
-                    new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(3600), 4),
-                    new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(3600), 4),
-                    new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(3600), 4),
-                    new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(3600), 4),
-                    new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 4),
-                    new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
+                    createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
+                    createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
+                    createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
+                    createKey(1007, now, now.plusSeconds(3600), 4),
+                    createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
+                    createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
 
                     // keys in keyset5
-                    new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(3600), 5),
-                    new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 5),
-                    new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
+                    createKey(1010, now, now.plusSeconds(3600), 5),
+                    createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
+                    createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
 
                     // keys in keyset6
-                    new KeysetKey(1013, makeAesKey("key13"), now.minusSeconds(10), now, now.plusSeconds(3600), 6),
-                    new KeysetKey(1014, makeAesKey("key14"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 6),
-                    new KeysetKey(1015, makeAesKey("key15"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 6),
+                    createKey(1013, now, now.plusSeconds(3600), 6),
+                    createKey(1014, now.plusSeconds(5), now.plusSeconds(3600), 6),
+                    createKey(1015, now.minusSeconds(5), now.minusSeconds(2), 6),
 
                     // keys in keyset7
-                    new KeysetKey(1016, makeAesKey("key16"), now.minusSeconds(10), now, now.plusSeconds(3600), 7),
-                    new KeysetKey(1017, makeAesKey("key17"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 7),
-                    new KeysetKey(1018, makeAesKey("key18"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 7),
+                    createKey(1016, now, now.plusSeconds(3600), 7),
+                    createKey(1017, now.plusSeconds(5), now.plusSeconds(3600), 7),
+                    createKey(1018, now.minusSeconds(5), now.minusSeconds(2), 7),
 
                     // keys in keyset8
-                    new KeysetKey(1019, makeAesKey("key19"), now.minusSeconds(10), now, now.plusSeconds(3600), 8),
-                    new KeysetKey(1020, makeAesKey("key20"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 8),
-                    new KeysetKey(1021, makeAesKey("key21"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 8),
+                    createKey(1019, now, now.plusSeconds(3600), 8),
+                    createKey(1020, now.plusSeconds(5), now.plusSeconds(3600), 8),
+                    createKey(1021, now.minusSeconds(5), now.minusSeconds(2), 8),
 
                     // keys in keyset9
-                    new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(3600), 9),
-                    new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 9),
-                    new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9),
+                    createKey(1022, now, now.plusSeconds(3600), 9),
+                    createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
+                    createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9),
 
                     // keys in keyset10
-                    new KeysetKey(1025, makeAesKey("key25"), now.minusSeconds(10), now, now.plusSeconds(3600), 10),
-                    new KeysetKey(1026, makeAesKey("key26"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 10),
-                    new KeysetKey(1027, makeAesKey("key27"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 10)
+                    createKey(1025, now, now.plusSeconds(3600), 10),
+                    createKey(1026, now.plusSeconds(5), now.plusSeconds(3600), 10),
+                    createKey(1027, now.minusSeconds(5), now.minusSeconds(2), 10)
             };
             this.keyMap = new HashMap<>(Arrays.stream(keys).collect(Collectors.toMap(KeysetKey::getId, s -> s)));
             setupMockitoApiInterception();
@@ -2369,7 +2367,8 @@ public class UIDOperatorVerticleTest {
             setupKeysetsKeysMock(this.keyMap);
         }
 
-        public void addKey(int keyId, KeysetKey key) {
+        public void addKey(KeysetKey key) {
+            int keyId = key.getId();
             if (this.keyMap.containsKey(keyId)) {
                 throw new RuntimeException(String.format("Cannot insert a key with duplicate Key ID %d.", keyId));
             }
@@ -2401,6 +2400,11 @@ public class UIDOperatorVerticleTest {
         }
     }
 
+    private KeysetKey createKey(int id, Instant activates, Instant expires, int keysetId) {
+        return new KeysetKey(id, makeAesKey("key" + id), activates.minusSeconds(10), activates, expires, keysetId);
+    }
+
+
     @ParameterizedTest
     @ValueSource(strings = {"MultiKeysets", "AddKey", "RotateKey", "DisableActiveKey", "DisableDefaultKeyset"})
     void tokenGenerateRotatingKeysets_GENERATOR(String testRun, Vertx vertx, VertxTestContext testContext) {
@@ -2408,6 +2412,8 @@ public class UIDOperatorVerticleTest {
         final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
         fakeAuth(clientSiteId, Role.GENERATOR);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
+        //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate expectations
+
         Instant now = Instant.now();
         long nowL = now.toEpochMilli() / 1000;
         setupSalts();
@@ -2425,20 +2431,20 @@ public class UIDOperatorVerticleTest {
             // a. Add a keyset with a key to a publisher. '/token/generate' encrypts with the old key
             case "AddKey":
                 Keyset keyset11 = new Keyset(11, 107, "keyset11", Set.of(101), nowL, true, true);
-                KeysetKey key128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 11);
-                KeysetKey key129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
+                KeysetKey key1128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 11);
+                KeysetKey key1129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
                 test.addKeyset(11, keyset11);
-                test.addKey(1128, key128); // not activated
-                test.addKey(1129, key129); // expired
+                test.addKey(key1128); // not activated
+                test.addKey(key1129); // expired
                 test.setupMockitoApiInterception();
                 break;
             // b. Rotate keys within a keyset. '/token/generate' encrypts with the new key
             case "RotateKey":
-                KeysetKey key329 = new KeysetKey(1329, makeAesKey("key229"), now.minusSeconds(10), now, now.plusSeconds(3600), 4); // default keyset
-                test.addKey(1329, key329); // activates now
+                KeysetKey key1329 = createKey(1329, now, now.plusSeconds(3600), 4); // default keyset
+                test.addKey(key1329); // activates now
                 test.setupMockitoApiInterception();
-                KeysetKey actual = keysetKeyStore.getSnapshot().getActiveKey(4, Instant.now());
-                assertEquals(key329, actual);
+                KeysetKey actual = keysetKeyStore.getSnapshot().getActiveKey(4, now);
+                assertEquals(key1329, actual);
                 break;
             // c. Disable the active key within a keyset. '/token/generate' no longer encrypts with that key
             case "DisableActiveKey":
@@ -2525,19 +2531,23 @@ public class UIDOperatorVerticleTest {
                 new Keyset(107, 45, "test", Set.of(4, 42, 43, 44, 45), Instant.now().getEpochSecond(), true, true),
                 new Keyset(108, 4, "test", Set.of(), Instant.now().getEpochSecond(), true, true),
         };
+
+        final KeysetKey masterKey = new KeysetKey(3, "masterKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId); // siteId = -1
+        final KeysetKey clientsKey = new KeysetKey(7, "clientsKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 108); // siteId = 4
+        final KeysetKey sharingkey12 = new KeysetKey(12, "sharingkey12".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 105); // siteId = 43
+        final KeysetKey sharingkey13 = new KeysetKey(13, "sharingkey13".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 106); // siteId = 44
+        final KeysetKey sharingkey14 = new KeysetKey(14, "sharingkey14".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 107); // siteId = 45
+
         KeysetKey[] encryptionKeys = {
                 new KeysetKey(6, "sharingkey6".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 104), // siteId = 42
-                new KeysetKey(12, "sharingkey12".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 105), // siteId = 43
-                new KeysetKey(13, "sharingkey13".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 106), // siteId = 44
-                new KeysetKey(14, "sharingkey14".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 107), // siteId = 45
-                new KeysetKey(3, "masterKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.MasterKeysetId), // siteId = -1
+                sharingkey12, sharingkey13, sharingkey14, masterKey,
                 new KeysetKey(42, "masterKey2".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.RefreshKeysetId), // siteId = -2
-                new KeysetKey(7, "clientsKey".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), 108), // siteId = 4
+                clientsKey,
                 new KeysetKey(5, "publisherMaster".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId), // siteId = 2
                 new KeysetKey(9, "key with no ACL".getBytes(), Instant.now(), Instant.now(), Instant.now().plusSeconds(10), Const.Data.FallbackPublisherKeysetId), // siteId = 2
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
-        KeysetKey[] expectedKeys = new KeysetKey[] { encryptionKeys[4], encryptionKeys[6], encryptionKeys[1], encryptionKeys[2], encryptionKeys[3] };
+        KeysetKey[] expectedKeys = new KeysetKey[] { masterKey, clientsKey, sharingkey12, sharingkey13, sharingkey14 };
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
 
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
@@ -2560,44 +2570,33 @@ public class UIDOperatorVerticleTest {
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.ID_READER);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
-        /*
-        [keyset Table]
-        keyset1: new Keyset(1, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
-        keyset2: new Keyset(2, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
-        keyset3: new Keyset(3, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
 
-        keyset4: new Keyset(4, 101, "keyset4", null, nowL, true, true),
-        keyset5: new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default
-        keyset6: new Keyset(6, 101, "keyset6", Set.of(), nowL, false, false), // disabled
+        //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
 
-        keyset7: new Keyset(7, 102, "keyset7", null, nowL, true, true),
-        keyset8: new Keyset(8, 103, "keyset8", Set.of(102, 104), nowL, true, true),
-        keyset9: new Keyset(9, 104, "keyset9", Set.of(101), nowL, true, true)
-        keyset10:new Keyset(10, 105, "keyset10", Set.of(), nowL, true, true)
-        */
         Instant now = Instant.now();
+        //Keys from these keysets are not expected: keyset6 (disabled keyset), keyset8 (not sharing with site 101), keyset10 (not sharing with anyone)
         KeysetKey[] expectedKeys = {
-                new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
-                new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.RefreshKeysetId),
+                createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
+                createKey(1002, now.minusSeconds(5), now.plusSeconds(3600), Const.Data.RefreshKeysetId),
                 // keys in keyset4
-                new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(3600), 4),
-                new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(3600), 4),
-                new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(3600), 4),
-                new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(3600), 4),
-                new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 4),
-                new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
+                createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
+                createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
+                createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
+                createKey(1007, now, now.plusSeconds(3600), 4),
+                createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
+                createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
                 // keys in keyset5
-                new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(3600), 5),
-                new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 5),
-                new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
+                createKey(1010, now, now.plusSeconds(3600), 5),
+                createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
+                createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
                 // keys in keyset7
-                new KeysetKey(1016, makeAesKey("key16"), now.minusSeconds(10), now, now.plusSeconds(3600), 7),
-                new KeysetKey(1017, makeAesKey("key17"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 7),
-                new KeysetKey(1018, makeAesKey("key18"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 7),
+                createKey(1016, now, now.plusSeconds(3600), 7),
+                createKey(1017, now.plusSeconds(5), now.plusSeconds(3600), 7),
+                createKey(1018, now.minusSeconds(5), now.minusSeconds(2), 7),
                 // keys in keyset9
-                new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(3600), 9),
-                new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 9),
-                new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
+                createKey(1022, now, now.plusSeconds(3600), 9),
+                createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
+                createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
@@ -2625,39 +2624,27 @@ public class UIDOperatorVerticleTest {
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.SHARER);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
-        /*
-        [keyset Table]
-        keyset1: new Keyset(1, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
-        keyset2: new Keyset(2, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
-        keyset3: new Keyset(3, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
+        //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
 
-        keyset4: new Keyset(4, 101, "keyset4", null, nowL, true, true),
-        keyset5: new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default
-        keyset6: new Keyset(6, 101, "keyset6", Set.of(), nowL, false, false), // disabled
-
-        keyset7: new Keyset(7, 102, "keyset7", null, nowL, true, true),
-        keyset8: new Keyset(8, 103, "keyset8", Set.of(), nowL, true, true),
-        keyset9: new Keyset(9, 104, "keyset9", Set.of(101, 102), nowL, true, true)
-        keyset10:new Keyset(10, 105, "keyset10", Set.of(), nowL, true, true)
-        */
+        //Keys from these keysets are not expected: keyset6 (disabled keyset), keyset7 (sharing with ID_READERs but not SHARERs), keyset8 (not sharing with 101), keyset10 (not sharing with anyone)
         Instant now = Instant.now();
         KeysetKey[] expectedKeys = {
-                new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
+                createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
                 // keys in keyset4
-                new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(3600), 4),
-                new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(3600), 4),
-                new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(3600), 4),
-                new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(3600), 4),
-                new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 4),
-                new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
+                createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
+                createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
+                createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
+                createKey(1007, now, now.plusSeconds(3600), 4),
+                createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
+                createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
                 // keys in keyset5
-                new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(3600), 5),
-                new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 5),
-                new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
+                createKey(1010, now, now.plusSeconds(3600), 5),
+                createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
+                createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
                 // keys in keyset9
-                new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(3600), 9),
-                new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 9),
-                new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
+                createKey(1022, now, now.plusSeconds(3600), 9),
+                createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
+                createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
@@ -2774,84 +2761,72 @@ public class UIDOperatorVerticleTest {
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.ID_READER);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
-        /*
-        [keyset Table]
-        keyset1: new Keyset(1, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
-        keyset2: new Keyset(2, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
-        keyset3: new Keyset(3, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
+        //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
 
-        keyset4: new Keyset(4, 101, "keyset4", null, nowL, true, true),
-        keyset5: new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default
-        keyset6: new Keyset(6, 101, "keyset6", Set.of(), nowL, false, false), // disabled
-
-        keyset7: new Keyset(7, 102, "keyset7", null, nowL, true, true),
-        keyset8: new Keyset(8, 103, "keyset8", Set.of(), nowL, true, true),
-        keyset9: new Keyset(9, 104, "keyset9", Set.of(101, 102), nowL, true, true)
-        keyset10:new Keyset(10, 105, "keyset10", Set.of(), nowL, true, true)
-        */
         Instant now = Instant.now();
         long nowL = now.toEpochMilli() / 1000;
         List<KeysetKey> expectedKeys = new ArrayList<>(Arrays.asList(
-                new KeysetKey(1001, makeAesKey("masterKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
-                new KeysetKey(1002, makeAesKey("siteKey"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), Const.Data.RefreshKeysetId),
+                createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
+                createKey(1002, now.minusSeconds(5), now.plusSeconds(3600), Const.Data.RefreshKeysetId),
+
                 // keys in keyset4
-                new KeysetKey(1004, makeAesKey("key4"), now.minusSeconds(10), now.minusSeconds(6), now.plusSeconds(3600), 4),
-                new KeysetKey(1005, makeAesKey("key5"), now.minusSeconds(10), now.minusSeconds(4), now.plusSeconds(3600), 4),
-                new KeysetKey(1006, makeAesKey("key6"), now.minusSeconds(10), now.minusSeconds(2), now.plusSeconds(3600), 4),
-                new KeysetKey(1007, makeAesKey("key7"), now.minusSeconds(10), now, now.plusSeconds(3600), 4),
-                new KeysetKey(1008, makeAesKey("key8"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 4),
-                new KeysetKey(1009, makeAesKey("key9"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 4),
+                createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
+                createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
+                createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
+                createKey(1007, now, now.plusSeconds(3600), 4),
+                createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
+                createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
                 // keys in keyset5
-                new KeysetKey(1010, makeAesKey("key10"), now.minusSeconds(10), now, now.plusSeconds(3600), 5),
-                new KeysetKey(1011, makeAesKey("key11"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 5),
-                new KeysetKey(1012, makeAesKey("key12"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 5),
+                createKey(1010, now, now.plusSeconds(3600), 5),
+                createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
+                createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
                 // keys in keyset7
-                new KeysetKey(1016, makeAesKey("key16"), now.minusSeconds(10), now, now.plusSeconds(3600), 7),
-                new KeysetKey(1017, makeAesKey("key17"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 7),
-                new KeysetKey(1018, makeAesKey("key18"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 7),
+                createKey(1016, now, now.plusSeconds(3600), 7),
+                createKey(1017, now.plusSeconds(5), now.plusSeconds(3600), 7),
+                createKey(1018, now.minusSeconds(5), now.minusSeconds(2), 7),
                 // keys in keyset9
-                new KeysetKey(1022, makeAesKey("key22"), now.minusSeconds(10), now, now.plusSeconds(3600), 9),
-                new KeysetKey(1023, makeAesKey("key23"), now.minusSeconds(10), now.plusSeconds(5), now.plusSeconds(3600), 9),
-                new KeysetKey(1024, makeAesKey("key24"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(2), 9)
+                createKey(1022, now, now.plusSeconds(3600), 9),
+                createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
+                createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         ));
 
         switch (testRun) {
             // a. Add a keyset with keys (1 active & 1 expired). Test '/key/sharing' includes the new active key
             case "AddKeyset":
                 Keyset keyset11 = new Keyset(11, 107, "keyset11", Set.of(101), nowL, true, true);
-                KeysetKey key128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 11);
-                KeysetKey key129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
+                KeysetKey key1128 = new KeysetKey(1128, makeAesKey("key128"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 11);
+                KeysetKey key1129 = new KeysetKey(1129, makeAesKey("key129"), now.minusSeconds(10), now.minusSeconds(5), now.minusSeconds(5), 11);
                 test.addKeyset(11, keyset11);
-                test.addKey(1128, key128);
-                test.addKey(1129, key129); // key129 is expired but should return
+                test.addKey(key1128);
+                test.addKey(key1129); // key129 is expired but should return
                 test.setupMockitoApiInterception();
-                expectedKeys.add(key128);
-                expectedKeys.add(key129);
+                expectedKeys.add(key1128);
+                expectedKeys.add(key1129);
                 break;
 
             // b. Add keys to existing keysets (1 default, 1 non-default, 1 disabled, 1 shared). Test '/key/sharing' includes the new keys from enabled, default & allowed access keysets
             case "AddKey":
-                KeysetKey key229 = new KeysetKey(1229, makeAesKey("key229"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 4); // default keyset
-                KeysetKey key230 = new KeysetKey(1230, makeAesKey("key230"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 5); // non-default keyset
-                KeysetKey key231 = new KeysetKey(1231, makeAesKey("key231"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 6); // disabled keyset
-                KeysetKey key232 = new KeysetKey(1232, makeAesKey("key232"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 9); // sharing through 'allowed_site'
-                test.addKey(1229, key229);
-                test.addKey(1230, key230);
-                test.addKey(1231, key231); // keyset6 is disabled
-                test.addKey(1232, key232);
+                KeysetKey key1229 = new KeysetKey(1229, makeAesKey("key229"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 4); // default keyset
+                KeysetKey key1230 = new KeysetKey(1230, makeAesKey("key230"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 5); // non-default keyset
+                KeysetKey key1231 = new KeysetKey(1231, makeAesKey("key231"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 6); // disabled keyset
+                KeysetKey key1232 = new KeysetKey(1232, makeAesKey("key232"), now.minusSeconds(10), now.minusSeconds(5), now.plusSeconds(3600), 9); // sharing through 'allowed_site'
+                test.addKey(key1229);
+                test.addKey(key1230);
+                test.addKey(key1231); // keyset6 is disabled
+                test.addKey(key1232);
                 test.setupMockitoApiInterception();
-                expectedKeys.add(key229);
-                expectedKeys.add(key230);
-                expectedKeys.add(key232);
+                expectedKeys.add(key1229);
+                expectedKeys.add(key1230);
+                expectedKeys.add(key1232);
                 break;
 
             // c. Rotate keys within a keyset. Test /key/sharing shows the rotation
             case "RotateKey":
-                KeysetKey key329 = new KeysetKey(1329, makeAesKey("key229"), now.minusSeconds(10), now /* activate immediately */, now.plusSeconds(3600), 4); // default keyset
-                test.addKey(1329, key329);
+                KeysetKey key329 = createKey(329, now /* activate immediately */, now.plusSeconds(3600), 4); // default keyset
+                test.addKey(key329);
                 test.setupMockitoApiInterception();
                 expectedKeys.add(key329);
-                KeysetKey actual = keysetKeyStore.getSnapshot().getActiveKey(4, Instant.now());
+                KeysetKey actual = keysetKeyStore.getSnapshot().getActiveKey(4, now);
                 assertEquals(key329, actual);
                 break;
 

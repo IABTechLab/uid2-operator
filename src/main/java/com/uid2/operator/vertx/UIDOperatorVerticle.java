@@ -68,6 +68,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public static final byte[] ValidationInputEmailHash = EncodingUtils.getSha256Bytes(ValidationInputEmail);
     public static final String ValidationInputPhone = "+12345678901";
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
+
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
 
     private static final int DEFAULT_MASTER_KEYSET_ID = 1;
@@ -404,22 +405,34 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();
 
-        final IdentityTokens identityTokens = this.idService.generateIdentity(
+        IdentityTokens identityTokens = this.idService.generateIdentity(
                 new IdentityRequest(
                         new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                         TokenGeneratePolicy.RespectOptOut));
 
+
         if (identityTokens.isEmptyToken()) {
-            //todo handle optout (probably not like this)
-            //ResponseUtil.SuccessNoBodyV2("optout", rc);
-            //TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut);
-        } else {
-            final JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
-            final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
-            rc.response().end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-            //TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
+            //user opted out we will generate a token with the opted out user identity
+            UserIdentity cstgOptOutIdentity;
+            if(input.getIdentityType() == IdentityType.Email) {
+                cstgOptOutIdentity = this.idService.getFirstLevelHashIdentity(identityScope, IdentityType.Email,
+                        InputUtil.normalizeEmail("optout@unifiedid.com").getIdentityInput(), Instant.now());
+            }
+            else {
+                cstgOptOutIdentity = this.idService.getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
+                        InputUtil.normalizePhone("+00000000001").getIdentityInput(), Instant.now());
+
+            }
+            identityTokens = this.idService.generateIdentity(
+                    new IdentityRequest(
+                            new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
+                            cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate));
         }
+        final JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
+        final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
+        rc.response().end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+        //TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

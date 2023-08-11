@@ -31,7 +31,6 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final IdentityScope identityScope;
     private final UserIdentity testOptOutIdentityForEmail;
     private final UserIdentity testOptOutIdentityForPhone;
-
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
     private final Duration refreshIdentityAfter;
@@ -52,6 +51,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 InputUtil.normalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
         this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
                 InputUtil.normalizePhone("+00000000000").getIdentityInput(), Instant.now());
+
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
@@ -185,7 +185,8 @@ public class UIDOperatorService implements IUIDOperatorService {
         return getFirstLevelHashIdentity(userIdentity.identityScope, userIdentity.identityType, userIdentity.id, asOf);
     }
 
-    private UserIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf) {
+    @Override
+    public UserIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf) {
         final byte[] firstLevelHash = getFirstLevelHash(identityHash, asOf);
         return new UserIdentity(identityScope, identityType, firstLevelHash, 0, null, null);
     }

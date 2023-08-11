@@ -40,6 +40,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,9 +50,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import javax.crypto.SecretKey;
 import java.math.BigInteger;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -95,6 +101,9 @@ public class UIDOperatorVerticleTest {
     private static final Duration refreshExpiresAfter = Duration.ofMinutes(15);
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
     private static final byte[] clientSecret = Random.getRandomKeyBytes();
+
+    private static final String clientSideTokenGeneratePrivateKey = "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
+    private static final String clientSideTokenGeneratePublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
 
     private final UidCoreClient fakeCoreClient = new UidCoreClient("", "", new ApplicationVersion("test", "test"), CloudUtils.defaultProxy, new NoAttestationProvider(), false);
 
@@ -144,7 +153,7 @@ public class UIDOperatorVerticleTest {
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         config.put("client_side_token_generate_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_site_test_private_key", "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==");
+        config.put("client_site_test_private_key", clientSideTokenGeneratePrivateKey);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -2372,7 +2381,12 @@ public class UIDOperatorVerticleTest {
         1691566865787, "subscription_id":"abcdefg"
         }
      */
-    private static JsonObject cstgRequestJson = (new JsonObject()).put("payload","rF76B2OpY4hsGAsDsN5bQj8qOYA9hW+S4jEfvpAUi+DBNms5C8HBPiTZFLcHqGHddgGOMQKmp/bNR2yRgjooGZK7nlIk/FeI9b9sfeY=").put("iv","SLKIgc0rS4bMjJaN").put("public_key","MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEknAL8xvPVbFEBqzuXtTJ7xfEw/SbYF6KiCy8A9zirIr291P7coCom9lI5I9HgRPDJinV63VREoyB368M5VDQoA==").put("timestamp", 1691566865787L).put("subscription_id","abcdefg");
+    private static JsonObject cstgRequestJson = (new JsonObject())
+            .put("payload","rF76B2OpY4hsGAsDsN5bQj8qOYA9hW+S4jEfvpAUi+DBNms5C8HBPiTZFLcHqGHddgGOMQKmp/bNR2yRgjooGZK7nlIk/FeI9b9sfeY=")
+            .put("iv","SLKIgc0rS4bMjJaN")
+            .put("public_key","MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEknAL8xvPVbFEBqzuXtTJ7xfEw/SbYF6KiCy8A9zirIr291P7coCom9lI5I9HgRPDJinV63VREoyB368M5VDQoA==")
+            .put("timestamp", 1691566865787L)
+            .put("subscription_id","abcdefg");
 
     private void setupCstgBackend()
     {
@@ -2413,6 +2427,48 @@ public class UIDOperatorVerticleTest {
                     //the response is below but it's encrypted so we won't try to verify the response
                     //for this test - checking the returned 200 http response code is enough for now
                     //GuSea5jA7AYp8ZPQaOYH6ZI82pFc7z8tnLVDrYbXccGtxLukrrx5m0jIfwUIZZGzEbF3TWbLCgP2Wmx6C9GzEczxl9Uq/0shKd4zbh12eUkqOpsyQ35+yNJpQYdkMzb7YJ4n5vIPjGEvVCX7UekJD8wHmJE8E1wXp+/0CbyAX39DDvN87P7jTJJcvVxVo8s3zjKeQ7gnihhJUZOcYU9BtnqbXULZKGTXSYR8xoxSeeSoR5ZPYg2252baxbMy8GgLtJlStkA7D0ANcSN50EFGaBnX4oCGwnMmfJIeSIsBTNjhkwJ3X4C0C0qgcBTd87BhS8BPAzBCZPvZJW930Ttw6c1CERxzbWAmC8Q5gbBOw/8YFr4siKrbtV/kfzlMumbySCi2OP+mQVnZxaeWWTa27E5BsEeJBmpuy0goNCYCFXUZjOZZ8L6YwG12kGl6MDrwPjTrrsP7o4SuthhVYtH06ZLNxYcj/tKxJxAURyUmRSmaZ7VgEJz1MiC8+EPTmiRY5TH33JCLmP8JROlfDznxMtsGzg+v3qVUr/Efaz0cu9dqn3S6vedQ25z3MuIiqf8N4sP2BAeOx0Pj9Qt/QbqJusBA2WKDmd2uM0QawDvGgcAUsAFxn3WHTgJlS3sy+mLPQpmgas8E1oFkkwxsW44YVD9ZFPlb8yllTyQLKrO2i1ORAy59HimneObXCiiVeSQD530oIWsGuWQTDPY/T+EA/OTedlAAmpsHzJgl/qkH8WOO/NFO/yprI0y1pGnli3Q50M+l
+                    testContext.completeNow();
+                });
+    }
+
+    private JsonObject createClientSideTokenGenerateRequest() throws NoSuchAlgorithmException {
+        final KeyFactory kf = KeyFactory.getInstance("EC");
+        final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
+        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
+        final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
+
+        final byte[] iv = Random.getBytes(12);
+
+        JsonObject identity = new JsonObject();
+        identity.put("email_hash", getSha256("optout@email.com"));
+
+
+        final long timestamp = 12345;
+        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
+        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identity.toString().getBytes(), secretKey.getEncoded(), iv, aad);
+        final String payload = EncodingUtils.toBase64String(payloadBytes);
+
+        JsonObject requestJson = new JsonObject();
+        requestJson.put("payload", payload);
+        requestJson.put("iv", EncodingUtils.toBase64String(iv));
+        requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
+        requestJson.put("timestamp", timestamp);
+        requestJson.put("subscription_id", "abcdefg");
+
+        return requestJson;
+    }
+
+
+    @Test
+    void cstgOptedOut(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
+        setupCstgBackend();
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "https://cstg.co.uk",
+                createClientSideTokenGenerateRequest(),
+                200,
+                respJson -> {
+//                    decodeV2RefreshToken(respJson);
                     testContext.completeNow();
                 });
     }

@@ -47,9 +47,13 @@ fi
 if [ "${DEPLOYMENT_ENVIRONMENT}" = 'integ' ]; then
     OIDC_TOKEN_FILE="/run/container_launcher/attestation_verifier_claims_token"
     echo "OIDC token file permissions:"
+    ls -l /
+    ls -l /run
     ls -l ${OIDC_TOKEN_FILE}
     echo "OIDC token:"
     cat ${OIDC_TOKEN_FILE}
+    cat /etc/passwd
+    cat /etc/group
 fi
 
 # -- start operator

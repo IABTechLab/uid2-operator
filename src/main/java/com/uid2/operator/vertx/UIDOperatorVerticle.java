@@ -419,12 +419,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             //user opted out we will generate a token with the opted out user identity
             UserIdentity cstgOptOutIdentity;
             if(input.getIdentityType() == IdentityType.Email) {
-                cstgOptOutIdentity = this.idService.getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                        InputUtil.normalizeEmail("optout@unifiedid.com").getIdentityInput(), Instant.now());
+                cstgOptOutIdentity = InputUtil.InputVal.validEmail("optout@unifiedid.com", "optout@unifiedid.com").toUserIdentity(identityScope, 0,  Instant.now());
             }
             else {
-                cstgOptOutIdentity = this.idService.getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                        InputUtil.normalizePhone("+00000000001").getIdentityInput(), Instant.now());
+                cstgOptOutIdentity = InputUtil.InputVal.validPhone("+00000000001", "+00000000001").toUserIdentity(identityScope, 0,  Instant.now());
 
             }
             identityTokens = this.idService.generateIdentity(

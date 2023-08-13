@@ -13,6 +13,7 @@ import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.operator.util.DomainNameCheckUtil;
+import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -302,30 +303,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    static class PrivacyBits { //todo move this
-        private int bits;
-        public PrivacyBits() {
-        }
-
-        public int getAsInt() {
-            return bits;
-        }
-
-        public void setClientSideTokenGenerate() {
-            setBit(1);
-        }
-        public void setLegacyBit() {
-            setBit(0);//unknown why this bit is set in https://github.com/IABTechLab/uid2-operator/blob/dbab58346e367c9d4122ad541ff9632dc37bd410/src/main/java/com/uid2/operator/vertx/UIDOperatorVerticle.java#L534
-        }
-
-        private void setBit(int position) {
-            bits |= (1 << position);
-        }
-        private boolean isBitSet(int position) {
-            return (bits & (1 << position)) != 0;
-        }
-    }
-
     private void handleClientSideTokenGenerateImpl(RoutingContext rc)  throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body = rc.body().asJsonObject();
         final String encryptedPayload = body.getString("payload");
@@ -412,7 +389,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 new IdentityRequest(
                         new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
-                        TokenGeneratePolicy.RespectOptOut));
+                        TokenGeneratePolicy.RespectOptOut), true);
 
 
         if (identityTokens.isEmptyToken()) {
@@ -428,7 +405,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             identityTokens = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
-                            cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate));
+                            cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate), true);
         }
         final JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
@@ -699,7 +676,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         new IdentityRequest(
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                TokenGeneratePolicy.defaultPolicy()));
+                                TokenGeneratePolicy.defaultPolicy()), false);
 
                 //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
@@ -748,7 +725,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                         new IdentityRequest(
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                tokenGeneratePolicy));
+                                tokenGeneratePolicy), false);
                 recordTokenGeneratePolicy(apiContact, tokenGeneratePolicy);
 
                 if (t.isEmptyToken()) {
@@ -781,7 +758,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     new IdentityRequest(
                             new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                             input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                            TokenGeneratePolicy.defaultPolicy()));
+                            TokenGeneratePolicy.defaultPolicy()), false);
 
             //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 

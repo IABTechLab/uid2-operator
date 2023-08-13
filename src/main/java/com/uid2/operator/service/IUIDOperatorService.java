@@ -13,7 +13,7 @@ public interface IUIDOperatorService {
 
     UserIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf);
 
-    IdentityTokens generateIdentity(IdentityRequest request);
+    IdentityTokens generateIdentity(IdentityRequest request, boolean cstg);
 
     RefreshResponse refreshIdentity(RefreshToken refreshToken);
 

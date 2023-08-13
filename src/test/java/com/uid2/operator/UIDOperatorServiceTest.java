@@ -122,7 +122,7 @@ public class UIDOperatorServiceTest {
                 createUserIdentity("test-email-hash"),
                 TokenGeneratePolicy.JustGenerate
         );
-        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
+        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest, false);
         assertNotNull(tokens);
 
         AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken());
@@ -175,7 +175,7 @@ public class UIDOperatorServiceTest {
                 inputVal.toUserIdentity(IdentityScope.UID2, 0, this.now),
                 TokenGeneratePolicy.JustGenerate
         );
-        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
+        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest, false);
         assertNotNull(tokens);
 
         final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
@@ -192,7 +192,7 @@ public class UIDOperatorServiceTest {
                 inputVal.toUserIdentity(IdentityScope.EUID, 0, this.now),
                 TokenGeneratePolicy.JustGenerate
         );
-        final IdentityTokens tokens = euidService.generateIdentity(identityRequest);
+        final IdentityTokens tokens = euidService.generateIdentity(identityRequest, false);
         assertNotNull(tokens);
 
         final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
@@ -217,12 +217,12 @@ public class UIDOperatorServiceTest {
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
                 .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
 
-        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequestForceGenerate);
+        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequestForceGenerate, false);
         AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken());
         assertNotNull(tokens);
         assertNotNull(advertisingToken.userIdentity);
 
-        final IdentityTokens tokensAfterOptOut = uid2Service.generateIdentity(identityRequestRespectOptOut);
+        final IdentityTokens tokensAfterOptOut = uid2Service.generateIdentity(identityRequestRespectOptOut, false);
         assertNotNull(tokensAfterOptOut);
         assertTrue(tokensAfterOptOut.getAdvertisingToken() == null || tokensAfterOptOut.getAdvertisingToken().isEmpty());
     }

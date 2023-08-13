@@ -41,7 +41,7 @@ public class TokenEndecBenchmark {
                     uidService.generateIdentity(new IdentityRequest(
                             publisher,
                             userIdentities[i],
-                            TokenGeneratePolicy.JustGenerate)));
+                            TokenGeneratePolicy.JustGenerate), false));
         }
         return tokens.toArray(new IdentityTokens[tokens.size()]);
     }
@@ -52,7 +52,7 @@ public class TokenEndecBenchmark {
         return uidService.generateIdentity(new IdentityRequest(
                 publisher,
                 userIdentities[(idx++) & 65535],
-                TokenGeneratePolicy.JustGenerate));
+                TokenGeneratePolicy.JustGenerate), false);
     }
 
     @Benchmark

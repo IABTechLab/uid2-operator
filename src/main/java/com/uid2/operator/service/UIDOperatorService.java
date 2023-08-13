@@ -1,6 +1,8 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.util.IdAndTokenVersionConfig;
+import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
@@ -34,11 +36,10 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
     private final Duration refreshIdentityAfter;
-
     private final OperatorIdentity operatorIdentity;
-    private final TokenVersion advertisingTokenVersion;
-    private final TokenVersion refreshTokenVersion;
-    private final boolean identityV3Enabled;
+
+    private final IdAndTokenVersionConfig serverSidetokenGenerateVersionConfig;
+    private final IdAndTokenVersionConfig clientSideTokenGenerateVersionConfig;
 
     public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope) {
         this.saltProvider = saltProvider;
@@ -69,17 +70,21 @@ public class UIDOperatorService implements IUIDOperatorService {
             throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
 
+        TokenVersion advertisingTokenVersion;
         if (config.getBoolean("advertising_token_v4", false)) {
-            this.advertisingTokenVersion = TokenVersion.V4;
+            advertisingTokenVersion = TokenVersion.V4;
         } else {
-            this.advertisingTokenVersion = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
+            advertisingTokenVersion = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
         }
-        this.refreshTokenVersion = config.getBoolean("refresh_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
-        this.identityV3Enabled = config.getBoolean("identity_v3", false);
+        TokenVersion refreshTokenVersion = config.getBoolean("refresh_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
+        boolean identityV3Enabled = config.getBoolean("identity_v3", false);
+        this.serverSidetokenGenerateVersionConfig = new IdAndTokenVersionConfig(identityV3Enabled, advertisingTokenVersion, refreshTokenVersion);
+        //TODO should we use Refresh Token v3 and server side's identityV3Enabled config?
+        this.clientSideTokenGenerateVersionConfig = new IdAndTokenVersionConfig(identityV3Enabled, TokenVersion.V4, TokenVersion.V3);
     }
 
     @Override
-    public IdentityTokens generateIdentity(IdentityRequest request) {
+    public IdentityTokens generateIdentity(IdentityRequest request, boolean cstg) {
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.userIdentity.id, now);
         final UserIdentity firstLevelHashIdentity = new UserIdentity(
@@ -89,7 +94,8 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity)) {
             return IdentityTokens.LogoutToken;
         } else {
-            return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
+            IdAndTokenVersionConfig versionConfig = cstg? clientSideTokenGenerateVersionConfig : serverSidetokenGenerateVersionConfig;
+            return generateIdentity(request.publisherIdentity, firstLevelHashIdentity, versionConfig);
         }
     }
 
@@ -114,10 +120,13 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         try {
             final Instant logoutEntry = this.optOutStore.getLatestEntry(token.userIdentity);
+            IdAndTokenVersionConfig idAndTokenVersionConfig = PrivacyBits.fromInt(token.userIdentity.privacyBits).isClientSideTokenGenerateBitSet() ?
+                    clientSideTokenGenerateVersionConfig : serverSidetokenGenerateVersionConfig;
 
             if (logoutEntry == null || token.userIdentity.establishedAt.isAfter(logoutEntry)) {
                 Duration durationSinceLastRefresh = Duration.between(token.createdAt, Instant.now(this.clock));
-                return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity), durationSinceLastRefresh);
+                return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity, idAndTokenVersionConfig)
+                        , durationSinceLastRefresh);
             } else {
                 return RefreshResponse.Optout;
             }
@@ -132,14 +141,14 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity)) {
             return MappedIdentity.LogoutIdentity;
         } else {
-            return getAdvertisingId(firstLevelHashIdentity, request.asOf);
+            return getAdvertisingId(firstLevelHashIdentity, request.asOf, serverSidetokenGenerateVersionConfig.identityV3Enabled);
         }
     }
 
     @Override
     public MappedIdentity map(UserIdentity userIdentity, Instant asOf) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        return getAdvertisingId(firstLevelHashIdentity, asOf);
+        return getAdvertisingId(firstLevelHashIdentity, asOf, serverSidetokenGenerateVersionConfig.identityV3Enabled);
     }
 
     @Override
@@ -150,7 +159,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf);
+        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf, serverSidetokenGenerateVersionConfig.identityV3Enabled);
 
         this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.advertisingId, r -> {
             if (r.succeeded()) {
@@ -164,7 +173,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf);
+        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf, serverSidetokenGenerateVersionConfig.identityV3Enabled);
 
         final AdvertisingToken token = this.encoder.decodeAdvertisingToken(advertisingToken);
         return Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id);
@@ -195,34 +204,34 @@ public class UIDOperatorService implements IUIDOperatorService {
         return TokenUtils.getFirstLevelHash(identityHash, this.saltProvider.getSnapshot(asOf).getFirstLevelSalt());
     }
 
-    private MappedIdentity getAdvertisingId(UserIdentity firstLevelHashIdentity, Instant asOf) {
+    private MappedIdentity getAdvertisingId(UserIdentity firstLevelHashIdentity, Instant asOf, boolean identityV3Enabled) {
         final SaltEntry rotatingSalt = this.saltProvider.getSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
 
         return new MappedIdentity(
-                this.identityV3Enabled
+                identityV3Enabled
                     ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, rotatingSalt.getSalt())
                     : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, rotatingSalt.getSalt()),
                 rotatingSalt.getHashedId());
     }
 
-    private IdentityTokens generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity) {
+    private IdentityTokens generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity, IdAndTokenVersionConfig idAndTokenVersionConfig) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
-        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, nowUtc);
+        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, nowUtc, idAndTokenVersionConfig.identityV3Enabled);
         final UserIdentity advertisingIdentity = new UserIdentity(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType,
                 mappedIdentity.advertisingId, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
 
         return this.encoder.encode(
-                this.createAdvertisingToken(publisherIdentity, advertisingIdentity, nowUtc),
-                this.createRefreshToken(publisherIdentity, firstLevelHashIdentity, nowUtc),
+                this.createAdvertisingToken(publisherIdentity, advertisingIdentity, nowUtc, idAndTokenVersionConfig.advertisingTokenVersion),
+                this.createRefreshToken(publisherIdentity, firstLevelHashIdentity, nowUtc, idAndTokenVersionConfig.refreshTokenVersion),
                 nowUtc.plusMillis(refreshIdentityAfter.toMillis()),
                 nowUtc
         );
     }
 
-    private RefreshToken createRefreshToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
+    private RefreshToken createRefreshToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now, TokenVersion refreshTokenVersion) {
         return new RefreshToken(
-                this.refreshTokenVersion,
+                refreshTokenVersion,
                 now,
                 now.plusMillis(refreshExpiresAfter.toMillis()),
                 this.operatorIdentity,
@@ -230,9 +239,9 @@ public class UIDOperatorService implements IUIDOperatorService {
                 userIdentity);
     }
 
-    private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
+    private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now, TokenVersion advertisingTokenVersion) {
         return new AdvertisingToken(
-                this.advertisingTokenVersion,
+                advertisingTokenVersion,
                 now,
                 now.plusMillis(identityExpiresAfter.toMillis()),
                 this.operatorIdentity,

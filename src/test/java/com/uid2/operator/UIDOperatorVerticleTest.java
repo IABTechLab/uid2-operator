@@ -2491,7 +2491,7 @@ public class UIDOperatorVerticleTest {
                 200,
                 respJson -> {
                     //TODO to be fixed
-//                  decodeV2RefreshToken(respJson);
+                  decodeV2RefreshToken(respJson);
                     testContext.completeNow();
                 });
     }

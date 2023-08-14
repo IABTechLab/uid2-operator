@@ -431,9 +431,11 @@ public class UIDOperatorVerticleTest {
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(rotatingSalt123);
     }
 
+    private HashMap<Integer, Keyset> keysetsToMap(Keyset... keysets) {
+        return new HashMap<>(Arrays.stream(keysets).collect(Collectors.toMap(s -> s.getKeysetId(), s -> s)));
+    }
     private void setupKeysetsMock(Keyset... keysets) {
-        HashMap<Integer, Keyset> keysetMap = new HashMap<>(Arrays.stream(keysets).collect(Collectors.toMap(s -> s.getKeysetId(), s -> s)));
-        setupKeysetsMock(keysetMap);
+        setupKeysetsMock(keysetsToMap(keysets));
     }
 
     private void setupKeysetsMock(Map<Integer, Keyset> keysets) {
@@ -448,9 +450,12 @@ public class UIDOperatorVerticleTest {
         return new KeysetKeyStoreSnapshot(keyMap, keysetMap);
     }
 
+    private HashMap<Integer, KeysetKey> keysetKeysToMap(KeysetKey... keys) {
+        return new HashMap<>(Arrays.stream(keys).collect(Collectors.toMap(KeysetKey::getId, s -> s)));
+    }
+
     private void setupKeysetsKeysMock(KeysetKey... keys) {
-        HashMap<Integer, KeysetKey> keysetKeys = new HashMap<>(Arrays.stream(keys).collect(Collectors.toMap(KeysetKey::getId, s -> s)));
-        setupKeysetsKeysMock(keysetKeys);
+        setupKeysetsKeysMock(keysetKeysToMap(keys));
     }
 
     private void setupKeysetsKeysMock(HashMap<Integer, KeysetKey> keysetKeys) {
@@ -2297,20 +2302,20 @@ public class UIDOperatorVerticleTest {
             Instant now = Instant.now();
             long nowL = now.toEpochMilli() / 1000;
 
-            this.keysetMap = new HashMap<>(Map.of(
-                    Const.Data.MasterKeysetId, new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
-                    Const.Data.RefreshKeysetId, new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
-                    Const.Data.FallbackPublisherKeysetId, new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
+            this.keysetMap = keysetsToMap(
+                    new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
+                    new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
+                    new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
 
-                    4, new Keyset(4, 101, "keyset4", null, nowL, true, true),
-                    5, new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default
-                    6, new Keyset(6, 101, "keyset6", Set.of(), nowL, false, false), // disabled
+                    new Keyset(4, 101, "keyset4", null, nowL, true, true),
+                    new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default
+                    new Keyset(6, 101, "keyset6", Set.of(), nowL, false, false), // disabled
 
-                    7, new Keyset(7, 102, "keyset7", null, nowL, true, true),
-                    8, new Keyset(8, 103, "keyset8", Set.of(102, 104), nowL, true, true),
-                    9, new Keyset(9, 104, "keyset9", Set.of(101), nowL, true, true),
-                    10, new Keyset(10, 105, "keyset10", Set.of(), nowL, true, true)
-            ));
+                    new Keyset(7, 102, "keyset7", null, nowL, true, true),
+                    new Keyset(8, 103, "keyset8", Set.of(102, 104), nowL, true, true),
+                    new Keyset(9, 104, "keyset9", Set.of(101), nowL, true, true),
+                    new Keyset(10, 105, "keyset10", Set.of(), nowL, true, true)
+            );
 
             KeysetKey[] keys = {
                     createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), Const.Data.MasterKeysetId),
@@ -2355,7 +2360,8 @@ public class UIDOperatorVerticleTest {
                     createKey(1026, now.plusSeconds(5), now.plusSeconds(3600), 10),
                     createKey(1027, now.minusSeconds(5), now.minusSeconds(2), 10)
             };
-            this.keyMap = new HashMap<>(Arrays.stream(keys).collect(Collectors.toMap(KeysetKey::getId, s -> s)));
+
+            this.keyMap = keysetKeysToMap(keys);
             setupMockitoApiInterception();
         }
 

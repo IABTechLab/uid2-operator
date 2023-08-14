@@ -1,5 +1,6 @@
 package com.uid2.operator;
 
+import com.google.cloud.logging.Payload;
 import com.uid2.operator.model.*;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
@@ -2374,13 +2375,15 @@ public class UIDOperatorVerticleTest {
             assertTrue(ar.succeeded());
             assertEquals(expectedHttpCode, ar.result().statusCode());
 
-            JsonObject respJson = tryParseResponse(ar.result());
-            if(secretKey != null)
-            {
+            // successful response is enecrypted
+            if (ar.result().statusCode() == 200) {
                 byte[] decrypted = decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, secretKey.getEncoded());
-                respJson = new JsonObject(new String(decrypted, 0, decrypted.length - 0, StandardCharsets.UTF_8));
+                JsonObject respJson = new JsonObject(new String(decrypted, 0, decrypted.length - 0, StandardCharsets.UTF_8));
+                handler.handle(respJson);
+            } else { //errors is in plain text
+                handler.handle(tryParseResponse(ar.result()));
             }
-            handler.handle(respJson);
+
         });
     }
 
@@ -2410,6 +2413,28 @@ public class UIDOperatorVerticleTest {
         setupSiteKey(clientSiteId, siteKeyId);
     }
 
+    //if no identity is provided will get an error
+    @Test
+    void cstgNoIdentityHashProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
+        setupCstgBackend();
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithNoPayload();
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "https://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                400,
+                respJson -> {
+                    //it's encrypted now but since this test didn't have a legit secret key we can't decrypt it
+                    assertFalse(respJson.containsKey("body"));
+                    assertEquals("no email or phone hash provided", respJson.getString("message"));
+                    assertEquals(UIDOperatorVerticle.ResponseStatus.GenericError, respJson.getString("status"));
+                    testContext.completeNow();
+                });
+
+
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"https://blahblah.com", "http://local1host:8080"})
     void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
@@ -2422,8 +2447,8 @@ public class UIDOperatorVerticleTest {
                 data.getItem2(),
                 403,
                 respJson -> {
-                    //it's encrypted now but since this test didn't have a legit secret key we can't decrypt it
                     assertFalse(respJson.containsKey("body"));
+                    assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
                     testContext.completeNow();
                 });
@@ -2441,21 +2466,37 @@ public class UIDOperatorVerticleTest {
                 data.getItem2(),
                 200,
                 respJson -> {
-                    //the response is below but it's encrypted so we won't try to verify the response
-                    //for this test - checking the returned 200 http response code is enough for now
                     assertTrue(respJson.containsKey("body"));
                     assertEquals("success", respJson.getString("status"));
                     testContext.completeNow();
                 });
     }
 
-    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId) throws NoSuchAlgorithmException {
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithPayload(JsonObject identityPayload) throws NoSuchAlgorithmException {
+
         final KeyFactory kf = KeyFactory.getInstance("EC");
         final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
         final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
         final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
 
         final byte[] iv = Random.getBytes(12);
+        final long timestamp = 12345;
+        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
+        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad);
+        final String payload = EncodingUtils.toBase64String(payloadBytes);
+
+        JsonObject requestJson = new JsonObject();
+        requestJson.put("payload", payload);
+        requestJson.put("iv", EncodingUtils.toBase64String(iv));
+        requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
+        requestJson.put("timestamp", timestamp);
+        requestJson.put("subscription_id", "abcdefg");
+
+        return new Tuple.Tuple2<>(requestJson, secretKey);
+    }
+
+
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId) throws NoSuchAlgorithmException {
 
         JsonObject identity = new JsonObject();
 
@@ -2468,20 +2509,12 @@ public class UIDOperatorVerticleTest {
         else { //can't be other types
             assertFalse(true);
         }
+        return createClientSideTokenGenerateRequestWithPayload(identity);
+    }
 
-        final long timestamp = 12345;
-        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
-        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identity.toString().getBytes(), secretKey.getEncoded(), iv, aad);
-        final String payload = EncodingUtils.toBase64String(payloadBytes);
-
-        JsonObject requestJson = new JsonObject();
-        requestJson.put("payload", payload);
-        requestJson.put("iv", EncodingUtils.toBase64String(iv));
-        requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
-        requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "abcdefg");
-
-        return new Tuple.Tuple2<>(requestJson, secretKey);
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithNoPayload() throws NoSuchAlgorithmException {
+        JsonObject identity = new JsonObject();
+        return createClientSideTokenGenerateRequestWithPayload(identity);
     }
 
 

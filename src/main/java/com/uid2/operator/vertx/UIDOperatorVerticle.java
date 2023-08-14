@@ -372,10 +372,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
             if(!allowedDomain) {
-                final JsonObject response = ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, "unexpected http origin");
-                final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
-                rc.response().setStatusCode(403).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-
+                ResponseUtil.Error(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
                 return;
             }
         }
@@ -415,8 +412,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
         else {
             final JsonObject response = ResponseUtil.Error(ResponseStatus.GenericError, "no email or phone hash provided");
-            final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
-            rc.response().setStatusCode(400).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "no email or phone hash provided");
             return;
         }
 

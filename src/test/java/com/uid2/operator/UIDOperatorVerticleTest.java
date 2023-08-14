@@ -57,7 +57,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.io.IOException;
 import java.math.BigInteger;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -432,6 +431,10 @@ public class UIDOperatorVerticleTest {
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(rotatingSalt123);
     }
 
+    private void setupKeysetsMock(Keyset... keysets) {
+        HashMap<Integer, Keyset> keysetMap = new HashMap<>(Arrays.stream(keysets).collect(Collectors.toMap(s -> s.getKeysetId(), s -> s)));
+        setupKeysetsMock(keysetMap);
+    }
 
     private void setupKeysetsMock(Map<Integer, Keyset> keysets) {
         KeysetSnapshot keysetSnapshot = new KeysetSnapshot(keysets);
@@ -464,18 +467,12 @@ public class UIDOperatorVerticleTest {
         KeysetKey publisherKey = new KeysetKey(103, makeAesKey("publisherKey"), Instant.now().minusSeconds(7), Instant.now(), expiryTime, Const.Data.FallbackPublisherKeysetId);
         KeysetKey siteKey = new KeysetKey(104, makeAesKey("siteKey"), Instant.now().minusSeconds(7), Instant.now(), expiryTime, 4);
 
-        Keyset keyset1 = new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
-        Keyset keyset2 = new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
-        Keyset keyset3 = new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
+        Keyset masterKeyset = new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
+        Keyset refreshKeyset = new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
+        Keyset fallbackPublisherKeyset = new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
         Keyset keyset4 = new Keyset(4, 201, "test", Set.of(-1, -2, 2, 201), Instant.now().getEpochSecond(), true, true);
-        Map<Integer, Keyset> keysets = new HashMap<>() {{
-            put(Const.Data.MasterKeysetId, keyset1);
-            put(Const.Data.RefreshKeysetId, keyset2);
-            put(Const.Data.FallbackPublisherKeysetId, keyset3);
-            put(4, keyset4);
-        }};
 
-        setupKeysetsMock(keysets);
+        setupKeysetsMock(masterKeyset, refreshKeyset, fallbackPublisherKeyset, keyset4);
         setupKeysetsKeysMock(masterKey, refreshKey, publisherKey, siteKey);
     }
 
@@ -2301,9 +2298,9 @@ public class UIDOperatorVerticleTest {
             long nowL = now.toEpochMilli() / 1000;
 
             this.keysetMap = new HashMap<>(Map.of(
-                    1, new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
-                    2, new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
-                    3, new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
+                    Const.Data.MasterKeysetId, new Keyset(Const.Data.MasterKeysetId, Data.MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
+                    Const.Data.RefreshKeysetId, new Keyset(Const.Data.RefreshKeysetId, Data.RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
+                    Const.Data.FallbackPublisherKeysetId, new Keyset(Const.Data.FallbackPublisherKeysetId, Data.AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
 
                     4, new Keyset(4, 101, "keyset4", null, nowL, true, true),
                     5, new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default

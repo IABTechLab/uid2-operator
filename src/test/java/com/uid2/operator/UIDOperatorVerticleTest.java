@@ -2518,7 +2518,7 @@ public class UIDOperatorVerticleTest {
                     decodeV2RefreshToken(respJson);
                     EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
 
-                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, IdentityType.Email);
+                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
                     assertEquals(123, advertisingToken.publisherIdentity.siteId);
 
                     if(identityType == IdentityType.Email) {

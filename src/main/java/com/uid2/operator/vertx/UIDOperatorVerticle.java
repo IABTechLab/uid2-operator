@@ -49,7 +49,6 @@ import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.*;
 import java.time.*;
@@ -59,6 +58,8 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
+import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle{
@@ -434,10 +435,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             //user opted out we will generate a token with the opted out user identity
             UserIdentity cstgOptOutIdentity;
             if(input.getIdentityType() == IdentityType.Email) {
-                cstgOptOutIdentity = InputUtil.InputVal.validEmail("optout@unifiedid.com", "optout@unifiedid.com").toUserIdentity(identityScope, 0,  Instant.now());
+                cstgOptOutIdentity = InputUtil.InputVal.validEmail(ClientSideTokenGenerateOptOutIdentityForEmail, ClientSideTokenGenerateOptOutIdentityForEmail).toUserIdentity(identityScope, 0,  Instant.now());
             }
             else {
-                cstgOptOutIdentity = InputUtil.InputVal.validPhone("+00000000001", "+00000000001").toUserIdentity(identityScope, 0,  Instant.now());
+                cstgOptOutIdentity = InputUtil.InputVal.validPhone(ClientSideTokenGenerateOptOutIdentityForPhone, ClientSideTokenGenerateOptOutIdentityForPhone).toUserIdentity(identityScope, 0,  Instant.now());
 
             }
             identityTokens = this.idService.generateIdentity(

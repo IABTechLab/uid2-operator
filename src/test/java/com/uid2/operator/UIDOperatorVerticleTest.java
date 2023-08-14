@@ -2491,11 +2491,11 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @CsvSource({"true,abc@abc.com,Email,optout@unifiedid.com","true,+61400000000,Phone,+00000000001",
             "false,abc@abc.com,Email,optout@unifiedid.com","false,+61400000000,Phone,+00000000001"})
-    void cstgOptedOutTest(boolean expectedOptedOut, String id, IdentityType identityType, String expectedOptedOutIdentity,
+    void cstgOptedOutTest(boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
                       Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
         setupCstgBackend();
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id);
-        if(expectedOptedOut)
+        if(optOutExpected)
         {
             when(optOutStore.getLatestEntry(any(UserIdentity.class)))
                     .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
@@ -2532,7 +2532,7 @@ public class UIDOperatorVerticleTest {
                     final String token = advertisingTokenString;
                     final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, input.toUserIdentity(getIdentityScope(), 0, now), now);
 
-                    assertEquals(expectedOptedOut, matchedOptedOutIdentity);
+                    assertEquals(optOutExpected, matchedOptedOutIdentity);
                     testContext.completeNow();
                 });
     }

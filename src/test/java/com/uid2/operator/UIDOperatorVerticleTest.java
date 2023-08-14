@@ -155,6 +155,7 @@ public class UIDOperatorVerticleTest {
         config.put("identity_scope", getIdentityScope().toString());
         config.put("advertising_token_v3", getTokenVersion() == TokenVersion.V3);
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
+        config.put("refresh_token_v3", useIdentityV3());
         config.put("identity_v3", useIdentityV3());
     }
 

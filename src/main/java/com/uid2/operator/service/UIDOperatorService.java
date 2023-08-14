@@ -74,7 +74,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         } else {
             this.advertisingTokenVersion = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
         }
-        this.refreshTokenVersion = TokenVersion.V3;
+        this.refreshTokenVersion = config.getBoolean("refresh_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
         this.identityV3Enabled = config.getBoolean("identity_v3", false);
     }
 

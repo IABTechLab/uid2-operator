@@ -84,7 +84,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final Clock clock;
-    private IUIDOperatorService idService;
+    protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
@@ -400,9 +400,24 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         final JsonObject requestPayload = new JsonObject(Buffer.buffer(Unpooled.wrappedBuffer(requestPayloadBytes)));
-        final String emailHash = requestPayload.getString("email_hash");
 
-        final InputUtil.InputVal input = InputUtil.normalizeEmailHash(emailHash);
+
+        final String emailHash = requestPayload.getString("email_hash");
+        final String phoneHash = requestPayload.getString("phone_hash");
+        final InputUtil.InputVal input;
+
+        if(emailHash != null) {
+            input = InputUtil.normalizeEmailHash(emailHash);
+        }
+        else if(phoneHash != null) {
+            input = InputUtil.normalizePhoneHash(phoneHash);
+        }
+        else {
+            final JsonObject response = ResponseUtil.Error(ResponseStatus.GenericError, "no email or phone hash provided");
+            final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
+            rc.response().setStatusCode(400).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+            return;
+        }
 
         PrivacyBits privacyBits = new PrivacyBits();
         privacyBits.setLegacyBit();

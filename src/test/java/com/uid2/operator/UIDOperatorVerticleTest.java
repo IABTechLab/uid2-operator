@@ -2514,6 +2514,42 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
                     JsonObject genBody = respJson.getJsonObject("body");
                     assertNotNull(genBody);
+
+                    decodeV2RefreshToken(respJson);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
+
+                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, IdentityType.Email);
+                    assertEquals(123, advertisingToken.publisherIdentity.siteId);
+
+                    if(identityType == IdentityType.Email) {
+                        assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email,
+                                TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
+                                firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+                    }
+                    else if(identityType == IdentityType.Phone) {
+                        assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Phone,
+                                TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
+                                firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+                    }
+                    else { //should never happen
+                        assertFalse(true);
+                    }
+
+                    RefreshToken refreshToken = encoder.decodeRefreshToken(genBody.getString("decrypted_refresh_token"));
+                    assertEquals(123, refreshToken.publisherIdentity.siteId);
+
+                    if(optOutExpected) {
+                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(expectedOptedOutIdentity), firstLevelSalt), refreshToken.userIdentity.id);
+                    }
+                    else {
+                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(id), firstLevelSalt), refreshToken.userIdentity.id);
+                    }
+
+                    assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
+                    assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_expires")), 10);
+                    assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_from")), 10);
+
+
                     String advertisingTokenString = genBody.getString("advertising_token");
 
                     InputUtil.InputVal input;

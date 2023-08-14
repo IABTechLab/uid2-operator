@@ -9,6 +9,8 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -19,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class UIDOperatorService implements IUIDOperatorService {
+    public static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
     public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
@@ -75,6 +78,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             this.advertisingTokenVersion = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
         }
         this.refreshTokenVersion = config.getBoolean("refresh_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
+        LOGGER.info("Refresh token version is: {}", refreshTokenVersion);
         this.identityV3Enabled = config.getBoolean("identity_v3", false);
     }
 

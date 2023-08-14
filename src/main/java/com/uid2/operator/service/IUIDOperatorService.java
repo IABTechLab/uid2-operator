@@ -11,8 +11,6 @@ import java.util.List;
 
 public interface IUIDOperatorService {
 
-    UserIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf);
-
     IdentityTokens generateIdentity(IdentityRequest request);
 
     RefreshResponse refreshIdentity(RefreshToken refreshToken);

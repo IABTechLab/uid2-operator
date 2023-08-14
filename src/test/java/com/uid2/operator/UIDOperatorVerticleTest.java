@@ -2425,7 +2425,6 @@ public class UIDOperatorVerticleTest {
                 data.getItem2(),
                 400,
                 respJson -> {
-                    //it's encrypted now but since this test didn't have a legit secret key we can't decrypt it
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("no email or phone hash provided", respJson.getString("message"));
                     assertEquals(UIDOperatorVerticle.ResponseStatus.GenericError, respJson.getString("status"));

@@ -1,7 +1,9 @@
 {
-  "version": 1,
-  "generated": 1609459200,
-  "keys": {
-	"location": "/com.uid2.core/test/keys/keys.json"
+  "version" : 1,
+  "generated" : 1670883129,
+  "system_key_id" : 1,
+  "max_key_id" : 2,
+  "keys" : {
+    "location" : "/com.uid2.core/test/keys/keys.json"
   }
 }

@@ -22,6 +22,7 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
+import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.*;
@@ -77,6 +78,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final Cipher aesGcm;
     private final JsonObject config;
     private final AuthMiddleware auth;
+    private final IClientSideKeypairStore clientSideKeypairProvider;
     private final IKeyStore keyStore;
     private final ITokenEncoder encoder;
     private final IKeyAclProvider keyAclProvider;
@@ -104,6 +106,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
+                               IClientSideKeypairStore clientSideKeypairProvider,
                                IKeyStore keyStore,
                                IKeyAclProvider keyAclProvider,
                                ISaltProvider saltProvider,
@@ -120,6 +123,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.auth = new AuthMiddleware(clientKeyProvider);
         this.keyStore = keyStore;
         this.encoder = new EncryptedTokenEncoder(keyStore);
+        this.clientSideKeypairProvider = clientSideKeypairProvider;
         this.keyAclProvider = keyAclProvider;
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
@@ -262,31 +266,19 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    static class ClientSideKeyPair //todo move this
-    {
-        private final String privateKey;
-        private final int siteId;
-        //this class will be enhanced in UID2-1374
-
-        public ClientSideKeyPair(int siteId, String privateKey) {
-            this.privateKey = privateKey;
-            this.siteId = siteId;
-        }
-
-        public String getPrivateKeyString() {
-            return privateKey;
-        }
-        public int getSiteId() {
-            return siteId;
-        }
-    }
-
-    private ClientSideKeyPair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
-        if ("abcdefg".equals(subscriptionId)) {
-            return new ClientSideKeyPair(123, config.getString("client_site_test_private_key"));
-        }
-        else {
+    private ClientSideKeypair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
+        ClientSideKeypair keyPair = this.clientSideKeypairProvider.getSnapshot().getKeypair(subscriptionId);
+        LOGGER.info(keyPair.getSubscriptionId());
+        LOGGER.info(keyPair.encodePublicKeyToString());
+        LOGGER.info(keyPair.encodePrivateKeyToString());
+        LOGGER.info(String.valueOf(keyPair.getSiteId()));
+        LOGGER.info(keyPair.getContact());
+        LOGGER.info(String.valueOf(keyPair.getCreated().getEpochSecond()));
+        LOGGER.info(String.valueOf(keyPair.isDisabled()));
+        if(keyPair == null || keyPair.isDisabled()){
             return null;
+        } else {
+            return keyPair;
         }
     }
 
@@ -300,6 +292,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return null;
         }
     }
+
 
     static class PrivacyBits { //todo move this
         private int bits;
@@ -356,16 +349,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
         final PublicKey clientPublicKey = kf.generatePublic(pkSpec);
 
-        final ClientSideKeyPair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
-        if (clientSideKeyPair == null) {
+        final ClientSideKeypair clientSideKeypair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
+        if (clientSideKeypair == null) {
             rc.fail(401);
             return;
         }
 
-
-        final byte[] privateKeyBytes = Base64.getDecoder().decode(clientSideKeyPair.getPrivateKeyString());
-        final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
-        PrivateKey privateKey = kf.generatePrivate(keySpec);
+        PrivateKey privateKey = clientSideKeypair.getPrivateKey();
 
         // Perform key agreement
         final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
@@ -406,7 +396,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         final IdentityTokens identityTokens = this.idService.generateIdentity(
                 new IdentityRequest(
-                        new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
+                        new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                         TokenGeneratePolicy.RespectOptOut));
 

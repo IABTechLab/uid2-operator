@@ -9,17 +9,13 @@ import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
-import com.uid2.shared.attest.AttestationFactory;
-import com.uid2.shared.attest.UidCoreClient;
+import com.uid2.shared.attest.*;
 import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
-import com.uid2.shared.store.reader.IMetadataVersionedStore;
-import com.uid2.shared.store.reader.RotatingClientKeyProvider;
-import com.uid2.shared.store.reader.RotatingKeyAclProvider;
-import com.uid2.shared.store.reader.RotatingKeyStore;
+import com.uid2.shared.store.reader.*;
 import com.uid2.shared.store.scope.GlobalScope;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
@@ -63,6 +59,7 @@ public class Main {
     private final ICloudStorage fsOptOut;
 
     private final RotatingClientKeyProvider clientKeyProvider;
+    private final RotatingClientSideKeypairStore clientSideKeypairProvider;
     private final RotatingKeyStore keyStore;
     private final RotatingKeyAclProvider keyAclProvider;
     private final RotatingSaltProvider saltProvider;
@@ -91,18 +88,19 @@ public class Main {
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
             String coreApiToken = this.config.getString(Const.Config.CoreApiTokenProp);
-            UidCoreClient coreClient = createUidCoreClient(coreAttestUrl, coreApiToken);
-            fsStores = coreClient;
-            LOGGER.info("Salt/Key/Client stores - Using uid2-core attestation endpoint: " + coreAttestUrl);
-
             Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
             this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
-            coreClient.setResponseStatusWatcher(this.disableHandler::handleResponseStatus);
+
+            var clients = createUidClients(this.vertx, coreAttestUrl, coreApiToken, this.disableHandler::handleResponseStatus);
+            UidCoreClient coreClient = clients.getKey();
+            UidOptOutClient optOutClient = clients.getValue();
+            fsStores = coreClient;
+            LOGGER.info("Salt/Key/Client stores - Using uid2-core attestation endpoint: " + coreAttestUrl);
 
             if (useStorageMock) {
                 this.fsOptOut = configureMockOptOutStore();
             } else {
-                this.fsOptOut = configureAttestedOptOutStore(coreClient, coreAttestUrl);
+                this.fsOptOut = configureAttestedOptOutStore(optOutClient, coreAttestUrl);
             }
         } else if (useStorageMock) {
             fsStores = new EmbeddedResourceStorage(Main.class);
@@ -119,6 +117,8 @@ public class Main {
 
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
         this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
+        String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
+        this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
         String keysMdPath = this.config.getString(Const.Config.KeysMetadataPathProp);
         this.keyStore = new RotatingKeyStore(fsStores, new GlobalScope(new CloudPath(keysMdPath)));
         String keysAclMdPath = this.config.getString(Const.Config.KeysAclMetadataPathProp);
@@ -130,6 +130,7 @@ public class Main {
 
         if (useStorageMock && coreAttestUrl == null) {
             this.clientKeyProvider.loadContent();
+            this.clientSideKeypairProvider.loadContent();
             this.keyStore.loadContent();
             this.keyAclProvider.loadContent();
             this.saltProvider.loadContent();
@@ -139,6 +140,9 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
+
+        java.security.Security.setProperty("networkaddress.cache.ttl" , "60");
+
         final String vertxConfigPath = System.getProperty(Const.Config.VERTX_CONFIG_PATH_PROP);
         if (vertxConfigPath != null) {
             System.out.format("Running CUSTOM CONFIG mode, config: %s\n", vertxConfigPath);
@@ -183,10 +187,10 @@ public class Main {
         return this.wrapCloudStorageForOptOut(CloudUtils.createStorage(optOutBucket, config));
     }
 
-    private ICloudStorage configureAttestedOptOutStore(UidCoreClient coreClient, String coreAttestUrl) {
+    private ICloudStorage configureAttestedOptOutStore(UidOptOutClient optOutClient, String coreAttestUrl) {
         String optOutMdPath = this.config.getString(Const.Config.OptOutMetadataPathProp);
         LOGGER.info("OptOut stores- Using uid2-core attestation endpoint: " + coreAttestUrl);
-        return this.wrapCloudStorageForOptOut(new OptOutCloudStorage(coreClient, optOutMdPath, CloudUtils.defaultProxy));
+        return this.wrapCloudStorageForOptOut(new OptOutCloudStorage(optOutClient, optOutMdPath, CloudUtils.defaultProxy));
     }
 
     private ICloudStorage wrapCloudStorageForOptOut(ICloudStorage cloudStorage) {
@@ -214,7 +218,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;
@@ -253,6 +257,7 @@ public class Main {
     private Future<Void> createStoreVerticles() throws Exception {
         // load metadatas for the first time
         clientKeyProvider.getMetadata();
+        clientSideKeypairProvider.getMetadata();
         keyStore.getMetadata();
         keyAclProvider.getMetadata();
         saltProvider.getMetadata();
@@ -265,6 +270,7 @@ public class Main {
         Promise<Void> promise = Promise.promise();
         List<Future> fs = new ArrayList<>();
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, 10000));
+        fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("key", keyStore, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("keys_acl", keyAclProvider, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, 10000));
@@ -395,25 +401,36 @@ public class Main {
                 .register(globalRegistry);
     }
 
-    private UidCoreClient createUidCoreClient(String attestationUrl, String userToken) throws Exception {
-        String enclavePlatform = this.config.getString("enclave_platform");
+    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Integer> responseWatcher) throws Exception {
+        String enclavePlatform = this.config.getString("enclave_platform", "");
+        if (enclavePlatform == null) {
+            enclavePlatform = "";
+        }
         Boolean enforceHttps = this.config.getBoolean("enforce_https", true);
-        if(enclavePlatform != null && enclavePlatform.equals("aws-nitro"))
-        {
-            LOGGER.info("creating uid core client with aws attestation protocol");
-            return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getNitroAttestation(), enforceHttps);
-        }
-        else if(enclavePlatform != null && enclavePlatform.equals("gcp-vmid"))
-        {
-            LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-            return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getGcpVmidAttestation(), enforceHttps);
-        }
-        else if(enclavePlatform != null && enclavePlatform.equals("azure-sgx"))
-        {
-            LOGGER.info("creating uid core client with azure sgx attestation protocol");
-            return new UidCoreClient(attestationUrl, userToken, this.appVersion, CloudUtils.defaultProxy, AttestationFactory.getAzureAttestation(), enforceHttps);
-        }
+        AttestationTokenRetriever attestationTokenRetriever;
 
-        return UidCoreClient.createNoAttest(attestationUrl, userToken, this.appVersion, enforceHttps);
+        switch (enclavePlatform) {
+            case "aws-nitro":
+                LOGGER.info("creating uid core client with aws attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher);
+                break;
+            case "gcp-vmid":
+                LOGGER.info("creating uid core client with gcp vmid attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher);
+                break;
+            case "gcp-oidc":
+                LOGGER.info("creating uid core client with gcp oidc attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher);
+                break;
+            case "azure-sgx":
+                LOGGER.info("creating uid core client with azure sgx attestation protocol");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher);
+                break;
+            default:
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
+        }
+        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
+        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
+        return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }
 }

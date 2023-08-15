@@ -3,8 +3,9 @@
   "storage_mock": true,
   "enforce_https": false,
   "core_attest_url": "http://core:8088/attest",
-  "core_api_token": "OPLCLdp9Dt0JVoGpynN4J8nMA7FxmzsavxJa8B9H74y9xdEE=",
+  "core_api_token": "UID2-O-L-999-dp9Dt0.JVoGpynN4J8nMA7FxmzsavxJa8B9H74y9xdEE=",
   "clients_metadata_path": "http://core:8088/clients/refresh",
+  "client_side_keypairs_metadata_path": "http://core:8088/client_side_keypairs/refresh",
   "keys_metadata_path": "http://core:8088/key/refresh",
   "keys_acl_metadata_path": "http://core:8088/key/acl/refresh",
   "salts_metadata_path": "http://core:8088/salt/refresh",
@@ -28,5 +29,6 @@
   "optout_delta_backtrack_in_days": 1,
   "optout_heap_default_capacity": 8192,
   "optout_max_partitions": 30,
-  "optout_partition_interval": 86400
+  "optout_partition_interval": 86400,
+  "client_side_token_generate": true
 }

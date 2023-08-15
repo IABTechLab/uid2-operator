@@ -9,17 +9,53 @@ on:
         type: choice
         description: 'The Cloud Provider to build for'
         options:
+        - all
         - default
         - aws
         - gcp
         - azure
-        default: default
+        default: all
 
 jobs:
-  build-publish-docker:
+  build-publish-docker-default:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
+    if: ${{ inputs.cloud_provider == 'all' || inputs.cloud_provider == 'default' }}
     with: 
       tag: ${{ inputs.tag }}
-      cloud_provider: ${{ inputs.cloud_provider }}
+      cloud_provider: 'default'
       release_type: 'Minor'
     secrets: inherit
+
+  build-publish-docker-gcp:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
+    needs: build-publish-docker-default
+    if: ${{ inputs.cloud_provider == 'all' || inputs.cloud_provider == 'gcp' }}
+    with: 
+      tag: ${{ inputs.tag }}
+      cloud_provider: 'gcp'
+      release_type: 'Minor'
+      version_number_input: ${{ needs.build-publish-docker-default.outputs.version_number_output }}
+    secrets: inherit
+
+  build-publish-docker-aws:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
+    needs: build-publish-docker-default
+    if: ${{ inputs.cloud_provider == 'all' || inputs.cloud_provider == 'aws' }}
+    with: 
+      tag: ${{ inputs.tag }}
+      cloud_provider: 'aws'
+      release_type: 'Minor'
+      version_number_input: ${{ needs.build-publish-docker-default.outputs.version_number_output }}
+    secrets: inherit
+
+  build-publish-docker-azure:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
+    needs: build-publish-docker-default
+    if: ${{ inputs.cloud_provider == 'all' || inputs.cloud_provider == 'azure' }}
+    with: 
+      tag: ${{ inputs.tag }}
+      cloud_provider: 'azure'
+      release_type: 'Minor'
+      version_number_input: ${{ needs.build-publish-docker-default.outputs.version_number_output }}
+    secrets: inherit
+    

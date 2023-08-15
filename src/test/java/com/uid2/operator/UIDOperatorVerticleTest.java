@@ -2416,6 +2416,43 @@ public class UIDOperatorVerticleTest {
         return new KeysetKey(id, makeAesKey("key" + id), activates.minusSeconds(10), activates, expires, keysetId);
     }
 
+    @Test
+    void getActiveKeyTest() {
+        final Instant now = Instant.now();
+        final Instant past = now.minusSeconds(100);
+        final Instant future = now.plusSeconds(100);
+
+        Keyset masterKeyset = new Keyset(MasterKeysetId, MasterKeySiteId, "master", Set.of(), past.getEpochSecond(), true, true);
+        setupKeysetsMock(masterKeyset);
+
+        KeysetKey expired1 = createKey(101, past, past, MasterKeysetId);
+        KeysetKey expired2 = createKey(102, past, past, MasterKeysetId);
+        KeysetKey expired3 = createKey(103, past, past, MasterKeysetId);
+
+        KeysetKey active1 = createKey(201, past, future, MasterKeysetId);
+        KeysetKey active2 = createKey(202, past, future, MasterKeysetId);
+        KeysetKey active3 = createKey(203, past, future, MasterKeysetId);
+
+        KeysetKey activatesNow1 = createKey(401, now, future, MasterKeysetId);
+        KeysetKey activatesNow2 = createKey(402, now, future, MasterKeysetId);
+        KeysetKey activatesNow3 = createKey(403, now, future, MasterKeysetId);
+
+        KeysetKey activatesInFuture1 = createKey(501, future, future, MasterKeysetId);
+        KeysetKey activatesInFuture2 = createKey(502, future, future, MasterKeysetId);
+        KeysetKey activatesInFuture3 = createKey(503, future, future, MasterKeysetId);
+
+        setupKeysetsKeysMock(expired1, expired2, expired3,
+                active1, active2, active3,
+                activatesNow1, activatesNow2, activatesNow3,
+                activatesInFuture1, activatesInFuture2, activatesInFuture3);
+
+        var snapshot = keysetKeyStore.getSnapshot();
+        KeysetKey activeKey = snapshot.getActiveKey(MasterKeysetId, now);
+
+        assertEquals(activatesNow3, activeKey); //getActiveKey() returns the last key that is active ("activates" not in the future, and "expires" is in the future)
+    }
+
+
 
     @ParameterizedTest
     @ValueSource(strings = {"MultiKeysets", "AddKey", "RotateKey", "DisableActiveKey", "DisableDefaultKeyset"})

@@ -158,8 +158,6 @@ public class UIDOperatorVerticleTest {
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
-        config.put("client_side_token_generate_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_site_test_private_key", "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==");
     }
 
     private static byte[] makeAesKey(String prefix) {

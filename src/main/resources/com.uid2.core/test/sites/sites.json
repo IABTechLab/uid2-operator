@@ -1,0 +1,17 @@
+[
+  {
+    "id": 123,
+    "name": "MegaTest Site",
+    "enabled": true
+  },
+  {
+    "id": 124,
+    "name": "TestCorp Site",
+    "enabled": true
+  },
+  {
+    "id": 125,
+    "name": "LoremTestIpsum Site",
+    "enabled": true
+  }
+]

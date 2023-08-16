@@ -25,6 +25,7 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.model.SaltEntry;
+import com.uid2.shared.model.Site;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.vertx.RequestCapturingHandler;
@@ -78,6 +79,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final Cipher aesGcm;
     private final JsonObject config;
     private final AuthMiddleware auth;
+    private final ISiteStore siteProvider;
     private final IClientSideKeypairStore clientSideKeypairProvider;
     private final IKeyStore keyStore;
     private final ITokenEncoder encoder;
@@ -105,6 +107,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final IStatsCollectorQueue _statsCollectorQueue;
 
     public UIDOperatorVerticle(JsonObject config,
+                               ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
                                IClientSideKeypairStore clientSideKeypairProvider,
                                IKeyStore keyStore,
@@ -121,6 +124,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
+        this.siteProvider = siteProvider;
         this.keyStore = keyStore;
         this.encoder = new EncryptedTokenEncoder(keyStore);
         this.clientSideKeypairProvider = clientSideKeypairProvider;
@@ -282,14 +286,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
-        if ("abcdefg".equals(subscriptionId)) {
-            Set<String> result = new HashSet<>();
-            Arrays.stream(config.getString("client_side_token_generate_domain_name_list").split(",")).forEach(d -> result.add(d));
-            return result;
-        }
-        else {
-            return null;
+    private Set<String> getDomainNameListForClientSideTokenGenerate(ClientSideKeypair keypair) {
+        Site s = siteProvider.getSite(keypair.getSiteId());
+        if (s == null) {
+           return null;
+        } else {
+            return s.getDomainNames();
         }
     }
 
@@ -328,20 +330,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final long timestamp = body.getLong("timestamp", 0L);
 
 
-        if(cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
-            String origin = rc.request().getHeader("origin");
-
-            // if you want to see what http origin header is provided, uncomment this line
-            // LOGGER.info("origin: " + origin);
-
-            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-            if(!allowedDomain) {
-                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
-                return;
-            }
-        }
-
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
@@ -353,6 +341,20 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         if (clientSideKeypair == null) {
             rc.fail(401);
             return;
+        }
+
+        if(cstgDoDomainNameCheck) {
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(clientSideKeypair);
+            String origin = rc.request().getHeader("origin");
+
+            // if you want to see what http origin header is provided, uncomment this line
+            // LOGGER.info("origin: " + origin);
+
+            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+            if(!allowedDomain) {
+                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
+                return;
+            }
         }
 
         PrivateKey privateKey = clientSideKeypair.getPrivateKey();

@@ -57,6 +57,7 @@ public class Main {
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
+    private final RotatingSiteStore siteProvider;
 
     private final RotatingClientKeyProvider clientKeyProvider;
     private final RotatingClientSideKeypairStore clientSideKeypairProvider;
@@ -115,6 +116,8 @@ public class Main {
             this.fsOptOut = configureCloudOptOutStore();
         }
 
+        String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
+        this.siteProvider = new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath)));
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
         this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
         String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
@@ -129,6 +132,7 @@ public class Main {
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
 
         if (useStorageMock && coreAttestUrl == null) {
+            this.siteProvider.loadContent();
             this.clientKeyProvider.loadContent();
             this.clientSideKeypairProvider.loadContent();
             this.keyStore.loadContent();
@@ -218,7 +222,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;
@@ -256,6 +260,7 @@ public class Main {
 
     private Future<Void> createStoreVerticles() throws Exception {
         // load metadatas for the first time
+        siteProvider.getMetadata();
         clientKeyProvider.getMetadata();
         clientSideKeypairProvider.getMetadata();
         keyStore.getMetadata();
@@ -270,6 +275,7 @@ public class Main {
         Promise<Void> promise = Promise.promise();
         List<Future> fs = new ArrayList<>();
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, 10000));
+        fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("key", keyStore, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("keys_acl", keyAclProvider, 10000));

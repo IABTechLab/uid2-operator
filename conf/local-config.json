@@ -1,6 +1,7 @@
 {
   "service_instances": 4,
   "storage_mock": true,
+  "sites_metadata_path": "/com.uid2.core/test/sites/metadata.json",
   "clients_metadata_path": "/com.uid2.core/test/clients/metadata.json",
   "client_side_keypairs_metadata_path": "/com.uid2.core/test/client_side_keypairs/metadata.json",
   "keys_metadata_path": "/com.uid2.core/test/keys/metadata.json",

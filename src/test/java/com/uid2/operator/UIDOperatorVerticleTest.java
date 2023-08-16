@@ -73,6 +73,8 @@ import static org.mockito.Mockito.*;
 public class UIDOperatorVerticleTest {
     private AutoCloseable mocks;
     @Mock
+    private ISiteStore siteProvider;
+    @Mock
     private IClientKeyProvider clientKeyProvider;
     @Mock
     private IClientSideKeypairStore clientSideKeypairProvider;
@@ -139,7 +141,7 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
 
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
+        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
 
         verticle.setDisableHandler(this.operatorDisableHandler);
 

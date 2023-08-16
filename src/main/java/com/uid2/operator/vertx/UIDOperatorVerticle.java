@@ -12,7 +12,7 @@ import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
 import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
-import com.uid2.operator.util.DomainNameCheckUtil;
+//import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -329,6 +329,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         //instead of crashing use a default value
         final long timestamp = body.getLong("timestamp", 0L);
 
+//        final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
+//        String origin = rc.request().getHeader("origin");
+//
+//        boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+//        if(!allowedDomain) {
+//            rc.fail(401);
+//            return;
+//        }
 
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 

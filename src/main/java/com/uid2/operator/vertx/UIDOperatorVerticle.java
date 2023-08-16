@@ -13,6 +13,7 @@ import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 //import com.uid2.operator.util.DomainNameCheckUtil;
+import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;

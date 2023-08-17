@@ -3,10 +3,11 @@ package com.uid2.operator;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.reader.RotatingClientSideKeypairStore;
-import com.uid2.shared.store.reader.RotatingKeyAclProvider;
 import com.uid2.shared.store.scope.GlobalScope;
 import io.vertx.core.json.JsonObject;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 public class RotatingClientSideKeypairStoreTest {
     @Test
@@ -16,6 +17,6 @@ public class RotatingClientSideKeypairStoreTest {
                 new GlobalScope(new CloudPath("/com.uid2.core/test/client_side_keypairs/metadata.json")));
 
         JsonObject m = keypairProvider.getMetadata();
-        keypairProvider.loadContent(m);
+        assertDoesNotThrow(() -> keypairProvider.loadContent(m));
     }
 }

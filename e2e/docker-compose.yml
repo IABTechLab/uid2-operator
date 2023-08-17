@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  ################
+  ## LOCALSTACK ##
+  ################
+
+  localstack:
+    container_name: localstack
+    image: localstack/localstack:1.3.0
+    ports:
+      - "127.0.0.1:5001:5001"
+    volumes:
+      - "./docker/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"
+      - "./docker/localstack/s3:/s3"
+    environment:
+      - EDGE_PORT=5001
+    healthcheck: # Used by admin, core and admin_snowflake to check if S3 bucket exists before starting (crashes otherwise)
+      test: awslocal s3api wait bucket-exists --bucket test-core-bucket
+        && awslocal s3api wait bucket-exists --bucket test-snowflake-bucket
+        && awslocal s3api wait bucket-exists --bucket test-optout-bucket
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+  core:
+    container_name: core
+    image: ghcr.io/iabtechlab/uid2-core:2.9.0-46b2d8519f-master-default
+    ports:
+      - "127.0.0.1:8088:8088"
+    volumes:
+      - ./docker/uid2-core/conf/local-e2e-docker-public-config.json:/app/conf/local-config.json
+    depends_on:
+      localstack:
+        condition: service_healthy

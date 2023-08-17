@@ -1,0 +1,70 @@
+[
+  {
+    "key": "UID2-O-L-999-dp9Dt0.JVoGpynN4J8nMA7FxmzsavxJa8B9H74y9xdEE=",
+    "name": "Special",
+    "contact": "Special",
+    "protocol": "trusted",
+    "created": 1618873215,
+    "disabled": false,
+    "roles": [
+      "OPERATOR",
+      "OPTOUT"
+    ],
+    "site_id": 999,
+    "operator_type": "PUBLIC"
+  },
+  {
+    "key": "OPLCLAjLRWcVlCDl9+BbwR38gzxYdiWFa751ynWLuI7JU4iA=",
+    "name": "Special (Old, Private)",
+    "contact": "Special (Old, Private)",
+    "protocol": "trusted",
+    "created": 1618873215,
+    "disabled": false,
+    "roles": [
+      "OPERATOR",
+      "OPTOUT"
+    ],
+    "site_id": 999,
+    "operator_type": "PRIVATE"
+  },
+  {
+    "key": "UID2-O-L-123-Xt/ght.6tODU8mmodEtI3J67LW3vcX50LOsQR4oqMMFk=",
+    "name": "DSP",
+    "contact": "DSP",
+    "protocol": "trusted",
+    "created": 1618873215,
+    "disabled": false,
+    "roles": [
+      "OPERATOR",
+      "OPTOUT"
+    ],
+    "site_id": 123,
+    "operator_type": "PUBLIC"
+  },
+  {
+    "key": "UID2-O-L-124-cr24Bt.dYP+Wpo6NWlP7CbvwpzHn0lXS3Cst6Y+qFDK4=",
+    "name": "Publisher (Private, GCP)",
+    "contact": "Publisher (Private, GCP)",
+    "protocol": "gcp-vmid",
+    "created": 1618873215,
+    "disabled": false,
+    "roles": [
+      "OPERATOR"
+    ],
+    "site_id": 124,
+    "operator_type": "PRIVATE"
+  },
+  {
+    "key": "UID2-O-L-127-pDqphU.6FuXzThQMY8YEsCA8crqvAlzyGrjcF8P6XO84=",
+    "name": "OptOut",
+    "contact": "OptOut",
+    "protocol": "trusted",
+    "created": 1618873215,
+    "disabled": false,
+    "roles": [
+      "OPTOUT_SERVICE"
+    ],
+    "site_id": 127,
+    "operator_type": "PUBLIC"
+  }
+]

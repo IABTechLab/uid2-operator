@@ -1,0 +1,14 @@
+[
+  {
+    "account_id": "Special",
+    "client_key": "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=",
+    "enabled": true,
+    "last_updated": 1628834719
+  },
+  {
+    "account_id": "Special (Old)",
+    "client_key": "LOCALbGlvbnVuZGVybGluZXdpbmRzY2FyZWRzb2Z0ZGVzZXI=",
+    "enabled": true,
+    "last_updated": 1628834719
+  }
+]

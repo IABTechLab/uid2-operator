@@ -1,0 +1,35 @@
+name: E2E GCP OIDC Enclave
+on:
+  [ push ]
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v3
+        with:
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Log in to the Docker container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bring up dependencies
+        uses: isbang/compose-action@v1.5.1
+        with:
+          compose-file: "./e2e/docker-compose.yml"
+
+      - name: Check core service URL
+        uses: jtalk/url-health-check-action@v3
+        with:
+          url: http://localhost:8088/ops/healthcheck

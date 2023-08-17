@@ -290,7 +290,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private Set<String> getDomainNameListForClientSideTokenGenerate(ClientSideKeypair keypair) {
         Site s = siteProvider.getSite(keypair.getSiteId());
         if (s == null) {
-           return null;
+           return new HashSet<>();
         } else {
             return s.getDomainNames();
         }

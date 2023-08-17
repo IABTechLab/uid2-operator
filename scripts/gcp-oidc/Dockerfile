@@ -1,6 +1,6 @@
 FROM eclipse-temurin@sha256:1a6531a7239bea3739d89d8833b03c7732f51e08ecbb78bbc40ef98287c1212d
 
-LABEL "tee.launch_policy.allow_env_override"="API_TOKEN,DEPLOYMENT_ENVIRONMENT,CORE_BASE_URL,OPTOUT_BASE_URL"
+LABEL "tee.launch_policy.allow_env_override"="API_TOKEN,DEPLOYMENT_ENVIRONMENT"
 
 WORKDIR /app
 EXPOSE 8080
@@ -24,7 +24,6 @@ RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /
 COPY ./entrypoint.sh /app/
 RUN chmod a+x /app/entrypoint.sh
 
-RUN adduser -D uid2-operator && mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && mkdir -p /app && chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
-USER uid2-operator
+RUN mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && mkdir -p /app && chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
 
 CMD ["/app/entrypoint.sh"]

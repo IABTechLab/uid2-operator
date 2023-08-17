@@ -2656,7 +2656,8 @@ public class UIDOperatorVerticleTest {
                         assertNotNull(refreshBody);
                         EncryptedTokenEncoder encoder2 = new EncryptedTokenEncoder(keyStore);
 
-                        AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, IdentityType.Phone);
+                        //make sure the new advertising token from refresh looks right
+                        AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, identityType);
                         assertEquals(123, adTokenFromRefresh.publisherIdentity.siteId);
 
                         String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
@@ -2664,7 +2665,42 @@ public class UIDOperatorVerticleTest {
                         RefreshToken refreshTokenAfterRefresh = encoder.decodeRefreshToken(refreshTokenStringNew);
                         assertEquals(123, refreshTokenAfterRefresh.publisherIdentity.siteId);
 
+                        if(optOutExpected) {
+                            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(expectedOptedOutIdentity), firstLevelSalt), refreshTokenAfterRefresh.userIdentity.id);
+                        }
+                        else {
+                            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(id), firstLevelSalt), refreshTokenAfterRefresh.userIdentity.id);
+                        }
+
+                        if(identityType == IdentityType.Email) {
+                            assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email,
+                                    TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
+                                    firstLevelSalt, rotatingSalt123.getSalt()), adTokenFromRefresh.userIdentity.id);
+                        }
+                        else if(identityType == IdentityType.Phone) {
+                            assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Phone,
+                                    TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
+                                    firstLevelSalt, rotatingSalt123.getSalt()), adTokenFromRefresh.userIdentity.id);
+
+                        }
+                        else { //should never happen
+                            assertFalse(true);
+                        }
+
+                        assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
+                        assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
+                        assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_from")), 10);
+
+
+                        assertTokenStatusMetrics(
+                                123,
+                                TokenResponseStatsCollector.Endpoint.RefreshV2,
+                                TokenResponseStatsCollector.ResponseStatus.Success);
+
+
+                        //check the CSTG-related privacy bits are still set correctly
                         assertTrue(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
+                        assertTrue(PrivacyBits.fromInt(refreshTokenAfterRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
                         if(optOutExpected) {
                             assertTrue(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
                             assertTrue(PrivacyBits.fromInt(refreshTokenAfterRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());

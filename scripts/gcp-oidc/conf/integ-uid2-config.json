@@ -1,0 +1,10 @@
+{
+  "clients_metadata_path": "https://core-integ.uidapi.com/clients/refresh",
+  "keys_metadata_path": "https://core-integ.uidapi.com/key/refresh",
+  "keys_acl_metadata_path": "https://core-integ.uidapi.com/key/acl/refresh",
+  "salts_metadata_path": "https://core-integ.uidapi.com/salt/refresh",
+  "optout_metadata_path": "https://optout-integ.uidapi.com/optout/refresh",
+  "core_attest_url": "https://core-integ.uidapi.com/attest",
+  "optout_api_uri": "https://core-integ.uidapi.com/optout/replicate",
+  "optout_s3_folder": "uid-optout-integ/"
+}

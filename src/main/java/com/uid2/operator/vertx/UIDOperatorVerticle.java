@@ -336,6 +336,20 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         //instead of crashing use a default value
         final long timestamp = body.getLong("timestamp", 0L);
 
+        if(cstgDoDomainNameCheck) {
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
+            String origin = rc.request().getHeader("origin");
+
+            // if you want to see what http origin header is provided, uncomment this line
+            // LOGGER.info("origin: " + origin);
+
+            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+            if(!allowedDomain) {
+                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
+                return;
+            }
+        }
+
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 
         final KeyFactory kf = KeyFactory.getInstance("EC");

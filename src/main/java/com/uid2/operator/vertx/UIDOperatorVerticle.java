@@ -13,7 +13,6 @@ import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 //import com.uid2.operator.util.DomainNameCheckUtil;
-import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -26,7 +25,6 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.model.Site;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.vertx.RequestCapturingHandler;
@@ -64,7 +62,7 @@ import java.util.stream.Collectors;
 
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
-public class UIDOperatorVerticle extends AbstractVerticle{
+public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
 
     public static final String ValidationInputEmail = "validate@email.com";
@@ -80,7 +78,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final Cipher aesGcm;
     private final JsonObject config;
     private final AuthMiddleware auth;
-    private final ISiteStore siteProvider;
     private final IClientSideKeypairStore clientSideKeypairProvider;
     private final IKeyStore keyStore;
     private final ITokenEncoder encoder;
@@ -102,13 +99,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final boolean phoneSupport;
     private final int tcfVendorId;
 
-    private final boolean cstgDoDomainNameCheck;
-
 
     private final IStatsCollectorQueue _statsCollectorQueue;
 
     public UIDOperatorVerticle(JsonObject config,
-                               ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
                                IClientSideKeypairStore clientSideKeypairProvider,
                                IKeyStore keyStore,
@@ -125,7 +119,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
-        this.siteProvider = siteProvider;
         this.keyStore = keyStore;
         this.encoder = new EncryptedTokenEncoder(keyStore);
         this.clientSideKeypairProvider = clientSideKeypairProvider;
@@ -137,7 +130,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
-        this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_do_domain_name_check", true);
+
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -266,39 +259,35 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private void handleClientSideTokenGenerate(RoutingContext rc) {
         try {
             handleClientSideTokenGenerateImpl(rc);
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException e) { //todo - should match other request exception handling
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException |
+                 InvalidKeyException e) { //todo - should match other request exception handling
             throw new RuntimeException(e);
         }
     }
 
-    private ClientSideKeypair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
-        ClientSideKeypair keyPair = this.clientSideKeypairProvider.getSnapshot().getKeypair(subscriptionId);
-        LOGGER.info(keyPair.getSubscriptionId());
-        LOGGER.info(keyPair.encodePublicKeyToString());
-        LOGGER.info(keyPair.encodePrivateKeyToString());
-        LOGGER.info(String.valueOf(keyPair.getSiteId()));
-        LOGGER.info(keyPair.getContact());
-        LOGGER.info(String.valueOf(keyPair.getCreated().getEpochSecond()));
-        LOGGER.info(String.valueOf(keyPair.isDisabled()));
-        if(keyPair == null || keyPair.isDisabled()){
+    private ClientSideKeypair getKeypairForClientSideTokenGenerate(String subscriptionId) {
+        final ClientSideKeypair keyPair = this.clientSideKeypairProvider.getSnapshot().getKeypair(subscriptionId);
+        if (keyPair == null || keyPair.isDisabled()) {
             return null;
         } else {
             return keyPair;
         }
     }
 
-    private Set<String> getDomainNameListForClientSideTokenGenerate(ClientSideKeypair keypair) {
-        Site s = siteProvider.getSite(keypair.getSiteId());
-        if (s == null) {
-           return new HashSet<>();
+    private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
+        if ("abcdefg".equals(subscriptionId)) {
+            Set<String> result = new HashSet<>();
+            Arrays.stream(config.getString("client_site_domain_name_list").split(",")).map(d -> result.add(d));
+            return result;
         } else {
-            return s.getDomainNames();
+            return null;
         }
     }
 
 
     static class PrivacyBits { //todo move this
         private int bits;
+
         public PrivacyBits() {
         }
 
@@ -309,6 +298,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         public void setClientSideTokenGenerate() {
             setBit(1);
         }
+
         public void setLegacyBit() {
             setBit(0);//unknown why this bit is set in https://github.com/IABTechLab/uid2-operator/blob/dbab58346e367c9d4122ad541ff9632dc37bd410/src/main/java/com/uid2/operator/vertx/UIDOperatorVerticle.java#L534
         }
@@ -316,19 +306,20 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         private void setBit(int position) {
             bits |= (1 << position);
         }
+
         private boolean isBitSet(int position) {
             return (bits & (1 << position)) != 0;
         }
     }
 
-    private void handleClientSideTokenGenerateImpl(RoutingContext rc)  throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
+    private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body = rc.body().asJsonObject();
         final String encryptedPayload = body.getString("payload");
         final String iv = body.getString("iv");
         final String subscriptionId = body.getString("subscription_id");
         final String clientPublicKeyString = body.getString("public_key");
-        //instead of crashing use a default value
-        final long timestamp = body.getLong("timestamp", 0L);
+        final long timestamp = body.getLong("timestamp");
+
 
 //        final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
 //        String origin = rc.request().getHeader("origin");
@@ -346,24 +337,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
         final PublicKey clientPublicKey = kf.generatePublic(pkSpec);
 
-        final ClientSideKeypair clientSideKeypair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
+        final ClientSideKeypair clientSideKeypair = getKeypairForClientSideTokenGenerate(subscriptionId);
         if (clientSideKeypair == null) {
             rc.fail(401);
             return;
-        }
-
-        if(cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(clientSideKeypair);
-            String origin = rc.request().getHeader("origin");
-
-            // if you want to see what http origin header is provided, uncomment this line
-            // LOGGER.info("origin: " + origin);
-
-            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-            if(!allowedDomain) {
-                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
-                return;
-            }
         }
 
         PrivateKey privateKey = clientSideKeypair.getPrivateKey();
@@ -489,13 +466,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             MissingAclMode mode = MissingAclMode.DENY_ALL;
             // This will break if another Type is added to this map
             IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
-            if(roleAuthorize.hasRole(Role.ID_READER)) {
+            if (roleAuthorize.hasRole(Role.ID_READER)) {
                 mode = MissingAclMode.ALLOW_ALL;
             }
 
-            for (EncryptionKey key: keyStore) {
+            for (EncryptionKey key : keyStore) {
                 JsonObject keySet = new JsonObject();
-                if(clientKey.getSiteId() == key.getSiteId()) {
+                if (clientKey.getSiteId() == key.getSiteId()) {
                     keySet.put("keyset_id", DEFAULT_KEYSET_ID);
                 } else if (key.getSiteId() == -1) {
                     keySet.put("keyset_id", DEFAULT_MASTER_KEYSET_ID);
@@ -553,8 +530,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, keyStore);
             if (v2req.isValid()) {
                 refreshToken = (String) v2req.payload;
-            }
-            else {
+            } else {
                 ResponseUtil.ClientError(rc, v2req.errorMessage);
                 return;
             }
@@ -978,8 +954,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             } else {
                 rc.fail(400);
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             LOGGER.error("Unexpected error while mapping identity", ex);
             rc.fail(500);
         }
@@ -1156,7 +1131,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
         } else if (phones != null && !phones.isEmpty()) {
             return createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
-        } else if (phoneHashes != null && !phoneHashes.isEmpty()){
+        } else if (phoneHashes != null && !phoneHashes.isEmpty()) {
             return createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
         } else {
             // handle empty array
@@ -1314,7 +1289,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);;
+            getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
+            ;
         }
 
         if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
@@ -1566,6 +1542,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private static final String TOKEN_GENERATE_POLICY_PARAM = "policy";
+
     private TokenGeneratePolicy readTokenGeneratePolicy(JsonObject req) {
         return req.containsKey(TOKEN_GENERATE_POLICY_PARAM) ?
                 TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) :
@@ -1573,6 +1550,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private static final String IDENTITY_MAP_POLICY_PARAM = "policy";
+
     private IdentityMapPolicy readIdentityMapPolicy(JsonObject req) {
         return req.containsKey(IDENTITY_MAP_POLICY_PARAM) ?
                 IdentityMapPolicy.fromValue(req.getInteger(IDENTITY_MAP_POLICY_PARAM)) :
@@ -1668,8 +1646,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         public static String GenericError = "error";
         public static String UnknownError = "unknown";
         public static String InsufficientUserConsent = "insufficient_user_consent";
-
-        public static String InvalidHttpOrigin = "invalid_http_origin";
     }
 
     public static enum UserConsentStatus {

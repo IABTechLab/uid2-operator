@@ -2537,8 +2537,10 @@ public class UIDOperatorVerticleTest {
     // tests for opted in user should lead to generating ad tokens that never match the default optout identity
     // tests for all email/phone combos
     @ParameterizedTest
-    @CsvSource({"true,abc@abc.com,Email,optout@unifiedid.com","true,+61400000000,Phone,+00000000001",
-            "false,abc@abc.com,Email,optout@unifiedid.com","false,+61400000000,Phone,+00000000001"})
+    @CsvSource({"true,abc@abc.com,Email,optout@unifiedid.com",
+            "true,+61400000000,Phone,+00000000001",
+            "false,abc@abc.com,Email,optout@unifiedid.com",
+            "false,+61400000000,Phone,+00000000001"})
     void cstgOptedOutTest(boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
                       Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
         setupCstgBackend();
@@ -2630,7 +2632,36 @@ public class UIDOperatorVerticleTest {
                     final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, input.toUserIdentity(getIdentityScope(), 0, now), now);
 
                     assertEquals(optOutExpected, matchedOptedOutIdentity);
-                    testContext.completeNow();
+
+
+                    String genRefreshToken = genBody.getString("refresh_token");
+                    //test a subsequent refresh from this cstg call and see if it still works
+                    sendTokenRefresh("v2", vertx, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson ->
+                    {
+                        assertEquals("success", refreshRespJson.getString("status"));
+                        JsonObject refreshBody = refreshRespJson.getJsonObject("body");
+                        assertNotNull(refreshBody);
+                        EncryptedTokenEncoder encoder2 = new EncryptedTokenEncoder(keyStore);
+
+                        AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, IdentityType.Phone);
+                        assertEquals(123, adTokenFromRefresh.publisherIdentity.siteId);
+
+                        String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
+                        assertNotEquals(genRefreshToken, refreshTokenStringNew);
+                        RefreshToken refreshTokenAfterRefresh = encoder.decodeRefreshToken(refreshTokenStringNew);
+                        assertEquals(123, refreshTokenAfterRefresh.publisherIdentity.siteId);
+
+                        assertTrue(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
+                        if(optOutExpected) {
+                            assertTrue(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                            assertTrue(PrivacyBits.fromInt(refreshTokenAfterRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                        }
+                        else {
+                            assertFalse(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                            assertFalse(PrivacyBits.fromInt(refreshTokenAfterRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                        }
+                        testContext.completeNow();
+                    });
                 });
     }
 

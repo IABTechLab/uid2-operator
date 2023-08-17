@@ -85,7 +85,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.userIdentity.identityScope, request.userIdentity.identityType, firstLevelHash, request.userIdentity.privacyBits,
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
 
-        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity).isOptedOut()) {
+        if (request.shouldCheckOptOut() && getGlobalOptOut(firstLevelHashIdentity).isOptedOut()) {
             return IdentityTokens.LogoutToken;
         } else {
             return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
@@ -108,7 +108,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
 
         try {
-            final GlobalOptoutResult logoutEntry = hasGlobalOptOut(token.userIdentity);
+            final GlobalOptoutResult logoutEntry = getGlobalOptOut(token.userIdentity);
             boolean optedOut = logoutEntry.isOptedOut();
 
             if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getTime())) {
@@ -125,7 +125,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public MappedIdentity mapIdentity(MapRequest request) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.userIdentity, request.asOf);
-        if (request.shouldCheckOptOut() && hasGlobalOptOut(firstLevelHashIdentity).isOptedOut()) {
+        if (request.shouldCheckOptOut() && getGlobalOptOut(firstLevelHashIdentity).isOptedOut()) {
             return MappedIdentity.LogoutIdentity;
         } else {
             return getAdvertisingId(firstLevelHashIdentity, request.asOf);
@@ -256,7 +256,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
     }
 
-    private GlobalOptoutResult hasGlobalOptOut(UserIdentity userIdentity) {
+    private GlobalOptoutResult getGlobalOptOut(UserIdentity userIdentity) {
         if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
             return new GlobalOptoutResult(Instant.now());
         }

@@ -8,7 +8,8 @@ import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.shared.ApplicationVersion;
-import com.uid2.shared.attest.NoAttestationProvider;
+import com.uid2.shared.IClock;
+import com.uid2.shared.attest.AttestationTokenRetriever;
 import com.uid2.shared.attest.UidCoreClient;
 import com.uid2.shared.cloud.CloudUtils;
 import com.uid2.shared.Utils;
@@ -57,6 +58,7 @@ import org.mockito.MockitoAnnotations;
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -96,6 +98,10 @@ public class UIDOperatorVerticleTest {
     private IOptOutStore optOutStore;
     @Mock
     private Clock clock;
+    @Mock
+    private HttpClient httpClient;
+    @Mock
+    IClock mockIClock;
     private SimpleMeterRegistry registry;
 
     private static final String firstLevelSalt = "first-level-salt";
@@ -108,12 +114,18 @@ public class UIDOperatorVerticleTest {
     private static final String clientSideTokenGeneratePrivateKey = "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
     private static final String clientSideTokenGeneratePublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
 
-    private final UidCoreClient fakeCoreClient = new UidCoreClient("", "", new ApplicationVersion("test", "test"), CloudUtils.defaultProxy, new NoAttestationProvider(), false);
+    private AttestationTokenRetriever fakeAttestationTokenRetriever ;
+    private UidCoreClient fakeCoreClient;
+
+    private OperatorDisableHandler operatorDisableHandler;
 
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
 
     @Mock
     private IStatsCollectorQueue statsCollectorQueue;
+
+    public UIDOperatorVerticleTest() {
+    }
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext) {
@@ -123,6 +135,10 @@ public class UIDOperatorVerticleTest {
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(clock.instant()).thenAnswer(i -> Instant.now());
 
+        this.operatorDisableHandler = new OperatorDisableHandler(Duration.ofHours(24), clock);
+        this.fakeAttestationTokenRetriever = new AttestationTokenRetriever(vertx, null, null, new ApplicationVersion("test", "test"), null, operatorDisableHandler::handleResponseStatus, mockIClock, null, null);
+        this.fakeCoreClient = new UidCoreClient("dummyToken", CloudUtils.defaultProxy, false, fakeAttestationTokenRetriever, null);
+
         final JsonObject config = new JsonObject();
         config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, identityExpiresAfter.toMillis() / 1000);
         config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, refreshExpiresAfter.toMillis() / 1000);
@@ -131,13 +147,9 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
 
-
-
         this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
 
-        OperatorDisableHandler h = new OperatorDisableHandler(Duration.ofHours(24), clock);
-        fakeCoreClient.setResponseStatusWatcher(h::handleResponseStatus);
-        uidOperatorVerticle.setDisableHandler(h);
+        uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
 
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 
@@ -155,7 +167,6 @@ public class UIDOperatorVerticleTest {
         config.put("identity_scope", getIdentityScope().toString());
         config.put("advertising_token_v3", getTokenVersion() == TokenVersion.V3);
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
-        config.put("refresh_token_v3", useIdentityV3());
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         config.put("client_side_token_generate_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
@@ -1604,7 +1615,8 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test void disableOnDeauthorization(Vertx vertx, VertxTestContext testContext) {
+    @Test
+    void disableOnDeauthorization(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -1615,7 +1627,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(200, ar.result().statusCode());
 
             // Revoke auth
-            fakeCoreClient.notifyResponseStatusWatcher(401);
+            this.operatorDisableHandler.handleResponseStatus(401);
 
             // Request should fail after revoking auth
             get(vertx, "v1/token/generate?email=test@uid2.com", ar1 -> {
@@ -1623,7 +1635,7 @@ public class UIDOperatorVerticleTest {
                 testContext.completeNow();
 
                 // Recovered
-                fakeCoreClient.notifyResponseStatusWatcher(200);
+                this.operatorDisableHandler.handleResponseStatus(200);
                 get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
                     assertEquals(200, ar2.result().statusCode());
                     testContext.completeNow();
@@ -1632,7 +1644,8 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test void disableOnFailure(Vertx vertx, VertxTestContext testContext) {
+    @Test
+    void disableOnFailure(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -1643,22 +1656,22 @@ public class UIDOperatorVerticleTest {
             assertEquals(200, ar.result().statusCode());
 
             // Failure starts
-            fakeCoreClient.notifyResponseStatusWatcher(500);
+            this.operatorDisableHandler.handleResponseStatus(500);
 
             // Can server before waiting period passes
             when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
-            fakeCoreClient.notifyResponseStatusWatcher(500);
+            this.operatorDisableHandler.handleResponseStatus(500);
             get(vertx, "v1/token/generate?email=test@uid2.com", ar1 -> {
                 assertEquals(200, ar1.result().statusCode());
 
                 // Can't serve after waiting period passes
                 when(clock.instant()).thenAnswer(i -> Instant.now().plus(24, ChronoUnit.HOURS));
-                fakeCoreClient.notifyResponseStatusWatcher(500);
+                this.operatorDisableHandler.handleResponseStatus(500);
                 get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
                     assertEquals(503, ar2.result().statusCode());
 
                     // Recovered
-                    fakeCoreClient.notifyResponseStatusWatcher(200);
+                    this.operatorDisableHandler.handleResponseStatus(200);
                     get(vertx, "v1/token/generate?email=test@uid2.com", ar3 -> {
                         assertEquals(200, ar3.result().statusCode());
                         testContext.completeNow();

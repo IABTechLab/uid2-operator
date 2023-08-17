@@ -334,7 +334,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         //instead of crashing use a default value
         final long timestamp = body.getLong("timestamp", 0L);
 
-
         if(cstgDoDomainNameCheck) {
             final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
             String origin = rc.request().getHeader("origin");

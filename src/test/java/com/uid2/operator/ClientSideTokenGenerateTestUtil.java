@@ -32,22 +32,17 @@ public class ClientSideTokenGenerateTestUtil {
         }
     }
 
-    public static SecretKey deriveKey(PublicKey serverPublicKey, PrivateKey clientPrivateKey) {
-        try {
-            KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH", "SunEC");
-            keyAgreement.init(clientPrivateKey);
-            keyAgreement.doPhase(serverPublicKey, true);
+    public static SecretKey deriveKey(PublicKey serverPublicKey, PrivateKey clientPrivateKey) throws NoSuchAlgorithmException, InvalidKeyException {
+        KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH");
+        keyAgreement.init(clientPrivateKey);
+        keyAgreement.doPhase(serverPublicKey, true);
 
-            byte[] secret = keyAgreement.generateSecret();
+        byte[] secret = keyAgreement.generateSecret();
 
-            // Use the derived secret as the AES key
-            SecretKey aesKey = new SecretKeySpec(secret, "AES");
+        // Use the derived secret as the AES key
+        SecretKey aesKey = new SecretKeySpec(secret, "AES");
 
-            return aesKey;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        return aesKey;
     }
 
     public static byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes) {

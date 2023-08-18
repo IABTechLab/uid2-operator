@@ -1,7 +1,7 @@
 package com.uid2.operator;
 
-import com.google.cloud.logging.Payload;
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.*;
@@ -60,10 +60,7 @@ import java.math.BigInteger;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
+import java.security.*;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -2428,7 +2425,7 @@ public class UIDOperatorVerticleTest {
 
     //if no identity is provided will get an error
     @Test
-    void cstgNoIdentityHashProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
+    void cstgNoIdentityHashProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithNoPayload();
         sendCstg(vertx,
@@ -2449,7 +2446,7 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"https://blahblah.com", "http://local1host:8080"})
-    void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
+    void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com");
         sendCstg(vertx,
@@ -2468,7 +2465,7 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"https://cstg.co.uk", "https://cstg2.com", "http://localhost:8080"})
-    void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
+    void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com");
         sendCstg(vertx,
@@ -2484,7 +2481,7 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithPayload(JsonObject identityPayload) throws NoSuchAlgorithmException {
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithPayload(JsonObject identityPayload) throws NoSuchAlgorithmException, InvalidKeyException {
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
         final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
@@ -2508,7 +2505,7 @@ public class UIDOperatorVerticleTest {
     }
 
 
-    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId) throws NoSuchAlgorithmException {
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId) throws NoSuchAlgorithmException, InvalidKeyException {
 
         JsonObject identity = new JsonObject();
 
@@ -2524,7 +2521,7 @@ public class UIDOperatorVerticleTest {
         return createClientSideTokenGenerateRequestWithPayload(identity);
     }
 
-    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithNoPayload() throws NoSuchAlgorithmException {
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithNoPayload() throws NoSuchAlgorithmException, InvalidKeyException {
         JsonObject identity = new JsonObject();
         return createClientSideTokenGenerateRequestWithPayload(identity);
     }
@@ -2537,7 +2534,7 @@ public class UIDOperatorVerticleTest {
     @CsvSource({"true,abc@abc.com,Email,optout@unifiedid.com","true,+61400000000,Phone,+00000000001",
             "false,abc@abc.com,Email,optout@unifiedid.com","false,+61400000000,Phone,+00000000001"})
     void cstgOptedOutTest(boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
-                      Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException {
+                      Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id);
         if(optOutExpected)

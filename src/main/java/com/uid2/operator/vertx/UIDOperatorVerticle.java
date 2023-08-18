@@ -424,7 +424,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             input = InputUtil.normalizePhoneHash(phoneHash);
         }
         else {
-            final JsonObject response = ResponseUtil.Error(ResponseStatus.GenericError, "no email or phone hash provided");
             ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "no email or phone hash provided");
             return;
         }
@@ -458,7 +457,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
         int httpStatusCode = 200;
         try {
-            // DevNote: 200 does not guarantee a token.
             if (response.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && response.containsKey("body")) {
                 V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyStore, this.identityScope);
             }

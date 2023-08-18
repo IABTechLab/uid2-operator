@@ -1,9 +1,11 @@
 package com.uid2.operator;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.*;
+import com.uid2.operator.util.Tuple;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.IClock;
@@ -41,20 +43,24 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
+import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.io.IOException;
+import javax.crypto.SecretKey;
 import java.math.BigInteger;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import java.security.*;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -66,7 +72,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
-
 
 
 @ExtendWith(VertxExtension.class)
@@ -103,11 +108,15 @@ public class UIDOperatorVerticleTest {
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
     private static final byte[] clientSecret = Random.getRandomKeyBytes();
 
+    private static final String clientSideTokenGeneratePrivateKey = "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
+    private static final String clientSideTokenGeneratePublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
+
     private AttestationTokenRetriever fakeAttestationTokenRetriever ;
     private UidCoreClient fakeCoreClient;
 
     private OperatorDisableHandler operatorDisableHandler;
 
+    private ExtendedUIDOperatorVerticle uidOperatorVerticle;
 
     @Mock
     private IStatsCollectorQueue statsCollectorQueue;
@@ -135,11 +144,11 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
 
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
 
-        verticle.setDisableHandler(this.operatorDisableHandler);
+        uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
 
-        vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
+        vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 
         registry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(registry);
@@ -158,7 +167,7 @@ public class UIDOperatorVerticleTest {
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         config.put("client_side_token_generate_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_site_test_private_key", "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==");
+        config.put("client_site_test_private_key", clientSideTokenGeneratePrivateKey);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -2371,11 +2380,19 @@ public class UIDOperatorVerticleTest {
         req.sendJsonObject(body, handler);
     }
 
-    private void sendCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject postPayload, int expectedHttpCode, Handler<JsonObject> handler) {
+    private void sendCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject postPayload, SecretKey secretKey, int expectedHttpCode, Handler<JsonObject> handler) {
         postCstg(vertx, endpoint, httpOriginHeader, postPayload, ar -> {
             assertTrue(ar.succeeded());
             assertEquals(expectedHttpCode, ar.result().statusCode());
-            handler.handle(tryParseResponse(ar.result()));
+
+            // successful response is encrypted
+            if (ar.result().statusCode() == 200) {
+                byte[] decrypted = decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, secretKey.getEncoded());
+                JsonObject respJson = new JsonObject(new String(decrypted, 0, decrypted.length - 0, StandardCharsets.UTF_8));
+                handler.handle(respJson);
+            } else { //errors is in plain text
+                handler.handle(tryParseResponse(ar.result()));
+            }
         });
     }
 
@@ -2388,7 +2405,12 @@ public class UIDOperatorVerticleTest {
         1691566865787, "subscription_id":"abcdefg"
         }
      */
-    private static JsonObject cstgRequestJson = (new JsonObject()).put("payload","rF76B2OpY4hsGAsDsN5bQj8qOYA9hW+S4jEfvpAUi+DBNms5C8HBPiTZFLcHqGHddgGOMQKmp/bNR2yRgjooGZK7nlIk/FeI9b9sfeY=").put("iv","SLKIgc0rS4bMjJaN").put("public_key","MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEknAL8xvPVbFEBqzuXtTJ7xfEw/SbYF6KiCy8A9zirIr291P7coCom9lI5I9HgRPDJinV63VREoyB368M5VDQoA==").put("timestamp", 1691566865787L).put("subscription_id","abcdefg");
+    private static JsonObject cstgRequestJson = (new JsonObject())
+            .put("payload","rF76B2OpY4hsGAsDsN5bQj8qOYA9hW+S4jEfvpAUi+DBNms5C8HBPiTZFLcHqGHddgGOMQKmp/bNR2yRgjooGZK7nlIk/FeI9b9sfeY=")
+            .put("iv","SLKIgc0rS4bMjJaN")
+            .put("public_key","MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEknAL8xvPVbFEBqzuXtTJ7xfEw/SbYF6KiCy8A9zirIr291P7coCom9lI5I9HgRPDJinV63VREoyB368M5VDQoA==")
+            .put("timestamp", 1691566865787L)
+            .put("subscription_id","abcdefg");
 
     private void setupCstgBackend()
     {
@@ -2400,17 +2422,41 @@ public class UIDOperatorVerticleTest {
         setupSiteKey(clientSiteId, siteKeyId);
     }
 
+    //if no identity is provided will get an error
+    @Test
+    void cstgNoIdentityHashProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend();
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithNoPayload();
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "https://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                400,
+                respJson -> {
+                    assertFalse(respJson.containsKey("body"));
+                    assertEquals("no email or phone hash provided", respJson.getString("message"));
+                    assertEquals(UIDOperatorVerticle.ResponseStatus.GenericError, respJson.getString("status"));
+                    testContext.completeNow();
+                });
+
+
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"https://blahblah.com", "http://local1host:8080"})
-    void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) {
+    void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com");
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
-                cstgRequestJson,
+                data.getItem1(),
+                data.getItem2(),
                 403,
                 respJson -> {
                     assertFalse(respJson.containsKey("body"));
+                    assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
                     testContext.completeNow();
                 });
@@ -2418,17 +2464,152 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"https://cstg.co.uk", "https://cstg2.com", "http://localhost:8080"})
-    void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) {
+    void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com");
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
-                cstgRequestJson,
+                data.getItem1(),
+                data.getItem2(),
                 200,
                 respJson -> {
-                    //the response is below but it's encrypted so we won't try to verify the response
-                    //for this test - checking the returned 200 http response code is enough for now
-                    //GuSea5jA7AYp8ZPQaOYH6ZI82pFc7z8tnLVDrYbXccGtxLukrrx5m0jIfwUIZZGzEbF3TWbLCgP2Wmx6C9GzEczxl9Uq/0shKd4zbh12eUkqOpsyQ35+yNJpQYdkMzb7YJ4n5vIPjGEvVCX7UekJD8wHmJE8E1wXp+/0CbyAX39DDvN87P7jTJJcvVxVo8s3zjKeQ7gnihhJUZOcYU9BtnqbXULZKGTXSYR8xoxSeeSoR5ZPYg2252baxbMy8GgLtJlStkA7D0ANcSN50EFGaBnX4oCGwnMmfJIeSIsBTNjhkwJ3X4C0C0qgcBTd87BhS8BPAzBCZPvZJW930Ttw6c1CERxzbWAmC8Q5gbBOw/8YFr4siKrbtV/kfzlMumbySCi2OP+mQVnZxaeWWTa27E5BsEeJBmpuy0goNCYCFXUZjOZZ8L6YwG12kGl6MDrwPjTrrsP7o4SuthhVYtH06ZLNxYcj/tKxJxAURyUmRSmaZ7VgEJz1MiC8+EPTmiRY5TH33JCLmP8JROlfDznxMtsGzg+v3qVUr/Efaz0cu9dqn3S6vedQ25z3MuIiqf8N4sP2BAeOx0Pj9Qt/QbqJusBA2WKDmd2uM0QawDvGgcAUsAFxn3WHTgJlS3sy+mLPQpmgas8E1oFkkwxsW44YVD9ZFPlb8yllTyQLKrO2i1ORAy59HimneObXCiiVeSQD530oIWsGuWQTDPY/T+EA/OTedlAAmpsHzJgl/qkH8WOO/NFO/yprI0y1pGnli3Q50M+l
+                    assertTrue(respJson.containsKey("body"));
+                    assertEquals("success", respJson.getString("status"));
+                    testContext.completeNow();
+                });
+    }
+
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithPayload(JsonObject identityPayload) throws NoSuchAlgorithmException, InvalidKeyException {
+
+        final KeyFactory kf = KeyFactory.getInstance("EC");
+        final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
+        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
+        final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
+
+        final byte[] iv = Random.getBytes(12);
+        final long timestamp = 12345;
+        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
+        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad);
+        final String payload = EncodingUtils.toBase64String(payloadBytes);
+
+        JsonObject requestJson = new JsonObject();
+        requestJson.put("payload", payload);
+        requestJson.put("iv", EncodingUtils.toBase64String(iv));
+        requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
+        requestJson.put("timestamp", timestamp);
+        requestJson.put("subscription_id", "abcdefg");
+
+        return new Tuple.Tuple2<>(requestJson, secretKey);
+    }
+
+
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId) throws NoSuchAlgorithmException, InvalidKeyException {
+
+        JsonObject identity = new JsonObject();
+
+        if(identityType == IdentityType.Email) {
+            identity.put("email_hash", getSha256(rawId));
+        }
+        else if(identityType == IdentityType.Phone) {
+            identity.put("phone_hash", getSha256(rawId));
+        }
+        else { //can't be other types
+            assertFalse(true);
+        }
+        return createClientSideTokenGenerateRequestWithPayload(identity);
+    }
+
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithNoPayload() throws NoSuchAlgorithmException, InvalidKeyException {
+        JsonObject identity = new JsonObject();
+        return createClientSideTokenGenerateRequestWithPayload(identity);
+    }
+
+
+    // tests for opted out user should lead to generating ad tokens with the default optout identity
+    // tests for opted in user should lead to generating ad tokens that never match the default optout identity
+    // tests for all email/phone combos
+    @ParameterizedTest
+    @CsvSource({"true,abc@abc.com,Email,optout@unifiedid.com","true,+61400000000,Phone,+00000000001",
+            "false,abc@abc.com,Email,optout@unifiedid.com","false,+61400000000,Phone,+00000000001"})
+    void cstgOptedOutTest(boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
+                      Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend();
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id);
+        if(optOutExpected)
+        {
+            when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                    .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
+        }
+        else { //not expectedOptedOut
+            when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                    .thenReturn(null);
+        }
+
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "https://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                200,
+                respJson -> {
+                    JsonObject genBody = respJson.getJsonObject("body");
+                    assertNotNull(genBody);
+
+                    decodeV2RefreshToken(respJson);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(keyStore);
+
+                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
+                    assertEquals(123, advertisingToken.publisherIdentity.siteId);
+
+                    if(identityType == IdentityType.Email) {
+                        assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email,
+                                TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
+                                firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+                    }
+                    else if(identityType == IdentityType.Phone) {
+                        assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Phone,
+                                TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
+                                firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+                    }
+                    else { //should never happen
+                        assertFalse(true);
+                    }
+
+                    RefreshToken refreshToken = encoder.decodeRefreshToken(genBody.getString("decrypted_refresh_token"));
+                    assertEquals(123, refreshToken.publisherIdentity.siteId);
+
+                    if(optOutExpected) {
+                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(expectedOptedOutIdentity), firstLevelSalt), refreshToken.userIdentity.id);
+                    }
+                    else {
+                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(id), firstLevelSalt), refreshToken.userIdentity.id);
+                    }
+
+                    assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
+                    assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_expires")), 10);
+                    assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_from")), 10);
+
+
+                    String advertisingTokenString = genBody.getString("advertising_token");
+
+                    InputUtil.InputVal input;
+                    if(identityType == IdentityType.Email) {
+                        input = InputUtil.InputVal.validEmail(expectedOptedOutIdentity, expectedOptedOutIdentity);
+                    }
+                    else if(identityType == IdentityType.Phone) {
+                        input = InputUtil.InputVal.validPhone(expectedOptedOutIdentity, expectedOptedOutIdentity);
+                    }
+                    else { //should never happen
+                        input = null;
+                        assertFalse(true);
+                    }
+
+                    final Instant now = Instant.now();
+                    final String token = advertisingTokenString;
+                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, input.toUserIdentity(getIdentityScope(), 0, now), now);
+
+                    assertEquals(optOutExpected, matchedOptedOutIdentity);
                     testContext.completeNow();
                 });
     }

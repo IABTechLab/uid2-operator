@@ -49,7 +49,6 @@ import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.*;
 import java.time.*;
@@ -59,6 +58,8 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
+import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle{
@@ -68,6 +69,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public static final byte[] ValidationInputEmailHash = EncodingUtils.getSha256Bytes(ValidationInputEmail);
     public static final String ValidationInputPhone = "+12345678901";
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
+
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
 
     private static final int DEFAULT_MASTER_KEYSET_ID = 1;
@@ -83,7 +85,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final Clock clock;
-    private IUIDOperatorService idService;
+    protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
@@ -374,6 +376,21 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();
 
+        if(cstgDoDomainNameCheck) {
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
+            String origin = rc.request().getHeader("origin");
+
+            // if you want to see what http origin header is provided, uncomment this line
+            // LOGGER.info("origin: " + origin);
+
+            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+            if(!allowedDomain) {
+                ResponseUtil.Error(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
+                return;
+            }
+        }
+
+
         final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
 
         final byte[] ivBytes = Base64.getDecoder().decode(iv);
@@ -394,30 +411,64 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         final JsonObject requestPayload = new JsonObject(Buffer.buffer(Unpooled.wrappedBuffer(requestPayloadBytes)));
-        final String emailHash = requestPayload.getString("email_hash");
 
-        final InputUtil.InputVal input = InputUtil.normalizeEmailHash(emailHash);
+
+        final String emailHash = requestPayload.getString("email_hash");
+        final String phoneHash = requestPayload.getString("phone_hash");
+        final InputUtil.InputVal input;
+
+        if(emailHash != null) {
+            input = InputUtil.normalizeEmailHash(emailHash);
+        }
+        else if(phoneHash != null) {
+            input = InputUtil.normalizePhoneHash(phoneHash);
+        }
+        else {
+            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "no email or phone hash provided");
+            return;
+        }
 
         PrivacyBits privacyBits = new PrivacyBits();
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();
 
-        final IdentityTokens identityTokens = this.idService.generateIdentity(
+        IdentityTokens identityTokens = this.idService.generateIdentity(
                 new IdentityRequest(
                         new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                         TokenGeneratePolicy.RespectOptOut));
 
+
         if (identityTokens.isEmptyToken()) {
-            //todo handle optout (probably not like this)
-            //ResponseUtil.SuccessNoBodyV2("optout", rc);
-            //TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut);
-        } else {
-            final JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
-            final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
-            rc.response().end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-            //TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
+            //user opted out we will generate a token with the opted out user identity
+            UserIdentity cstgOptOutIdentity;
+            if(input.getIdentityType() == IdentityType.Email) {
+                cstgOptOutIdentity = InputUtil.InputVal.validEmail(ClientSideTokenGenerateOptOutIdentityForEmail, ClientSideTokenGenerateOptOutIdentityForEmail).toUserIdentity(identityScope, 0,  Instant.now());
+            }
+            else {
+                cstgOptOutIdentity = InputUtil.InputVal.validPhone(ClientSideTokenGenerateOptOutIdentityForPhone, ClientSideTokenGenerateOptOutIdentityForPhone).toUserIdentity(identityScope, 0,  Instant.now());
+
+            }
+            identityTokens = this.idService.generateIdentity(
+                    new IdentityRequest(
+                            new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
+                            cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate));
         }
+        JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
+        int httpStatusCode = 200;
+        try {
+            if (response.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && response.containsKey("body")) {
+                V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyStore, this.identityScope);
+            }
+        }
+        catch (Exception ex){
+            LOGGER.error("Failed to generate token", ex);
+            httpStatusCode = 500;
+            response = ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, "");
+        }
+        final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
+        rc.response().setStatusCode(httpStatusCode).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+        //TokenResponseStatsCollector.record(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

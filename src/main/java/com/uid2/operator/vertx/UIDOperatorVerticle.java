@@ -131,7 +131,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
-        this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_do_domain_name_check", true);
+        this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -295,9 +295,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
         if ("abcdefg".equals(subscriptionId)) {
-            Set<String> result = new HashSet<>();
-            Arrays.stream(config.getString("client_side_token_generate_domain_name_list").split(",")).forEach(d -> result.add(d));
-            return result;
+            return Arrays.stream(config.getString("client_side_token_generate_domain_name_list").split(","))
+                    .collect(Collectors.toSet());
         }
         else {
             return null;
@@ -402,7 +401,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             input = InputUtil.normalizePhoneHash(phoneHash);
         }
         else {
-            final JsonObject response = ResponseUtil.Error(ResponseStatus.GenericError, "no email or phone hash provided");
             ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "no email or phone hash provided");
             return;
         }
@@ -436,7 +434,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
         int httpStatusCode = 200;
         try {
-            // DevNote: 200 does not guarantee a token.
             if (response.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && response.containsKey("body")) {
                 V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyStore, this.identityScope);
             }
@@ -1687,17 +1684,16 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     public static class ResponseStatus {
-        public static String Success = "success";
-        public static String Unauthorized = "unauthorized";
-        public static String ClientError = "client_error";
-        public static String OptOut = "optout";
-        public static String InvalidToken = "invalid_token";
-        public static String ExpiredToken = "expired_token";
-        public static String GenericError = "error";
-        public static String UnknownError = "unknown";
-        public static String InsufficientUserConsent = "insufficient_user_consent";
-
-        public static String InvalidHttpOrigin = "invalid_http_origin";
+        public static final String Success = "success";
+        public static final String Unauthorized = "unauthorized";
+        public static final String ClientError = "client_error";
+        public static final String OptOut = "optout";
+        public static final String InvalidToken = "invalid_token";
+        public static final String ExpiredToken = "expired_token";
+        public static final String GenericError = "error";
+        public static final String UnknownError = "unknown";
+        public static final String InsufficientUserConsent = "insufficient_user_consent";
+        public static final String InvalidHttpOrigin = "invalid_http_origin";
     }
 
     public static enum UserConsentStatus {

@@ -18,16 +18,8 @@ import static org.junit.Assert.assertTrue;
 public class DomainNameCheckUtilTest {
 
     @Test
-    public void testDomainNameCheck() throws MalformedURLException {
-
+    public void testDomainNameCheckSuccess() throws MalformedURLException {
         Set<String> allowedDomainNamesForProd = new HashSet<>(Arrays.asList("examplewebsite.com","e-wb.org","aussiedomain.id.au"));
-
-        //a few malformed URLs
-        assertFalse(isDomainNameAllowed("examplewebsite.com", allowedDomainNamesForProd));
-        assertFalse(isDomainNameAllowed("examplewebsite.com:999999", allowedDomainNamesForProd));
-        assertFalse(isDomainNameAllowed("abc:examplewebsite.com", allowedDomainNamesForProd));
-        assertFalse(isDomainNameAllowed("/:$2231examplewebsite.com", allowedDomainNamesForProd));
-        assertFalse(isDomainNameAllowed("/:$2231examplewebsite.com/23423/sfs.html", allowedDomainNamesForProd));
 
         //most basic examples
         assertTrue(isDomainNameAllowed("http://examplewebsite.com", allowedDomainNamesForProd));
@@ -53,9 +45,22 @@ public class DomainNameCheckUtilTest {
         //points to a specific file and subdirectory
         assertTrue(isDomainNameAllowed("https://abc.e-wb.org:8080/blahh/a.html", allowedDomainNamesForProd));
 
-        //testing TLD with 2 suffixes (.id.au)
+        //testing for TLD with 2 suffixes (.id.au)
         assertTrue(isDomainNameAllowed("http://aussiedomain.id.au", allowedDomainNamesForProd));
         assertTrue(isDomainNameAllowed("https://aussiedomain.id.au/head.html", allowedDomainNamesForProd));
+    }
+
+    @Test
+    public void testDomainNameCheckFailure() throws MalformedURLException {
+
+        Set<String> allowedDomainNamesForProd = new HashSet<>(Arrays.asList("examplewebsite.com","e-wb.org","aussiedomain.id.au"));
+
+        //a few malformed URLs
+        assertFalse(isDomainNameAllowed("examplewebsite.com", allowedDomainNamesForProd));
+        assertFalse(isDomainNameAllowed("examplewebsite.com:999999", allowedDomainNamesForProd));
+        assertFalse(isDomainNameAllowed("abc:examplewebsite.com", allowedDomainNamesForProd));
+        assertFalse(isDomainNameAllowed("/:$2231examplewebsite.com", allowedDomainNamesForProd));
+        assertFalse(isDomainNameAllowed("/:$2231examplewebsite.com/23423/sfs.html", allowedDomainNamesForProd));
 
         //reject disallowed domain names
         assertFalse(isDomainNameAllowed("http://boohoo.id.au", allowedDomainNamesForProd));

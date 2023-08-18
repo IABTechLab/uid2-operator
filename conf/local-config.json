@@ -1,9 +1,7 @@
 {
   "service_instances": 4,
   "storage_mock": true,
-  "sites_metadata_path": "/com.uid2.core/test/sites/metadata.json",
   "clients_metadata_path": "/com.uid2.core/test/clients/metadata.json",
-  "client_side_keypairs_metadata_path": "/com.uid2.core/test/client_side_keypairs/metadata.json",
   "keys_metadata_path": "/com.uid2.core/test/keys/metadata.json",
   "keys_acl_metadata_path": "/com.uid2.core/test/keys_acl/metadata.json",
   "salts_metadata_path": "/com.uid2.core/test/salts/metadata.json",
@@ -31,7 +29,7 @@
   "optout_max_partitions": 30,
   "optout_partition_interval": 86400,
   "client_side_token_generate": true,
-  "client_side_token_generate_do_domain_name_check": false,
+  "client_side_token_generate_domain_name_check_enabled": false,
   "client_side_token_generate_domain_name_list" : "localhost,uidapi.com",
   "client_site_test_private_key" : "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==",
   "//note the public key is this" : "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg=="

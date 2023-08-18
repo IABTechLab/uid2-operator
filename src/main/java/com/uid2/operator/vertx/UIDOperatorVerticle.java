@@ -12,7 +12,7 @@ import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
 import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
-//import com.uid2.operator.util.DomainNameCheckUtil;
+import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -97,6 +97,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final boolean phoneSupport;
     private final int tcfVendorId;
 
+    private final boolean cstgDoDomainNameCheck;
+
 
     private final IStatsCollectorQueue _statsCollectorQueue;
 
@@ -126,7 +128,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
-
+        this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -290,9 +292,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
         if ("abcdefg".equals(subscriptionId)) {
-            Set<String> result = new HashSet<>();
-            Arrays.stream(config.getString("client_site_domain_name_list").split(",")).map(d -> result.add(d));
-            return result;
+            return Arrays.stream(config.getString("client_side_token_generate_domain_name_list").split(","))
+                    .collect(Collectors.toSet());
         }
         else {
             return null;
@@ -329,17 +330,22 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final String iv = body.getString("iv");
         final String subscriptionId = body.getString("subscription_id");
         final String clientPublicKeyString = body.getString("public_key");
-        final long timestamp = body.getLong("timestamp");
+        //instead of crashing use a default value
+        final long timestamp = body.getLong("timestamp", 0L);
 
+        if(cstgDoDomainNameCheck) {
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
+            String origin = rc.request().getHeader("origin");
 
-//        final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
-//        String origin = rc.request().getHeader("origin");
-//
-//        boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-//        if(!allowedDomain) {
-//            rc.fail(401);
-//            return;
-//        }
+            // if you want to see what http origin header is provided, uncomment this line
+            // LOGGER.info("origin: " + origin);
+
+            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+            if(!allowedDomain) {
+                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
+                return;
+            }
+        }
 
         final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
 
@@ -353,6 +359,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             rc.fail(401);
             return;
         }
+
 
         final byte[] privateKeyBytes = Base64.getDecoder().decode(clientSideKeyPair.getPrivateKeyString());
         final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
@@ -1649,15 +1656,16 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     public static class ResponseStatus {
-        public static String Success = "success";
-        public static String Unauthorized = "unauthorized";
-        public static String ClientError = "client_error";
-        public static String OptOut = "optout";
-        public static String InvalidToken = "invalid_token";
-        public static String ExpiredToken = "expired_token";
-        public static String GenericError = "error";
-        public static String UnknownError = "unknown";
-        public static String InsufficientUserConsent = "insufficient_user_consent";
+        public static final String Success = "success";
+        public static final String Unauthorized = "unauthorized";
+        public static final String ClientError = "client_error";
+        public static final String OptOut = "optout";
+        public static final String InvalidToken = "invalid_token";
+        public static final String ExpiredToken = "expired_token";
+        public static final String GenericError = "error";
+        public static final String UnknownError = "unknown";
+        public static final String InsufficientUserConsent = "insufficient_user_consent";
+        public static final String InvalidHttpOrigin = "invalid_http_origin";
     }
 
     public static enum UserConsentStatus {

@@ -156,6 +156,9 @@ public class UIDOperatorVerticleTest {
         config.put("advertising_token_v3", getTokenVersion() == TokenVersion.V3);
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
         config.put("identity_v3", useIdentityV3());
+        config.put("client_side_token_generate", true);
+        config.put("client_side_token_generate_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
+        config.put("client_site_test_private_key", "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==");
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -730,6 +733,7 @@ public class UIDOperatorVerticleTest {
             v1Param, v2Payload, 400,
             json -> {
                 assertFalse(json.containsKey("body"));
+
                 assertEquals("client_error", json.getString("status"));
                 testContext.completeNow();
             });
@@ -2359,6 +2363,76 @@ public class UIDOperatorVerticleTest {
                     testContext.completeNow();
                 });
     }
+
+    private void postCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
+        WebClient client = WebClient.create(vertx);
+        HttpRequest<Buffer> req = client.postAbs(getUrlForEndpoint(endpoint));
+        req.putHeader("origin", httpOriginHeader);
+        req.sendJsonObject(body, handler);
+    }
+
+    private void sendCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject postPayload, int expectedHttpCode, Handler<JsonObject> handler) {
+        postCstg(vertx, endpoint, httpOriginHeader, postPayload, ar -> {
+            assertTrue(ar.succeeded());
+            assertEquals(expectedHttpCode, ar.result().statusCode());
+            handler.handle(tryParseResponse(ar.result()));
+        });
+    }
+
+    /*
+        {
+        "payload":
+        "rF76B2OpY4hsGAsDsN5bQj8qOYA9hW+S4jEfvpAUi+DBNms5C8HBPiTZFLcHqGHddgGOMQKmp/bNR2yRgjooGZK7nlIk/FeI9b9sfeY=", "iv":
+        "SLKIgc0rS4bMjJaN", "public_key":
+        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEknAL8xvPVbFEBqzuXtTJ7xfEw/SbYF6KiCy8A9zirIr291P7coCom9lI5I9HgRPDJinV63VREoyB368M5VDQoA==", "timestamp":
+        1691566865787, "subscription_id":"abcdefg"
+        }
+     */
+    private static JsonObject cstgRequestJson = (new JsonObject()).put("payload","rF76B2OpY4hsGAsDsN5bQj8qOYA9hW+S4jEfvpAUi+DBNms5C8HBPiTZFLcHqGHddgGOMQKmp/bNR2yRgjooGZK7nlIk/FeI9b9sfeY=").put("iv","SLKIgc0rS4bMjJaN").put("public_key","MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEknAL8xvPVbFEBqzuXtTJ7xfEw/SbYF6KiCy8A9zirIr291P7coCom9lI5I9HgRPDJinV63VREoyB368M5VDQoA==").put("timestamp", 1691566865787L).put("subscription_id","abcdefg");
+
+    private void setupCstgBackend()
+    {
+        //must match up to whatever getPrivateKeyForClientSideTokenGenerate returns for now
+        final int clientSiteId = 123;
+        final int siteKeyId = 1201;
+        setupSalts();
+        setupKeys();
+        setupSiteKey(clientSiteId, siteKeyId);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"https://blahblah.com", "http://local1host:8080"})
+    void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) {
+        setupCstgBackend();
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                httpOrigin,
+                cstgRequestJson,
+                403,
+                respJson -> {
+                    assertFalse(respJson.containsKey("body"));
+                    assertEquals("invalid_http_origin", respJson.getString("status"));
+                    testContext.completeNow();
+                });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"https://cstg.co.uk", "https://cstg2.com", "http://localhost:8080"})
+    void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) {
+        setupCstgBackend();
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                httpOrigin,
+                cstgRequestJson,
+                200,
+                respJson -> {
+                    //the response is below but it's encrypted so we won't try to verify the response
+                    //for this test - checking the returned 200 http response code is enough for now
+                    //GuSea5jA7AYp8ZPQaOYH6ZI82pFc7z8tnLVDrYbXccGtxLukrrx5m0jIfwUIZZGzEbF3TWbLCgP2Wmx6C9GzEczxl9Uq/0shKd4zbh12eUkqOpsyQ35+yNJpQYdkMzb7YJ4n5vIPjGEvVCX7UekJD8wHmJE8E1wXp+/0CbyAX39DDvN87P7jTJJcvVxVo8s3zjKeQ7gnihhJUZOcYU9BtnqbXULZKGTXSYR8xoxSeeSoR5ZPYg2252baxbMy8GgLtJlStkA7D0ANcSN50EFGaBnX4oCGwnMmfJIeSIsBTNjhkwJ3X4C0C0qgcBTd87BhS8BPAzBCZPvZJW930Ttw6c1CERxzbWAmC8Q5gbBOw/8YFr4siKrbtV/kfzlMumbySCi2OP+mQVnZxaeWWTa27E5BsEeJBmpuy0goNCYCFXUZjOZZ8L6YwG12kGl6MDrwPjTrrsP7o4SuthhVYtH06ZLNxYcj/tKxJxAURyUmRSmaZ7VgEJz1MiC8+EPTmiRY5TH33JCLmP8JROlfDznxMtsGzg+v3qVUr/Efaz0cu9dqn3S6vedQ25z3MuIiqf8N4sP2BAeOx0Pj9Qt/QbqJusBA2WKDmd2uM0QawDvGgcAUsAFxn3WHTgJlS3sy+mLPQpmgas8E1oFkkwxsW44YVD9ZFPlb8yllTyQLKrO2i1ORAy59HimneObXCiiVeSQD530oIWsGuWQTDPY/T+EA/OTedlAAmpsHzJgl/qkH8WOO/NFO/yprI0y1pGnli3Q50M+l
+                    testContext.completeNow();
+                });
+    }
+
 
 
 }

@@ -353,21 +353,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();
 
-        if(cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
-            String origin = rc.request().getHeader("origin");
-
-            // if you want to see what http origin header is provided, uncomment this line
-            // LOGGER.info("origin: " + origin);
-
-            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-            if(!allowedDomain) {
-                ResponseUtil.Error(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
-                return;
-            }
-        }
-
-
         final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
 
         final byte[] ivBytes = Base64.getDecoder().decode(iv);

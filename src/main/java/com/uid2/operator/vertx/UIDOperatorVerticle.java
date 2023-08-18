@@ -101,6 +101,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final int tcfVendorId;
 
     private final boolean cstgDoDomainNameCheck;
+    private final String cstgTestDomainNameList;
+    private final String cstgTestSubscriptionId;
+    private final String cstgTestPrivateKey;
+    private final Integer cstgTestSiteId;
 
 
     private final IStatsCollectorQueue _statsCollectorQueue;
@@ -132,6 +136,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
+        this.cstgTestDomainNameList = config.getString("client_side_token_generate_test_domain_name_list", "");
+        this.cstgTestSubscriptionId = config.getString("client_side_token_generate_test_subscription_id");
+        this.cstgTestPrivateKey = config.getString("client_side_token_generate_test_private_key");
+        this.cstgTestSiteId = config.getInteger("client_side_token_generate_test_site_id");
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -285,8 +293,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private ClientSideKeyPair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
-        if ("abcdefg".equals(subscriptionId)) {
-            return new ClientSideKeyPair(123, config.getString("client_site_test_private_key"));
+
+        if(cstgTestSubscriptionId == null || cstgTestSiteId == null || cstgTestPrivateKey == null) {
+            return null;
+        }
+
+        if (cstgTestSubscriptionId.equals(subscriptionId)) {
+            return new ClientSideKeyPair(cstgTestSiteId, cstgTestPrivateKey);
         }
         else {
             return null;
@@ -294,12 +307,15 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
-        if ("abcdefg".equals(subscriptionId)) {
-            return Arrays.stream(config.getString("client_side_token_generate_domain_name_list").split(","))
-                    .collect(Collectors.toSet());
+        if(cstgTestSubscriptionId == null) {
+            return new HashSet<>();
+        }
+
+        if (cstgTestSubscriptionId.equals(subscriptionId)) {
+            return Arrays.stream(cstgTestDomainNameList.split(",")).collect(Collectors.toSet());
         }
         else {
-            return null;
+            return new HashSet<>();
         }
     }
 

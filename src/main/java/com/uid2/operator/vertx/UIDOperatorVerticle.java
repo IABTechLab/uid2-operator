@@ -1656,17 +1656,16 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     public static class ResponseStatus {
-        public static String Success = "success";
-        public static String Unauthorized = "unauthorized";
-        public static String ClientError = "client_error";
-        public static String OptOut = "optout";
-        public static String InvalidToken = "invalid_token";
-        public static String ExpiredToken = "expired_token";
-        public static String GenericError = "error";
-        public static String UnknownError = "unknown";
-        public static String InsufficientUserConsent = "insufficient_user_consent";
-
-        public static String InvalidHttpOrigin = "invalid_http_origin";
+        public static final String Success = "success";
+        public static final String Unauthorized = "unauthorized";
+        public static final String ClientError = "client_error";
+        public static final String OptOut = "optout";
+        public static final String InvalidToken = "invalid_token";
+        public static final String ExpiredToken = "expired_token";
+        public static final String GenericError = "error";
+        public static final String UnknownError = "unknown";
+        public static final String InsufficientUserConsent = "insufficient_user_consent";
+        public static final String InvalidHttpOrigin = "invalid_http_origin";
     }
 
     public static enum UserConsentStatus {

@@ -38,3 +38,16 @@ jobs:
           url: http://localhost:8088/ops/healthcheck
           max-attempts: 5
           retry-delay: 5s
+
+      - uses: luisboto/ngrok-tunnel-action@v0.1.7.2
+        with:
+          timeout: 1h
+          port: 8088
+          ngrok_authtoken: ${{ secrets.NGROK_AUTHTOKEN }}
+          tunnel_type: http
+          save_url_to_filename: tunnelURL.md
+
+      - name: Bring up dependencies
+        run: |
+          echo --- Check ---
+          echo TempURl: $(cat temp)

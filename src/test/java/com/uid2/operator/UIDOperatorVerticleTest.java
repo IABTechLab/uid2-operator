@@ -2385,7 +2385,7 @@ public class UIDOperatorVerticleTest {
             assertTrue(ar.succeeded());
             assertEquals(expectedHttpCode, ar.result().statusCode());
 
-            // successful response is enecrypted
+            // successful response is encrypted
             if (ar.result().statusCode() == 200) {
                 byte[] decrypted = decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, secretKey.getEncoded());
                 JsonObject respJson = new JsonObject(new String(decrypted, 0, decrypted.length - 0, StandardCharsets.UTF_8));
@@ -2393,7 +2393,6 @@ public class UIDOperatorVerticleTest {
             } else { //errors is in plain text
                 handler.handle(tryParseResponse(ar.result()));
             }
-
         });
     }
 

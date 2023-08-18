@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      security-events: write
-      packages: write
+      packages: read
     steps:
       - name: Checkout full history
         uses: actions/checkout@v3
@@ -24,7 +23,8 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # we use personal access token here since we need to pull images from private repo (core)
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Bring up dependencies
         run: |

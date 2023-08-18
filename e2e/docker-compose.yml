@@ -22,3 +22,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 3
+
+  core:
+    container_name: core
+    image: ghcr.io/iabtechlab/uid2-core:2.9.0-46b2d8519f-master-default
+    ports:
+      - "127.0.0.1:8088:8088"
+    volumes:
+      - ./docker/uid2-core/conf/local-e2e-docker-config.json:/app/conf/local-config.json
+    depends_on:
+      localstack:
+        condition: service_healthy

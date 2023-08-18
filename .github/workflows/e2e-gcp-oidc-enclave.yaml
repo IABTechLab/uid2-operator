@@ -49,5 +49,5 @@ jobs:
 
       - name: Bring up dependencies
         run: |
-          echo --- Check ---
-          echo TempURl: $(cat temp)
+          echo --- Check TempURl ---
+          echo TempURl: $(cat tunnelURL.md)

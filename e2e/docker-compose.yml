@@ -33,3 +33,4 @@ services:
     depends_on:
       localstack:
         condition: service_healthy
+

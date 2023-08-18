@@ -130,7 +130,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
-        this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_do_domain_name_check", true);
+        this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -294,9 +294,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
         if ("abcdefg".equals(subscriptionId)) {
-            Set<String> result = new HashSet<>();
-            Arrays.stream(config.getString("client_side_token_generate_domain_name_list").split(",")).forEach(d -> result.add(d));
-            return result;
+            return Arrays.stream(config.getString("client_side_token_generate_domain_name_list").split(","))
+                    .collect(Collectors.toSet());
         }
         else {
             return null;

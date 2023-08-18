@@ -29,7 +29,7 @@ services:
     ports:
       - "127.0.0.1:8088:8088"
     volumes:
-      - ./docker/uid2-core/conf/local-e2e-docker-public-config.json:/app/conf/local-config.json
+      - ./docker/uid2-core/conf/local-e2e-docker-config.json:/app/conf/local-config.json
     depends_on:
       localstack:
         condition: service_healthy

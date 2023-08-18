@@ -2620,6 +2620,10 @@ public class UIDOperatorVerticleTest {
                     final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, input.toUserIdentity(getIdentityScope(), 0, now), now);
 
                     assertEquals(optOutExpected, matchedOptedOutIdentity);
+                    assertTokenStatusMetrics(
+                            123,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV0,
+                            TokenResponseStatsCollector.ResponseStatus.Success);
 
                     String genRefreshToken = genBody.getString("refresh_token");
                     //test a subsequent refresh from this cstg call and see if it still works

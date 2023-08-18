@@ -6,7 +6,7 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>4.1.12-3990986963</version>
+    <version>4.2.0-96fa0a9285-zdu-UID2-1179-Update-Operator-to-send-out-keys-to-sharing-endpoints</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

@@ -13,6 +13,7 @@ import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.operator.util.DomainNameCheckUtil;
+import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -302,30 +303,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    static class PrivacyBits { //todo move this
-        private int bits;
-        public PrivacyBits() {
-        }
-
-        public int getAsInt() {
-            return bits;
-        }
-
-        public void setClientSideTokenGenerate() {
-            setBit(1);
-        }
-        public void setLegacyBit() {
-            setBit(0);//unknown why this bit is set in https://github.com/IABTechLab/uid2-operator/blob/dbab58346e367c9d4122ad541ff9632dc37bd410/src/main/java/com/uid2/operator/vertx/UIDOperatorVerticle.java#L534
-        }
-
-        private void setBit(int position) {
-            bits |= (1 << position);
-        }
-        private boolean isBitSet(int position) {
-            return (bits & (1 << position)) != 0;
-        }
-    }
-
     private void handleClientSideTokenGenerateImpl(RoutingContext rc)  throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body = rc.body().asJsonObject();
         final String encryptedPayload = body.getString("payload");
@@ -375,21 +352,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();
-
-        if(cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
-            String origin = rc.request().getHeader("origin");
-
-            // if you want to see what http origin header is provided, uncomment this line
-            // LOGGER.info("origin: " + origin);
-
-            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-            if(!allowedDomain) {
-                ResponseUtil.Error(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
-                return;
-            }
-        }
-
 
         final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
 
@@ -441,13 +403,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         if (identityTokens.isEmptyToken()) {
             //user opted out we will generate a token with the opted out user identity
+            privacyBits.setClientSideTokenGenerateOptout();
             UserIdentity cstgOptOutIdentity;
             if(input.getIdentityType() == IdentityType.Email) {
-                cstgOptOutIdentity = InputUtil.InputVal.validEmail(ClientSideTokenGenerateOptOutIdentityForEmail, ClientSideTokenGenerateOptOutIdentityForEmail).toUserIdentity(identityScope, 0,  Instant.now());
+                cstgOptOutIdentity = InputUtil.InputVal.validEmail(ClientSideTokenGenerateOptOutIdentityForEmail, ClientSideTokenGenerateOptOutIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
             }
             else {
-                cstgOptOutIdentity = InputUtil.InputVal.validPhone(ClientSideTokenGenerateOptOutIdentityForPhone, ClientSideTokenGenerateOptOutIdentityForPhone).toUserIdentity(identityScope, 0,  Instant.now());
-
+                cstgOptOutIdentity = InputUtil.InputVal.validPhone(ClientSideTokenGenerateOptOutIdentityForPhone, ClientSideTokenGenerateOptOutIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
             }
             identityTokens = this.idService.generateIdentity(
                     new IdentityRequest(

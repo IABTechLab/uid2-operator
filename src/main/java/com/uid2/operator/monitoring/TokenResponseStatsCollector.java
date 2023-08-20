@@ -15,7 +15,8 @@ public class TokenResponseStatsCollector {
         GenerateV2,
         RefreshV0,
         RefreshV1,
-        RefreshV2
+        RefreshV2,
+        ClientSideTokenGenerateV0,
     }
 
     public enum ResponseStatus {

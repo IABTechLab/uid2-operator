@@ -167,8 +167,10 @@ public class UIDOperatorVerticleTest {
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
-        config.put("client_side_token_generate_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_site_test_private_key", clientSideTokenGeneratePrivateKey);
+        config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
+        config.put("client_side_token_generate_test_subscription_id", "abcdefg");
+        config.put("client_side_token_generate_test_private_key", clientSideTokenGeneratePrivateKey);
+        config.put("client_side_token_generate_test_site_id", 123);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -2413,22 +2415,6 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    /*
-        {
-        "payload":
-        "rF76B2OpY4hsGAsDsN5bQj8qOYA9hW+S4jEfvpAUi+DBNms5C8HBPiTZFLcHqGHddgGOMQKmp/bNR2yRgjooGZK7nlIk/FeI9b9sfeY=", "iv":
-        "SLKIgc0rS4bMjJaN", "public_key":
-        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEknAL8xvPVbFEBqzuXtTJ7xfEw/SbYF6KiCy8A9zirIr291P7coCom9lI5I9HgRPDJinV63VREoyB368M5VDQoA==", "timestamp":
-        1691566865787, "subscription_id":"abcdefg"
-        }
-     */
-    private static JsonObject cstgRequestJson = (new JsonObject())
-            .put("payload","rF76B2OpY4hsGAsDsN5bQj8qOYA9hW+S4jEfvpAUi+DBNms5C8HBPiTZFLcHqGHddgGOMQKmp/bNR2yRgjooGZK7nlIk/FeI9b9sfeY=")
-            .put("iv","SLKIgc0rS4bMjJaN")
-            .put("public_key","MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEknAL8xvPVbFEBqzuXtTJ7xfEw/SbYF6KiCy8A9zirIr291P7coCom9lI5I9HgRPDJinV63VREoyB368M5VDQoA==")
-            .put("timestamp", 1691566865787L)
-            .put("subscription_id","abcdefg");
-
     private void setupCstgBackend()
     {
         //must match up to whatever getPrivateKeyForClientSideTokenGenerate returns for now
@@ -2634,6 +2620,10 @@ public class UIDOperatorVerticleTest {
                     final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, input.toUserIdentity(getIdentityScope(), 0, now), now);
 
                     assertEquals(optOutExpected, matchedOptedOutIdentity);
+                    assertTokenStatusMetrics(
+                            123,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV0,
+                            TokenResponseStatsCollector.ResponseStatus.Success);
 
                     String genRefreshToken = genBody.getString("refresh_token");
                     //test a subsequent refresh from this cstg call and see if it still works

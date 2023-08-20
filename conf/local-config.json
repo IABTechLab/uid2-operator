@@ -30,7 +30,9 @@
   "optout_partition_interval": 86400,
   "client_side_token_generate": true,
   "client_side_token_generate_domain_name_check_enabled": false,
-  "client_side_token_generate_domain_name_list" : "localhost,uidapi.com",
-  "client_site_test_private_key" : "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==",
-  "//note the public key is this" : "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg=="
+  "client_side_token_generate_test_domain_name_list" : "localhost,uidapi.com",
+  "client_side_token_generate_test_subscription_id" : "abcdefg",
+  "client_side_token_generate_test_private_key" : "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==",
+  "//note the public key is this" : "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==",
+  "client_side_token_generate_test_site_id" : 123
 }

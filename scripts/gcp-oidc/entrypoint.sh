@@ -7,8 +7,8 @@ if [ -z "${API_TOKEN}" ]; then
   echo "API_TOKEN cannot be empty"
   exit 1
 fi
-export core_api_token=${API_TOKEN}
-export optout_api_token=${API_TOKEN}
+export core_api_token="${API_TOKEN}"
+export optout_api_token="${API_TOKEN}"
 
 # -- locate config file
 if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then
@@ -32,15 +32,6 @@ cp ${TARGET_CONFIG} ${FINAL_CONFIG}
 if [ $? -ne 0 ]; then
   echo "Failed to create ${FINAL_CONFIG} with error code $?"
   exit 1
-fi
-
-# -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
-# -- using hardcoded domains is fine because they should not be changed frequently
-if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONMENT}" != 'prod' ]; then
-    echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
-    sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
-
-    sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
 
 # -- start operator

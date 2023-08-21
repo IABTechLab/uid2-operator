@@ -57,6 +57,7 @@ public class Main {
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
+    private final RotatingSiteStore siteProvider;
 
     private final RotatingSiteStore siteProvider;
     private final RotatingClientKeyProvider clientKeyProvider;

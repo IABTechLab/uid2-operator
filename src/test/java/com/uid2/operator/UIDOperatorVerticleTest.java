@@ -109,8 +109,8 @@ public class UIDOperatorVerticleTest {
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
     private static final byte[] clientSecret = Random.getRandomKeyBytes();
 
-    private static final String clientSideTokenGeneratePrivateKey = "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
-    private static final String clientSideTokenGeneratePublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
+    private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-T-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
+    private static final String clientSideTokenGeneratePublicKey = "UID2-X-T-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
 
     private AttestationTokenRetriever fakeAttestationTokenRetriever ;
     private UidCoreClient fakeCoreClient;
@@ -168,7 +168,7 @@ public class UIDOperatorVerticleTest {
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_side_token_generate_test_subscription_id", "abcdefg");
+        config.put("client_side_token_generate_test_subscription_id", "4WvryDGbR5");
         config.put("client_side_token_generate_test_private_key", clientSideTokenGeneratePrivateKey);
         config.put("client_side_token_generate_test_site_id", 123);
     }
@@ -2501,7 +2501,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "abcdefg");
+        requestJson.put("subscription_id", "4WvryDGbR5");
 
         return new Tuple.Tuple2<>(requestJson, secretKey);
     }

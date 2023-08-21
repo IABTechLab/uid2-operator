@@ -328,6 +328,29 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         //instead of crashing use a default value
         final long timestamp = body.getLong("timestamp", 0L);
 
+        if (encryptedPayload == null || iv == null || subscriptionId == null || clientPublicKeyString == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "required parameters: payload, iv, subscription_id, public_key");
+            return;
+        }
+
+        final KeyFactory kf = KeyFactory.getInstance("EC");
+
+        final PublicKey clientPublicKey;
+        try {
+            final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
+            final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
+            clientPublicKey = kf.generatePublic(pkSpec);
+        } catch (Exception e) {
+            ResponseUtil.Error(ResponseStatus.ClientError,400, rc, "bad public key");
+            return;
+        }
+
+        final ClientSideKeyPair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
+        if (clientSideKeyPair == null) {
+            ResponseUtil.Error(ResponseStatus.Unauthorized, 401, rc, "bad subscription_id");
+            return;
+        }
+
         if(cstgDoDomainNameCheck) {
             final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
             String origin = rc.request().getHeader("origin");
@@ -342,20 +365,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
         }
 
-        final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
-
-        final KeyFactory kf = KeyFactory.getInstance("EC");
-
-        final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
-        final PublicKey clientPublicKey = kf.generatePublic(pkSpec);
-
-        final ClientSideKeyPair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
-        if (clientSideKeyPair == null) {
-            rc.fail(401);
-            return;
-        }
-
-
         final byte[] privateKeyBytes = Base64.getDecoder().decode(clientSideKeyPair.getPrivateKeyString());
         final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
         PrivateKey privateKey = kf.generatePrivate(keySpec);
@@ -369,27 +378,28 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();
 
-        final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
-
-        final byte[] ivBytes = Base64.getDecoder().decode(iv);
-
-        final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedPayloadBytes.length);
-        System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
-
-        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
+        final byte[] ivBytes;
+        try {
+            ivBytes = Base64.getDecoder().decode(iv);
+            assert ivBytes.length == 12;
+        } catch (Exception e) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad iv");
+            return;
+        }
 
         final byte[] requestPayloadBytes;
         try {
+            final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
+            final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
+            final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedPayloadBytes.length);
+            System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
             requestPayloadBytes = decrypt(ivAndCiphertext, 0, sharedSecret, aad);
-        } catch (InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
-            rc.response()
-                    .setStatusCode(HttpResponseStatus.BAD_REQUEST.code())
-                    .end();
+        } catch (Exception e) {
+            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "payload decryption failed");
             return;
         }
 
         final JsonObject requestPayload = new JsonObject(Buffer.buffer(Unpooled.wrappedBuffer(requestPayloadBytes)));
-
 
         final String emailHash = requestPayload.getString("email_hash");
         final String phoneHash = requestPayload.getString("phone_hash");

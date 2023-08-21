@@ -1317,7 +1317,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return null;        // only one type of input is allowed
             }
             getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
-            ;
         }
 
         if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {

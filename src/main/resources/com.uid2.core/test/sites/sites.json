@@ -2,7 +2,8 @@
   {
     "id": 123,
     "name": "MegaTest Site",
-    "enabled": true
+    "enabled": true,
+    "domain_names" : ["localhost", "uidapi.com"]
   },
   {
     "id": 124,

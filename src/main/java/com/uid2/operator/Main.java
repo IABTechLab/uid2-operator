@@ -59,6 +59,7 @@ public class Main {
     private final ICloudStorage fsOptOut;
     private final RotatingSiteStore siteProvider;
 
+    private final RotatingSiteStore siteProvider;
     private final RotatingClientKeyProvider clientKeyProvider;
     private final RotatingClientSideKeypairStore clientSideKeypairProvider;
     private final RotatingKeyStore keyStore;

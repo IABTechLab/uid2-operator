@@ -168,7 +168,7 @@ public class UIDOperatorVerticleTest {
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_side_token_generate_test_subscription_id", "abcdefg");
+        config.put("client_side_token_generate_test_subscription_id", "4WvryDGbR5");
         config.put("client_side_token_generate_test_private_key", clientSideTokenGeneratePrivateKey);
         config.put("client_side_token_generate_test_site_id", 123);
     }
@@ -2501,7 +2501,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "abcdefg");
+        requestJson.put("subscription_id", "4WvryDGbR5");
 
         return new Tuple.Tuple2<>(requestJson, secretKey);
     }

@@ -280,7 +280,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         //this class will be enhanced in UID2-1374
 
         public ClientSideKeyPair(int siteId, String privateKey) {
-            this.privateKey = privateKey;
+            this.privateKey = privateKey.substring(9);
             this.siteId = siteId;
         }
 

@@ -109,8 +109,8 @@ public class UIDOperatorVerticleTest {
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
     private static final byte[] clientSecret = Random.getRandomKeyBytes();
 
-    private static final String clientSideTokenGeneratePrivateKey = "MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
-    private static final String clientSideTokenGeneratePublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
+    private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-T-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
+    private static final String clientSideTokenGeneratePublicKey = "UID2-X-T-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
 
     private AttestationTokenRetriever fakeAttestationTokenRetriever ;
     private UidCoreClient fakeCoreClient;

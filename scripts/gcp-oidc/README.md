@@ -81,13 +81,12 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
 
 We can deploy new UID2 Operator in GCP Confidential Space Enclave into Integration Environment by following below steps.
 
-### Register enclave id in admin portal
-1. Generate enclave id (For uid2 admin)
-Go to Admin portal [GCP Enclave Id page](https://admin-integ.uidapi.com/adm/enclave-gcp-v2.html),
- - Input:
-   - the full digest for the image, with or without "sha256:"
-   - Environment: Production/Integration
-   - Debug mode: True/False in Integration. Always False in Production.
+### (For uid2 admin) Register enclave id in admin portal
+1. Generate enclave id:  go to Admin portal [GCP Enclave Id page](https://admin-integ.uidapi.com/adm/enclave-gcp-v2.html),
+- Input:
+  - the full digest for the image, with or without "sha256:"
+  - Environment: Production/Integration
+  - Debug mode: True/False in Integration. Always False in Production.
  - Output: GCP Enclave ID
 2. Register the generated GCP Enclave ID
 Go to Admin portal [Enclave Id Management page](https://admin-integ.uidapi.com/adm/enclave-id.html),
@@ -96,8 +95,8 @@ Go to Admin portal [Enclave Id Management page](https://admin-integ.uidapi.com/a
    - Protocol: "gcp-oidc"
    - Enclave ID: the generated value in Step 1
 
-### Create VM Instance (For partner)
-There are a few placeholders that you need to replace:
+### (For partner) Create VM Instance 
+There are a few placeholders that you need to replace in below command:
  - `{INSTANCE_NAME}`: your VM name, can be changed as your need.
  - `{SERVICE_ACCOUNT}`: in `{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com` format, the one you created 
 in Prerequisites phase.
@@ -123,6 +122,7 @@ Integration.
 
 You will be provided a new `{API_TOKEN}`, and `~tee-env-DEPLOYMENT_ENVIRONMENT=integ~` needs to be changed to
 `~tee-env-DEPLOYMENT_ENVIRONMENT=prod~`.
+
 It is recommended that you also specify the machine type in the gcloud script. Currently, it is recommended to run the
 UID2 operator on a machine type of n2d-standard-16. (default to n1-standard-1)
 
@@ -149,4 +149,4 @@ the recommended machine type that matches the production configuration.
 
 For each operator version update, private operators receive an email notification with an upgrade window, 
 after which the old version is deactivated and no longer supported. 
-To upgrade to the latest version, change the {IMAGE_SHA} to the new value.
+To upgrade to the latest version, change the `{IMAGE_SHA}` to the new value.

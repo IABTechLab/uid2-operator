@@ -1,15 +1,13 @@
 {
-  "version" : 2,
-  "generated" : 1614556800000,
-  "first_level" : "test_first_level_salt",
-  "id_prefix" : "a",
-  "id_secret" : "m3yMIcbg9vCaFLJsn4m4PfruZnvAZ72OxmFG5QsGMOw=",
-  "salts" : [
-    {
-      "effective" : 1614556800000,
-      "expires" : 1914556800000,
-      "location" : "/com.uid2.core/test/salts/salts.txt",
-      "size" : 8
-    }
-  ]
+  "version" : 1,
+  "generated" : 1670883129,
+  "first_level" : "fOGY/aRE44peL23i+cE9MkJrzmEeNZZziNZBfq7qqk8=",
+  "id_prefix" : "b",
+  "id_secret" : "HF6Qz42HBbVHINxhh191dB09BCuTWyBkNtrNicO4ZCw=",
+  "salts" : [{
+    "effective" : 1670796729291,
+    "expires" : 1766125493000,
+    "location" : "/com.uid2.core/test/salts/salts.txt.1670796729291",
+    "size" : 2
+  }]
 }

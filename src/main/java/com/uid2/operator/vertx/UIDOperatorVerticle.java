@@ -105,9 +105,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int tcfVendorId;
 
     private final boolean cstgDoDomainNameCheck;
-    private final String cstgTestSubscriptionId;
-//    private final String cstgTestPrivateKey;
-//    private final Integer cstgTestSiteId;
 
 
     private final IStatsCollectorQueue _statsCollectorQueue;
@@ -143,9 +140,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
-        this.cstgTestSubscriptionId = config.getString("client_side_token_generate_test_subscription_id");
-//        this.cstgTestPrivateKey = config.getString("client_side_token_generate_test_private_key");
-//        this.cstgTestSiteId = config.getInteger("client_side_token_generate_test_site_id");
         this._statsCollectorQueue = statsCollectorQueue;
     }
 

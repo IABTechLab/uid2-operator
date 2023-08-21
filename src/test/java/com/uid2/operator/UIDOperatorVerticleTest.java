@@ -16,16 +16,13 @@ import com.uid2.shared.cloud.CloudUtils;
 import com.uid2.shared.Utils;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
-import com.uid2.shared.model.ClientSideKeypair;
-import com.uid2.shared.model.EncryptionKey;
+import com.uid2.shared.model.*;
 import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Role;
-import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
-import com.uid2.shared.model.TokenVersion;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.AsyncResult;
@@ -79,6 +76,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
     private AutoCloseable mocks;
+    @Mock
+    private ISiteStore siteProvider;
     @Mock
     private IClientKeyProvider clientKeyProvider;
     @Mock
@@ -146,10 +145,9 @@ public class UIDOperatorVerticleTest {
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, refreshIdentityAfter.toMillis() / 1000);
         config.put(Const.Config.FailureShutdownWaitHoursProp, 24);
 
-        when(clientSideKeypairProvider.getSnapshot()).thenReturn(clientSideKeypairSnapshot);
         setupConfig(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
 
         uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
 
@@ -172,7 +170,6 @@ public class UIDOperatorVerticleTest {
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         //still required these 2 for domain name check in getDomainNameListForClientSideTokenGenerate
-        config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
         config.put("client_side_token_generate_test_subscription_id", "4WvryDGbR5");
         //not required any more
 //        config.put("client_side_token_generate_test_private_key", clientSideTokenGeneratePrivateKey);
@@ -2424,7 +2421,7 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    private void setupCstgBackend()
+    private void setupCstgBackend(String... domainNames)
     {
         //must match up to whatever getPrivateKeyForClientSideTokenGenerate returns for now
         final int clientSiteId = 123;
@@ -2432,12 +2429,26 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
         setupSiteKey(clientSiteId, siteKeyId);
+        when(siteProvider.getSite(eq(clientSiteId))).thenReturn(new Site(clientSiteId, "test", true, new HashSet<>(List.of(domainNames))));
+        ClientSideKeypair keypair = new ClientSideKeypair(
+                "4WvryDGbR5",
+                "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==",
+                "UID2-Y-L-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==",
+                clientSiteId,
+                "test@email.com",
+                Instant.ofEpochSecond(1692034991),
+                false
+        );
+        HashMap<String, ClientSideKeypair> keypairMap = new HashMap<>() {{ put("4WvryDGbR5", keypair); }};
+        HashMap<Integer, List<ClientSideKeypair>> siteKeypairMap = new HashMap<>(){{ put(clientSiteId, List.of(keypair)); }};
+
+        when(clientSideKeypairProvider.getSnapshot()).thenReturn(new ClientSideKeypairStoreSnapshot(keypairMap, siteKeypairMap));
     }
 
     //if no identity is provided will get an error
     @Test
     void cstgNoIdentityHashProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithNoPayload();
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2477,7 +2488,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"https://cstg.co.uk", "https://cstg2.com", "http://localhost:8080"})
     void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk", "cstg2.com", "localhost");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com");
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2547,7 +2558,7 @@ public class UIDOperatorVerticleTest {
             "false,+61400000000,Phone,+00000000001"})
     void cstgOptedOutTest(boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
                       Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id);
         if(optOutExpected)
         {

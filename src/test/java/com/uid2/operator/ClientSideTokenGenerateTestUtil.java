@@ -13,7 +13,9 @@ import java.util.Base64;
 public class ClientSideTokenGenerateTestUtil {
 
     public static PublicKey stringToPublicKey(String publicKeyString, KeyFactory kf) {
-        final byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyString);
+        //pretending to be the publisher running the javascript generating public key given by UID2 team
+        //which has prefixes like 'UID2-X-T-' and we need to remove it first
+        final byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyString.substring(9));
         final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(publicKeyBytes);
         try {
             return kf.generatePublic(pkSpec);
@@ -23,6 +25,8 @@ public class ClientSideTokenGenerateTestUtil {
     }
 
     public static PrivateKey stringToPrivateKey(String privateKeyString, KeyFactory kf) {
+        //note that this method is for pretending javascript generating a private key and therefore
+        //there's no prefixes like the public key we gave to the publishers so no substring call is required here
         final byte[] privateKeyBytes = Base64.getDecoder().decode(privateKeyString);
         final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
         try {

@@ -5,7 +5,9 @@ import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.reader.RotatingSiteStore;
 import com.uid2.shared.store.scope.GlobalScope;
 import io.vertx.core.json.JsonObject;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 public class RotatingSiteStoreTest {
     @Test
@@ -15,6 +17,6 @@ public class RotatingSiteStoreTest {
                 new GlobalScope(new CloudPath("/com.uid2.core/test/sites/metadata.json")));
 
         JsonObject m = siteProvider.getMetadata();
-        siteProvider.loadContent(m);
+        assertDoesNotThrow(() -> siteProvider.loadContent(m));
     }
 }

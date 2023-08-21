@@ -173,7 +173,7 @@ public class UIDOperatorVerticleTest {
         config.put("client_side_token_generate", true);
         //still required these 2 for domain name check in getDomainNameListForClientSideTokenGenerate
         config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_side_token_generate_test_subscription_id", "abcdefg");
+        config.put("client_side_token_generate_test_subscription_id", "4WvryDGbR5");
         //not required any more
 //        config.put("client_side_token_generate_test_private_key", clientSideTokenGeneratePrivateKey);
 //        config.put("client_side_token_generate_test_site_id", 123);
@@ -462,9 +462,9 @@ public class UIDOperatorVerticleTest {
         when(keyStoreSnapshot.getKey(102)).thenReturn(siteKey);
         when(keyStoreSnapshot.getKey(103)).thenReturn(refreshKey);
         when(keyStoreSnapshot.getActiveKeySet()).thenReturn(Arrays.asList(masterKey, siteKey, refreshKey));
-        when(clientSideKeypairSnapshot.getKeypair("abcdefg")).thenReturn(
-                new ClientSideKeypair("abcdefg", clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, 123,
-                        "abcdefg", Instant.now(), false));
+        when(clientSideKeypairSnapshot.getKeypair("4WvryDGbR5")).thenReturn(
+                new ClientSideKeypair("4WvryDGbR5", clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, 123,
+                        "4WvryDGbR5", Instant.now(), false));
     }
 
     protected void setupSiteKey(int siteId, int keyId) {
@@ -2510,7 +2510,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "abcdefg");
+        requestJson.put("subscription_id", "4WvryDGbR5");
 
         return new Tuple.Tuple2<>(requestJson, secretKey);
     }

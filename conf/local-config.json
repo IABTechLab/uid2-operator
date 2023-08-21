@@ -32,5 +32,5 @@
   "client_side_token_generate": true,
   "client_side_token_generate_domain_name_check_enabled": false,
   "client_side_token_generate_test_domain_name_list" : "localhost,uidapi.com",
-  "client_side_token_generate_test_subscription_id" : "abcdefg"
+  "client_side_token_generate_test_subscription_id" : "4WvryDGbR5"
 }

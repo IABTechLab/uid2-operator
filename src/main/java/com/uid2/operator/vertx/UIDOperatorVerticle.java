@@ -23,6 +23,7 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
+import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.*;
@@ -63,7 +64,7 @@ import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdent
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
-public class UIDOperatorVerticle extends AbstractVerticle{
+public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
 
     public static final String ValidationInputEmail = "validate@email.com";
@@ -80,6 +81,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final Cipher aesGcm;
     private final JsonObject config;
     private final AuthMiddleware auth;
+    private final IClientSideKeypairStore clientSideKeypairProvider;
     private final IKeyStore keyStore;
     private final ITokenEncoder encoder;
     private final IKeyAclProvider keyAclProvider;
@@ -103,14 +105,15 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final boolean cstgDoDomainNameCheck;
     private final String cstgTestDomainNameList;
     private final String cstgTestSubscriptionId;
-    private final String cstgTestPrivateKey;
-    private final Integer cstgTestSiteId;
+//    private final String cstgTestPrivateKey;
+//    private final Integer cstgTestSiteId;
 
 
     private final IStatsCollectorQueue _statsCollectorQueue;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
+                               IClientSideKeypairStore clientSideKeypairProvider,
                                IKeyStore keyStore,
                                IKeyAclProvider keyAclProvider,
                                ISaltProvider saltProvider,
@@ -127,6 +130,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.auth = new AuthMiddleware(clientKeyProvider);
         this.keyStore = keyStore;
         this.encoder = new EncryptedTokenEncoder(keyStore);
+        this.clientSideKeypairProvider = clientSideKeypairProvider;
         this.keyAclProvider = keyAclProvider;
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
@@ -138,8 +142,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this.cstgTestDomainNameList = config.getString("client_side_token_generate_test_domain_name_list", "");
         this.cstgTestSubscriptionId = config.getString("client_side_token_generate_test_subscription_id");
-        this.cstgTestPrivateKey = config.getString("client_side_token_generate_test_private_key");
-        this.cstgTestSiteId = config.getInteger("client_side_token_generate_test_site_id");
+//        this.cstgTestPrivateKey = config.getString("client_side_token_generate_test_private_key");
+//        this.cstgTestSiteId = config.getInteger("client_side_token_generate_test_site_id");
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -268,41 +272,18 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private void handleClientSideTokenGenerate(RoutingContext rc) {
         try {
             handleClientSideTokenGenerateImpl(rc);
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException e) { //todo - should match other request exception handling
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException |
+                 InvalidKeyException e) { //todo - should match other request exception handling
             throw new RuntimeException(e);
         }
     }
 
-    static class ClientSideKeyPair //todo move this
-    {
-        private final String privateKey;
-        private final int siteId;
-        //this class will be enhanced in UID2-1374
-
-        public ClientSideKeyPair(int siteId, String privateKey) {
-            this.privateKey = privateKey.substring(9);
-            this.siteId = siteId;
-        }
-
-        public String getPrivateKeyString() {
-            return privateKey;
-        }
-        public int getSiteId() {
-            return siteId;
-        }
-    }
-
-    private ClientSideKeyPair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
-
-        if(cstgTestSubscriptionId == null || cstgTestSiteId == null || cstgTestPrivateKey == null) {
+    private ClientSideKeypair getKeypairForClientSideTokenGenerate(String subscriptionId) {
+        final ClientSideKeypair keyPair = this.clientSideKeypairProvider.getSnapshot().getKeypair(subscriptionId);
+        if (keyPair == null || keyPair.isDisabled()) {
             return null;
-        }
-
-        if (cstgTestSubscriptionId.equals(subscriptionId)) {
-            return new ClientSideKeyPair(cstgTestSiteId, cstgTestPrivateKey);
-        }
-        else {
-            return null;
+        } else {
+            return keyPair;
         }
     }
 
@@ -311,7 +292,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return new HashSet<>();
         }
 
-        if (cstgTestSubscriptionId.equals(subscriptionId)) {
+        if(cstgTestSubscriptionId.equals(subscriptionId)) {
             return Arrays.stream(cstgTestDomainNameList.split(",")).collect(Collectors.toSet());
         }
         else {
@@ -319,7 +300,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    private void handleClientSideTokenGenerateImpl(RoutingContext rc)  throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
+    private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body = rc.body().asJsonObject();
         final String encryptedPayload = body.getString("payload");
         final String iv = body.getString("iv");
@@ -349,16 +330,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
         final PublicKey clientPublicKey = kf.generatePublic(pkSpec);
 
-        final ClientSideKeyPair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
-        if (clientSideKeyPair == null) {
+        final ClientSideKeypair clientSideKeypair = getKeypairForClientSideTokenGenerate(subscriptionId);
+        if (clientSideKeypair == null) {
             rc.fail(401);
             return;
         }
 
-
-        final byte[] privateKeyBytes = Base64.getDecoder().decode(clientSideKeyPair.getPrivateKeyString());
-        final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
-        PrivateKey privateKey = kf.generatePrivate(keySpec);
+        PrivateKey privateKey = clientSideKeypair.getPrivateKey();
 
         // Perform key agreement
         final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
@@ -412,7 +390,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         IdentityTokens identityTokens = this.idService.generateIdentity(
                 new IdentityRequest(
-                        new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
+                        new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                         TokenGeneratePolicy.RespectOptOut));
 
@@ -429,7 +407,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
             identityTokens = this.idService.generateIdentity(
                     new IdentityRequest(
-                            new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
+                            new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                             cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate));
         }
         JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
@@ -446,7 +424,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(httpStatusCode).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-        TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV0, TokenResponseStatsCollector.ResponseStatus.Success);
+        TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV0, TokenResponseStatsCollector.ResponseStatus.Success);
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
@@ -515,13 +493,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             MissingAclMode mode = MissingAclMode.DENY_ALL;
             // This will break if another Type is added to this map
             IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
-            if(roleAuthorize.hasRole(Role.ID_READER)) {
+            if (roleAuthorize.hasRole(Role.ID_READER)) {
                 mode = MissingAclMode.ALLOW_ALL;
             }
 
-            for (EncryptionKey key: keyStore) {
+            for (EncryptionKey key : keyStore) {
                 JsonObject keySet = new JsonObject();
-                if(clientKey.getSiteId() == key.getSiteId()) {
+                if (clientKey.getSiteId() == key.getSiteId()) {
                     keySet.put("keyset_id", DEFAULT_KEYSET_ID);
                 } else if (key.getSiteId() == -1) {
                     keySet.put("keyset_id", DEFAULT_MASTER_KEYSET_ID);
@@ -579,8 +557,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, keyStore);
             if (v2req.isValid()) {
                 refreshToken = (String) v2req.payload;
-            }
-            else {
+            } else {
                 ResponseUtil.ClientError(rc, v2req.errorMessage);
                 return;
             }
@@ -1004,8 +981,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             } else {
                 rc.fail(400);
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             LOGGER.error("Unexpected error while mapping identity", ex);
             rc.fail(500);
         }
@@ -1182,7 +1158,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
         } else if (phones != null && !phones.isEmpty()) {
             return createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
-        } else if (phoneHashes != null && !phoneHashes.isEmpty()){
+        } else if (phoneHashes != null && !phoneHashes.isEmpty()) {
             return createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
         } else {
             // handle empty array
@@ -1340,7 +1316,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);;
+            getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
         }
 
         if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
@@ -1592,6 +1568,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private static final String TOKEN_GENERATE_POLICY_PARAM = "policy";
+
     private TokenGeneratePolicy readTokenGeneratePolicy(JsonObject req) {
         return req.containsKey(TOKEN_GENERATE_POLICY_PARAM) ?
                 TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) :
@@ -1599,6 +1576,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     private static final String IDENTITY_MAP_POLICY_PARAM = "policy";
+
     private IdentityMapPolicy readIdentityMapPolicy(JsonObject req) {
         return req.containsKey(IDENTITY_MAP_POLICY_PARAM) ?
                 IdentityMapPolicy.fromValue(req.getInteger(IDENTITY_MAP_POLICY_PARAM)) :

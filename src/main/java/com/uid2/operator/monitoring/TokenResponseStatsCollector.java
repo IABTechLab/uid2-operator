@@ -32,6 +32,7 @@ public class TokenResponseStatsCollector {
         NoSuchAlgoECDH,
         BadPublicKey,
         BadSubscriptionId,
+        BadTimestamp,
         InvalidHttpOrigin,
         InvalidPrivateKey,
         InvalidKey,

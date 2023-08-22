@@ -15,7 +15,8 @@ a cloud-based TEE that offers hardware isolation and remote attestation capabili
 The tokens contain identification attributes for the workload.
 The attestation service runs in the same region that the workload is running in.
 
-When our workload(UID2 Operator)'s docker container starts up, it will fetch GCP OIDC token from shared amount volume and 
+When our workload(UID2 Operator)'s docker container starts up, it will fetch GCP OIDC token from shared mount volume and 
+
 put the token inside Attestation Document. It then sends the Attestation Document plus the UID2 `api_token` to
 UID2 Core as Attestation Request.
 
@@ -32,7 +33,8 @@ You can use the following command to build a non-certified UID2 operator contain
 
 ```
 # From the root source folder
-# Upload project version in pom to "1.0.0-SNAPSHOT"
+# Update project version in pom to "1.0.0-SNAPSHOT"
+
 mvn -B package -P gcp 
 cp -r target scripts/gcp-oidc/
 docker build ./scripts/gcp-oidc/. -t ghcr.io/iabtechlab/uid2-operator:v1.0.0-SNAPSHOT

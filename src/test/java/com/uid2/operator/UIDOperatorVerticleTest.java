@@ -2524,6 +2524,10 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("required parameters: payload, iv, subscription_id, public_key", respJson.getString("message"));
+                    assertTokenStatusMetrics(
+                            0,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.MissingParams);
                     testContext.completeNow();
                 });
     }
@@ -2566,6 +2570,10 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad public key", respJson.getString("message"));
+                    assertTokenStatusMetrics(
+                            0,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
                     testContext.completeNow();
                 });
     }
@@ -2608,6 +2616,10 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
                     assertEquals("unauthorized", respJson.getString("status"));
                     assertEquals("bad subscription_id", respJson.getString("message"));
+                    assertTokenStatusMetrics(
+                            0,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
                     testContext.completeNow();
                 });
     }
@@ -2650,6 +2662,10 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad iv", respJson.getString("message"));
+                    assertTokenStatusMetrics(
+                            123,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.BadIV);
                     testContext.completeNow();
                 });
     }
@@ -2692,6 +2708,10 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad iv", respJson.getString("message"));
+                    assertTokenStatusMetrics(
+                            123,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.BadIV);
                     testContext.completeNow();
                 });
     }
@@ -2731,6 +2751,10 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
                     assertEquals("error", respJson.getString("status"));
                     assertEquals("payload decryption failed", respJson.getString("message"));
+                    assertTokenStatusMetrics(
+                            123,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.BadPayload);
                     testContext.completeNow();
                 });
     }
@@ -2875,7 +2899,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals(optOutExpected, matchedOptedOutIdentity);
                     assertTokenStatusMetrics(
                             123,
-                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV0,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.Success);
 
                     String genRefreshToken = genBody.getString("refresh_token");

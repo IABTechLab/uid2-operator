@@ -71,6 +71,8 @@ public class Main {
 
     private IStatsCollectorQueue _statsCollectorQueue;
 
+    private final boolean clientSideTokenGenerate;
+
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
         this.config = config;
@@ -85,6 +87,7 @@ public class Main {
         }
 
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
+        this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnbaleClientSideTokenGenerate, false);
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
@@ -118,10 +121,10 @@ public class Main {
 
         String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
         this.siteProvider = new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath)));
-        String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
-        this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
         String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
         this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
+        String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
+        this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
         String keysMdPath = this.config.getString(Const.Config.KeysMetadataPathProp);
         this.keyStore = new RotatingKeyStore(fsStores, new GlobalScope(new CloudPath(keysMdPath)));
         String keysAclMdPath = this.config.getString(Const.Config.KeysAclMetadataPathProp);
@@ -132,9 +135,11 @@ public class Main {
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
 
         if (useStorageMock && coreAttestUrl == null) {
-            this.siteProvider.loadContent();
+            if (clientSideTokenGenerate) {
+                this.siteProvider.loadContent();
+                this.clientSideKeypairProvider.loadContent();
+            }
             this.clientKeyProvider.loadContent();
-            this.clientSideKeypairProvider.loadContent();
             this.keyStore.loadContent();
             this.keyAclProvider.loadContent();
             this.saltProvider.loadContent();
@@ -260,9 +265,11 @@ public class Main {
 
     private Future<Void> createStoreVerticles() throws Exception {
         // load metadatas for the first time
-        siteProvider.getMetadata();
+        if (clientSideTokenGenerate) {
+            siteProvider.getMetadata();
+            clientSideKeypairProvider.getMetadata();
+        }
         clientKeyProvider.getMetadata();
-        clientSideKeypairProvider.getMetadata();
         keyStore.getMetadata();
         keyAclProvider.getMetadata();
         saltProvider.getMetadata();
@@ -274,9 +281,11 @@ public class Main {
         // create rotating store verticles to poll for updates
         Promise<Void> promise = Promise.promise();
         List<Future> fs = new ArrayList<>();
+        if (clientSideTokenGenerate) {
+            fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, 10000));
+            fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, 10000));
+        }
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("key", keyStore, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("keys_acl", keyAclProvider, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, 10000));

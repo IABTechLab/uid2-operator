@@ -5,7 +5,7 @@ if [ -z "$IMAGE_HASH" ]; then
 fi
 
 # generate enclave id
-enclave_str="V1,false,$IMAGE_HASH"
+enclave_str="V1,true,$IMAGE_HASH"
 enclave_id=$(echo -n $full | openssl dgst -sha256 -binary | openssl base64)
 
 METADATA_ROOT="./e2e/docker/localstack/s3/core"

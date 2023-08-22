@@ -65,13 +65,7 @@ jobs:
           tunnel_type: http
           save_url_to_filename: tunnelURL.md
 
-      - name: Debug
-        run: |
-          echo --- Check TempURl ---
-          echo TempURl: $(cat tunnelURL.md)
-
-
-      - name: Sleep for 10m
+      - name: Sleep for 30m
         uses: jakejarvis/wait-action@master
         with:
-          time: '600s'
+          time: '1800s'

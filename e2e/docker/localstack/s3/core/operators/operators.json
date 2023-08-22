@@ -45,7 +45,7 @@
     "key": "UID2-O-L-124-cr24Bt.dYP+Wpo6NWlP7CbvwpzHn0lXS3Cst6Y+qFDK4=",
     "name": "Publisher (Private, GCP)",
     "contact": "Publisher (Private, GCP)",
-    "protocol": "gcp-vmid",
+    "protocol": "gcp-oidc",
     "created": 1618873215,
     "disabled": false,
     "roles": [

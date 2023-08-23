@@ -330,6 +330,26 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
+        final KeyFactory kf;
+        try {
+            kf = KeyFactory.getInstance("EC");
+        } catch (NoSuchAlgorithmException e) {
+            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
+            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoEC);
+            return;
+        }
+
+        final PublicKey publicKey;
+        try {
+            final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
+            final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
+            publicKey = kf.generatePublic(pkSpec);
+        } catch (Exception e) {
+            ResponseUtil.Error(ResponseStatus.ClientError,400, rc, "bad public key");
+            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
+            return;
+        }
+
         final ClientSideKeypair clientSideKeyPair = getKeypairForClientSideTokenGenerate(subscriptionId);
         if (clientSideKeyPair == null) {
             ResponseUtil.Error(ResponseStatus.Unauthorized, 401, rc, "bad subscription_id");
@@ -337,7 +357,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        final PublicKey clientPublicKey = clientSideKeyPair.getPublicKey();
         final PrivateKey clientPrivateKey = clientSideKeyPair.getPrivateKey();
 
         if(cstgDoDomainNameCheck) {
@@ -371,7 +390,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         try {
-            ka.doPhase(clientPublicKey, true);
+            ka.doPhase(publicKey, true);
         } catch (InvalidKeyException e) {
             ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
             TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidKey);

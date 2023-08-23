@@ -92,7 +92,7 @@ public class V2RequestUtil {
         Instant tm = Instant.ofEpochMilli(b.getLong(0));
         if (Math.abs(Duration.between(tm, Clock.systemUTC().instant()).toMinutes()) >
                 V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
-            return new V2Request("Invalid timestamp: Request too old or client time drift.");
+            //return new V2Request("Invalid timestamp: Request too old or client time drift.");
         }
 
         JsonObject payload = null;

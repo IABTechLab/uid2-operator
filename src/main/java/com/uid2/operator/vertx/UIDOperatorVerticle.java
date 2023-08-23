@@ -1,5 +1,6 @@
 package com.uid2.operator.vertx;
 
+import com.google.api.gax.rpc.InvalidArgumentException;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
@@ -32,11 +33,11 @@ import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.*;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.AllowForwardHeaders;
@@ -47,6 +48,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
+import software.amazon.awssdk.services.kms.endpoints.internal.Value;
 
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
@@ -63,6 +65,7 @@ import java.util.stream.Collectors;
 
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+import static com.uid2.operator.service.V2RequestUtil.V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES;
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
@@ -268,9 +271,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleClientSideTokenGenerate(RoutingContext rc) {
         try {
             handleClientSideTokenGenerateImpl(rc);
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException |
-                 InvalidKeyException e) { //todo - should match other request exception handling
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            LOGGER.error("Unknown error while handling client side token generate", e);
+            rc.fail(500);
         }
     }
 
@@ -292,26 +295,83 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException {
+    private void handleClientSideTokenGenerateImpl(RoutingContext rc) {
         final JsonObject body = rc.body().asJsonObject();
+        if (body == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload expected but not found");
+            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
+            return;
+        }
+
         final String encryptedPayload = body.getString("payload");
         final String iv = body.getString("iv");
         final String subscriptionId = body.getString("subscription_id");
         final String clientPublicKeyString = body.getString("public_key");
         //instead of crashing use a default value
         final long timestamp = body.getLong("timestamp", 0L);
+        if (Math.abs(Duration.between(Instant.ofEpochMilli(timestamp), clock.systemUTC().instant()).toMinutes()) >=
+                V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
+            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
+            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
+            return;
+        }
+
+        if (encryptedPayload == null || iv == null || subscriptionId == null || clientPublicKeyString == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "required parameters: payload, iv, subscription_id, public_key");
+            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
+            return;
+        }
+
+        final KeyFactory kf;
+        try {
+            kf = KeyFactory.getInstance("EC");
+        } catch (NoSuchAlgorithmException e) {
+            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
+            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoEC);
+            return;
+        }
+
+        final PublicKey publicKey;
+        try {
+            final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
+            final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
+            publicKey = kf.generatePublic(pkSpec);
+        } catch (Exception e) {
+            ResponseUtil.Error(ResponseStatus.ClientError,400, rc, "bad public key");
+            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
+            return;
+        }
+
+        final ClientSideKeypair clientSideKeyPair = getKeypairForClientSideTokenGenerate(subscriptionId);
+        if (clientSideKeyPair == null) {
+            ResponseUtil.Error(ResponseStatus.Unauthorized, 401, rc, "bad subscription_id");
+            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
+            return;
+        }
+
+        final PrivateKey clientPrivateKey = clientSideKeyPair.getPrivateKey();
 
 
-        final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
+        // Perform key agreement
+        final KeyAgreement ka;
+        try {
+            ka = KeyAgreement.getInstance("ECDH");
+            ka.init(clientPrivateKey);
+        } catch (NoSuchAlgorithmException e) {
+            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoECDH);
+            return;
+        } catch (InvalidKeyException e) {
+            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidKey);
+            return;
+        }
 
-        final KeyFactory kf = KeyFactory.getInstance("EC");
-
-        final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
-        final PublicKey clientPublicKey = kf.generatePublic(pkSpec);
-
-        final ClientSideKeypair clientSideKeypair = getKeypairForClientSideTokenGenerate(subscriptionId);
-        if (clientSideKeypair == null) {
-            rc.fail(401);
+        try {
+            ka.doPhase(publicKey, true);
+        } catch (InvalidKeyException e) {
+            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidKey);
             return;
         }
 
@@ -329,52 +389,75 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         }
 
-        PrivateKey privateKey = clientSideKeypair.getPrivateKey();
-
-        // Perform key agreement
-        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
-        ka.init(privateKey);
-
-        ka.doPhase(clientPublicKey, true);
-
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();
 
-        final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
-
-        final byte[] ivBytes = Base64.getDecoder().decode(iv);
-
-        final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedPayloadBytes.length);
-        System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
+        final byte[] ivBytes;
+        try {
+            ivBytes = Base64.getDecoder().decode(iv);
+            if (ivBytes.length != 12) {
+                ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad iv");
+                TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadIV);
+                return;
+            }
+        } catch (IllegalArgumentException e) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad iv");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadIV);
+            return;
+        }
 
         final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
 
         final byte[] requestPayloadBytes;
         try {
+            final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
+            final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedPayloadBytes.length);
+            System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
             requestPayloadBytes = decrypt(ivAndCiphertext, 0, sharedSecret, aad);
-        } catch (InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
-            rc.response()
-                    .setStatusCode(HttpResponseStatus.BAD_REQUEST.code())
-                    .end();
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage());
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "payload decryption failed");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload);
             return;
         }
 
-        final JsonObject requestPayload = new JsonObject(Buffer.buffer(Unpooled.wrappedBuffer(requestPayloadBytes)));
-
+        final JsonObject requestPayload;
+        try {
+            requestPayload = new JsonObject(Buffer.buffer(Unpooled.wrappedBuffer(requestPayloadBytes)));
+        } catch (DecodeException e) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "encrypted payload contains invalid json");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload);
+            return;
+        }
 
         final String emailHash = requestPayload.getString("email_hash");
         final String phoneHash = requestPayload.getString("phone_hash");
         final InputUtil.InputVal input;
 
-        if(emailHash != null) {
+
+        LOGGER.info(String.valueOf(phoneSupport));
+        if (phoneHash != null && !phoneSupport) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "phone support not enabled");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload);
+            return;
+        }
+
+        final String errString = phoneSupport ?  "please provide exactly one of: email_hash, phone_hash" : "please provide email_hash";
+        if (emailHash == null && phoneHash == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, errString);
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
+            return;
+        }
+        else if (emailHash != null && phoneHash != null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, errString);
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload);
+            return;
+        }
+        else if(emailHash != null) {
             input = InputUtil.normalizeEmailHash(emailHash);
         }
-        else if(phoneHash != null) {
-            input = InputUtil.normalizePhoneHash(phoneHash);
-        }
         else {
-            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "no email or phone hash provided");
-            return;
+            input = InputUtil.normalizePhoneHash(phoneHash);
         }
 
         PrivacyBits privacyBits = new PrivacyBits();
@@ -383,7 +466,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         IdentityTokens identityTokens = this.idService.generateIdentity(
                 new IdentityRequest(
-                        new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
+                        new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                         TokenGeneratePolicy.RespectOptOut));
 
@@ -400,11 +483,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             identityTokens = this.idService.generateIdentity(
                     new IdentityRequest(
-                            new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
+                            new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
                             cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate));
         }
         JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
-        int httpStatusCode = 200;
         try {
             if (response.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && response.containsKey("body")) {
                 V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyStore, this.identityScope);
@@ -412,12 +494,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         catch (Exception ex){
             LOGGER.error("Failed to generate token", ex);
-            httpStatusCode = 500;
-            response = ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, "");
+            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "Failed to generate tokens");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.FailedTokenGeneration);
+            return;
         }
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
-        rc.response().setStatusCode(httpStatusCode).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-        TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV0, TokenResponseStatsCollector.ResponseStatus.Success);
+        rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+        TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

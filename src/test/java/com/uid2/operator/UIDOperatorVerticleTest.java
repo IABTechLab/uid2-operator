@@ -2300,6 +2300,7 @@ public class UIDOperatorVerticleTest {
     public class MultipleKeysetsTests {
         private final HashMap<Integer, Keyset> keysetIdToKeyset;
         private final HashMap<Integer, KeysetKey> keyIdToKeysetKey;
+        public static final int FALLBACK_PUBLISHER_KEY_ID = 1002;
 
         public MultipleKeysetsTests(List<Keyset> keysets, List<KeysetKey> keys) {
             this.keysetIdToKeyset = new HashMap<>(keysets.stream().collect(Collectors.toMap(Keyset::getKeysetId, s -> s)));
@@ -2328,7 +2329,7 @@ public class UIDOperatorVerticleTest {
 
             KeysetKey[] keys = {
                     createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
-                    createKey(1002, now.minusSeconds(5), now.plusSeconds(3600), FallbackPublisherKeysetId),
+                    createKey(FALLBACK_PUBLISHER_KEY_ID, now.minusSeconds(5), now.plusSeconds(3600), FallbackPublisherKeysetId),
                     createKey(1003, now.minusSeconds(5), now.plusSeconds(3600), RefreshKeysetId),
 
                     // keys in keyset4
@@ -2406,7 +2407,8 @@ public class UIDOperatorVerticleTest {
                 throw new RuntimeException(String.format("Cannot find a keyset with Keyset ID %d.", keysetId));
             }
             Keyset k = this.keysetIdToKeyset.get(keysetId);
-            Keyset t = new Keyset(k.getKeysetId(), k.getSiteId(), k.getName(), k.getAllowedSites(), k.getCreated(), newValue, k.isDefault());
+            Keyset t = new Keyset(k.getKeysetId(), k.getSiteId(), k.getName(), k.getAllowedSites(), k.getCreated(),
+                    newValue, k.isDefault());
             this.keysetIdToKeyset.remove(keysetId);
             this.keysetIdToKeyset.put(keysetId, t);
         }
@@ -2550,7 +2552,7 @@ public class UIDOperatorVerticleTest {
                             assertNotEquals(1007, clientKeyId); // should no longer encrypt with disabled key
                             break;
                         case "DisableDefaultKeyset":
-                            assertEquals(1002, clientKeyId); // should encrypt with publisher fallback key
+                            assertEquals(MultipleKeysetsTests.FALLBACK_PUBLISHER_KEY_ID, clientKeyId); // should encrypt with publisher fallback key
                             break;
                     }
 

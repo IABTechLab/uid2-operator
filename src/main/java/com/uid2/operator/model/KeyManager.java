@@ -79,7 +79,7 @@ public class KeyManager {
 
     public List<KeysetKey> getKeysForSharingOrDsps() {
         Map<Integer, Keyset> keysetMap = this.keysetProvider.getSnapshot().getAllKeysets();
-        List<KeysetKey> keys = keysetKeyStore.getSnapshot().getActiveKeysetKeys(); //getActiveKeysetKeys() is incorrectly named, as this includes expired keys
+        List<KeysetKey> keys = keysetKeyStore.getSnapshot().getAllKeysetKeys();
         return keys
                 .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && k.getKeysetId() != Const.Data.RefreshKeysetId)
                 .sorted(Comparator.comparing(KeysetKey::getId)).collect(Collectors.toList());

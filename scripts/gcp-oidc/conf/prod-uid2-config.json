@@ -5,6 +5,6 @@
   "salts_metadata_path": "https://core-prod.uidapi.com/salt/refresh",
   "optout_metadata_path": "https://optout-prod.uidapi.com/optout/refresh",
   "core_attest_url": "https://core-prod.uidapi.com/attest",
-  "optout_api_uri": "https://core-prod.uidapi.com/optout/replicate",
+  "optout_api_uri": "https://optout-prod.uidapi.com/optout/replicate",
   "optout_s3_folder": "optout-v2/"
 }

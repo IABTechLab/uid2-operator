@@ -330,32 +330,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        final KeyFactory kf;
-        try {
-            kf = KeyFactory.getInstance("EC");
-        } catch (NoSuchAlgorithmException e) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoEC);
-            return;
-        }
-
-        final PublicKey clientPublicKey;
-        try {
-            final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
-            final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
-            clientPublicKey = kf.generatePublic(pkSpec);
-        } catch (Exception e) {
-            ResponseUtil.Error(ResponseStatus.ClientError,400, rc, "bad public key");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
-            return;
-        }
-
-        final ClientSideKeyPair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
+        final ClientSideKeypair clientSideKeyPair = getKeypairForClientSideTokenGenerate(subscriptionId);
         if (clientSideKeyPair == null) {
             ResponseUtil.Error(ResponseStatus.Unauthorized, 401, rc, "bad subscription_id");
             TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
             return;
         }
+
+        final PublicKey clientPublicKey = clientSideKeyPair.getPublicKey();
+        final PrivateKey clientPrivateKey = clientSideKeyPair.getPrivateKey();
 
         if(cstgDoDomainNameCheck) {
             final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
@@ -372,26 +355,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         }
 
-        final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
-
-        final KeyFactory kf = KeyFactory.getInstance("EC");
-
-        final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
-        final PublicKey clientPublicKey = kf.generatePublic(pkSpec);
-
-        final ClientSideKeypair clientSideKeypair = getKeypairForClientSideTokenGenerate(subscriptionId);
-        if (clientSideKeypair == null) {
-            rc.fail(401);
-            return;
-        }
-
-        PrivateKey privateKey = clientSideKeypair.getPrivateKey();
-
         // Perform key agreement
         final KeyAgreement ka;
         try {
             ka = KeyAgreement.getInstance("ECDH");
-            ka.init(privateKey);
+            ka.init(clientPrivateKey);
         } catch (NoSuchAlgorithmException e) {
             ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
             TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoECDH);
@@ -436,6 +404,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
             requestPayloadBytes = decrypt(ivAndCiphertext, 0, sharedSecret, aad);
         } catch (Exception e) {
+            LOGGER.error(e.getMessage());
             ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "payload decryption failed");
             TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload);
             return;
@@ -486,7 +455,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         IdentityTokens identityTokens = this.idService.generateIdentity(
                 new IdentityRequest(
-                        new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
+                        new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                         TokenGeneratePolicy.RespectOptOut));
 
@@ -503,7 +472,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             identityTokens = this.idService.generateIdentity(
                     new IdentityRequest(
-                            new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
+                            new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
                             cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate));
         }
         JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));

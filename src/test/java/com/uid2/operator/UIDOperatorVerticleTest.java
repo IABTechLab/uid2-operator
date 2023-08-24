@@ -27,15 +27,7 @@ import com.uid2.shared.cloud.CloudUtils;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.encryption.Uid2Base64UrlCoder;
-import com.uid2.shared.model.KeysetKey;
-import com.uid2.shared.model.ClientSideKeypair;
-import com.uid2.shared.model.EncryptionKey;
-import com.uid2.operator.store.*;
-import com.uid2.operator.vertx.UIDOperatorVerticle;
-import com.uid2.shared.auth.ClientKey;
-import com.uid2.shared.auth.Role;
-import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.model.TokenVersion;
+import com.uid2.shared.model.*;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import io.micrometer.core.instrument.Metrics;
@@ -70,7 +62,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import software.amazon.awssdk.services.kms.endpoints.internal.Value;
 
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
@@ -85,7 +76,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static com.uid2.shared.Const.Data.*;
@@ -2384,7 +2374,7 @@ public class UIDOperatorVerticleTest {
         ClientSideKeypairStoreSnapshot snapshot = new ClientSideKeypairStoreSnapshot(keypairMap, siteKeypairMap);
         when(clientSideKeypairProvider.getSnapshot()).thenReturn(snapshot);
 
-        when(siteProvider.getSite(eq(clientSiteId))).thenReturn(new Site(clientSiteId, "test", true, new HashSet<>(List.of(domainNames))));
+        when(siteProvider.getSite(eq(clientSideTokenGenerateSiteId))).thenReturn(new Site(clientSideTokenGenerateSiteId, "test", true, new HashSet<>(List.of(domainNames))));
 
     }
 

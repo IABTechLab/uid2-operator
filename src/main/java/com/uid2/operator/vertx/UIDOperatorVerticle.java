@@ -339,11 +339,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        final PublicKey publicKey;
+        final PublicKey clientPublicKey;
         try {
             final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
             final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
-            publicKey = kf.generatePublic(pkSpec);
+            clientPublicKey = kf.generatePublic(pkSpec);
         } catch (Exception e) {
             ResponseUtil.Error(ResponseStatus.ClientError,400, rc, "bad public key");
             TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
@@ -357,7 +357,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        final PrivateKey clientPrivateKey = clientSideKeyPair.getPrivateKey();
+        final PrivateKey privateKey = clientSideKeyPair.getPrivateKey();
 
         if(cstgDoDomainNameCheck) {
             final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
@@ -378,7 +378,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final KeyAgreement ka;
         try {
             ka = KeyAgreement.getInstance("ECDH");
-            ka.init(clientPrivateKey);
+            ka.init(privateKey);
         } catch (NoSuchAlgorithmException e) {
             ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
             TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoECDH);
@@ -390,7 +390,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         try {
-            ka.doPhase(publicKey, true);
+            ka.doPhase(clientPublicKey, true);
         } catch (InvalidKeyException e) {
             ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
             TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidKey);

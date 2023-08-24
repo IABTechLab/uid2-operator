@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-if [ -z "$IMAGE_HASH" ]; then
-  echo "IMAGE_HASH can not be empty"
-  exit 1
-fi
 
 ROOT="."
 METADATA_ROOT="$ROOT/docker/localstack/s3/core"
 OPERATOR_FILE="$METADATA_ROOT/operators/operators.json"
 ENCLAVE_FILE="$METADATA_ROOT/enclaves/enclaves.json"
+
+if [ -z "$IMAGE_HASH" ]; then
+  echo "IMAGE_HASH can not be empty"
+  exit 1
+fi
 
 # generate enclave id
 enclave_str="V1,true,$IMAGE_HASH"

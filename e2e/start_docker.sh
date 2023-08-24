@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 source ./e2e/healthcheck.sh
 
+# TODO: made it configurable
+CORE_VERSION=2.9.0-46b2d8519f-master-default
+OPTOUT_VERSION=2.5.0-80ad3156c0-default
+ROOT="."
+CORE_CONFIG_FILE="$ROOT/docker/uid2-core/conf/local-e2e-docker-config.json"
+OPTOUT_CONFIG_FILE="$ROOT/docker/uid2-optout/conf/local-e2e-docker-config.json"
+COMPOSE_FILE="$ROOT/docker-compose.yml"
+OPT_OUT_HEALTHCHECK_URL="$NGROK_URL_OPTOUT/ops/healthcheck"
+
 if [ -z "$NGROK_URL_LOCALSTACK" ]; then
   echo "NGROK_URL_LOCALSTACK can not be empty"
   exit 1
@@ -10,15 +19,6 @@ if [ -z "$NGROK_URL_OPTOUT" ]; then
   echo "NGROK_URL_OPTOUT can not be empty"
   exit 1
 fi
-
-# TODO: made it configurable
-CORE_VERSION=2.9.0-46b2d8519f-master-default
-OPTOUT_VERSION=2.5.0-80ad3156c0-default
-ROOT="."
-CORE_CONFIG_FILE="$ROOT/docker/uid2-core/conf/local-e2e-docker-config.json"
-OPTOUT_CONFIG_FILE="$ROOT/docker/uid2-optout/conf/local-e2e-docker-config.json"
-COMPOSE_FILE="$ROOT/docker-compose.yml"
-OPT_OUT_HEALTHCHECK_URL="$NGROK_URL_OPTOUT/ops/healthcheck"
 
 # replace placeholders
 sed -i.bak "s#<CORE_VERSION>#$CORE_VERSION#g" $COMPOSE_FILE

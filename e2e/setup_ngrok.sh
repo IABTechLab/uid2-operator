@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
-if [ -z "$NGROK_TOKEN" ]; then
-  echo "NGROK_TOKEN can not be empty"
-  exit 1
-fi
-
 ROOT="."
 NGROK_TMPL_PATH="$ROOT/ngrok.yml"
 NGROK_CONFIG_PATH="$HOME/.config/ngrok/ngrok.yml"
 TUNNEL_URL="http://127.0.0.1:4040/api/tunnels"
+
+if [ -z "$NGROK_TOKEN" ]; then
+  echo "NGROK_TOKEN can not be empty"
+  exit 1
+fi
 
 if [ "$(uname)" == "Darwin" ]; then
   echo "run in mac"

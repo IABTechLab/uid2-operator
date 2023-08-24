@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-source ./e2e/healthcheck.sh
+set -ex
 
 # TODO: made it configurable
 CORE_VERSION=2.9.0-46b2d8519f-master-default
@@ -31,4 +31,6 @@ sed -i.bak "s#<NGROK_URL_LOCALSTACK>#$NGROK_URL_LOCALSTACK#g" $CORE_CONFIG_FILE
 sed -i.bak "s#<NGROK_URL_LOCALSTACK>#$NGROK_URL_LOCALSTACK#g" $OPTOUT_CONFIG_FILE
 
 docker compose -f "$ROOT/docker-compose.yml" up -d
+
+source "$ROOT/healthcheck.sh"
 healthcheck "$OPT_OUT_HEALTHCHECK_URL" 20

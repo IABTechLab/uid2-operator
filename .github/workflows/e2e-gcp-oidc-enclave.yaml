@@ -32,15 +32,14 @@ jobs:
         env:
           NGROK_TOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
         run: |
-          cd ./e2e
-          bash ./setup_ngrok.sh
+          cd ./e2e && bash ./setup_ngrok.sh
 
       - name: Prepare GCP enclave metadata
         id: metadata
         env:
           IMAGE_HASH: ${{ inputs.operator_image_hash }}
         run: |
-          bash ./prepare_gcp_enclave_metadata.sh
+          cd ./e2e && bash ./prepare_gcp_enclave_metadata.sh
 
       - name: Log in to the Docker container registry
         uses: docker/login-action@v2
@@ -56,7 +55,7 @@ jobs:
           NGROK_URL_LOCALSTACK: ${{ steps.ngrok.outputs.NGROK_URL_LOCALSTACK }}
           NGROK_URL_OPTOUT: ${{ steps.ngrok.outputs.NGROK_URL_OPTOUT }}
         run: |
-          bash ./start_docker.sh
+          cd ./e2e && bash ./start_docker.sh
           echo --- Start docker-compose ---
           echo ${{ steps.metadata.outputs.OPERATOR_KEY }}
           echo ${{ steps.metadata.outputs.ENCLAVE_ID }}
@@ -68,10 +67,12 @@ jobs:
           NGROK_URL_CORE: ${{ steps.ngrok.outputs.NGROK_URL_CORE }}
           NGROK_URL_OPTOUT: ${{ steps.ngrok.outputs.NGROK_URL_OPTOUT }}
           IMAGE_HASH: ${{ inputs.operator_image_hash }}
+          OPERATOR_KEY: ${{ steps.metadata.outputs.OPERATOR_KEY }}
         run: |
           echo "NGROK_URL_CORE=$NGROK_URL_CORE"
           echo "NGROK_URL_OPTOUT=$NGROK_URL_OPTOUT"
           echo "IMAGE_HASH=$IMAGE_HASH"
+          echo "OPERATOR_KEY=$OPERATOR_KEY"
 
       - name: Sleep for 10m
         uses: jakejarvis/wait-action@master

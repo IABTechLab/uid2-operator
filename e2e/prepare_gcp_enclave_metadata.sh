@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -ex
 
 ROOT="."
 METADATA_ROOT="$ROOT/docker/localstack/s3/core"

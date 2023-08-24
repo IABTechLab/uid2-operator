@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -ex
+
 healthcheck() {
   attempt_counter=0
   max_attempts=5

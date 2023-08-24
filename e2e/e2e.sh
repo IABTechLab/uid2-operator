@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -x
 # to facilitate local test
 
 NGROK_TOKEN=

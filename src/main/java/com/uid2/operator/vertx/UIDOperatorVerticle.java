@@ -465,7 +465,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final InputUtil.InputVal input;
 
 
-        LOGGER.info(String.valueOf(phoneSupport));
         if (phoneHash != null && !phoneSupport) {
             ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "phone support not enabled");
             TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload);

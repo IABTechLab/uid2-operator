@@ -84,6 +84,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
     private final JsonObject config;
+    private final boolean clientSideTokenGenerate;
     private final AuthMiddleware auth;
     private final ISiteStore siteProvider;
     private final IClientSideKeypairStore clientSideKeypairProvider;
@@ -113,6 +114,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IStatsCollectorQueue _statsCollectorQueue;
 
     public UIDOperatorVerticle(JsonObject config,
+                               boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
                                IClientSideKeypairStore clientSideKeypairProvider,
@@ -128,6 +130,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             throw new RuntimeException(e);
         }
         this.config = config;
+        this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
         this.siteProvider = siteProvider;
@@ -261,7 +264,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
 
-        if (config.getBoolean("client_side_token_generate", false))
+        if (this.clientSideTokenGenerate)
             v2Router.post("/token/client-generate").handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
         mainRouter.route("/v2/*").subRouter(v2Router);
@@ -351,6 +354,21 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final PrivateKey privateKey = clientSideKeypair.getPrivateKey();
 
+        if(cstgDoDomainNameCheck) {
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(clientSideKeypair);
+            String origin = rc.request().getHeader("origin");
+
+            // if you want to see what http origin header is provided, uncomment this line
+            // LOGGER.info("origin: " + origin);
+
+            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+            if(!allowedDomain) {
+                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
+                TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin);
+                return;
+            }
+        }
+
         // Perform key agreement
         final KeyAgreement ka;
         try {
@@ -372,21 +390,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
             TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidKey);
             return;
-        }
-
-        if(cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(clientSideKeypair);
-            String origin = rc.request().getHeader("origin");
-
-            // if you want to see what http origin header is provided, uncomment this line
-            // LOGGER.info("origin: " + origin);
-
-            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-            if(!allowedDomain) {
-                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
-                TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin);
-                return;
-            }
         }
 
         // Read shared secret

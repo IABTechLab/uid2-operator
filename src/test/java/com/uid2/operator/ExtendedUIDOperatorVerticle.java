@@ -12,6 +12,7 @@ import java.time.Clock;
 //An extended UIDOperatorVerticle to expose classes for testing purposes
 public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
     public ExtendedUIDOperatorVerticle(JsonObject config,
+                                       boolean clientSideTokenGenerate,
                                        ISiteStore siteProvider,
                                        IClientKeyProvider clientKeyProvider,
                                        IClientSideKeypairStore clientSideKeypairProvider,
@@ -21,7 +22,7 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        IOptOutStore optOutStore,
                                        Clock clock,
                                        IStatsCollectorQueue statsCollectorQueue) {
-        super(config, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
+        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
     }
 
     public IUIDOperatorService getIdService() {

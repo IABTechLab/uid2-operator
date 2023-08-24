@@ -151,7 +151,7 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
 
         uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
 

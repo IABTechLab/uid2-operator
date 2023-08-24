@@ -87,7 +87,7 @@ public class Main {
         }
 
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
-        this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnbaleClientSideTokenGenerate, false);
+        this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
@@ -227,7 +227,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;

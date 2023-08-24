@@ -15,9 +15,8 @@ services:
       - "./docker/localstack/s3:/s3"
     environment:
       - EDGE_PORT=5001
-    healthcheck: # Used by admin, core and admin_snowflake to check if S3 bucket exists before starting (crashes otherwise)
+    healthcheck: # Used by core & optout to check if S3 bucket exists before starting (crashes otherwise)
       test: awslocal s3api wait bucket-exists --bucket test-core-bucket
-        && awslocal s3api wait bucket-exists --bucket test-snowflake-bucket
         && awslocal s3api wait bucket-exists --bucket test-optout-bucket
       interval: 5s
       timeout: 5s
@@ -27,10 +26,23 @@ services:
     container_name: core
     image: ghcr.io/iabtechlab/uid2-core:2.9.0-46b2d8519f-master-default
     ports:
-      - "127.0.0.1:8088:8088"
+      - "127.0.0.1:8090:8088"
     volumes:
       - ./docker/uid2-core/conf/local-e2e-docker-config.json:/app/conf/local-config.json
     depends_on:
       localstack:
         condition: service_healthy
 
+  optout:
+    container_name: optout
+    image: ghcr.io/iabtechlab/uid2-optout:2.5.0-80ad3156c0-default
+#    expose:
+#      - "8081" # docker file only expose 8088, but optout service listens on 8081
+    ports:
+      - "127.0.0.1:8091:8081"
+    volumes:
+      - ./docker/uid2-optout/conf/local-e2e-docker-config.json:/app/conf/local-config.json
+      - ./docker/uid2-optout/mount/:/opt/uid2/optout/
+    depends_on:
+      localstack:
+        condition: service_healthy

@@ -1,8 +1,1 @@
-[
-  {
-    "name": "Publisher Enclave",
-    "protocol": "gcp-oidc",
-    "identifier": "GCP124",
-    "created": 1622080847
-  }
-]
+[ { "name": "Publisher Enclave", "protocol": "gcp-oidc", "identifier": "FwCQ3P7gV0SDXF2MNDy4z+JMz074hzemf4Ng7U9GpGU=", "created": 1622080847 } ]

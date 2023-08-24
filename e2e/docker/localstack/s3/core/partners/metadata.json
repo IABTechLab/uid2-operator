@@ -1,5 +1,7 @@
 {
-  "partners" : {
+  "version" : 1,
+  "generated" : 1617149276,
+  "partners": {
     "location" : "partners/partners.json"
   }
 }

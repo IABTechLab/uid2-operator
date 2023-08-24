@@ -1,7 +1,7 @@
 {
   "enable_test_endpoints": true,
   "storage_mock": false,
-  "aws_s3_endpoint": "http://localstack:5001",
+  "aws_s3_endpoint": "<NGROK_LOCALSTACK_ENDPOINT>",
   "core_s3_bucket": "test-core-bucket",
   "pre_signed_url_expiry": 1800,
   "aws_region": "us-east-2",
@@ -9,7 +9,7 @@
   "aws_secret_access_key": "no secret key needed for test",
   "kms_aws_access_key_id": "no access key needed for test",
   "kms_aws_secret_access_key": "no secret key needed for test",
-  "kms_aws_endpoint": "http://localstack:5001",
+  "kms_aws_endpoint": "http://localhost:5001",
   "clients_metadata_path": "clients/metadata.json",
   "keys_metadata_path": "keys/metadata.json",
   "keys_acl_metadata_path": "keys_acl/metadata.json",
@@ -21,6 +21,6 @@
   "att_token_enc_key": "<key-for-attestation-token>",
   "att_token_enc_salt": "<salt-for-attestation-token>",
   "att_token_lifetime_seconds": 1200,
-  "provide_private_site_data": true,
+  "provide_private_site_data": false,
   "enforceJwt": false
 }

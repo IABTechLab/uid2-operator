@@ -5,20 +5,20 @@ if [ -z "$IMAGE_HASH" ]; then
 fi
 
 ROOT="."
+METADATA_ROOT="$ROOT/docker/localstack/s3/core"
+OPERATOR_FILE="$METADATA_ROOT/operators/operators.json"
+ENCLAVE_FILE="$METADATA_ROOT/enclaves/enclaves.json"
 
 # generate enclave id
 enclave_str="V1,true,$IMAGE_HASH"
 echo "enclave_str=$enclave_str"
 enclave_id=$(echo -n $enclave_str | openssl dgst -sha256 -binary | openssl base64)
 
-METADATA_ROOT="$ROOT/docker/localstack/s3/core"
 
 # fetch operator key
-OPERATOR_FILE="$METADATA_ROOT/operators/operators.json"
 operator_key=$(jq -r '.[] | select(.protocol=="gcp-oidc") | .key' $OPERATOR_FILE)
 
 # update gcp-oidc enclave id
-ENCLAVE_FILE="$METADATA_ROOT/enclaves/enclaves.json"
 cat <<< $(jq '(.[] | select(.protocol=="gcp-oidc") | .identifier) |='\"$enclave_id\"'' $ENCLAVE_FILE) > $ENCLAVE_FILE
 
 # export to Github output

@@ -7,8 +7,9 @@ fi
 
 ROOT="."
 NGROK_TMPL_PATH="$ROOT/ngrok.yml"
-
 NGROK_CONFIG_PATH="$HOME/.config/ngrok/ngrok.yml"
+TUNNEL_URL="http://127.0.0.1:4040/api/tunnels"
+
 if [ "$(uname)" == "Darwin" ]; then
   echo "run in mac"
   NGROK_CONFIG_PATH="$HOME/Library/Application Support/ngrok/ngrok.yml"
@@ -22,14 +23,11 @@ if ! which ngrok > /dev/null; then
 fi
 
 # update config file
-gsed -i "s/<TOKEN>/$NGROK_TOKEN/g" $NGROK_TMPL_PATH
-
+sed -i.bak "s/<TOKEN>/$NGROK_TOKEN/g" $NGROK_TMPL_PATH
 cp "$NGROK_TMPL_PATH" "$NGROK_CONFIG_PATH"
 
 # start and check endpoint
 ngrok start --all > /dev/null &
-
-TUNNEL_URL="http://127.0.0.1:4040/api/tunnels"
 
 source "$ROOT/healthcheck.sh"
 healthcheck $TUNNEL_URL

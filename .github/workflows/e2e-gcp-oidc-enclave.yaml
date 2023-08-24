@@ -56,11 +56,6 @@ jobs:
           NGROK_URL_OPTOUT: ${{ steps.ngrok.outputs.NGROK_URL_OPTOUT }}
         run: |
           cd ./e2e && bash ./start_docker.sh
-          echo --- Start docker-compose ---
-          echo ${{ steps.metadata.outputs.OPERATOR_KEY }}
-          echo ${{ steps.metadata.outputs.ENCLAVE_ID }}
-          docker compose -f ./e2e/docker-compose.yml up -d
-          echo --- Finished docker-compose ---
 
       - name: Bring up GCP private operator
         env:

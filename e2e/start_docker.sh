@@ -31,6 +31,7 @@ sed -i.bak "s#<NGROK_URL_LOCALSTACK>#$NGROK_URL_LOCALSTACK#g" $CORE_CONFIG_FILE
 sed -i.bak "s#<NGROK_URL_LOCALSTACK>#$NGROK_URL_LOCALSTACK#g" $OPTOUT_CONFIG_FILE
 
 docker compose -f "$ROOT/docker-compose.yml" up -d
+docker ps -a
 
 source "$ROOT/healthcheck.sh"
 healthcheck "$OPT_OUT_HEALTHCHECK_URL" 20

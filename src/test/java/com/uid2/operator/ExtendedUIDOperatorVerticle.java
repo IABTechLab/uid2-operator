@@ -1,5 +1,6 @@
 package com.uid2.operator;
 
+import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
@@ -16,13 +17,12 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        ISiteStore siteProvider,
                                        IClientKeyProvider clientKeyProvider,
                                        IClientSideKeypairStore clientSideKeypairProvider,
-                                       IKeyStore keyStore,
-                                       IKeyAclProvider keyAclProvider,
+                                       KeyManager keyManager,
                                        ISaltProvider saltProvider,
                                        IOptOutStore optOutStore,
                                        Clock clock,
                                        IStatsCollectorQueue statsCollectorQueue) {
-        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, clock, statsCollectorQueue);
+        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue);
     }
 
     public IUIDOperatorService getIdService() {

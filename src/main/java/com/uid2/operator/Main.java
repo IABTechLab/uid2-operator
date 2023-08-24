@@ -1,6 +1,8 @@
 package com.uid2.operator;
 
 import ch.qos.logback.classic.LoggerContext;
+import com.uid2.operator.model.KeyManager;
+import com.uid2.enclave.IAttestationProvider;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
@@ -34,9 +36,9 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.impl.HttpUtils;
 import io.vertx.core.json.JsonObject;
 import io.vertx.micrometer.*;
+import io.vertx.micrometer.backends.BackendRegistries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.vertx.micrometer.backends.BackendRegistries;
 
 import javax.management.*;
 import java.lang.management.ManagementFactory;
@@ -60,15 +62,13 @@ public class Main {
     private final RotatingSiteStore siteProvider;
 
     private final RotatingClientKeyProvider clientKeyProvider;
+    private final RotatingKeysetKeyStore keysetKeyStore;
+    private final RotatingKeysetProvider keysetProvider;
     private final RotatingClientSideKeypairStore clientSideKeypairProvider;
-    private final RotatingKeyStore keyStore;
-    private final RotatingKeyAclProvider keyAclProvider;
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
     private OperatorDisableHandler disableHandler = null;
-
     private final OperatorMetrics metrics;
-
     private IStatsCollectorQueue _statsCollectorQueue;
 
     private final boolean clientSideTokenGenerate;
@@ -125,13 +125,14 @@ public class Main {
         this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
         this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
-        String keysMdPath = this.config.getString(Const.Config.KeysMetadataPathProp);
-        this.keyStore = new RotatingKeyStore(fsStores, new GlobalScope(new CloudPath(keysMdPath)));
-        String keysAclMdPath = this.config.getString(Const.Config.KeysAclMetadataPathProp);
-        this.keyAclProvider = new RotatingKeyAclProvider(fsStores, new GlobalScope(new CloudPath(keysAclMdPath)));
+        String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
+        this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)));
+        String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
+        this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
+        String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
+        this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
-
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
 
         if (useStorageMock && coreAttestUrl == null) {
@@ -140,12 +141,15 @@ public class Main {
                 this.clientSideKeypairProvider.loadContent();
             }
             this.clientKeyProvider.loadContent();
-            this.keyStore.loadContent();
-            this.keyAclProvider.loadContent();
             this.saltProvider.loadContent();
+            this.keysetProvider.loadContent();
+            this.keysetKeyStore.loadContent();
         }
+        metrics = new OperatorMetrics(getKeyManager(), saltProvider);
+    }
 
-        metrics = new OperatorMetrics(keyStore, saltProvider);
+    private KeyManager getKeyManager() {
+        return new KeyManager(this.keysetKeyStore, this.keysetProvider);
     }
 
     public static void main(String[] args) throws Exception {
@@ -227,7 +231,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;
@@ -270,8 +274,8 @@ public class Main {
             clientSideKeypairProvider.getMetadata();
         }
         clientKeyProvider.getMetadata();
-        keyStore.getMetadata();
-        keyAclProvider.getMetadata();
+        keysetKeyStore.getMetadata();
+        keysetProvider.getMetadata();
         saltProvider.getMetadata();
 
         // create cloud sync for optout store
@@ -286,8 +290,8 @@ public class Main {
             fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, 10000));
         }
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("key", keyStore, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("keys_acl", keyAclProvider, 10000));
+        fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, 10000));
+        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, 10000));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {

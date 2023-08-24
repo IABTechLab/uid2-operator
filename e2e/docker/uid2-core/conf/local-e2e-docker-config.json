@@ -1,7 +1,7 @@
 {
   "enable_test_endpoints": true,
   "storage_mock": false,
-  "aws_s3_endpoint": "<NGROK_LOCALSTACK_ENDPOINT>",
+  "aws_s3_endpoint": "<NGROK_URL_LOCALSTACK>",
   "core_s3_bucket": "test-core-bucket",
   "pre_signed_url_expiry": 1800,
   "aws_region": "us-east-2",

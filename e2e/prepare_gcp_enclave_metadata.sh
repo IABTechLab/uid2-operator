@@ -4,12 +4,14 @@ if [ -z "$IMAGE_HASH" ]; then
   exit 1
 fi
 
+ROOT="."
+
 # generate enclave id
 enclave_str="V1,true,$IMAGE_HASH"
 echo "enclave_str=$enclave_str"
 enclave_id=$(echo -n $enclave_str | openssl dgst -sha256 -binary | openssl base64)
 
-METADATA_ROOT="./e2e/docker/localstack/s3/core"
+METADATA_ROOT="$ROOT/docker/localstack/s3/core"
 
 # fetch operator key
 OPERATOR_FILE="$METADATA_ROOT/operators/operators.json"
@@ -22,5 +24,10 @@ cat <<< $(jq '(.[] | select(.protocol=="gcp-oidc") | .identifier) |='\"$enclave_
 # export to Github output
 echo "OPERATOR_KEY=$operator_key"
 echo "ENCLAVE_ID=$enclave_id"
-echo "OPERATOR_KEY=$operator_key" >> $GITHUB_OUTPUT
-echo "ENCLAVE_ID=$enclave_id" >> $GITHUB_OUTPUT
+
+if [ -z "$GITHUB_OUTPUT" ]; then
+  echo "not in github action"
+else
+  echo "OPERATOR_KEY=$operator_key" >> $GITHUB_OUTPUT
+  echo "ENCLAVE_ID=$enclave_id" >> $GITHUB_OUTPUT
+fi

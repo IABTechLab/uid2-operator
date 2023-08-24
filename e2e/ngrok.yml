@@ -1,0 +1,12 @@
+version: "2"
+authtoken: 2U9hyPLFDbc8nTny7woMOudqAAN_7HiFVXjjcNiVYcXBD1k5w
+tunnels:
+  localstack:
+    addr: 5001
+    proto: http
+  optout:
+    addr: 8081
+    proto: http
+  core:
+    addr: 8088
+    proto: http

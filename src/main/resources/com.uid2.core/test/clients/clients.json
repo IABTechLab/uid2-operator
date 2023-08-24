@@ -1,38 +1,95 @@
 [
   {
-    "key": "test-admin-key",
-    "secret": "DELPabG/hsJsZk4Xm9Xr10Wb8qoKarg4ochUdY9e+Ow=",
-    "name": "admin@uid2.com",
-    "contact": "admin@uid2.com",
-    "created": 1617149276,
-    "roles": [ "mapper", "generator" ],
-    "site_id": 3
+    "key": "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=",
+    "secret": "DzBzbjTJcYL0swDtFs2krRNu+g1Eokm2tBU4dEuD0Wk=",
+    "name": "Special",
+    "contact": "Special",
+    "created": 1609459200,
+    "roles": [
+      "MAPPER",
+      "GENERATOR",
+      "ID_READER",
+      "SHARER",
+      "OPTOUT"
+    ],
+    "disabled": false,
+    "site_id": 999
   },
   {
-    "key": "test-mapper-key",
-    "secret": "/aqPU4KHIaYx3m4ReYKb89i8XgjYJL59WFJmLR1Awio=",
-    "name": "mapper@uid2.com",
-    "contact": "mapper@uid2.com",
-    "created": 1617149276,
-    "roles": [ "mapper", "generator" ],
-    "site_id": 4
+    "key": "LOCALbGlvbnVuZGVybGluZXdpbmRzY2FyZWRzb2Z0ZGVzZXI=",
+    "secret": "c3RlZXBzcGVuZHNsb3BlZnJlcXVlbnRseWRvd2lkZWM=",
+    "name": "Special (Old)",
+    "contact": "Special (Old)",
+    "created": 1609459200,
+    "roles": [
+      "MAPPER",
+      "GENERATOR",
+      "ID_READER",
+      "SHARER",
+      "OPTOUT"
+    ],
+    "disabled": false,
+    "site_id": 999
   },
   {
-    "key": "test-optout-key",
-    "secret": "734UijWRaviZ28bulrlO5yGsEUB5oQrTFHyVICWkCXo=",
-    "name": "optout@uid2.com",
-    "contact": "optout@uid2.com",
-    "created": 1617149276,
-    "roles": [ "optout" ],
-    "site_id": 5
+    "key": "UID2-C-L-123-t32pCM.5NCX1E94UgOd2f8zhsKmxzCoyhXohHYSSWR8U=",
+    "secret": "FsD4bvtjMkeTonx6HvQp6u0EiI1ApGH4pIZzZ5P7UcQ=",
+    "name": "DSP",
+    "contact": "DSP",
+    "created": 1609459200,
+    "roles": [
+      "ID_READER"
+    ],
+    "disabled": false,
+    "site_id": 123
   },
   {
-    "key": "trusted-partner-key",
-    "secret": "wJ0hP19QU4hmpB64Y3fV2dAed8t/mupw3sjN5jNRFzg=",
-    "name": "partner@uid2.com",
-    "contact": "partner@uid2.com",
-    "created": 1617149276,
-    "roles": [ "id_reader", "mapper", "generator" ],
-    "site_id": 6
+    "key": "UID2-C-L-124-H8VwqX.l2G4TCuUWYAqdqkeG/UqtFoPEoXirKn4kHWxc=",
+    "secret": "NcMgi6Y8C80SlxvV7pYlfcvEIo+2b0508tYQ3pKK8HM=",
+    "name": "Publisher",
+    "contact": "Publisher",
+    "created": 1609459200,
+    "roles": [
+      "GENERATOR"
+    ],
+    "disabled": false,
+    "site_id": 124
+  },
+  {
+    "key": "UID2-C-L-125-E5w9L8.T5og45yFqQeoj4ubh9IVqXcaSVwk7A5XyG958=",
+    "secret": "3YAgjckHGQyBgSFj64ZsLf8WlUnvrQhLKuG7rljp6W4=",
+    "name": "Data Provider",
+    "contact": "Data Provider",
+    "created": 1609459200,
+    "roles": [
+      "MAPPER",
+      "SHARER"
+    ],
+    "disabled": false,
+    "site_id": 125
+  },
+  {
+    "key": "UID2-C-L-126-GMP9tD.jn2o3vmXzn7vmKRlTT6BEUrPUaPJuQmDBdq38=",
+    "secret": "1ydXM0rEj+ROUazVpZjNZOGu2T5+f/BIiBfnK8xGh/A=",
+    "name": "Advertiser",
+    "contact": "Advertiser",
+    "created": 1609459200,
+    "roles": [
+      "MAPPER"
+    ],
+    "disabled": false,
+    "site_id": 126
+  },
+  {
+    "key": "UID2-C-L-127-aHVydH.JlZnVzZWRmYXN0ZW5lbXliYWdpZGVudGl0eWU=",
+    "secret": "c3VpdG9wcG9zaXRlaW1hZ2Vsb29rc2ltcGxlc3RmaXI=",
+    "name": "OptOut",
+    "contact": "OptOut",
+    "created": 1609459200,
+    "roles": [
+      "OPTOUT"
+    ],
+    "disabled": false,
+    "site_id": 127
   }
 ]

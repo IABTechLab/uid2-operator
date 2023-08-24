@@ -1,37 +1,35 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
-import com.uid2.shared.store.IKeyStore;
-import com.uid2.shared.model.EncryptionKey;
-import com.uid2.shared.encryption.Uid2Base64UrlCoder;
+import com.uid2.shared.Const.Data;
 import com.uid2.shared.encryption.AesCbc;
 import com.uid2.shared.encryption.AesGcm;
-import io.vertx.core.buffer.Buffer;
+import com.uid2.shared.encryption.Uid2Base64UrlCoder;
+import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.TokenVersion;
+import io.vertx.core.buffer.Buffer;
 
 import java.time.Instant;
 import java.util.Base64;
 
 public class EncryptedTokenEncoder implements ITokenEncoder {
 
-    private final IKeyStore keyStore;
+    private final KeyManager keyManager;
 
-    public EncryptedTokenEncoder(IKeyStore keyStore) {
-        this.keyStore = keyStore;
+    public EncryptedTokenEncoder(KeyManager keyManager) {
+        this.keyManager = keyManager;
     }
 
     public byte[] encode(AdvertisingToken t, Instant asOf) {
-        final EncryptionKey masterKey = this.keyStore.getSnapshot().getMasterKey(asOf);
-        final EncryptionKey siteEncryptionKey = EncryptionKeyUtil.getActiveSiteKey(
-                this.keyStore.getSnapshot(), t.publisherIdentity.siteId, Const.Data.AdvertisingTokenSiteId, asOf);
+        final KeysetKey masterKey = this.keyManager.getMasterKey(asOf);
+        final KeysetKey siteEncryptionKey = this.keyManager.getActiveKeyBySiteIdWithFallback(t.publisherIdentity.siteId, Data.AdvertisingTokenSiteId, asOf);
 
         return t.version == TokenVersion.V2
                 ? encodeV2(t, masterKey, siteEncryptionKey)
                 : encodeV3(t, masterKey, siteEncryptionKey); //TokenVersion.V4 also calls encodeV3() since the byte array is identical between V3 and V4
     }
 
-    private byte[] encodeV2(AdvertisingToken t, EncryptionKey masterKey, EncryptionKey siteKey) {
+    private byte[] encodeV2(AdvertisingToken t, KeysetKey masterKey, KeysetKey siteKey) {
         final Buffer b = Buffer.buffer();
 
         b.appendByte((byte) t.version.rawVersion);
@@ -48,7 +46,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return b.getBytes();
     }
 
-    private byte[] encodeV3(AdvertisingToken t, EncryptionKey masterKey, EncryptionKey siteKey) {
+    private byte[] encodeV3(AdvertisingToken t, KeysetKey masterKey, KeysetKey siteKey) {
         final Buffer sitePayload = Buffer.buffer(69);
         encodePublisherIdentityV3(sitePayload, t.publisherIdentity);
         sitePayload.appendInt(t.userIdentity.privacyBits);
@@ -86,7 +84,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     private RefreshToken decodeRefreshTokenV3(Buffer b, byte[] bytes) {
         final int keyId = b.getInt(2);
-        final EncryptionKey key = this.keyStore.getSnapshot().getKey(keyId);
+        final KeysetKey key = this.keyManager.getKey(keyId);
 
         final byte[] decryptedPayload = AesGcm.decrypt(bytes, 6, key);
 
@@ -153,14 +151,14 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         try {
             final int masterKeyId = b.getInt(1);
 
-            final byte[] decryptedPayload = AesCbc.decrypt(b.slice(5, b.length()).getBytes(), this.keyStore.getSnapshot().getKey(masterKeyId));
+            final byte[] decryptedPayload = AesCbc.decrypt(b.slice(5, b.length()).getBytes(), this.keyManager.getKey(masterKeyId));
 
             final Buffer b2 = Buffer.buffer(decryptedPayload);
 
             final long expiresMillis = b2.getLong(0);
             final int siteKeyId = b2.getInt(8);
 
-            final byte[] decryptedSitePayload = AesCbc.decrypt(b2.slice(12, b2.length()).getBytes(), this.keyStore.getSnapshot().getKey(siteKeyId));
+            final byte[] decryptedSitePayload = AesCbc.decrypt(b2.slice(12, b2.length()).getBytes(), this.keyManager.getKey(siteKeyId));
 
             final Buffer b3 = Buffer.buffer(decryptedSitePayload);
 
@@ -176,8 +174,8 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                     TokenVersion.V2,
                     Instant.ofEpochMilli(establishedMillis),
                     Instant.ofEpochMilli(expiresMillis),
-                    new OperatorIdentity(0, OperatorType.Service, 0, 0),
-                    new PublisherIdentity(siteId, 0, 0),
+                    new OperatorIdentity(0, OperatorType.Service, 0, masterKeyId),
+                    new PublisherIdentity(siteId, siteKeyId, 0),
                     new UserIdentity(IdentityScope.UID2, IdentityType.Email, advertisingId, privacyBits, Instant.ofEpochMilli(establishedMillis), null)
             );
 
@@ -190,14 +188,14 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     public AdvertisingToken decodeAdvertisingTokenV3orV4(Buffer b, byte[] bytes, TokenVersion tokenVersion) {
         final int masterKeyId = b.getInt(2);
 
-        final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, this.keyStore.getSnapshot().getKey(masterKeyId));
+        final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, this.keyManager.getKey(masterKeyId));
         final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
         final Instant expiresAt = Instant.ofEpochMilli(masterPayload.getLong(0));
         final Instant createdAt = Instant.ofEpochMilli(masterPayload.getLong(8));
         final OperatorIdentity operatorIdentity = decodeOperatorIdentityV3(masterPayload, 16);
         final int siteKeyId = masterPayload.getInt(29);
 
-        final Buffer sitePayload = Buffer.buffer(AesGcm.decrypt(masterPayloadBytes, 33, this.keyStore.getSnapshot().getKey(siteKeyId)));
+        final Buffer sitePayload = Buffer.buffer(AesGcm.decrypt(masterPayloadBytes, 33, this.keyManager.getKey(siteKeyId)));
         final PublisherIdentity publisherIdentity = decodePublisherIdentityV3(sitePayload, 0);
         final int privacyBits = sitePayload.getInt(16);
         final Instant establishedAt = Instant.ofEpochMilli(sitePayload.getLong(20));
@@ -223,7 +221,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     public byte[] encode(RefreshToken t, Instant asOf) {
-        final EncryptionKey serviceKey = this.keyStore.getSnapshot().getRefreshKey(asOf);
+        final KeysetKey serviceKey = this.keyManager.getRefreshKey(asOf);
 
         switch (t.version) {
             case V2:
@@ -235,7 +233,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         }
     }
 
-    public byte[] encodeV2(RefreshToken t, EncryptionKey serviceKey) {
+    public byte[] encodeV2(RefreshToken t, KeysetKey serviceKey) {
         final Buffer b = Buffer.buffer();
         b.appendByte((byte) t.version.rawVersion);
         b.appendLong(t.createdAt.toEpochMilli());
@@ -248,7 +246,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return b.getBytes();
     }
 
-    public byte[] encodeV3(RefreshToken t, EncryptionKey serviceKey) {
+    public byte[] encodeV3(RefreshToken t, KeysetKey serviceKey) {
         final Buffer refreshPayload = Buffer.buffer(90);
         refreshPayload.appendLong(t.expiresAt.toEpochMilli());
         refreshPayload.appendLong(t.createdAt.toEpochMilli());
@@ -268,7 +266,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return b.getBytes();
     }
 
-    private void encodeSiteIdentityV2(Buffer b, PublisherIdentity publisherIdentity, UserIdentity userIdentity, EncryptionKey siteEncryptionKey) {
+    private void encodeSiteIdentityV2(Buffer b, PublisherIdentity publisherIdentity, UserIdentity userIdentity, KeysetKey siteEncryptionKey) {
         b.appendInt(siteEncryptionKey.getId());
         final byte[] encryptedIdentity = encryptIdentityV2(publisherIdentity, userIdentity, siteEncryptionKey);
         b.appendBytes(encryptedIdentity);
@@ -294,7 +292,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         );
     }
 
-    private byte[] encryptIdentityV2(PublisherIdentity publisherIdentity, UserIdentity identity, EncryptionKey key) {
+    private byte[] encryptIdentityV2(PublisherIdentity publisherIdentity, UserIdentity identity, KeysetKey key) {
         Buffer b = Buffer.buffer();
         try {
             b.appendInt(publisherIdentity.siteId);

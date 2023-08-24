@@ -1,12 +1,8 @@
 package com.uid2.operator.benchmark;
 
-import com.uid2.operator.ClientKeyProviderTest;
 import com.uid2.operator.Const;
 import com.uid2.operator.Main;
-import com.uid2.operator.model.IdentityScope;
-import com.uid2.operator.model.IdentityType;
-import com.uid2.operator.model.PublisherIdentity;
-import com.uid2.operator.model.UserIdentity;
+import com.uid2.operator.model.*;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.UIDOperatorService;
@@ -23,10 +19,10 @@ import com.uid2.shared.optout.OptOutEntry;
 import com.uid2.shared.optout.OptOutHeap;
 import com.uid2.shared.optout.OptOutPartition;
 import com.uid2.shared.store.CloudPath;
-import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.store.reader.RotatingClientKeyProvider;
-import com.uid2.shared.store.reader.RotatingKeyStore;
+import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
+import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import com.uid2.shared.store.scope.GlobalScope;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -48,10 +44,15 @@ import java.util.Random;
 public class BenchmarkCommon {
 
      static IUIDOperatorService createUidOperatorService() throws Exception {
-        RotatingKeyStore keyStore = new RotatingKeyStore(
+        RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
                 new EmbeddedResourceStorage(Main.class),
-                new GlobalScope(new CloudPath("/com.uid2.core/test/keys/metadata.json")));
-        keyStore.loadContent();
+                new GlobalScope(new CloudPath("/com.uid2.core/test/keyset_keys/metadata.json")));
+        keysetKeyStore.loadContent();
+
+         RotatingKeysetProvider keysetProvider = new RotatingKeysetProvider(
+                 new EmbeddedResourceStorage(Main.class),
+                 new GlobalScope(new CloudPath("/com.uid2.core/test/keysets/metadata.json")));
+         keysetProvider.loadContent();
 
         RotatingSaltProvider saltProvider = new RotatingSaltProvider(
                 new EmbeddedResourceStorage(Main.class),
@@ -67,7 +68,7 @@ public class BenchmarkCommon {
         config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
 
-        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(keyStore);
+        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
         final List<String> optOutPartitionFiles = new ArrayList<>();
         final ICloudStorage optOutLocalStorage = make1mOptOutEntryStorage(
                 saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
@@ -85,11 +86,17 @@ public class BenchmarkCommon {
     }
 
     static EncryptedTokenEncoder createTokenEncoder() throws Exception {
-        RotatingKeyStore keyStore = new RotatingKeyStore(
+        RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
                 new EmbeddedResourceStorage(Main.class),
-                new GlobalScope(new CloudPath("/com.uid2.core/test/keys/metadata.json")));
-        keyStore.loadContent();
-        return new EncryptedTokenEncoder(keyStore);
+                new GlobalScope(new CloudPath("/com.uid2.core/test/keyset_keys/metadata.json")));
+        keysetKeyStore.loadContent();
+
+        RotatingKeysetProvider keysetProvider = new RotatingKeysetProvider(
+                new EmbeddedResourceStorage(Main.class),
+                new GlobalScope(new CloudPath("/com.uid2.core/test/keysets/metadata.json")));
+        keysetKeyStore.loadContent();
+
+        return new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
     }
 
     static JsonObject make1mOptOutEntryConfig() {

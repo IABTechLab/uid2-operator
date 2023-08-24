@@ -10,42 +10,45 @@ import com.uid2.operator.privacy.tcf.TransparentConsentParseResult;
 import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
 import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
-import com.uid2.operator.store.*;
+import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.util.Tuple;
+import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
-import com.uid2.shared.auth.ClientKey;
-import com.uid2.shared.auth.IRoleAuthorizable;
-import com.uid2.shared.auth.Role;
+import com.uid2.shared.auth.*;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
-import com.uid2.shared.model.EncryptionKey;
+import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
+import com.uid2.shared.store.IClientKeyProvider;
+import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
-import io.micrometer.core.instrument.*;
-import io.vertx.core.*;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Metrics;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.AllowForwardHeaders;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.*;
-import java.time.Clock;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
@@ -57,16 +60,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public static final String ValidationInputPhone = "+12345678901";
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
-
-    private static final int DEFAULT_MASTER_KEYSET_ID = 1;
-    private static final int DEFAULT_KEYSET_ID = 99999;
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final JsonObject config;
     private final AuthMiddleware auth;
-    private final IKeyStore keyStore;
     private final ITokenEncoder encoder;
-    private final IKeyAclProvider keyAclProvider;
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final Clock clock;
@@ -83,28 +81,26 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
     private final int tcfVendorId;
-
     private IStatsCollectorQueue _statsCollectorQueue;
+    private final KeyManager keyManager;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
-                               IKeyStore keyStore,
-                               IKeyAclProvider keyAclProvider,
+                               KeyManager keyManager,
                                ISaltProvider saltProvider,
                                IOptOutStore optOutStore,
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue) {
+        this.keyManager = keyManager;
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
-        this.keyStore = keyStore;
-        this.encoder = new EncryptedTokenEncoder(keyStore);
-        this.keyAclProvider = keyAclProvider;
+        this.encoder = new EncryptedTokenEncoder(keyManager);
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
-        this.v2PayloadHandler = new V2PayloadHandler(keyStore, config.getBoolean("enable_v2_encryption", true), this.identityScope);
+        this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
 
@@ -161,7 +157,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 .allowedMethod(io.vertx.core.http.HttpMethod.GET)
                 .allowedMethod(io.vertx.core.http.HttpMethod.POST)
                 .allowedMethod(io.vertx.core.http.HttpMethod.OPTIONS)
-                .allowedHeader(com.uid2.shared.Const.Http.ClientVersionHeader)
+                .allowedHeader(Const.Http.ClientVersionHeader)
                 .allowedHeader("Access-Control-Request-Method")
                 .allowedHeader("Access-Control-Allow-Credentials")
                 .allowedHeader("Access-Control-Allow-Origin")
@@ -236,9 +232,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final List<EncryptionKey> keys = getEncryptionKeys();
-        final IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
-        onSuccess.handle(toJson(keys, clientKey, acls));
+        final List<KeysetKey> keys = this.keyManager.getKeysForSharingOrDsps();
+        onSuccess.handle(getAccessibleKeysAsJson(keys, clientKey));
     }
 
     public void handleKeysRequestV1(RoutingContext rc) {
@@ -268,60 +263,67 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
+    private String getSharingTokenExpirySeconds() {
+        return config.getString(Const.Config.SharingTokenExpiryProp);
+    }
+
     public void handleKeysSharing(RoutingContext rc) {
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
-
-            final JsonObject resp = new JsonObject();
-            resp.put("caller_site_id", clientKey.getSiteId());
-            resp.put("master_keyset_id", DEFAULT_MASTER_KEYSET_ID);
-            resp.put("default_keyset_id", DEFAULT_KEYSET_ID);
-            resp.put("token_expiry_seconds", this.config.getString(Const.Config.SharingTokenExpiryProp));
-
             final JsonArray keys = new JsonArray();
-            final IKeysAclSnapshot acls = this.keyAclProvider.getSnapshot();
 
-            final List<EncryptionKey> keyStore = getEncryptionKeys();
+            KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
+            KeysetKey masterKey = keyManagerSnapshot.getMasterKey();
+            List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
+            Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
+            KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
+            // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
+            Keyset defaultKeyset = keyManagerSnapshot.getDefaultKeyset();
 
             MissingAclMode mode = MissingAclMode.DENY_ALL;
             // This will break if another Type is added to this map
             IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
-            if(roleAuthorize.hasRole(Role.ID_READER)) {
+            if (roleAuthorize.hasRole(Role.ID_READER)) {
                 mode = MissingAclMode.ALLOW_ALL;
             }
 
-            for (EncryptionKey key: keyStore) {
-                JsonObject keySet = new JsonObject();
-                if(clientKey.getSiteId() == key.getSiteId()) {
-                    keySet.put("keyset_id", DEFAULT_KEYSET_ID);
-                } else if (key.getSiteId() == -1) {
-                    keySet.put("keyset_id", DEFAULT_MASTER_KEYSET_ID);
-                } else if (!acls.canClientAccessKey(clientKey, key, mode)) {
+            final JsonObject resp = new JsonObject();
+            resp.put("caller_site_id", clientKey.getSiteId());
+            resp.put("master_keyset_id", masterKey.getKeysetId());
+            if (defaultKeyset != null) {
+                resp.put("default_keyset_id", defaultKeyset.getKeysetId());
+            }
+            resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
+
+            // include 'keyset_id' field, if:
+            //   (a) a key belongs to caller's enabled site
+            //   (b) a key belongs to master_keyset
+            // otherwise, when a key is accessible by caller, the key can be used for decryption only. skip 'keyset_id' field.
+            for (KeysetKey key: keysetKeyStore) {
+                JsonObject keyObj = new JsonObject();
+                Keyset keyset = keysetMap.get(key.getKeysetId());
+
+                if (keyset == null || !keyset.isEnabled()) {
+                    continue;
+                } else if (clientKey.getSiteId() == keyset.getSiteId() || key.getKeysetId() == Data.MasterKeysetId) {
+                    keyObj.put("keyset_id", key.getKeysetId());
+                } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
                     continue;
                 }
-                keySet.put("id", key.getId());
-                keySet.put("created", key.getCreated().getEpochSecond());
-                keySet.put("activates", key.getActivates().getEpochSecond());
-                keySet.put("expires", key.getExpires().getEpochSecond());
-                keySet.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
-
-
-                keys.add(keySet);
+                keyObj.put("id", key.getId());
+                keyObj.put("created", key.getCreated().getEpochSecond());
+                keyObj.put("activates", key.getActivates().getEpochSecond());
+                keyObj.put("expires", key.getExpires().getEpochSecond());
+                keyObj.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
+                keys.add(keyObj);
             }
-
             resp.put("keys", keys);
+
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);
             rc.fail(500);
         }
-    }
-
-    private List<EncryptionKey> getEncryptionKeys() {
-        final List<EncryptionKey> keyStore = this.keyStore.getSnapshot().getActiveKeySet()
-                .stream().filter(k -> k.getSiteId() != Const.Data.RefreshKeySiteId)
-                .collect(Collectors.toList());
-        return keyStore;
     }
 
     private void handleHealthCheck(RoutingContext rc) {
@@ -347,7 +349,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         String refreshToken = tokenList.get(0);
         if (refreshToken.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
             // V2 token sent by V1 JSSDK. Decrypt and extract original refresh token
-            V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, keyStore);
+            V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, this.keyManager);
             if (v2req.isValid()) {
                 refreshToken = (String) v2req.payload;
             }
@@ -1416,11 +1418,19 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         return json;
     }
 
-    private JsonArray toJson(List<EncryptionKey> keys, ClientKey clientKey, IKeysAclSnapshot acls) {
+    private JsonArray getAccessibleKeysAsJson(List<KeysetKey> keys, ClientKey clientKey) {
+        MissingAclMode mode = MissingAclMode.DENY_ALL;
+        if (clientKey.getRoles().contains(Role.ID_READER)) {
+            mode = MissingAclMode.ALLOW_ALL;
+        }
+
+        KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
+        Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
+        KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
+
         final JsonArray a = new JsonArray();
-        for (int i = 0; i < keys.size(); ++i) {
-            final EncryptionKey k = keys.get(i);
-            if (!acls.canClientAccessKey(clientKey, k)) {
+        for (KeysetKey k : keys) {
+            if (!keysetSnapshot.canClientAccessKey(clientKey, k, mode)) {
                 continue;
             }
 
@@ -1430,7 +1440,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             o.put("activates", k.getActivates().getEpochSecond());
             o.put("expires", k.getExpires().getEpochSecond());
             o.put("secret", EncodingUtils.toBase64String(k.getKeyBytes()));
-            o.put("site_id", k.getSiteId());
+            o.put("site_id", keysetMap.get(k.getKeysetId()).getSiteId());
             a.add(o);
         }
         return a;

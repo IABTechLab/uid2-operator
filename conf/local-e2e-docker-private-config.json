@@ -7,6 +7,8 @@
   "clients_metadata_path": "http://core:8088/clients/refresh",
   "keys_metadata_path": "http://core:8088/key/refresh",
   "keys_acl_metadata_path": "http://core:8088/key/acl/refresh",
+  "keysets_metadata_path": "http://core:8088/key/keyset/refresh",
+  "keyset_keys_metadata_path": "http://core:8088/key/keyset-keys/refresh",
   "salts_metadata_path": "http://core:8088/salt/refresh",
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,

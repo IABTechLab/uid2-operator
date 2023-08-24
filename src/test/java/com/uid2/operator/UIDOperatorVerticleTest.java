@@ -2623,6 +2623,52 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
+    void cstgBadPublicKey(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend();
+
+        IdentityType identityType = IdentityType.Email;
+        String rawId = "random@unifiedid.com";
+
+        JsonObject identityPayload = new JsonObject();
+        identityPayload.put("email_hash", getSha256(rawId));
+
+        final KeyFactory kf = KeyFactory.getInstance("EC");
+        final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
+        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
+        final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
+
+        final byte[] iv = Random.getBytes(12);
+        final long timestamp = Instant.now().toEpochMilli();
+        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
+        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad);
+        final String payload = EncodingUtils.toBase64String(payloadBytes);
+
+        JsonObject requestJson = new JsonObject();
+        requestJson.put("payload", payload);
+        requestJson.put("iv", EncodingUtils.toBase64String(iv));
+        requestJson.put("public_key", "bad-key");
+        requestJson.put("timestamp", timestamp);
+        requestJson.put("subscription_id", "4WvryDGbR5");
+
+        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "https://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                400,
+                respJson -> {
+                    assertEquals("client_error", respJson.getString("status"));
+                    assertEquals("bad public key", respJson.getString("message"));
+                    assertTokenStatusMetrics(
+                            0,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
     void cstgBadSubscriptionId(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
 

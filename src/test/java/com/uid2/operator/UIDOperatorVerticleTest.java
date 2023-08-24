@@ -2510,7 +2510,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgNoBody(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         postCstg(vertx,
                 "v2/token/client-generate",
@@ -2530,7 +2530,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadTimestamp(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2577,7 +2577,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"payload", "iv", "subscription_id", "public_key"})
     void cstgMissingRequiredField(String testField, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2625,7 +2625,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadSubscriptionId(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2671,7 +2671,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadIvNotBase64(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2717,7 +2717,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadIvIncorrectLength(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2763,7 +2763,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadEncryptedPayload(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2806,7 +2806,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgInvalidEncryptedPayloadJson(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
         final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
@@ -2846,7 +2846,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgPhoneAndEmailProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         JsonObject identityPayload = new JsonObject();
         identityPayload.put("email_hash", getSha256("random@unifiedid.com"));
@@ -2890,7 +2890,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgNoPhoneSupport(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         String rawId = "+10001110000";
 

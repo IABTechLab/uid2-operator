@@ -1,5 +1,5 @@
 version: "2"
-authtoken: 2U9hyPLFDbc8nTny7woMOudqAAN_7HiFVXjjcNiVYcXBD1k5w
+authtoken: <TOKEN>
 tunnels:
   localstack:
     addr: 5001

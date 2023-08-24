@@ -2,7 +2,7 @@
 
 ROOT="."
 NGROK_TMPL_PATH="$ROOT/ngrok.yml"
-NGROK_CONFIG_PATH="$HOME/.config/ngrok/ngrok.yml"
+NGROK_CONFIG_DIR="$HOME/.config/ngrok"
 TUNNEL_URL="http://127.0.0.1:4040/api/tunnels"
 
 if [ -z "$NGROK_TOKEN" ]; then
@@ -12,22 +12,25 @@ fi
 
 if [ "$(uname)" == "Darwin" ]; then
   echo "run in mac"
-  NGROK_CONFIG_PATH="$HOME/Library/Application Support/ngrok/ngrok.yml"
+  NGROK_CONFIG_DIR="$HOME/Library/Application Support/ngrok"
 fi
 
 # install
+ngrok_cmd="ngrok"
 if ! which ngrok > /dev/null; then
   echo "ngrok not found!"
   wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
   unzip -qq ngrok-stable-linux-amd64.zip
+  ngrok_cmd="./ngrok"
 fi
 
 # update config file
 sed -i.bak "s/<TOKEN>/$NGROK_TOKEN/g" $NGROK_TMPL_PATH
-cp "$NGROK_TMPL_PATH" "$NGROK_CONFIG_PATH"
+
+mkdir -p "$NGROK_CONFIG_DIR" && cp "$NGROK_TMPL_PATH" "$NGROK_CONFIG_DIR"
 
 # start and check endpoint
-ngrok start --all > /dev/null &
+$ngrok_cmd start --all > /dev/null &
 
 source "$ROOT/healthcheck.sh"
 healthcheck $TUNNEL_URL

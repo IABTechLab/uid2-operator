@@ -351,7 +351,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final PrivateKey privateKey = clientSideKeypair.getPrivateKey();
 
-
         // Perform key agreement
         final KeyAgreement ka;
         try {

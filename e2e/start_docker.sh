@@ -8,7 +8,7 @@ ROOT="."
 CORE_CONFIG_FILE="$ROOT/docker/uid2-core/conf/local-e2e-docker-config.json"
 OPTOUT_CONFIG_FILE="$ROOT/docker/uid2-optout/conf/local-e2e-docker-config.json"
 COMPOSE_FILE="$ROOT/docker-compose.yml"
-OPT_OUT_HEALTHCHECK_URL="$NGROK_URL_OPTOUT/ops/healthcheck"
+OPTOUT_HEALTHCHECK_URL="$NGROK_URL_OPTOUT/ops/healthcheck"
 
 if [ -z "$NGROK_URL_LOCALSTACK" ]; then
   echo "NGROK_URL_LOCALSTACK can not be empty"
@@ -30,8 +30,13 @@ sed -i.bak "s#<OPTOUT_VERSION>#$OPTOUT_VERSION#g" $COMPOSE_FILE
 sed -i.bak "s#<NGROK_URL_LOCALSTACK>#$NGROK_URL_LOCALSTACK#g" $CORE_CONFIG_FILE
 sed -i.bak "s#<NGROK_URL_LOCALSTACK>#$NGROK_URL_LOCALSTACK#g" $OPTOUT_CONFIG_FILE
 
+OPTOUT_MOUNT="$ROOT/docker/uid2-optout/mount"
+ls -l $(dirname $OPTOUT_MOUNT)
+chmod 777 $OPTOUT_MOUNT
+ls -l $(dirname $OPTOUT_MOUNT)
+
 docker compose -f "$ROOT/docker-compose.yml" up -d
 docker ps -a
 
 source "$ROOT/healthcheck.sh"
-healthcheck "$OPT_OUT_HEALTHCHECK_URL" 20
+healthcheck "$OPTOUT_HEALTHCHECK_URL" 20

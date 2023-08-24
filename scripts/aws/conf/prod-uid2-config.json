@@ -8,7 +8,7 @@
   "core_attest_url": "https://core-prod.uidapi.com/attest",
   "core_api_token": "your-api-token",
   "optout_s3_path_compat": false,
-  "optout_api_uri": "https://core-prod.uidapi.com/optout/replicate",
+  "optout_api_uri": "https://optout-prod.uidapi.com/optout/replicate",
   "optout_api_token": "your-api-token",
   "enclave_platform": "aws-nitro",
   "optout_synthetic_logs_enabled": false,

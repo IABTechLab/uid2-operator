@@ -27,6 +27,7 @@ import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
+import com.uid2.shared.store.IClientSideKeypairStore;
 import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;

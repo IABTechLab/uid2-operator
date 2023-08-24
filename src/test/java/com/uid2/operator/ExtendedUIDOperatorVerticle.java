@@ -14,8 +14,8 @@ import java.time.Clock;
 public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
     public ExtendedUIDOperatorVerticle(JsonObject config,
                                        IClientKeyProvider clientKeyProvider,
-                                       KeyManager keyManager,
                                        IClientSideKeypairStore clientSideKeypairProvider,
+                                       KeyManager keyManager,
                                        ISaltProvider saltProvider,
                                        IOptOutStore optOutStore,
                                        Clock clock,

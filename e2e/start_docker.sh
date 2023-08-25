@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 set -ex
 
-# TODO: made it configurable
-CORE_VERSION=2.9.0-46b2d8519f-master-default
-OPTOUT_VERSION=2.5.0-80ad3156c0-default
 ROOT="."
 CORE_CONFIG_FILE="$ROOT/docker/uid2-core/conf/local-e2e-docker-config.json"
 OPTOUT_CONFIG_FILE="$ROOT/docker/uid2-optout/conf/local-e2e-docker-config.json"
 COMPOSE_FILE="$ROOT/docker-compose.yml"
 OPTOUT_MOUNT="$ROOT/docker/uid2-optout/mount"
 OPTOUT_HEALTHCHECK_URL="$NGROK_URL_OPTOUT/ops/healthcheck"
+
+if [ -z "$CORE_VERSION" ]; then
+  echo "CORE_VERSION can not be empty"
+  exit 1
+fi
+
+if [ -z "$OPTOUT_VERSION" ]; then
+  echo "OPTOUT_VERSION can not be empty"
+  exit 1
+fi
 
 if [ -z "$NGROK_URL_LOCALSTACK" ]; then
   echo "NGROK_URL_LOCALSTACK can not be empty"

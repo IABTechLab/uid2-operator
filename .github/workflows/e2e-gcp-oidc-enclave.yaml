@@ -6,10 +6,14 @@ on:
         description: 'The hash of GCP enclave image'
         type: string
         required: true
-      core_image_hash:
-        description: 'The hash of UID2 core image'
+      core_image_version:
+        description: 'The version of UID2 core image'
         type: string
-        default: '11'
+        default: '2.9.0-46b2d8519f-master-default'
+      optout_image_version:
+        description: 'The version of UID2 optout image'
+        type: string
+        default: '2.5.0-80ad3156c0-default'
 
 env:
   REGISTRY: ghcr.io
@@ -55,6 +59,8 @@ jobs:
           NGROK_URL_LOCALSTACK: ${{ steps.ngrok.outputs.NGROK_URL_LOCALSTACK }}
           NGROK_URL_CORE: ${{ steps.ngrok.outputs.NGROK_URL_CORE }}
           NGROK_URL_OPTOUT: ${{ steps.ngrok.outputs.NGROK_URL_OPTOUT }}
+          CORE_VERSION: ${{ inputs.core_image_version }}
+          OPTOUT_VERSION: ${{ inputs.optout_image_version }}
         run: |
           cd ./e2e && bash ./start_docker.sh
 
@@ -63,13 +69,8 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIAL }}'
 
-      - name: 'Set up Cloud SDK'
+      - name: Set up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v1'
-
-      - name: 'Bring up GCP private operator and test'
-        run: |
-          gcloud info
-          cd ./e2e && bash ./start_docker.sh
 
       - name: Start GCP private operator
         id: start_gcp

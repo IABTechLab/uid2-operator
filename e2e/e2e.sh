@@ -4,6 +4,8 @@ set -x
 
 NGROK_TOKEN=
 IMAGE_HASH=
+CORE_VERSION=2.9.0-46b2d8519f-master-default
+OPTOUT_VERSION=2.5.0-80ad3156c0-default
 
 # copy to a different folder in local to avoid data pollution
 cp -rf "./e2e/" "./e2e-target"

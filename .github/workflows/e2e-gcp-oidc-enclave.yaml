@@ -53,6 +53,7 @@ jobs:
         id: docker-compose
         env:
           NGROK_URL_LOCALSTACK: ${{ steps.ngrok.outputs.NGROK_URL_LOCALSTACK }}
+          NGROK_URL_CORE: ${{ steps.ngrok.outputs.NGROK_URL_CORE }}
           NGROK_URL_OPTOUT: ${{ steps.ngrok.outputs.NGROK_URL_OPTOUT }}
         run: |
           cd ./e2e && bash ./start_docker.sh

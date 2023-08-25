@@ -39,9 +39,6 @@ services:
     image: ghcr.io/iabtechlab/uid2-optout:<OPTOUT_VERSION>
     ports:
       - "127.0.0.1:8081:8081"
-    extra_hosts:
-#     not needed in mac/windows, but required in linux
-      - "host.docker.internal:host-gateway"
     volumes:
       - ./docker/uid2-optout/conf/local-e2e-docker-config.json:/app/conf/local-config.json
       - ./docker/uid2-optout/mount/:/opt/uid2/optout/

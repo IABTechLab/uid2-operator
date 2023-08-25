@@ -16,6 +16,11 @@ if [ -z "$NGROK_URL_LOCALSTACK" ]; then
   exit 1
 fi
 
+if [ -z "$NGROK_URL_CORE" ]; then
+  echo "NGROK_URL_CORE can not be empty"
+  exit 1
+fi
+
 if [ -z "$NGROK_URL_OPTOUT" ]; then
   echo "NGROK_URL_OPTOUT can not be empty"
   exit 1
@@ -30,6 +35,7 @@ sed -i.bak "s#<OPTOUT_VERSION>#$OPTOUT_VERSION#g" $COMPOSE_FILE
 
 sed -i.bak "s#<NGROK_URL_LOCALSTACK>#$NGROK_URL_LOCALSTACK#g" $CORE_CONFIG_FILE
 sed -i.bak "s#<NGROK_URL_LOCALSTACK>#$NGROK_URL_LOCALSTACK#g" $OPTOUT_CONFIG_FILE
+sed -i.bak "s#<NGROK_URL_CORE>#$NGROK_URL_CORE#g" $OPTOUT_CONFIG_FILE
 
 chmod 777 $OPTOUT_MOUNT
 

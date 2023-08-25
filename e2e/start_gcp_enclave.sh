@@ -39,17 +39,6 @@ gcloud compute instances create $GCP_INSTANCE_NAME \
     --service-account $SERVICE_ACCOUNT \
     --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@$IMAGE_HASH\~tee-container-log-redirect=true~tee-restart-policy=Never~tee-env-DEPLOYMENT_ENVIRONMENT=integ~tee-env-API_TOKEN=$OPERATOR_KEY~tee-env-CORE_BASE_URL=$NGROK_URL_CORE~tee-env-OPTOUT_BASE_URL=$NGROK_URL_OPTOUT
 
-ip=$(gcloud compute instances describe $GCP_INSTANCE_NAME \
-    --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-
-echo "instance ip: $ip"
-
-healthcheck_url="http://$ip:8080/ops/healthcheck"
-
-# health check
-healthcheck "$healthcheck_url" 20
-
-
 # export to Github output
 echo "GCP_INSTANCE_NAME=$GCP_INSTANCE_NAME"
 
@@ -58,3 +47,14 @@ if [ -z "$GITHUB_OUTPUT" ]; then
 else
   echo "GCP_INSTANCE_NAME=$GCP_INSTANCE_NAME" >> $GITHUB_OUTPUT
 fi
+
+# get public IP
+ip=$(gcloud compute instances describe $GCP_INSTANCE_NAME \
+    --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+
+echo "instance ip: $ip"
+
+healthcheck_url="http://$ip:8080/ops/healthcheck"
+
+# health check - for 5 mins
+healthcheck "$healthcheck_url" 60

@@ -795,7 +795,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         if (requestJsonObject.containsKey(LINK_ID)) {
             String linkId = requestJsonObject.getString(LINK_ID);
             if (!linkId.equalsIgnoreCase(privateLinkId)) {
-                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link Id");
+                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
                 return false;
             }
         }

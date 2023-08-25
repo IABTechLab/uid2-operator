@@ -18,13 +18,12 @@ enclave_id=$(echo -n $enclave_str | openssl dgst -sha256 -binary | openssl base6
 
 
 # fetch operator key
-operator_key=$(jq -r '.[] | select(.protocol=="gcp-oidc") | .key' $OPERATOR_FILE)
+OPERATOR_KEY=$(jq -r '.[] | select(.protocol=="gcp-oidc") | .key' $OPERATOR_FILE)
 
 # update gcp-oidc enclave id
 cat <<< $(jq '(.[] | select(.protocol=="gcp-oidc") | .identifier) |='\"$enclave_id\"'' $ENCLAVE_FILE) > $ENCLAVE_FILE
 
 # export to Github output
-OPERATOR_KEY=operator_key
 echo "OPERATOR_KEY=$OPERATOR_KEY"
 
 if [ -z "$GITHUB_OUTPUT" ]; then

@@ -87,8 +87,3 @@ jobs:
           GCP_INSTANCE_NAME: ${{ steps.start_gcp.outputs.GCP_INSTANCE_NAME }}
         run: |
           cd ./e2e && bash ./stop_gcp_enclave.sh
-
-      - name: Sleep for 10m
-        uses: jakejarvis/wait-action@master
-        with:
-          time: '600s'

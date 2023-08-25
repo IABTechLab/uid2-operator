@@ -24,12 +24,11 @@ operator_key=$(jq -r '.[] | select(.protocol=="gcp-oidc") | .key' $OPERATOR_FILE
 cat <<< $(jq '(.[] | select(.protocol=="gcp-oidc") | .identifier) |='\"$enclave_id\"'' $ENCLAVE_FILE) > $ENCLAVE_FILE
 
 # export to Github output
-echo "OPERATOR_KEY=$operator_key"
-echo "ENCLAVE_ID=$enclave_id"
+OPERATOR_KEY=operator_key
+echo "OPERATOR_KEY=$OPERATOR_KEY"
 
 if [ -z "$GITHUB_OUTPUT" ]; then
   echo "not in github action"
 else
-  echo "OPERATOR_KEY=$operator_key" >> $GITHUB_OUTPUT
-  echo "ENCLAVE_ID=$enclave_id" >> $GITHUB_OUTPUT
+  echo "OPERATOR_KEY=$OPERATOR_KEY" >> $GITHUB_OUTPUT
 fi

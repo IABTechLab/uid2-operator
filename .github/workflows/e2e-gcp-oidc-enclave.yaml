@@ -27,7 +27,7 @@ jobs:
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
 
-      - name: bring up ngrok
+      - name: Bring up ngrok
         id: ngrok
         env:
           NGROK_TOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
@@ -58,17 +58,35 @@ jobs:
         run: |
           cd ./e2e && bash ./start_docker.sh
 
-      - name: Bring up GCP private operator
+      - name: Bring up GCP
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIAL }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+
+      - name: 'Bring up GCP private operator and test'
+        run: |
+          gcloud info
+          cd ./e2e && bash ./start_docker.sh
+
+      - name: Start GCP private operator
+        id: start_gcp
         env:
           NGROK_URL_CORE: ${{ steps.ngrok.outputs.NGROK_URL_CORE }}
           NGROK_URL_OPTOUT: ${{ steps.ngrok.outputs.NGROK_URL_OPTOUT }}
           IMAGE_HASH: ${{ inputs.operator_image_hash }}
           OPERATOR_KEY: ${{ steps.metadata.outputs.OPERATOR_KEY }}
         run: |
-          echo "NGROK_URL_CORE=$NGROK_URL_CORE"
-          echo "NGROK_URL_OPTOUT=$NGROK_URL_OPTOUT"
-          echo "IMAGE_HASH=$IMAGE_HASH"
-          echo "OPERATOR_KEY=$OPERATOR_KEY"
+          cd ./e2e && bash ./start_gcp_enclave.sh
+
+      - name: Stop GCP private operator
+        if: always()
+        env:
+          GCP_INSTANCE_NAME: ${{ steps.start_gcp.outputs.GCP_INSTANCE_NAME }}
+        run: |
+          cd ./e2e && bash ./stop_gcp_enclave.sh
 
       - name: Sleep for 10m
         uses: jakejarvis/wait-action@master

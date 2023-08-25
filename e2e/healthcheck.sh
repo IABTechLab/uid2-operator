@@ -17,7 +17,6 @@ healthcheck() {
       printf '.'
       attempt_counter=$((attempt_counter+1))
       sleep 5
-      docker compose logs
   done
   echo "Healthcheck $1 succeed."
 }

@@ -16,3 +16,5 @@ docker compose down
 source ./setup_ngrok.sh
 source ./prepare_gcp_enclave_metadata.sh
 source ./start_docker.sh
+#source ./start_gcp_enclave.sh
+#source ./stop_gcp_enclave.sh

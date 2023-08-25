@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -ex
 
-PROJECT_ID='uid2-test'
 SERVICE_ACCOUNT='github-ci@uid2-test.iam.gserviceaccount.com'
 GCP_INSTANCE_NAME="ci-test-$RANDOM"
 ROOT="."
@@ -27,8 +26,6 @@ if [ -z "$NGROK_URL_OPTOUT" ]; then
   echo "NGROK_URL_OPTOUT can not be empty"
   exit 1
 fi
-
-gcloud config set project $PROJECT_ID
 
 gcloud compute instances create $GCP_INSTANCE_NAME \
     --confidential-compute \

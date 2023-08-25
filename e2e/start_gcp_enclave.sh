@@ -40,7 +40,7 @@ gcloud compute instances create $GCP_INSTANCE_NAME \
     --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@$IMAGE_HASH\~tee-container-log-redirect=true~tee-restart-policy=Never~tee-env-DEPLOYMENT_ENVIRONMENT=integ~tee-env-API_TOKEN=$OPERATOR_KEY~tee-env-CORE_BASE_URL=$NGROK_URL_CORE~tee-env-OPTOUT_BASE_URL=$NGROK_URL_OPTOUT
 
 ip=$(gcloud compute instances describe $GCP_INSTANCE_NAME \
-    --format='get(networkInterfasces[0].accessConfigs[0].natIP)')
+    --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
 
 echo "instance ip: $ip"
 

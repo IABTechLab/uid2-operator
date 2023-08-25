@@ -63,6 +63,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
+    private static final String REQUEST = "request";
     private static final String LINK_ID = "link_id";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final JsonObject config;
@@ -790,6 +791,17 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
+    private boolean isServiceLinkAuthenticated(RoutingContext rc, JsonObject requestJsonObject) {
+        if (requestJsonObject.containsKey(LINK_ID)) {
+            String linkId = requestJsonObject.getString(LINK_ID);
+            if (!linkId.equalsIgnoreCase(privateLinkId)) {
+                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link Id");
+                return false;
+            }
+        }
+        return true;
+    }
+
     private InputUtil.InputVal getTokenInput(RoutingContext rc) {
         final InputUtil.InputVal input;
         final List<String> emailInput = rc.queryParam("email");
@@ -1035,15 +1047,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
                 return;
             }
-            if (checkServiceLinkIdForIdentityMap && rc.data().containsKey(LINK_ID)) {
-                String linkId = rc.data().get(LINK_ID).toString();
-                if (!linkId.equalsIgnoreCase(privateLinkId)) {
-                    ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link Id");
+            JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
+            if (checkServiceLinkIdForIdentityMap) {
+                if (!isServiceLinkAuthenticated(rc, requestJsonObject)) {
                     return;
                 }
             }
 
-            IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy((JsonObject) rc.data().get("request"));
+            IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(requestJsonObject);
             recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
 
             final Instant now = Instant.now();

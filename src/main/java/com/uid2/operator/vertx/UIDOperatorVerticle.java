@@ -41,6 +41,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
+import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +62,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+
+    private static final String LINK_ID = "link_id";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final JsonObject config;
     private final AuthMiddleware auth;
@@ -83,6 +86,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final int tcfVendorId;
     private IStatsCollectorQueue _statsCollectorQueue;
     private final KeyManager keyManager;
+    private final boolean checkServiceLinkIdForIdentityMap;
+    private final String privateLinkId;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -103,7 +108,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
-
+        this.checkServiceLinkIdForIdentityMap = config.getBoolean("check_service_link_id_for_identity_map", false);
+        this.privateLinkId = config.getString("private_link_id", "");
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -1028,6 +1034,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                 else
                     ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
                 return;
+            }
+            if (checkServiceLinkIdForIdentityMap && rc.data().containsKey(LINK_ID)) {
+                String linkId = rc.data().get(LINK_ID).toString();
+                if (!linkId.equalsIgnoreCase(privateLinkId)) {
+                    ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link Id");
+                    return;
+                }
             }
 
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy((JsonObject) rc.data().get("request"));

@@ -39,7 +39,8 @@ gcloud compute instances create $GCP_INSTANCE_NAME \
     --zone us-west1-b
 
 ip=$(gcloud compute instances describe $GCP_INSTANCE_NAME \
-    --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+    --format='get(networkInterfasces[0].accessConfigs[0].natIP)' \
+    --zone us-west1-b)
 
 echo "instance ip: $ip"
 

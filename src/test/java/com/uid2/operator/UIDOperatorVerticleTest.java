@@ -555,6 +555,17 @@ public class UIDOperatorVerticleTest {
         return req;
     }
 
+    private JsonObject setupIdentityMapServiceLinkTest() {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = createBatchEmailsRequestPayload();
+        req.put("policy", 1);
+        return req;
+    }
+
     protected TokenVersion getTokenVersion() {return TokenVersion.V2;}
 
     final boolean useIdentityV3() { return getTokenVersion() != TokenVersion.V2; }
@@ -2911,15 +2922,8 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void identityMapAuthorizeServiceLinks(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
-        setupKeys();
-
-        JsonObject req = createBatchEmailsRequestPayload();
-        req.put("policy", 1);
-
+    void identityMapAuthorizeServiceLinksValid(Vertx vertx, VertxTestContext testContext) {
+        JsonObject req = setupIdentityMapServiceLinkTest();
         // Case 1 : Valid link_id
         req.put("link_id", 12345);
 
@@ -2927,7 +2931,11 @@ public class UIDOperatorVerticleTest {
             checkIdentityMapResponse(json, "test1@uid2.com", "test2@uid2.com");
             testContext.completeNow();
         });
+    }
 
+    @Test
+    void identityMapAuthorizeServiceLinksInvalid(Vertx vertx, VertxTestContext testContext) {
+        JsonObject req = setupIdentityMapServiceLinkTest();
         // Case 2 : Invalid link_id
         req.put("link_id", 9876);
         send("v2", vertx, "v2" + "/identity/map", false, null, req, 401, json -> {

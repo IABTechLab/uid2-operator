@@ -309,20 +309,16 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final String encryptedPayload = body.getString("payload");
-        final String iv = body.getString("iv");
-        final String subscriptionId = body.getString("subscription_id");
-        final String clientPublicKeyString = body.getString("public_key");
-        //instead of crashing use a default value
-        final long timestamp = body.getLong("timestamp", 0L);
-        if (Math.abs(Duration.between(Instant.ofEpochMilli(timestamp), clock.systemUTC().instant()).toMinutes()) >=
+        final CstgRequest request = body.mapTo(CstgRequest.class);
+
+        if (Math.abs(Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.systemUTC().instant()).toMinutes()) >=
                 V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
             ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
             TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
             return;
         }
 
-        if (encryptedPayload == null || iv == null || subscriptionId == null || clientPublicKeyString == null) {
+        if (request.getPayload() == null || request.getIv() == null || request.getSubscriptionId() == null || request.getPublicKey() == null) {
             ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "required parameters: payload, iv, subscription_id, public_key");
             TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
             return;
@@ -332,7 +328,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         final PublicKey clientPublicKey;
         try {
-            final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
+            final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(request.getPublicKey());
             final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
             clientPublicKey = kf.generatePublic(pkSpec);
         } catch (Exception e) {
@@ -341,7 +337,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final ClientSideKeypair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
+        final ClientSideKeypair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(request.getSubscriptionId());
         if (clientSideKeyPair == null) {
             ResponseUtil.Error(ResponseStatus.Unauthorized, 401, rc, "bad subscription_id");
             TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
@@ -349,7 +345,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         if(cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(subscriptionId);
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(request.getSubscriptionId());
             String origin = rc.request().getHeader("origin");
 
             // if you want to see what http origin header is provided, uncomment this line
@@ -373,7 +369,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
         final byte[] ivBytes;
         try {
-            ivBytes = Base64.getDecoder().decode(iv);
+            ivBytes = Base64.getDecoder().decode(request.getIv());
             if (ivBytes.length != 12) {
                 ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad iv");
                 TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadIV);
@@ -385,11 +381,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
+        final byte[] aad = new JsonArray(List.of(request.getTimestamp())).toBuffer().getBytes();
 
         final byte[] requestPayloadBytes;
         try {
-            final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
+            final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(request.getPayload());
             final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedPayloadBytes.length);
             System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
             requestPayloadBytes = decrypt(ivAndCiphertext, 0, sharedSecret, aad);

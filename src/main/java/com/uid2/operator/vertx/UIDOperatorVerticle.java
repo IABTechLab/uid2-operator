@@ -301,7 +301,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    private void handleClientSideTokenGenerateImpl(RoutingContext rc) {
+    private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body = rc.body().asJsonObject();
         if (body == null) {
             ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload expected but not found");
@@ -328,14 +328,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final KeyFactory kf;
-        try {
-            kf = KeyFactory.getInstance("EC");
-        } catch (NoSuchAlgorithmException e) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoEC);
-            return;
-        }
+        final KeyFactory kf = KeyFactory.getInstance("EC");
 
         final PublicKey clientPublicKey;
         try {
@@ -371,27 +364,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
 
         // Perform key agreement
-        final KeyAgreement ka;
-        try {
-            ka = KeyAgreement.getInstance("ECDH");
-            ka.init(clientSideKeyPair.getPrivateKey());
-        } catch (NoSuchAlgorithmException e) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
-            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoECDH);
-            return;
-        } catch (InvalidKeyException e) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
-            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidKey);
-            return;
-        }
-
-        try {
-            ka.doPhase(clientPublicKey, true);
-        } catch (InvalidKeyException e) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
-            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidKey);
-            return;
-        }
+        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
+        ka.init(clientSideKeyPair.getPrivateKey());
+        ka.doPhase(clientPublicKey, true);
 
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();

@@ -33,6 +33,6 @@
   "client_side_token_generate_test_domain_name_list" : "localhost,uidapi.com",
   "client_side_token_generate_test_subscription_id" : "4WvryDGbR5",
   "client_side_token_generate_test_private_key" : "UID2-Y-L-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCC5kOSRVD+qhAZqf0L4LGbmAhdy5HpIptwXE72jxhwo6w==",
-  "//note the public key is this" : "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtXJdTSZAYHvoRDWiehMHoWF1BNPuqLs5w2ZHiAZ1IJc7O4/z0ojPTB0V+KYX/wxQK0hxx6kxCvHj335eI/ZQsQ==",
+  "client_side_token_generate_test_public_key" : "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtXJdTSZAYHvoRDWiehMHoWF1BNPuqLs5w2ZHiAZ1IJc7O4/z0ojPTB0V+KYX/wxQK0hxx6kxCvHj335eI/ZQsQ==",
   "client_side_token_generate_test_site_id" : 123
 }

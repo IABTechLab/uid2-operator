@@ -22,6 +22,7 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
+import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
@@ -105,6 +106,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final boolean cstgDoDomainNameCheck;
     private final String cstgTestDomainNameList;
     private final String cstgTestSubscriptionId;
+    private final String cstgTestPublicKey;
     private final String cstgTestPrivateKey;
     private final Integer cstgTestSiteId;
 
@@ -135,6 +137,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this.cstgTestDomainNameList = config.getString("client_side_token_generate_test_domain_name_list", "");
         this.cstgTestSubscriptionId = config.getString("client_side_token_generate_test_subscription_id");
+        this.cstgTestPublicKey = config.getString("client_side_token_generate_test_public_key");
         this.cstgTestPrivateKey = config.getString("client_side_token_generate_test_private_key");
         this.cstgTestSiteId = config.getInteger("client_side_token_generate_test_site_id");
         this._statsCollectorQueue = statsCollectorQueue;
@@ -271,33 +274,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
-    static class ClientSideKeyPair //todo move this
-    {
-        private final String privateKey;
-        private final int siteId;
-        //this class will be enhanced in UID2-1374
-
-        public ClientSideKeyPair(int siteId, String privateKey) {
-            this.privateKey = privateKey.substring(9);
-            this.siteId = siteId;
-        }
-
-        public String getPrivateKeyString() {
-            return privateKey;
-        }
-        public int getSiteId() {
-            return siteId;
-        }
-    }
-
-    private ClientSideKeyPair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
+    private ClientSideKeypair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
 
         if(cstgTestSubscriptionId == null || cstgTestSiteId == null || cstgTestPrivateKey == null) {
             return null;
         }
 
         if (cstgTestSubscriptionId.equals(subscriptionId)) {
-            return new ClientSideKeyPair(cstgTestSiteId, cstgTestPrivateKey);
+            return new ClientSideKeypair(subscriptionId, cstgTestPublicKey, cstgTestPrivateKey, cstgTestSiteId, "", Instant.EPOCH, false);
         }
         else {
             return null;
@@ -364,7 +348,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        final ClientSideKeyPair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
+        final ClientSideKeypair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(subscriptionId);
         if (clientSideKeyPair == null) {
             ResponseUtil.Error(ResponseStatus.Unauthorized, 401, rc, "bad subscription_id");
             TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
@@ -386,22 +370,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             }
         }
 
-        final byte[] privateKeyBytes = Base64.getDecoder().decode(clientSideKeyPair.getPrivateKeyString());
-        final PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
-        PrivateKey privateKey = null;
-        try {
-            privateKey = kf.generatePrivate(keySpec);
-        } catch (InvalidKeySpecException e) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "private key issue");
-            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidPrivateKey);
-            return;
-        }
-
         // Perform key agreement
         final KeyAgreement ka;
         try {
             ka = KeyAgreement.getInstance("ECDH");
-            ka.init(privateKey);
+            ka.init(clientSideKeyPair.getPrivateKey());
         } catch (NoSuchAlgorithmException e) {
             ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
             TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoECDH);

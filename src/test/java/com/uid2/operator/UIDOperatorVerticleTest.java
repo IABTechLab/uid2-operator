@@ -180,6 +180,7 @@ public class UIDOperatorVerticleTest {
         config.put("client_side_token_generate", true);
         config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
         config.put("client_side_token_generate_test_subscription_id", "4WvryDGbR5");
+        config.put("client_side_token_generate_test_public_key", clientSideTokenGeneratePublicKey);
         config.put("client_side_token_generate_test_private_key", clientSideTokenGeneratePrivateKey);
         config.put("client_side_token_generate_test_site_id", 123);
     }

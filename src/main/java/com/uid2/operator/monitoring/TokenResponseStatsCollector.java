@@ -34,7 +34,6 @@ public class TokenResponseStatsCollector {
         BadSubscriptionId,
         BadTimestamp,
         InvalidHttpOrigin,
-        InvalidPrivateKey,
         InvalidKey,
         BadIV,
         BadPayload,

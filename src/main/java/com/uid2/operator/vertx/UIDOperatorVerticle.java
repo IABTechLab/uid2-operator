@@ -109,8 +109,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
-        this.checkServiceLinkIdForIdentityMap = config.getBoolean("check_service_link_id_for_identity_map", false);
-        this.privateLinkId = config.getString("private_link_id", "");
+        this.checkServiceLinkIdForIdentityMap = config.getBoolean(Const.Config.CheckServiceLinkIdForIdentityMapProp, false);
+        this.privateLinkId = config.getString(Const.Config.PrivateLinkIdProp, "");
         this._statsCollectorQueue = statsCollectorQueue;
     }
 

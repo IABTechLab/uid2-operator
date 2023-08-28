@@ -305,22 +305,28 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         final JsonObject body = rc.body().asJsonObject();
         if (body == null) {
             ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload expected but not found");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
+            // We don't have a site ID, so we don't bother calling TokenResponseStatsCollector.record.
             return;
         }
 
         final CstgRequest request = body.mapTo(CstgRequest.class);
 
-        if (Math.abs(Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.systemUTC().instant()).toMinutes()) >=
-                V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
+        final ClientSideKeypair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(request.getSubscriptionId());
+        if (clientSideKeyPair == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad subscription_id");
             return;
         }
 
-        if (request.getPayload() == null || request.getIv() == null || request.getSubscriptionId() == null || request.getPublicKey() == null) {
-            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "required parameters: payload, iv, subscription_id, public_key");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
+        if (Math.abs(Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.systemUTC().instant()).toMinutes()) >=
+                V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
+            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
+            return;
+        }
+
+        if (request.getPayload() == null || request.getIv() == null || request.getPublicKey() == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "required parameters: payload, iv, public_key");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
             return;
         }
 
@@ -333,14 +339,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             clientPublicKey = kf.generatePublic(pkSpec);
         } catch (Exception e) {
             ResponseUtil.Error(ResponseStatus.ClientError,400, rc, "bad public key");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
-            return;
-        }
-
-        final ClientSideKeypair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(request.getSubscriptionId());
-        if (clientSideKeyPair == null) {
-            ResponseUtil.Error(ResponseStatus.Unauthorized, 401, rc, "bad subscription_id");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
             return;
         }
 

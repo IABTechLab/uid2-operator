@@ -80,7 +80,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static com.uid2.shared.Const.Data.*;
@@ -117,6 +116,7 @@ public class UIDOperatorVerticleTest {
 
     private AttestationTokenRetriever fakeAttestationTokenRetriever;
 
+    private static final int clientSideTokenGenerateSiteId = 123;
     private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-T-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
     private static final String clientSideTokenGeneratePublicKey = "UID2-X-T-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
 
@@ -182,7 +182,7 @@ public class UIDOperatorVerticleTest {
         config.put("client_side_token_generate_test_subscription_id", "4WvryDGbR5");
         config.put("client_side_token_generate_test_public_key", clientSideTokenGeneratePublicKey);
         config.put("client_side_token_generate_test_private_key", clientSideTokenGeneratePrivateKey);
-        config.put("client_side_token_generate_test_site_id", 123);
+        config.put("client_side_token_generate_test_site_id", clientSideTokenGenerateSiteId);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -2379,7 +2379,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("please provide exactly one of: email_hash, phone_hash", respJson.getString("message"));
                     assertEquals(UIDOperatorVerticle.ResponseStatus.ClientError, respJson.getString("status"));
                     assertTokenStatusMetrics(
-                            123,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.MissingParams);
                     testContext.completeNow();
@@ -2403,7 +2403,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
                     assertTokenStatusMetrics(
-                            123,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin);
                     testContext.completeNow();
@@ -2441,10 +2441,6 @@ public class UIDOperatorVerticleTest {
                     JsonObject response = result.bodyAsJsonObject();
                     assertEquals("client_error", response.getString("status"));
                     assertEquals("json payload expected but not found", response.getString("message"));
-                    assertTokenStatusMetrics(
-                            0,
-                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
-                            TokenResponseStatsCollector.ResponseStatus.MissingParams);
                     testContext.completeNow();
                 })));
     }
@@ -2489,7 +2485,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("error", respJson.getString("status"));
                     assertEquals("invalid timestamp: request too old or client time drift", respJson.getString("message"));
                     assertTokenStatusMetrics(
-                            0,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
                     testContext.completeNow();
@@ -2497,7 +2493,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"payload", "iv", "subscription_id", "public_key"})
+    @ValueSource(strings = {"payload", "iv", "public_key"})
     void cstgMissingRequiredField(String testField, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
 
@@ -2537,11 +2533,7 @@ public class UIDOperatorVerticleTest {
                 testContext,
                 respJson -> {
                     assertEquals("client_error", respJson.getString("status"));
-                    assertEquals("required parameters: payload, iv, subscription_id, public_key", respJson.getString("message"));
-                    assertTokenStatusMetrics(
-                            0,
-                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
-                            TokenResponseStatsCollector.ResponseStatus.MissingParams);
+                    assertEquals("required parameters: payload, iv, public_key", respJson.getString("message"));
                     testContext.completeNow();
                 });
     }
@@ -2586,7 +2578,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad public key", respJson.getString("message"));
                     assertTokenStatusMetrics(
-                            0,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
                     testContext.completeNow();
@@ -2627,15 +2619,11 @@ public class UIDOperatorVerticleTest {
                 "https://cstg.co.uk",
                 data.getItem1(),
                 data.getItem2(),
-                401,
+                400,
                 testContext,
                 respJson -> {
-                    assertEquals("unauthorized", respJson.getString("status"));
+                    assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad subscription_id", respJson.getString("message"));
-                    assertTokenStatusMetrics(
-                            0,
-                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
-                            TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
                     testContext.completeNow();
                 });
     }
@@ -2680,7 +2668,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad iv", respJson.getString("message"));
                     assertTokenStatusMetrics(
-                            123,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadIV);
                     testContext.completeNow();
@@ -2727,7 +2715,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad iv", respJson.getString("message"));
                     assertTokenStatusMetrics(
-                            123,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadIV);
                     testContext.completeNow();
@@ -2771,7 +2759,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("payload decryption failed", respJson.getString("message"));
                     assertTokenStatusMetrics(
-                            123,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadPayload);
                     testContext.completeNow();
@@ -2812,7 +2800,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("encrypted payload contains invalid json", respJson.getString("message"));
                     assertTokenStatusMetrics(
-                            123,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadPayload);
                     testContext.completeNow();
@@ -2857,7 +2845,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("please provide exactly one of: email_hash, phone_hash", respJson.getString("message"));
                     assertTokenStatusMetrics(
-                            123,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadPayload);
                     testContext.completeNow();
@@ -2903,7 +2891,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("phone support not enabled", respJson.getString("message"));
                     assertTokenStatusMetrics(
-                            123,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadPayload);
                     testContext.completeNow();
@@ -2991,7 +2979,7 @@ public class UIDOperatorVerticleTest {
                     EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
-                    assertEquals(123, advertisingToken.publisherIdentity.siteId);
+                    assertEquals(clientSideTokenGenerateSiteId, advertisingToken.publisherIdentity.siteId);
 
                     assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
                     assertEquals(optOutExpected, PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
@@ -3011,7 +2999,7 @@ public class UIDOperatorVerticleTest {
                     }
 
                     RefreshToken refreshToken = encoder.decodeRefreshToken(genBody.getString("decrypted_refresh_token"));
-                    assertEquals(123, refreshToken.publisherIdentity.siteId);
+                    assertEquals(clientSideTokenGenerateSiteId, refreshToken.publisherIdentity.siteId);
                     assertTrue(PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits).isClientSideTokenGenerated());
 
                     if(optOutExpected) {
@@ -3048,7 +3036,7 @@ public class UIDOperatorVerticleTest {
 
                     assertEquals(optOutExpected, matchedOptedOutIdentity);
                     assertTokenStatusMetrics(
-                            123,
+                            clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.Success);
 
@@ -3063,12 +3051,12 @@ public class UIDOperatorVerticleTest {
 
                         //make sure the new advertising token from refresh looks right
                         AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, identityType);
-                        assertEquals(123, adTokenFromRefresh.publisherIdentity.siteId);
+                        assertEquals(clientSideTokenGenerateSiteId, adTokenFromRefresh.publisherIdentity.siteId);
 
                         String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
                         RefreshToken refreshTokenAfterRefresh = encoder.decodeRefreshToken(refreshTokenStringNew);
-                        assertEquals(123, refreshTokenAfterRefresh.publisherIdentity.siteId);
+                        assertEquals(clientSideTokenGenerateSiteId, refreshTokenAfterRefresh.publisherIdentity.siteId);
 
                         if(optOutExpected) {
                             assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(expectedOptedOutIdentity), firstLevelSalt), refreshTokenAfterRefresh.userIdentity.id);
@@ -3098,7 +3086,7 @@ public class UIDOperatorVerticleTest {
 
 
                         assertTokenStatusMetrics(
-                                123,
+                                clientSideTokenGenerateSiteId,
                                 TokenResponseStatsCollector.Endpoint.RefreshV2,
                                 TokenResponseStatsCollector.ResponseStatus.Success);
 

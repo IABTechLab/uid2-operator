@@ -317,7 +317,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
-        if (Math.abs(Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.systemUTC().instant()).toMinutes()) >=
+        if (Math.abs(Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.instant()).toMinutes()) >=
                 V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
             ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
             TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);

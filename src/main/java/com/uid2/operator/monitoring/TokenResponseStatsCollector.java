@@ -34,7 +34,6 @@ public class TokenResponseStatsCollector {
         InvalidHttpOrigin,
         BadIV,
         BadPayload,
-        FailedTokenGeneration
         /* Start of CSTG-related Status */
     }
 

@@ -456,17 +456,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                             cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate));
         }
         JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
-        try {
-            if (response.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && response.containsKey("body")) {
-                V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
-            }
-        }
-        catch (Exception ex){
-            LOGGER.error("Failed to generate token", ex);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "Failed to generate tokens");
-            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.FailedTokenGeneration);
-            return;
-        }
+        V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
+
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
         TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);

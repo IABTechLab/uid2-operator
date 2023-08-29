@@ -1,7 +1,6 @@
 package com.uid2.operator.monitoring;
 
 import com.uid2.operator.model.RefreshResponse;
-import com.uid2.operator.model.RefreshToken;
 import com.uid2.operator.util.Tuple;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
@@ -15,7 +14,9 @@ public class TokenResponseStatsCollector {
         GenerateV2,
         RefreshV0,
         RefreshV1,
-        RefreshV2
+        RefreshV2,
+        //it's the first version but the endpoint is v2/token/client-generate so we will call it v2
+        ClientSideTokenGenerateV2,
     }
 
     public enum ResponseStatus {
@@ -24,7 +25,16 @@ public class TokenResponseStatsCollector {
         InvalidUserConsentString,
         OptOut,
         ExpiredToken,
-        InvalidToken
+        InvalidToken,
+        /* Start of CSTG-related Status */
+        MissingParams,
+        BadPublicKey,
+        BadSubscriptionId,
+        BadTimestamp,
+        InvalidHttpOrigin,
+        BadIV,
+        BadPayload,
+        /* Start of CSTG-related Status */
     }
 
     private static final HashMap<Tuple.Tuple3<Integer, Endpoint, ResponseStatus>, Counter> TokenResponseCounters = new HashMap<>();

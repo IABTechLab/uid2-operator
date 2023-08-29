@@ -77,9 +77,42 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         if (b.getByte(1) == TokenVersion.V3.rawVersion) {
             return decodeRefreshTokenV3(b, bytes);
+        } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
+            return decodeRefreshTokenV2(b);
         }
 
         throw new IllegalArgumentException("Invalid refresh token version");
+    }
+
+    private RefreshToken decodeRefreshTokenV2(Buffer b) {
+        final Instant createdAt = Instant.ofEpochMilli(b.getLong(1));
+        //final Instant expiresAt = Instant.ofEpochMilli(b.getLong(9));
+        final Instant validTill = Instant.ofEpochMilli(b.getLong(17));
+        final int keyId = b.getInt(25);
+
+        final KeysetKey key = this.keyManager.getKey(keyId);
+
+        final byte[] decryptedPayload = AesCbc.decrypt(b.slice(29, b.length()).getBytes(), key);
+
+        final Buffer b2 = Buffer.buffer(decryptedPayload);
+
+        final int siteId = b2.getInt(0);
+        final int length = b2.getInt(4);
+        final byte[] identity;
+        try {
+            identity = EncodingUtils.fromBase64(b2.slice(8, 8 + length).getBytes());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to decode refreshTokenV2: Identity segment is not valid base64.", e);
+        }
+
+        final int privacyBits = b2.getInt(8 + length);
+        final long establishedMillis = b2.getLong(8 + length + 4);
+
+        return new RefreshToken(
+                TokenVersion.V2, createdAt, validTill,
+                new OperatorIdentity(0, OperatorType.Service, 0, 0),
+                new PublisherIdentity(siteId, 0, 0),
+                new UserIdentity(IdentityScope.UID2, IdentityType.Email, identity, privacyBits, Instant.ofEpochMilli(establishedMillis), null));
     }
 
     private RefreshToken decodeRefreshTokenV3(Buffer b, byte[] bytes) {

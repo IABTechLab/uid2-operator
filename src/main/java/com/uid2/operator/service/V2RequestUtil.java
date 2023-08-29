@@ -153,7 +153,7 @@ public class V2RequestUtil {
         }
     }
 
-    public static void handleRefreshTokenInResponseBody(JsonObject bodyJson, KeyManager keyManager, IdentityScope identityScope) throws Exception {
+    public static void handleRefreshTokenInResponseBody(JsonObject bodyJson, KeyManager keyManager, IdentityScope identityScope) {
         KeysetKey refreshKey = keyManager.getRefreshKey();
 
         JsonObject tokenKeyJson = new JsonObject();

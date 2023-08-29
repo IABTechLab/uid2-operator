@@ -2,6 +2,7 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
@@ -11,13 +12,17 @@ import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
 import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.IOptOutStore;
+import com.uid2.operator.util.DomainNameCheckUtil;
+import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.*;
+import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
+import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
@@ -27,12 +32,15 @@ import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
+import io.netty.buffer.Unpooled;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.AllowForwardHeaders;
@@ -45,12 +53,21 @@ import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.crypto.*;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
+import java.security.*;
+import java.security.spec.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
+import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
+import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+import static com.uid2.operator.service.V2RequestUtil.V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES;
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle{
@@ -60,19 +77,21 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     public static final byte[] ValidationInputEmailHash = EncodingUtils.getSha256Bytes(ValidationInputEmail);
     public static final String ValidationInputPhone = "+12345678901";
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
+
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
     private static final String REQUEST = "request";
     private static final String LINK_ID = "link_id";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
+    private final Cipher aesGcm;
     private final JsonObject config;
     private final AuthMiddleware auth;
     private final ITokenEncoder encoder;
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final Clock clock;
-    private IUIDOperatorService idService;
+    protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
@@ -90,6 +109,13 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final boolean checkServiceLinkIdForIdentityMap;
     private final String privateLinkId;
 
+    private final boolean cstgDoDomainNameCheck;
+    private final String cstgTestDomainNameList;
+    private final String cstgTestSubscriptionId;
+    private final String cstgTestPublicKey;
+    private final String cstgTestPrivateKey;
+    private final Integer cstgTestSiteId;
+
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
                                KeyManager keyManager,
@@ -98,6 +124,11 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue) {
         this.keyManager = keyManager;
+        try {
+            aesGcm = Cipher.getInstance("AES/GCM/NoPadding");
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            throw new RuntimeException(e);
+        }
         this.config = config;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -111,6 +142,12 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.checkServiceLinkIdForIdentityMap = config.getBoolean(Const.Config.CheckServiceLinkIdForIdentityMapProp, false);
         this.privateLinkId = config.getString(Const.Config.PrivateLinkIdProp, "");
+        this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
+        this.cstgTestDomainNameList = config.getString("client_side_token_generate_test_domain_name_list", "");
+        this.cstgTestSubscriptionId = config.getString("client_side_token_generate_test_subscription_id");
+        this.cstgTestPublicKey = config.getString("client_side_token_generate_test_public_key");
+        this.cstgTestPrivateKey = config.getString("client_side_token_generate_test_private_key");
+        this.cstgTestSiteId = config.getInteger("client_side_token_generate_test_site_id");
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -228,7 +265,218 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
+
+        if (config.getBoolean("client_side_token_generate", false))
+            v2Router.post("/token/client-generate").handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
+
         mainRouter.route("/v2/*").subRouter(v2Router);
+    }
+
+
+    private void handleClientSideTokenGenerate(RoutingContext rc) {
+        try {
+            handleClientSideTokenGenerateImpl(rc);
+        } catch (Exception e) {
+            LOGGER.error("Unknown error while handling client side token generate", e);
+            rc.fail(500);
+        }
+    }
+
+    private ClientSideKeypair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
+
+        if(cstgTestSubscriptionId == null || cstgTestSiteId == null || cstgTestPrivateKey == null) {
+            return null;
+        }
+
+        if (cstgTestSubscriptionId.equals(subscriptionId)) {
+            return new ClientSideKeypair(subscriptionId, cstgTestPublicKey, cstgTestPrivateKey, cstgTestSiteId, "", Instant.EPOCH, false);
+        }
+        else {
+            return null;
+        }
+    }
+
+    private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
+        if(cstgTestSubscriptionId == null) {
+            return new HashSet<>();
+        }
+
+        if (cstgTestSubscriptionId.equals(subscriptionId)) {
+            return Arrays.stream(cstgTestDomainNameList.split(",")).collect(Collectors.toSet());
+        }
+        else {
+            return new HashSet<>();
+        }
+    }
+
+    private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
+        final JsonObject body = rc.body().asJsonObject();
+        if (body == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload expected but not found");
+            // We don't have a site ID, so we don't bother calling TokenResponseStatsCollector.record.
+            return;
+        }
+
+        final CstgRequest request = body.mapTo(CstgRequest.class);
+
+        final ClientSideKeypair clientSideKeyPair = getPrivateKeyForClientSideTokenGenerate(request.getSubscriptionId());
+        if (clientSideKeyPair == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad subscription_id");
+            return;
+        }
+
+        if (cstgDoDomainNameCheck) {
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(request.getSubscriptionId());
+            String origin = rc.request().getHeader("origin");
+
+            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+            if (!allowedDomain) {
+                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
+                TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin);
+                return;
+            }
+        }
+
+        if (Math.abs(Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.instant()).toMinutes()) >=
+                V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
+            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
+            return;
+        }
+
+        if (request.getPayload() == null || request.getIv() == null || request.getPublicKey() == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "required parameters: payload, iv, public_key");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
+            return;
+        }
+
+        final KeyFactory kf = KeyFactory.getInstance("EC");
+
+        final PublicKey clientPublicKey;
+        try {
+            final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(request.getPublicKey());
+            final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
+            clientPublicKey = kf.generatePublic(pkSpec);
+        } catch (Exception e) {
+            ResponseUtil.Error(ResponseStatus.ClientError,400, rc, "bad public key");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
+            return;
+        }
+
+        // Perform key agreement
+        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
+        ka.init(clientSideKeyPair.getPrivateKey());
+        ka.doPhase(clientPublicKey, true);
+
+        // Read shared secret
+        final byte[] sharedSecret = ka.generateSecret();
+
+        final byte[] ivBytes;
+        try {
+            ivBytes = Base64.getDecoder().decode(request.getIv());
+            if (ivBytes.length != 12) {
+                ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad iv");
+                TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadIV);
+                return;
+            }
+        } catch (IllegalArgumentException e) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad iv");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadIV);
+            return;
+        }
+
+        final byte[] aad = new JsonArray(List.of(request.getTimestamp())).toBuffer().getBytes();
+
+        final byte[] requestPayloadBytes;
+        try {
+            final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(request.getPayload());
+            final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedPayloadBytes.length);
+            System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
+            requestPayloadBytes = decrypt(ivAndCiphertext, 0, sharedSecret, aad);
+        } catch (Exception e) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "payload decryption failed");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload);
+            return;
+        }
+
+        final JsonObject requestPayload;
+        try {
+            requestPayload = new JsonObject(Buffer.buffer(Unpooled.wrappedBuffer(requestPayloadBytes)));
+        } catch (DecodeException e) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "encrypted payload contains invalid json");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload);
+            return;
+        }
+
+        final String emailHash = requestPayload.getString("email_hash");
+        final String phoneHash = requestPayload.getString("phone_hash");
+        final InputUtil.InputVal input;
+
+
+        if (phoneHash != null && !phoneSupport) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "phone support not enabled");
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload);
+            return;
+        }
+
+        final String errString = phoneSupport ?  "please provide exactly one of: email_hash, phone_hash" : "please provide email_hash";
+        if (emailHash == null && phoneHash == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, errString);
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
+            return;
+        }
+        else if (emailHash != null && phoneHash != null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, errString);
+            TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload);
+            return;
+        }
+        else if(emailHash != null) {
+            input = InputUtil.normalizeEmailHash(emailHash);
+        }
+        else {
+            input = InputUtil.normalizePhoneHash(phoneHash);
+        }
+
+        PrivacyBits privacyBits = new PrivacyBits();
+        privacyBits.setLegacyBit();
+        privacyBits.setClientSideTokenGenerate();
+
+        IdentityTokens identityTokens = this.idService.generateIdentity(
+                new IdentityRequest(
+                        new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
+                        input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
+                        TokenGeneratePolicy.RespectOptOut));
+
+
+        if (identityTokens.isEmptyToken()) {
+            //user opted out we will generate a token with the opted out user identity
+            privacyBits.setClientSideTokenGenerateOptout();
+            UserIdentity cstgOptOutIdentity;
+            if(input.getIdentityType() == IdentityType.Email) {
+                cstgOptOutIdentity = InputUtil.InputVal.validEmail(ClientSideTokenGenerateOptOutIdentityForEmail, ClientSideTokenGenerateOptOutIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
+            }
+            else {
+                cstgOptOutIdentity = InputUtil.InputVal.validPhone(ClientSideTokenGenerateOptOutIdentityForPhone, ClientSideTokenGenerateOptOutIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
+            }
+            identityTokens = this.idService.generateIdentity(
+                    new IdentityRequest(
+                            new PublisherIdentity(clientSideKeyPair.getSiteId(), 0, 0),
+                            cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate));
+        }
+        JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
+        V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
+
+        final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
+        rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
+        TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
+    }
+
+    private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        SecretKey key = new SecretKeySpec(secretBytes, "AES");
+        GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, encryptedBytes, offset, 12);
+        aesGcm.init(Cipher.DECRYPT_MODE, key, gcmParameterSpec);
+        aesGcm.updateAAD(aad);
+        return aesGcm.doFinal(encryptedBytes, offset + 12, encryptedBytes.length - offset - 12);
     }
 
     private void handleKeysRequestCommon(RoutingContext rc, Handler<JsonArray> onSuccess) {
@@ -985,7 +1233,7 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         try {
             final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
             if (inputList == null) return;
-            
+
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(rc.getBodyAsJson());
             recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
 
@@ -1490,15 +1738,16 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     }
 
     public static class ResponseStatus {
-        public static String Success = "success";
-        public static String Unauthorized = "unauthorized";
-        public static String ClientError = "client_error";
-        public static String OptOut = "optout";
-        public static String InvalidToken = "invalid_token";
-        public static String ExpiredToken = "expired_token";
-        public static String GenericError = "error";
-        public static String UnknownError = "unknown";
-        public static String InsufficientUserConsent = "insufficient_user_consent";
+        public static final String Success = "success";
+        public static final String Unauthorized = "unauthorized";
+        public static final String ClientError = "client_error";
+        public static final String OptOut = "optout";
+        public static final String InvalidToken = "invalid_token";
+        public static final String ExpiredToken = "expired_token";
+        public static final String GenericError = "error";
+        public static final String UnknownError = "unknown";
+        public static final String InsufficientUserConsent = "insufficient_user_consent";
+        public static final String InvalidHttpOrigin = "invalid_http_origin";
     }
 
     public static enum UserConsentStatus {

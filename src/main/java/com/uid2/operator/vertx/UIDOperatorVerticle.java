@@ -49,6 +49,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
+import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +80,9 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+
+    private static final String REQUEST = "request";
+    private static final String LINK_ID = "link_id";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
     private final JsonObject config;
@@ -102,6 +106,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final int tcfVendorId;
     private IStatsCollectorQueue _statsCollectorQueue;
     private final KeyManager keyManager;
+    private final boolean checkServiceLinkIdForIdentityMap;
+    private final String privateLinkId;
 
     private final boolean cstgDoDomainNameCheck;
     private final String cstgTestDomainNameList;
@@ -134,6 +140,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
+        this.checkServiceLinkIdForIdentityMap = config.getBoolean(Const.Config.CheckServiceLinkIdForIdentityMapProp, false);
+        this.privateLinkId = config.getString(Const.Config.PrivateLinkIdProp, "");
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this.cstgTestDomainNameList = config.getString("client_side_token_generate_test_domain_name_list", "");
         this.cstgTestSubscriptionId = config.getString("client_side_token_generate_test_subscription_id");
@@ -1031,6 +1039,17 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         }
     }
 
+    private boolean isServiceLinkAuthenticated(RoutingContext rc, JsonObject requestJsonObject) {
+        if (requestJsonObject.containsKey(LINK_ID)) {
+            String linkId = requestJsonObject.getString(LINK_ID);
+            if (!linkId.equalsIgnoreCase(privateLinkId)) {
+                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
+                return false;
+            }
+        }
+        return true;
+    }
+
     private InputUtil.InputVal getTokenInput(RoutingContext rc) {
         final InputUtil.InputVal input;
         final List<String> emailInput = rc.queryParam("email");
@@ -1276,8 +1295,14 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                     ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
                 return;
             }
+            JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
+            if (checkServiceLinkIdForIdentityMap) {
+                if (!isServiceLinkAuthenticated(rc, requestJsonObject)) {
+                    return;
+                }
+            }
 
-            IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy((JsonObject) rc.data().get("request"));
+            IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(requestJsonObject);
             recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
 
             final Instant now = Instant.now();

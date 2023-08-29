@@ -149,6 +149,8 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.FailureShutdownWaitHoursProp, 24);
         final int sharingExpirySeconds = 60 * 60 * 24 * 30;
         config.put(Const.Config.SharingTokenExpiryProp, sharingExpirySeconds);
+        config.put("check_service_link_id_for_identity_map", true);
+        config.put("private_link_id", "12345");
 
         if(testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
@@ -571,6 +573,26 @@ public class UIDOperatorVerticleTest {
         return !useIdentityV3()
             ? TokenUtils.getAdvertisingIdV2FromIdentityHash(identityString, firstLevelSalt, rotatingSalt)
             : TokenUtils.getAdvertisingIdV3FromIdentityHash(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt);
+    }
+
+    private JsonObject createBatchEmailsRequestPayload() {
+        JsonArray emails = new JsonArray();
+        emails.add("test1@uid2.com");
+        emails.add("test2@uid2.com");
+        JsonObject req = new JsonObject();
+        req.put("email", emails);
+        return req;
+    }
+
+    private JsonObject setupIdentityMapServiceLinkTest() {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = createBatchEmailsRequestPayload();
+        req.put("policy", 1);
+        return req;
     }
 
     protected TokenVersion getTokenVersion() {return TokenVersion.V2;}
@@ -1436,12 +1458,7 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
 
-        JsonObject req = new JsonObject();
-        JsonArray emails = new JsonArray();
-        req.put("email", emails);
-
-        emails.add("test1@uid2.com");
-        emails.add("test2@uid2.com");
+        JsonObject req = createBatchEmailsRequestPayload();
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 200, json -> {
             checkIdentityMapResponse(json, "test1@uid2.com", "test2@uid2.com");
@@ -3705,6 +3722,30 @@ public class UIDOperatorVerticleTest {
             assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys.toArray(new KeysetKey[0]));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityMapAuthorizeServiceLinksValid(Vertx vertx, VertxTestContext testContext) {
+        JsonObject req = setupIdentityMapServiceLinkTest();
+        // Case 1 : Valid link_id
+        req.put("link_id", 12345);
+
+        send("v2", vertx, "v2" + "/identity/map", false, null, req, 200, json -> {
+            checkIdentityMapResponse(json, "test1@uid2.com", "test2@uid2.com");
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityMapAuthorizeServiceLinksInvalid(Vertx vertx, VertxTestContext testContext) {
+        JsonObject req = setupIdentityMapServiceLinkTest();
+        // Case 2 : Invalid link_id
+        req.put("link_id", 9876);
+        send("v2", vertx, "v2" + "/identity/map", false, null, req, 401, json -> {
+            assertEquals("unauthorized", json.getString("status"));
+            assertEquals("Invalid link_id", json.getString("message"));
             testContext.completeNow();
         });
     }

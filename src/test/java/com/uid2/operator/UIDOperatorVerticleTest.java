@@ -2473,12 +2473,11 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", "4WvryDGbR5");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "https://cstg.co.uk",
-                data.getItem1(),
-                data.getItem2(),
+                requestJson,
+                secretKey,
                 400,
                 testContext,
                 respJson -> {
@@ -2523,12 +2522,11 @@ public class UIDOperatorVerticleTest {
 
         requestJson.remove(testField);
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "https://cstg.co.uk",
-                data.getItem1(),
-                data.getItem2(),
+                requestJson,
+                secretKey,
                 400,
                 testContext,
                 respJson -> {
@@ -2566,12 +2564,11 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", "4WvryDGbR5");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "https://cstg.co.uk",
-                data.getItem1(),
-                data.getItem2(),
+                requestJson,
+                secretKey,
                 400,
                 testContext,
                 respJson -> {
@@ -2613,12 +2610,11 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", "bad");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "https://cstg.co.uk",
-                data.getItem1(),
-                data.getItem2(),
+                requestJson,
+                secretKey,
                 400,
                 testContext,
                 respJson -> {
@@ -2656,12 +2652,11 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", "4WvryDGbR5");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "https://cstg.co.uk",
-                data.getItem1(),
-                data.getItem2(),
+                requestJson,
+                secretKey,
                 400,
                 testContext,
                 respJson -> {
@@ -2703,12 +2698,11 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", "4WvryDGbR5");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "https://cstg.co.uk",
-                data.getItem1(),
-                data.getItem2(),
+                requestJson,
+                secretKey,
                 400,
                 testContext,
                 respJson -> {
@@ -2747,12 +2741,11 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", "4WvryDGbR5");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "https://cstg.co.uk",
-                data.getItem1(),
-                data.getItem2(),
+                requestJson,
+                secretKey,
                 400,
                 testContext,
                 respJson -> {
@@ -2788,12 +2781,11 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", "4WvryDGbR5");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "https://cstg.co.uk",
-                data.getItem1(),
-                data.getItem2(),
+                requestJson,
+                secretKey,
                 400,
                 testContext,
                 respJson -> {
@@ -2833,12 +2825,11 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", "4WvryDGbR5");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "https://cstg.co.uk",
-                data.getItem1(),
-                data.getItem2(),
+                requestJson,
+                secretKey,
                 400,
                 testContext,
                 respJson -> {
@@ -2879,12 +2870,11 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", "4WvryDGbR5");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = new Tuple.Tuple2<>(requestJson, secretKey);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "https://cstg.co.uk",
-                data.getItem1(),
-                data.getItem2(),
+                requestJson,
+                secretKey,
                 400,
                 testContext,
                 respJson -> {

@@ -317,6 +317,18 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             return;
         }
 
+        if (cstgDoDomainNameCheck) {
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(request.getSubscriptionId());
+            String origin = rc.request().getHeader("origin");
+
+            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
+            if (!allowedDomain) {
+                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
+                TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin);
+                return;
+            }
+        }
+
         if (Math.abs(Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.instant()).toMinutes()) >=
                 V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
             ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
@@ -341,21 +353,6 @@ public class UIDOperatorVerticle extends AbstractVerticle{
             ResponseUtil.Error(ResponseStatus.ClientError,400, rc, "bad public key");
             TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
             return;
-        }
-
-        if(cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(request.getSubscriptionId());
-            String origin = rc.request().getHeader("origin");
-
-            // if you want to see what http origin header is provided, uncomment this line
-            // LOGGER.info("origin: " + origin);
-
-            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-            if(!allowedDomain) {
-                ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
-                TokenResponseStatsCollector.record(clientSideKeyPair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin);
-                return;
-            }
         }
 
         // Perform key agreement

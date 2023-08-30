@@ -3487,6 +3487,11 @@ public class UIDOperatorVerticleTest {
                 createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
+        for(int siteId= 101; siteId <= 105; siteId++) {
+            doReturn(new Site(siteId, "site"+siteId, true, new HashSet<>(Arrays.asList(siteId+".com", siteId+".co.uk")))).when(siteProvider).getSite(siteId);
+//            doReturn(null).when(siteProvider).getSite(105);
+        }
+
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
@@ -3494,6 +3499,14 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
             assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+
+//            respJson.getJsonObject("body").getJsonArray("sites").getJsonObject(0).getString("domain_names")
+//
+//            assertEquals(respJson.getJsonObject("body").getJsonArray("sites").getJsonObject(0).getString("domain_names"), Arrays.asList("101.co.uk", "101.com"));
+//            assertEquals(respJson.getJsonObject("body").getJsonArray("sites").getJsonObject(1).getString("domain_names"), Arrays.asList("104.co.uk", "104.com"));
+
+
+
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
             testContext.completeNow();
         });

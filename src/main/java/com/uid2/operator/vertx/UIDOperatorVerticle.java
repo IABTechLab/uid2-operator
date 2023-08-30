@@ -554,6 +554,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
             final JsonArray keys = new JsonArray();
+            final JsonArray sites = new JsonArray();
+            final Set<Integer> accessibleSites = new HashSet<>();
 
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
             KeysetKey masterKey = keyManagerSnapshot.getMasterKey();
@@ -599,9 +601,30 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 keyObj.put("expires", key.getExpires().getEpochSecond());
                 keyObj.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
                 keys.add(keyObj);
+                Set<Integer> allowedSites = keyset.getAllowedSites();
+                if (allowedSites != null){
+                    accessibleSites.addAll(allowedSites);
+                    accessibleSites.add(keyset.getSiteId());
+                }
             }
             resp.put("keys", keys);
-
+            //without cstg enabled, operator won't have site data and siteProvider could be null
+            if(clientSideTokenGenerate) {
+                for (Integer siteId : accessibleSites) {
+                    if(siteId == null) {
+                        continue;
+                    }
+                    Site s = siteProvider.getSite(siteId);
+                    if(s == null) {
+                        continue;
+                    }
+                    JsonObject siteObj = new JsonObject();
+                    siteObj.put("id", siteId);
+                    siteObj.put("domain_names", s.getDomainNames());
+                    sites.add(siteObj);
+                }
+                resp.put("sites", sites);
+            }
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);

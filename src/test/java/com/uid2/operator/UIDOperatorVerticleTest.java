@@ -3445,6 +3445,23 @@ public class UIDOperatorVerticleTest {
         });
     }
 
+    private void setupSiteDomainNameListCall() {
+        for(int siteId= 101; siteId <= 105; siteId++) {
+            doReturn(new Site(siteId, "site"+siteId, true, new HashSet<>(Arrays.asList(siteId+".com", siteId+".co.uk")))).when(siteProvider).getSite(siteId);
+        }
+    }
+
+    public HashMap<Integer, List<String>> setupExpectation(int... siteIds)
+    {
+        HashMap<Integer, List<String>> expectedSites = new HashMap();
+        for (int siteId : siteIds)
+        {
+            List<String> siteDomains = Arrays.asList(siteId+".co.uk", siteId+".com");
+            expectedSites.put(siteId, siteDomains);
+        }
+        return expectedSites;
+    }
+
     @Test
     // Tests:
     //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
@@ -3487,10 +3504,7 @@ public class UIDOperatorVerticleTest {
                 createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
-        for(int siteId= 101; siteId <= 105; siteId++) {
-            doReturn(new Site(siteId, "site"+siteId, true, new HashSet<>(Arrays.asList(siteId+".com", siteId+".co.uk")))).when(siteProvider).getSite(siteId);
-//            doReturn(null).when(siteProvider).getSite(105);
-        }
+        setupSiteDomainNameListCall();
 
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
@@ -3500,13 +3514,14 @@ public class UIDOperatorVerticleTest {
             assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
 
-//            respJson.getJsonObject("body").getJsonArray("sites").getJsonObject(0).getString("domain_names")
-//
-//            assertEquals(respJson.getJsonObject("body").getJsonArray("sites").getJsonObject(0).getString("domain_names"), Arrays.asList("101.co.uk", "101.com"));
-//            assertEquals(respJson.getJsonObject("body").getJsonArray("sites").getJsonObject(1).getString("domain_names"), Arrays.asList("104.co.uk", "104.com"));
+            HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 104);
+            assertEquals(respJson.getJsonObject("body").getJsonArray("sites").size(), 2);
+            for(int i = 0; i < respJson.getJsonObject("body").getJsonArray("sites").size(); i++) {
 
-
-
+                JsonObject siteDetail = respJson.getJsonObject("body").getJsonArray("sites").getJsonObject(i);
+                int siteId = siteDetail.getInteger("id");
+                assertTrue(expectedSites.get(siteId).containsAll((Collection<String>) siteDetail.getMap().get("domain_names")));
+            }
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
             testContext.completeNow();
         });

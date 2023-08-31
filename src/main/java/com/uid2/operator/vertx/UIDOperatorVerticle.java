@@ -25,9 +25,12 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
+import com.uid2.shared.model.Service;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.IServiceLinkStore;
+import com.uid2.shared.store.IServiceStore;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -89,6 +92,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
     private final AuthMiddleware auth;
     private final ITokenEncoder encoder;
     private final ISaltProvider saltProvider;
+    private final IServiceStore serviceProvider;
+    private final IServiceLinkStore serviceLinkProvider;
     private final IOptOutStore optOutStore;
     private final Clock clock;
     protected IUIDOperatorService idService;
@@ -120,6 +125,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
                                IClientKeyProvider clientKeyProvider,
                                KeyManager keyManager,
                                ISaltProvider saltProvider,
+                               IServiceStore serviceProvider,
+                               IServiceLinkStore serviceLinkProvider,
                                IOptOutStore optOutStore,
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue) {
@@ -134,6 +141,8 @@ public class UIDOperatorVerticle extends AbstractVerticle{
         this.auth = new AuthMiddleware(clientKeyProvider);
         this.encoder = new EncryptedTokenEncoder(keyManager);
         this.saltProvider = saltProvider;
+        this.serviceProvider = serviceProvider;
+        this.serviceLinkProvider = serviceLinkProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
@@ -240,6 +249,10 @@ public class UIDOperatorVerticle extends AbstractVerticle{
 
             // only uncomment to do local testing
             //router.get("/internal/optout/get").handler(auth.loopbackOnly(this::handleOptOutGet));
+
+            // TODO remove this
+            router.get("/services").handler((rc) -> { rc.end(new JsonArray(new ArrayList<>(serviceProvider.getAllServices())).encodePrettily()); } );
+            router.get("/service_links").handler((rc) -> { rc.end( new JsonArray(new ArrayList<>(serviceLinkProvider.getAllServiceLinks())).encodePrettily()); } );
         }
 
         return router;

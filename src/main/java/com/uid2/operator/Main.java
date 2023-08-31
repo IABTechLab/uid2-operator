@@ -2,7 +2,6 @@ package com.uid2.operator;
 
 import ch.qos.logback.classic.LoggerContext;
 import com.uid2.operator.model.KeyManager;
-import com.uid2.enclave.IAttestationProvider;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
@@ -18,10 +17,7 @@ import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
-import com.uid2.shared.store.reader.IMetadataVersionedStore;
-import com.uid2.shared.store.reader.RotatingClientKeyProvider;
-import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
-import com.uid2.shared.store.reader.RotatingKeysetProvider;
+import com.uid2.shared.store.reader.*;
 import com.uid2.shared.store.scope.GlobalScope;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
@@ -68,6 +64,8 @@ public class Main {
     private final RotatingKeysetKeyStore keysetKeyStore;
     private final RotatingKeysetProvider keysetProvider;
     private final RotatingSaltProvider saltProvider;
+    private final RotatingServiceStore serviceProvider;
+    private final RotatingServiceLinkStore serviceLinkProvider;
     private final CloudSyncOptOutStore optOutStore;
     private OperatorDisableHandler disableHandler = null;
     private final OperatorMetrics metrics;
@@ -127,12 +125,18 @@ public class Main {
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
+        String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
+        this.serviceProvider = new RotatingServiceStore(fsStores, new GlobalScope(new CloudPath(serviceMdPath)));
+        String serviceLinkMdPath = this.config.getString(Const.Config.ServiceLinkMetadataPathProp);
+        this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
 
         if (useStorageMock && coreAttestUrl == null) {
             this.clientKeyProvider.loadContent();
             this.saltProvider.loadContent();
             this.keysetProvider.loadContent();
             this.keysetKeyStore.loadContent();
+            this.serviceProvider.loadContent();
+            this.serviceLinkProvider.loadContent();
         }
         metrics = new OperatorMetrics(getKeyManager(), saltProvider);
     }
@@ -220,7 +224,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, getKeyManager(), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;
@@ -262,6 +266,8 @@ public class Main {
         keysetKeyStore.getMetadata();
         keysetProvider.getMetadata();
         saltProvider.getMetadata();
+        serviceProvider.getMetadata();
+        serviceLinkProvider.getMetadata();
 
         // create cloud sync for optout store
         OptOutCloudSync optOutCloudSync = new OptOutCloudSync(config, false);
@@ -274,6 +280,8 @@ public class Main {
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, 10000));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, 10000));
+        fs.add(createAndDeployRotatingStoreVerticle("service", serviceProvider, 10000));
+        fs.add(createAndDeployRotatingStoreVerticle("service_link", serviceLinkProvider, 10000));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));

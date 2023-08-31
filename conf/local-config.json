@@ -5,6 +5,8 @@
   "keysets_metadata_path": "/com.uid2.core/test/keysets/metadata.json",
   "keyset_keys_metadata_path": "/com.uid2.core/test/keyset_keys/metadata.json",
   "salts_metadata_path": "/com.uid2.core/test/salts/metadata.json",
+  "services_metadata_path": "/com.uid2.core/test/services/metadata.json",
+  "service_links_metadata_path": "/com.uid2.core/test/service_links/metadata.json",
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,

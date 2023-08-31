@@ -24,7 +24,6 @@ import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.KeysetKey;
-import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
@@ -114,10 +113,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private final boolean cstgDoDomainNameCheck;
     private final String cstgTestDomainNameList;
-    private final String cstgTestSubscriptionId;
-    private final String cstgTestPublicKey;
-    private final String cstgTestPrivateKey;
-    private final Integer cstgTestSiteId;
 
     public UIDOperatorVerticle(JsonObject config,
                                IClientKeyProvider clientKeyProvider,
@@ -149,10 +144,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.privateLinkId = config.getString(Const.Config.PrivateLinkIdProp, "");
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this.cstgTestDomainNameList = config.getString("client_side_token_generate_test_domain_name_list", "");
-        this.cstgTestSubscriptionId = config.getString("client_side_token_generate_test_subscription_id");
-        this.cstgTestPublicKey = config.getString("client_side_token_generate_test_public_key");
-        this.cstgTestPrivateKey = config.getString("client_side_token_generate_test_private_key");
-        this.cstgTestSiteId = config.getInteger("client_side_token_generate_test_site_id");
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -287,31 +278,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private ClientSideKeypair getPrivateKeyForClientSideTokenGenerate(String subscriptionId) {
-
-        if(cstgTestSubscriptionId == null || cstgTestSiteId == null || cstgTestPrivateKey == null) {
-            return null;
-        }
-
-        if (cstgTestSubscriptionId.equals(subscriptionId)) {
-            return new ClientSideKeypair(subscriptionId, cstgTestPublicKey, cstgTestPrivateKey, cstgTestSiteId, "", Instant.EPOCH, false);
-        }
-        else {
-            return null;
-        }
-    }
 
     private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
-        if(cstgTestSubscriptionId == null) {
-            return new HashSet<>();
-        }
-
-        if(cstgTestSubscriptionId.equals(subscriptionId)) {
-            return Arrays.stream(cstgTestDomainNameList.split(",")).collect(Collectors.toSet());
-        }
-        else {
-            return new HashSet<>();
-        }
+        return Arrays.stream(cstgTestDomainNameList.split(",")).collect(Collectors.toSet());
     }
 
     private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
@@ -324,7 +293,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final CstgRequest request = body.mapTo(CstgRequest.class);
 
-        final ClientSideKeypair clientSideKeypair = getPrivateKeyForClientSideTokenGenerate(request.getSubscriptionId());
+        final ClientSideKeypair clientSideKeypair = this.clientSideKeypairProvider.getSnapshot().getKeypair(request.getSubscriptionId());
         if (clientSideKeypair == null) {
             ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad subscription_id");
             return;

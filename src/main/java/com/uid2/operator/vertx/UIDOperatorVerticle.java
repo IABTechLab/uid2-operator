@@ -601,19 +601,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 keyObj.put("expires", key.getExpires().getEpochSecond());
                 keyObj.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
                 keys.add(keyObj);
-                Set<Integer> allowedSites = keyset.getAllowedSites();
-                if (allowedSites != null){
-                    accessibleSites.addAll(allowedSites);
-                    accessibleSites.add(keyset.getSiteId());
-                }
+                accessibleSites.add(keyset.getSiteId());
             }
             resp.put("keys", keys);
             //without cstg enabled, operator won't have site data and siteProvider could be null
             if(clientSideTokenGenerate) {
                 for (Integer siteId : accessibleSites) {
-                    if(siteId == null) {
-                        continue;
-                    }
                     Site s = siteProvider.getSite(siteId);
                     if(s == null) {
                         continue;

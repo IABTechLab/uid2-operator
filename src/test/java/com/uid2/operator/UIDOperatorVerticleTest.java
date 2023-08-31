@@ -3464,7 +3464,7 @@ public class UIDOperatorVerticleTest {
 
     public void verifyExpectedSiteDetail(HashMap<Integer, List<String>> expectedSites, JsonArray actualResult) {
 
-        assertEquals(actualResult.size(), 2);
+        assertEquals(actualResult.size(), expectedSites.size());
         for(int i = 0; i < actualResult.size(); i++) {
 
             JsonObject siteDetail = actualResult.getJsonObject(i);
@@ -3527,7 +3527,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
 
-            HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 104);
+            HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102, 104);
             verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("sites"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
             testContext.completeNow();

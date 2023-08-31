@@ -1,6 +1,6 @@
 {
   "service_verbose": true,
-  "service_instances": 16,
+  "service_instances": 12,
   "core_s3_bucket": null,
   "core_attest_url": null,
   "core_api_token": null,

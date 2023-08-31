@@ -3462,6 +3462,19 @@ public class UIDOperatorVerticleTest {
         return expectedSites;
     }
 
+    public void verifyExpectedSiteDetail(HashMap<Integer, List<String>> expectedSites, JsonArray actualResult) {
+
+        assertEquals(actualResult.size(), 2);
+        for(int i = 0; i < actualResult.size(); i++) {
+
+            JsonObject siteDetail = actualResult.getJsonObject(i);
+            int siteId = siteDetail.getInteger("id");
+            assertTrue(expectedSites.get(siteId).containsAll((Collection<String>) siteDetail.getMap().get("domain_names")));
+        }
+
+        return;
+    }
+
     @Test
     // Tests:
     //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
@@ -3515,13 +3528,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
 
             HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 104);
-            assertEquals(respJson.getJsonObject("body").getJsonArray("sites").size(), 2);
-            for(int i = 0; i < respJson.getJsonObject("body").getJsonArray("sites").size(); i++) {
-
-                JsonObject siteDetail = respJson.getJsonObject("body").getJsonArray("sites").getJsonObject(i);
-                int siteId = siteDetail.getInteger("id");
-                assertTrue(expectedSites.get(siteId).containsAll((Collection<String>) siteDetail.getMap().get("domain_names")));
-            }
+            verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("sites"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
             testContext.completeNow();
         });

@@ -185,7 +185,7 @@ public class UIDOperatorVerticleTest {
         config.put("client_side_token_generate", true);
         //still required these 2 for domain name check in getDomainNameListForClientSideTokenGenerate
         config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_side_token_generate_test_subscription_id", "4WvryDGbR5");
+        config.put("client_side_token_generate_test_subscription_id", clientSideTokenGenerateSubscriptionId);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -2588,7 +2588,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "bad-key");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         sendCstg(vertx,
                 "v2/token/client-generate",

@@ -24,6 +24,8 @@
   "keysets_metadata_path": "keysets/metadata.json",
   "keyset_keys_metadata_path": "keyset_keys/metadata.json",
   "salts_metadata_path": "salts/metadata.json",
+  "services_metadata_path": "services/metadata.json",
+  "service_links_metadata_path": "service_links/metadata.json",
   "optout_metadata_path": null,
   "optout_inmem_cache": false,
   "enclave_platform": null,

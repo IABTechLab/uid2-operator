@@ -622,6 +622,25 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     siteObj.put("domain_names", s.getDomainNames());
                     sites.add(siteObj);
                 }
+                /*
+                The end result will look something like this:
+                "sites": [
+                        {
+                            "id": 101,
+                            "domain_names": [
+                                "101.co.uk",
+                                "101.com"
+                            ]
+                        },
+                        {
+                            "id": 102,
+                            "domain_names": [
+                                "102.co.uk",
+                                "102.com"
+                            ]
+                        }
+                    ]
+                 */
                 resp.put("sites", sites);
             }
             ResponseUtil.SuccessV2(rc, resp);

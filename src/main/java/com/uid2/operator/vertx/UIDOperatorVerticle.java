@@ -624,7 +624,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
                 /*
                 The end result will look something like this:
-                "sites": [
+                "site_data": [
                         {
                             "id": 101,
                             "domain_names": [
@@ -641,7 +641,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         }
                     ]
                  */
-                resp.put("sites", sites);
+                resp.put("site_data", sites);
             }
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {

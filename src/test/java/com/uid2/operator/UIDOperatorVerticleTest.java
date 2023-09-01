@@ -3536,11 +3536,11 @@ public class UIDOperatorVerticleTest {
 
             if(provideSiteDomainNames) {
                 HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102, 104);
-                verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("sites"));
+                verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
             }
             else {
                 //otherwise we shouldn't even have a 'sites' field
-                assertNull(respJson.getJsonObject("body").getJsonArray("sites"));
+                assertNull(respJson.getJsonObject("body").getJsonArray("site_data"));
             }
             testContext.completeNow();
         });
@@ -3592,7 +3592,7 @@ public class UIDOperatorVerticleTest {
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
 
             HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 104);
-            verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("sites"));
+            verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
 
             testContext.completeNow();
         });
@@ -3616,7 +3616,7 @@ public class UIDOperatorVerticleTest {
         Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
-            verifyExpectedSiteDetail(new HashMap<>(), respJson.getJsonObject("body").getJsonArray("sites"));
+            verifyExpectedSiteDetail(new HashMap<>(), respJson.getJsonObject("body").getJsonArray("site_data"));
             checkEncryptionKeysSharing(respJson, siteId, encryptionKeys);
             testContext.completeNow();
         });
@@ -3671,24 +3671,24 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
             assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
 
-            JsonArray siteResult = respJson.getJsonObject("body").getJsonArray("sites");
+            JsonArray siteData = respJson.getJsonObject("body").getJsonArray("site_data");
 
             switch (testRun) {
                 case "NoKeyset":
                     assertNull(respJson.getJsonObject("body").getInteger("default_keyset_id"));
                     //no site downloaded
-                    verifyExpectedSiteDetail(new HashMap<>(), siteResult);
+                    verifyExpectedSiteDetail(new HashMap<>(), siteData);
                     break;
                 case "NoKey":
                     assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
                     //no site downloaded
-                    verifyExpectedSiteDetail(new HashMap<>(), siteResult);
+                    verifyExpectedSiteDetail(new HashMap<>(), siteData);
                     break;
                 case "SharedKey":
                     assertEquals(6, respJson.getJsonObject("body").getInteger("default_keyset_id"));
                     //key 4 returned which has keyset id 7 which in turns has site id 13
                     HashMap<Integer, List<String>> expectedSites = setupExpectation(13);
-                    verifyExpectedSiteDetail(expectedSites, siteResult);
+                    verifyExpectedSiteDetail(expectedSites, siteData);
                     break;
             }
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);

@@ -30,10 +30,7 @@ import com.uid2.shared.encryption.Uid2Base64UrlCoder;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.model.TokenVersion;
-import com.uid2.shared.store.IClientKeyProvider;
-import com.uid2.shared.store.IKeysetKeyStore;
-import com.uid2.shared.store.ISaltProvider;
-import com.uid2.shared.store.KeysetKeyStoreSnapshot;
+import com.uid2.shared.store.*;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -97,6 +94,10 @@ public class UIDOperatorVerticleTest {
     @Mock
     private ISaltProvider saltProvider;
     @Mock
+    private IServiceStore serviceProvider;
+    @Mock
+    private IServiceLinkStore serviceLinkProvider;
+    @Mock
     private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
     @Mock
     private IOptOutStore optOutStore;
@@ -158,7 +159,7 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, clientKeyProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, clock, statsCollectorQueue);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, clientKeyProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue);
 
         uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
 
@@ -193,7 +194,7 @@ public class UIDOperatorVerticleTest {
 
 
     protected void fakeAuth(int siteId, Role... roles) {
-        ClientKey clientKey = new ClientKey("test-key", Utils.toBase64String(clientSecret))
+        ClientKey clientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret))
             .withSiteId(siteId).withRoles(roles).withContact("test-contact");
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);

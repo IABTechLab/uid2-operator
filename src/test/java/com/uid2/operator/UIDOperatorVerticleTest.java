@@ -3524,7 +3524,9 @@ public class UIDOperatorVerticleTest {
                 createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
-        setupSiteDomainNameListCall(101, 102, 103, 104, 105);
+        setupSiteDomainNameListCall(101, 102, 103, 105);
+        //site 104 domain name list will be returned but we will set a blank list for it
+        doReturn(new Site(104, "site104", true, new HashSet<>())).when(siteProvider).getSite(104);
 
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
@@ -3536,7 +3538,9 @@ public class UIDOperatorVerticleTest {
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
 
             if(provideSiteDomainNames) {
-                HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102, 104);
+                HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102);
+                //we set an empty domain name list previously
+                expectedSites.put(104, new ArrayList<>());
                 verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
             }
             else {

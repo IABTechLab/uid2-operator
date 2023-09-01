@@ -186,9 +186,6 @@ public class UIDOperatorVerticleTest {
         //still required these 2 for domain name check in getDomainNameListForClientSideTokenGenerate
         config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
         config.put("client_side_token_generate_test_subscription_id", "4WvryDGbR5");
-        config.put("client_side_token_generate_test_public_key", clientSideTokenGeneratePublicKey);
-        config.put("client_side_token_generate_test_private_key", clientSideTokenGeneratePrivateKey);
-        config.put("client_side_token_generate_test_site_id", clientSideTokenGenerateSiteId);
     }
 
     private static byte[] makeAesKey(String prefix) {

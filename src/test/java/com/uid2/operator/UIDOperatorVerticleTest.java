@@ -1598,17 +1598,16 @@ public class UIDOperatorVerticleTest {
             this.operatorDisableHandler.handleResponseStatus(401);
 
             // Request should fail after revoking auth
-            get(vertx, "v1/token/generate?email=test@uid2.com", ar1 -> {
-                assertEquals(503, ar1.result().statusCode());
-                testContext.completeNow();
+            get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response2 -> testContext.verify(() -> {
+                assertEquals(503, response2.statusCode());
 
                 // Recovered
                 this.operatorDisableHandler.handleResponseStatus(200);
-                get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
-                    assertEquals(200, ar2.result().statusCode());
+                get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response3 -> testContext.verify(() -> {
+                    assertEquals(200, response3.statusCode());
                     testContext.completeNow();
-                });
-            });
+                })));
+            })));
         })));
     }
 

@@ -3446,6 +3446,7 @@ public class UIDOperatorVerticleTest {
         });
     }
 
+    //set some default domain names for all possible sites for each unit test first
     private void setupSiteDomainNameListCall(int... siteIds) {
         for(int siteId : siteIds) {
             doReturn(new Site(siteId, "site"+siteId, true, new HashSet<>(Arrays.asList(siteId+".com", siteId+".co.uk")))).when(siteProvider).getSite(siteId);
@@ -3560,7 +3561,7 @@ public class UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.SHARER);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
         //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
-        setupSiteDomainNameListCall(101,102,103,104,105);
+        setupSiteDomainNameListCall(101, 102, 103, 104, 105);
         //Keys from these keysets are not expected: keyset6 (disabled keyset), keyset7 (sharing with ID_READERs but not SHARERs), keyset8 (not sharing with 101), keyset10 (not sharing with anyone)
         Instant now = Instant.now();
         KeysetKey[] expectedKeys = {

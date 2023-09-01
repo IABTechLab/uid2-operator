@@ -609,7 +609,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.put("keys", keys);
             //without cstg enabled, operator won't have site data and siteProvider could be null
             //and adding keySharingEndpointProvideSiteDomainNames in case something goes wrong
-            //and we can still enable cstg feature ut turn off site domain name download in
+            //and we can still enable cstg feature but turn off site domain name download in
             // key/sharing endpoint
             if(keySharingEndpointProvideSiteDomainNames && clientSideTokenGenerate) {
                 for (Integer siteId : accessibleSites) {

@@ -515,10 +515,6 @@ public class UIDOperatorVerticleTest {
 
         setupKeysetsMock(masterKeyset, refreshKeyset, fallbackPublisherKeyset, keyset4);
         setupKeysetsKeysMock(masterKey, refreshKey, publisherKey, siteKey);
-
-        when(clientSideKeypairSnapshot.getKeypair(clientSideTokenGenerateSubscriptionId)).thenReturn(
-                new ClientSideKeypair(clientSideTokenGenerateSubscriptionId, clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, clientSideTokenGenerateSiteId,
-                        clientSideTokenGenerateSubscriptionId, Instant.now(), false));
     }
 
     protected void setupSiteKey(int siteId, int keyId, int keysetId) {
@@ -2382,10 +2378,7 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
         ClientSideKeypair keypair = new ClientSideKeypair(clientSideTokenGenerateSubscriptionId, clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, clientSideTokenGenerateSiteId, "", Instant.now(), false);
-        HashMap<String, ClientSideKeypair> keypairMap = new HashMap<>(){{put(clientSideTokenGenerateSubscriptionId, keypair);}};
-        HashMap<Integer, List<ClientSideKeypair>> siteKeypairMap = new HashMap<>(){{put(clientSideTokenGenerateSiteId, List.of(keypair));}};
-        ClientSideKeypairStoreSnapshot snapshot = new ClientSideKeypairStoreSnapshot(keypairMap, siteKeypairMap);
-        when(clientSideKeypairProvider.getSnapshot()).thenReturn(snapshot);
+        when(clientSideKeypairSnapshot.getKeypair(clientSideTokenGenerateSubscriptionId)).thenReturn(keypair);
     }
 
     //if no identity is provided will get an error

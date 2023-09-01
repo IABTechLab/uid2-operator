@@ -179,6 +179,7 @@ public class UIDOperatorVerticleTest {
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
+        config.put("key_sharing_endpoint_provide_site_domain_names", true);
         //still required these 2 for domain name check in getDomainNameListForClientSideTokenGenerate
         config.put("client_side_token_generate_test_subscription_id", "4WvryDGbR5");
         //not required any more
@@ -3475,7 +3476,8 @@ public class UIDOperatorVerticleTest {
         return;
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans =  {true, false})
     // Tests:
     //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
     //   ID_READER has access to a keyset with a missing allowed_sites              - access through sharing
@@ -3483,7 +3485,11 @@ public class UIDOperatorVerticleTest {
     //   ID_READER has no access to a keyset that is disabled                       - direct reject
     //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
     //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharingKeysets_IDREADER(Vertx vertx, VertxTestContext testContext) {
+    void keySharingKeysets_IDREADER(boolean provideSiteDomainNames, Vertx vertx, VertxTestContext testContext) {
+
+        if (!provideSiteDomainNames) {
+            this.uidOperatorVerticle.setKeySharingEndpointProvideSiteDomainNames(false);
+        }
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.ID_READER);
@@ -3526,10 +3532,16 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
             assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
-
-            HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102, 104);
-            verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("sites"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
+
+            if(provideSiteDomainNames) {
+                HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102, 104);
+                verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("sites"));
+            }
+            else {
+                //otherwise we shouldn't even have a 'sites' field
+                assertNull(respJson.getJsonObject("body").getJsonArray("sites"));
+            }
             testContext.completeNow();
         });
     }
@@ -3548,7 +3560,7 @@ public class UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.SHARER);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
         //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
-
+        setupSiteDomainNameListCall(101,102,103,104,105);
         //Keys from these keysets are not expected: keyset6 (disabled keyset), keyset7 (sharing with ID_READERs but not SHARERs), keyset8 (not sharing with 101), keyset10 (not sharing with anyone)
         Instant now = Instant.now();
         KeysetKey[] expectedKeys = {
@@ -3578,6 +3590,10 @@ public class UIDOperatorVerticleTest {
             assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
+
+            HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 104);
+            verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("sites"));
+
             testContext.completeNow();
         });
     }

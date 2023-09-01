@@ -28,4 +28,9 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
     public IUIDOperatorService getIdService() {
         return this.idService;
     }
+
+    public void setKeySharingEndpointProvideSiteDomainNames(boolean enable) {
+        this.keySharingEndpointProvideSiteDomainNames = enable;
+    }
+
 }

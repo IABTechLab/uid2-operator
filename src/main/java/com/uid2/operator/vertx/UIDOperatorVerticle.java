@@ -110,6 +110,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private final boolean cstgDoDomainNameCheck;
 
+    protected boolean keySharingEndpointProvideSiteDomainNames;
+
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
@@ -141,6 +143,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
+        this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -605,7 +608,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             resp.put("keys", keys);
             //without cstg enabled, operator won't have site data and siteProvider could be null
-            if(clientSideTokenGenerate) {
+            //and adding keySharingEndpointProvideSiteDomainNames in case something goes wrong
+            //and we can still enable cstg feature ut turn off site domain name download in
+            // key/sharing endpoint
+            if(keySharingEndpointProvideSiteDomainNames && clientSideTokenGenerate) {
                 for (Integer siteId : accessibleSites) {
                     Site s = siteProvider.getSite(siteId);
                     if(s == null) {

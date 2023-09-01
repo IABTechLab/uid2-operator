@@ -193,7 +193,7 @@ public class UIDOperatorVerticleTest {
 
 
     protected void fakeAuth(int siteId, Role... roles) {
-        ClientKey clientKey = new ClientKey("test-key", Utils.toBase64String(clientSecret))
+        ClientKey clientKey = new ClientKey("test-key", "test-key-hash", "test-key-salt", Utils.toBase64String(clientSecret))
             .withSiteId(siteId).withRoles(roles).withContact("test-contact");
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);

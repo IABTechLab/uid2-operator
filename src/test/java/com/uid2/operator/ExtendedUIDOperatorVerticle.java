@@ -5,10 +5,7 @@ import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
-import com.uid2.shared.store.IClientKeyProvider;
-import com.uid2.shared.store.IKeyAclProvider;
-import com.uid2.shared.store.IKeyStore;
-import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.*;
 import io.vertx.core.json.JsonObject;
 
 import java.time.Clock;
@@ -17,12 +14,13 @@ import java.time.Clock;
 public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
     public ExtendedUIDOperatorVerticle(JsonObject config,
                                        IClientKeyProvider clientKeyProvider,
+                                       IClientSideKeypairStore clientSideKeypairProvider,
                                        KeyManager keyManager,
                                        ISaltProvider saltProvider,
                                        IOptOutStore optOutStore,
                                        Clock clock,
                                        IStatsCollectorQueue statsCollectorQueue) {
-        super(config, clientKeyProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue);
+        super(config, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue);
     }
 
     public IUIDOperatorService getIdService() {

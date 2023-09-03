@@ -7,6 +7,7 @@
   "clients_metadata_path": "http://localhost:8088/clients/refresh",
   "keysets_metadata_path": "http://localhost:8088/key/keyset/refresh",
   "keyset_keys_metadata_path": "http://localhost:8088/key/keyset-keys/refresh",
+  "client_side_keypairs_metadata_path": "http://localhost:8088/client_side_keypairs/refresh",
   "salts_metadata_path": "http://localhost:8088/salt/refresh",
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
@@ -28,5 +29,6 @@
   "optout_delta_backtrack_in_days": 1,
   "optout_heap_default_capacity": 8192,
   "optout_max_partitions": 30,
-  "optout_partition_interval": 86400
+  "optout_partition_interval": 86400,
+  "client_side_token_generate": true
 }

@@ -5,41 +5,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.model.StatsCollectorMessageItem;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import io.vertx.core.Vertx;
-import org.slf4j.Logger;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.concurrent.TimeUnit;
-
-import static org.mockito.Mockito.*;
 
 @ExtendWith(VertxExtension.class)
 public class StatsCollectorVerticleTest {
-    @Mock
-    private Logger loggerMock;
-
     private StatsCollectorVerticle verticle;
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext) throws Throwable {
-        loggerMock = mock(Logger.class);
-        Field field = StatsCollectorVerticle.class.getDeclaredField("LOGGER");
-        field.setAccessible(true);
-
-        // remove final modifier from field
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-
-        field.set(null, loggerMock);
-
         verticle = new StatsCollectorVerticle(1000);
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
     }

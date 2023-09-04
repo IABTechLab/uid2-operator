@@ -10,7 +10,7 @@ You could also leverage them to bring up a local docker-compose cluster contains
 and expose public Urls via ngrok, which could be used for private operator test.
 
 # How to run locally
-Set below config in `./e2e/.e2e.sh`
+Set below config in `./e2e/e2e.sh`
  - NGROK_TOKEN: register a NGROK account and fetch from https://dashboard.ngrok.com/get-started/your-authtoken
  - IMAGE_HASH: the image hash "sha256:..." for your operator image, this is to generate valid enclave_id
  - CORE_VERSION: the core image version

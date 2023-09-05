@@ -37,9 +37,21 @@ fi
 sed -i.bak "s#<CORE_VERSION>#$CORE_VERSION#g" $COMPOSE_FILE
 sed -i.bak "s#<OPTOUT_VERSION>#$OPTOUT_VERSION#g" $COMPOSE_FILE
 
-sed -i.bak "s#<NGROK_URL_LOCALSTACK>#$NGROK_URL_LOCALSTACK#g" $CORE_CONFIG_FILE
-sed -i.bak "s#<NGROK_URL_LOCALSTACK>#$NGROK_URL_LOCALSTACK#g" $OPTOUT_CONFIG_FILE
-sed -i.bak "s#<NGROK_URL_CORE>#$NGROK_URL_CORE#g" $OPTOUT_CONFIG_FILE
+cat $CORE_CONFIG_FILE \
+| jq '(.aws_s3_endpoint) |='\"$NGROK_URL_LOCALSTACK\"'' \
+| jq '(.kms_aws_endpoint) |='\"$NGROK_URL_LOCALSTACK\"'' \
+| jq '(.core_public_url) |='\"$NGROK_URL_CORE\"'' \
+| jq '(.optout_url) |='\"$NGROK_URL_OPTOUT\"'' \
+| tee $CORE_CONFIG_FILE
+
+cat $OPTOUT_CONFIG_FILE \
+| jq '(.aws_s3_endpoint) |='\"$NGROK_URL_LOCALSTACK\"'' \
+| jq '(.partners_metadata_path) |='\"$NGROK_URL_CORE/partners/refresh\"'' \
+| jq '(.operators_metadata_path) |='\"$NGROK_URL_CORE/operators/refresh\"'' \
+| jq '(.core_attest_url) |='\"$NGROK_URL_CORE/attest\"'' \
+| jq '(.core_public_url) |='\"$NGROK_URL_CORE\"'' \
+| jq '(.optout_url) |='\"$NGROK_URL_OPTOUT\"'' \
+| tee $OPTOUT_CONFIG_FILE
 
 chmod 777 $OPTOUT_MOUNT
 

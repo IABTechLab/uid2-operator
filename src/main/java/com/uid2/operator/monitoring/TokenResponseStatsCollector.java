@@ -28,17 +28,12 @@ public class TokenResponseStatsCollector {
         InvalidToken,
         /* Start of CSTG-related Status */
         MissingParams,
-        NoSuchAlgoEC,
-        NoSuchAlgoECDH,
         BadPublicKey,
         BadSubscriptionId,
         BadTimestamp,
         InvalidHttpOrigin,
-        InvalidPrivateKey,
-        InvalidKey,
         BadIV,
         BadPayload,
-        FailedTokenGeneration
         /* Start of CSTG-related Status */
     }
 

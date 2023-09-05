@@ -22,8 +22,8 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
-import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.ClientSideKeypair;
+import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.model.Site;
 import com.uid2.shared.store.*;
@@ -52,6 +52,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
+import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +82,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+
+    private static final String REQUEST = "request";
+    private static final String LINK_ID = "link_id";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
     private final JsonObject config;
@@ -107,6 +111,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int tcfVendorId;
     private IStatsCollectorQueue _statsCollectorQueue;
     private final KeyManager keyManager;
+    private final boolean checkServiceLinkIdForIdentityMap;
+    private final String privateLinkId;
 
     private final boolean cstgDoDomainNameCheck;
 
@@ -140,6 +146,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
+        this.checkServiceLinkIdForIdentityMap = config.getBoolean(Const.Config.CheckServiceLinkIdForIdentityMapProp, false);
+        this.privateLinkId = config.getString(Const.Config.PrivateLinkIdProp, "");
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this._statsCollectorQueue = statsCollectorQueue;
     }
@@ -275,14 +283,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private ClientSideKeypair getKeypairForClientSideTokenGenerate(String subscriptionId) {
-        final ClientSideKeypair keyPair = this.clientSideKeypairProvider.getSnapshot().getKeypair(subscriptionId);
-        if (keyPair == null || keyPair.isDisabled()) {
-            return null;
-        } else {
-            return keyPair;
-        }
-    }
 
     private Set<String> getDomainNameListForClientSideTokenGenerate(ClientSideKeypair keypair) {
         Site s = siteProvider.getSite(keypair.getSiteId());
@@ -293,106 +293,71 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleClientSideTokenGenerateImpl(RoutingContext rc) {
+    private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body = rc.body().asJsonObject();
         if (body == null) {
             ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload expected but not found");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
+            // We don't have a site ID, so we don't bother calling TokenResponseStatsCollector.record.
             return;
         }
 
-        final String encryptedPayload = body.getString("payload");
-        final String iv = body.getString("iv");
-        final String subscriptionId = body.getString("subscription_id");
-        final String clientPublicKeyString = body.getString("public_key");
-        //instead of crashing use a default value
-        final long timestamp = body.getLong("timestamp", 0L);
-        if (Math.abs(Duration.between(Instant.ofEpochMilli(timestamp), clock.systemUTC().instant()).toMinutes()) >=
-                V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
-            return;
-        }
+        final CstgRequest request = body.mapTo(CstgRequest.class);
 
-        if (encryptedPayload == null || iv == null || subscriptionId == null || clientPublicKeyString == null) {
-            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "required parameters: payload, iv, subscription_id, public_key");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
-            return;
-        }
-
-        final KeyFactory kf;
-        try {
-            kf = KeyFactory.getInstance("EC");
-        } catch (NoSuchAlgorithmException e) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoEC);
-            return;
-        }
-
-        final PublicKey clientPublicKey;
-        try {
-            final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(clientPublicKeyString);
-            final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
-            clientPublicKey = kf.generatePublic(pkSpec);
-        } catch (Exception e) {
-            ResponseUtil.Error(ResponseStatus.ClientError,400, rc, "bad public key");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
-            return;
-        }
-
-        final ClientSideKeypair clientSideKeypair = getKeypairForClientSideTokenGenerate(subscriptionId);
+        final ClientSideKeypair clientSideKeypair = this.clientSideKeypairProvider.getSnapshot().getKeypair(request.getSubscriptionId());
         if (clientSideKeypair == null) {
-            ResponseUtil.Error(ResponseStatus.Unauthorized, 401, rc, "bad subscription_id");
-            TokenResponseStatsCollector.record(0, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad subscription_id");
             return;
         }
 
-        final PrivateKey privateKey = clientSideKeypair.getPrivateKey();
-
-        if(cstgDoDomainNameCheck) {
+        if (cstgDoDomainNameCheck) {
             final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(clientSideKeypair);
             String origin = rc.request().getHeader("origin");
 
-            // if you want to see what http origin header is provided, uncomment this line
-            // LOGGER.info("origin: " + origin);
-
             boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-            if(!allowedDomain) {
+            if (!allowedDomain) {
                 ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin");
                 TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin);
                 return;
             }
         }
 
-        // Perform key agreement
-        final KeyAgreement ka;
-        try {
-            ka = KeyAgreement.getInstance("ECDH");
-            ka.init(privateKey);
-        } catch (NoSuchAlgorithmException e) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
-            TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoSuchAlgoECDH);
-            return;
-        } catch (InvalidKeyException e) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
-            TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidKey);
+        if (Math.abs(Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.instant()).toMinutes()) >=
+                V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
+            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
+            TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
             return;
         }
 
-        try {
-            ka.doPhase(clientPublicKey, true);
-        } catch (InvalidKeyException e) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 500, rc, "server side internal error");
-            TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidKey);
+        if (request.getPayload() == null || request.getIv() == null || request.getPublicKey() == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "required parameters: payload, iv, public_key");
+            TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams);
             return;
         }
+
+        final KeyFactory kf = KeyFactory.getInstance("EC");
+
+        final PublicKey clientPublicKey;
+        try {
+            final byte[] clientPublicKeyBytes = Base64.getDecoder().decode(request.getPublicKey());
+            final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
+            clientPublicKey = kf.generatePublic(pkSpec);
+        } catch (Exception e) {
+            ResponseUtil.Error(ResponseStatus.ClientError,400, rc, "bad public key");
+            TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey);
+            return;
+        }
+
+        // Perform key agreement
+        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
+        ka.init(clientSideKeypair.getPrivateKey());
+        ka.doPhase(clientPublicKey, true);
 
         // Read shared secret
         final byte[] sharedSecret = ka.generateSecret();
 
         final byte[] ivBytes;
         try {
-            ivBytes = Base64.getDecoder().decode(iv);
+            ivBytes = Base64.getDecoder().decode(request.getIv());
             if (ivBytes.length != 12) {
                 ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad iv");
                 TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadIV);
@@ -404,11 +369,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
+        final byte[] aad = new JsonArray(List.of(request.getTimestamp())).toBuffer().getBytes();
 
         final byte[] requestPayloadBytes;
         try {
-            final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(encryptedPayload);
+            final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(request.getPayload());
             final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedPayloadBytes.length);
             System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
             requestPayloadBytes = decrypt(ivAndCiphertext, 0, sharedSecret, aad);
@@ -483,17 +448,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                             cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate));
         }
         JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
-        try {
-            if (response.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && response.containsKey("body")) {
-                V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
-            }
-        }
-        catch (Exception ex){
-            LOGGER.error("Failed to generate token", ex);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "Failed to generate tokens");
-            TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.FailedTokenGeneration);
-            return;
-        }
+        V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
+
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
         TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
@@ -1065,6 +1021,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private boolean isServiceLinkAuthenticated(RoutingContext rc, JsonObject requestJsonObject) {
+        if (requestJsonObject.containsKey(LINK_ID)) {
+            String linkId = requestJsonObject.getString(LINK_ID);
+            if (!linkId.equalsIgnoreCase(privateLinkId)) {
+                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
+                return false;
+            }
+        }
+        return true;
+    }
+
     private InputUtil.InputVal getTokenInput(RoutingContext rc) {
         final InputUtil.InputVal input;
         final List<String> emailInput = rc.queryParam("email");
@@ -1310,8 +1277,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
                 return;
             }
+            JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
+            if (checkServiceLinkIdForIdentityMap) {
+                if (!isServiceLinkAuthenticated(rc, requestJsonObject)) {
+                    return;
+                }
+            }
 
-            IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy((JsonObject) rc.data().get("request"));
+            IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(requestJsonObject);
             recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
 
             final Instant now = Instant.now();

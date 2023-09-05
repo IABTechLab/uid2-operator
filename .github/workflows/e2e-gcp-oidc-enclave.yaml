@@ -41,7 +41,6 @@ jobs:
           repository: IABTechLab/uid2-optout
           token: ${{ secrets.GHCR_PAT }}
           path: optout
-          ref: ysh-e2e-config-optout
 
       - name: Bring up ngrok
         id: ngrok

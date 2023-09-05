@@ -53,7 +53,7 @@ cat $OPTOUT_CONFIG_FILE \
 | jq '(.optout_url) |='\"$NGROK_URL_OPTOUT\"'' \
 | tee $OPTOUT_CONFIG_FILE
 
-chmod 777 $OPTOUT_MOUNT
+mkdir -p "$OPTOUT_MOUNT" && chmod 777 "$OPTOUT_MOUNT"
 
 docker compose -f "$ROOT/docker-compose.yml" up -d
 docker ps -a

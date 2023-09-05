@@ -1,0 +1,9 @@
+{
+  "version" : 1,
+  "generated" : 1670883129,
+  "system_key_id" : 1,
+  "max_key_id" : 2,
+  "keys" : {
+    "location" : "keys/keys.json"
+  }
+}

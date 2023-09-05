@@ -27,9 +27,21 @@ jobs:
     steps:
       - name: Checkout full history
         uses: actions/checkout@v3
+
+      - name: Checkout uid2-core repo
+        uses: actions/checkout@v3
         with:
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
+          repository: IABTechLab/uid2-core
+          token: ${{ secrets.GHCR_PAT }}
+          path: core
+
+      - name: Checkout uid2-optout repo
+        uses: actions/checkout@v3
+        with:
+          repository: IABTechLab/uid2-optout
+          token: ${{ secrets.GHCR_PAT }}
+          path: optout
+          ref: ysh-e2e-config-optout
 
       - name: Bring up ngrok
         id: ngrok
@@ -52,6 +64,13 @@ jobs:
           username: ${{ github.actor }}
           # we use personal access token here since we need to pull images from private repo (core)
           password: ${{ secrets.GHCR_PAT }}
+
+      - name: Prepare conf files
+        env:
+          CORE_ROOT: '../core'
+          OPTOUT_ROOT: '../optout'
+        run: |
+          cd ./e2e && bash ./prepare_conf.sh
 
       - name: Bring up docker compose
         id: docker-compose

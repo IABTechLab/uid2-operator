@@ -2,8 +2,8 @@
 set -x
 # to facilitate local test
 
-NGROK_TOKEN=2U9hyPLFDbc8nTny7woMOudqAAN_7HiFVXjjcNiVYcXBD1k5w
-IMAGE_HASH=sha256:e9ecef00af3e2040cc6746bb107174e7c91cf797596c16132e6686e8c7fcfd52
+NGROK_TOKEN=
+IMAGE_HASH=
 CORE_VERSION=2.9.0-46b2d8519f-master-default
 OPTOUT_VERSION=2.5.0-80ad3156c0-default
 

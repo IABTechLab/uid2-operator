@@ -8,6 +8,7 @@ dependencies/
 conf/*.json
 uid2-operator.iml
 build/**
+e2e-target
 .DS_Store
 */node_modules/*
 *.iml

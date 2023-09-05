@@ -1,0 +1,23 @@
+{
+  "service_instances": 1,
+  "storage_mock": false,
+  "aws_s3_endpoint": "<NGROK_URL_LOCALSTACK>",
+  "optout_s3_bucket": "test-optout-bucket",
+  "pre_signed_url_expiry": 1800,
+  "aws_region": "us-east-2",
+  "aws_access_key_id": "no access key needed for test",
+  "aws_secret_access_key": "no secret key needed for test",
+  "att_token_enc_key": "<key-for-attestation-token>",
+  "att_token_enc_salt": "<salt-for-attestation-token>",
+  "optout_s3_folder": "optout/",
+  "optout_internal_api_token": "test-optout-internal-key",
+  "optout_replica_uris": null,
+  "partners_metadata_path": "<NGROK_URL_CORE>/partners/refresh",
+  "operators_metadata_path": "<NGROK_URL_CORE>/operators/refresh",
+  "core_attest_url": "<NGROK_URL_CORE>/attest",
+  "core_api_token": "UID2-O-L-127-pDqphU.6FuXzThQMY8YEsCA8crqvAlzyGrjcF8P6XO84=",
+  "aws_kms_jwt_signing_key_id": "ff275b92-0def-4dfc-b0f6-87c96b26c6c7",
+  "aws_kms_jwt_signing_public_keys": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA9tXqXNeeuA3lmfNF2AF06OLY6icxEOlXaZEXyh62ieFjakvDeR438s5gA1ToKqpW5uTPkKtP1YjHf16ofjlDYcLxCKOombjW1m2t/3FFfWRaZgr/SFr5TaI3N86tAvf313kql8GVrre/HQLhaHUXQJxDYh3/Wl7+KSMrMwMQCwkgnf1AmGUcPl1AzxuKUia8IM9joZKq9UpxRdWkLeqJ47d0bX5+SFLOwRhFxnejNx3iJYpEi43aFxLnr1WmTtMrIkHYmA2GENnhXsrV3n0bqLUah+HS6S+m3lBUW09TEFbagtktCtsFqvE+YExXo8b+hOnlakQtsbtJY0xg8Z1AtwIDAQAB,MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA9tXqXNeeuA3lmfNF2AF06OLY6icxEOlXaZEXyh62ieFjakvDeR438s5gA1ToKqpW5uTPkKtP1YjHf16ofjlDYcLxCKOombjW1m2t/3FFfWRaZgr/SFr5TaI3N86tAvf313kql8GVrre/HQLhaHUXQJxDYh3/Wl7+KSMrMwMQCwkgnf1AmGUcPl1AzxuKUia8IM9joZKq9UpxRdWkLeqJ47d0bX5+SFLOwRhFxnejNx3iJYpEi43aFxLnr1WmTtMrIkHYmA2GENnhXsrV3n0bqLUah+HS6S+m3lBUW09TEFbagtktCtsFqvE+YExXo8b+hOnlakQtsbtJY0xg8Z1AtwIDAQAB",
+  "enforceJwt": false,
+  "enforce_https": false
+}

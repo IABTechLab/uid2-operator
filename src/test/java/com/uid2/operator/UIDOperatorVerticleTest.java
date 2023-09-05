@@ -28,6 +28,7 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.encryption.Uid2Base64UrlCoder;
 import com.uid2.shared.model.KeysetKey;
+import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.*;
@@ -88,6 +89,10 @@ public class UIDOperatorVerticleTest {
     @Mock
     private IClientKeyProvider clientKeyProvider;
     @Mock
+    private IClientSideKeypairStore clientSideKeypairProvider;
+    @Mock
+    private IClientSideKeypairStore.IClientSideKeypairStoreSnapshot clientSideKeypairSnapshot;
+    @Mock
     private IKeysetKeyStore keysetKeyStore;
     @Mock
     private RotatingKeysetProvider keysetProvider;
@@ -115,11 +120,11 @@ public class UIDOperatorVerticleTest {
     private static final byte[] clientSecret = Random.getRandomKeyBytes();
     private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
-    private AttestationTokenRetriever fakeAttestationTokenRetriever;
-
+    private static final String clientSideTokenGenerateSubscriptionId = "4WvryDGbR5";
+    private static final String clientSideTokenGeneratePublicKey = "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
+    private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-L-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
     private static final int clientSideTokenGenerateSiteId = 123;
-    private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-T-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
-    private static final String clientSideTokenGeneratePublicKey = "UID2-X-T-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
+    private AttestationTokenRetriever fakeAttestationTokenRetriever;
 
     private UidCoreClient fakeCoreClient;
 
@@ -157,9 +162,10 @@ public class UIDOperatorVerticleTest {
             config.put("enable_phone_support", false);
         }
 
+        when(clientSideKeypairProvider.getSnapshot()).thenReturn(clientSideKeypairSnapshot);
         setupConfig(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, clientKeyProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue);
 
         uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
 
@@ -181,11 +187,9 @@ public class UIDOperatorVerticleTest {
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
+        //still required these 2 for domain name check in getDomainNameListForClientSideTokenGenerate
         config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_side_token_generate_test_subscription_id", "4WvryDGbR5");
-        config.put("client_side_token_generate_test_public_key", clientSideTokenGeneratePublicKey);
-        config.put("client_side_token_generate_test_private_key", clientSideTokenGeneratePrivateKey);
-        config.put("client_side_token_generate_test_site_id", clientSideTokenGenerateSiteId);
+        config.put("client_side_token_generate_test_subscription_id", clientSideTokenGenerateSubscriptionId);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -1591,17 +1595,16 @@ public class UIDOperatorVerticleTest {
             this.operatorDisableHandler.handleResponseStatus(401);
 
             // Request should fail after revoking auth
-            get(vertx, "v1/token/generate?email=test@uid2.com", ar1 -> {
-                assertEquals(503, ar1.result().statusCode());
-                testContext.completeNow();
+            get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response2 -> testContext.verify(() -> {
+                assertEquals(503, response2.statusCode());
 
                 // Recovered
                 this.operatorDisableHandler.handleResponseStatus(200);
-                get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
-                    assertEquals(200, ar2.result().statusCode());
+                get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response3 -> testContext.verify(() -> {
+                    assertEquals(200, response3.statusCode());
                     testContext.completeNow();
-                });
-            });
+                })));
+            })));
         })));
     }
 
@@ -2378,6 +2381,8 @@ public class UIDOperatorVerticleTest {
     {
         setupSalts();
         setupKeys();
+        ClientSideKeypair keypair = new ClientSideKeypair(clientSideTokenGenerateSubscriptionId, clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, clientSideTokenGenerateSiteId, "", Instant.now(), false);
+        when(clientSideKeypairSnapshot.getKeypair(clientSideTokenGenerateSubscriptionId)).thenReturn(keypair);
     }
 
     //if no identity is provided will get an error
@@ -2489,7 +2494,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2536,7 +2541,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         requestJson.remove(testField);
 
@@ -2580,7 +2585,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "bad-key");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2668,7 +2673,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", "............");
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2714,7 +2719,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", "aa");
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2757,7 +2762,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2797,7 +2802,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2841,7 +2846,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2886,7 +2891,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2923,7 +2928,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "4WvryDGbR5");
+        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
         return new Tuple.Tuple2<>(requestJson, secretKey);
     }

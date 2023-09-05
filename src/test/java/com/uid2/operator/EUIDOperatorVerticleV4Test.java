@@ -4,8 +4,8 @@ import com.uid2.shared.model.TokenVersion;
 
 import java.io.IOException;
 
-public class EUIDOperatorVerticleTestV4 extends EUIDOperatorVerticleTest {
-    public EUIDOperatorVerticleTestV4() throws IOException {
+public class EUIDOperatorVerticleV4Test extends EUIDOperatorVerticleTest {
+    public EUIDOperatorVerticleV4Test() throws IOException {
     }
 
     @Override

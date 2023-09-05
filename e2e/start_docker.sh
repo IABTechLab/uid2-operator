@@ -37,11 +37,13 @@ fi
 sed -i.bak "s#<CORE_VERSION>#$CORE_VERSION#g" $COMPOSE_FILE
 sed -i.bak "s#<OPTOUT_VERSION>#$OPTOUT_VERSION#g" $COMPOSE_FILE
 
+# set provide_private_site_data to false to workaround the private site path
 cat $CORE_CONFIG_FILE \
 | jq '(.aws_s3_endpoint) |='\"$NGROK_URL_LOCALSTACK\"'' \
 | jq '(.kms_aws_endpoint) |='\"$NGROK_URL_LOCALSTACK\"'' \
 | jq '(.core_public_url) |='\"$NGROK_URL_CORE\"'' \
 | jq '(.optout_url) |='\"$NGROK_URL_OPTOUT\"'' \
+| jq '(.provide_private_site_data) |=false' \
 | tee $CORE_CONFIG_FILE
 
 cat $OPTOUT_CONFIG_FILE \

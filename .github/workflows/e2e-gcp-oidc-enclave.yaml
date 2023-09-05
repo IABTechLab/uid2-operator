@@ -107,3 +107,8 @@ jobs:
           GCP_INSTANCE_NAME: ${{ steps.start_gcp.outputs.GCP_INSTANCE_NAME }}
         run: |
           cd ./e2e && bash ./stop_gcp_enclave.sh
+
+      - name: Stop ngrok
+        if: always()
+        run: |
+          killall ngrok

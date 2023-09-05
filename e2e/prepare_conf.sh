@@ -11,7 +11,7 @@ if [ -z "$CORE_ROOT" ]; then
 fi
 
 if [ -z "$OPTOUT_ROOT" ]; then
-  echo "CORE_ROOT can not be empty"
+  echo "$OPTOUT_ROOT can not be empty"
   exit 1
 fi
 

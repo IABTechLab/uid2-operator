@@ -59,4 +59,6 @@ docker compose -f "$ROOT/docker-compose.yml" up -d
 docker ps -a
 
 source "$ROOT/healthcheck.sh"
-healthcheck "$OPTOUT_HEALTHCHECK_URL" 20
+
+# health check - for 5 mins
+healthcheck "$OPTOUT_HEALTHCHECK_URL" 60

@@ -8,7 +8,7 @@ if [ -z "$GCP_INSTANCE_NAME" ]; then
   exit 1
 fi
 
-gcloud config set compute/zone us-west1-b
+gcloud config set compute/zone asia-southeast1-a
 
 gcloud compute instances delete $GCP_INSTANCE_NAME \
     --quiet

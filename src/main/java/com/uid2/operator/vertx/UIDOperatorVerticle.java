@@ -25,7 +25,6 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.model.Service;
 import com.uid2.shared.model.Site;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;

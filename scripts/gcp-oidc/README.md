@@ -48,13 +48,21 @@ service account that would be used to run Confidential Space VMs, and grant it p
 Run below from [Google Cloud Console](https://console.cloud.google.com/):
 
 1. Click "Active Cloud shell".
+2. Switch to your project:
+    ```
+    $ gcloud config set project {PROJECT_ID}
+    ```
+3. Enable the following APIs:
+    ```
+    $ gcloud services enable compute.googleapis.com confidentialcomputing.googleapis.com
+    ```
 
-2. Create a service account to run the workload:
+4. Create a service account to run the workload:
     ```
     $ gcloud iam service-accounts create {SERVICE_ACCOUNT_NAME}
     ```
 
-3. Grant below required permissions to service account:
+5. Grant below required permissions to service account:
 - `confidentialcomputing.workloadUser`, grants the ability to generate an attestation token and run a workload in a VM.
     ```
     $ gcloud projects add-iam-policy-binding {PROJECT_ID} \
@@ -62,7 +70,7 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
       --role=roles/confidentialcomputing.workloadUser
     ```
 
-4. (Optional) Grant below optional permission to service account:
+6. (Optional) Grant below optional permission to service account:
 - `logging.logWriter`, access to write & view logs in debug mode.
     ```
     $ gcloud projects add-iam-policy-binding {PROJECT_ID} \
@@ -70,7 +78,7 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
       --role=roles/logging.logWriter
     ```
   
-5. Add VPC rule to allow public 8080 access (default exposed port of UID2 operator):
+7. Add VPC rule to allow public 8080 access (default exposed port of UID2 operator):
     ```
     $ gcloud compute firewall-rules create operator-tcp \
       --direction=INGRESS --priority=1000 --network=default --action=ALLOW \

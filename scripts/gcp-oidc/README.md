@@ -135,7 +135,7 @@ You will be provided a new `{API_TOKEN}`, and `~tee-env-DEPLOYMENT_ENVIRONMENT=i
 `~tee-env-DEPLOYMENT_ENVIRONMENT=prod~`.
 
 It is recommended that you also specify the machine type in the gcloud script. Currently, it is recommended to run the
-UID2 operator on a machine type of n2d-standard-16. (default to n1-standard-1)
+UID2 operator on a machine type of n2d-standard-16. (default to n2d-standard-2)
 
 An example of the script is given below:
 

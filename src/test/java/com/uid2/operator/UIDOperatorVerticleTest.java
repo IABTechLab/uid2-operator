@@ -406,7 +406,7 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void checkEncryptionKeysSharing(JsonObject response, int siteId, KeysetKey... expectedKeys) {
+    private void checkEncryptionKeysSharing(JsonObject response, int callersSiteId, KeysetKey... expectedKeys) {
         assertEquals("success", response.getString("status"));
         final JsonArray responseKeys = response.getJsonObject("body").getJsonArray("keys");
         assertNotNull(responseKeys);
@@ -419,15 +419,19 @@ public class UIDOperatorVerticleTest {
             assertEquals(expectedKey.getCreated().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("created")));
             assertEquals(expectedKey.getActivates().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("activates")));
             assertEquals(expectedKey.getExpires().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("expires")));
-            Keyset keyset = this.keysetProvider.getSnapshot().getKeyset(expectedKey.getKeysetId());
-            assertNotNull(keyset);
-            assertTrue(keyset.isEnabled());
-            if (keyset.getSiteId() == siteId) {
-                assertEquals(expectedKey.getKeysetId(), actualKey.getInteger("keyset_id"));
-            } else if (keyset.getSiteId() == MasterKeySiteId) {
-                assertEquals(expectedKey.getKeysetId(), actualKey.getInteger("keyset_id"));
+
+            Keyset expectedKeyset = this.keysetProvider.getSnapshot().getKeyset(expectedKey.getKeysetId());
+            assertNotNull(expectedKeyset);
+            assertTrue(expectedKeyset.isEnabled());
+
+            final var actualKeysetId = actualKey.getInteger("keyset_id");
+            assertTrue(actualKeysetId == null || actualKeysetId > 0); //SDKs currently have an assumption that keyset ids are positive; that will be fixed.
+            if (expectedKeyset.getSiteId() == callersSiteId) {
+                assertEquals(expectedKey.getKeysetId(), actualKeysetId);
+            } else if (expectedKeyset.getSiteId() == MasterKeySiteId) {
+                assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, actualKeysetId);
             } else {
-                assertNull(actualKey.getInteger("keyset_id"));
+                assertNull(actualKeysetId); //we only send keyset ids if the caller is allowed to encrypt using that keyset (so only the caller's keysets and the master keyset)
             }
         }
     }
@@ -3473,7 +3477,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
             testContext.completeNow();
@@ -3520,7 +3524,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
             testContext.completeNow();
@@ -3597,7 +3601,7 @@ public class UIDOperatorVerticleTest {
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
 
             switch (testRun) {
                 case "NoKeyset":
@@ -3718,7 +3722,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys.toArray(new KeysetKey[0]));
             testContext.completeNow();

@@ -81,7 +81,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
 
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
-    private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+    private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
     private static final String REQUEST = "request";
     private static final String LINK_ID = "link_id";
@@ -109,12 +109,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
     private final int tcfVendorId;
-    private IStatsCollectorQueue _statsCollectorQueue;
+    private final IStatsCollectorQueue _statsCollectorQueue;
     private final KeyManager keyManager;
     private final boolean checkServiceLinkIdForIdentityMap;
     private final String privateLinkId;
 
     private final boolean cstgDoDomainNameCheck;
+    public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
+
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -512,7 +514,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonArray keys = new JsonArray();
 
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
-            KeysetKey masterKey = keyManagerSnapshot.getMasterKey();
             List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
             Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
             KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
@@ -528,7 +529,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             final JsonObject resp = new JsonObject();
             resp.put("caller_site_id", clientKey.getSiteId());
-            resp.put("master_keyset_id", masterKey.getKeysetId());
+            resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
             if (defaultKeyset != null) {
                 resp.put("default_keyset_id", defaultKeyset.getKeysetId());
             }
@@ -544,8 +545,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
                 if (keyset == null || !keyset.isEnabled()) {
                     continue;
-                } else if (clientKey.getSiteId() == keyset.getSiteId() || key.getKeysetId() == Data.MasterKeysetId) {
+                } else if (clientKey.getSiteId() == keyset.getSiteId()) {
                     keyObj.put("keyset_id", key.getKeysetId());
+                } else if (key.getKeysetId() == Data.MasterKeysetId) {
+                    keyObj.put("keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
                 } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
                     continue;
                 }

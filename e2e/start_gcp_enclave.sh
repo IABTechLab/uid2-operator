@@ -27,7 +27,7 @@ if [ -z "$NGROK_URL_OPTOUT" ]; then
   exit 1
 fi
 
-gcloud config set compute/zone us-west1-b
+gcloud config set compute/zone asia-southeast1-a
 
 gcloud compute instances create $GCP_INSTANCE_NAME \
     --confidential-compute \

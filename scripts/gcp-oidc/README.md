@@ -52,6 +52,7 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
     ```
     $ gcloud config set project {PROJECT_ID}
     ```
+ 
 3. Enable the following APIs:
     ```
     $ gcloud services enable compute.googleapis.com confidentialcomputing.googleapis.com

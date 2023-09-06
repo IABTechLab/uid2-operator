@@ -27,10 +27,7 @@ import com.uid2.shared.cloud.CloudUtils;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.encryption.Uid2Base64UrlCoder;
-import com.uid2.shared.model.KeysetKey;
-import com.uid2.shared.model.ClientSideKeypair;
-import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.model.TokenVersion;
+import com.uid2.shared.model.*;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import io.micrometer.core.instrument.Metrics;
@@ -86,6 +83,8 @@ import static com.uid2.shared.Const.Data.*;
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
     private AutoCloseable mocks;
+    @Mock
+    private ISiteStore siteProvider;
     @Mock
     private IClientKeyProvider clientKeyProvider;
     @Mock
@@ -162,10 +161,9 @@ public class UIDOperatorVerticleTest {
             config.put("enable_phone_support", false);
         }
 
-        when(clientSideKeypairProvider.getSnapshot()).thenReturn(clientSideKeypairSnapshot);
         setupConfig(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue);
 
         uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
 
@@ -187,9 +185,6 @@ public class UIDOperatorVerticleTest {
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
-        //still required these 2 for domain name check in getDomainNameListForClientSideTokenGenerate
-        config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_side_token_generate_test_subscription_id", clientSideTokenGenerateSubscriptionId);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -415,7 +410,7 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void checkEncryptionKeysSharing(JsonObject response, int siteId, KeysetKey... expectedKeys) {
+    private void checkEncryptionKeysSharing(JsonObject response, int callersSiteId, KeysetKey... expectedKeys) {
         assertEquals("success", response.getString("status"));
         final JsonArray responseKeys = response.getJsonObject("body").getJsonArray("keys");
         assertNotNull(responseKeys);
@@ -428,15 +423,19 @@ public class UIDOperatorVerticleTest {
             assertEquals(expectedKey.getCreated().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("created")));
             assertEquals(expectedKey.getActivates().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("activates")));
             assertEquals(expectedKey.getExpires().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("expires")));
-            Keyset keyset = this.keysetProvider.getSnapshot().getKeyset(expectedKey.getKeysetId());
-            assertNotNull(keyset);
-            assertTrue(keyset.isEnabled());
-            if (keyset.getSiteId() == siteId) {
-                assertEquals(expectedKey.getKeysetId(), actualKey.getInteger("keyset_id"));
-            } else if (keyset.getSiteId() == MasterKeySiteId) {
-                assertEquals(expectedKey.getKeysetId(), actualKey.getInteger("keyset_id"));
+
+            Keyset expectedKeyset = this.keysetProvider.getSnapshot().getKeyset(expectedKey.getKeysetId());
+            assertNotNull(expectedKeyset);
+            assertTrue(expectedKeyset.isEnabled());
+
+            final var actualKeysetId = actualKey.getInteger("keyset_id");
+            assertTrue(actualKeysetId == null || actualKeysetId > 0); //SDKs currently have an assumption that keyset ids are positive; that will be fixed.
+            if (expectedKeyset.getSiteId() == callersSiteId) {
+                assertEquals(expectedKey.getKeysetId(), actualKeysetId);
+            } else if (expectedKeyset.getSiteId() == MasterKeySiteId) {
+                assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, actualKeysetId);
             } else {
-                assertNull(actualKey.getInteger("keyset_id"));
+                assertNull(actualKeysetId); //we only send keyset ids if the caller is allowed to encrypt using that keyset (so only the caller's keysets and the master keyset)
             }
         }
     }
@@ -2377,18 +2376,20 @@ public class UIDOperatorVerticleTest {
         })));
     }
 
-    void setupCstgBackend()
+    private void setupCstgBackend(String... domainNames)
     {
         setupSalts();
         setupKeys();
         ClientSideKeypair keypair = new ClientSideKeypair(clientSideTokenGenerateSubscriptionId, clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, clientSideTokenGenerateSiteId, "", Instant.now(), false);
+        when(clientSideKeypairProvider.getSnapshot()).thenReturn(clientSideKeypairSnapshot);
         when(clientSideKeypairSnapshot.getKeypair(clientSideTokenGenerateSubscriptionId)).thenReturn(keypair);
+        when(siteProvider.getSite(eq(clientSideTokenGenerateSiteId))).thenReturn(new Site(clientSideTokenGenerateSiteId, "test", true, new HashSet<>(List.of(domainNames))));
     }
 
     //if no identity is provided will get an error
     @Test
     void cstgNoIdentityHashProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithNoPayload(Instant.now().toEpochMilli());
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2436,7 +2437,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"https://cstg.co.uk", "https://cstg2.com", "http://localhost:8080"})
     void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk", "cstg2.com", "localhost");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2454,7 +2455,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgNoBody(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         postCstg(vertx,
                 "v2/token/client-generate",
@@ -2470,7 +2471,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadTimestamp(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2517,7 +2518,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"payload", "iv", "public_key"})
     void cstgMissingRequiredField(String testField, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2561,7 +2562,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadPublicKey(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2607,7 +2608,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadSubscriptionId(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2649,7 +2650,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadIvNotBase64(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2695,7 +2696,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadIvIncorrectLength(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2741,7 +2742,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadEncryptedPayload(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2784,7 +2785,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgInvalidEncryptedPayloadJson(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
         final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
@@ -2824,7 +2825,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgPhoneAndEmailProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         JsonObject identityPayload = new JsonObject();
         identityPayload.put("email_hash", getSha256("random@unifiedid.com"));
@@ -2868,7 +2869,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgNoPhoneSupport(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         String rawId = "+10001110000";
 
@@ -2965,7 +2966,7 @@ public class UIDOperatorVerticleTest {
             "false,+61400000000,Phone,+00000000001"})
     void cstgOptedOutTest(boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
                       Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
         if(optOutExpected)
         {
@@ -3480,7 +3481,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
             testContext.completeNow();
@@ -3527,7 +3528,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
             testContext.completeNow();
@@ -3604,7 +3605,7 @@ public class UIDOperatorVerticleTest {
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
 
             switch (testRun) {
                 case "NoKeyset":
@@ -3725,7 +3726,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(MasterKeysetId, respJson.getJsonObject("body").getInteger("master_keyset_id"));
+            assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys.toArray(new KeysetKey[0]));
             testContext.completeNow();

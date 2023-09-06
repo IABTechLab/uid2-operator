@@ -4,6 +4,7 @@
   "enforce_https": false,
   "core_attest_url": "http://localhost:8088/attest",
   "core_api_token": "UID2-O-L-999-dp9Dt0.JVoGpynN4J8nMA7FxmzsavxJa8B9H74y9xdEE=",
+  "sites_metadata_path": "http://localhost:8088/sites/refresh",
   "clients_metadata_path": "http://localhost:8088/clients/refresh",
   "keysets_metadata_path": "http://localhost:8088/key/keyset/refresh",
   "keyset_keys_metadata_path": "http://localhost:8088/key/keyset-keys/refresh",
@@ -32,5 +33,6 @@
   "optout_heap_default_capacity": 8192,
   "optout_max_partitions": 30,
   "optout_partition_interval": 86400,
-  "client_side_token_generate": true
+  "client_side_token_generate": true,
+  "client_side_token_generate_domain_name_check_enabled": false
 }

@@ -26,12 +26,12 @@ import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.model.Service;
+import com.uid2.shared.model.Site;
+import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
 import com.uid2.shared.store.ISaltProvider;
-import com.uid2.shared.store.IServiceLinkStore;
-import com.uid2.shared.store.IServiceStore;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -67,7 +67,6 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
@@ -83,14 +82,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
 
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
-    private static DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+    private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
     private static final String REQUEST = "request";
     private static final String LINK_ID = "link_id";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
     private final JsonObject config;
+    private final boolean clientSideTokenGenerate;
     private final AuthMiddleware auth;
+    private final ISiteStore siteProvider;
     private final IClientSideKeypairStore clientSideKeypairProvider;
     private final ITokenEncoder encoder;
     private final ISaltProvider saltProvider;
@@ -111,15 +112,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
     private final int tcfVendorId;
-    private IStatsCollectorQueue _statsCollectorQueue;
+    private final IStatsCollectorQueue _statsCollectorQueue;
     private final KeyManager keyManager;
     private final boolean checkServiceLinkIdForIdentityMap;
     private final String privateLinkId;
 
     private final boolean cstgDoDomainNameCheck;
-    private final String cstgTestDomainNameList;
+    public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
+
 
     public UIDOperatorVerticle(JsonObject config,
+                               boolean clientSideTokenGenerate,
+                               ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
                                IClientSideKeypairStore clientSideKeypairProvider,
                                KeyManager keyManager,
@@ -136,9 +140,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             throw new RuntimeException(e);
         }
         this.config = config;
+        this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
         this.encoder = new EncryptedTokenEncoder(keyManager);
+        this.siteProvider = siteProvider;
         this.clientSideKeypairProvider = clientSideKeypairProvider;
         this.saltProvider = saltProvider;
         this.serviceProvider = serviceProvider;
@@ -152,7 +158,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.checkServiceLinkIdForIdentityMap = config.getBoolean(Const.Config.CheckServiceLinkIdForIdentityMapProp, false);
         this.privateLinkId = config.getString(Const.Config.PrivateLinkIdProp, "");
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
-        this.cstgTestDomainNameList = config.getString("client_side_token_generate_test_domain_name_list", "");
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -275,7 +280,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
 
-        if (config.getBoolean("client_side_token_generate", false))
+        if (this.clientSideTokenGenerate)
             v2Router.post("/token/client-generate").handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
         mainRouter.route("/v2/*").subRouter(v2Router);
@@ -292,8 +297,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
 
-    private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
-        return Arrays.stream(cstgTestDomainNameList.split(",")).collect(Collectors.toSet());
+    private Set<String> getDomainNameListForClientSideTokenGenerate(ClientSideKeypair keypair) {
+        Site s = siteProvider.getSite(keypair.getSiteId());
+        if (s == null) {
+            return Collections.emptySet();
+        } else {
+            return s.getDomainNames();
+        }
     }
 
     private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
@@ -313,7 +323,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         if (cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(request.getSubscriptionId());
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(clientSideKeypair);
             String origin = rc.request().getHeader("origin");
 
             boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
@@ -515,7 +525,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonArray keys = new JsonArray();
 
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
-            KeysetKey masterKey = keyManagerSnapshot.getMasterKey();
             List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
             Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
             KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
@@ -531,7 +540,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             final JsonObject resp = new JsonObject();
             resp.put("caller_site_id", clientKey.getSiteId());
-            resp.put("master_keyset_id", masterKey.getKeysetId());
+            resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
             if (defaultKeyset != null) {
                 resp.put("default_keyset_id", defaultKeyset.getKeysetId());
             }
@@ -547,8 +556,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
                 if (keyset == null || !keyset.isEnabled()) {
                     continue;
-                } else if (clientKey.getSiteId() == keyset.getSiteId() || key.getKeysetId() == Data.MasterKeysetId) {
+                } else if (clientKey.getSiteId() == keyset.getSiteId()) {
                     keyObj.put("keyset_id", key.getKeysetId());
+                } else if (key.getKeysetId() == Data.MasterKeysetId) {
+                    keyObj.put("keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
                 } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
                     continue;
                 }

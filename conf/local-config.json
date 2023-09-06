@@ -1,6 +1,7 @@
 {
   "service_instances": 4,
   "storage_mock": true,
+  "sites_metadata_path": "/com.uid2.core/test/sites/metadata.json",
   "clients_metadata_path": "/com.uid2.core/test/clients/metadata.json",
   "keysets_metadata_path": "/com.uid2.core/test/keysets/metadata.json",
   "keyset_keys_metadata_path": "/com.uid2.core/test/keyset_keys/metadata.json",
@@ -33,10 +34,5 @@
   "optout_partition_interval": 86400,
   "check_service_link_id_for_identity_map": true,
   "client_side_token_generate": true,
-  "client_side_token_generate_domain_name_check_enabled": false,
-  "client_side_token_generate_test_domain_name_list" : "localhost,uidapi.com",
-  "client_side_token_generate_test_subscription_id" : "4WvryDGbR5",
-  "client_side_token_generate_test_private_key" : "UID2-Y-L-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCC5kOSRVD+qhAZqf0L4LGbmAhdy5HpIptwXE72jxhwo6w==",
-  "client_side_token_generate_test_public_key" : "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtXJdTSZAYHvoRDWiehMHoWF1BNPuqLs5w2ZHiAZ1IJc7O4/z0ojPTB0V+KYX/wxQK0hxx6kxCvHj335eI/ZQsQ==",
-  "client_side_token_generate_test_site_id" : 123
+  "client_side_token_generate_domain_name_check_enabled": true
 }

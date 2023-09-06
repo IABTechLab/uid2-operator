@@ -27,10 +27,7 @@ import com.uid2.shared.cloud.CloudUtils;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.encryption.Uid2Base64UrlCoder;
-import com.uid2.shared.model.KeysetKey;
-import com.uid2.shared.model.ClientSideKeypair;
-import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.model.TokenVersion;
+import com.uid2.shared.model.*;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import io.micrometer.core.instrument.Metrics;
@@ -86,6 +83,8 @@ import static com.uid2.shared.Const.Data.*;
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
     private AutoCloseable mocks;
+    @Mock
+    private ISiteStore siteProvider;
     @Mock
     private IClientKeyProvider clientKeyProvider;
     @Mock
@@ -158,10 +157,9 @@ public class UIDOperatorVerticleTest {
             config.put("enable_phone_support", false);
         }
 
-        when(clientSideKeypairProvider.getSnapshot()).thenReturn(clientSideKeypairSnapshot);
         setupConfig(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, clock, statsCollectorQueue);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, clock, statsCollectorQueue);
 
         uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
 
@@ -183,9 +181,6 @@ public class UIDOperatorVerticleTest {
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
-        //still required these 2 for domain name check in getDomainNameListForClientSideTokenGenerate
-        config.put("client_side_token_generate_test_domain_name_list", "localhost,cstg.co.uk,cstg2.com");
-        config.put("client_side_token_generate_test_subscription_id", clientSideTokenGenerateSubscriptionId);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -2373,18 +2368,20 @@ public class UIDOperatorVerticleTest {
         })));
     }
 
-    void setupCstgBackend()
+    private void setupCstgBackend(String... domainNames)
     {
         setupSalts();
         setupKeys();
         ClientSideKeypair keypair = new ClientSideKeypair(clientSideTokenGenerateSubscriptionId, clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, clientSideTokenGenerateSiteId, "", Instant.now(), false);
+        when(clientSideKeypairProvider.getSnapshot()).thenReturn(clientSideKeypairSnapshot);
         when(clientSideKeypairSnapshot.getKeypair(clientSideTokenGenerateSubscriptionId)).thenReturn(keypair);
+        when(siteProvider.getSite(eq(clientSideTokenGenerateSiteId))).thenReturn(new Site(clientSideTokenGenerateSiteId, "test", true, new HashSet<>(List.of(domainNames))));
     }
 
     //if no identity is provided will get an error
     @Test
     void cstgNoIdentityHashProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithNoPayload(Instant.now().toEpochMilli());
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2432,7 +2429,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"https://cstg.co.uk", "https://cstg2.com", "http://localhost:8080"})
     void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk", "cstg2.com", "localhost");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -2450,7 +2447,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgNoBody(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         postCstg(vertx,
                 "v2/token/client-generate",
@@ -2466,7 +2463,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadTimestamp(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2513,7 +2510,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"payload", "iv", "public_key"})
     void cstgMissingRequiredField(String testField, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2557,7 +2554,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadPublicKey(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2603,7 +2600,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadSubscriptionId(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2645,7 +2642,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadIvNotBase64(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2691,7 +2688,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadIvIncorrectLength(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2737,7 +2734,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgBadEncryptedPayload(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
@@ -2780,7 +2777,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgInvalidEncryptedPayloadJson(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
         final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
@@ -2820,7 +2817,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgPhoneAndEmailProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         JsonObject identityPayload = new JsonObject();
         identityPayload.put("email_hash", getSha256("random@unifiedid.com"));
@@ -2864,7 +2861,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void cstgNoPhoneSupport(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
 
         String rawId = "+10001110000";
 
@@ -2961,7 +2958,7 @@ public class UIDOperatorVerticleTest {
             "false,+61400000000,Phone,+00000000001"})
     void cstgOptedOutTest(boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
                       Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend();
+        setupCstgBackend("cstg.co.uk");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
         if(optOutExpected)
         {

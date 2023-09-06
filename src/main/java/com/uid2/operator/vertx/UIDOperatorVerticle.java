@@ -25,6 +25,8 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.ClientSideKeypair;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
+import com.uid2.shared.model.Site;
+import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
@@ -64,7 +66,6 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
@@ -87,7 +88,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
     private final JsonObject config;
+    private final boolean clientSideTokenGenerate;
     private final AuthMiddleware auth;
+    private final ISiteStore siteProvider;
     private final IClientSideKeypairStore clientSideKeypairProvider;
     private final ITokenEncoder encoder;
     private final ISaltProvider saltProvider;
@@ -112,9 +115,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final String privateLinkId;
 
     private final boolean cstgDoDomainNameCheck;
-    private final String cstgTestDomainNameList;
 
     public UIDOperatorVerticle(JsonObject config,
+                               boolean clientSideTokenGenerate,
+                               ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
                                IClientSideKeypairStore clientSideKeypairProvider,
                                KeyManager keyManager,
@@ -129,9 +133,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             throw new RuntimeException(e);
         }
         this.config = config;
+        this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
         this.encoder = new EncryptedTokenEncoder(keyManager);
+        this.siteProvider = siteProvider;
         this.clientSideKeypairProvider = clientSideKeypairProvider;
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
@@ -143,7 +149,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.checkServiceLinkIdForIdentityMap = config.getBoolean(Const.Config.CheckServiceLinkIdForIdentityMapProp, false);
         this.privateLinkId = config.getString(Const.Config.PrivateLinkIdProp, "");
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
-        this.cstgTestDomainNameList = config.getString("client_side_token_generate_test_domain_name_list", "");
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -262,7 +267,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
 
-        if (config.getBoolean("client_side_token_generate", false))
+        if (this.clientSideTokenGenerate)
             v2Router.post("/token/client-generate").handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
         mainRouter.route("/v2/*").subRouter(v2Router);
@@ -279,8 +284,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
 
-    private Set<String> getDomainNameListForClientSideTokenGenerate(String subscriptionId) {
-        return Arrays.stream(cstgTestDomainNameList.split(",")).collect(Collectors.toSet());
+    private Set<String> getDomainNameListForClientSideTokenGenerate(ClientSideKeypair keypair) {
+        Site s = siteProvider.getSite(keypair.getSiteId());
+        if (s == null) {
+            return Collections.emptySet();
+        } else {
+            return s.getDomainNames();
+        }
     }
 
     private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
@@ -300,7 +310,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         if (cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(request.getSubscriptionId());
+            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(clientSideKeypair);
             String origin = rc.request().getHeader("origin");
 
             boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);

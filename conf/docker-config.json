@@ -24,6 +24,7 @@
   "cloud_download_threads": 8,
   "cloud_upload_threads": 2,
   "cloud_refresh_interval": 60,
+  "sites_metadata_path": "/com.uid2.core/test/sites/metadata.json",
   "clients_metadata_path": "/com.uid2.core/test/clients/metadata.json",
   "keysets_metadata_path": "/com.uid2.core/test/keysets/metadata.json",
   "keyset_keys_metadata_path": "/com.uid2.core/test/keyset_keys/metadata.json",

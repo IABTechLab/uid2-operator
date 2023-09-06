@@ -17,5 +17,7 @@ public class Const extends com.uid2.shared.Const {
 
         public static final String CheckServiceLinkIdForIdentityMapProp = "check_service_link_id_for_identity_map";
         public static final String PrivateLinkIdProp = "private_link_id";
+        
+        public static final String EnableClientSideTokenGenerate = "client_side_token_generate";
     }
 }

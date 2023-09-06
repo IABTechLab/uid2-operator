@@ -1,5 +1,6 @@
 {
   "service_instances": 1,
+  "sites_metadata_path": "http://localhost:8088/sites/refresh",
   "clients_metadata_path": "http://localhost:8088/clients/refresh",
   "keysets_metadata_path": "http://localhost:8088/key/keyset/refresh",
   "keyset_keys_metadata_path": "http://localhost:8088/key/keyset-keys/refresh",

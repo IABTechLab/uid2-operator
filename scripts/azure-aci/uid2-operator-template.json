@@ -16,6 +16,20 @@
         "description": "Location for all resources."
       }
     },
+    "cpuCores": {
+        "type": "int",
+        "defaultValue": 1,
+        "metadata": {
+            "description": "The number of CPU cores to allocate to the container."
+        }
+    },
+    "memoryInGb": {
+        "type": "int",
+        "defaultValue": 1,
+        "metadata": {
+            "description": "The amount of memory to allocate to the container in gigabytes."
+        }
+    },
     "deploymentEnvironment": {
       "type": "string",
       "metadata": {
@@ -52,8 +66,8 @@
               ],
               "resources": {
                 "requests": {
-                  "cpu": 16,
-                  "memoryInGB": 64
+                  "cpu": "[parameters('cpuCores')]",
+                  "memoryInGB": "[parameters('memoryInGb')]"
                 }
               },
               "environmentVariables": [

@@ -28,14 +28,14 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>32.1.2-jre</version>
-        </dependency>
-        <dependency>
             <groupId>com.uid2</groupId>
             <artifactId>uid2-shared</artifactId>
             <version>${uid2-shared.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.uid2</groupId>
+            <artifactId>uid2-attestation-api</artifactId>
+            <version>${enclave-api.version}</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
@@ -71,6 +71,51 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
             <version>${micrometer.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.1.2-jre</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>1.3.5</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.3.5</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.loki4j</groupId>
+            <artifactId>loki-logback-appender</artifactId>
+            <version>1.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>1.12.368</version>
+        </dependency>
+        <dependency>
+            <groupId>com.iabtcf</groupId>
+            <artifactId>iabtcf-decoder</artifactId>
+            <version>2.0.10</version>
+        </dependency>
+        <dependency>
+            <groupId>com.iabtcf</groupId>
+            <artifactId>iabtcf-encoder</artifactId>
+            <version>2.0.10</version>
+        </dependency>
+        <dependency>
+            <groupId>org.hashids</groupId>
+            <artifactId>hashids</artifactId>
+            <version>1.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>1.15</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
@@ -115,55 +160,10 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.hashids</groupId>
-            <artifactId>hashids</artifactId>
-            <version>1.0.3</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-codec</groupId>
-            <artifactId>commons-codec</artifactId>
-            <version>1.15</version>
-        </dependency>
-        <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-unit</artifactId>
             <version>${vertx.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.uid2</groupId>
-            <artifactId>uid2-attestation-api</artifactId>
-            <version>${enclave-api.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-core</artifactId>
-            <version>1.3.5</version>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.3.5</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.loki4j</groupId>
-            <artifactId>loki-logback-appender</artifactId>
-            <version>1.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-s3</artifactId>
-            <version>1.12.368</version>
-        </dependency>
-        <dependency>
-            <groupId>com.iabtcf</groupId>
-            <artifactId>iabtcf-decoder</artifactId>
-            <version>2.0.10</version>
-        </dependency>
-        <dependency>
-            <groupId>com.iabtcf</groupId>
-            <artifactId>iabtcf-encoder</artifactId>
-            <version>2.0.10</version>
         </dependency>
         <dependency>
             <groupId>org.openjdk.jmh</groupId>

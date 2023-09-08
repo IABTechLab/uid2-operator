@@ -23,6 +23,10 @@ public class ServiceLinkStoreTest {
         JsonObject m = serviceLinkProvider.getMetadata();
         assertDoesNotThrow(() -> serviceLinkProvider.loadContent(m));
 
+        ServiceLink serviceLink = serviceLinkProvider.getServiceLink(1, "testId1");
+        assertNotNull(serviceLink);
+        assertEquals("testName1", serviceLink.getName());
+
         List<ServiceLink> serviceLinks = new ArrayList<>(serviceLinkProvider.getAllServiceLinks());
         assertEquals(2, serviceLinks.size());
 

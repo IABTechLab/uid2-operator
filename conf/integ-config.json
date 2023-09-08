@@ -12,7 +12,5 @@
   "core_attest_url": "http://localhost:8088/attest",
   "core_api_token": "trusted-partner-key",
   "optout_api_token": "test-operator-key",
-  "optout_api_uri": "http://localhost:8081/optout/replicate",
-  "check_service_link_id_for_identity_map": true,
-  "private_link_id": 12345
+  "optout_api_uri": "http://localhost:8081/optout/replicate"
 }

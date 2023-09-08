@@ -5,6 +5,7 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
+import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
@@ -71,6 +72,7 @@ public class Main {
     private OperatorDisableHandler disableHandler = null;
     private final OperatorMetrics metrics;
     private IStatsCollectorQueue _statsCollectorQueue;
+    private final SecureLinkValidatorService secureLinkValidatorService;
 
     private final boolean clientSideTokenGenerate;
 
@@ -137,6 +139,7 @@ public class Main {
         this.serviceProvider = new RotatingServiceStore(fsStores, new GlobalScope(new CloudPath(serviceMdPath)));
         String serviceLinkMdPath = this.config.getString(Const.Config.ServiceLinkMetadataPathProp);
         this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
+        this.secureLinkValidatorService = new SecureLinkValidatorService(this.serviceLinkProvider);
 
         if (useStorageMock && coreAttestUrl == null) {
             if (clientSideTokenGenerate) {
@@ -236,7 +239,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, this.secureLinkValidatorService);
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;

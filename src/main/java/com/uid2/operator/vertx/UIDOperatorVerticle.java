@@ -84,7 +84,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
     private static final String REQUEST = "request";
-    private static final String LINK_ID = "link_id";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
     private final JsonObject config;
@@ -113,8 +112,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int tcfVendorId;
     private final IStatsCollectorQueue _statsCollectorQueue;
     private final KeyManager keyManager;
-    private final boolean checkServiceLinkIdForIdentityMap;
-    private final String privateLinkId;
+    private final SecureLinkValidatorService secureLinkValidatorService;
 
     private final boolean cstgDoDomainNameCheck;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
@@ -131,8 +129,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IServiceLinkStore serviceLinkProvider,
                                IOptOutStore optOutStore,
                                Clock clock,
-                               IStatsCollectorQueue statsCollectorQueue) {
+                               IStatsCollectorQueue statsCollectorQueue,
+                               SecureLinkValidatorService secureLinkValidatorService) {
         this.keyManager = keyManager;
+        this.secureLinkValidatorService = secureLinkValidatorService;
         try {
             aesGcm = Cipher.getInstance("AES/GCM/NoPadding");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
@@ -154,8 +154,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
-        this.checkServiceLinkIdForIdentityMap = config.getBoolean(Const.Config.CheckServiceLinkIdForIdentityMapProp, false);
-        this.privateLinkId = config.getString(Const.Config.PrivateLinkIdProp, "");
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this._statsCollectorQueue = statsCollectorQueue;
     }
@@ -1034,17 +1032,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private boolean isServiceLinkAuthenticated(RoutingContext rc, JsonObject requestJsonObject) {
-        if (requestJsonObject.containsKey(LINK_ID)) {
-            String linkId = requestJsonObject.getString(LINK_ID);
-            if (!linkId.equalsIgnoreCase(privateLinkId)) {
-                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
-                return false;
-            }
-        }
-        return true;
-    }
-
     private InputUtil.InputVal getTokenInput(RoutingContext rc) {
         final InputUtil.InputVal input;
         final List<String> emailInput = rc.queryParam("email");
@@ -1290,11 +1277,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
                 return;
             }
+
             JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
-            if (checkServiceLinkIdForIdentityMap) {
-                if (!isServiceLinkAuthenticated(rc, requestJsonObject)) {
-                    return;
-                }
+            if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject)) {
+                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
+                return;
             }
 
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(requestJsonObject);

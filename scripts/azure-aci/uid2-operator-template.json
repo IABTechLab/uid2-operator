@@ -1,0 +1,93 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "name": {
+      "type": "string",
+      "defaultValue": "uid2-operator",
+      "metadata": {
+        "description": "Name for the container group"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "Central US",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "deploymentEnvironment": {
+      "type": "string",
+      "metadata": {
+        "description": "Deployment environment of UID2 operator"
+      }
+    },
+    "apiToken": {
+      "type": "string",
+      "metadata": {
+        "description": "UID2 operator API token"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('name')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "confidentialComputeProperties": {
+          "ccePolicy": ""
+        },
+        "containers": [
+          {
+            "name": "[parameters('name')]",
+            "properties": {
+              "image": "%OPERATOR_IMAGE_PLACEHOLDER%",
+              "ports": [
+                {
+                  "port": 8080,
+                  "protocol": "TCP"
+                }
+              ],
+              "resources": {
+                "requests": {
+                  "cpu": 16,
+                  "memoryInGB": 64
+                }
+              },
+              "environmentVariables": [
+                {
+                  "name": "DEPLOYMENT_ENVIRONMENT",
+                  "value": "[parameters('deploymentEnvironment')]"
+                },
+                {
+                  "name": "API_TOKEN",
+                  "value": "[parameters('apiToken')]"
+                }
+              ]
+            }
+          }
+        ],
+        "sku": "Confidential",
+        "osType": "Linux",
+        "restartPolicy": "Never",
+        "ipAddress": {
+          "type": "Public",
+          "ports": [
+            {
+              "port": "8080",
+              "protocol": "TCP"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "containerIPv4Address": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('name'))).ipAddress.ip]"
+    }
+  }
+}

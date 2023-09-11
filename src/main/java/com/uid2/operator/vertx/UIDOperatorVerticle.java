@@ -777,6 +777,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 }
 
+                if (isAfterCutoffDate(clientKey.getCreated()) && (!req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
+                        || TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) != TokenGeneratePolicy.respectOptOut())) {
+                    LOGGER.error("request body misses opt-out policy argument");
+                    ResponseUtil.ClientError(rc, "request body misses opt-out policy arguments");
+                    return;
+                }
+
                 final TokenGeneratePolicy tokenGeneratePolicy = readTokenGeneratePolicy(req);
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
@@ -1634,6 +1641,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return req.containsKey(TOKEN_GENERATE_POLICY_PARAM) ?
                 TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) :
                 TokenGeneratePolicy.defaultPolicy();
+    }
+
+    private boolean isAfterCutoffDate(long timestamp) {
+        long cutoff = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
+        return timestamp >= cutoff;
     }
 
     private static final String IDENTITY_MAP_POLICY_PARAM = "policy";

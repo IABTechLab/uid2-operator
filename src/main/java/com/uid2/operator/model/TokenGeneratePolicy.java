@@ -19,4 +19,8 @@ public enum TokenGeneratePolicy {
     public static TokenGeneratePolicy defaultPolicy() {
         return JustGenerate;
     }
+
+    public static TokenGeneratePolicy respectOptOut() {
+        return RespectOptOut;
+    }
 }

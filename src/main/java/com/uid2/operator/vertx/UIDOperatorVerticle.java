@@ -780,7 +780,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 if (isAfterCutoffDate(clientKey.getCreated()) && (!req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
                         || TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) != TokenGeneratePolicy.respectOptOut())) {
                     LOGGER.error("request body misses opt-out policy argument");
-                    ResponseUtil.ClientError(rc, "request body misses opt-out policy arguments");
+                    ResponseUtil.ClientError(rc, "request body misses opt-out policy argument");
                     return;
                 }
 
@@ -1299,6 +1299,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 if (!isServiceLinkAuthenticated(rc, requestJsonObject)) {
                     return;
                 }
+            }
+
+            final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+            if (isAfterCutoffDate(clientKey.getCreated()) && (!requestJsonObject.containsKey(IDENTITY_MAP_POLICY_PARAM)
+                    || IdentityMapPolicy.fromValue(requestJsonObject.getInteger(IDENTITY_MAP_POLICY_PARAM)) != IdentityMapPolicy.respectOptOut())) {
+                LOGGER.error("request body misses opt-out policy argument");
+                ResponseUtil.ClientError(rc, "request body misses opt-out policy argument");
+                return;
             }
 
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(requestJsonObject);

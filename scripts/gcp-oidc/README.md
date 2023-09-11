@@ -70,16 +70,14 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
       --member=serviceAccount:{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com \
       --role=roles/confidentialcomputing.workloadUser
     ```
-
-6. (Optional) Grant below optional permission to service account:
-- `logging.logWriter`, access to write & view logs in debug mode.
+- `logging.logWriter`, access to write & view logs in Cloud Logging.
     ```
     $ gcloud projects add-iam-policy-binding {PROJECT_ID} \
       --member=serviceAccount:{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com \
       --role=roles/logging.logWriter
     ```
   
-7. Add VPC rule to allow public 8080 access (default exposed port of UID2 operator):
+6. Add VPC rule to allow public 8080 access (default exposed port of UID2 operator):
     ```
     $ gcloud compute firewall-rules create operator-tcp \
       --direction=INGRESS --priority=1000 --network=default --action=ALLOW \

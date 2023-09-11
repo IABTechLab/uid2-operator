@@ -10,6 +10,8 @@
   "keyset_keys_metadata_path": "http://localhost:8088/key/keyset-keys/refresh",
   "client_side_keypairs_metadata_path": "http://localhost:8088/client_side_keypairs/refresh",
   "salts_metadata_path": "http://localhost:8088/salt/refresh",
+  "services_metadata_path": "http://localhost:8088/services/refresh",
+  "service_links_metadata_path": "http://localhost:8088/service_links/refresh",
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,

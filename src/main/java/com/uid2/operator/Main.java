@@ -65,6 +65,8 @@ public class Main {
     private final RotatingKeysetProvider keysetProvider;
     private final RotatingClientSideKeypairStore clientSideKeypairProvider;
     private final RotatingSaltProvider saltProvider;
+    private final RotatingServiceStore serviceProvider;
+    private final RotatingServiceLinkStore serviceLinkProvider;
     private final CloudSyncOptOutStore optOutStore;
     private OperatorDisableHandler disableHandler = null;
     private final OperatorMetrics metrics;
@@ -131,6 +133,10 @@ public class Main {
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
+        String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
+        this.serviceProvider = new RotatingServiceStore(fsStores, new GlobalScope(new CloudPath(serviceMdPath)));
+        String serviceLinkMdPath = this.config.getString(Const.Config.ServiceLinkMetadataPathProp);
+        this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
 
         if (useStorageMock && coreAttestUrl == null) {
             if (clientSideTokenGenerate) {
@@ -141,6 +147,8 @@ public class Main {
             this.saltProvider.loadContent();
             this.keysetProvider.loadContent();
             this.keysetKeyStore.loadContent();
+            this.serviceProvider.loadContent();
+            this.serviceLinkProvider.loadContent();
         }
         metrics = new OperatorMetrics(getKeyManager(), saltProvider);
     }
@@ -228,7 +236,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;
@@ -274,6 +282,8 @@ public class Main {
         keysetKeyStore.getMetadata();
         keysetProvider.getMetadata();
         saltProvider.getMetadata();
+        serviceProvider.getMetadata();
+        serviceLinkProvider.getMetadata();
 
         // create cloud sync for optout store
         OptOutCloudSync optOutCloudSync = new OptOutCloudSync(config, false);
@@ -290,6 +300,8 @@ public class Main {
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("service", serviceProvider, "service_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("service_link", serviceLinkProvider, "service_link_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));

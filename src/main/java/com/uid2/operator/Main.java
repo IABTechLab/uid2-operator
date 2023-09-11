@@ -283,13 +283,13 @@ public class Main {
         Promise<Void> promise = Promise.promise();
         List<Future> fs = new ArrayList<>();
         if (clientSideTokenGenerate) {
-            fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, 10000));
-            fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, 10000));
+            fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, "site_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, "client_side_keypairs_refresh_ms"));
         }
-        fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, 10000));
+        fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));
@@ -298,10 +298,12 @@ public class Main {
         return promise.future();
     }
 
-    private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, int intervalMs) {
+    private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, String storeRefreshConfigMs) {
+        final int intervalMs = config.getInteger(storeRefreshConfigMs, 10000);
+
+        RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
         Promise<String> promise = Promise.promise();
-        RotatingStoreVerticle saltStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
-        vertx.deployVerticle(saltStoreVerticle, promise);
+        vertx.deployVerticle(rotatingStoreVerticle, promise);
         return promise.future();
     }
 

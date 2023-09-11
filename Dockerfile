@@ -1,4 +1,4 @@
-FROM eclipse-temurin@sha256:1a6531a7239bea3739d89d8833b03c7732f51e08ecbb78bbc40ef98287c1212d
+FROM eclipse-temurin@sha256:dbd4a0ae12008221aac0c6cac9d7afd4d376de2481f9fe234dfa1e06b6a499a0
 
 WORKDIR /app
 EXPOSE 8080

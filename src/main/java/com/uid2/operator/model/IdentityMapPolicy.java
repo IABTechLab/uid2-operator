@@ -19,4 +19,8 @@ public enum IdentityMapPolicy {
     public static com.uid2.operator.model.IdentityMapPolicy defaultPolicy() {
         return JustMap;
     }
+
+    public static IdentityMapPolicy respectOptOut() {
+        return RespectOptOut;
+    }
 }

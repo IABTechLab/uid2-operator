@@ -250,9 +250,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             // only uncomment to do local testing
             //router.get("/internal/optout/get").handler(auth.loopbackOnly(this::handleOptOutGet));
 
-            // TODO remove this
-            router.get("/services").handler((rc) -> { rc.end(new JsonArray(new ArrayList<>(serviceProvider.getAllServices())).encodePrettily()); } );
-            router.get("/service_links").handler((rc) -> { rc.end( new JsonArray(new ArrayList<>(serviceLinkProvider.getAllServiceLinks())).encodePrettily()); } );
         }
 
         return router;

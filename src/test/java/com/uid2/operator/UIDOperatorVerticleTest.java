@@ -12,7 +12,7 @@ import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.service.*;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
-import com.uid2.operator.vertx.OperatorDisableHandler;
+import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
@@ -128,7 +128,7 @@ public class UIDOperatorVerticleTest {
 
     private UidCoreClient fakeCoreClient;
 
-    private OperatorDisableHandler operatorDisableHandler;
+    private OperatorShutdownHandler operatorShutdownHandler;
 
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
 
@@ -144,8 +144,8 @@ public class UIDOperatorVerticleTest {
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(clock.instant()).thenAnswer(i -> now);
 
-        this.operatorDisableHandler = new OperatorDisableHandler(Duration.ofHours(24), clock);
-        this.fakeAttestationTokenRetriever = new AttestationTokenRetriever(vertx, null, null, new ApplicationVersion("test", "test"), null, operatorDisableHandler::handleResponse, mockIClock, null, null);
+        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(24), clock);
+        this.fakeAttestationTokenRetriever = new AttestationTokenRetriever(vertx, null, null, new ApplicationVersion("test", "test"), null, operatorShutdownHandler::handleResponse, mockIClock, null, null);
         this.fakeCoreClient = new UidCoreClient("dummyToken", CloudUtils.defaultProxy, false, fakeAttestationTokenRetriever, null);
 
         final JsonObject config = new JsonObject();
@@ -1591,14 +1591,14 @@ public class UIDOperatorVerticleTest {
             assertEquals(200, response.statusCode());
 
             // Revoke auth
-            this.operatorDisableHandler.handleResponse(Pair.of(401,""));
+            this.operatorShutdownHandler.handleResponse(Pair.of(401,""));
 
             // Request should fail after revoking auth
             get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response2 -> testContext.verify(() -> {
                 assertEquals(503, response2.statusCode());
 
                 // Recovered
-                this.operatorDisableHandler.handleResponse(Pair.of(200, ""));
+                this.operatorShutdownHandler.handleResponse(Pair.of(200, ""));
                 get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response3 -> testContext.verify(() -> {
                     assertEquals(200, response3.statusCode());
                     testContext.completeNow();
@@ -1619,22 +1619,22 @@ public class UIDOperatorVerticleTest {
             assertEquals(200, ar.result().statusCode());
 
             // Failure starts
-            this.operatorDisableHandler.handleResponse(Pair.of(500, ""));
+            this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
 
             // Can server before waiting period passes
             when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
-            this.operatorDisableHandler.handleResponse(Pair.of(500, ""));
+            this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
             get(vertx, "v1/token/generate?email=test@uid2.com", ar1 -> {
                 assertEquals(200, ar1.result().statusCode());
 
                 // Can't serve after waiting period passes
                 when(clock.instant()).thenAnswer(i -> Instant.now().plus(24, ChronoUnit.HOURS));
-                this.operatorDisableHandler.handleResponse(Pair.of(500, ""));
+                this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
                 get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
                     assertEquals(503, ar2.result().statusCode());
 
                     // Recovered
-                    this.operatorDisableHandler.handleResponse(Pair.of(200, ""));
+                    this.operatorShutdownHandler.handleResponse(Pair.of(200, ""));
                     get(vertx, "v1/token/generate?email=test@uid2.com", ar3 -> {
                         assertEquals(200, ar3.result().statusCode());
                         testContext.completeNow();

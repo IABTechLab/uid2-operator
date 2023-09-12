@@ -6,7 +6,7 @@ import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.store.*;
-import com.uid2.operator.vertx.OperatorDisableHandler;
+import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
@@ -72,7 +72,7 @@ public class Main {
     private final RotatingServiceStore serviceProvider;
     private final RotatingServiceLinkStore serviceLinkProvider;
     private final CloudSyncOptOutStore optOutStore;
-    private OperatorDisableHandler disableHandler = null;
+    private OperatorShutdownHandler disableHandler = null;
     private final OperatorMetrics metrics;
     private IStatsCollectorQueue _statsCollectorQueue;
 
@@ -98,7 +98,7 @@ public class Main {
         if (coreAttestUrl != null) {
             String coreApiToken = this.config.getString(Const.Config.CoreApiTokenProp);
             Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
-            this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
+            this.disableHandler = new OperatorShutdownHandler(disableWaitTime, Clock.systemUTC());
 
             var clients = createUidClients(this.vertx, coreAttestUrl, coreApiToken, this.disableHandler::handleResponse);
             UidCoreClient coreClient = clients.getKey();
@@ -276,16 +276,16 @@ public class Main {
 
     private Future<Void> createStoreVerticles() throws Exception {
         // load metadatas for the first time
-//        if (clientSideTokenGenerate) {
-//            siteProvider.getMetadata();
-//            clientSideKeypairProvider.getMetadata();
-//        }
-//        clientKeyProvider.getMetadata();
-//        keysetKeyStore.getMetadata();
-//        keysetProvider.getMetadata();
-//        saltProvider.getMetadata();
-//        serviceProvider.getMetadata();
-//        serviceLinkProvider.getMetadata();
+        if (clientSideTokenGenerate) {
+            siteProvider.getMetadata();
+            clientSideKeypairProvider.getMetadata();
+        }
+        clientKeyProvider.getMetadata();
+        keysetKeyStore.getMetadata();
+        keysetProvider.getMetadata();
+        saltProvider.getMetadata();
+        serviceProvider.getMetadata();
+        serviceLinkProvider.getMetadata();
 
         // create cloud sync for optout store
         OptOutCloudSync optOutCloudSync = new OptOutCloudSync(config, false);

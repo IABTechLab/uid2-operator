@@ -35,5 +35,9 @@
   "refresh_token_expires_after_seconds": 2592000,
   "refresh_identity_token_after_seconds": 3600,
   "enforce_https": true,
-  "allow_legacy_api": false
+  "allow_legacy_api": false,
+  "failure_shutdown_wait_hours": 120,
+  "sharing_token_expiry_seconds": 2592000,
+  "check_service_link_id_for_identity_map": false,
+  "private_link_id": 574365156811
 }

@@ -1,7 +1,7 @@
 {
   "clients_metadata_path": "https://core-integ.uidapi.com/clients/refresh",
-  "keys_metadata_path": "https://core-integ.uidapi.com/key/refresh",
-  "keys_acl_metadata_path": "https://core-integ.uidapi.com/key/acl/refresh",
+  "keysets_metadata_path": "https://core-integ.uidapi.com/key/keyset/refresh",
+  "keyset_keys_metadata_path": "https://core-integ.uidapi.com/key/keyset-keys/refresh",
   "salts_metadata_path": "https://core-integ.uidapi.com/salt/refresh",
   "optout_metadata_path": "https://optout-integ.uidapi.com/optout/refresh",
   "core_attest_url": "https://core-integ.uidapi.com/attest",

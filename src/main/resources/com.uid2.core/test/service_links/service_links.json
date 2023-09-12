@@ -1,0 +1,14 @@
+[
+  {
+    "link_id": "testId1",
+    "service_id": 1,
+    "site_id": 123,
+    "name": "testName1"
+  },
+  {
+    "link_id": "testId2",
+    "service_id": 2,
+    "site_id": 123,
+    "name": "testName2"
+  }
+]

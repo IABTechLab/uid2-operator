@@ -30,6 +30,9 @@ import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
+import io.vertx.circuitbreaker.CircuitBreaker;
+import io.vertx.circuitbreaker.CircuitBreakerOptions;
+import io.vertx.circuitbreaker.RetryPolicy;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.impl.HttpUtils;
@@ -38,6 +41,7 @@ import io.vertx.micrometer.*;
 import io.vertx.micrometer.backends.BackendRegistries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.utils.Pair;
 
 import javax.management.*;
 import java.lang.management.ManagementFactory;
@@ -96,7 +100,7 @@ public class Main {
             Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
             this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
 
-            var clients = createUidClients(this.vertx, coreAttestUrl, coreApiToken, this.disableHandler::handleResponseStatus);
+            var clients = createUidClients(this.vertx, coreAttestUrl, coreApiToken, this.disableHandler::handleResponse);
             UidCoreClient coreClient = clients.getKey();
             UidOptOutClient optOutClient = clients.getValue();
             fsStores = coreClient;
@@ -237,8 +241,6 @@ public class Main {
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
             UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
-            if (this.disableHandler != null)
-                verticle.setDisableHandler(this.disableHandler);
             return verticle;
         };
 
@@ -274,16 +276,16 @@ public class Main {
 
     private Future<Void> createStoreVerticles() throws Exception {
         // load metadatas for the first time
-        if (clientSideTokenGenerate) {
-            siteProvider.getMetadata();
-            clientSideKeypairProvider.getMetadata();
-        }
-        clientKeyProvider.getMetadata();
-        keysetKeyStore.getMetadata();
-        keysetProvider.getMetadata();
-        saltProvider.getMetadata();
-        serviceProvider.getMetadata();
-        serviceLinkProvider.getMetadata();
+//        if (clientSideTokenGenerate) {
+//            siteProvider.getMetadata();
+//            clientSideKeypairProvider.getMetadata();
+//        }
+//        clientKeyProvider.getMetadata();
+//        keysetKeyStore.getMetadata();
+//        keysetProvider.getMetadata();
+//        saltProvider.getMetadata();
+//        serviceProvider.getMetadata();
+//        serviceLinkProvider.getMetadata();
 
         // create cloud sync for optout store
         OptOutCloudSync optOutCloudSync = new OptOutCloudSync(config, false);
@@ -431,7 +433,7 @@ public class Main {
                 .register(globalRegistry);
     }
 
-    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Integer> responseWatcher) throws Exception {
+    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
         String enclavePlatform = this.config.getString("enclave_platform", "");
         if (enclavePlatform == null) {
             enclavePlatform = "";
@@ -459,7 +461,9 @@ public class Main {
             default:
                 attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
         }
-        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
+        CircuitBreaker attestCircuitBreaker = CircuitBreaker.create("attestation-circuit-breaker", vertx,
+                new CircuitBreakerOptions()).retryPolicy(RetryPolicy.constantDelay(1000));
+        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever, null, attestCircuitBreaker);
         UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }

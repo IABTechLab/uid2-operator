@@ -62,6 +62,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.awssdk.utils.Pair;
 
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
@@ -144,7 +145,7 @@ public class UIDOperatorVerticleTest {
         when(clock.instant()).thenAnswer(i -> now);
 
         this.operatorDisableHandler = new OperatorDisableHandler(Duration.ofHours(24), clock);
-        this.fakeAttestationTokenRetriever = new AttestationTokenRetriever(vertx, null, null, new ApplicationVersion("test", "test"), null, operatorDisableHandler::handleResponseStatus, mockIClock, null, null);
+        this.fakeAttestationTokenRetriever = new AttestationTokenRetriever(vertx, null, null, new ApplicationVersion("test", "test"), null, operatorDisableHandler::handleResponse, mockIClock, null, null);
         this.fakeCoreClient = new UidCoreClient("dummyToken", CloudUtils.defaultProxy, false, fakeAttestationTokenRetriever, null);
 
         final JsonObject config = new JsonObject();
@@ -165,7 +166,6 @@ public class UIDOperatorVerticleTest {
 
         this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue);
 
-        uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
 
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 
@@ -1591,14 +1591,14 @@ public class UIDOperatorVerticleTest {
             assertEquals(200, response.statusCode());
 
             // Revoke auth
-            this.operatorDisableHandler.handleResponseStatus(401);
+            this.operatorDisableHandler.handleResponse(Pair.of(401,""));
 
             // Request should fail after revoking auth
             get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response2 -> testContext.verify(() -> {
                 assertEquals(503, response2.statusCode());
 
                 // Recovered
-                this.operatorDisableHandler.handleResponseStatus(200);
+                this.operatorDisableHandler.handleResponse(Pair.of(200, ""));
                 get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response3 -> testContext.verify(() -> {
                     assertEquals(200, response3.statusCode());
                     testContext.completeNow();
@@ -1619,22 +1619,22 @@ public class UIDOperatorVerticleTest {
             assertEquals(200, ar.result().statusCode());
 
             // Failure starts
-            this.operatorDisableHandler.handleResponseStatus(500);
+            this.operatorDisableHandler.handleResponse(Pair.of(500, ""));
 
             // Can server before waiting period passes
             when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
-            this.operatorDisableHandler.handleResponseStatus(500);
+            this.operatorDisableHandler.handleResponse(Pair.of(500, ""));
             get(vertx, "v1/token/generate?email=test@uid2.com", ar1 -> {
                 assertEquals(200, ar1.result().statusCode());
 
                 // Can't serve after waiting period passes
                 when(clock.instant()).thenAnswer(i -> Instant.now().plus(24, ChronoUnit.HOURS));
-                this.operatorDisableHandler.handleResponseStatus(500);
+                this.operatorDisableHandler.handleResponse(Pair.of(500, ""));
                 get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
                     assertEquals(503, ar2.result().statusCode());
 
                     // Recovered
-                    this.operatorDisableHandler.handleResponseStatus(200);
+                    this.operatorDisableHandler.handleResponse(Pair.of(200, ""));
                     get(vertx, "v1/token/generate?email=test@uid2.com", ar3 -> {
                         assertEquals(200, ar3.result().statusCode());
                         testContext.completeNow();

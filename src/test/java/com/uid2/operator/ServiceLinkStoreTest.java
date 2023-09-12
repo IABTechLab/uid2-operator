@@ -30,5 +30,12 @@ public class ServiceLinkStoreTest {
         ServiceLink sl2 = new ServiceLink("testId2", 2, 123, "testName2");
         assertTrue(serviceLinks.contains(sl1));
         assertTrue(serviceLinks.contains(sl2));
+
+        ServiceLink sl3 = serviceLinkProvider.getServiceLink(1, "testId1");
+        assertEquals(sl1, sl3);
+        ServiceLink sl4 = serviceLinkProvider.getServiceLink(2, "testId2");
+        assertEquals(sl2, sl4);
+
+        assertNull(serviceLinkProvider.getServiceLink(1, "missing"));
     }
 }

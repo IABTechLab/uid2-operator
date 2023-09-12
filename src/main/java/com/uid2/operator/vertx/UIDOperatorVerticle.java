@@ -94,6 +94,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IClientSideKeypairStore clientSideKeypairProvider;
     private final ITokenEncoder encoder;
     private final ISaltProvider saltProvider;
+    private final IServiceStore serviceProvider;
+    private final IServiceLinkStore serviceLinkProvider;
     private final IOptOutStore optOutStore;
     private final Clock clock;
     protected IUIDOperatorService idService;
@@ -125,6 +127,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IClientSideKeypairStore clientSideKeypairProvider,
                                KeyManager keyManager,
                                ISaltProvider saltProvider,
+                               IServiceStore serviceProvider,
+                               IServiceLinkStore serviceLinkProvider,
                                IOptOutStore optOutStore,
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue) {
@@ -142,6 +146,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.siteProvider = siteProvider;
         this.clientSideKeypairProvider = clientSideKeypairProvider;
         this.saltProvider = saltProvider;
+        this.serviceProvider = serviceProvider;
+        this.serviceLinkProvider = serviceLinkProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
@@ -243,6 +249,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             // only uncomment to do local testing
             //router.get("/internal/optout/get").handler(auth.loopbackOnly(this::handleOptOutGet));
+
         }
 
         return router;

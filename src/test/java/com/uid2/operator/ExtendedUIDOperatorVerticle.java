@@ -19,10 +19,12 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        IClientSideKeypairStore clientSideKeypairProvider,
                                        KeyManager keyManager,
                                        ISaltProvider saltProvider,
+                                       IServiceStore serviceProvider,
+                                       IServiceLinkStore serviceLinkProvider,
                                        IOptOutStore optOutStore,
                                        Clock clock,
                                        IStatsCollectorQueue statsCollectorQueue) {
-        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue);
+        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue);
     }
 
     public IUIDOperatorService getIdService() {

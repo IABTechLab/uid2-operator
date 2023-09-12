@@ -86,6 +86,8 @@ public class UIDOperatorVerticleTest {
     @Mock private IKeysetKeyStore keysetKeyStore;
     @Mock private RotatingKeysetProvider keysetProvider;
     @Mock private ISaltProvider saltProvider;
+    @Mock private IServiceStore serviceProvider;
+    @Mock private IServiceLinkStore serviceLinkProvider;
     @Mock private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
     @Mock private IOptOutStore optOutStore;
     @Mock private Clock clock;
@@ -109,7 +111,7 @@ public class UIDOperatorVerticleTest {
             config.put("enable_phone_support", false);
         }
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, clock, statsCollectorQueue);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue);
         uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 

@@ -738,6 +738,51 @@ public class UIDOperatorVerticleTest {
             });
     }
 
+    @Test
+    void tokenGenerateNewParticipantNoPolicySpecified(Vertx vertx, VertxTestContext testContext) {
+        ClientKey clientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z"))
+                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        when(clientKeyProvider.get(any())).thenReturn(clientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", "test@email.com");
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 400,
+                json -> {
+                    assertFalse(json.containsKey("body"));
+                    assertEquals("client_error", json.getString("status"));
+                    assertEquals("request body misses opt-out policy argument", json.getString("message"));
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void tokenGenerateNewParticipantWrongPolicySpecified(Vertx vertx, VertxTestContext testContext) {
+        ClientKey clientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z"))
+                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        when(clientKeyProvider.get(any())).thenReturn(clientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", "test@email.com");
+        v2Payload.put("policy", 0);
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 400,
+                json -> {
+                    assertFalse(json.containsKey("body"));
+                    assertEquals("client_error", json.getString("status"));
+                    assertEquals("request body misses opt-out policy argument", json.getString("message"));
+                    testContext.completeNow();
+                });
+    }
+
     private void assertStatsCollector(String path, String referer, String apiContact, Integer siteId) {
         final ArgumentCaptor<StatsCollectorMessageItem> messageCaptor = ArgumentCaptor.forClass(StatsCollectorMessageItem.class);
         verify(statsCollectorQueue).enqueue(any(), messageCaptor.capture());
@@ -1340,6 +1385,53 @@ public class UIDOperatorVerticleTest {
             assertFalse(json.containsKey("body"));
             assertEquals("client_error", json.getString("status"));
 
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityMapNewParticipantNoPolicySpecified(Vertx vertx, VertxTestContext testContext) {
+        ClientKey clientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z"))
+                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        when(clientKeyProvider.get(any())).thenReturn(clientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = new JsonArray();
+        req.put("email", emails);
+
+        emails.add("test1@uid2.com");
+;
+        send("v2", vertx, "v2/identity/map", false, null, req, 400, respJson -> {
+            assertFalse(respJson.containsKey("body"));
+            assertEquals("client_error", respJson.getString("status"));
+            assertEquals("request body misses opt-out policy argument", respJson.getString("message"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityMapNewParticipantWrongPolicySpecified(Vertx vertx, VertxTestContext testContext) {
+        ClientKey clientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z"))
+                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        when(clientKeyProvider.get(any())).thenReturn(clientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = new JsonArray();
+        req.put("email", emails);
+        req.put("policy", 0);
+
+        emails.add("test1@uid2.com");
+        ;
+        send("v2", vertx, "v2/identity/map", false, null, req, 400, respJson -> {
+            assertFalse(respJson.containsKey("body"));
+            assertEquals("client_error", respJson.getString("status"));
+            assertEquals("request body misses opt-out policy argument", respJson.getString("message"));
             testContext.completeNow();
         });
     }

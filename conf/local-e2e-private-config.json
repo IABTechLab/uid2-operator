@@ -6,15 +6,17 @@
   "core_api_token": "OPLCLAjLRWcVlCDl9+BbwR38gzxYdiWFa751ynWLuI7JU4iA=",
   "sites_metadata_path": "http://localhost:8088/sites/refresh",
   "clients_metadata_path": "http://localhost:8088/clients/refresh",
+  "client_side_keypairs_metadata_path": "http://localhost:8088/client_side_keypairs/refresh",
+  "keys_metadata_path": "http://localhost:8088/key/refresh",
+  "keys_acl_metadata_path": "http://localhost:8088/key/acl/refresh",
   "keysets_metadata_path": "http://localhost:8088/key/keyset/refresh",
   "keyset_keys_metadata_path": "http://localhost:8088/key/keyset-keys/refresh",
-  "client_side_keypairs_metadata_path": "http://localhost:8088/client_side_keypairs/refresh",
   "salts_metadata_path": "http://localhost:8088/salt/refresh",
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,
   "advertising_token_v3": false,
-  "refresh_token_v3": false,
+  "refresh_token_v3": true,
   "identity_v3": false,
   "identity_scope": "uid2",
   "enable_v2_encryption": true,
@@ -31,5 +33,6 @@
   "optout_heap_default_capacity": 8192,
   "optout_max_partitions": 30,
   "optout_partition_interval": 86400,
-  "client_side_token_generate": false
+  "client_side_token_generate": true,
+  "client_side_token_generate_domain_name_check_enabled": false
 }

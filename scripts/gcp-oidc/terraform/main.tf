@@ -1,16 +1,15 @@
 provider "google" {
   project = var.project_id
   region  = var.region
-  zone    = var.zone
 }
 
 resource "google_compute_network" "default" {
-  name                    = "uid-operator-vpc"
+  name                    = var.network_name
   auto_create_subnetworks = false
 }
 
 resource "google_compute_subnetwork" "default" {
-  name                     = "uid-operator-vpc-sub"
+  name                     = var.network_name
   ip_cidr_range            = "10.127.0.0/20"
   network                  = google_compute_network.default.self_link
   region                   = var.region
@@ -25,7 +24,7 @@ resource "google_compute_router" "default" {
 
 module "cloud-nat" {
   source     = "terraform-google-modules/cloud-nat/google"
-  version    = "~> 2.2"
+  version    = "4.1.0"
   router     = google_compute_router.default.name
   project_id = var.project_id
   region     = var.region
@@ -33,16 +32,15 @@ module "cloud-nat" {
 }
 
 data "google_compute_image" "confidential_space_image" {
-  family  = "confidential-space-debug"
+  family  = var.debug_mode ? "confidential-space-debug" : "confidential-space"
   project = "confidential-space-images"
 }
 
-
 resource "google_compute_instance_template" "uid_operator" {
-  name         = "confidential-instance-tf"
+  name_prefix  = "uid-operator-cs-template-"
   machine_type = var.uid_machine_type
 
-  tags = ["confidential"]
+  tags = [var.network_name]
 
   disk {
     source_image = data.google_compute_image.confidential_space_image.self_link
@@ -72,12 +70,16 @@ resource "google_compute_instance_template" "uid_operator" {
   }
 
   service_account {
-    email = "gcp-oidc-test@uid2-test.iam.gserviceaccount.com"
+    email =  var.service_account
     scopes = ["cloud-platform"]
   } 
 
   scheduling {
     on_host_maintenance = "TERMINATE"
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -87,22 +89,39 @@ module "mig" {
   instance_template = google_compute_instance_template.uid_operator.self_link
   region            = var.region
   project_id        = var.project_id
-  hostname          = "uid-operator"
-  target_size       = 2
+  hostname          = var.network_name
+  autoscaling_enabled = true
+  min_replicas        = var.min_replicas
+  max_replicas        = var.max_replicas
+  autoscaling_cpu     = [{
+     target = 0.75
+     predictive_method = "OPTIMIZE_AVAILABILITY"
+  }]
   named_ports = [{
     name = "http",
     port = 8080
   }]
+  update_policy        = [{
+    type                            = "PROACTIVE"
+    instance_redistribution_type    = "PROACTIVE"
+    minimal_action                  = "REPLACE"
+    most_disruptive_allowed_action  = "REPLACE"
+    replacement_method              = "SUBSTITUTE"
+    max_surge_fixed                 = 3
+    max_surge_percent               = null
+    max_unavailable_fixed           = 0
+    max_unavailable_percent         = null
+    min_ready_sec                   = 60
+  }]
 }
 
 module "gce-lb-http" {
-  source            = "GoogleCloudPlatform/lb-http/google"
-  version           = "9.2.0"
-  name              = "mig-http-lb"
-  project           = var.project_id
-  target_tags       = ["confidential"]
-  firewall_networks = [google_compute_network.default.name]
-
+  source               = "GoogleCloudPlatform/lb-http/google"
+  version              = "9.2.0"
+  name                 = "mig-http-lb"
+  project              = var.project_id
+  target_tags          = [var.network_name]
+  firewall_networks    = [google_compute_network.default.name]
 
   backends = {
     default = {

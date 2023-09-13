@@ -26,6 +26,12 @@ public class SecureLinkValidatorService {
             ClientKey clientKey = (ClientKey) profile;
             if (clientKey.getServiceId() != 0) {
                 // service_id is set in the request, so need to check if the given link_id is linked to this service
+                if (this.rotatingServiceLinkStore == null) {
+                    // this is an invalid configuration. This operator is not set to validate service links, but has a service Id set.
+                    LOGGER.warn("Invalid configuration. Operator not set to validate service links (validate_service_links=false in config), but the calling client has a ServiceId set. ");
+                    return false;
+                }
+
                 if (requestJsonObject.containsKey(LINK_ID)) {
                     String linkId = requestJsonObject.getString(LINK_ID);
                     ServiceLink serviceLink = this.rotatingServiceLinkStore.getServiceLink(clientKey.getServiceId(), linkId);

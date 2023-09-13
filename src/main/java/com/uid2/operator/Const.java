@@ -15,5 +15,6 @@ public class Const extends com.uid2.shared.Const {
         public static final String AllowLegacyAPIProp = "allow_legacy_api";
         public static final String SharingTokenExpiryProp = "sharing_token_expiry_seconds";
         public static final String EnableClientSideTokenGenerate = "client_side_token_generate";
+        public static final String ValidateServiceLinks = "validate_service_links";
     }
 }

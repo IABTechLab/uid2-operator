@@ -20,13 +20,11 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        IClientSideKeypairStore clientSideKeypairProvider,
                                        KeyManager keyManager,
                                        ISaltProvider saltProvider,
-                                       IServiceStore serviceProvider,
-                                       IServiceLinkStore serviceLinkProvider,
                                        IOptOutStore optOutStore,
                                        Clock clock,
                                        IStatsCollectorQueue statsCollectorQueue,
                                        SecureLinkValidatorService secureLinkValidationService) {
-        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService);
+        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService);
     }
 
     public IUIDOperatorService getIdService() {

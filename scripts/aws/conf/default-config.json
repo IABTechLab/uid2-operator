@@ -32,5 +32,6 @@
   "optout_inmem_cache": false,
   "enclave_platform": null,
   "failure_shutdown_wait_hours": 120,
-  "sharing_token_expiry_seconds": 2592000
+  "sharing_token_expiry_seconds": 2592000,
+  "validate_service_links": false
 }

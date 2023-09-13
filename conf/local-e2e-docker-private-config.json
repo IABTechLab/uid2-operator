@@ -12,8 +12,6 @@
   "keysets_metadata_path": "http://core:8088/key/keyset/refresh",
   "keyset_keys_metadata_path": "http://core:8088/key/keyset-keys/refresh",
   "salts_metadata_path": "http://core:8088/salt/refresh",
-  "services_metadata_path": "http://core:8088/services/refresh",
-  "service_links_metadata_path": "http://core:8088/service_links/refresh",
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,
@@ -35,5 +33,6 @@
   "optout_heap_default_capacity": 8192,
   "optout_max_partitions": 30,
   "optout_partition_interval": 86400,
-  "client_side_token_generate": false
+  "client_side_token_generate": false,
+  "validate_service_links": false
 }

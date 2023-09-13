@@ -99,10 +99,6 @@ public class UIDOperatorVerticleTest {
     @Mock
     private ISaltProvider saltProvider;
     @Mock
-    private IServiceStore serviceProvider;
-    @Mock
-    private IServiceLinkStore serviceLinkProvider;
-    @Mock
     private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
     @Mock
     private IOptOutStore optOutStore;
@@ -165,7 +161,7 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidatorService);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService);
 
         uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
 

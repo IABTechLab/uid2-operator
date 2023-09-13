@@ -1,4 +1,4 @@
-# Overview
+# Example to deploy GCP private operator via Terraform
 
 We provide a terraform template to deploy UID2 private operators with LB and auto-scaling feature. All VM instances are
 running on Confidential Space VMs, and will be deployed in multiple AZs.

@@ -10,10 +10,6 @@ We will create below GCP components:
 - Ingress: Load balancer (with healthcheck), forwarding rules, firewall rules.
 - Egress: NAT.
 
-Note:
-
-- You may want to provide a cert and change
-
 ## Install Terraform
 
 1. Install Terraform if it is not already installed (visit [terraform.io](https://terraform.io) for other
@@ -88,8 +84,7 @@ terraform destroy
 
 1. You may want to change LB from http to https
 
-- Provide your cert via terraform following this
-  page:
+- Provide your cert via terraform following this page:
   [google_compute_ssl_certificate](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_ssl_certificate.html)
 
 - Then add below configs in `module "gce-lb-http"`

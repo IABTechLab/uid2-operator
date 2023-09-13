@@ -72,8 +72,6 @@ public class Main {
     private OperatorDisableHandler disableHandler = null;
     private final OperatorMetrics metrics;
     private IStatsCollectorQueue _statsCollectorQueue;
-    private final SecureLinkValidatorService secureLinkValidatorService;
-
     private final boolean clientSideTokenGenerate;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
@@ -139,7 +137,6 @@ public class Main {
         this.serviceProvider = new RotatingServiceStore(fsStores, new GlobalScope(new CloudPath(serviceMdPath)));
         String serviceLinkMdPath = this.config.getString(Const.Config.ServiceLinkMetadataPathProp);
         this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
-        this.secureLinkValidatorService = new SecureLinkValidatorService(this.serviceLinkProvider);
 
         if (useStorageMock && coreAttestUrl == null) {
             if (clientSideTokenGenerate) {
@@ -239,7 +236,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, this.secureLinkValidatorService);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider));
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;

@@ -145,18 +145,12 @@ jobs:
             JAR_VERSION=${{ steps.version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}
 
-      - name: Auth GCP
-        id: auth-gcp
-        uses: 'google-github-actions/auth@v1'
-        with:
-          credentials_json: '${{ secrets.GCP_REGISTRY_CREDENTIAL }}'
-
-      - name: Login GCP Registry
+      - name: Login to GCP Registry
         uses: docker/login-action@v1
         with:
           registry: us-docker.pkg.dev
-          username: oauth2accesstoken
-          password: ${{ steps.auth-gcp.outputs.access_token }}
+          username: _json_key
+          password: ${{ secrets.GCP_REGISTRY_CREDENTIAL }}
 
       - name: Extract metadata (tags, labels) for GCP
         id: meta-gcp

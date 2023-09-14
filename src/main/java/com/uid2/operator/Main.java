@@ -5,7 +5,6 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
-import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
@@ -31,9 +30,6 @@ import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
-import io.vertx.circuitbreaker.CircuitBreaker;
-import io.vertx.circuitbreaker.CircuitBreakerOptions;
-import io.vertx.circuitbreaker.RetryPolicy;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.impl.HttpUtils;
@@ -70,7 +66,7 @@ public class Main {
     private final RotatingClientSideKeypairStore clientSideKeypairProvider;
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
-    private OperatorShutdownHandler disableHandler = null;
+    private OperatorShutdownHandler shutdownHandler = null;
     private final OperatorMetrics metrics;
     private final boolean clientSideTokenGenerate;
     private final boolean validateServiceLinks;
@@ -100,9 +96,9 @@ public class Main {
         if (coreAttestUrl != null) {
             String coreApiToken = this.config.getString(Const.Config.CoreApiTokenProp);
             Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
-            this.disableHandler = new OperatorShutdownHandler(disableWaitTime, Clock.systemUTC());
+            this.shutdownHandler = new OperatorShutdownHandler(disableWaitTime, Clock.systemUTC());
 
-            var clients = createUidClients(this.vertx, coreAttestUrl, coreApiToken, this.disableHandler::handleResponse);
+            var clients = createUidClients(this.vertx, coreAttestUrl, coreApiToken, this.shutdownHandler::handleResponse);
             UidCoreClient coreClient = clients.getKey();
             UidOptOutClient optOutClient = clients.getValue();
             fsStores = coreClient;

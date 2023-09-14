@@ -86,11 +86,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to the GCP Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.GCP_REGISTRY }}
+          username: _json_key
+          password: ${{ secrets.GCP_REGISTRY_CREDENTIAL }}
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: |
+            name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},enable=true
+            name=${{ env.GCP_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_NAME }},enable=true
           tags: |
             type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
             type=raw,value=${{ inputs.tag }}
@@ -142,33 +151,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            JAR_VERSION=${{ steps.version.outputs.new_version }}
-            IMAGE_VERSION=${{ steps.version.outputs.new_version }}
-
-      - name: Login to GCP Registry
-        uses: docker/login-action@v2
-        with:
-          registry: us-docker.pkg.dev
-          username: _json_key
-          password: ${{ secrets.GCP_REGISTRY_CREDENTIAL }}
-
-      - name: Extract metadata (tags, labels) for GCP
-        id: meta-gcp
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.GCP_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
-            type=raw,value=${{ inputs.tag }}
-
-      - name: Push to GCP Registry
-        uses: docker/build-push-action@v3
-        with:
-          context: ${{ env.DOCKER_CONTEXT_PATH }}
-          push: true
-          tags: ${{ steps.meta-gcp.outputs.tags }}
-          labels: ${{ steps.meta-gcp.outputs.labels }}
           build-args: |
             JAR_VERSION=${{ steps.version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}

@@ -70,16 +70,14 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
       --member=serviceAccount:{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com \
       --role=roles/confidentialcomputing.workloadUser
     ```
-
-6. (Optional) Grant below optional permission to service account:
-- `logging.logWriter`, access to write & view logs in debug mode.
+- `logging.logWriter`, access to write & view logs in Cloud Logging.
     ```
     $ gcloud projects add-iam-policy-binding {PROJECT_ID} \
       --member=serviceAccount:{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com \
       --role=roles/logging.logWriter
     ```
   
-7. Add VPC rule to allow public 8080 access (default exposed port of UID2 operator):
+6. Add VPC rule to allow public 8080 access (default exposed port of UID2 operator):
     ```
     $ gcloud compute firewall-rules create operator-tcp \
       --direction=INGRESS --priority=1000 --network=default --action=ALLOW \
@@ -123,7 +121,7 @@ $ gcloud compute instances create {INSTANCE_NAME} \
   --image-project confidential-space-images \
   --image-family confidential-space \
   --service-account {SERVICE_ACCOUNT} \
-  --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-env-DEPLOYMENT_ENVIRONMENT=integ~tee-env-API_TOKEN={API_TOKEN}
+  --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-container-log-redirect=true~tee-env-DEPLOYMENT_ENVIRONMENT=integ~tee-env-API_TOKEN={API_TOKEN}
 ```
 
 ## Production Deployment
@@ -149,7 +147,7 @@ $ gcloud compute instances create {INSTANCE_NAME} \
   --image-project confidential-space-images \
   --image-family confidential-space \
   --service-account {SERVICE_ACCOUNT} \
-  --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-env-DEPLOYMENT_ENVIRONMENT=prod~tee-env-API_TOKEN={API_TOKEN}
+  --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-container-log-redirect=true~tee-env-DEPLOYMENT_ENVIRONMENT=prod~tee-env-API_TOKEN={API_TOKEN}
 ```
 
 Note that compared to the `gcloud` command used in the prior section, an additional option

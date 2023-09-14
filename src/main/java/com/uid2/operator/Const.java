@@ -14,10 +14,7 @@ public class Const extends com.uid2.shared.Const {
         public static final String FailureShutdownWaitHoursProp = "failure_shutdown_wait_hours";
         public static final String AllowLegacyAPIProp = "allow_legacy_api";
         public static final String SharingTokenExpiryProp = "sharing_token_expiry_seconds";
-
-        public static final String CheckServiceLinkIdForIdentityMapProp = "check_service_link_id_for_identity_map";
-        public static final String PrivateLinkIdProp = "private_link_id";
-        
         public static final String EnableClientSideTokenGenerate = "client_side_token_generate";
+        public static final String ValidateServiceLinks = "validate_service_links";
     }
 }

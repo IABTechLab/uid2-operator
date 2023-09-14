@@ -28,6 +28,10 @@ public class ServiceStoreTest {
         List<Service> services = new ArrayList<>(serviceProvider.getAllServices());
         assertEquals(2, services.size());
 
+        Service service = serviceProvider.getService(2);
+        assertNotNull(service);
+        assertEquals("testName2", service.getName());
+
         Service s1 = new Service(1, 123, "testName1", Set.of(Role.GENERATOR));
         Service s2 = new Service(2, 123, "testName2", Set.of(Role.ID_READER));
         assertTrue(services.contains(s1));

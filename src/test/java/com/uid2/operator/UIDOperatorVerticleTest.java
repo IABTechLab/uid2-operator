@@ -42,6 +42,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
@@ -104,10 +105,6 @@ public class UIDOperatorVerticleTest {
     @Mock
     private ISaltProvider saltProvider;
     @Mock
-    private IServiceStore serviceProvider;
-    @Mock
-    private IServiceLinkStore serviceLinkProvider;
-    @Mock
     private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
     @Mock
     private IOptOutStore optOutStore;
@@ -139,6 +136,8 @@ public class UIDOperatorVerticleTest {
 
     @Mock
     private IStatsCollectorQueue statsCollectorQueue;
+    @Mock
+    private SecureLinkValidatorService secureLinkValidatorService;
 
     public UIDOperatorVerticleTest() {
     }
@@ -148,6 +147,7 @@ public class UIDOperatorVerticleTest {
         mocks = MockitoAnnotations.openMocks(this);
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(clock.instant()).thenAnswer(i -> now);
+        when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class))).thenReturn(true);
 
         this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), clock);
         this.fakeAttestationTokenRetriever = new AttestationTokenRetriever(vertx, null, null, new ApplicationVersion("test", "test"), null, operatorShutdownHandler::handleResponse, mockIClock, null, null, 60000);
@@ -160,8 +160,6 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.FailureShutdownWaitHoursProp, 24);
         final int sharingExpirySeconds = 60 * 60 * 24 * 30;
         config.put(Const.Config.SharingTokenExpiryProp, sharingExpirySeconds);
-        config.put("check_service_link_id_for_identity_map", true);
-        config.put("private_link_id", "12345");
 
         if(testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
@@ -169,7 +167,7 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, serviceProvider, serviceLinkProvider, optOutStore, clock, statsCollectorQueue);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService);
 
 
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
@@ -3770,10 +3768,9 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void identityMapAuthorizeServiceLinksValid(Vertx vertx, VertxTestContext testContext) {
+    void secureLinkValidationPassesReturnsIdentity(Vertx vertx, VertxTestContext testContext) {
         JsonObject req = setupIdentityMapServiceLinkTest();
-        // Case 1 : Valid link_id
-        req.put("link_id", 12345);
+        when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class))).thenReturn(true);
 
         send("v2", vertx, "v2" + "/identity/map", false, null, req, 200, json -> {
             checkIdentityMapResponse(json, "test1@uid2.com", "test2@uid2.com");
@@ -3782,10 +3779,10 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void identityMapAuthorizeServiceLinksInvalid(Vertx vertx, VertxTestContext testContext) {
+    void secureLinkValidationFailsReturnsIdentityError(Vertx vertx, VertxTestContext testContext) {
         JsonObject req = setupIdentityMapServiceLinkTest();
-        // Case 2 : Invalid link_id
-        req.put("link_id", 9876);
+        when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class))).thenReturn(false);
+
         send("v2", vertx, "v2" + "/identity/map", false, null, req, 401, json -> {
             assertEquals("unauthorized", json.getString("status"));
             assertEquals("Invalid link_id", json.getString("message"));

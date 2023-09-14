@@ -19,13 +19,19 @@
   "cloud_download_threads": 8,
   "cloud_upload_threads": 2,
   "cloud_refresh_interval": 60,
+  "sites_metadata_path": "https://core-prod.uidapi.com/sites/refresh",
   "clients_metadata_path": "https://core-prod.uidapi.com/clients/refresh",
   "keysets_metadata_path": "https://core-prod.uidapi.com/key/keyset/refresh",
   "keyset_keys_metadata_path": "https://core-prod.uidapi.com/key/keyset-keys/refresh",
+  "client_side_keypairs_metadata_path": "https://core-prod.uidapi.com/client_side_keypairs/refresh",
   "salts_metadata_path": "https://core-prod.uidapi.com/salt/refresh",
+  "services_metadata_path": "https://core-prod.uidapi.com/services/refresh",
+  "service_links_metadata_path": "https://core-prod.uidapi.com/service_links/refresh",
   "optout_metadata_path": "https://optout-prod.uidapi.com/optout/refresh",
   "optout_inmem_cache": true,
   "enclave_platform": "azure-sgx",
+  "failure_shutdown_wait_hours": 120,
   "allow_legacy_api": false,
-  "sharing_token_expiry_seconds": 2592000
+  "sharing_token_expiry_seconds": 2592000,
+  "validate_service_links": false
 }

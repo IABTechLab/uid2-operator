@@ -1,8 +1,12 @@
 {
+  "sites_metadata_path": "https://core.integ.euid.eu/sites/refresh",
   "clients_metadata_path": "https://core.integ.euid.eu/clients/refresh",
   "keysets_metadata_path": "https://core.integ.euid.eu/key/keyset/refresh",
   "keyset_keys_metadata_path": "https://core.integ.euid.eu/key/keyset-keys/refresh",
+  "client_side_keypairs_metadata_path": "https://core.integ.euid.eu/client_side_keypairs/refresh",
   "salts_metadata_path": "https://core.integ.euid.eu/salt/refresh",
+  "services_metadata_path": "https://core.integ.euid.eu/services/refresh",
+  "service_links_metadata_path": "https://core.integ.euid.eu/service_links/refresh",
   "optout_metadata_path": "https://optout.integ.euid.eu/optout/refresh",
   "core_attest_url": "https://core.integ.euid.eu/attest",
   "optout_api_uri": "https://optout.integ.euid.eu/optout/replicate",

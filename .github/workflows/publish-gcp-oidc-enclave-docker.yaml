@@ -147,7 +147,7 @@ jobs:
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}
 
       - name: Login to GCP Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: us-docker.pkg.dev
           username: _json_key

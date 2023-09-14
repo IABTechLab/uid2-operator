@@ -97,9 +97,18 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
+            type=raw,value=${{ inputs.tag }}
+
+      - name: Extract metadata (tags, labels) for all Docker images
+        id: meta-all
+        uses: docker/metadata-action@v4
+        with:
           images: |
-            name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},enable=true
-            name=${{ env.GCP_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_NAME }},enable=true
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ env.GCP_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
             type=raw,value=${{ inputs.tag }}
@@ -109,8 +118,8 @@ jobs:
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
           load: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-all.outputs.tags }}
+          labels: ${{ steps.meta-all.outputs.labels }}
           build-args: |
             JAR_VERSION=${{ steps.version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}
@@ -149,8 +158,8 @@ jobs:
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-all.outputs.tags }}
+          labels: ${{ steps.meta-all.outputs.labels }}
           build-args: |
             JAR_VERSION=${{ steps.version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}

@@ -19,6 +19,7 @@ on:
 env:
   REGISTRY: ghcr.io
   GCP_REGISTRY: us-docker.pkg.dev
+  GCP_PROJECT: uid2-test
   MAVEN_PROFILE: gcp
   ENCLAVE_PROTOCOL: gcp-oidc
   IMAGE_NAME: ${{ github.repository }}
@@ -156,7 +157,7 @@ jobs:
         id: meta-gcp
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.GCP_REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.GCP_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
             type=raw,value=${{ inputs.tag }}

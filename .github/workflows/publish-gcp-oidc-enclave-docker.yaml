@@ -18,6 +18,7 @@ on:
       
 env:
   REGISTRY: ghcr.io
+  GCP_REGISTRY: us-docker.pkg.dev
   MAVEN_PROFILE: gcp
   ENCLAVE_PROTOCOL: gcp-oidc
   IMAGE_NAME: ${{ github.repository }}
@@ -144,3 +145,35 @@ jobs:
             JAR_VERSION=${{ steps.version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}
 
+      - name: Auth GCP
+        id: auth-gcp
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_REGISTRY_CREDENTIAL }}'
+
+      - name: Login GCP Registry
+        uses: docker/login-action@v1
+        with:
+          registry: us-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth-gcp.outputs.access_token }}
+
+      - name: Extract metadata (tags, labels) for GCP
+        id: meta-gcp
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.GCP_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
+            type=raw,value=${{ inputs.tag }}
+
+      - name: Push to GCP Registry
+        uses: docker/build-push-action@v3
+        with:
+          context: ${{ env.DOCKER_CONTEXT_PATH }}
+          push: true
+          tags: ${{ steps.meta-gcp.outputs.tags }}
+          labels: ${{ steps.meta-gcp.outputs.labels }}
+          build-args: |
+            JAR_VERSION=${{ steps.version.outputs.new_version }}
+            IMAGE_VERSION=${{ steps.version.outputs.new_version }}

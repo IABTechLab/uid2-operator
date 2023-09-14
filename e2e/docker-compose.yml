@@ -9,8 +9,10 @@ services:
     volumes:
       - "./docker/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"
       - "./docker/localstack/s3:/s3"
+      - "./docker/localstack/kms/seed.yaml:/init/seed.yaml"
     environment:
       - EDGE_PORT=5001
+      - KMS_PROVIDER=local-kms
     healthcheck:
       test: awslocal s3api wait bucket-exists --bucket test-core-bucket
         && awslocal s3api wait bucket-exists --bucket test-optout-bucket

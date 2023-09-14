@@ -1,5 +1,8 @@
 package com.uid2.operator;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -61,7 +64,9 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
 
 import javax.crypto.SecretKey;
@@ -144,8 +149,8 @@ public class UIDOperatorVerticleTest {
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(clock.instant()).thenAnswer(i -> now);
 
-        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(24), clock);
-        this.fakeAttestationTokenRetriever = new AttestationTokenRetriever(vertx, null, null, new ApplicationVersion("test", "test"), null, operatorShutdownHandler::handleResponse, mockIClock, null, null);
+        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), clock);
+        this.fakeAttestationTokenRetriever = new AttestationTokenRetriever(vertx, null, null, new ApplicationVersion("test", "test"), null, operatorShutdownHandler::handleResponse, mockIClock, null, null, 60000);
         this.fakeCoreClient = new UidCoreClient("dummyToken", CloudUtils.defaultProxy, false, fakeAttestationTokenRetriever, null);
 
         final JsonObject config = new JsonObject();
@@ -1579,8 +1584,25 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void disableOnDeauthorization(Vertx vertx, VertxTestContext testContext) {
+    class NoExitSecurityManager extends SecurityManager {
+        @Override
+        public void checkPermission(Permission perm) { }
+        @Override
+        public void checkExit(int status) {
+            super.checkExit(status);
+            throw new RuntimeException(String.valueOf(status));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Unauthorized", "{\"status\": \"unauthorized\"}"})
+    void shutdownOnDeauthorization(String responseBody, Vertx vertx, VertxTestContext testContext) {
+        System.setSecurityManager(new NoExitSecurityManager());
+
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -1591,24 +1613,50 @@ public class UIDOperatorVerticleTest {
             assertEquals(200, response.statusCode());
 
             // Revoke auth
-            this.operatorShutdownHandler.handleResponse(Pair.of(401,""));
-
-            // Request should fail after revoking auth
-            get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response2 -> testContext.verify(() -> {
-                assertEquals(503, response2.statusCode());
-
-                // Recovered
-                this.operatorShutdownHandler.handleResponse(Pair.of(200, ""));
-                get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response3 -> testContext.verify(() -> {
-                    assertEquals(200, response3.statusCode());
-                    testContext.completeNow();
-                })));
-            })));
+            try {
+                this.operatorShutdownHandler.handleResponse(Pair.of(401,responseBody));
+            } catch (RuntimeException e) {
+                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation failed due to invalid operator key. shutting down operator"));
+                testContext.completeNow();
+            }
         })));
     }
 
     @Test
-    void disableOnFailure(Vertx vertx, VertxTestContext testContext) {
+    void shutdownOnInvalidEnclaveId(Vertx vertx, VertxTestContext testContext) {
+        System.setSecurityManager(new NoExitSecurityManager());
+
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response -> testContext.verify(() -> {
+            // Request should succeed before revoking auth
+            assertEquals(200, response.statusCode());
+
+            // Revoke auth
+            try {
+                this.operatorShutdownHandler.handleResponse(Pair.of(401, "{\"status\":\"The enclave identifier is unknown\"}"));
+            } catch (RuntimeException e) {
+                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation failed due to unknown enclave identifier. shutting down operator"));
+                testContext.completeNow();
+            }
+        })));
+    }
+
+    @Test
+    void shutdownOnFailedTooLong(Vertx vertx, VertxTestContext testContext) {
+        System.setSecurityManager(new NoExitSecurityManager());
+
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -1623,24 +1671,12 @@ public class UIDOperatorVerticleTest {
 
             // Can server before waiting period passes
             when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
-            this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-            get(vertx, "v1/token/generate?email=test@uid2.com", ar1 -> {
-                assertEquals(200, ar1.result().statusCode());
-
-                // Can't serve after waiting period passes
-                when(clock.instant()).thenAnswer(i -> Instant.now().plus(24, ChronoUnit.HOURS));
+            try {
                 this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-                get(vertx, "v1/token/generate?email=test@uid2.com", ar2 -> {
-                    assertEquals(503, ar2.result().statusCode());
-
-                    // Recovered
-                    this.operatorShutdownHandler.handleResponse(Pair.of(200, ""));
-                    get(vertx, "v1/token/generate?email=test@uid2.com", ar3 -> {
-                        assertEquals(200, ar3.result().statusCode());
-                        testContext.completeNow();
-                    });
-                });
-            });
+            } catch (RuntimeException e) {
+                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation has been in failed state for too long. shutting down operator"));
+                testContext.completeNow();
+            }
         });
     }
 

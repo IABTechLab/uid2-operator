@@ -43,6 +43,9 @@ if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONME
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
 
+wget "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email" -q --header "Metadata-Flavor: Google" -O output.email
+cat output.email
+
 # -- start operator
 echo "-- starting java application"
 java \

@@ -63,4 +63,4 @@ docker ps -a
 source "$ROOT/healthcheck.sh"
 
 # health check - for 5 mins
-healthcheck "$OPTOUT_HEALTHCHECK_URL" 60
+healthcheck "$OPTOUT_HEALTHCHECK_URL" 60 1

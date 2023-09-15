@@ -9,7 +9,6 @@ healthcheck() {
   echo "Healthcheck $1 for $max_attempts times"
 
   until (curl --connect-timeout 5 --output /dev/null --silent --fail "$1"); do
-      docker compose logs
       if [ $attempt_counter -eq $max_attempts ];then
         echo "Max attempts reached"
         exit 1

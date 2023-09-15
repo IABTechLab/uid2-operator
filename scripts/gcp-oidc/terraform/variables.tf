@@ -48,4 +48,3 @@ variable "debug_mode" {
   type    = bool
   default = false
 }
-

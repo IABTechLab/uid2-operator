@@ -60,19 +60,19 @@ terraform destroy
 
 ## Inputs
 
-| Name               | Description | Type     | Default             | Required |
-|--------------------|-------------|----------|---------------------|:--------:|
-| project_id         | n/a         | `string` | n/a                 |   yes    |
-| service_account    | n/a         | `string` | n/a                 |   yes    |
-| uid_operator_image | n/a         | `string` | n/a                 |   yes    |
-| uid_api_token      | n/a         | `string` | n/a                 |   yes    |
-| region             | n/a         | `string` | `"asia-southeast1"` |    no    |
-| network_name       | n/a         | `string` | `"uid-operator"`    |    no    |
-| uid_machine_type   | n/a         | `string` | `"n2d-standard-16"` |    no    |
-| uid_deployment_env | n/a         | `string` | `"integ"`           |    no    |
-| max_replicas       | n/a         | `number` | `5`                 |    no    |
-| min_replicas       | n/a         | `number` | `1`                 |    no    |
-| debug_mode         | n/a         | `bool`   | `false`             |    no    |
+| Name                 | Description | Type     | Default             | Required |
+|----------------------|-------------|----------|---------------------|:--------:|
+| project_id           | n/a         | `string` | n/a                 |   yes    |
+| service_account_name | n/a         | `string` | n/a                 |   yes    |
+| uid_operator_image   | n/a         | `string` | n/a                 |   yes    |
+| uid_api_token        | n/a         | `string` | n/a                 |   yes    |
+| region               | n/a         | `string` | `"asia-southeast1"` |    no    |
+| network_name         | n/a         | `string` | `"uid-operator"`    |    no    |
+| uid_machine_type     | n/a         | `string` | `"n2d-standard-16"` |    no    |
+| uid_deployment_env   | n/a         | `string` | `"integ"`           |    no    |
+| max_replicas         | n/a         | `number` | `5`                 |    no    |
+| min_replicas         | n/a         | `number` | `1`                 |    no    |
+| debug_mode           | n/a         | `bool`   | `false`             |    no    |
 
 ## Outputs
 
@@ -82,7 +82,7 @@ terraform destroy
 
 ## Notes
 
-1. You may want to change LB from http to https
+You may want to change LB from http to https
 
 - Provide your cert via terraform following this page:
   [google_compute_ssl_certificate](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_ssl_certificate.html)
@@ -95,7 +95,3 @@ terraform destroy
     use_ssl_certificates = true
     https_redirect       = true
   ```
-
-2. You still need to
-   follow [Prerequisites](https://github.com/IABTechLab/uid2-operator/tree/master/scripts/gcp-oidc#prerequisites)
-   section to set up service account.

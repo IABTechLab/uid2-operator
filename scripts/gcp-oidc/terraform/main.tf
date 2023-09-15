@@ -5,7 +5,7 @@ provider "google" {
 
 module "project-services" {
   source  = "terraform-google-modules/project-factory/google//modules/project_services"
-  version = "14.3.0"
+  version = "~>14.3.0"
 
   project_id = var.project_id
 
@@ -19,7 +19,7 @@ module "project-services" {
 
 module "service_account" {
   source      = "terraform-google-modules/service-accounts/google"
-  version     = "4.2.1"
+  version     = "~>4.2.1"
   project_id  = var.project_id
   names       = [var.service_account_name]
   description = "Service account to bring up confidential VMs"
@@ -50,7 +50,7 @@ resource "google_compute_router" "default" {
 
 module "cloud-nat" {
   source     = "terraform-google-modules/cloud-nat/google"
-  version    = "4.1.0"
+  version    = "~>4.1.0"
   router     = google_compute_router.default.name
   project_id = var.project_id
   region     = var.region
@@ -111,7 +111,7 @@ resource "google_compute_instance_template" "uid_operator" {
 
 module "mig" {
   source              = "terraform-google-modules/vm/google//modules/mig"
-  version             = "9.0.0"
+  version             = "~>9.0.0"
   instance_template   = google_compute_instance_template.uid_operator.self_link
   region              = var.region
   project_id          = var.project_id
@@ -143,7 +143,7 @@ module "mig" {
 
 module "gce-lb-http" {
   source            = "GoogleCloudPlatform/lb-http/google"
-  version           = "9.2.0"
+  version           = "~>9.2.0"
   name              = "mig-http-lb"
   project           = var.project_id
   target_tags       = [var.network_name]

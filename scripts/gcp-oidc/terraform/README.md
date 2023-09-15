@@ -3,10 +3,11 @@
 We provide a terraform template to deploy UID2 private operators with LB and auto-scaling feature. All VM instances are
 running on Confidential Space VMs, and will be deployed in multiple AZs.
 
-We will create below GCP components:
-
+We will set up below in your GCP project
+- Activate required GCP APIs. 
+- Set up a service account to run Confidential Space VMs.
 - Network: VPC and subnetwork.
-- Instances: Instance template, and Instance groups (with autoscaling enabled)
+- Instances: Instance template, and Instance groups (with autoscaling)
 - Ingress: Load balancer (with healthcheck), forwarding rules, firewall rules.
 - Egress: NAT.
 

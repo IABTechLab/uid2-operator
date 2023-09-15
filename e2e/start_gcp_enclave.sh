@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-SERVICE_ACCOUNT='github@uid2-cicd.iam.gserviceaccount.com'
+SERVICE_ACCOUNT='github-ci@uid2-test.iam.gserviceaccount.com'
 GCP_INSTANCE_NAME="ci-test-$RANDOM"
 ROOT="."
 

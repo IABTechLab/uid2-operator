@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-SERVICE_ACCOUNT='github@uid2-cicd.iam.gserviceaccount.com'
+SERVICE_ACCOUNT='github-ci@uid2-test.iam.gserviceaccount.com'
 
 if [ -z "$GCP_INSTANCE_NAME" ]; then
   echo "GCP_INSTANCE_NAME can not be empty"

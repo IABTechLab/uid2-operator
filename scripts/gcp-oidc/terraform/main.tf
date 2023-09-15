@@ -47,15 +47,15 @@ resource "google_compute_instance_template" "uid_operator" {
   }
 
   metadata = {
-    tee-image-reference = var.uid_operator_image
-    tee-container-log-redirect = true
-    tee-restart-policy = "Never"
+    tee-image-reference            = var.uid_operator_image
+    tee-container-log-redirect     = true
+    tee-restart-policy             = "Never"
     tee-env-DEPLOYMENT_ENVIRONMENT = var.uid_deployment_env
-    tee-env-API_TOKEN = var.uid_api_token
+    tee-env-API_TOKEN              = var.uid_api_token
   }
 
   network_interface {
-    network = google_compute_network.default.name
+    network    = google_compute_network.default.name
     subnetwork = google_compute_subnetwork.default.name
   }
 
@@ -64,15 +64,15 @@ resource "google_compute_instance_template" "uid_operator" {
   }
 
   shielded_instance_config {
-    enable_secure_boot = true
+    enable_secure_boot          = true
     enable_integrity_monitoring = true
-    enable_vtpm = true
+    enable_vtpm                 = true
   }
 
   service_account {
-    email =  var.service_account
+    email  = var.service_account
     scopes = ["cloud-platform"]
-  } 
+  }
 
   scheduling {
     on_host_maintenance = "TERMINATE"
@@ -84,44 +84,44 @@ resource "google_compute_instance_template" "uid_operator" {
 }
 
 module "mig" {
-  source            = "terraform-google-modules/vm/google//modules/mig"
-  version           = "9.0.0"
-  instance_template = google_compute_instance_template.uid_operator.self_link
-  region            = var.region
-  project_id        = var.project_id
-  hostname          = var.network_name
+  source              = "terraform-google-modules/vm/google//modules/mig"
+  version             = "9.0.0"
+  instance_template   = google_compute_instance_template.uid_operator.self_link
+  region              = var.region
+  project_id          = var.project_id
+  hostname            = var.network_name
   autoscaling_enabled = true
   min_replicas        = var.min_replicas
   max_replicas        = var.max_replicas
-  autoscaling_cpu     = [{
-     target = 0.75
-     predictive_method = "OPTIMIZE_AVAILABILITY"
+  autoscaling_cpu = [{
+    target            = 0.75
+    predictive_method = "OPTIMIZE_AVAILABILITY"
   }]
   named_ports = [{
     name = "http",
     port = 8080
   }]
-  update_policy        = [{
-    type                            = "PROACTIVE"
-    instance_redistribution_type    = "PROACTIVE"
-    minimal_action                  = "REPLACE"
-    most_disruptive_allowed_action  = "REPLACE"
-    replacement_method              = "SUBSTITUTE"
-    max_surge_fixed                 = 3
-    max_surge_percent               = null
-    max_unavailable_fixed           = 0
-    max_unavailable_percent         = null
-    min_ready_sec                   = 60
+  update_policy = [{
+    type                           = "PROACTIVE"
+    instance_redistribution_type   = "PROACTIVE"
+    minimal_action                 = "REPLACE"
+    most_disruptive_allowed_action = "REPLACE"
+    replacement_method             = "SUBSTITUTE"
+    max_surge_fixed                = 3
+    max_surge_percent              = null
+    max_unavailable_fixed          = 0
+    max_unavailable_percent        = null
+    min_ready_sec                  = 60
   }]
 }
 
 module "gce-lb-http" {
-  source               = "GoogleCloudPlatform/lb-http/google"
-  version              = "9.2.0"
-  name                 = "mig-http-lb"
-  project              = var.project_id
-  target_tags          = [var.network_name]
-  firewall_networks    = [google_compute_network.default.name]
+  source            = "GoogleCloudPlatform/lb-http/google"
+  version           = "9.2.0"
+  name              = "mig-http-lb"
+  project           = var.project_id
+  target_tags       = [var.network_name]
+  firewall_networks = [google_compute_network.default.name]
 
   backends = {
     default = {

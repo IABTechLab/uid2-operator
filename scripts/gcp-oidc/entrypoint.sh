@@ -3,10 +3,23 @@
 # This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
 # -- set API tokens
-if [ -z "${API_TOKEN}" ]; then
-  echo "API_TOKEN cannot be empty"
+if [ -z "${API_TOKEN_SECRET_NAME}" ]; then
+  echo "API_TOKEN_SECRET_NAME cannot be empty"
   exit 1
 fi
+
+GCP_TOKEN=$(wget "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" -q --header "Metadata-Flavor: Google" -O - | jq -e -r ".access_token")
+if [ $? -ne 0 -o -z "${GCP_TOKEN}" ]; then
+  echo "Failed to get GCP token"
+  exit 1
+fi
+
+API_TOKEN=$(wget "https://secretmanager.googleapis.com/v1/${API_TOKEN_SECRET_NAME}:access" -q --header "authorization: Bearer ${GCP_TOKEN}" --header "content-type: application/json" -O - | jq -e -r ".payload.data" | base64 -d)
+if [ $? -ne 0 -o -z "${API_TOKEN}" ]; then
+  echo "Failed to get API token"
+  exit 1
+fi
+
 export core_api_token="${API_TOKEN}"
 export optout_api_token="${API_TOKEN}"
 

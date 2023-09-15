@@ -2,13 +2,14 @@
 set -ex
 
 SERVICE_ACCOUNT='github@uid2-cicd.iam.gserviceaccount.com'
+ZONE='asia-southeast1-a'
 
 if [ -z "$GCP_INSTANCE_NAME" ]; then
   echo "GCP_INSTANCE_NAME can not be empty"
   exit 1
 fi
 
-gcloud config set compute/zone asia-southeast1-a
+gcloud config set compute/zone ZONE
 
 gcloud compute instances delete $GCP_INSTANCE_NAME \
     --quiet

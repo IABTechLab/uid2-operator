@@ -17,6 +17,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  GCP_PROJECT_ID: uid2-cicd
 
 jobs:
   e2e-test:
@@ -85,7 +86,8 @@ jobs:
       - name: Bring up GCP
         uses: 'google-github-actions/auth@v1'
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIAL }}'
+          credentials_json: ${{ secrets.GCP_CREDENTIAL }}
+          project_id: ${{ env.REGISTRY }}
 
       - name: Set up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v1'

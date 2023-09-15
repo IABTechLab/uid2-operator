@@ -2,6 +2,7 @@
 set -ex
 
 SERVICE_ACCOUNT='github@uid2-cicd.iam.gserviceaccount.com'
+ZONE='asia-southeast1-a'
 GCP_INSTANCE_NAME="ci-test-$RANDOM"
 ROOT="."
 
@@ -27,7 +28,7 @@ if [ -z "$NGROK_URL_OPTOUT" ]; then
   exit 1
 fi
 
-gcloud config set compute/zone asia-southeast1-a
+gcloud config set compute/zone $ZONE
 
 gcloud compute instances create $GCP_INSTANCE_NAME \
     --confidential-compute \

@@ -12,7 +12,7 @@ variable "network_name" {
   default = "uid-operator"
 }
 
-variable "service_account" {
+variable "service_account_name" {
   type = string
 }
 
@@ -48,3 +48,4 @@ variable "debug_mode" {
   type    = bool
   default = false
 }
+  

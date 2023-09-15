@@ -3,6 +3,32 @@ provider "google" {
   region  = var.region
 }
 
+module "project-services" {
+  source  = "terraform-google-modules/project-factory/google//modules/project_services"
+  version = "~>14.3.0"
+
+  project_id = var.project_id
+
+  activate_apis = [
+    "compute.googleapis.com",
+    "confidentialcomputing.googleapis.com",
+  ]
+
+  disable_services_on_destroy = false
+}
+
+module "service_account" {
+  source      = "terraform-google-modules/service-accounts/google"
+  version     = "4.2.1"
+  project_id  = var.project_id
+  names       = [var.service_account_name]
+  description = "Service account to bring up confidential VMs"
+  project_roles = [
+    "${var.project_id}=>roles/confidentialcomputing.workloadUser",
+    "${var.project_id}=>roles/logging.logWriter",
+  ]
+}
+
 resource "google_compute_network" "default" {
   name                    = var.network_name
   auto_create_subnetworks = false
@@ -70,7 +96,7 @@ resource "google_compute_instance_template" "uid_operator" {
   }
 
   service_account {
-    email  = var.service_account
+    email  = module.service_account.email
     scopes = ["cloud-platform"]
   }
 

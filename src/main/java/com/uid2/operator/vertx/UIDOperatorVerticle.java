@@ -66,6 +66,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
@@ -569,14 +570,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             //and we can still enable cstg feature but turn off site domain name download in
             // key/sharing endpoint
             if(keySharingEndpointProvideSiteDomainNames && clientSideTokenGenerate) {
-                for (Integer siteId : accessibleSites) {
+                for (Integer siteId : accessibleSites.stream().sorted().collect(Collectors.toList())) {
                     Site s = siteProvider.getSite(siteId);
-                    if(s == null) {
+                    if(s == null || s.getDomainNames().isEmpty()) {
                         continue;
                     }
                     JsonObject siteObj = new JsonObject();
                     siteObj.put("id", siteId);
-                    siteObj.put("domain_names", s.getDomainNames());
+                    siteObj.put("domain_names", s.getDomainNames().stream().sorted().collect(Collectors.toList()));
                     sites.add(siteObj);
                 }
                 /*

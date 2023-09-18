@@ -3526,8 +3526,8 @@ public class UIDOperatorVerticleTest {
 
             if(provideSiteDomainNames) {
                 HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102);
-                //we set an empty domain name list previously
-                expectedSites.put(104, new ArrayList<>());
+                // site 104 has empty domain name list intentionally previously so while site 104 should be included in
+                // this /key/sharing response, it won't appear in this domain name list
                 verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
             }
             else {

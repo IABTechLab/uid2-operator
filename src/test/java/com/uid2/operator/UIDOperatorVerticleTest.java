@@ -3081,7 +3081,7 @@ public class UIDOperatorVerticleTest {
         }
 
         public MultipleKeysetsTests() {
-            long nowL = now.toEpochMilli() / 1000;
+            long nowL = now.getEpochSecond();
 
             this.keysetIdToKeyset = keysetsToMap(
                     new Keyset(MasterKeysetId, MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
@@ -3241,7 +3241,7 @@ public class UIDOperatorVerticleTest {
         MultipleKeysetsTests test = new MultipleKeysetsTests();
         //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate expectations
 
-        long nowL = now.toEpochMilli() / 1000;
+        long nowL = now.getEpochSecond();
         setupSalts();
 
         String v1Param = "email_hash=" + urlEncode(emailHash);
@@ -3587,7 +3587,7 @@ public class UIDOperatorVerticleTest {
         MultipleKeysetsTests test = new MultipleKeysetsTests();
         //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
 
-        long nowL = now.toEpochMilli() / 1000;
+        long nowL = now.getEpochSecond();
         List<KeysetKey> expectedKeys = new ArrayList<>(Arrays.asList(
                 createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
                 createKey(1002, now.minusSeconds(5), now.plusSeconds(3600), RefreshKeysetId),

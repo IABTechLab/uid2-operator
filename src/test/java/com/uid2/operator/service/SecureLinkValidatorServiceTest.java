@@ -65,7 +65,7 @@ public class SecureLinkValidatorServiceTest {
 
     private void setClientKey(int serviceId) {
         Map<String, Object> data = new HashMap<>();
-        ClientKey key = new ClientKey("", "", "", "", "", "", Instant.now().toEpochMilli(), Set.of(Role.MAPPER), 100, false, serviceId);
+        ClientKey key = new ClientKey("", "", "", "", "", "", Instant.now().getEpochSecond(), Set.of(Role.MAPPER), 100, false, serviceId);
 
         data.put(AuthMiddleware.API_CLIENT_PROP, key);
         when(this.routingContext.data()).thenReturn(data);

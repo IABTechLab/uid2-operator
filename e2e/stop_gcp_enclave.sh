@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 set -ex
 
-SERVICE_ACCOUNT='github@uid2-cicd.iam.gserviceaccount.com'
 ZONE='asia-southeast1-a'
+
+if [ -z "$SERVICE_ACCOUNT" ]; then
+  echo "SERVICE_ACCOUNT can not be empty"
+  exit 1
+fi
+
+if [ -z "$ZONE_OVERRIDE" ]; then
+  ZONE=$ZONE_OVERRIDE
+fi
 
 if [ -z "$GCP_INSTANCE_NAME" ]; then
   echo "GCP_INSTANCE_NAME can not be empty"

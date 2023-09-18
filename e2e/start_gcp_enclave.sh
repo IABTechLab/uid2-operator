@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -ex
 
-SERVICE_ACCOUNT='github@uid2-cicd.iam.gserviceaccount.com'
 ZONE='asia-southeast1-a'
 GCP_INSTANCE_NAME="ci-test-$RANDOM"
 ROOT="."
 
 source "$ROOT/healthcheck.sh"
+
+if [ -z "$SERVICE_ACCOUNT" ]; then
+  echo "SERVICE_ACCOUNT can not be empty"
+  exit 1
+fi
 
 if [ -z "$IMAGE_HASH" ]; then
   echo "IMAGE_HASH can not be empty"
@@ -26,6 +30,12 @@ fi
 if [ -z "$NGROK_URL_OPTOUT" ]; then
   echo "NGROK_URL_OPTOUT can not be empty"
   exit 1
+fi
+
+if [ -z "$ZONE_OVERRIDE" ]; then
+  echo "no zone override, will use default value"
+else
+  ZONE=$ZONE_OVERRIDE
 fi
 
 gcloud config set compute/zone $ZONE

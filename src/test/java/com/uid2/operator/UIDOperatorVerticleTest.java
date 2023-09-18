@@ -67,7 +67,6 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
-    private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
     private static final String firstLevelSalt = "first-level-salt";
     private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123");
     private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
@@ -87,14 +86,13 @@ public class UIDOperatorVerticleTest {
     @Mock private IKeysetKeyStore keysetKeyStore;
     @Mock private RotatingKeysetProvider keysetProvider;
     @Mock private ISaltProvider saltProvider;
-    @Mock private IServiceStore serviceProvider;
-    @Mock private IServiceLinkStore serviceLinkProvider;
     @Mock private SecureLinkValidatorService secureLinkValidatorService;
     @Mock private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
     @Mock private IOptOutStore optOutStore;
     @Mock private Clock clock;
     @Mock private IStatsCollectorQueue statsCollectorQueue;
 
+    private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
     private SimpleMeterRegistry registry;
     private OperatorDisableHandler operatorDisableHandler;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
@@ -104,7 +102,7 @@ public class UIDOperatorVerticleTest {
         mocks = MockitoAnnotations.openMocks(this);
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(clock.instant()).thenAnswer(i -> now);
-        when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class))).thenReturn(true);
+        when(secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class))).thenReturn(true);
 
         this.operatorDisableHandler = new OperatorDisableHandler(Duration.ofHours(24), clock);
 

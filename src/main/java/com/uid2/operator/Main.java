@@ -5,6 +5,7 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
+import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
@@ -59,18 +60,19 @@ public class Main {
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
     private final RotatingSiteStore siteProvider;
-
     private final RotatingClientKeyProvider clientKeyProvider;
     private final RotatingKeysetKeyStore keysetKeyStore;
     private final RotatingKeysetProvider keysetProvider;
     private final RotatingClientSideKeypairStore clientSideKeypairProvider;
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
-    private OperatorDisableHandler disableHandler = null;
     private final OperatorMetrics metrics;
-    private IStatsCollectorQueue _statsCollectorQueue;
-
     private final boolean clientSideTokenGenerate;
+    private final boolean validateServiceLinks;
+    private IStatsCollectorQueue _statsCollectorQueue;
+    private OperatorDisableHandler disableHandler = null;
+    private RotatingServiceStore serviceProvider;
+    private RotatingServiceLinkStore serviceLinkProvider;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -87,6 +89,8 @@ public class Main {
 
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
+        this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
+
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
@@ -132,6 +136,13 @@ public class Main {
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
 
+        if (this.validateServiceLinks) {
+            String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
+            this.serviceProvider = new RotatingServiceStore(fsStores, new GlobalScope(new CloudPath(serviceMdPath)));
+            String serviceLinkMdPath = this.config.getString(Const.Config.ServiceLinkMetadataPathProp);
+            this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
+        }
+
         if (useStorageMock && coreAttestUrl == null) {
             if (clientSideTokenGenerate) {
                 this.siteProvider.loadContent();
@@ -141,6 +152,11 @@ public class Main {
             this.saltProvider.loadContent();
             this.keysetProvider.loadContent();
             this.keysetKeyStore.loadContent();
+
+            if (this.validateServiceLinks) {
+                this.serviceProvider.loadContent();
+                this.serviceLinkProvider.loadContent();
+            }
         }
         metrics = new OperatorMetrics(getKeyManager(), saltProvider);
     }
@@ -228,7 +244,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider));
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;
@@ -275,6 +291,11 @@ public class Main {
         keysetProvider.getMetadata();
         saltProvider.getMetadata();
 
+        if (validateServiceLinks) {
+            serviceProvider.getMetadata();
+            serviceLinkProvider.getMetadata();
+        }
+
         // create cloud sync for optout store
         OptOutCloudSync optOutCloudSync = new OptOutCloudSync(config, false);
         this.optOutStore.registerCloudSync(optOutCloudSync);
@@ -283,25 +304,33 @@ public class Main {
         Promise<Void> promise = Promise.promise();
         List<Future> fs = new ArrayList<>();
         if (clientSideTokenGenerate) {
-            fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, 10000));
-            fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, 10000));
+            fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, "site_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, "client_side_keypairs_refresh_ms"));
         }
-        fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, 10000));
+        fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));
             else promise.complete();
         });
+
+        if (validateServiceLinks) {
+            fs.add(createAndDeployRotatingStoreVerticle("service", serviceProvider, "service_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("service_link", serviceLinkProvider, "service_link_refresh_ms"));
+        }
+
         return promise.future();
     }
 
-    private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, int intervalMs) {
+    private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, String storeRefreshConfigMs) {
+        final int intervalMs = config.getInteger(storeRefreshConfigMs, 10000);
+
+        RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
         Promise<String> promise = Promise.promise();
-        RotatingStoreVerticle saltStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
-        vertx.deployVerticle(saltStoreVerticle, promise);
+        vertx.deployVerticle(rotatingStoreVerticle, promise);
         return promise.future();
     }
 

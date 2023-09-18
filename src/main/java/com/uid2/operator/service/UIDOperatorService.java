@@ -9,6 +9,8 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -22,6 +24,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
     public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
+    private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
 
     private static final Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private final ISaltProvider saltProvider;
@@ -140,7 +143,15 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     @Override
     public List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp) {
-        return this.saltProvider.getSnapshot(Instant.now()).getModifiedSince(sinceTimestamp);
+        return getSaltProviderSnapshot(Instant.now()).getModifiedSince(sinceTimestamp);
+    }
+
+    private ISaltProvider.ISaltSnapshot getSaltProviderSnapshot(Instant asOf) {
+        ISaltProvider.ISaltSnapshot snapshot = this.saltProvider.getSnapshot(asOf);
+        if(snapshot == null) {
+            LOGGER.error("SaltProvider returned NULL on getSnapshot for instant {}", asOf);
+        }
+        return snapshot;
     }
 
     @Override
@@ -187,11 +198,11 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private byte[] getFirstLevelHash(byte[] identityHash, Instant asOf) {
-        return TokenUtils.getFirstLevelHash(identityHash, this.saltProvider.getSnapshot(asOf).getFirstLevelSalt());
+        return TokenUtils.getFirstLevelHash(identityHash, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
     }
 
     private MappedIdentity getAdvertisingId(UserIdentity firstLevelHashIdentity, Instant asOf) {
-        final SaltEntry rotatingSalt = this.saltProvider.getSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
+        final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
 
         return new MappedIdentity(
                 this.identityV3Enabled

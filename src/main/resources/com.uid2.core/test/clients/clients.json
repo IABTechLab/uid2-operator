@@ -13,7 +13,9 @@
       "OPTOUT"
     ],
     "disabled": false,
-    "site_id": 999
+    "site_id": 999,
+    "key_hash": "FIUDeEqA+O2hW7PXdAJI/NAnJleHX+6QU46avhal5Wy4th0ZEKvG5eoFk8CFvqxGkMFlHwGG+DWTU+ZdwiHdQg==",
+    "key_salt": "RvCHAXUo/1pR3Nun5HuzcRJvlC7vT6gZMmsGPzyOONA="
   },
   {
     "key": "LOCALbGlvbnVuZGVybGluZXdpbmRzY2FyZWRzb2Z0ZGVzZXI=",
@@ -29,7 +31,9 @@
       "OPTOUT"
     ],
     "disabled": false,
-    "site_id": 999
+    "site_id": 999,
+    "key_hash": "LXybcNSAhhAc2ZGbhJYpQWNfcrKdSmlxDmGKaga3WNp7ReQepxv6zpRKN/o/rIl9BzGCtI+dkfDjjxDPBFuPYQ==",
+    "key_salt": "qu7v8UJYxb7GzidkHZJHGNRJJv6G9408bvOri19egxk="
   },
   {
     "key": "UID2-C-L-123-t32pCM.5NCX1E94UgOd2f8zhsKmxzCoyhXohHYSSWR8U=",
@@ -41,7 +45,9 @@
       "ID_READER"
     ],
     "disabled": false,
-    "site_id": 123
+    "site_id": 123,
+    "key_hash": "e057FyhI7c9XrpV6f/CP76ngW3riDLy8EaYtNetGO6UZTDKqqkEFyvOY0F39UtsL5p+X1m9cub17nLJNUzrt3g==",
+    "key_salt": "8iu6RPZK4o48+/CoiHdWRqcJ/mpAm1lF/d0fzddJkNw="
   },
   {
     "key": "UID2-C-L-124-H8VwqX.l2G4TCuUWYAqdqkeG/UqtFoPEoXirKn4kHWxc=",
@@ -53,7 +59,9 @@
       "GENERATOR"
     ],
     "disabled": false,
-    "site_id": 124
+    "site_id": 124,
+    "key_hash": "R3PX5OcLrpNBmbbp1ka6XWzv4lNDnw+/eAjKoTu6hjl8dI2quMZPdLBHubikFzcBR6tXUiLb6wqkg+EFxkAHFA==",
+    "key_salt": "qNQXUBmtk63kDkLwmsltwT0/FojXKx6LTyZUjSjpo8o="
   },
   {
     "key": "UID2-C-L-125-E5w9L8.T5og45yFqQeoj4ubh9IVqXcaSVwk7A5XyG958=",
@@ -66,7 +74,9 @@
       "SHARER"
     ],
     "disabled": false,
-    "site_id": 125
+    "site_id": 125,
+    "key_hash": "zdqcmDRSpaBEn23i+pA9h3qQfMHksYxWRtZ0PZNB487b63w4Q+Q/YsU8Uaf2QBuuq9NZbcUqfpMMYTVC3kh57w==",
+    "key_salt": "TSOql308mSYMP2mt5FaeQBHe6GejFcDaU/zvklpDMnk="
   },
   {
     "key": "UID2-C-L-126-GMP9tD.jn2o3vmXzn7vmKRlTT6BEUrPUaPJuQmDBdq38=",
@@ -78,7 +88,9 @@
       "MAPPER"
     ],
     "disabled": false,
-    "site_id": 126
+    "site_id": 126,
+    "key_hash": "KCAmaEYzy922XhhPJXVWQaym562E6qx2ZdTh7ZVUGBK4eV8IEowjDhK8X3bk5KTDp6ClrmwAMCw39a2xJ5CsXw==",
+    "key_salt": "2XoxswI9ukYrExcHdanQTkgRsjN3tGBlHPxfx3F5K0Y="
   },
   {
     "key": "UID2-C-L-127-aHVydH.JlZnVzZWRmYXN0ZW5lbXliYWdpZGVudGl0eWU=",
@@ -90,6 +102,8 @@
       "OPTOUT"
     ],
     "disabled": false,
-    "site_id": 127
+    "site_id": 127,
+    "key_hash": "EsTnXmois+IXfkOVK6YPkFos5o3OO5O6cErZ0gab1SOA4gWK1a9XH1Ht2gCuQ+CxGYqsLszBLJZRVnl2b2eRAQ==",
+    "key_salt": "v00XLTnO3/kS/zzHEkOcBo2QWTDtb4j9wFxU4G8Eu8Q="
   }
 ]

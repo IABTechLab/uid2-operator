@@ -3,6 +3,7 @@ package com.uid2.operator;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.service.IUIDOperatorService;
+import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.store.*;
@@ -21,8 +22,9 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        ISaltProvider saltProvider,
                                        IOptOutStore optOutStore,
                                        Clock clock,
-                                       IStatsCollectorQueue statsCollectorQueue) {
-        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue);
+                                       IStatsCollectorQueue statsCollectorQueue,
+                                       SecureLinkValidatorService secureLinkValidationService) {
+        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService);
     }
 
     public IUIDOperatorService getIdService() {

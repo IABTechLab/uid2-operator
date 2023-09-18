@@ -3435,10 +3435,19 @@ public class UIDOperatorVerticleTest {
     }
 
     //set some default domain names for all possible sites for each unit test first
-    private void setupSiteDomainNameListCall(int... siteIds) {
+    private void setupSiteDomainNameMock(int... siteIds) {
+
+        Map<Integer, Site> sites = new HashMap<>();
         for(int siteId : siteIds) {
-            doReturn(new Site(siteId, "site"+siteId, true, new HashSet<>(Arrays.asList(siteId+".com", siteId+".co.uk")))).when(siteProvider).getSite(siteId);
+            Site site = new Site(siteId, "site"+siteId, true, new HashSet<>(Arrays.asList(siteId+".com", siteId+".co.uk")));
+            sites.put(site.getId(), site);
         }
+
+        when(siteProvider.getAllSites()).thenReturn(new HashSet<>(sites.values()));
+        when(siteProvider.getSite(anyInt())).thenAnswer(invocation -> {
+            int siteId = invocation.getArgument(0);
+            return sites.get(siteId);
+        });
     }
 
     public HashMap<Integer, List<String>> setupExpectation(int... siteIds)
@@ -3511,7 +3520,7 @@ public class UIDOperatorVerticleTest {
             createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
-        setupSiteDomainNameListCall(101, 102, 103, 105);
+        setupSiteDomainNameMock(101, 102, 103, 105);
         //site 104 domain name list will be returned but we will set a blank list for it
         doReturn(new Site(104, "site104", true, new HashSet<>())).when(siteProvider).getSite(104);
 
@@ -3552,7 +3561,7 @@ public class UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.SHARER);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
         //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
-        setupSiteDomainNameListCall(101, 102, 103, 104, 105);
+        setupSiteDomainNameMock(101, 102, 103, 104, 105);
         //Keys from these keysets are not expected: keyset6 (disabled keyset), keyset7 (sharing with ID_READERs but not SHARERs), keyset8 (not sharing with 101), keyset10 (not sharing with anyone)
         KeysetKey[] expectedKeys = {
             createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
@@ -3603,7 +3612,7 @@ public class UIDOperatorVerticleTest {
             new KeysetKey(102, "site key".getBytes(), now, now, now.plusSeconds(10), 10),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
-        setupSiteDomainNameListCall(101, 102, 103, 104, 105);
+        setupSiteDomainNameMock(101, 102, 103, 104, 105);
         Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
@@ -3636,7 +3645,7 @@ public class UIDOperatorVerticleTest {
             new KeysetKey(4, "key4".getBytes(), now, now, now.plusSeconds(10), 7),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
-        setupSiteDomainNameListCall(10, 11, 12, 13);
+        setupSiteDomainNameMock(10, 11, 12, 13);
         switch (testRun) {
             case "NoKeyset":
                 siteId = 8;

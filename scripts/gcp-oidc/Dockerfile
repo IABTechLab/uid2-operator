@@ -3,8 +3,8 @@ FROM eclipse-temurin@sha256:de8e6219ff5360811a453a9237713679a9d9106ba5150290ef37
 LABEL "tee.launch_policy.allow_env_override"="API_TOKEN_SECRET_NAME,DEPLOYMENT_ENVIRONMENT,CORE_BASE_URL,OPTOUT_BASE_URL"
 LABEL "tee.launch_policy.log_redirect"="always"
 
-# Install Commandline Tools
-RUN wget https://github.com/jqlang/jq/releases/download/jq-1.7/jq-linux-amd64 -O /bin/jq -q && chmod a+rx /bin/jq
+# Install Packages
+RUN apk update && apk add jq
 
 WORKDIR /app
 EXPOSE 8080

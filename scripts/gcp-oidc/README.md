@@ -56,8 +56,17 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
     ```
  
 3. Enable the following APIs:
+| Name                                 | Description                |
+|--------------------------------------|----------------------------|
+| compute.googleapis.com               | Compute Engine API         | 
+| confidentialcomputing.googleapis.com | Confidential Computing API | 
+| logging.googleapis.com               | Cloud Logging API          | 
+| secretmanager.googleapis.com         | Secret Manager API         | 
     ```
-    $ gcloud services enable compute.googleapis.com confidentialcomputing.googleapis.com secretmanager.googleapis.com
+    $ gcloud services enable compute.googleapis.com \
+      confidentialcomputing.googleapis.com \
+      logging.googleapis.com \
+      secretmanager.googleapis.com
     ```
 
 4. Create a service account to run the workload:

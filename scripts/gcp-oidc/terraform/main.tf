@@ -92,7 +92,7 @@ resource "google_compute_instance_template" "uid_operator" {
     tee-container-log-redirect     = true
     tee-restart-policy             = "Never"
     tee-env-DEPLOYMENT_ENVIRONMENT = var.uid_deployment_env
-    tee-env-DEPLOYMENT_ENVIRONMENT = module.secret-manager.secret_names[0]
+    tee-env-API_TOKEN_SECRET_NAME = module.secret-manager.secret_names[0]
   }
 
   network_interface {

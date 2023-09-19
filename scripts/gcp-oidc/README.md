@@ -111,11 +111,12 @@ Go to Admin portal [Enclave Id Management page](https://admin-integ.uidapi.com/a
    - Enclave ID: the generated value in Step 1
 
 ### (For partner) Create secret of your private operator API token in Secret Manager
-Store your private operator API token provided by the UID2 team to Secret Manager and get the secret name which will be used to replace the `{API_TOKEN_SECRET_NAME}` placeholder later during VM instance creation.
+`{API_TOKEN}`: private operator api token, dedicated for you. You should have received this from UID2 team.
+In this section, we will guide you how to store `{API_TOKEN}` in GCP Secret Manager and get the secret name which will be used to replace the `{API_TOKEN_SECRET_NAME}` placeholder later during VM instance creation.
 
 For example, following script creates a new secret `uid2_operator_api_token`, and prints secret name something like `projects/111111111111/secrets/uid2_operator_api_token/versions/1` which will be used to replace the `{API_TOKEN_SECRET_NAME}` placeholder later.
 ```
-API_TOKEN="<YOUR_OPERATOR_API_TOKEN>"
+API_TOKEN="{API_TOKEN}"
 echo -n $API_TOKEN | gcloud secrets create uid2_operator_api_token \
     --replication-policy="automatic" \
     --data-file=-

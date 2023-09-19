@@ -1,29 +1,20 @@
 package com.uid2.operator;
 
-import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.*;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
-import com.uid2.operator.service.EncodingUtils;
-import com.uid2.operator.service.EncryptedTokenEncoder;
-import com.uid2.operator.service.TokenUtils;
-import com.uid2.operator.service.UIDOperatorService;
-import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.service.*;
+import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
-import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
-import com.uid2.shared.IClock;
-import com.uid2.shared.attest.AttestationTokenRetriever;
-import com.uid2.shared.attest.UidCoreClient;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Keyset;
 import com.uid2.shared.auth.KeysetSnapshot;
 import com.uid2.shared.auth.Role;
-import com.uid2.shared.cloud.CloudUtils;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.encryption.Uid2Base64UrlCoder;
@@ -45,17 +36,7 @@ import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.*;
-
-import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
-import static com.uid2.operator.service.EncodingUtils.getSha256;
-import static com.uid2.operator.service.V2RequestUtil.V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES;
-import static org.junit.jupiter.api.Assertions.*;
-
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -76,123 +57,108 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
+import static com.uid2.operator.service.EncodingUtils.getSha256;
+import static com.uid2.operator.service.V2RequestUtil.V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES;
+import static com.uid2.shared.Const.Data.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static com.uid2.shared.Const.Data.*;
-
 
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
-    private AutoCloseable mocks;
-    @Mock
-    private ISiteStore siteProvider;
-    @Mock
-    private IClientKeyProvider clientKeyProvider;
-    @Mock
-    private IClientSideKeypairStore clientSideKeypairProvider;
-    @Mock
-    private IClientSideKeypairStore.IClientSideKeypairStoreSnapshot clientSideKeypairSnapshot;
-    @Mock
-    private IKeysetKeyStore keysetKeyStore;
-    @Mock
-    private RotatingKeysetProvider keysetProvider;
-    @Mock
-    private ISaltProvider saltProvider;
-    @Mock
-    private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
-    @Mock
-    private IOptOutStore optOutStore;
-    @Mock
-    private Clock clock;
-    @Mock
-    IClock mockIClock;
-    private SimpleMeterRegistry registry;
-
+    private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
     private static final String firstLevelSalt = "first-level-salt";
     private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123");
     private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
     private static final Duration refreshExpiresAfter = Duration.ofMinutes(15);
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
     private static final byte[] clientSecret = Random.getRandomKeyBytes();
-    private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-
     private static final String clientSideTokenGenerateSubscriptionId = "4WvryDGbR5";
     private static final String clientSideTokenGeneratePublicKey = "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
     private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-L-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
     private static final int clientSideTokenGenerateSiteId = 123;
-    private AttestationTokenRetriever fakeAttestationTokenRetriever;
 
-    private UidCoreClient fakeCoreClient;
+    private AutoCloseable mocks;
+    @Mock private ISiteStore siteProvider;
+    @Mock private IClientKeyProvider clientKeyProvider;
+    @Mock private IClientSideKeypairStore clientSideKeypairProvider;
+    @Mock private IClientSideKeypairStore.IClientSideKeypairStoreSnapshot clientSideKeypairSnapshot;
+    @Mock private IKeysetKeyStore keysetKeyStore;
+    @Mock private RotatingKeysetProvider keysetProvider;
+    @Mock private ISaltProvider saltProvider;
+    @Mock private IServiceStore serviceProvider;
+    @Mock private IServiceLinkStore serviceLinkProvider;
+    @Mock private SecureLinkValidatorService secureLinkValidatorService;
+    @Mock private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
+    @Mock private IOptOutStore optOutStore;
+    @Mock private Clock clock;
+    @Mock private IStatsCollectorQueue statsCollectorQueue;
 
+    private SimpleMeterRegistry registry;
     private OperatorDisableHandler operatorDisableHandler;
-
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
 
-    @Mock
-    private IStatsCollectorQueue statsCollectorQueue;
-    @Mock
-    private SecureLinkValidatorService secureLinkValidatorService;
-
-    public UIDOperatorVerticleTest() {
-    }
-
     @BeforeEach
-    void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
+    public void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
         mocks = MockitoAnnotations.openMocks(this);
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(clock.instant()).thenAnswer(i -> now);
         when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class))).thenReturn(true);
 
         this.operatorDisableHandler = new OperatorDisableHandler(Duration.ofHours(24), clock);
-        this.fakeAttestationTokenRetriever = new AttestationTokenRetriever(vertx, null, null, new ApplicationVersion("test", "test"), null, operatorDisableHandler::handleResponseStatus, mockIClock, null, null);
-        this.fakeCoreClient = new UidCoreClient("dummyToken", CloudUtils.defaultProxy, false, fakeAttestationTokenRetriever, null);
 
-        final JsonObject config = new JsonObject();
-        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, identityExpiresAfter.toMillis() / 1000);
-        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, refreshExpiresAfter.toMillis() / 1000);
-        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, refreshIdentityAfter.toMillis() / 1000);
-        config.put(Const.Config.FailureShutdownWaitHoursProp, 24);
-        final int sharingExpirySeconds = 60 * 60 * 24 * 30;
-        config.put(Const.Config.SharingTokenExpiryProp, sharingExpirySeconds);
-
+        JsonObject config = new JsonObject();
+        setupConfig(config);
         if(testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
         }
 
-        setupConfig(config);
-
         this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService);
-
         uidOperatorVerticle.setDisableHandler(this.operatorDisableHandler);
-
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 
-        registry = new SimpleMeterRegistry();
+        this.registry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(registry);
     }
 
     @AfterEach
-    void teardown() throws Exception {
+    public void teardown() throws Exception {
         Metrics.globalRegistry.remove(registry);
         mocks.close();
     }
 
-    public void setupConfig(JsonObject config) {
+    private void setupConfig(JsonObject config) {
+        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, identityExpiresAfter.toMillis() / 1000);
+        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, refreshExpiresAfter.toMillis() / 1000);
+        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, refreshIdentityAfter.toMillis() / 1000);
+
+        config.put(Const.Config.FailureShutdownWaitHoursProp, 24);
+        config.put(Const.Config.SharingTokenExpiryProp, 60 * 60 * 24 * 30);
+
         config.put("identity_scope", getIdentityScope().toString());
         config.put("advertising_token_v3", getTokenVersion() == TokenVersion.V3);
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
+        config.put("key_sharing_endpoint_provide_site_domain_names", true);
     }
 
     private static byte[] makeAesKey(String prefix) {
         return String.format("%1$16s", prefix).getBytes();
     }
 
-
     protected void fakeAuth(int siteId, Role... roles) {
-        ClientKey clientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret))
-            .withSiteId(siteId).withRoles(roles).withContact("test-contact");
+        ClientKey clientKey = new ClientKey(
+                "test-key",
+                "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=",
+                "fsSGnDxa/V9eJZ9Tas+dowwyO/X1UsC68RN9qM2xUu9ZOaKEOv9EVd7pkt3As/nE5B6TRu0PzK+IDzSQhD1+rw==",
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                now,
+                Set.of(roles),
+                siteId
+        );
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
     }
@@ -294,23 +260,23 @@ public class UIDOperatorVerticleTest {
         if (apiVersion.equals("v2")) {
             WebClient client = WebClient.create(vertx);
             client.postAbs(getUrlForEndpoint("v2/token/refresh"))
-                .putHeader("content-type", "text/plain")
-                .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), ar -> {
-                    assertTrue(ar.succeeded());
-                    assertEquals(expectedHttpCode, ar.result().statusCode());
+                    .putHeader("content-type", "text/plain")
+                    .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), ar -> {
+                        assertTrue(ar.succeeded());
+                        assertEquals(expectedHttpCode, ar.result().statusCode());
 
-                    if (ar.result().statusCode() == 200 && v2RefreshDecryptSecret != null) {
-                        byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
-                        JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
+                        if (ar.result().statusCode() == 200 && v2RefreshDecryptSecret != null) {
+                            byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
+                            JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
 
-                        if (respJson.getString("status").equals("success"))
-                            decodeV2RefreshToken(respJson);
+                            if (respJson.getString("status").equals("success"))
+                                decodeV2RefreshToken(respJson);
 
-                        handler.handle(respJson);
-                    } else {
-                        handler.handle(tryParseResponse(ar.result()));
-                    }
-                });
+                            handler.handle(respJson);
+                        } else {
+                            handler.handle(tryParseResponse(ar.result()));
+                        }
+                    });
         } else {
             get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
                 assertTrue(ar.succeeded());
@@ -381,8 +347,8 @@ public class UIDOperatorVerticleTest {
 
         final String apiKey = ck == null ? "" : ck.getKey();
         HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
-            .putHeader("Authorization", "Bearer " + apiKey)
-            .putHeader("content-type", "text/plain");
+                .putHeader("Authorization", "Bearer " + apiKey)
+                .putHeader("content-type", "text/plain");
         if (referer != null) {
             request.putHeader("Referer", referer);
         }
@@ -547,11 +513,11 @@ public class UIDOperatorVerticleTest {
 
     private void assertTokenStatusMetrics(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus) {
         assertEquals(1, Metrics.globalRegistry
-            .get("uid2.token_response_status_count")
-            .tag("site_id", String.valueOf(siteId))
-            .tag("token_endpoint", String.valueOf(endpoint))
-            .tag("token_response_status", String.valueOf(responseStatus))
-            .counter().count());
+                .get("uid2.token_response_status_count")
+                .tag("site_id", String.valueOf(siteId))
+                .tag("token_endpoint", String.valueOf(endpoint))
+                .tag("token_response_status", String.valueOf(responseStatus))
+                .counter().count());
     }
 
     private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
@@ -560,21 +526,20 @@ public class UIDOperatorVerticleTest {
 
     private static byte[] getRawUid(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt, IdentityScope identityScope, boolean useIdentityV3) {
         return !useIdentityV3
-            ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt)
-            : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt);
+                ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt)
+                : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt);
     }
 
     public static byte[] getRawUid(IdentityType identityType, String identityString, IdentityScope identityScope, boolean useIdentityV3) {
         return !useIdentityV3
-            ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt123.getSalt())
-            : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt123.getSalt());
+                ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt123.getSalt())
+                : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt123.getSalt());
     }
-
 
     private byte[] getAdvertisingIdFromIdentityHash(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
         return !useIdentityV3()
-            ? TokenUtils.getAdvertisingIdV2FromIdentityHash(identityString, firstLevelSalt, rotatingSalt)
-            : TokenUtils.getAdvertisingIdV3FromIdentityHash(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt);
+                ? TokenUtils.getAdvertisingIdV2FromIdentityHash(identityString, firstLevelSalt, rotatingSalt)
+                : TokenUtils.getAdvertisingIdV3FromIdentityHash(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt);
     }
 
     private JsonObject createBatchEmailsRequestPayload() {
@@ -608,20 +573,19 @@ public class UIDOperatorVerticleTest {
         testContext.completeNow();
     }
 
-
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void keyLatestNoAcl(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(5, Role.ID_READER);
         Keyset[] keysets = {
-            new Keyset(MasterKeysetId, MasterKeySiteId, "masterKeyset", null, now.getEpochSecond(), true, true),
-            new Keyset(11, 5, "test", null, now.getEpochSecond(), true, true),
-            new Keyset(12, 6, "test", null, now.getEpochSecond(), true, true)
+                new Keyset(MasterKeysetId, MasterKeySiteId, "masterKeyset", null, now.getEpochSecond(), true, true),
+                new Keyset(11, 5, "test", null, now.getEpochSecond(), true, true),
+                new Keyset(12, 6, "test", null, now.getEpochSecond(), true, true)
         };
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(100, "masterKey".getBytes(), now, now.minusSeconds(15), now.plusSeconds(20), MasterKeysetId),
-            new KeysetKey(101, "key101".getBytes(), now, now, now.plusSeconds(10), 11),
-            new KeysetKey(102, "key102".getBytes(), now, now, now.plusSeconds(10), 12),
+                new KeysetKey(100, "masterKey".getBytes(), now, now.minusSeconds(15), now.plusSeconds(20), MasterKeysetId),
+                new KeysetKey(101, "key101".getBytes(), now, now, now.plusSeconds(10), 11),
+                new KeysetKey(102, "key102".getBytes(), now, now, now.plusSeconds(10), 12),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
         Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
@@ -637,14 +601,14 @@ public class UIDOperatorVerticleTest {
     void keyLatestWithAcl(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(5, Role.ID_READER);
         Keyset[] keysets = {
-            new Keyset(MasterKeysetId, MasterKeySiteId, "masterKeyset", null, now.getEpochSecond(), true, true),
-            new Keyset(11, 5, "test", Set.of(6), now.getEpochSecond(), true, true),
-            new Keyset(12, 6, "test", Set.of(), now.getEpochSecond(), true, true),
+                new Keyset(MasterKeysetId, MasterKeySiteId, "masterKeyset", null, now.getEpochSecond(), true, true),
+                new Keyset(11, 5, "test", Set.of(6), now.getEpochSecond(), true, true),
+                new Keyset(12, 6, "test", Set.of(), now.getEpochSecond(), true, true),
         };
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(100, "masterKey".getBytes(), now, now.minusSeconds(15), now.plusSeconds(20), MasterKeysetId),
-            new KeysetKey(101, "key101".getBytes(), now, now.minusSeconds(15), now.plusSeconds(20), 11),
-            new KeysetKey(102, "key102".getBytes(), now, now.plusSeconds(10), now.plusSeconds(20), 12),
+                new KeysetKey(100, "masterKey".getBytes(), now, now.minusSeconds(15), now.plusSeconds(20), MasterKeysetId),
+                new KeysetKey(101, "key101".getBytes(), now, now.minusSeconds(15), now.plusSeconds(20), 11),
+                new KeysetKey(102, "key102".getBytes(), now, now.plusSeconds(10), now.plusSeconds(20), 12),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
 
@@ -662,8 +626,8 @@ public class UIDOperatorVerticleTest {
     void keyLatestClientBelongsToReservedSiteId(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(AdvertisingTokenSiteId, Role.ID_READER);
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(101, "key101".getBytes(), now, now, now.plusSeconds(10), 201),
-            new KeysetKey(102, "key102".getBytes(), now, now, now.plusSeconds(10), 202),
+                new KeysetKey(101, "key101".getBytes(), now, now, now.plusSeconds(10), 201),
+                new KeysetKey(102, "key102".getBytes(), now, now, now.plusSeconds(10), 202),
         };
         setupKeysetsKeysMock(encryptionKeys);
         send(apiVersion, vertx, apiVersion + "/key/latest", true, null, null, 401, respJson -> testContext.completeNow());
@@ -674,22 +638,22 @@ public class UIDOperatorVerticleTest {
     void keyLatestHideRefreshKey(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(5, Role.ID_READER);
         Keyset[] keysets = {
-            new Keyset(MasterKeysetId, MasterKeySiteId, "test", null, now.getEpochSecond(), true, true),
-            new Keyset(RefreshKeysetId, RefreshKeySiteId, "test", null, now.getEpochSecond(), true, true),
-            new Keyset(FallbackPublisherKeysetId, AdvertisingTokenSiteId, "test", Set.of(), now.getEpochSecond(), true, true),
-            new Keyset(10, 5, "test", Set.of(-1, -2, 2), now.getEpochSecond(), true, true),
+                new Keyset(MasterKeysetId, MasterKeySiteId, "test", null, now.getEpochSecond(), true, true),
+                new Keyset(RefreshKeysetId, RefreshKeySiteId, "test", null, now.getEpochSecond(), true, true),
+                new Keyset(FallbackPublisherKeysetId, AdvertisingTokenSiteId, "test", Set.of(), now.getEpochSecond(), true, true),
+                new Keyset(10, 5, "test", Set.of(-1, -2, 2), now.getEpochSecond(), true, true),
         };
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(101, "key101".getBytes(), now, now, now.plusSeconds(10), MasterKeysetId),
-            new KeysetKey(102, "key102".getBytes(), now, now, now.plusSeconds(10), RefreshKeysetId),
-            new KeysetKey(103, "key103".getBytes(), now, now, now.plusSeconds(10), 10),
+                new KeysetKey(101, "key101".getBytes(), now, now, now.plusSeconds(10), MasterKeysetId),
+                new KeysetKey(102, "key102".getBytes(), now, now, now.plusSeconds(10), RefreshKeysetId),
+                new KeysetKey(103, "key103".getBytes(), now, now, now.plusSeconds(10), 10),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
         Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/latest", true, null, null, 200, respJson -> {
             System.out.println(respJson);
             checkEncryptionKeysResponse(respJson,
-                Arrays.stream(encryptionKeys).filter(k -> k.getKeysetId() != RefreshKeysetId).toArray(KeysetKey[]::new));
+                    Arrays.stream(encryptionKeys).filter(k -> k.getKeysetId() != RefreshKeysetId).toArray(KeysetKey[]::new));
             testContext.completeNow();
         });
     }
@@ -710,13 +674,13 @@ public class UIDOperatorVerticleTest {
         v2Payload.put("email_hash", emailHash);
 
         sendTokenGenerate(apiVersion, vertx,
-            v1Param, v2Payload, 400,
-            json -> {
-                assertFalse(json.containsKey("body"));
+                v1Param, v2Payload, 400,
+                json -> {
+                    assertFalse(json.containsKey("body"));
 
-                assertEquals("client_error", json.getString("status"));
-                testContext.completeNow();
-            });
+                    assertEquals("client_error", json.getString("status"));
+                    testContext.completeNow();
+                });
     }
 
     @ParameterizedTest
@@ -728,12 +692,12 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         sendTokenGenerate(apiVersion, vertx,
-            "", null, 400,
-            json -> {
-                assertFalse(json.containsKey("body"));
-                assertEquals("client_error", json.getString("status"));
-                testContext.completeNow();
-            });
+                "", null, 400,
+                json -> {
+                    assertFalse(json.containsKey("body"));
+                    assertEquals("client_error", json.getString("status"));
+                    testContext.completeNow();
+                });
     }
 
     private void assertStatsCollector(String path, String referer, String apiContact, Integer siteId) {
@@ -778,7 +742,6 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateForEmail(String apiVersion, Vertx vertx, VertxTestContext testContext) {
@@ -793,32 +756,32 @@ public class UIDOperatorVerticleTest {
         v2Payload.put("email", emailAddress);
 
         sendTokenGenerate(apiVersion, vertx,
-            v1Param, v2Payload, 200,
-            json -> {
-                assertEquals("success", json.getString("status"));
-                JsonObject body = json.getJsonObject("body");
-                assertNotNull(body);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+                v1Param, v2Payload, 200,
+                json -> {
+                    assertEquals("success", json.getString("status"));
+                    JsonObject body = json.getJsonObject("body");
+                    assertNotNull(body);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
-                AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
+                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
 
-                assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
-                assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
-                assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+                    assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
+                    assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                    assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
+                    assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-                RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
-                assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
-                assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
+                    RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
+                    assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
+                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
 
-                assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
-                assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
-                assertEqualsClose(now.plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
+                    assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
+                    assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
+                    assertEqualsClose(now.plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
 
-                assertStatsCollector("/" + apiVersion + "/token/generate", null, "test-contact", clientSiteId);
+                    assertStatsCollector("/" + apiVersion + "/token/generate", null, "test-contact", clientSiteId);
 
-                testContext.completeNow();
-            });
+                    testContext.completeNow();
+                });
     }
 
     @ParameterizedTest
@@ -835,32 +798,31 @@ public class UIDOperatorVerticleTest {
         v2Payload.put("email_hash", emailHash);
 
         sendTokenGenerate(apiVersion, vertx,
-            v1Param, v2Payload, 200,
-            json -> {
-                assertEquals("success", json.getString("status"));
-                JsonObject body = json.getJsonObject("body");
-                assertNotNull(body);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+                v1Param, v2Payload, 200,
+                json -> {
+                    assertEquals("success", json.getString("status"));
+                    JsonObject body = json.getJsonObject("body");
+                    assertNotNull(body);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
-                AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
+                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
 
-                assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
-                assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
-                assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-                assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email, emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
+                    assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
+                    assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                    assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
+                    assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email, emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-                RefreshToken refreshToken = encoder.decodeRefreshToken(apiVersion.equals("v2") ? body.getString("decrypted_refresh_token") : body.getString("refresh_token"));
-                assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
-                assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(emailHash, firstLevelSalt), refreshToken.userIdentity.id);
+                    RefreshToken refreshToken = encoder.decodeRefreshToken(apiVersion.equals("v2") ? body.getString("decrypted_refresh_token") : body.getString("refresh_token"));
+                    assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
+                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(emailHash, firstLevelSalt), refreshToken.userIdentity.id);
 
-                assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
-                assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
-                assertEqualsClose(now.plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
+                    assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
+                    assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
+                    assertEqualsClose(now.plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
 
-                testContext.completeNow();
-            });
+                    testContext.completeNow();
+                });
     }
-
 
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
@@ -905,13 +867,13 @@ public class UIDOperatorVerticleTest {
                 assertEqualsClose(now.plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_from")), 10);
 
                 assertTokenStatusMetrics(
-                    clientSiteId,
-                    apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.GenerateV1 : TokenResponseStatsCollector.Endpoint.GenerateV2,
-                    TokenResponseStatsCollector.ResponseStatus.Success);
+                        clientSiteId,
+                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.GenerateV1 : TokenResponseStatsCollector.Endpoint.GenerateV2,
+                        TokenResponseStatsCollector.ResponseStatus.Success);
                 assertTokenStatusMetrics(
-                    clientSiteId,
-                    apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
-                    TokenResponseStatsCollector.ResponseStatus.Success);
+                        clientSiteId,
+                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                        TokenResponseStatsCollector.ResponseStatus.Success);
 
                 testContext.completeNow();
             });
@@ -1051,9 +1013,9 @@ public class UIDOperatorVerticleTest {
         sendTokenRefresh(apiVersion, vertx, "", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
-                clientSiteId,
-                apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
-                TokenResponseStatsCollector.ResponseStatus.InvalidToken);
+                    clientSiteId,
+                    apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                    TokenResponseStatsCollector.ResponseStatus.InvalidToken);
             testContext.completeNow();
         });
     }
@@ -1067,9 +1029,9 @@ public class UIDOperatorVerticleTest {
         sendTokenRefresh(apiVersion, vertx, "abcd", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
-                clientSiteId,
-                apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
-                TokenResponseStatsCollector.ResponseStatus.InvalidToken);
+                    clientSiteId,
+                    apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                    TokenResponseStatsCollector.ResponseStatus.InvalidToken);
             testContext.completeNow();
         });
     }
@@ -1104,16 +1066,16 @@ public class UIDOperatorVerticleTest {
             sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 assertEquals(300, Metrics.globalRegistry
-                    .get("uid2.token_refresh_duration_seconds")
-                    .tag("api_contact", "test-contact")
-                    .tag("site_id", String.valueOf(clientSiteId))
-                    .summary().mean());
+                        .get("uid2.token_refresh_duration_seconds")
+                        .tag("api_contact", "test-contact")
+                        .tag("site_id", String.valueOf(clientSiteId))
+                        .summary().mean());
 
                 assertEquals(1, Metrics.globalRegistry
-                    .get("uid2.advertising_token_expired_on_refresh")
-                    .tag("site_id", String.valueOf(clientSiteId))
-                    .tag("is_expired", "false")
-                    .counter().count());
+                        .get("uid2.advertising_token_expired_on_refresh")
+                        .tag("site_id", String.valueOf(clientSiteId))
+                        .tag("is_expired", "false")
+                        .counter().count());
 
                 testContext.completeNow();
             });
@@ -1135,10 +1097,10 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 assertEquals(1, Metrics.globalRegistry
-                    .get("uid2.advertising_token_expired_on_refresh")
-                    .tag("site_id", String.valueOf(clientSiteId))
-                    .tag("is_expired", "true")
-                    .counter().count());
+                        .get("uid2.advertising_token_expired_on_refresh")
+                        .tag("site_id", String.valueOf(clientSiteId))
+                        .tag("is_expired", "true")
+                        .counter().count());
 
                 testContext.completeNow();
             });
@@ -1195,9 +1157,9 @@ public class UIDOperatorVerticleTest {
             sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("optout", refreshRespJson.getString("status"));
                 assertTokenStatusMetrics(
-                    clientSiteId,
-                    apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
-                    TokenResponseStatsCollector.ResponseStatus.OptOut);
+                        clientSiteId,
+                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                        TokenResponseStatsCollector.ResponseStatus.OptOut);
                 testContext.completeNow();
             });
         });
@@ -1273,15 +1235,15 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         send(apiVersion, vertx, apiVersion + "/token/validate", true,
-            "token=abcdef&email=" + emailAddress,
-            new JsonObject().put("token", "abcdef").put("email", emailAddress),
-            200,
-            respJson -> {
-                assertFalse(respJson.getBoolean("body"));
-                assertEquals("success", respJson.getString("status"));
+                "token=abcdef&email=" + emailAddress,
+                new JsonObject().put("token", "abcdef").put("email", emailAddress),
+                200,
+                respJson -> {
+                    assertFalse(respJson.getBoolean("body"));
+                    assertEquals("success", respJson.getString("status"));
 
-                testContext.completeNow();
-            });
+                    testContext.completeNow();
+                });
     }
 
     @ParameterizedTest
@@ -1293,15 +1255,15 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         send(apiVersion, vertx, apiVersion + "/token/validate", true,
-            "token=abcdef&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
-            new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
-            200,
-            respJson -> {
-                assertFalse(respJson.getBoolean("body"));
-                assertEquals("success", respJson.getString("status"));
+                "token=abcdef&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
+                new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
+                200,
+                respJson -> {
+                    assertFalse(respJson.getBoolean("body"));
+                    assertEquals("success", respJson.getString("status"));
 
-                testContext.completeNow();
-            });
+                    testContext.completeNow();
+                });
     }
 
     @Test
@@ -1480,8 +1442,8 @@ public class UIDOperatorVerticleTest {
         JsonArray hashes = new JsonArray();
         req.put("email_hash", hashes);
         final String[] email_hashes = {
-            TokenUtils.getIdentityHashString("test1@uid2.com"),
-            TokenUtils.getIdentityHashString("test2@uid2.com"),
+                TokenUtils.getIdentityHashString("test1@uid2.com"),
+                TokenUtils.getIdentityHashString("test2@uid2.com"),
         };
 
         for (String email_hash : email_hashes) {
@@ -1790,7 +1752,6 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenRefreshForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
@@ -1976,7 +1937,6 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-
     @Test
     void identityMapBothPhoneAndHashSpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
@@ -2065,7 +2025,6 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchBothPhoneAndHashEmpty(String apiVersion, Vertx vertx, VertxTestContext testContext) {
@@ -2143,8 +2102,8 @@ public class UIDOperatorVerticleTest {
         JsonArray hashes = new JsonArray();
         req.put("phone_hash", hashes);
         final String[] email_hashes = {
-            TokenUtils.getIdentityHashString("+15555555555"),
-            TokenUtils.getIdentityHashString("+15555555556"),
+                TokenUtils.getIdentityHashString("+15555555555"),
+                TokenUtils.getIdentityHashString("+15555555556"),
         };
 
         for (String email_hash : email_hashes) {
@@ -2227,7 +2186,7 @@ public class UIDOperatorVerticleTest {
 
         // the clock value shouldn't matter here
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
-            .thenReturn(now.minus(1, ChronoUnit.HOURS));
+                .thenReturn(now.minus(1, ChronoUnit.HOURS));
 
         JsonObject req = new JsonObject();
         req.put("email", "random-optout-user@email.io");
@@ -2258,7 +2217,7 @@ public class UIDOperatorVerticleTest {
 
         // the clock value shouldn't matter here
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
-            .thenReturn(now.minus(1, ChronoUnit.HOURS));
+                .thenReturn(now.minus(1, ChronoUnit.HOURS));
 
         JsonObject req = new JsonObject();
         JsonArray emails = new JsonArray();
@@ -2268,7 +2227,7 @@ public class UIDOperatorVerticleTest {
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 200, json -> {
             try {
                 Assertions.assertTrue(json.getJsonObject("body").getJsonArray("unmapped") == null ||
-                    json.getJsonObject("body").getJsonArray("unmapped").isEmpty());
+                        json.getJsonObject("body").getJsonArray("unmapped").isEmpty());
                 Assertions.assertEquals(1, json.getJsonObject("body").getJsonArray("mapped").size());
                 Assertions.assertEquals("random-optout-user@email.io", json.getJsonObject("body").getJsonArray("mapped").getJsonObject(0).getString("identifier"));
                 testContext.completeNow();
@@ -2288,7 +2247,7 @@ public class UIDOperatorVerticleTest {
 
         // the clock value shouldn't matter here
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
-            .thenReturn(now.minus(1, ChronoUnit.HOURS));
+                .thenReturn(now.minus(1, ChronoUnit.HOURS));
 
         JsonObject req = new JsonObject();
         JsonArray emails = new JsonArray();
@@ -2321,14 +2280,14 @@ public class UIDOperatorVerticleTest {
         v2Payload.put("email", emailAddress);
 
         sendTokenGenerate(apiVersion, vertx,
-            v1Param, v2Payload, 401,
-            json -> {
-                assertEquals("unauthorized", json.getString("status"));
+                v1Param, v2Payload, 401,
+                json -> {
+                    assertEquals("unauthorized", json.getString("status"));
 
-                assertStatsCollector("/" + apiVersion + "/token/generate", null, null, null);
+                    assertStatsCollector("/" + apiVersion + "/token/generate", null, null, null);
 
-                testContext.completeNow();
-            });
+                    testContext.completeNow();
+                });
     }
 
     @Test
@@ -2342,14 +2301,14 @@ public class UIDOperatorVerticleTest {
         v2Payload.put("email", emailAddress);
 
         sendTokenGenerate("v2", vertx,
-            v1Param, v2Payload, 401, "test-referer",
-            json -> {
-                assertEquals("unauthorized", json.getString("status"));
+                v1Param, v2Payload, 401, "test-referer",
+                json -> {
+                    assertEquals("unauthorized", json.getString("status"));
 
-                assertStatsCollector("/v2/token/generate", "test-referer", null, null);
+                    assertStatsCollector("/v2/token/generate", "test-referer", null, null);
 
-                testContext.completeNow();
-            });
+                    testContext.completeNow();
+                });
     }
 
     private void postCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
@@ -2953,7 +2912,6 @@ public class UIDOperatorVerticleTest {
         return createClientSideTokenGenerateRequestWithPayload(identity, timestamp);
     }
 
-
     // tests for opted out user should lead to generating ad tokens with the default optout identity
     // tests for opted in user should lead to generating ad tokens that never match the default optout identity
     // tests for all email/phone combos
@@ -2963,7 +2921,7 @@ public class UIDOperatorVerticleTest {
             "false,abc@abc.com,Email,optout@unifiedid.com",
             "false,+61400000000,Phone,+00000000001"})
     void cstgOptedOutTest(boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
-                      Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+                          Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
         if(optOutExpected)
@@ -3026,7 +2984,6 @@ public class UIDOperatorVerticleTest {
                     assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_from")), 10);
-
 
                     String advertisingTokenString = genBody.getString("advertising_token");
 
@@ -3096,12 +3053,10 @@ public class UIDOperatorVerticleTest {
                         assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
                         assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_from")), 10);
 
-
                         assertTokenStatusMetrics(
                                 clientSideTokenGenerateSiteId,
                                 TokenResponseStatsCollector.Endpoint.RefreshV2,
                                 TokenResponseStatsCollector.ResponseStatus.Success);
-
 
                         //check the CSTG-related privacy bits are still set correctly
                         assertTrue(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
@@ -3113,7 +3068,6 @@ public class UIDOperatorVerticleTest {
                     });
                 });
     }
-
 
     /********************************************************
      * MULTIPLE-KEYSETS TESTS: KEY SHARING & TOKEN GENERATE *
@@ -3133,62 +3087,62 @@ public class UIDOperatorVerticleTest {
             long nowL = now.toEpochMilli() / 1000;
 
             this.keysetIdToKeyset = keysetsToMap(
-                new Keyset(MasterKeysetId, MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
-                new Keyset(RefreshKeysetId, RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
-                new Keyset(FallbackPublisherKeysetId, AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
+                    new Keyset(MasterKeysetId, MasterKeySiteId, "masterkeyKeyset", null, nowL, true, true),
+                    new Keyset(RefreshKeysetId, RefreshKeySiteId, "refreshkeyKeyset", null, nowL, true, true),
+                    new Keyset(FallbackPublisherKeysetId, AdvertisingTokenSiteId, "sitekeyKeyset", null, nowL, true, true),
 
-                new Keyset(4, 101, "keyset4", null, nowL, true, true),
-                new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default
-                new Keyset(6, 101, "keyset6", Set.of(), nowL, false, false), // disabled
+                    new Keyset(4, 101, "keyset4", null, nowL, true, true),
+                    new Keyset(5, 101, "keyset5", Set.of(), nowL, true, false), // non-default
+                    new Keyset(6, 101, "keyset6", Set.of(), nowL, false, false), // disabled
 
-                new Keyset(7, 102, "keyset7", null, nowL, true, true),
-                new Keyset(8, 103, "keyset8", Set.of(102, 104), nowL, true, true),
-                new Keyset(9, 104, "keyset9", Set.of(101), nowL, true, true),
-                new Keyset(10, 105, "keyset10", Set.of(), nowL, true, true)
+                    new Keyset(7, 102, "keyset7", null, nowL, true, true),
+                    new Keyset(8, 103, "keyset8", Set.of(102, 104), nowL, true, true),
+                    new Keyset(9, 104, "keyset9", Set.of(101), nowL, true, true),
+                    new Keyset(10, 105, "keyset10", Set.of(), nowL, true, true)
             );
 
             KeysetKey[] keys = {
-                createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
-                createKey(FALLBACK_PUBLISHER_KEY_ID, now.minusSeconds(5), now.plusSeconds(3600), FallbackPublisherKeysetId),
-                createKey(1003, now.minusSeconds(5), now.plusSeconds(3600), RefreshKeysetId),
+                    createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
+                    createKey(FALLBACK_PUBLISHER_KEY_ID, now.minusSeconds(5), now.plusSeconds(3600), FallbackPublisherKeysetId),
+                    createKey(1003, now.minusSeconds(5), now.plusSeconds(3600), RefreshKeysetId),
 
-                // keys in keyset4
-                createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
-                createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
-                createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
-                createKey(1007, now, now.plusSeconds(3600), 4),
-                createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
-                createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
+                    // keys in keyset4
+                    createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
+                    createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
+                    createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
+                    createKey(1007, now, now.plusSeconds(3600), 4),
+                    createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
+                    createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
 
-                // keys in keyset5
-                createKey(1010, now, now.plusSeconds(3600), 5),
-                createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
-                createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
+                    // keys in keyset5
+                    createKey(1010, now, now.plusSeconds(3600), 5),
+                    createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
+                    createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
 
-                // keys in keyset6
-                createKey(1013, now, now.plusSeconds(3600), 6),
-                createKey(1014, now.plusSeconds(5), now.plusSeconds(3600), 6),
-                createKey(1015, now.minusSeconds(5), now.minusSeconds(2), 6),
+                    // keys in keyset6
+                    createKey(1013, now, now.plusSeconds(3600), 6),
+                    createKey(1014, now.plusSeconds(5), now.plusSeconds(3600), 6),
+                    createKey(1015, now.minusSeconds(5), now.minusSeconds(2), 6),
 
-                // keys in keyset7
-                createKey(1016, now, now.plusSeconds(3600), 7),
-                createKey(1017, now.plusSeconds(5), now.plusSeconds(3600), 7),
-                createKey(1018, now.minusSeconds(5), now.minusSeconds(2), 7),
+                    // keys in keyset7
+                    createKey(1016, now, now.plusSeconds(3600), 7),
+                    createKey(1017, now.plusSeconds(5), now.plusSeconds(3600), 7),
+                    createKey(1018, now.minusSeconds(5), now.minusSeconds(2), 7),
 
-                // keys in keyset8
-                createKey(1019, now, now.plusSeconds(3600), 8),
-                createKey(1020, now.plusSeconds(5), now.plusSeconds(3600), 8),
-                createKey(1021, now.minusSeconds(5), now.minusSeconds(2), 8),
+                    // keys in keyset8
+                    createKey(1019, now, now.plusSeconds(3600), 8),
+                    createKey(1020, now.plusSeconds(5), now.plusSeconds(3600), 8),
+                    createKey(1021, now.minusSeconds(5), now.minusSeconds(2), 8),
 
-                // keys in keyset9
-                createKey(1022, now, now.plusSeconds(3600), 9),
-                createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
-                createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9),
+                    // keys in keyset9
+                    createKey(1022, now, now.plusSeconds(3600), 9),
+                    createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
+                    createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9),
 
-                // keys in keyset10
-                createKey(1025, now, now.plusSeconds(3600), 10),
-                createKey(1026, now.plusSeconds(5), now.plusSeconds(3600), 10),
-                createKey(1027, now.minusSeconds(5), now.minusSeconds(2), 10)
+                    // keys in keyset10
+                    createKey(1025, now, now.plusSeconds(3600), 10),
+                    createKey(1026, now.plusSeconds(5), now.plusSeconds(3600), 10),
+                    createKey(1027, now.minusSeconds(5), now.minusSeconds(2), 10)
             };
 
             this.keysetIdToKeysetKeyList = keysetKeysToMap(keys);
@@ -3202,8 +3156,8 @@ public class UIDOperatorVerticleTest {
 
         private boolean containsKey(int keyId) {
             return keysetIdToKeysetKeyList.values().stream()
-                .flatMap(List::stream)
-                .anyMatch(keysetKey -> keysetKey.getId() == keyId);
+                    .flatMap(List::stream)
+                    .anyMatch(keysetKey -> keysetKey.getId() == keyId);
         }
 
         public void addKey(KeysetKey key) {
@@ -3220,7 +3174,7 @@ public class UIDOperatorVerticleTest {
             }
 
             keysetIdToKeysetKeyList.values().forEach(keysetKeyList ->
-                keysetKeyList.removeIf(keysetKey -> keysetKey.getId() == keyId));
+                    keysetKeyList.removeIf(keysetKey -> keysetKey.getId() == keyId));
         }
 
         public void addKeyset(int keysetId, Keyset keyset) {
@@ -3236,7 +3190,7 @@ public class UIDOperatorVerticleTest {
             }
             Keyset k = this.keysetIdToKeyset.get(keysetId);
             Keyset t = new Keyset(k.getKeysetId(), k.getSiteId(), k.getName(), k.getAllowedSites(), k.getCreated(),
-                newValue, k.isDefault());
+                    newValue, k.isDefault());
             this.keysetIdToKeyset.remove(keysetId);
             this.keysetIdToKeyset.put(keysetId, t);
         }
@@ -3271,16 +3225,15 @@ public class UIDOperatorVerticleTest {
         KeysetKey activatesInFuture3 = createKey(503, future, future, MasterKeysetId);
 
         setupKeysetsKeysMock(expired1, expired2, expired3,
-            active1, active2, active3,
-            activatesNow1, activatesNow2, activatesNow3,
-            activatesInFuture1, activatesInFuture2, activatesInFuture3);
+                active1, active2, active3,
+                activatesNow1, activatesNow2, activatesNow3,
+                activatesInFuture1, activatesInFuture2, activatesInFuture3);
 
         var snapshot = keysetKeyStore.getSnapshot();
         KeysetKey activeKey = snapshot.getActiveKey(MasterKeysetId, now);
 
         assertEquals(activatesNow3, activeKey); //getActiveKey() returns the last key that is active ("activates" not in the future, and "expires" is in the future)
     }
-
 
     @ParameterizedTest
     @ValueSource(strings = {"MultiKeysets", "AddKey", "RotateKey", "DisableActiveKey", "DisableDefaultKeyset"})
@@ -3335,54 +3288,54 @@ public class UIDOperatorVerticleTest {
         }
 
         sendTokenGenerate("v2", vertx,
-            v1Param, v2Payload, 200,
-            json -> {
-                assertEquals("success", json.getString("status"));
-                JsonObject body = json.getJsonObject("body");
-                assertNotNull(body);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+                v1Param, v2Payload, 200,
+                json -> {
+                    assertEquals("success", json.getString("status"));
+                    JsonObject body = json.getJsonObject("body");
+                    assertNotNull(body);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
-                AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
-                assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-                //Uses a key from default keyset
-                int clientKeyId;
-                if (advertisingToken.version == TokenVersion.V3 || advertisingToken.version == TokenVersion.V4) {
-                    String advertisingTokenString = body.getString("advertising_token");
-                    byte[] bytes = null;
-                    if (advertisingToken.version == TokenVersion.V3) {
-                        bytes = EncodingUtils.fromBase64(advertisingTokenString);
-                    } else if (advertisingToken.version == TokenVersion.V4) {
-                        bytes = Uid2Base64UrlCoder.decode(advertisingTokenString);  //same as V3 but use Base64URL encoding
+                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
+                    assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
+                    //Uses a key from default keyset
+                    int clientKeyId;
+                    if (advertisingToken.version == TokenVersion.V3 || advertisingToken.version == TokenVersion.V4) {
+                        String advertisingTokenString = body.getString("advertising_token");
+                        byte[] bytes = null;
+                        if (advertisingToken.version == TokenVersion.V3) {
+                            bytes = EncodingUtils.fromBase64(advertisingTokenString);
+                        } else if (advertisingToken.version == TokenVersion.V4) {
+                            bytes = Uid2Base64UrlCoder.decode(advertisingTokenString);  //same as V3 but use Base64URL encoding
+                        }
+                        final Buffer b = Buffer.buffer(bytes);
+                        final int masterKeyId = b.getInt(2);
+
+                        final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, keysetKeyStore.getSnapshot().getKey(masterKeyId));
+                        final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
+                        clientKeyId = masterPayload.getInt(29);
+                    } else {
+                        clientKeyId = advertisingToken.publisherIdentity.clientKeyId;
                     }
-                    final Buffer b = Buffer.buffer(bytes);
-                    final int masterKeyId = b.getInt(2);
+                    switch (testRun) {
+                        case "MultiKeysets":
+                            assertEquals(1007, clientKeyId); // should encrypt with active key in default keyset
+                            break;
+                        case "AddKey":
+                            assertEquals(1007, clientKeyId); // should encrypt with old key
+                            break;
+                        case "RotateKey":
+                            assertEquals(1329, clientKeyId); // should encrypt with new key
+                            break;
+                        case "DisableActiveKey":
+                            assertNotEquals(1007, clientKeyId); // should no longer encrypt with disabled key
+                            break;
+                        case "DisableDefaultKeyset":
+                            assertEquals(MultipleKeysetsTests.FALLBACK_PUBLISHER_KEY_ID, clientKeyId); // should encrypt with publisher fallback key
+                            break;
+                    }
 
-                    final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, keysetKeyStore.getSnapshot().getKey(masterKeyId));
-                    final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
-                    clientKeyId = masterPayload.getInt(29);
-                } else {
-                    clientKeyId = advertisingToken.publisherIdentity.clientKeyId;
-                }
-                switch (testRun) {
-                    case "MultiKeysets":
-                        assertEquals(1007, clientKeyId); // should encrypt with active key in default keyset
-                        break;
-                    case "AddKey":
-                        assertEquals(1007, clientKeyId); // should encrypt with old key
-                        break;
-                    case "RotateKey":
-                        assertEquals(1329, clientKeyId); // should encrypt with new key
-                        break;
-                    case "DisableActiveKey":
-                        assertNotEquals(1007, clientKeyId); // should no longer encrypt with disabled key
-                        break;
-                    case "DisableDefaultKeyset":
-                        assertEquals(MultipleKeysetsTests.FALLBACK_PUBLISHER_KEY_ID, clientKeyId); // should encrypt with publisher fallback key
-                        break;
-                }
-
-                testContext.completeNow();
-            });
+                    testContext.completeNow();
+                });
     }
 
     @Test
@@ -3398,14 +3351,14 @@ public class UIDOperatorVerticleTest {
         int siteId = 4;
         fakeAuth(siteId, Role.SHARER);
         Keyset[] keysets = {
-            new Keyset(MasterKeysetId, MasterKeySiteId, "test", Set.of(), now.getEpochSecond(), true, true),
-            new Keyset(RefreshKeysetId, RefreshKeySiteId, "test", Set.of(-1, -2, 2, 4, 42, 43, 44, 45), now.getEpochSecond(), true, true),
-            new Keyset(FallbackPublisherKeysetId, AdvertisingTokenSiteId, "test", null, now.getEpochSecond(), true, true),
-            new Keyset(104, 42, "test", Set.of(), now.getEpochSecond(), true, true),
-            new Keyset(105, 43, "test", Set.of(4, 42, 43, 44, 45), now.getEpochSecond(), true, true),
-            new Keyset(106, 44, "test", Set.of(4, 42, 43, 44, 45), now.getEpochSecond(), true, true),
-            new Keyset(107, 45, "test", Set.of(4, 42, 43, 44, 45), now.getEpochSecond(), true, true),
-            new Keyset(108, 4, "test", Set.of(), now.getEpochSecond(), true, true),
+                new Keyset(MasterKeysetId, MasterKeySiteId, "test", Set.of(), now.getEpochSecond(), true, true),
+                new Keyset(RefreshKeysetId, RefreshKeySiteId, "test", Set.of(-1, -2, 2, 4, 42, 43, 44, 45), now.getEpochSecond(), true, true),
+                new Keyset(FallbackPublisherKeysetId, AdvertisingTokenSiteId, "test", null, now.getEpochSecond(), true, true),
+                new Keyset(104, 42, "test", Set.of(), now.getEpochSecond(), true, true),
+                new Keyset(105, 43, "test", Set.of(4, 42, 43, 44, 45), now.getEpochSecond(), true, true),
+                new Keyset(106, 44, "test", Set.of(4, 42, 43, 44, 45), now.getEpochSecond(), true, true),
+                new Keyset(107, 45, "test", Set.of(4, 42, 43, 44, 45), now.getEpochSecond(), true, true),
+                new Keyset(108, 4, "test", Set.of(), now.getEpochSecond(), true, true),
         };
 
         final KeysetKey masterKey = new KeysetKey(3, "masterKey".getBytes(), now, now, now.plusSeconds(10), MasterKeysetId); // siteId = -1
@@ -3415,12 +3368,12 @@ public class UIDOperatorVerticleTest {
         final KeysetKey sharingkey14 = new KeysetKey(14, "sharingkey14".getBytes(), now, now, now.plusSeconds(10), 107); // siteId = 45
 
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(6, "sharingkey6".getBytes(), now, now, now.plusSeconds(10), 104), // siteId = 42
-            sharingkey12, sharingkey13, sharingkey14, masterKey,
-            new KeysetKey(42, "masterKey2".getBytes(), now, now, now.plusSeconds(10), RefreshKeysetId), // siteId = -2
-            clientsKey,
-            new KeysetKey(5, "publisherMaster".getBytes(), now, now, now.plusSeconds(10), FallbackPublisherKeysetId), // siteId = 2
-            new KeysetKey(9, "key with no ACL".getBytes(), now, now, now.plusSeconds(10), FallbackPublisherKeysetId), // siteId = 2
+                new KeysetKey(6, "sharingkey6".getBytes(), now, now, now.plusSeconds(10), 104), // siteId = 42
+                sharingkey12, sharingkey13, sharingkey14, masterKey,
+                new KeysetKey(42, "masterKey2".getBytes(), now, now, now.plusSeconds(10), RefreshKeysetId), // siteId = -2
+                clientsKey,
+                new KeysetKey(5, "publisherMaster".getBytes(), now, now, now.plusSeconds(10), FallbackPublisherKeysetId), // siteId = 2
+                new KeysetKey(9, "key with no ACL".getBytes(), now, now, now.plusSeconds(10), FallbackPublisherKeysetId), // siteId = 2
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
         KeysetKey[] expectedKeys = new KeysetKey[]{masterKey, clientsKey, sharingkey12, sharingkey13, sharingkey14};
@@ -3433,7 +3386,48 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
+    //set some default domain names for all possible sites for each unit test first
+    private void setupSiteDomainNameMock(int... siteIds) {
+
+        Map<Integer, Site> sites = new HashMap<>();
+        for(int siteId : siteIds) {
+            Site site = new Site(siteId, "site"+siteId, true, new HashSet<>(Arrays.asList(siteId+".com", siteId+".co.uk")));
+            sites.put(site.getId(), site);
+        }
+
+        when(siteProvider.getAllSites()).thenReturn(new HashSet<>(sites.values()));
+        when(siteProvider.getSite(anyInt())).thenAnswer(invocation -> {
+            int siteId = invocation.getArgument(0);
+            return sites.get(siteId);
+        });
+    }
+
+    public HashMap<Integer, List<String>> setupExpectation(int... siteIds)
+    {
+        HashMap<Integer, List<String>> expectedSites = new HashMap();
+        for (int siteId : siteIds)
+        {
+            List<String> siteDomains = Arrays.asList(siteId+".co.uk", siteId+".com");
+            expectedSites.put(siteId, siteDomains);
+        }
+        return expectedSites;
+    }
+
+    public void verifyExpectedSiteDetail(HashMap<Integer, List<String>> expectedSites, JsonArray actualResult) {
+
+        assertEquals(actualResult.size(), expectedSites.size());
+        for(int i = 0; i < actualResult.size(); i++) {
+
+            JsonObject siteDetail = actualResult.getJsonObject(i);
+            int siteId = siteDetail.getInteger("id");
+            assertTrue(expectedSites.get(siteId).containsAll((Collection<String>) siteDetail.getMap().get("domain_names")));
+        }
+
+        return;
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans =  {true, false})
         // Tests:
         //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
         //   ID_READER has access to a keyset with a missing allowed_sites              - access through sharing
@@ -3441,7 +3435,11 @@ public class UIDOperatorVerticleTest {
         //   ID_READER has no access to a keyset that is disabled                       - direct reject
         //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharingKeysets_IDREADER(Vertx vertx, VertxTestContext testContext) {
+    void keySharingKeysets_IDREADER(boolean provideSiteDomainNames, Vertx vertx, VertxTestContext testContext) {
+
+        if (!provideSiteDomainNames) {
+            this.uidOperatorVerticle.setKeySharingEndpointProvideSiteDomainNames(false);
+        }
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.ID_READER);
@@ -3451,28 +3449,32 @@ public class UIDOperatorVerticleTest {
 
         //Keys from these keysets are not expected: keyset6 (disabled keyset), keyset8 (not sharing with site 101), keyset10 (not sharing with anyone)
         KeysetKey[] expectedKeys = {
-            createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
-            createKey(1002, now.minusSeconds(5), now.plusSeconds(3600), RefreshKeysetId),
-            // keys in keyset4
-            createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
-            createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
-            createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
-            createKey(1007, now, now.plusSeconds(3600), 4),
-            createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
-            createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
-            // keys in keyset5
-            createKey(1010, now, now.plusSeconds(3600), 5),
-            createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
-            createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
-            // keys in keyset7
-            createKey(1016, now, now.plusSeconds(3600), 7),
-            createKey(1017, now.plusSeconds(5), now.plusSeconds(3600), 7),
-            createKey(1018, now.minusSeconds(5), now.minusSeconds(2), 7),
-            // keys in keyset9
-            createKey(1022, now, now.plusSeconds(3600), 9),
-            createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
-            createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
+                createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
+                createKey(1002, now.minusSeconds(5), now.plusSeconds(3600), RefreshKeysetId),
+                // keys in keyset4
+                createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
+                createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
+                createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
+                createKey(1007, now, now.plusSeconds(3600), 4),
+                createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
+                createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
+                // keys in keyset5
+                createKey(1010, now, now.plusSeconds(3600), 5),
+                createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
+                createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
+                // keys in keyset7
+                createKey(1016, now, now.plusSeconds(3600), 7),
+                createKey(1017, now.plusSeconds(5), now.plusSeconds(3600), 7),
+                createKey(1018, now.minusSeconds(5), now.minusSeconds(2), 7),
+                // keys in keyset9
+                createKey(1022, now, now.plusSeconds(3600), 9),
+                createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
+                createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         };
+
+        setupSiteDomainNameMock(101, 102, 103, 105);
+        //site 104 domain name list will be returned but we will set a blank list for it
+        doReturn(new Site(104, "site104", true, new HashSet<>())).when(siteProvider).getSite(104);
 
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
@@ -3482,6 +3484,17 @@ public class UIDOperatorVerticleTest {
             assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
+
+            if(provideSiteDomainNames) {
+                HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102);
+                // site 104 has empty domain name list intentionally previously so while site 104 should be included in
+                // this /key/sharing response, it won't appear in this domain name list
+                verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
+            }
+            else {
+                //otherwise we shouldn't even have a 'sites' field
+                assertNull(respJson.getJsonObject("body").getJsonArray("site_data"));
+            }
             testContext.completeNow();
         });
     }
@@ -3500,25 +3513,25 @@ public class UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.SHARER);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
         //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
-
+        setupSiteDomainNameMock(101, 102, 103, 104, 105);
         //Keys from these keysets are not expected: keyset6 (disabled keyset), keyset7 (sharing with ID_READERs but not SHARERs), keyset8 (not sharing with 101), keyset10 (not sharing with anyone)
         KeysetKey[] expectedKeys = {
-            createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
-            // keys in keyset4
-            createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
-            createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
-            createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
-            createKey(1007, now, now.plusSeconds(3600), 4),
-            createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
-            createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
-            // keys in keyset5
-            createKey(1010, now, now.plusSeconds(3600), 5),
-            createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
-            createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
-            // keys in keyset9
-            createKey(1022, now, now.plusSeconds(3600), 9),
-            createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
-            createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
+                createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
+                // keys in keyset4
+                createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
+                createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
+                createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
+                createKey(1007, now, now.plusSeconds(3600), 4),
+                createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
+                createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
+                // keys in keyset5
+                createKey(1010, now, now.plusSeconds(3600), 5),
+                createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
+                createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
+                // keys in keyset9
+                createKey(1022, now, now.plusSeconds(3600), 9),
+                createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
+                createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
@@ -3529,6 +3542,10 @@ public class UIDOperatorVerticleTest {
             assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
+
+            HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 104);
+            verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
+
             testContext.completeNow();
         });
     }
@@ -3539,18 +3556,19 @@ public class UIDOperatorVerticleTest {
         int siteId = 5;
         fakeAuth(siteId, Role.SHARER);
         Keyset[] keysets = {
-            new Keyset(MasterKeysetId, MasterKeySiteId, "test", null, now.getEpochSecond(), true, true),
-            new Keyset(10, 5, "siteKeyset", null, now.getEpochSecond(), true, true),
+                new Keyset(MasterKeysetId, MasterKeySiteId, "test", null, now.getEpochSecond(), true, true),
+                new Keyset(10, 5, "siteKeyset", null, now.getEpochSecond(), true, true),
         };
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(101, "master key".getBytes(), now, now, now.plusSeconds(10), MasterKeysetId),
-            new KeysetKey(102, "site key".getBytes(), now, now, now.plusSeconds(10), 10),
+                new KeysetKey(101, "master key".getBytes(), now, now, now.plusSeconds(10), MasterKeysetId),
+                new KeysetKey(102, "site key".getBytes(), now, now, now.plusSeconds(10), 10),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
-
+        setupSiteDomainNameMock(101, 102, 103, 104, 105);
         Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
+            verifyExpectedSiteDetail(new HashMap<>(), respJson.getJsonObject("body").getJsonArray("site_data"));
             checkEncryptionKeysSharing(respJson, siteId, encryptionKeys);
             testContext.completeNow();
         });
@@ -3564,22 +3582,22 @@ public class UIDOperatorVerticleTest {
         KeysetKey[] keys = null;
 
         Keyset[] keysets = {
-            new Keyset(MasterKeysetId, MasterKeySiteId, "test", Set.of(), now.getEpochSecond(), true, true),
-            new Keyset(RefreshKeysetId, RefreshKeySiteId, "test", Set.of(), now.getEpochSecond(), true, true),
-            new Keyset(FallbackPublisherKeysetId, AdvertisingTokenSiteId, "test", Set.of(), now.getEpochSecond(), true, true),
-            new Keyset(4, 10, "test", Set.of(), now.getEpochSecond(), true, true),
-            new Keyset(5, 11, "test", Set.of(10), now.getEpochSecond(), true, true),
-            new Keyset(6, 12, "test", Set.of(), now.getEpochSecond(), true, true),
-            new Keyset(7, 13, "test", Set.of(12), now.getEpochSecond(), true, true),
+                new Keyset(MasterKeysetId, MasterKeySiteId, "test", Set.of(), now.getEpochSecond(), true, true),
+                new Keyset(RefreshKeysetId, RefreshKeySiteId, "test", Set.of(), now.getEpochSecond(), true, true),
+                new Keyset(FallbackPublisherKeysetId, AdvertisingTokenSiteId, "test", Set.of(), now.getEpochSecond(), true, true),
+                new Keyset(4, 10, "test", Set.of(), now.getEpochSecond(), true, true),
+                new Keyset(5, 11, "test", Set.of(10), now.getEpochSecond(), true, true),
+                new Keyset(6, 12, "test", Set.of(), now.getEpochSecond(), true, true),
+                new Keyset(7, 13, "test", Set.of(12), now.getEpochSecond(), true, true),
         };
         KeysetKey[] encryptionKeys = {
-            new KeysetKey(1, makeAesKey("masterKey"), now, now, now.plusSeconds(10), MasterKeysetId),
-            new KeysetKey(2, makeAesKey("siteKey"), now, now, now.plusSeconds(10), RefreshKeysetId),
-            new KeysetKey(3, makeAesKey("refreshKey"), now, now, now.plusSeconds(10), FallbackPublisherKeysetId),
-            new KeysetKey(4, "key4".getBytes(), now, now, now.plusSeconds(10), 7),
+                new KeysetKey(1, makeAesKey("masterKey"), now, now, now.plusSeconds(10), MasterKeysetId),
+                new KeysetKey(2, makeAesKey("siteKey"), now, now, now.plusSeconds(10), RefreshKeysetId),
+                new KeysetKey(3, makeAesKey("refreshKey"), now, now, now.plusSeconds(10), FallbackPublisherKeysetId),
+                new KeysetKey(4, "key4".getBytes(), now, now, now.plusSeconds(10), 7),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
-
+        setupSiteDomainNameMock(10, 11, 12, 13);
         switch (testRun) {
             case "NoKeyset":
                 siteId = 8;
@@ -3605,15 +3623,24 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
             assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
 
+            JsonArray siteData = respJson.getJsonObject("body").getJsonArray("site_data");
+
             switch (testRun) {
                 case "NoKeyset":
                     assertNull(respJson.getJsonObject("body").getInteger("default_keyset_id"));
+                    //no site downloaded
+                    verifyExpectedSiteDetail(new HashMap<>(), siteData);
                     break;
                 case "NoKey":
                     assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+                    //no site downloaded
+                    verifyExpectedSiteDetail(new HashMap<>(), siteData);
                     break;
                 case "SharedKey":
                     assertEquals(6, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+                    //key 4 returned which has keyset id 7 which in turns has site id 13
+                    HashMap<Integer, List<String>> expectedSites = setupExpectation(13);
+                    verifyExpectedSiteDetail(expectedSites, siteData);
                     break;
             }
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
@@ -3639,28 +3666,28 @@ public class UIDOperatorVerticleTest {
 
         long nowL = now.toEpochMilli() / 1000;
         List<KeysetKey> expectedKeys = new ArrayList<>(Arrays.asList(
-            createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
-            createKey(1002, now.minusSeconds(5), now.plusSeconds(3600), RefreshKeysetId),
+                createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
+                createKey(1002, now.minusSeconds(5), now.plusSeconds(3600), RefreshKeysetId),
 
-            // keys in keyset4
-            createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
-            createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
-            createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
-            createKey(1007, now, now.plusSeconds(3600), 4),
-            createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
-            createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
-            // keys in keyset5
-            createKey(1010, now, now.plusSeconds(3600), 5),
-            createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
-            createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
-            // keys in keyset7
-            createKey(1016, now, now.plusSeconds(3600), 7),
-            createKey(1017, now.plusSeconds(5), now.plusSeconds(3600), 7),
-            createKey(1018, now.minusSeconds(5), now.minusSeconds(2), 7),
-            // keys in keyset9
-            createKey(1022, now, now.plusSeconds(3600), 9),
-            createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
-            createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
+                // keys in keyset4
+                createKey(1004, now.minusSeconds(6), now.plusSeconds(3600), 4),
+                createKey(1005, now.minusSeconds(4), now.plusSeconds(3600), 4),
+                createKey(1006, now.minusSeconds(2), now.plusSeconds(3600), 4),
+                createKey(1007, now, now.plusSeconds(3600), 4),
+                createKey(1008, now.plusSeconds(5), now.plusSeconds(3600), 4),
+                createKey(1009, now.minusSeconds(5), now.minusSeconds(2), 4),
+                // keys in keyset5
+                createKey(1010, now, now.plusSeconds(3600), 5),
+                createKey(1011, now.plusSeconds(5), now.plusSeconds(3600), 5),
+                createKey(1012, now.minusSeconds(5), now.minusSeconds(2), 5),
+                // keys in keyset7
+                createKey(1016, now, now.plusSeconds(3600), 7),
+                createKey(1017, now.plusSeconds(5), now.plusSeconds(3600), 7),
+                createKey(1018, now.minusSeconds(5), now.minusSeconds(2), 7),
+                // keys in keyset9
+                createKey(1022, now, now.plusSeconds(3600), 9),
+                createKey(1023, now.plusSeconds(5), now.plusSeconds(3600), 9),
+                createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         ));
 
         switch (testRun) {

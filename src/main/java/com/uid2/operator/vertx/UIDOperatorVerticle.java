@@ -66,6 +66,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
@@ -115,6 +116,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final boolean cstgDoDomainNameCheck;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
 
+    protected boolean keySharingEndpointProvideSiteDomainNames;
+
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
@@ -148,6 +151,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
+        this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
     }
 
@@ -510,6 +514,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
             final JsonArray keys = new JsonArray();
+            final JsonArray sites = new JsonArray();
+            final Set<Integer> accessibleSites = new HashSet<>();
 
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
             List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
@@ -556,9 +562,45 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 keyObj.put("expires", key.getExpires().getEpochSecond());
                 keyObj.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
                 keys.add(keyObj);
+                accessibleSites.add(keyset.getSiteId());
             }
             resp.put("keys", keys);
-
+            //without cstg enabled, operator won't have site data and siteProvider could be null
+            //and adding keySharingEndpointProvideSiteDomainNames in case something goes wrong
+            //and we can still enable cstg feature but turn off site domain name download in
+            // key/sharing endpoint
+            if(keySharingEndpointProvideSiteDomainNames && clientSideTokenGenerate) {
+                for (Integer siteId : accessibleSites.stream().sorted().collect(Collectors.toList())) {
+                    Site s = siteProvider.getSite(siteId);
+                    if(s == null || s.getDomainNames().isEmpty()) {
+                        continue;
+                    }
+                    JsonObject siteObj = new JsonObject();
+                    siteObj.put("id", siteId);
+                    siteObj.put("domain_names", s.getDomainNames().stream().sorted().collect(Collectors.toList()));
+                    sites.add(siteObj);
+                }
+                /*
+                The end result will look something like this:
+                "site_data": [
+                        {
+                            "id": 101,
+                            "domain_names": [
+                                "101.co.uk",
+                                "101.com"
+                            ]
+                        },
+                        {
+                            "id": 102,
+                            "domain_names": [
+                                "102.co.uk",
+                                "102.com"
+                            ]
+                        }
+                    ]
+                 */
+                resp.put("site_data", sites);
+            }
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);

@@ -62,19 +62,20 @@ terraform destroy
 
 ## Inputs
 
-| Name                 | Description | Type     | Default             | Required |
-|----------------------|-------------|----------|---------------------|:--------:|
-| project_id           | n/a         | `string` | n/a                 |   yes    |
-| service_account_name | n/a         | `string` | n/a                 |   yes    |
-| uid_operator_image   | n/a         | `string` | n/a                 |   yes    |
-| uid_api_token        | n/a         | `string` | n/a                 |   yes    |
-| region               | n/a         | `string` | `"asia-southeast1"` |    no    |
-| network_name         | n/a         | `string` | `"uid-operator"`    |    no    |
-| uid_machine_type     | n/a         | `string` | `"n2d-standard-16"` |    no    |
-| uid_deployment_env   | n/a         | `string` | `"integ"`           |    no    |
-| max_replicas         | n/a         | `number` | `5`                 |    no    |
-| min_replicas         | n/a         | `number` | `1`                 |    no    |
-| debug_mode           | n/a         | `bool`   | `false`             |    no    |
+| Name                      | Description | Type     | Default              | Required |
+|---------------------------|-------------|----------|----------------------|:--------:|
+| project_id                | n/a         | `string` | n/a                  |   yes    |
+| service_account_name      | n/a         | `string` | n/a                  |   yes    |
+| uid_operator_image        | n/a         | `string` | n/a                  |   yes    |
+| uid_api_token             | n/a         | `string` | n/a                  |   yes    |
+| region                    | n/a         | `string` | `"asia-southeast1"`  |    no    |
+| network_name              | n/a         | `string` | `"uid-operator"`     |    no    |
+| uid_api_token_secret_name | n/a         | `string` | `"secret-api-token"` |    no    |
+| uid_machine_type          | n/a         | `string` | `"n2d-standard-16"`  |    no    |
+| uid_deployment_env        | n/a         | `string` | `"integ"`            |    no    |
+| max_replicas              | n/a         | `number` | `5`                  |    no    |
+| min_replicas              | n/a         | `number` | `1`                  |    no    |
+| debug_mode                | n/a         | `bool`   | `false`              |    no    |
 
 ## Outputs
 

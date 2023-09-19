@@ -28,6 +28,7 @@ module "service_account" {
   project_roles = [
     "${var.project_id}=>roles/confidentialcomputing.workloadUser",
     "${var.project_id}=>roles/logging.logWriter",
+    "${var.project_id}=>roles/secretmanager.secretAccessor",
   ]
 }
 

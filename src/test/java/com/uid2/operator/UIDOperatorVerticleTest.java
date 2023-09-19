@@ -141,6 +141,7 @@ public class UIDOperatorVerticleTest {
         config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
+        config.put("key_sharing_endpoint_provide_site_domain_names", true);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -3385,7 +3386,48 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
+    //set some default domain names for all possible sites for each unit test first
+    private void setupSiteDomainNameMock(int... siteIds) {
+
+        Map<Integer, Site> sites = new HashMap<>();
+        for(int siteId : siteIds) {
+            Site site = new Site(siteId, "site"+siteId, true, new HashSet<>(Arrays.asList(siteId+".com", siteId+".co.uk")));
+            sites.put(site.getId(), site);
+        }
+
+        when(siteProvider.getAllSites()).thenReturn(new HashSet<>(sites.values()));
+        when(siteProvider.getSite(anyInt())).thenAnswer(invocation -> {
+            int siteId = invocation.getArgument(0);
+            return sites.get(siteId);
+        });
+    }
+
+    public HashMap<Integer, List<String>> setupExpectation(int... siteIds)
+    {
+        HashMap<Integer, List<String>> expectedSites = new HashMap();
+        for (int siteId : siteIds)
+        {
+            List<String> siteDomains = Arrays.asList(siteId+".co.uk", siteId+".com");
+            expectedSites.put(siteId, siteDomains);
+        }
+        return expectedSites;
+    }
+
+    public void verifyExpectedSiteDetail(HashMap<Integer, List<String>> expectedSites, JsonArray actualResult) {
+
+        assertEquals(actualResult.size(), expectedSites.size());
+        for(int i = 0; i < actualResult.size(); i++) {
+
+            JsonObject siteDetail = actualResult.getJsonObject(i);
+            int siteId = siteDetail.getInteger("id");
+            assertTrue(expectedSites.get(siteId).containsAll((Collection<String>) siteDetail.getMap().get("domain_names")));
+        }
+
+        return;
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans =  {true, false})
         // Tests:
         //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
         //   ID_READER has access to a keyset with a missing allowed_sites              - access through sharing
@@ -3393,7 +3435,11 @@ public class UIDOperatorVerticleTest {
         //   ID_READER has no access to a keyset that is disabled                       - direct reject
         //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharingKeysets_IDREADER(Vertx vertx, VertxTestContext testContext) {
+    void keySharingKeysets_IDREADER(boolean provideSiteDomainNames, Vertx vertx, VertxTestContext testContext) {
+
+        if (!provideSiteDomainNames) {
+            this.uidOperatorVerticle.setKeySharingEndpointProvideSiteDomainNames(false);
+        }
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.ID_READER);
@@ -3426,6 +3472,10 @@ public class UIDOperatorVerticleTest {
                 createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
+        setupSiteDomainNameMock(101, 102, 103, 105);
+        //site 104 domain name list will be returned but we will set a blank list for it
+        doReturn(new Site(104, "site104", true, new HashSet<>())).when(siteProvider).getSite(104);
+
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
@@ -3434,6 +3484,17 @@ public class UIDOperatorVerticleTest {
             assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
+
+            if(provideSiteDomainNames) {
+                HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102);
+                // site 104 has empty domain name list intentionally previously so while site 104 should be included in
+                // this /key/sharing response, it won't appear in this domain name list
+                verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
+            }
+            else {
+                //otherwise we shouldn't even have a 'sites' field
+                assertNull(respJson.getJsonObject("body").getJsonArray("site_data"));
+            }
             testContext.completeNow();
         });
     }
@@ -3452,7 +3513,7 @@ public class UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.SHARER);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
         //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
-
+        setupSiteDomainNameMock(101, 102, 103, 104, 105);
         //Keys from these keysets are not expected: keyset6 (disabled keyset), keyset7 (sharing with ID_READERs but not SHARERs), keyset8 (not sharing with 101), keyset10 (not sharing with anyone)
         KeysetKey[] expectedKeys = {
                 createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
@@ -3481,6 +3542,10 @@ public class UIDOperatorVerticleTest {
             assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
+
+            HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 104);
+            verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
+
             testContext.completeNow();
         });
     }
@@ -3499,10 +3564,11 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(102, "site key".getBytes(), now, now, now.plusSeconds(10), 10),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
-
+        setupSiteDomainNameMock(101, 102, 103, 104, 105);
         Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
+            verifyExpectedSiteDetail(new HashMap<>(), respJson.getJsonObject("body").getJsonArray("site_data"));
             checkEncryptionKeysSharing(respJson, siteId, encryptionKeys);
             testContext.completeNow();
         });
@@ -3531,7 +3597,7 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(4, "key4".getBytes(), now, now, now.plusSeconds(10), 7),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
-
+        setupSiteDomainNameMock(10, 11, 12, 13);
         switch (testRun) {
             case "NoKeyset":
                 siteId = 8;
@@ -3557,15 +3623,24 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
             assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
 
+            JsonArray siteData = respJson.getJsonObject("body").getJsonArray("site_data");
+
             switch (testRun) {
                 case "NoKeyset":
                     assertNull(respJson.getJsonObject("body").getInteger("default_keyset_id"));
+                    //no site downloaded
+                    verifyExpectedSiteDetail(new HashMap<>(), siteData);
                     break;
                 case "NoKey":
                     assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+                    //no site downloaded
+                    verifyExpectedSiteDetail(new HashMap<>(), siteData);
                     break;
                 case "SharedKey":
                     assertEquals(6, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+                    //key 4 returned which has keyset id 7 which in turns has site id 13
+                    HashMap<Integer, List<String>> expectedSites = setupExpectation(13);
+                    verifyExpectedSiteDetail(expectedSites, siteData);
                     break;
             }
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);

@@ -42,9 +42,15 @@ cp -r target scripts/gcp-oidc/
 docker build ./scripts/gcp-oidc/. -t uid2-operator:v1.0.0-SNAPSHOT
 ```
 
-## Prerequisites
+## Deploy via terraform
 
-UID2 Operator can be run on any GCP account and project, however to support Attestation, you need to create a 
+Check `/terraform/README.md` for details.
+
+## Deploy via gcloud cli
+
+### Prerequisites
+
+UID2 Operator can be run on any GCP account and project, however to support Attestation, you need to create a
 service account that would be used to run Confidential Space VMs, and grant it proper permissions.
 
 Run below from [Google Cloud Console](https://console.cloud.google.com/):
@@ -54,10 +60,21 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
     ```
     $ gcloud config set project {PROJECT_ID}
     ```
- 
+
 3. Enable the following APIs:
+
+| Name                                 | Description                |
+|--------------------------------------|----------------------------|
+| compute.googleapis.com               | Compute Engine API         | 
+| confidentialcomputing.googleapis.com | Confidential Computing API | 
+| logging.googleapis.com               | Cloud Logging API          | 
+| secretmanager.googleapis.com         | Service Management API     | 
+
     ```
-    $ gcloud services enable compute.googleapis.com confidentialcomputing.googleapis.com
+    $ gcloud services enable compute.googleapis.com \
+      confidentialcomputing.googleapis.com \
+      logging.googleapis.com \
+      secretmanager.googleapis.com
     ```
 
 4. Create a service account to run the workload:
@@ -88,11 +105,11 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
       --target-service-accounts={SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com
     ```
 
-## Integration Deployment
+### Integration Deployment
 
 We can deploy new UID2 Operator in GCP Confidential Space Enclave into Integration Environment by following below steps.
 
-### (For uid2 admin) Register enclave id in admin portal
+#### (For uid2 admin) Register enclave id in admin portal
 1. Generate enclave id:  go to Admin portal [GCP Enclave Id page](https://admin-integ.uidapi.com/adm/enclave-gcp-v2.html),
 - Input:
   - the full digest for the image, with or without "sha256:"
@@ -106,7 +123,8 @@ Go to Admin portal [Enclave Id Management page](https://admin-integ.uidapi.com/a
    - Protocol: "gcp-oidc"
    - Enclave ID: the generated value in Step 1
 
-### (For partner) Create VM Instance 
+#### (For partner) Create VM Instance
+
 There are a few placeholders that you need to replace in below command:
  - `{INSTANCE_NAME}`: your VM name, can be changed as your need.
  - `{SERVICE_ACCOUNT}`: in `{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com` format, the one you created 
@@ -126,7 +144,7 @@ $ gcloud compute instances create {INSTANCE_NAME} \
   --metadata ^~^tee-image-reference=us-docker.pkg.dev/uid2-prod-project/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-container-log-redirect=true~tee-env-DEPLOYMENT_ENVIRONMENT=integ~tee-env-API_TOKEN={API_TOKEN}
 ```
 
-## Production Deployment
+### Production Deployment
 
 We can deploy new UID2 Operator in GCP Confidential Space Enclave into Production Environment by following the same process as for
 Integration.

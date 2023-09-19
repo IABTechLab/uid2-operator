@@ -130,7 +130,7 @@ There are a few placeholders that you need to replace in below command:
  - `{SERVICE_ACCOUNT}`: in `{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com` format, the one you created 
 in Prerequisites phase.
  - `{IMAGE_SHA}`: a valid UID2 operator image digest. You should have received this from UID2 team.
- - `{API_TOKEN_SECRET_NAME}`: the secret name of your operator API token, the format is
+ - `{API_TOKEN_SECRET_NAME}`: the secret name of your operator API token created in [the above section](#for-partner-create-secret-of-your-private-operator-api-token-in-secret-manager), the format is
    `projects/<project_id>/secrets/<secret_id>/versions/<version>`
 
 ```

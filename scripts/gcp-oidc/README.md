@@ -55,7 +55,7 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
  
 3. Enable the following APIs:
     ```
-    $ gcloud services enable compute.googleapis.com confidentialcomputing.googleapis.com
+    $ gcloud services enable compute.googleapis.com confidentialcomputing.googleapis.com secretmanager.googleapis.com
     ```
 
 4. Create a service account to run the workload:
@@ -75,6 +75,12 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
     $ gcloud projects add-iam-policy-binding {PROJECT_ID} \
       --member=serviceAccount:{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com \
       --role=roles/logging.logWriter
+    ```
+- `roles/secretmanager.secretAccessor`, grants the ability to access operator API token that is managed in Secret Manager.
+    ```
+    $ gcloud projects add-iam-policy-binding {PROJECT_ID} \
+      --member=serviceAccount:{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com \
+      --role=roles/secretmanager.secretAccessor
     ```
   
 6. Add VPC rule to allow public 8080 access (default exposed port of UID2 operator):
@@ -104,16 +110,33 @@ Go to Admin portal [Enclave Id Management page](https://admin-integ.uidapi.com/a
    - Protocol: "gcp-oidc"
    - Enclave ID: the generated value in Step 1
 
+### (For partner) Create secret of your private operator API token in Secret Manager
+Store your private operator API token provided by the UID2 team to Secret Manager and get the secret name which will be used to replace the `{API_TOKEN_SECRET_NAME}` placeholder later during VM instance creation.
+
+For example, following script creates a new secret `uid2_operator_api_token`, and prints secret name something like `projects/111111111111/secrets/uid2_operator_api_token/versions/1` which will be used to replace the `{API_TOKEN_SECRET_NAME}` placeholder later.
+```
+API_TOKEN="<YOUR_OPERATOR_API_TOKEN>"
+echo -n $API_TOKEN | gcloud secrets create uid2_operator_api_token \
+    --replication-policy="automatic" \
+    --data-file=-
+
+gcloud secrets versions describe latest --secret uid2_operator_api_token --format 'value(name)'
+```
+
 ### (For partner) Create VM Instance 
 There are a few placeholders that you need to replace in below command:
  - `{INSTANCE_NAME}`: your VM name, can be changed as your need.
+ - `{ZONE}`: which Google Cloud zone will be deployed on.
  - `{SERVICE_ACCOUNT}`: in `{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com` format, the one you created 
 in Prerequisites phase.
  - `{IMAGE_SHA}`: a valid UID2 operator image digest. You should have received this from UID2 team.
- - `{API_TOKEN}`: private operator api token, dedicated for you. You should have received this from UID2 team.
+ - `{API_TOKEN_SECRET_NAME}`: the secret name of your operator API token, the format is
+   `projects/<project_id>/secrets/<secret_id>/versions/<version>`
 
 ```
 $ gcloud compute instances create {INSTANCE_NAME} \
+  --zone {ZONE} \
+  --machine-type n2d-standard-2 \
   --confidential-compute \
   --shielded-secure-boot \
   --maintenance-policy Terminate \
@@ -121,7 +144,7 @@ $ gcloud compute instances create {INSTANCE_NAME} \
   --image-project confidential-space-images \
   --image-family confidential-space \
   --service-account {SERVICE_ACCOUNT} \
-  --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-container-log-redirect=true~tee-env-DEPLOYMENT_ENVIRONMENT=integ~tee-env-API_TOKEN={API_TOKEN}
+  --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-container-log-redirect=true~tee-env-DEPLOYMENT_ENVIRONMENT=integ~tee-env-API_TOKEN_SECRET_NAME={API_TOKEN_SECRET_NAME}
 ```
 
 ## Production Deployment
@@ -129,7 +152,7 @@ $ gcloud compute instances create {INSTANCE_NAME} \
 We can deploy new UID2 Operator in GCP Confidential Space Enclave into Production Environment by following the same process as for
 Integration.
 
-You will be provided a new `{API_TOKEN}`, and `~tee-env-DEPLOYMENT_ENVIRONMENT=integ~` needs to be changed to
+You will be provided a new operator API token which should be stored in Secret Manager, and `~tee-env-DEPLOYMENT_ENVIRONMENT=integ~` needs to be changed to
 `~tee-env-DEPLOYMENT_ENVIRONMENT=prod~`.
 
 It is recommended that you also specify the machine type in the gcloud script. Currently, it is recommended to run the
@@ -139,6 +162,7 @@ An example of the script is given below:
 
 ```
 $ gcloud compute instances create {INSTANCE_NAME} \
+  --zone {ZONE} \
   --machine-type n2d-standard-16 \
   --confidential-compute \
   --shielded-secure-boot \
@@ -147,12 +171,10 @@ $ gcloud compute instances create {INSTANCE_NAME} \
   --image-project confidential-space-images \
   --image-family confidential-space \
   --service-account {SERVICE_ACCOUNT} \
-  --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-container-log-redirect=true~tee-env-DEPLOYMENT_ENVIRONMENT=prod~tee-env-API_TOKEN={API_TOKEN}
+  --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-container-log-redirect=true~tee-env-DEPLOYMENT_ENVIRONMENT=prod~tee-env-API_TOKEN_SECRET_NAME={API_TOKEN_SECRET_NAME}
 ```
 
-Note that compared to the `gcloud` command used in the prior section, an additional option
-`--machine-type n2d-standard-16` is added, which ensures production deployment of UID2 Operator runs on
-the recommended machine type that matches the production configuration.
+Note that compared to the `gcloud` command used in the prior section, parameter `--machine-type n2d-standard-16` is set to ensure production deployment of UID2 Operator runs on the recommended machine type for production.
 
 ## Upgrading
 

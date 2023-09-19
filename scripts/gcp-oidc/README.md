@@ -68,7 +68,7 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
 | compute.googleapis.com               | Compute Engine API         | 
 | confidentialcomputing.googleapis.com | Confidential Computing API | 
 | logging.googleapis.com               | Cloud Logging API          | 
-| secretmanager.googleapis.com         | Service Management API     | 
+| secretmanager.googleapis.com         | Secret Manager API         | 
 
     ```
     $ gcloud services enable compute.googleapis.com \

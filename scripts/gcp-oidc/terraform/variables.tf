@@ -4,7 +4,7 @@ variable "project_id" {
 
 variable "region" {
   type    = string
-  default = "asia-southeast1"
+  default = "us-east1"
 }
 
 variable "network_name" {

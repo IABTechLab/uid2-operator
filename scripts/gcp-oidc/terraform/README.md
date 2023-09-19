@@ -71,7 +71,7 @@ terraform destroy
 | uid_api_token_secret_name | n/a         | `string` | `"secret-api-token"` |    no    |
 | uid_machine_type          | n/a         | `string` | `"n2d-standard-16"`  |    no    |
 | uid_deployment_env        | n/a         | `string` | `"integ"`            |    no    |
-| region                    | n/a         | `string` | `"asia-southeast1"`  |    no    |
+| region                    | n/a         | `string` | `"us-east1"`         |    no    |
 | network_name              | n/a         | `string` | `"uid-operator"`     |    no    |
 | max_replicas              | n/a         | `number` | `5`                  |    no    |
 | min_replicas              | n/a         | `number` | `1`                  |    no    |

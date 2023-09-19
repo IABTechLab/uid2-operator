@@ -4,8 +4,9 @@ We provide a terraform template to deploy UID2 private operators with LB and aut
 running on Confidential Space VMs, and will be deployed in multiple AZs.
 
 We will set up below in your GCP project
-- Activate required GCP APIs. 
-- Set up a service account to run Confidential Space VMs.
+- Activate required GCP APIs.
+- Service account to run Confidential Space VMs.
+- Secret to hold `api_token`.
 - Network: VPC and subnetwork.
 - Instances: Instance template, and Instance groups (with autoscaling)
 - Ingress: Load balancer (with healthcheck), forwarding rules, firewall rules.

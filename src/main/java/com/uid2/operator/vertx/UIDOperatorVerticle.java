@@ -95,6 +95,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final ITokenEncoder encoder;
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
+    private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
@@ -112,10 +113,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IStatsCollectorQueue _statsCollectorQueue;
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
-    private final IClientKeyProvider clientkeyProvider;
-
     private final boolean cstgDoDomainNameCheck;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
+    public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -151,7 +151,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this._statsCollectorQueue = statsCollectorQueue;
-        this.clientkeyProvider = clientKeyProvider;
+        this.clientKeyProvider = clientKeyProvider;
     }
 
     @Override
@@ -771,10 +771,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 }
 
-                ClientKey oldestClientKey = this.clientkeyProvider.getOldestClientKey(clientKey.getSiteId());
-                if (isNewClient(oldestClientKey) && (!req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
+                if (isOptOutCheckRequired(rc) && (!req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
                         || TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) != TokenGeneratePolicy.respectOptOut())) {
-                    ResponseUtil.ClientError(rc, "request body misses opt-out policy argument");
+                    ResponseUtil.ClientError(rc, "Required opt-out policy argument is missing or not set to 1");
                     return;
                 }
 
@@ -1284,11 +1283,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
-            final ClientKey oldestClientKey = this.clientkeyProvider.getOldestClientKey(clientKey.getSiteId());
-            if (isNewClient(oldestClientKey) && (!requestJsonObject.containsKey(IDENTITY_MAP_POLICY_PARAM)
+            if (isOptOutCheckRequired(rc) && (!requestJsonObject.containsKey(IDENTITY_MAP_POLICY_PARAM)
                     || IdentityMapPolicy.fromValue(requestJsonObject.getInteger(IDENTITY_MAP_POLICY_PARAM)) != IdentityMapPolicy.respectOptOut())) {
-                ResponseUtil.ClientError(rc, "request body misses opt-out policy argument");
+                ResponseUtil.ClientError(rc, "Required opt-out policy argument is missing or not set to 1");
                 return;
             }
 
@@ -1634,9 +1631,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 TokenGeneratePolicy.defaultPolicy();
     }
 
-    private boolean isNewClient(ClientKey clientKey) {
-        long cutoff = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
-        return clientKey != null && clientKey.getCreated() >= cutoff;
+    private boolean isOptOutCheckRequired(RoutingContext rc) {
+        final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+        final ClientKey oldestClientKey = this.clientKeyProvider.getOldestClientKey(clientKey.getSiteId());
+        return oldestClientKey.getCreated() >= OPT_OUT_CHECK_CUTOFF_DATE;
     }
 
     private static final String IDENTITY_MAP_POLICY_PARAM = "policy";

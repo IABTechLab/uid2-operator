@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static com.uid2.operator.service.V2RequestUtil.V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES;
+import static com.uid2.operator.vertx.UIDOperatorVerticle.OPT_OUT_CHECK_CUTOFF_DATE;
 import static com.uid2.shared.Const.Data.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -68,6 +69,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
     private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+    private final Instant legacyClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).minus(1, ChronoUnit.DAYS);
     private static final String firstLevelSalt = "first-level-salt";
     private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123");
     private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
@@ -148,18 +150,22 @@ public class UIDOperatorVerticleTest {
     }
 
     protected void fakeAuth(int siteId, Role... roles) {
+        fakeAuth(siteId, legacyClientCreationDateTime, roles);
+    }
+    protected void fakeAuth(int siteId, Instant created, Role... roles) {
         ClientKey clientKey = new ClientKey(
                 "test-key",
                 "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=",
                 "fsSGnDxa/V9eJZ9Tas+dowwyO/X1UsC68RN9qM2xUu9ZOaKEOv9EVd7pkt3As/nE5B6TRu0PzK+IDzSQhD1+rw==",
                 Utils.toBase64String(clientSecret),
                 "test-contact",
-                now,
+                created,
                 Set.of(roles),
                 siteId
         );
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
+        when(clientKeyProvider.getOldestClientKey(anyInt())).thenReturn(clientKey);
     }
 
     private void clearAuth() {

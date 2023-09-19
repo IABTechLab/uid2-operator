@@ -69,7 +69,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
     private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-    private final Instant legacyClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).minus(1, ChronoUnit.DAYS);
+    private static final Instant legacyClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).minus(1, ChronoUnit.SECONDS);
+    private static final Instant newClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).plus(1, ChronoUnit.SECONDS);
     private static final String firstLevelSalt = "first-level-salt";
     private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123");
     private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
@@ -745,6 +746,68 @@ public class UIDOperatorVerticleTest {
                 assertEquals(-1, advertisingTokenString.indexOf('/'));
             }
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"NoOutoutPolicySpecified", "WrongOutOutPolicySpecified"})
+    void identityMapOptOutPolicyCheckForNewClient(String testRun, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = new JsonArray();
+        emails.add("test1@uid2.com");
+        req.put("email", emails);
+        switch (testRun) {
+            case "NoOutoutPolicySpecified":
+                break;
+            case "WrongOutOutPolicySpecified":
+                req.put("policy", 0);
+                break;
+            default:
+                req.put("policy", 1);
+                break;
+        }
+
+        send("v2", vertx, "v2/identity/map", false, null, req, 400, respJson -> {
+            assertFalse(respJson.containsKey("body"));
+            assertEquals("client_error", respJson.getString("status"));
+            assertEquals("Required opt-out policy argument is missing or not set to 1", respJson.getString("message"));
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"NoPolicySpecified", "WrongPolicySpecified"})
+    void tokenGenerateOptOutPolicyCheckForNewClient(String testRun, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, newClientCreationDateTime, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", "test@email.com");
+        switch (testRun) {
+            case "NoPolicySpecified":
+                break;
+            case "WrongPolicySpecified":
+                v2Payload.put("policy", 0);
+                break;
+            default:
+                v2Payload.put("policy", 1);
+                break;
+        }
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 400,
+                json -> {
+                    assertFalse(json.containsKey("body"));
+                    assertEquals("client_error", json.getString("status"));
+                    assertEquals("Required opt-out policy argument is missing or not set to 1", json.getString("message"));
+                    testContext.completeNow();
+                });
     }
 
     @ParameterizedTest

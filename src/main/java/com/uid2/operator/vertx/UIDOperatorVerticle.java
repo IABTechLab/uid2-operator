@@ -31,6 +31,7 @@ import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
 import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.reader.RotatingClientKeyProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -111,6 +112,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IStatsCollectorQueue _statsCollectorQueue;
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
+    private final IClientKeyProvider clientkeyProvider;
 
     private final boolean cstgDoDomainNameCheck;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
@@ -149,6 +151,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this._statsCollectorQueue = statsCollectorQueue;
+        this.clientkeyProvider = clientKeyProvider;
     }
 
     @Override
@@ -768,9 +771,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 }
 
-                if (isAfterCutoffDate(clientKey.getCreated()) && (!req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
+                ClientKey oldestClientKey = this.clientkeyProvider.getOldestClientKey(clientKey.getSiteId());
+                if (isNewClient(oldestClientKey) && (!req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
                         || TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) != TokenGeneratePolicy.respectOptOut())) {
-                    LOGGER.error("request body misses opt-out policy argument");
                     ResponseUtil.ClientError(rc, "request body misses opt-out policy argument");
                     return;
                 }
@@ -1282,9 +1285,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
 
             final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
-            if (isAfterCutoffDate(clientKey.getCreated()) && (!requestJsonObject.containsKey(IDENTITY_MAP_POLICY_PARAM)
+            final ClientKey oldestClientKey = this.clientkeyProvider.getOldestClientKey(clientKey.getSiteId());
+            if (isNewClient(oldestClientKey) && (!requestJsonObject.containsKey(IDENTITY_MAP_POLICY_PARAM)
                     || IdentityMapPolicy.fromValue(requestJsonObject.getInteger(IDENTITY_MAP_POLICY_PARAM)) != IdentityMapPolicy.respectOptOut())) {
-                LOGGER.error("request body misses opt-out policy argument");
                 ResponseUtil.ClientError(rc, "request body misses opt-out policy argument");
                 return;
             }
@@ -1631,9 +1634,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 TokenGeneratePolicy.defaultPolicy();
     }
 
-    private boolean isAfterCutoffDate(long timestamp) {
+    private boolean isNewClient(ClientKey clientKey) {
         long cutoff = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
-        return timestamp >= cutoff;
+        return clientKey != null && clientKey.getCreated() >= cutoff;
     }
 
     private static final String IDENTITY_MAP_POLICY_PARAM = "policy";

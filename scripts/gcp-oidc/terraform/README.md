@@ -81,7 +81,7 @@ terraform destroy
 
 | Name             | Description |
 |------------------|-------------|
-| load-balancer-ip | n/a         |
+| load_balancer_ip | n/a         |
 
 ## Notes
 

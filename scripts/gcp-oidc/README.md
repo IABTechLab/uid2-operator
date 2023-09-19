@@ -56,6 +56,7 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
     ```
  
 3. Enable the following APIs:
+
 | Name                                 | Description                |
 |--------------------------------------|----------------------------|
 | compute.googleapis.com               | Compute Engine API         | 

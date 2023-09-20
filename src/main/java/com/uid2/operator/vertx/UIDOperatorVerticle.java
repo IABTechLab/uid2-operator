@@ -31,6 +31,7 @@ import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
 import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.reader.RotatingClientKeyProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -84,7 +85,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
     private static final String REQUEST = "request";
-    private static final String LINK_ID = "link_id";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
     private final JsonObject config;
@@ -94,9 +94,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IClientSideKeypairStore clientSideKeypairProvider;
     private final ITokenEncoder encoder;
     private final ISaltProvider saltProvider;
-    private final IServiceStore serviceProvider;
-    private final IServiceLinkStore serviceLinkProvider;
     private final IOptOutStore optOutStore;
+    private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
@@ -113,12 +112,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int tcfVendorId;
     private final IStatsCollectorQueue _statsCollectorQueue;
     private final KeyManager keyManager;
-    private final boolean checkServiceLinkIdForIdentityMap;
-    private final String privateLinkId;
-
+    private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
-
+    public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -127,12 +124,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IClientSideKeypairStore clientSideKeypairProvider,
                                KeyManager keyManager,
                                ISaltProvider saltProvider,
-                               IServiceStore serviceProvider,
-                               IServiceLinkStore serviceLinkProvider,
                                IOptOutStore optOutStore,
                                Clock clock,
-                               IStatsCollectorQueue statsCollectorQueue) {
+                               IStatsCollectorQueue statsCollectorQueue,
+                               SecureLinkValidatorService secureLinkValidatorService) {
         this.keyManager = keyManager;
+        this.secureLinkValidatorService = secureLinkValidatorService;
         try {
             aesGcm = Cipher.getInstance("AES/GCM/NoPadding");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
@@ -146,18 +143,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.siteProvider = siteProvider;
         this.clientSideKeypairProvider = clientSideKeypairProvider;
         this.saltProvider = saltProvider;
-        this.serviceProvider = serviceProvider;
-        this.serviceLinkProvider = serviceLinkProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
         this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
-        this.checkServiceLinkIdForIdentityMap = config.getBoolean(Const.Config.CheckServiceLinkIdForIdentityMapProp, false);
-        this.privateLinkId = config.getString(Const.Config.PrivateLinkIdProp, "");
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
         this._statsCollectorQueue = statsCollectorQueue;
+        this.clientKeyProvider = clientKeyProvider;
     }
 
     @Override
@@ -777,10 +771,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 }
 
-                if (isAfterCutoffDate(clientKey.getCreated()) && (!req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
-                        || TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) != TokenGeneratePolicy.respectOptOut())) {
-                    LOGGER.error("request body misses opt-out policy argument");
-                    ResponseUtil.ClientError(rc, "request body misses opt-out policy argument");
+                boolean respsctOptOut = req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
+                        && TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) == TokenGeneratePolicy.respectOptOut();
+                if (!respsctOptOut && isOptOutCheckRequired(rc, respsctOptOut)) {
+                    ResponseUtil.ClientError(rc, "Required opt-out policy argument is missing or not set to 1");
                     return;
                 }
 
@@ -1038,17 +1032,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private boolean isServiceLinkAuthenticated(RoutingContext rc, JsonObject requestJsonObject) {
-        if (requestJsonObject.containsKey(LINK_ID)) {
-            String linkId = requestJsonObject.getString(LINK_ID);
-            if (!linkId.equalsIgnoreCase(privateLinkId)) {
-                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
-                return false;
-            }
-        }
-        return true;
-    }
-
     private InputUtil.InputVal getTokenInput(RoutingContext rc) {
         final InputUtil.InputVal input;
         final List<String> emailInput = rc.queryParam("email");
@@ -1294,18 +1277,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
                 return;
             }
+
             JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
-            if (checkServiceLinkIdForIdentityMap) {
-                if (!isServiceLinkAuthenticated(rc, requestJsonObject)) {
-                    return;
-                }
+            if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject)) {
+                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
+                return;
             }
 
-            final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
-            if (isAfterCutoffDate(clientKey.getCreated()) && (!requestJsonObject.containsKey(IDENTITY_MAP_POLICY_PARAM)
-                    || IdentityMapPolicy.fromValue(requestJsonObject.getInteger(IDENTITY_MAP_POLICY_PARAM)) != IdentityMapPolicy.respectOptOut())) {
-                LOGGER.error("request body misses opt-out policy argument");
-                ResponseUtil.ClientError(rc, "request body misses opt-out policy argument");
+            boolean respectOptOut = requestJsonObject.containsKey(IDENTITY_MAP_POLICY_PARAM)
+                    && IdentityMapPolicy.fromValue(requestJsonObject.getInteger(IDENTITY_MAP_POLICY_PARAM)) == IdentityMapPolicy.respectOptOut();
+            if (!respectOptOut && isOptOutCheckRequired(rc, respectOptOut)) {
+                ResponseUtil.ClientError(rc, "Required opt-out policy argument is missing or not set to 1");
                 return;
             }
 
@@ -1651,9 +1633,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 TokenGeneratePolicy.defaultPolicy();
     }
 
-    private boolean isAfterCutoffDate(long timestamp) {
-        long cutoff = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
-        return timestamp >= cutoff;
+    private boolean isOptOutCheckRequired(RoutingContext rc, boolean respectOptOut) {
+        final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+        final ClientKey oldestClientKey = this.clientKeyProvider.getOldestClientKey(clientKey.getSiteId());
+        boolean newClient = oldestClientKey.getCreated() >= OPT_OUT_CHECK_CUTOFF_DATE;
+
+        if (newClient && !respectOptOut) {
+            // log policy violation
+            LOGGER.warn(String.format("Failed to respect opt-out policy: siteId=%d, clientKeyName=%s, clientKeyCreated=%d",
+                    oldestClientKey.getSiteId(), oldestClientKey.getName(), oldestClientKey.getCreated()));
+        }
+        return newClient;
     }
 
     private static final String IDENTITY_MAP_POLICY_PARAM = "policy";

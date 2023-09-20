@@ -1,9 +1,13 @@
 {
   "service_instances": 4,
+  "sites_metadata_path": "https://core.prod.euid.eu/sites/refresh",
   "clients_metadata_path": "https://core.prod.euid.eu/clients/refresh",
   "keysets_metadata_path": "https://core.prod.euid.eu/key/keyset/refresh",
   "keyset_keys_metadata_path": "https://core.prod.euid.eu/key/keyset-keys/refresh",
+  "client_side_keypairs_metadata_path": "https://core.prod.euid.eu/client_side_keypairs/refresh",
   "salts_metadata_path": "https://core.prod.euid.eu/salt/refresh",
+  "services_metadata_path": "https://core.prod.euid.eu/services/refresh",
+  "service_links_metadata_path": "https://core.prod.euid.eu/service_links/refresh",
   "optout_metadata_path": "https://optout.prod.euid.eu/optout/refresh",
   "core_attest_url": "https://core.prod.euid.eu/attest",
   "core_api_token": "your-api-token",

@@ -32,7 +32,5 @@
   "optout_inmem_cache": false,
   "enclave_platform": null,
   "failure_shutdown_wait_hours": 120,
-  "sharing_token_expiry_seconds": 2592000,
-  "check_service_link_id_for_identity_map": false,
-  "private_link_id": 574365156811
+  "sharing_token_expiry_seconds": 2592000
 }

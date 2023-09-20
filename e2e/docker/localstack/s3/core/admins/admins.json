@@ -25,6 +25,8 @@
       "OPERATOR_MANAGER",
       "SHARING_PORTAL"
     ],
-    "disabled": false
+    "disabled": false,
+    "key_hash": "lG98WT7uswBxA5MmGsKT+XZ3qH1kdKbwYvNbw+dUSVNvBpG1kMyOktCdWqSnBqddSUtp2OUBRTBj6kZOa4dw7w==",
+    "key_salt": "VYlVTZzDN+imzE+BQ6ezI/WpiJg5rmFty0Va3aeX2lQ="
   }
 ]

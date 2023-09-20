@@ -26,8 +26,10 @@ and Keys, to bootstrap UID2 Operator.
 ## Build
 
 The official Docker image to run UID2 Operator on GCP Confidential Space enclave can be
-pulled from the following Google Container Registry location:
+pulled from the following GitHub Container Registry location:
 - docker pull ghcr.io/iabtechlab/uid2-operator
+
+Note that for deployments in integration or production environment, replicated Docker images hosted in Google Cloud Artifact Registry are used to improve reliability.
 
 You can use the following command to build a non-certified UID2 operator container image from source code:
 
@@ -37,7 +39,7 @@ You can use the following command to build a non-certified UID2 operator contain
 
 mvn -B package -P gcp 
 cp -r target scripts/gcp-oidc/
-docker build ./scripts/gcp-oidc/. -t ghcr.io/iabtechlab/uid2-operator:v1.0.0-SNAPSHOT
+docker build ./scripts/gcp-oidc/. -t uid2-operator:v1.0.0-SNAPSHOT
 ```
 
 ## Prerequisites
@@ -70,16 +72,14 @@ Run below from [Google Cloud Console](https://console.cloud.google.com/):
       --member=serviceAccount:{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com \
       --role=roles/confidentialcomputing.workloadUser
     ```
-
-6. (Optional) Grant below optional permission to service account:
-- `logging.logWriter`, access to write & view logs in debug mode.
+- `logging.logWriter`, access to write & view logs in Cloud Logging.
     ```
     $ gcloud projects add-iam-policy-binding {PROJECT_ID} \
       --member=serviceAccount:{SERVICE_ACCOUNT_NAME}@{PROJECT_ID}.iam.gserviceaccount.com \
       --role=roles/logging.logWriter
     ```
   
-7. Add VPC rule to allow public 8080 access (default exposed port of UID2 operator):
+6. Add VPC rule to allow public 8080 access (default exposed port of UID2 operator):
     ```
     $ gcloud compute firewall-rules create operator-tcp \
       --direction=INGRESS --priority=1000 --network=default --action=ALLOW \
@@ -123,7 +123,7 @@ $ gcloud compute instances create {INSTANCE_NAME} \
   --image-project confidential-space-images \
   --image-family confidential-space \
   --service-account {SERVICE_ACCOUNT} \
-  --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-env-DEPLOYMENT_ENVIRONMENT=integ~tee-env-API_TOKEN={API_TOKEN}
+  --metadata ^~^tee-image-reference=us-docker.pkg.dev/uid2-prod-project/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-container-log-redirect=true~tee-env-DEPLOYMENT_ENVIRONMENT=integ~tee-env-API_TOKEN={API_TOKEN}
 ```
 
 ## Production Deployment
@@ -149,7 +149,7 @@ $ gcloud compute instances create {INSTANCE_NAME} \
   --image-project confidential-space-images \
   --image-family confidential-space \
   --service-account {SERVICE_ACCOUNT} \
-  --metadata ^~^tee-image-reference=ghcr.io/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-env-DEPLOYMENT_ENVIRONMENT=prod~tee-env-API_TOKEN={API_TOKEN}
+  --metadata ^~^tee-image-reference=us-docker.pkg.dev/uid2-prod-project/iabtechlab/uid2-operator@sha256:{IMAGE_SHA}~tee-restart-policy=Never~tee-container-log-redirect=true~tee-env-DEPLOYMENT_ENVIRONMENT=prod~tee-env-API_TOKEN={API_TOKEN}
 ```
 
 Note that compared to the `gcloud` command used in the prior section, an additional option

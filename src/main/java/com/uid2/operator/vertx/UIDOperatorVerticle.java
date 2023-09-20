@@ -771,10 +771,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 }
 
-                boolean respsctOptOut = req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
-                        && TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) == TokenGeneratePolicy.respectOptOut();
-                if (!respsctOptOut && isOptOutCheckRequired(rc, respsctOptOut)) {
-                    ResponseUtil.ClientError(rc, "Required opt-out policy argument is missing or not set to 1");
+                if (!meetPolicyCheckRequirements(rc, TOKEN_GENERATE_POLICY_PARAM, TokenGeneratePolicy.respectOptOut())) {
+                    ResponseUtil.ClientError(rc, "Required opt-out policy argument for token/generate is missing or not set to 1");
                     return;
                 }
 
@@ -1284,10 +1282,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            boolean respectOptOut = requestJsonObject.containsKey(IDENTITY_MAP_POLICY_PARAM)
-                    && IdentityMapPolicy.fromValue(requestJsonObject.getInteger(IDENTITY_MAP_POLICY_PARAM)) == IdentityMapPolicy.respectOptOut();
-            if (!respectOptOut && isOptOutCheckRequired(rc, respectOptOut)) {
-                ResponseUtil.ClientError(rc, "Required opt-out policy argument is missing or not set to 1");
+            if (!meetPolicyCheckRequirements(rc, IDENTITY_MAP_POLICY_PARAM, IdentityMapPolicy.respectOptOut())) {
+                ResponseUtil.ClientError(rc, "Required opt-out policy argument for identity/map is missing or not set to 1");
                 return;
             }
 
@@ -1633,7 +1629,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 TokenGeneratePolicy.defaultPolicy();
     }
 
-    private boolean isOptOutCheckRequired(RoutingContext rc, boolean respectOptOut) {
+    private boolean meetPolicyCheckRequirements(RoutingContext rc, String parameter, Object policy) {
+        JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
+        boolean respectOptOut = requestJsonObject.containsKey(parameter);
+        if (respectOptOut) {
+            if (policy instanceof IdentityMapPolicy) {
+                respectOptOut &= IdentityMapPolicy.fromValue(requestJsonObject.getInteger(parameter)) == IdentityMapPolicy.respectOptOut();
+            } else if (policy instanceof TokenGeneratePolicy) {
+                respectOptOut &= TokenGeneratePolicy.fromValue(requestJsonObject.getInteger(parameter)) == TokenGeneratePolicy.respectOptOut();
+            } else {
+                respectOptOut = false;
+            }
+        }
+
         final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
         final ClientKey oldestClientKey = this.clientKeyProvider.getOldestClientKey(clientKey.getSiteId());
         boolean newClient = oldestClientKey.getCreated() >= OPT_OUT_CHECK_CUTOFF_DATE;
@@ -1642,8 +1650,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             // log policy violation
             LOGGER.warn(String.format("Failed to respect opt-out policy: siteId=%d, clientKeyName=%s, clientKeyCreated=%d",
                     oldestClientKey.getSiteId(), oldestClientKey.getName(), oldestClientKey.getCreated()));
+            return false;
         }
-        return newClient;
+        return true;
     }
 
     private static final String IDENTITY_MAP_POLICY_PARAM = "policy";

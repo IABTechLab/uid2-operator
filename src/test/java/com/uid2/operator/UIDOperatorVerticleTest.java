@@ -749,8 +749,8 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"NoOutoutPolicySpecified", "WrongOutOutPolicySpecified"})
-    void identityMapOptOutPolicyCheckForNewClient(String testRun, Vertx vertx, VertxTestContext testContext) {
+    @ValueSource(strings = {"NoPolicySpecified", "NotRespectOptOutPolicy"})
+    void identityMapOptOutPolicyCheckForNewClient(String policy, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
         setupSalts();
@@ -760,28 +760,22 @@ public class UIDOperatorVerticleTest {
         JsonArray emails = new JsonArray();
         emails.add("test1@uid2.com");
         req.put("email", emails);
-        switch (testRun) {
-            case "NoOutoutPolicySpecified":
-                break;
-            case "WrongOutOutPolicySpecified":
-                req.put("policy", 0);
-                break;
-            default:
-                req.put("policy", 1);
-                break;
+
+        if (policy.equals("NotRespectOptOutPolicy")) {
+            req.put("policy", IdentityMapPolicy.JustMap.policy);
         }
 
         send("v2", vertx, "v2/identity/map", false, null, req, 400, respJson -> {
             assertFalse(respJson.containsKey("body"));
             assertEquals("client_error", respJson.getString("status"));
-            assertEquals("Required opt-out policy argument is missing or not set to 1", respJson.getString("message"));
+            assertEquals("Required opt-out policy argument for identity/map is missing or not set to 1", respJson.getString("message"));
             testContext.completeNow();
         });
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"NoPolicySpecified", "WrongPolicySpecified"})
-    void tokenGenerateOptOutPolicyCheckForNewClient(String testRun, Vertx vertx, VertxTestContext testContext) {
+    @ValueSource(strings = {"NoPolicySpecified", "NotRespectOptOutPolicy"})
+    void tokenGenerateOptOutPolicyCheckForNewClient(String policy, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.GENERATOR);
         setupSalts();
@@ -789,15 +783,9 @@ public class UIDOperatorVerticleTest {
 
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", "test@email.com");
-        switch (testRun) {
-            case "NoPolicySpecified":
-                break;
-            case "WrongPolicySpecified":
-                v2Payload.put("policy", 0);
-                break;
-            default:
-                v2Payload.put("policy", 1);
-                break;
+
+        if (policy.equals("NotRespectOptOutPolicy")) {
+            v2Payload.put("policy", TokenGeneratePolicy.JustGenerate.policy);
         }
 
         sendTokenGenerate("v2", vertx,
@@ -805,7 +793,7 @@ public class UIDOperatorVerticleTest {
                 json -> {
                     assertFalse(json.containsKey("body"));
                     assertEquals("client_error", json.getString("status"));
-                    assertEquals("Required opt-out policy argument is missing or not set to 1", json.getString("message"));
+                    assertEquals("Required opt-out policy argument for token/generate is missing or not set to 1", json.getString("message"));
                     testContext.completeNow();
                 });
     }

@@ -3,7 +3,7 @@ provider "google" {
   region  = var.region
 }
 
-module "project-services" {
+module "project_services" {
   source  = "terraform-google-modules/project-factory/google//modules/project_services"
   version = "~>14.3.0"
 
@@ -12,6 +12,8 @@ module "project-services" {
   activate_apis = [
     "compute.googleapis.com",
     "confidentialcomputing.googleapis.com",
+    "logging.googleapis.com",
+    "secretmanager.googleapis.com"
   ]
 
   disable_services_on_destroy = false
@@ -26,6 +28,7 @@ module "service_account" {
   project_roles = [
     "${var.project_id}=>roles/confidentialcomputing.workloadUser",
     "${var.project_id}=>roles/logging.logWriter",
+    "${var.project_id}=>roles/secretmanager.secretAccessor",
   ]
 }
 
@@ -48,9 +51,9 @@ resource "google_compute_router" "default" {
   region  = var.region
 }
 
-module "cloud-nat" {
+module "cloud_nat" {
   source     = "terraform-google-modules/cloud-nat/google"
-  version    = "~>4.1.0"
+  version    = "4.1.0"
   router     = google_compute_router.default.name
   project_id = var.project_id
   region     = var.region
@@ -60,6 +63,19 @@ module "cloud-nat" {
 data "google_compute_image" "confidential_space_image" {
   family  = var.debug_mode ? "confidential-space-debug" : "confidential-space"
   project = "confidential-space-images"
+}
+
+module "secret-manager" {
+  source  = "GoogleCloudPlatform/secret-manager/google"
+  version = "~> 0.1"
+  project_id = var.project_id
+  secrets = [
+    {
+      name                     = var.uid_api_token_secret_name
+      secret_data              = var.uid_api_token
+      automatic_replication    = true
+    },
+  ]
 }
 
 resource "google_compute_instance_template" "uid_operator" {
@@ -77,7 +93,7 @@ resource "google_compute_instance_template" "uid_operator" {
     tee-container-log-redirect     = true
     tee-restart-policy             = "Never"
     tee-env-DEPLOYMENT_ENVIRONMENT = var.uid_deployment_env
-    tee-env-API_TOKEN              = var.uid_api_token
+    tee-env-API_TOKEN_SECRET_NAME = module.secret-manager.secret_versions[0]
   }
 
   network_interface {
@@ -141,7 +157,7 @@ module "mig" {
   }]
 }
 
-module "gce-lb-http" {
+module "gce_lb_http" {
   source            = "GoogleCloudPlatform/lb-http/google"
   version           = "~>9.2.0"
   name              = "mig-http-lb"

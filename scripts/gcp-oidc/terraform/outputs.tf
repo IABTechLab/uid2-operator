@@ -1,3 +1,3 @@
-output "load-balancer-ip" {
-  value = module.gce-lb-http.external_ip
+output "load_balancer_ip" {
+  value = module.gce_lb_http.external_ip
 }

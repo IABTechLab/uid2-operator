@@ -712,6 +712,7 @@ public class UIDOperatorVerticleTest {
                 .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(clientKey);
         setupSalts();
         setupKeys();
 
@@ -723,7 +724,31 @@ public class UIDOperatorVerticleTest {
                 json -> {
                     assertFalse(json.containsKey("body"));
                     assertEquals("client_error", json.getString("status"));
-                    assertEquals("request body misses opt-out policy argument", json.getString("message"));
+                    assertEquals("Required opt-out policy argument is missing or not set to 1", json.getString("message"));
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void tokenGenerateNewParticipantNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
+        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z"))
+                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z").minusSeconds(5))
+                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        when(clientKeyProvider.get(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", "test@email.com");
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 200,
+                json -> {
+                    assertTrue(json.containsKey("body"));
+                    assertEquals("success", json.getString("status"));
                     testContext.completeNow();
                 });
     }
@@ -734,6 +759,7 @@ public class UIDOperatorVerticleTest {
                 .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(clientKey);
         setupSalts();
         setupKeys();
 
@@ -746,7 +772,32 @@ public class UIDOperatorVerticleTest {
                 json -> {
                     assertFalse(json.containsKey("body"));
                     assertEquals("client_error", json.getString("status"));
-                    assertEquals("request body misses opt-out policy argument", json.getString("message"));
+                    assertEquals("Required opt-out policy argument is missing or not set to 1", json.getString("message"));
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void tokenGenerateNewParticipantWrongPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
+        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z"))
+                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z").minusSeconds(5))
+                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        when(clientKeyProvider.get(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", "test@email.com");
+        v2Payload.put("policy", 0);
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 200,
+                json -> {
+                    assertTrue(json.containsKey("body"));
+                    assertEquals("success", json.getString("status"));
                     testContext.completeNow();
                 });
     }
@@ -1423,6 +1474,7 @@ public class UIDOperatorVerticleTest {
                 .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(clientKey);
         setupSalts();
         setupKeys();
 
@@ -1435,7 +1487,32 @@ public class UIDOperatorVerticleTest {
         send("v2", vertx, "v2/identity/map", false, null, req, 400, respJson -> {
             assertFalse(respJson.containsKey("body"));
             assertEquals("client_error", respJson.getString("status"));
-            assertEquals("request body misses opt-out policy argument", respJson.getString("message"));
+            assertEquals("Required opt-out policy argument is missing or not set to 1", respJson.getString("message"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityMapNewParticipantNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
+        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z"))
+                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z").minusSeconds(5))
+                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        when(clientKeyProvider.get(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = new JsonArray();
+        req.put("email", emails);
+
+        emails.add("test1@uid2.com");
+        ;
+        send("v2", vertx, "v2/identity/map", false, null, req, 200, respJson -> {
+            assertTrue(respJson.containsKey("body"));
+            assertEquals("success", respJson.getString("status"));
             testContext.completeNow();
         });
     }
@@ -1446,6 +1523,7 @@ public class UIDOperatorVerticleTest {
                 .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(clientKey);
         setupSalts();
         setupKeys();
 
@@ -1459,7 +1537,33 @@ public class UIDOperatorVerticleTest {
         send("v2", vertx, "v2/identity/map", false, null, req, 400, respJson -> {
             assertFalse(respJson.containsKey("body"));
             assertEquals("client_error", respJson.getString("status"));
-            assertEquals("request body misses opt-out policy argument", respJson.getString("message"));
+            assertEquals("Required opt-out policy argument is missing or not set to 1", respJson.getString("message"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityMapNewParticipantWrongPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
+        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z"))
+                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), Instant.parse("2023-09-01T00:00:00.00Z").minusSeconds(5))
+                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        when(clientKeyProvider.get(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = new JsonArray();
+        req.put("email", emails);
+        req.put("policy", 0);
+
+        emails.add("test1@uid2.com");
+        ;
+        send("v2", vertx, "v2/identity/map", false, null, req, 200, respJson -> {
+            assertTrue(respJson.containsKey("body"));
+            assertEquals("success", respJson.getString("status"));
             testContext.completeNow();
         });
     }

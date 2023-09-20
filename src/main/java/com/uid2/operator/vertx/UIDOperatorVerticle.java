@@ -771,8 +771,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 }
 
-                if (isOptOutCheckRequired(rc) && (!req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
-                        || TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) != TokenGeneratePolicy.respectOptOut())) {
+                boolean respsctOptOut = req.containsKey(TOKEN_GENERATE_POLICY_PARAM)
+                        && TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) == TokenGeneratePolicy.respectOptOut();
+                if (!respsctOptOut && isOptOutCheckRequired(rc, respsctOptOut)) {
                     ResponseUtil.ClientError(rc, "Required opt-out policy argument is missing or not set to 1");
                     return;
                 }
@@ -1283,8 +1284,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            if (isOptOutCheckRequired(rc) && (!requestJsonObject.containsKey(IDENTITY_MAP_POLICY_PARAM)
-                    || IdentityMapPolicy.fromValue(requestJsonObject.getInteger(IDENTITY_MAP_POLICY_PARAM)) != IdentityMapPolicy.respectOptOut())) {
+            boolean respectOptOut = requestJsonObject.containsKey(IDENTITY_MAP_POLICY_PARAM)
+                    && IdentityMapPolicy.fromValue(requestJsonObject.getInteger(IDENTITY_MAP_POLICY_PARAM)) == IdentityMapPolicy.respectOptOut();
+            if (!respectOptOut && isOptOutCheckRequired(rc, respectOptOut)) {
                 ResponseUtil.ClientError(rc, "Required opt-out policy argument is missing or not set to 1");
                 return;
             }
@@ -1631,10 +1633,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 TokenGeneratePolicy.defaultPolicy();
     }
 
-    private boolean isOptOutCheckRequired(RoutingContext rc) {
+    private boolean isOptOutCheckRequired(RoutingContext rc, boolean respectOptOut) {
         final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
         final ClientKey oldestClientKey = this.clientKeyProvider.getOldestClientKey(clientKey.getSiteId());
-        return oldestClientKey.getCreated() >= OPT_OUT_CHECK_CUTOFF_DATE;
+        boolean newClient = oldestClientKey.getCreated() >= OPT_OUT_CHECK_CUTOFF_DATE;
+
+        if (newClient && !respectOptOut) {
+            // log policy violation
+            LOGGER.warn(String.format("Failed to respect opt-out policy: siteId=%d, clientKeyName=%s, clientKeyCreated=%d",
+                    oldestClientKey.getSiteId(), oldestClientKey.getName(), oldestClientKey.getCreated()));
+        }
+        return newClient;
     }
 
     private static final String IDENTITY_MAP_POLICY_PARAM = "policy";

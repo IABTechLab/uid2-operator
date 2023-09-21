@@ -19,7 +19,7 @@ on:
 env:
   REGISTRY: ghcr.io
   GCP_REGISTRY: us-docker.pkg.dev
-  GCP_PROJECT: uid2-prod-project
+  GCP_GAR_PROJECT: uid2-prod-project
   MAVEN_PROFILE: gcp
   ENCLAVE_PROTOCOL: gcp-oidc
   IMAGE_NAME: ${{ github.repository }}
@@ -118,7 +118,7 @@ jobs:
         with:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-            ${{ env.GCP_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_NAME }}
+            ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
             type=raw,value=${{ inputs.tag }}

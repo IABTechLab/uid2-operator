@@ -31,6 +31,7 @@ import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
 import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.reader.RotatingClientKeyProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -95,6 +96,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final ITokenEncoder encoder;
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
+    private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
@@ -112,7 +114,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IStatsCollectorQueue _statsCollectorQueue;
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
-
     private final boolean cstgDoDomainNameCheck;
     private final Duration cstgRequestTimestampDeltaThreshold;
     private final io.micrometer.core.instrument.Timer cstgRequestTimestampDelta = io.micrometer.core.instrument.Timer.builder("uid2_request_timestamp_delta")
@@ -122,6 +123,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             .maximumExpectedValue(Duration.ofMinutes(60))
             .register(Metrics.globalRegistry);
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
+    public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
     protected boolean keySharingEndpointProvideSiteDomainNames;
 
@@ -161,6 +163,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.cstgRequestTimestampDeltaThreshold = Duration.ofMinutes(config.getInteger("client_side_token_generate_request_timestamp_delta_threshold_in_minutes", 5));
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
+        this.clientKeyProvider = clientKeyProvider;
     }
 
     @Override
@@ -821,6 +824,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 }
 
+                if (!meetPolicyCheckRequirements(rc, TOKEN_GENERATE_POLICY_PARAM, TokenGeneratePolicy.respectOptOut())) {
+                    ResponseUtil.ClientError(rc, "Required opt-out policy argument for token/generate is missing or not set to 1");
+                    return;
+                }
+
                 final TokenGeneratePolicy tokenGeneratePolicy = readTokenGeneratePolicy(req);
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
@@ -1327,6 +1335,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
+            if (!meetPolicyCheckRequirements(rc, IDENTITY_MAP_POLICY_PARAM, IdentityMapPolicy.respectOptOut())) {
+                ResponseUtil.ClientError(rc, "Required opt-out policy argument for identity/map is missing or not set to 1");
+                return;
+            }
+
             IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(requestJsonObject);
             recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
 
@@ -1667,6 +1680,32 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return req.containsKey(TOKEN_GENERATE_POLICY_PARAM) ?
                 TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) :
                 TokenGeneratePolicy.defaultPolicy();
+    }
+
+    private boolean meetPolicyCheckRequirements(RoutingContext rc, String parameter, Object policy) {
+        JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
+        boolean respectOptOut = requestJsonObject.containsKey(parameter);
+        if (respectOptOut) {
+            if (policy instanceof IdentityMapPolicy) {
+                respectOptOut &= IdentityMapPolicy.fromValue(requestJsonObject.getInteger(parameter)) == IdentityMapPolicy.respectOptOut();
+            } else if (policy instanceof TokenGeneratePolicy) {
+                respectOptOut &= TokenGeneratePolicy.fromValue(requestJsonObject.getInteger(parameter)) == TokenGeneratePolicy.respectOptOut();
+            } else {
+                respectOptOut = false;
+            }
+        }
+
+        final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+        final ClientKey oldestClientKey = this.clientKeyProvider.getOldestClientKey(clientKey.getSiteId());
+        boolean newClient = oldestClientKey.getCreated() >= OPT_OUT_CHECK_CUTOFF_DATE;
+
+        if (newClient && !respectOptOut) {
+            // log policy violation
+            LOGGER.warn(String.format("Failed to respect opt-out policy: siteId=%d, clientKeyName=%s, clientKeyCreated=%d",
+                    oldestClientKey.getSiteId(), oldestClientKey.getName(), oldestClientKey.getCreated()));
+            return false;
+        }
+        return true;
     }
 
     private static final String IDENTITY_MAP_POLICY_PARAM = "policy";

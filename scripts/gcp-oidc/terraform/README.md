@@ -62,39 +62,27 @@ terraform destroy
 
 ## Inputs
 
-| Name                      | Description | Type     | Default              | Required |
-|---------------------------|-------------|----------|----------------------|:--------:|
-| project_id                | n/a         | `string` | n/a                  |   yes    |
-| service_account_name      | n/a         | `string` | n/a                  |   yes    |
-| uid_operator_image        | n/a         | `string` | n/a                  |   yes    |
-| uid_api_token             | n/a         | `string` | n/a                  |   yes    |
-| uid_api_token_secret_name | n/a         | `string` | `"secret-api-token"` |    no    |
-| uid_machine_type          | n/a         | `string` | `"n2d-standard-16"`  |    no    |
-| uid_deployment_env        | n/a         | `string` | `"integ"`            |    no    |
-| region                    | n/a         | `string` | `"us-east1"`         |    no    |
-| network_name              | n/a         | `string` | `"uid-operator"`     |    no    |
-| max_replicas              | n/a         | `number` | `5`                  |    no    |
-| min_replicas              | n/a         | `number` | `1`                  |    no    |
-| debug_mode                | n/a         | `bool`   | `false`              |    no    |
+| Name                      | Type     | Default              | Required | Description                                                                                       |
+|---------------------------|----------|----------------------|:--------:|---------------------------------------------------------------------------------------------------|
+| project_id                | `string` | n/a                  |   yes    | n/a                                                                                               |
+| service_account_name      | `string` | n/a                  |   yes    | n/a                                                                                               |
+| uid_operator_image        | `string` | n/a                  |   yes    | n/a                                                                                               |
+| uid_api_token             | `string` | n/a                  |   yes    | n/a                                                                                               |
+| uid_api_token_secret_name | `string` | `"secret-api-token"` |    no    | n/a                                                                                               |
+| uid_machine_type          | `string` | `"n2d-standard-16"`  |    no    | n/a                                                                                               |
+| uid_deployment_env        | `string` | `"integ"`            |    no    | n/a                                                                                               |
+| region                    | `string` | `"us-east1"`         |    no    | n/a                                                                                               |
+| network_name              | `string` | `"uid-operator"`     |    no    | n/a                                                                                               |
+| max_replicas              | `number` | `5`                  |    no    | n/a                                                                                               |
+| min_replicas              | `number` | `1`                  |    no    | n/a                                                                                               |
+| debug_mode                | `bool`   | `false`              |    no    | n/a                                                                                               |
+| ssl                       | `bool`   | `false`              |    no    | Set to true to enable SSL support, requires variable `private_key` and `certificate`              |
+| private_key               | `string` | `null`               |    no    | Content of the private SSL key. Required if `ssl` is true. e.g. `file("path/to/private.key")`     |
+| certificate               | `string` | `null`               |    no    | Content of the SSL certificate. Required if `ssl` is true. e.g. `file("path/to/certificate.crt")` |
+
 
 ## Outputs
 
 | Name             | Description |
 |------------------|-------------|
 | load_balancer_ip | n/a         |
-
-## Notes
-
-You may want to change LB from http to https
-
-- Provide your cert via terraform following this page:
-  [google_compute_ssl_certificate](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_ssl_certificate.html)
-
-- Then add below configs in `module "gce-lb-http"`
-
-  ```
-    ssl                  = true
-    ssl_certificates     = [google_compute_ssl_certificate.you_cert.self_link]
-    use_ssl_certificates = true
-    https_redirect       = true
-  ```

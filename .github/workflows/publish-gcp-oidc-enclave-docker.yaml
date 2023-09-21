@@ -32,6 +32,7 @@ jobs:
       contents: write
       security-events: write
       packages: write
+      id-token: write
     outputs:
       jar_version: ${{ steps.version.outputs.new_version }}
     steps:

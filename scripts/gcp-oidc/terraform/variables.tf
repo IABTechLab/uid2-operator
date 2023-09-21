@@ -1,4 +1,4 @@
-variable "project_id" {
+    variable "project_id" {
   type = string
 }
 
@@ -53,3 +53,19 @@ variable "debug_mode" {
   type    = bool
   default = false
 }
+
+variable "ssl" {
+  type    = bool
+  default = false
+}
+
+variable "certificate" {
+  type    = string
+  default = null
+}
+
+variable "private_key" {
+  type    = string
+  default = null
+}
+

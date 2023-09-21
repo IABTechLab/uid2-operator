@@ -66,14 +66,14 @@ data "google_compute_image" "confidential_space_image" {
 }
 
 module "secret-manager" {
-  source  = "GoogleCloudPlatform/secret-manager/google"
-  version = "~> 0.1"
+  source     = "GoogleCloudPlatform/secret-manager/google"
+  version    = "~> 0.1"
   project_id = var.project_id
   secrets = [
     {
-      name                     = var.uid_api_token_secret_name
-      secret_data              = var.uid_api_token
-      automatic_replication    = true
+      name                  = var.uid_api_token_secret_name
+      secret_data           = var.uid_api_token
+      automatic_replication = true
     },
   ]
 }
@@ -93,7 +93,7 @@ resource "google_compute_instance_template" "uid_operator" {
     tee-container-log-redirect     = true
     tee-restart-policy             = "Never"
     tee-env-DEPLOYMENT_ENVIRONMENT = var.uid_deployment_env
-    tee-env-API_TOKEN_SECRET_NAME = module.secret-manager.secret_versions[0]
+    tee-env-API_TOKEN_SECRET_NAME  = module.secret-manager.secret_versions[0]
   }
 
   network_interface {
@@ -164,6 +164,9 @@ module "gce_lb_http" {
   project           = var.project_id
   target_tags       = [var.network_name]
   firewall_networks = [google_compute_network.default.name]
+  ssl               = var.ssl
+  private_key       = var.private_key
+  certificate       = var.certificate
 
   backends = {
     default = {

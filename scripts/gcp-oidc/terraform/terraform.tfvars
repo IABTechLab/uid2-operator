@@ -1,6 +1,6 @@
 project_id           = "uid2-test"
-uid_operator_image   = "ghcr.io/iabtechlab/uid2-operator@sha256:39274ed4cc3d696bae16183614780617f7bd8b241aa53dac1017ed88b4b6282b"
-uid_deployment_env   = "integ"
-uid_api_token        = ""
 service_account_name = "tf-test"
-debug_mode           = true
+uid_operator_image   = "us-docker.pkg.dev/uid2-prod-project/iabtechlab/uid2-operator@sha256:6c51d0b82afb2d1aa26116dd0cd25e2491e140733f01c72460c49591a8c9b195"
+uid_api_token        = ""
+uid_deployment_env   = "integ"
+debug_mode           = false

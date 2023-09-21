@@ -34,6 +34,7 @@ import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.AbstractVerticle;
@@ -70,7 +71,6 @@ import java.util.stream.Collectors;
 
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
-import static com.uid2.operator.service.V2RequestUtil.V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES;
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
@@ -114,6 +114,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final SecureLinkValidatorService secureLinkValidatorService;
 
     private final boolean cstgDoDomainNameCheck;
+    private final Duration cstgRequestTimestampDeltaThreshold;
+    private final io.micrometer.core.instrument.Timer cstgRequestTimestampDelta = io.micrometer.core.instrument.Timer.builder("uid2_request_timestamp_delta")
+            .tag("path", "/v2/token/client-generate")
+            .publishPercentileHistogram()
+            .minimumExpectedValue(Duration.ofSeconds(1))
+            .maximumExpectedValue(Duration.ofMinutes(60))
+            .register(Metrics.globalRegistry);
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
 
     protected boolean keySharingEndpointProvideSiteDomainNames;
@@ -151,6 +158,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
+        this.cstgRequestTimestampDeltaThreshold = Duration.ofMinutes(config.getInteger("client_side_token_generate_request_timestamp_delta_threshold_in_minutes", 5));
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
     }
@@ -325,8 +333,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         }
 
-        if (Math.abs(Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.instant()).toMinutes()) >=
-                V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
+        final Duration timestampDelta = Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.instant()).abs();
+
+        this.cstgRequestTimestampDelta.record(timestampDelta);
+
+        if (timestampDelta.compareTo(cstgRequestTimestampDeltaThreshold) > 0) {
             ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
             TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
             return;

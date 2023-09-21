@@ -59,7 +59,6 @@ import java.util.stream.Collectors;
 
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
-import static com.uid2.operator.service.V2RequestUtil.V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES;
 import static com.uid2.shared.Const.Data.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -2442,7 +2441,7 @@ public class UIDOperatorVerticleTest {
         final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
 
         final byte[] iv = Random.getBytes(12);
-        final long timestamp = now.minus(V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES, ChronoUnit.MINUTES).toEpochMilli();
+        final long timestamp = now.minus(5, ChronoUnit.MINUTES).minusSeconds(1).toEpochMilli();
         final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
         byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad);
         final String payload = EncodingUtils.toBase64String(payloadBytes);

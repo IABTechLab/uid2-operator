@@ -769,7 +769,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void identityMapNewClientNotRespectOptOutPolicy(Vertx vertx, VertxTestContext testContext) {
+    void identityMapNewClientWrongPolicySpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
         setupSalts();
@@ -790,7 +790,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void identityMapNewParticipantNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
+    void identityMapNewClientNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
         ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
                 .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
         ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
@@ -806,6 +806,32 @@ public class UIDOperatorVerticleTest {
         req.put("email", emails);
         emails.add("test1@uid2.com");
 
+        send("v2", vertx, "v2/identity/map", false, null, req, 200, respJson -> {
+            assertTrue(respJson.containsKey("body"));
+            assertEquals("success", respJson.getString("status"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityMapNewClientWrongPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
+        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
+                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
+                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        when(clientKeyProvider.get(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = new JsonArray();
+        req.put("email", emails);
+        req.put("policy", IdentityMapPolicy.JustMap.policy);
+
+        emails.add("test1@uid2.com");
+        ;
         send("v2", vertx, "v2/identity/map", false, null, req, 200, respJson -> {
             assertTrue(respJson.containsKey("body"));
             assertEquals("success", respJson.getString("status"));
@@ -834,7 +860,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void tokenGenerateNewClientNotRespectOptOutPolicy(Vertx vertx, VertxTestContext testContext) {
+    void tokenGenerateNewClientWrongPolicySpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.GENERATOR);
         setupSalts();
@@ -868,6 +894,31 @@ public class UIDOperatorVerticleTest {
 
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", "test@email.com");
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 200,
+                json -> {
+                    assertTrue(json.containsKey("body"));
+                    assertEquals("success", json.getString("status"));
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void tokenGenerateNewClientWrongPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
+        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
+                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
+                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        when(clientKeyProvider.get(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", "test@email.com");
+        v2Payload.put("policy", TokenGeneratePolicy.JustGenerate.policy);
 
         sendTokenGenerate("v2", vertx,
                 "", v2Payload, 200,

@@ -4,8 +4,9 @@ We provide a terraform template to deploy UID2 private operators with LB and aut
 running on Confidential Space VMs, and will be deployed in multiple AZs.
 
 We will set up below in your GCP project
-- Activate required GCP APIs. 
-- Set up a service account to run Confidential Space VMs.
+- Activate required GCP APIs.
+- Service account to run Confidential Space VMs.
+- Secret to hold `api_token`.
 - Network: VPC and subnetwork.
 - Instances: Instance template, and Instance groups (with autoscaling)
 - Ingress: Load balancer (with healthcheck), forwarding rules, firewall rules.
@@ -61,25 +62,26 @@ terraform destroy
 
 ## Inputs
 
-| Name                 | Description | Type     | Default             | Required |
-|----------------------|-------------|----------|---------------------|:--------:|
-| project_id           | n/a         | `string` | n/a                 |   yes    |
-| service_account_name | n/a         | `string` | n/a                 |   yes    |
-| uid_operator_image   | n/a         | `string` | n/a                 |   yes    |
-| uid_api_token        | n/a         | `string` | n/a                 |   yes    |
-| region               | n/a         | `string` | `"asia-southeast1"` |    no    |
-| network_name         | n/a         | `string` | `"uid-operator"`    |    no    |
-| uid_machine_type     | n/a         | `string` | `"n2d-standard-16"` |    no    |
-| uid_deployment_env   | n/a         | `string` | `"integ"`           |    no    |
-| max_replicas         | n/a         | `number` | `5`                 |    no    |
-| min_replicas         | n/a         | `number` | `1`                 |    no    |
-| debug_mode           | n/a         | `bool`   | `false`             |    no    |
+| Name                      | Description | Type     | Default              | Required |
+|---------------------------|-------------|----------|----------------------|:--------:|
+| project_id                | n/a         | `string` | n/a                  |   yes    |
+| service_account_name      | n/a         | `string` | n/a                  |   yes    |
+| uid_operator_image        | n/a         | `string` | n/a                  |   yes    |
+| uid_api_token             | n/a         | `string` | n/a                  |   yes    |
+| uid_api_token_secret_name | n/a         | `string` | `"secret-api-token"` |    no    |
+| uid_machine_type          | n/a         | `string` | `"n2d-standard-16"`  |    no    |
+| uid_deployment_env        | n/a         | `string` | `"integ"`            |    no    |
+| region                    | n/a         | `string` | `"us-east1"`         |    no    |
+| network_name              | n/a         | `string` | `"uid-operator"`     |    no    |
+| max_replicas              | n/a         | `number` | `5`                  |    no    |
+| min_replicas              | n/a         | `number` | `1`                  |    no    |
+| debug_mode                | n/a         | `bool`   | `false`              |    no    |
 
 ## Outputs
 
 | Name             | Description |
 |------------------|-------------|
-| load-balancer-ip | n/a         |
+| load_balancer_ip | n/a         |
 
 ## Notes
 

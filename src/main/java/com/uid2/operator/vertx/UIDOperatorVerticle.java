@@ -35,6 +35,7 @@ import com.uid2.shared.store.reader.RotatingClientKeyProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.AbstractVerticle;
@@ -67,10 +68,10 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
 import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
-import static com.uid2.operator.service.V2RequestUtil.V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES;
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
@@ -114,8 +115,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
+    private final Duration cstgRequestTimestampDeltaThreshold;
+    private final io.micrometer.core.instrument.Timer cstgRequestTimestampDelta = io.micrometer.core.instrument.Timer.builder("uid2_request_timestamp_delta")
+            .tag("path", "/v2/token/client-generate")
+            .publishPercentileHistogram()
+            .minimumExpectedValue(Duration.ofSeconds(1))
+            .maximumExpectedValue(Duration.ofMinutes(60))
+            .register(Metrics.globalRegistry);
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
+
+    protected boolean keySharingEndpointProvideSiteDomainNames;
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -150,6 +160,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
+        this.cstgRequestTimestampDeltaThreshold = Duration.ofMinutes(config.getInteger("client_side_token_generate_request_timestamp_delta_threshold_in_minutes", 5));
+        this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
     }
@@ -324,8 +336,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         }
 
-        if (Math.abs(Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.instant()).toMinutes()) >=
-                V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
+        final Duration timestampDelta = Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.instant()).abs();
+
+        this.cstgRequestTimestampDelta.record(timestampDelta);
+
+        if (timestampDelta.compareTo(cstgRequestTimestampDeltaThreshold) > 0) {
             ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
             TokenResponseStatsCollector.record(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
             return;
@@ -513,6 +528,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
             final JsonArray keys = new JsonArray();
+            final JsonArray sites = new JsonArray();
+            final Set<Integer> accessibleSites = new HashSet<>();
 
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
             List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
@@ -559,9 +576,45 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 keyObj.put("expires", key.getExpires().getEpochSecond());
                 keyObj.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
                 keys.add(keyObj);
+                accessibleSites.add(keyset.getSiteId());
             }
             resp.put("keys", keys);
-
+            //without cstg enabled, operator won't have site data and siteProvider could be null
+            //and adding keySharingEndpointProvideSiteDomainNames in case something goes wrong
+            //and we can still enable cstg feature but turn off site domain name download in
+            // key/sharing endpoint
+            if(keySharingEndpointProvideSiteDomainNames && clientSideTokenGenerate) {
+                for (Integer siteId : accessibleSites.stream().sorted().collect(Collectors.toList())) {
+                    Site s = siteProvider.getSite(siteId);
+                    if(s == null || s.getDomainNames().isEmpty()) {
+                        continue;
+                    }
+                    JsonObject siteObj = new JsonObject();
+                    siteObj.put("id", siteId);
+                    siteObj.put("domain_names", s.getDomainNames().stream().sorted().collect(Collectors.toList()));
+                    sites.add(siteObj);
+                }
+                /*
+                The end result will look something like this:
+                "site_data": [
+                        {
+                            "id": 101,
+                            "domain_names": [
+                                "101.co.uk",
+                                "101.com"
+                            ]
+                        },
+                        {
+                            "id": 102,
+                            "domain_names": [
+                                "102.co.uk",
+                                "102.com"
+                            ]
+                        }
+                    ]
+                 */
+                resp.put("site_data", sites);
+            }
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);

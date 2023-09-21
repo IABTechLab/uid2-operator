@@ -4,7 +4,7 @@ variable "project_id" {
 
 variable "region" {
   type    = string
-  default = "asia-southeast1"
+  default = "us-east1"
 }
 
 variable "network_name" {
@@ -34,6 +34,11 @@ variable "uid_api_token" {
   type = string
 }
 
+variable "uid_api_token_secret_name" {
+  type    = string
+  default = "secret-api-token"
+}
+
 variable "max_replicas" {
   type    = number
   default = 5
@@ -48,4 +53,3 @@ variable "debug_mode" {
   type    = bool
   default = false
 }
-  

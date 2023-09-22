@@ -80,7 +80,7 @@ module "secret-manager" {
 
 resource "google_compute_instance_template" "uid_operator" {
   name_prefix  = "uid-operator-cs-template-"
-  machine_type = var.uid_machine_type
+  machine_type = var.uid_deployment_env == "prod" ? "n2d-standard-16" : "n2d-standard-2"
 
   tags = [var.network_name]
 

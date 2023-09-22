@@ -68,9 +68,8 @@ terraform destroy
 | service_account_name      | `string` | n/a                  |   yes    | n/a                                                                                               |
 | uid_operator_image        | `string` | n/a                  |   yes    | n/a                                                                                               |
 | uid_api_token             | `string` | n/a                  |   yes    | n/a                                                                                               |
+| uid_deployment_env        | `string` | n/a                  |   yes    | Allowed values: `"integ"`, `"prod"`                                                               |
 | uid_api_token_secret_name | `string` | `"secret-api-token"` |    no    | n/a                                                                                               |
-| uid_machine_type          | `string` | `"n2d-standard-16"`  |    no    | n/a                                                                                               |
-| uid_deployment_env        | `string` | `"integ"`            |    no    | n/a                                                                                               |
 | region                    | `string` | `"us-east1"`         |    no    | n/a                                                                                               |
 | network_name              | `string` | `"uid-operator"`     |    no    | n/a                                                                                               |
 | max_replicas              | `number` | `5`                  |    no    | n/a                                                                                               |

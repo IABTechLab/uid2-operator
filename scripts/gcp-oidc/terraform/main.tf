@@ -20,6 +20,7 @@ module "project_services" {
 }
 
 module "service_account" {
+  depends_on  = [module.project_services]
   source      = "terraform-google-modules/service-accounts/google"
   version     = "~>4.2.1"
   project_id  = var.project_id
@@ -33,11 +34,13 @@ module "service_account" {
 }
 
 resource "google_compute_network" "default" {
+  depends_on              = [module.project_services]
   name                    = var.network_name
   auto_create_subnetworks = false
 }
 
 resource "google_compute_subnetwork" "default" {
+  depends_on               = [module.project_services]
   name                     = var.network_name
   ip_cidr_range            = "10.127.0.0/20"
   network                  = google_compute_network.default.self_link
@@ -46,12 +49,14 @@ resource "google_compute_subnetwork" "default" {
 }
 
 resource "google_compute_router" "default" {
-  name    = "lb-http-router"
-  network = google_compute_network.default.self_link
-  region  = var.region
+  depends_on = [module.project_services]
+  name       = "lb-http-router"
+  network    = google_compute_network.default.self_link
+  region     = var.region
 }
 
 module "cloud_nat" {
+  depends_on = [module.project_services]
   source     = "terraform-google-modules/cloud-nat/google"
   version    = "4.1.0"
   router     = google_compute_router.default.name
@@ -61,11 +66,13 @@ module "cloud_nat" {
 }
 
 data "google_compute_image" "confidential_space_image" {
-  family  = var.debug_mode ? "confidential-space-debug" : "confidential-space"
-  project = "confidential-space-images"
+  depends_on = [module.project_services]
+  family     = var.debug_mode ? "confidential-space-debug" : "confidential-space"
+  project    = "confidential-space-images"
 }
 
 module "secret-manager" {
+  depends_on = [module.project_services]
   source     = "GoogleCloudPlatform/secret-manager/google"
   version    = "~> 0.1"
   project_id = var.project_id
@@ -79,6 +86,7 @@ module "secret-manager" {
 }
 
 resource "google_compute_instance_template" "uid_operator" {
+  depends_on   = [module.project_services]
   name_prefix  = "uid-operator-cs-template-"
   machine_type = var.uid_deployment_env == "prod" ? "n2d-standard-16" : "n2d-standard-2"
 
@@ -126,6 +134,7 @@ resource "google_compute_instance_template" "uid_operator" {
 }
 
 module "mig" {
+  depends_on          = [module.project_services]
   source              = "terraform-google-modules/vm/google//modules/mig"
   version             = "~>9.0.0"
   instance_template   = google_compute_instance_template.uid_operator.self_link
@@ -158,6 +167,7 @@ module "mig" {
 }
 
 module "gce_lb_http" {
+  depends_on        = [module.project_services]
   source            = "GoogleCloudPlatform/lb-http/google"
   version           = "~>9.2.0"
   name              = "mig-http-lb"

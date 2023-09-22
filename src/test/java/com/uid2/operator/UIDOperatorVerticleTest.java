@@ -59,7 +59,6 @@ import java.util.stream.Collectors;
 
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
-import static com.uid2.operator.service.V2RequestUtil.V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.OPT_OUT_CHECK_CUTOFF_DATE;
 import static com.uid2.shared.Const.Data.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -156,9 +155,8 @@ public class UIDOperatorVerticleTest {
     }
     protected void fakeAuth(int siteId, Instant created, Role... roles) {
         ClientKey clientKey = new ClientKey(
-                "test-key",
-                "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=",
                 "fsSGnDxa/V9eJZ9Tas+dowwyO/X1UsC68RN9qM2xUu9ZOaKEOv9EVd7pkt3As/nE5B6TRu0PzK+IDzSQhD1+rw==",
+                "jySwjjqo9O6OU01OWujBWC6xZNpBqRTk5H7K2borcFA=",
                 Utils.toBase64String(clientSecret),
                 "test-contact",
                 created,
@@ -323,7 +321,7 @@ public class UIDOperatorVerticleTest {
         ClientKey ck = clientKeyProvider.getClientKey("");
         HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint(endpoint));
         if (ck != null)
-            req.putHeader("Authorization", "Bearer " + ck.getKey());
+            req.putHeader("Authorization", "Bearer UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=");
         req.send(handler);
     }
 
@@ -332,7 +330,7 @@ public class UIDOperatorVerticleTest {
         ClientKey ck = clientKeyProvider.getClientKey("");
         HttpRequest<Buffer> req = client.postAbs(getUrlForEndpoint(endpoint));
         if (ck != null)
-            req.putHeader("Authorization", "Bearer " + ck.getKey());
+            req.putHeader("Authorization", "Bearer UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=");
         req.sendJsonObject(body, handler);
     }
 
@@ -352,7 +350,7 @@ public class UIDOperatorVerticleTest {
             bufBody.appendBytes(AesGcm.encrypt(b.getBytes(), ck.getSecretBytes()));
         }
 
-        final String apiKey = ck == null ? "" : ck.getKey();
+        final String apiKey = ck == null ? "" : "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=";
         HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
                 .putHeader("Authorization", "Bearer " + apiKey)
                 .putHeader("content-type", "text/plain");
@@ -792,10 +790,24 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void identityMapNewClientNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
-                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
-        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
-                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        ClientKey newClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime,
+                Set.of(Role.MAPPER),
+                201
+        );
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.MAPPER),
+                201
+        );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
@@ -816,10 +828,24 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void identityMapNewClientWrongPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
-                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
-        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
-                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        ClientKey newClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime,
+                Set.of(Role.MAPPER),
+                201
+        );
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.MAPPER),
+                201
+        );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
@@ -883,10 +909,24 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void tokenGenerateNewClientNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
-                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
-        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
-                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        ClientKey newClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime,
+                Set.of(Role.GENERATOR),
+                201
+        );
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.GENERATOR),
+                201
+        );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
@@ -907,10 +947,24 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void tokenGenerateNewClientWrongPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
-                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
-        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
-                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        ClientKey newClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime,
+                Set.of(Role.GENERATOR),
+                201
+        );
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.GENERATOR),
+                201
+        );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);

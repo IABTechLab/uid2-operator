@@ -16,18 +16,17 @@ variable "service_account_name" {
   type = string
 }
 
-variable "uid_machine_type" {
-  type    = string
-  default = "n2d-standard-16"
-}
-
 variable "uid_operator_image" {
   type = string
 }
 
 variable "uid_deployment_env" {
-  type    = string
-  default = "integ"
+  type = string
+
+  validation {
+    condition     = contains(["integ", "prod"], var.uid_deployment_env)
+    error_message = "Allowed values for uid_deployment_env are \"integ\" or \"prod\"."
+  }
 }
 
 variable "uid_api_token" {

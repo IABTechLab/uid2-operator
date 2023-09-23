@@ -18,7 +18,7 @@
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,
   "advertising_token_v3": false,
-  "refresh_token_v3": false,
+  "refresh_token_v3": true,
   "identity_v3": false,
   "identity_scope": "uid2",
   "enable_v2_encryption": true,
@@ -37,5 +37,6 @@
   "optout_partition_interval": 86400,
   "client_side_token_generate": true,
   "client_side_token_generate_domain_name_check_enabled": false,
+  "key_sharing_endpoint_provide_site_domain_names": true,
   "validate_service_links": true
 }

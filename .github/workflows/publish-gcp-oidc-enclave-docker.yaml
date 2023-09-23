@@ -19,7 +19,7 @@ on:
 env:
   REGISTRY: ghcr.io
   GCP_REGISTRY: us-docker.pkg.dev
-  GCP_PROJECT: uid2-test
+  GCP_PROJECT: uid2-prod-project
   MAVEN_PROFILE: gcp
   ENCLAVE_PROTOCOL: gcp-oidc
   IMAGE_NAME: ${{ github.repository }}
@@ -91,7 +91,7 @@ jobs:
         with:
           registry: ${{ env.GCP_REGISTRY }}
           username: _json_key
-          password: ${{ secrets.GCP_REGISTRY_CREDENTIAL }}
+          password: ${{ secrets.GCP_CREDENTIAL }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta

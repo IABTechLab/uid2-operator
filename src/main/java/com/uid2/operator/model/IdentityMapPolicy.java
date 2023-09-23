@@ -8,7 +8,7 @@ public enum IdentityMapPolicy {
 
     IdentityMapPolicy(int policy) { this.policy = policy; }
 
-    public static com.uid2.operator.model.IdentityMapPolicy fromValue(int value) {
+    public static IdentityMapPolicy fromValue(int value) {
         switch (value) {
             case 0: return JustMap;
             case 1: return RespectOptOut;
@@ -16,7 +16,11 @@ public enum IdentityMapPolicy {
         }
     }
 
-    public static com.uid2.operator.model.IdentityMapPolicy defaultPolicy() {
+    public static IdentityMapPolicy defaultPolicy() {
         return JustMap;
+    }
+
+    public static IdentityMapPolicy respectOptOut() {
+        return RespectOptOut;
     }
 }

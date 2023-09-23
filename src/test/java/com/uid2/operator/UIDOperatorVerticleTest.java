@@ -46,7 +46,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
@@ -65,7 +64,6 @@ import java.util.stream.Collectors;
 
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
-import static com.uid2.operator.service.V2RequestUtil.V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.OPT_OUT_CHECK_CUTOFF_DATE;
 import static com.uid2.shared.Const.Data.*;
 import static org.junit.jupiter.api.Assertions.*;

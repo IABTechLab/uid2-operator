@@ -473,7 +473,7 @@ public class Main {
             default:
                 attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
         }
-        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever, null);
+        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
         UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }

@@ -19,6 +19,8 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.encryption.Uid2Base64UrlCoder;
 import com.uid2.shared.model.*;
+import com.uid2.shared.secret.KeyHashResult;
+import com.uid2.shared.secret.KeyHasher;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import io.micrometer.core.instrument.Metrics;
@@ -75,6 +77,8 @@ public class UIDOperatorVerticleTest {
     private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
     private static final Duration refreshExpiresAfter = Duration.ofMinutes(15);
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
+    private static final KeyHasher keyHasher = new KeyHasher();
+    private static final String clientKey = "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=";
     private static final byte[] clientSecret = Random.getRandomKeyBytes();
     private static final String clientSideTokenGenerateSubscriptionId = "4WvryDGbR5";
     private static final String clientSideTokenGeneratePublicKey = "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
@@ -153,10 +157,12 @@ public class UIDOperatorVerticleTest {
     protected void fakeAuth(int siteId, Role... roles) {
         fakeAuth(siteId, legacyClientCreationDateTime, roles);
     }
+
     protected void fakeAuth(int siteId, Instant created, Role... roles) {
+        KeyHashResult khr = keyHasher.hashKey(clientKey);
         ClientKey clientKey = new ClientKey(
-                "fsSGnDxa/V9eJZ9Tas+dowwyO/X1UsC68RN9qM2xUu9ZOaKEOv9EVd7pkt3As/nE5B6TRu0PzK+IDzSQhD1+rw==",
-                "jySwjjqo9O6OU01OWujBWC6xZNpBqRTk5H7K2borcFA=",
+                khr.getHash(),
+                khr.getSalt(),
                 Utils.toBase64String(clientSecret),
                 "test-contact",
                 created,
@@ -321,7 +327,7 @@ public class UIDOperatorVerticleTest {
         ClientKey ck = clientKeyProvider.getClientKey("");
         HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint(endpoint));
         if (ck != null)
-            req.putHeader("Authorization", "Bearer UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=");
+            req.putHeader("Authorization", "Bearer " + clientKey);
         req.send(handler);
     }
 
@@ -330,7 +336,7 @@ public class UIDOperatorVerticleTest {
         ClientKey ck = clientKeyProvider.getClientKey("");
         HttpRequest<Buffer> req = client.postAbs(getUrlForEndpoint(endpoint));
         if (ck != null)
-            req.putHeader("Authorization", "Bearer UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=");
+            req.putHeader("Authorization", "Bearer " + clientKey);
         req.sendJsonObject(body, handler);
     }
 
@@ -350,7 +356,7 @@ public class UIDOperatorVerticleTest {
             bufBody.appendBytes(AesGcm.encrypt(b.getBytes(), ck.getSecretBytes()));
         }
 
-        final String apiKey = ck == null ? "" : "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=";
+        final String apiKey = ck == null ? "" : clientKey;
         HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
                 .putHeader("Authorization", "Bearer " + apiKey)
                 .putHeader("content-type", "text/plain");

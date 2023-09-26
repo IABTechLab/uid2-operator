@@ -139,8 +139,8 @@ Following these steps:
 1. Run the following script, which creates a new secret, first customizing with your own values
 
 ```
-API_TOKEN="{OPERATOR_KEY}"
-echo -n $API_TOKEN | gcloud secrets create {API_TOKEN_SECRET_NAME} \
+OPERATOR_KEY="{OPERATOR_KEY}"
+echo -n $OPERATOR_KEY | gcloud secrets create {OPERATOR_KEY_SECRET_NAME} \
     --replication-policy="automatic" \
     --data-file=-
 ```

@@ -8,7 +8,7 @@
                 <pattern>app=uid2-operator,host=${HOSTNAME},portoffset=${port_offset:-0},level=%level,class=%logger{20}</pattern>
             </label>
             <message>
-                <pattern>l=%level h=${HOSTNAME} po=${port_offset:-0} c=%logger{20} t=%thread | %msg %ex</pattern>
+                <pattern>l=%level h=${HOSTNAME} po=${port_offset:-0} c=%logger{20} t=%thread | %replace(%msg){'[^\s]+s3\.amazonaws\.com\/.*X-Amz-Security-Token=[^\s]+', 'REDACTED LOG - T1'} %replace(%ex){'[^\s]+s3\.amazonaws\.com\/.*X-Amz-Security-Token=[^\s]+', 'REDACTED ERR - T1'}</pattern>
             </message>
             <sortByTime>true</sortByTime>
         </format>
@@ -17,7 +17,7 @@
         <!-- encoders are assigned the type
              ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %replace(%msg){'[^\s]+s3\.amazonaws\.com\/.*X-Amz-Security-Token=[^\s]+', 'REDACTED LOG - T1'} %replace(%ex){'[^\s]+s3\.amazonaws\.com\/.*X-Amz-Security-Token=[^\s]+', 'REDACTED ERR - T1'}%n</pattern>
         </encoder>
     </appender>
 

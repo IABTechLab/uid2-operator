@@ -3,7 +3,7 @@
         <!-- encoders are assigned the type
              ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %replace(%msg){'[^\s]+s3\.amazonaws\.com\/.*X-Amz-Security-Token=[^\s]+', 'REDACTED LOG - T1'} %replace(%ex){'[^\s]+s3\.amazonaws\.com\/.*X-Amz-Security-Token=[^\s]+', 'REDACTED ERR - T1'}%n</pattern>
         </encoder>
     </appender>
 

@@ -6,7 +6,7 @@ running on Confidential Space VMs, and will be deployed in multiple AZs.
 We will set up below in your GCP project
 - Activate required GCP APIs.
 - Service account to run Confidential Space VMs.
-- Secret to hold `api_token`.
+- Secret to hold `operator_key`.
 - Network: VPC and subnetwork.
 - Instances: Instance template, and Instance groups (with autoscaling)
 - Ingress: Load balancer (with healthcheck), forwarding rules, firewall rules.
@@ -62,22 +62,22 @@ terraform destroy
 
 ## Inputs
 
-| Name                      | Type     | Default              | Required | Description                                                                                       |
-|---------------------------|----------|----------------------|:--------:|---------------------------------------------------------------------------------------------------|
-| project_id                | `string` | n/a                  |   yes    | n/a                                                                                               |
-| service_account_name      | `string` | n/a                  |   yes    | n/a                                                                                               |
-| uid_operator_image        | `string` | n/a                  |   yes    | n/a                                                                                               |
-| uid_api_token             | `string` | n/a                  |   yes    | n/a                                                                                               |
-| uid_deployment_env        | `string` | n/a                  |   yes    | Allowed values: `"integ"`, `"prod"`                                                               |
-| uid_api_token_secret_name | `string` | `"secret-api-token"` |    no    | n/a                                                                                               |
-| region                    | `string` | `"us-east1"`         |    no    | n/a                                                                                               |
-| network_name              | `string` | `"uid-operator"`     |    no    | n/a                                                                                               |
-| max_replicas              | `number` | `5`                  |    no    | n/a                                                                                               |
-| min_replicas              | `number` | `1`                  |    no    | n/a                                                                                               |
-| debug_mode                | `bool`   | `false`              |    no    | n/a                                                                                               |
-| ssl                       | `bool`   | `false`              |    no    | Set to true to enable SSL support, requires variable `private_key` and `certificate`              |
-| private_key               | `string` | `null`               |    no    | Content of the private SSL key. Required if `ssl` is true. e.g. `file("path/to/private.key")`     |
-| certificate               | `string` | `null`               |    no    | Content of the SSL certificate. Required if `ssl` is true. e.g. `file("path/to/certificate.crt")` |
+| Name                         | Type     | Default                 | Required | Description                                                                                       |
+|------------------------------|----------|-------------------------|:--------:|---------------------------------------------------------------------------------------------------|
+| project_id                   | `string` | n/a                     |   yes    | n/a                                                                                               |
+| service_account_name         | `string` | n/a                     |   yes    | n/a                                                                                               |
+| uid_operator_image           | `string` | n/a                     |   yes    | n/a                                                                                               |
+| uid_operator_key             | `string` | n/a                     |   yes    | n/a                                                                                               |
+| uid_deployment_env           | `string` | n/a                     |   yes    | Allowed values: `"integ"`, `"prod"`                                                               |
+| uid_operator_key_secret_name | `string` | `"secret-operator-key"` |    no    | n/a                                                                                               |
+| region                       | `string` | `"us-east1"`            |    no    | n/a                                                                                               |
+| network_name                 | `string` | `"uid-operator"`        |    no    | n/a                                                                                               |
+| max_replicas                 | `number` | `5`                     |    no    | n/a                                                                                               |
+| min_replicas                 | `number` | `1`                     |    no    | n/a                                                                                               |
+| debug_mode                   | `bool`   | `false`                 |    no    | n/a                                                                                               |
+| ssl                          | `bool`   | `false`                 |    no    | Set to true to enable SSL support, requires variable `private_key` and `certificate`              |
+| private_key                  | `string` | `null`                  |    no    | Content of the private SSL key. Required if `ssl` is true. e.g. `file("path/to/private.key")`     |
+| certificate                  | `string` | `null`                  |    no    | Content of the SSL certificate. Required if `ssl` is true. e.g. `file("path/to/certificate.crt")` |
 
 
 ## Outputs

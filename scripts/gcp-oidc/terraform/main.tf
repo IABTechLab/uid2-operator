@@ -78,8 +78,8 @@ module "secret-manager" {
   project_id = var.project_id
   secrets = [
     {
-      name                  = var.uid_api_token_secret_name
-      secret_data           = var.uid_api_token
+      name                  = var.uid_operator_key_secret_name
+      secret_data           = var.uid_operator_key
       automatic_replication = true
     },
   ]

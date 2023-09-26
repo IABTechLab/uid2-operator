@@ -119,8 +119,8 @@ We can deploy new UID2 Operator in GCP Confidential Space Enclave into Integrati
     - Debug mode: True/False in Integration. Always False in Production.
 - Output: GCP Enclave ID
 
-2. Register the generated GCP Enclave ID
-   Go to Admin portal [Enclave Id Management page](https://admin-integ.uidapi.com/adm/enclave-id.html),
+2. Register the generated GCP Enclave ID: go to Admin
+   portal [Enclave Id Management page](https://admin-integ.uidapi.com/adm/enclave-id.html),
 
 - Input:
     - Name: enclave name
@@ -131,12 +131,8 @@ We can deploy new UID2 Operator in GCP Confidential Space Enclave into Integrati
 
 As part of setting up your UID2 account, you'll receive an Operator Key for each environment.
 
-The next step is to store the `{OPERATOR_KEY}` value in GCP Secret Manager and get a secret name for it,
-which you later use to replace the
-`{OPERATOR_KEY}`: private operator api token, dedicated for you. You should have received this from UID2 team.
-In this section, we will guide you how to store `{OPERATOR_KEY}` in GCP Secret Manager and get the secret name which
-will
-be used to replace the `{OPERATOR_KEY_SECRET_FULL_NAME}` placeholder later during VM instance creation.
+The next step is to store the `{OPERATOR_KEY}` value in GCP Secret Manager and get a full secret name for it,
+which you later use to replace the `{OPERATOR_KEY_SECRET_FULL_NAME}` placeholder in the deployment script.
 
 Following these steps:
 

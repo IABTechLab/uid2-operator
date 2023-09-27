@@ -17,7 +17,7 @@ The attestation service runs in the same region that the workload is running in.
 
 When our workload(UID2 Operator)'s docker container starts up, it will fetch GCP OIDC token from shared mount volume and 
 
-put the token inside Attestation Document. It then sends the Attestation Document plus the UID2 `api_token` to
+put the token inside Attestation Document. It then sends the Attestation Document plus the UID2 Operator Key to
 UID2 Core as Attestation Request.
 
 Once the attestation is successful, UID2 Core will provide seed information such as Salts,
@@ -148,16 +148,16 @@ echo -n $OPERATOR_KEY | gcloud secrets create {OPERATOR_KEY_SECRET_NAME} \
 - Prepare the script, using your own values:
     - For `{OPERATOR_KEY}`, use your own operator key for the environment
     - For `{OPERATOR_KEY_SECRET_NAME}`, specify the name you want to use for your API secret, for this environment. For
-      example: `uid2_operator_operator_key_secret_integ`.
+      example: `uid2-operator-operator-key-secret-integ`.
 
 2. Run the following command to get the full secret name, including the path, first customizing with your own values:
 
 ```
-gcloud secrets versions describe latest --secret {API_TOKEN_SECRET_NAME} --format 'value(name)'
+gcloud secrets versions describe latest --secret {OPERATOR_KEY_SECRET_NAME} --format 'value(name)'
 ```
 
 In this example, the full secret name might
-be:`projects/111111111111/secrets/uid2_operator_operator_key_secret_integ/versions/1`. This is the value that you would
+be:`projects/111111111111/secrets/uid2-operator-operator-key-secret-integ/versions/1`. This is the value that you would
 use to replace the `{OPERATOR_KEY_SECRET_FULL_NAME}` placeholder in the next section.
 
 ### (For partner) Create VM Instance

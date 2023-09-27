@@ -54,7 +54,7 @@ public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
         final String emailAddress = "test@uid2.com";
         final JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", emailAddress);
-        sendTokenGenerate("v2", vertx, "", v2Payload, 200, json -> testContext.completeNow());
+        sendTokenGenerate("v2", vertx, "", v2Payload, 200, json -> testContext.completeNow(), false);
 
     }
 

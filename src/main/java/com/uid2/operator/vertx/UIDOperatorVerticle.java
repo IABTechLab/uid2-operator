@@ -1651,7 +1651,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private UserConsentStatus validateUserConsent(JsonObject req) {
-        if (identityScope.equals(IdentityScope.EUID)) {
+        // TCF string is an optional parameter and we should only check tcf if in EUID and the string is present
+        if (identityScope.equals(IdentityScope.EUID) && req.containsKey("tcf_consent_string")) {
             TransparentConsentParseResult tcResult = this.getUserConsentV2(req);
             if (!tcResult.isSuccess()) {
                 return UserConsentStatus.INVALID;

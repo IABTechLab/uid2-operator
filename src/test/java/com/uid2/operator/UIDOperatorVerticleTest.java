@@ -228,16 +228,23 @@ public class UIDOperatorVerticleTest {
 
     protected void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode,
                                      Handler<JsonObject> handler) {
-        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler);
+        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler, true);
     }
 
-    private void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode, String referer, Handler<JsonObject> handler) {
+    protected void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode,
+                                     Handler<JsonObject> handler, boolean additionalParams) {
+        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler, additionalParams);
+    }
+
+    private void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode, String referer, Handler<JsonObject> handler, boolean additionalParams) {
         if (apiVersion.equals("v2")) {
             ClientKey ck = (ClientKey) clientKeyProvider.get("");
 
             long nonce = new BigInteger(Random.getBytes(8)).longValue();
 
-            addAdditionalTokenGenerateParams(v2PostPayload);
+            if(additionalParams) {
+                addAdditionalTokenGenerateParams(v2PostPayload);
+            }
 
             postV2(ck, vertx, apiVersion + "/token/generate", v2PostPayload, nonce, referer, ar -> {
                 assertTrue(ar.succeeded());
@@ -2556,7 +2563,7 @@ public class UIDOperatorVerticleTest {
                     assertStatsCollector("/v2/token/generate", "test-referer", null, null);
 
                     testContext.completeNow();
-                });
+                }, true);
     }
 
     private void postCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {

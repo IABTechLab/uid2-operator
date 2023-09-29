@@ -34,5 +34,6 @@
   "optout_max_partitions": 30,
   "optout_partition_interval": 86400,
   "client_side_token_generate": false,
-  "validate_service_links": false
+  "validate_service_links": false,
+  "request_timestamp_delta_max_expected_hours": 48
 }

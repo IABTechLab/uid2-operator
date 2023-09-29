@@ -50,6 +50,7 @@ import org.mockito.MockitoAnnotations;
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
 import java.net.URLEncoder;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.time.Clock;
@@ -2670,15 +2671,29 @@ public class UIDOperatorVerticleTest {
         setupCstgBackend("cstg.co.uk");
 
         postCstg(vertx,
-                "v2/token/client-generate",
-                "https://cstg.co.uk",
-                null,
-                testContext.succeeding(result -> testContext.verify(() -> {
-                    JsonObject response = result.bodyAsJsonObject();
-                    assertEquals("client_error", response.getString("status"));
-                    assertEquals("json payload expected but not found", response.getString("message"));
-                    testContext.completeNow();
-                })));
+                 "v2/token/client-generate",
+                 "https://cstg.co.uk",
+                 null,
+                 testContext.succeeding(result -> testContext.verify(() -> {
+                     JsonObject response = result.bodyAsJsonObject();
+                     assertEquals("client_error", response.getString("status"));
+                     assertEquals("json payload expected but not found", response.getString("message"));
+                     testContext.completeNow();
+                 })));
+    }
+
+    @Test
+    void cstgForInvalidJsonPayloadReturns400(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend("cstg.co.uk");
+
+        WebClient client = WebClient.create(vertx);
+        client.postAbs(getUrlForEndpoint("v2/token/client-generate"))
+            .putHeader("origin", "https://cstg.co.uk")
+            .putHeader("Content-Type", "application/json")
+            .sendBuffer(Buffer.buffer("not a valid json payload"), result -> testContext.verify(() -> {
+                assertEquals(400, result.result().statusCode());
+                testContext.completeNow();
+            }));
     }
 
     @Test

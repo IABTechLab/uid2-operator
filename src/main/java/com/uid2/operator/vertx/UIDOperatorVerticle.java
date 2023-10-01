@@ -108,7 +108,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
     private final IdentityScope identityScope;
     private final V2PayloadHandler v2PayloadHandler;
-    private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
     private final int tcfVendorId;
     private final IStatsCollectorQueue _statsCollectorQueue;
@@ -197,16 +196,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
-    public void setDisableHandler(Handler<RoutingContext> h) {
-        this.disableHandler = h;
-    }
-
     private Router createRoutesSetup() throws IOException {
         final Router router = Router.router(vertx);
-
-        if (this.disableHandler != null) {
-            router.route().handler(this.disableHandler);
-        }
 
         router.allowForward(AllowForwardHeaders.X_FORWARD);
         router.route().handler(new RequestCapturingHandler());

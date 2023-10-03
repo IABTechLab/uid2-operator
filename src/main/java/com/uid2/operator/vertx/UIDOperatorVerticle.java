@@ -116,12 +116,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
     private final Duration cstgRequestTimestampDeltaThreshold;
-    private final io.micrometer.core.instrument.Timer cstgRequestTimestampDelta = io.micrometer.core.instrument.Timer.builder("uid2_request_timestamp_delta")
-            .tag("path", "/v2/token/client-generate")
-            .publishPercentileHistogram()
-            .minimumExpectedValue(Duration.ofSeconds(1))
-            .maximumExpectedValue(Duration.ofMinutes(60))
-            .register(Metrics.globalRegistry);
+    private final io.micrometer.core.instrument.Timer cstgRequestTimestampDelta;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
@@ -164,6 +159,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
+        this.cstgRequestTimestampDelta = io.micrometer.core.instrument.Timer.builder("uid2_request_timestamp_delta")
+                .tag("path", "/v2/token/client-generate")
+                .publishPercentileHistogram()
+                .minimumExpectedValue(Duration.ofSeconds(1))
+                .maximumExpectedValue(Duration.ofHours(config.getInteger("request_timestamp_delta_max_expected_hours", 48)))
+                .register(Metrics.globalRegistry);
     }
 
     @Override

@@ -309,7 +309,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
-        final JsonObject body = rc.body().asJsonObject();
+        final JsonObject body;
+        try {
+            body = rc.body().asJsonObject();
+        } catch (DecodeException ex) {
+            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload is not valid");
+            return;
+        }
+
         if (body == null) {
             ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload expected but not found");
             // We don't have a site ID, so we don't bother calling TokenResponseStatsCollector.record.

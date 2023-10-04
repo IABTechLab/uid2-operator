@@ -3,19 +3,19 @@ package com.uid2.operator.model;
 public final class IdentityRequest {
     public final PublisherIdentity publisherIdentity;
     public final UserIdentity userIdentity;
-    public final TokenGeneratePolicy tokenGeneratePolicy;
+    public final OptoutCheckPolicy optoutCheckPolicy;
 
     public IdentityRequest(
             PublisherIdentity publisherIdentity,
             UserIdentity userIdentity,
-            TokenGeneratePolicy tokenGeneratePolicy)
+            OptoutCheckPolicy tokenGeneratePolicy)
     {
         this.publisherIdentity = publisherIdentity;
         this.userIdentity = userIdentity;
-        this.tokenGeneratePolicy = tokenGeneratePolicy;
+        this.optoutCheckPolicy = tokenGeneratePolicy;
     }
 
     public boolean shouldCheckOptOut() {
-        return tokenGeneratePolicy.equals(TokenGeneratePolicy.RespectOptOut);
+        return optoutCheckPolicy.equals(OptoutCheckPolicy.RespectOptOut);
     }
 }

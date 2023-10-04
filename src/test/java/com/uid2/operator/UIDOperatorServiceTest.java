@@ -129,7 +129,7 @@ public class UIDOperatorServiceTest {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
                 createUserIdentity("test-email-hash"),
-                TokenGeneratePolicy.JustGenerate
+                OptoutCheckPolicy.DoNotRespect
         );
         final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
         assertNotNull(tokens);
@@ -182,7 +182,7 @@ public class UIDOperatorServiceTest {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
                 inputVal.toUserIdentity(IdentityScope.UID2, 0, this.now),
-                TokenGeneratePolicy.JustGenerate
+                OptoutCheckPolicy.DoNotRespect
         );
         final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
         assertNotNull(tokens);
@@ -199,7 +199,7 @@ public class UIDOperatorServiceTest {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
                 inputVal.toUserIdentity(IdentityScope.EUID, 0, this.now),
-                TokenGeneratePolicy.JustGenerate
+                OptoutCheckPolicy.DoNotRespect
         );
         final IdentityTokens tokens = euidService.generateIdentity(identityRequest);
         assertNotNull(tokens);
@@ -215,12 +215,12 @@ public class UIDOperatorServiceTest {
         final IdentityRequest identityRequestForceGenerate = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
                 userIdentity,
-                TokenGeneratePolicy.JustGenerate);
+                OptoutCheckPolicy.DoNotRespect);
 
         final IdentityRequest identityRequestRespectOptOut = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
                 userIdentity,
-                TokenGeneratePolicy.RespectOptOut);
+                OptoutCheckPolicy.RespectOptOut);
 
         // the clock value shouldn't matter here
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
@@ -243,12 +243,12 @@ public class UIDOperatorServiceTest {
 
         final MapRequest mapRequestForceMap = new MapRequest(
                 userIdentity,
-                IdentityMapPolicy.JustMap,
+                OptoutCheckPolicy.DoNotRespect,
                 now);
 
         final MapRequest mapRequestRespectOptOut = new MapRequest(
                 userIdentity,
-                IdentityMapPolicy.RespectOptOut,
+                OptoutCheckPolicy.RespectOptOut,
                 now);
 
         // the clock value shouldn't matter here
@@ -311,7 +311,7 @@ public class UIDOperatorServiceTest {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
                 inputVal.toUserIdentity(scope, 0, this.now),
-                TokenGeneratePolicy.RespectOptOut
+                OptoutCheckPolicy.RespectOptOut
         );
         IdentityTokens tokens;
         if(scope == IdentityScope.EUID) {
@@ -342,7 +342,7 @@ public class UIDOperatorServiceTest {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
                 inputVal.toUserIdentity(scope, 0, this.now),
-                TokenGeneratePolicy.JustGenerate
+                OptoutCheckPolicy.DoNotRespect
         );
         IdentityTokens tokens;
         if(scope == IdentityScope.EUID) {
@@ -372,7 +372,7 @@ public class UIDOperatorServiceTest {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
                 inputVal.toUserIdentity(scope, 0, this.now),
-                TokenGeneratePolicy.JustGenerate
+                OptoutCheckPolicy.DoNotRespect
         );
         IdentityTokens tokens;
         if(scope == IdentityScope.EUID) {

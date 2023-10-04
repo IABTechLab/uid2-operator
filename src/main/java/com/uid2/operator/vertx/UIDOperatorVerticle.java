@@ -31,11 +31,9 @@ import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
 import com.uid2.shared.store.ISaltProvider;
-import com.uid2.shared.store.reader.RotatingClientKeyProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.AbstractVerticle;
@@ -102,8 +100,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
-    private final Map<Tuple.Tuple2<String, TokenGeneratePolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
-    private final Map<Tuple.Tuple2<String, IdentityMapPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
+    private final Map<Tuple.Tuple2<String, OptoutCheckPolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
+    private final Map<Tuple.Tuple2<String, OptoutCheckPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
     private final IdentityScope identityScope;
@@ -455,7 +453,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 new IdentityRequest(
                         new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
-                        TokenGeneratePolicy.RespectOptOut));
+                        OptoutCheckPolicy.RespectOptOut));
 
 
         if (identityTokens.isEmptyToken()) {
@@ -471,7 +469,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             identityTokens = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
-                            cstgOptOutIdentity, TokenGeneratePolicy.JustGenerate));
+                            cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
         }
         JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
         V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
@@ -788,7 +786,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new IdentityRequest(
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                TokenGeneratePolicy.defaultPolicy()));
+                                OptoutCheckPolicy.defaultPolicy()));
 
                 //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
@@ -832,18 +830,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 }
 
-                if (!meetPolicyCheckRequirements(rc, TOKEN_GENERATE_POLICY_PARAM, TokenGeneratePolicy.respectOptOut())) {
+                if (!meetPolicyCheckRequirements(rc)) {
                     ResponseUtil.ClientError(rc, "Required opt-out policy argument for token/generate is missing or not set to 1");
                     return;
                 }
 
-                final TokenGeneratePolicy tokenGeneratePolicy = readTokenGeneratePolicy(req);
+                final OptoutCheckPolicy optoutCheckPolicy = readOptoutCheckPolicy(req);
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                tokenGeneratePolicy));
-                recordTokenGeneratePolicy(apiContact, tokenGeneratePolicy);
+                                optoutCheckPolicy));
+                recordTokenGeneratePolicy(apiContact, optoutCheckPolicy);
 
                 if (t.isEmptyToken()) {
                     ResponseUtil.SuccessNoBodyV2("optout", rc);
@@ -875,7 +873,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     new IdentityRequest(
                             new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                             input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                            TokenGeneratePolicy.defaultPolicy()));
+                            OptoutCheckPolicy.defaultPolicy()));
 
             //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
@@ -1275,7 +1273,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
             if (inputList == null) return;
 
-            IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(rc.getBodyAsJson());
+            OptoutCheckPolicy identityMapPolicy = readOptoutCheckPolicy(rc.getBodyAsJson());
             recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
 
             final Instant now = Instant.now();
@@ -1343,13 +1341,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            if (!meetPolicyCheckRequirements(rc, IDENTITY_MAP_POLICY_PARAM, IdentityMapPolicy.respectOptOut())) {
+            if (!meetPolicyCheckRequirements(rc)) {
                 ResponseUtil.ClientError(rc, "Required opt-out policy argument for identity/map is missing or not set to 1");
                 return;
             }
 
-            IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(requestJsonObject);
-            recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
+            OptoutCheckPolicy optoutCheckPolicy = readOptoutCheckPolicy(requestJsonObject);
+            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1363,7 +1361,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final MappedIdentity mappedIdentity = idService.mapIdentity(
                             new MapRequest(
                                     input.toUserIdentity(this.identityScope, 0, now),
-                                    identityMapPolicy,
+                                    optoutCheckPolicy,
                                     now));
 
                     if (mappedIdentity.isOptedOut()) {
@@ -1462,8 +1460,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 inputList = createInputList(emailHashes, true);
             }
 
-            final IdentityMapPolicy identityMapPolicy = readIdentityMapPolicy(obj);
-            recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
+            final OptoutCheckPolicy optoutCheckPolicy = readOptoutCheckPolicy(obj);
+            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1477,7 +1475,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final MappedIdentity mappedIdentity = this.idService.mapIdentity(
                             new MapRequest(
                                     input.toUserIdentity(this.identityScope, 0, now),
-                                    identityMapPolicy,
+                                    optoutCheckPolicy,
                                     now));
                     if (mappedIdentity.isOptedOut()) {
                         final JsonObject resp = new JsonObject();
@@ -1683,25 +1681,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return UserConsentStatus.SUFFICIENT;
     }
 
-    private static final String TOKEN_GENERATE_POLICY_PARAM = "policy";
+    private static final String POLICY_PARAM = "policy";
+    private static final String OPTOUT_CHECK_POLICY_PARAM = "optout_check";
 
-    private TokenGeneratePolicy readTokenGeneratePolicy(JsonObject req) {
-        return req.containsKey(TOKEN_GENERATE_POLICY_PARAM) ?
-                TokenGeneratePolicy.fromValue(req.getInteger(TOKEN_GENERATE_POLICY_PARAM)) :
-                TokenGeneratePolicy.defaultPolicy();
-    }
-
-    private boolean meetPolicyCheckRequirements(RoutingContext rc, String parameter, Object policy) {
+    private boolean meetPolicyCheckRequirements(RoutingContext rc) {
         JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
-        boolean respectOptOut = requestJsonObject.containsKey(parameter);
-        if (respectOptOut) {
-            if (policy instanceof IdentityMapPolicy) {
-                respectOptOut &= IdentityMapPolicy.fromValue(requestJsonObject.getInteger(parameter)) == IdentityMapPolicy.respectOptOut();
-            } else if (policy instanceof TokenGeneratePolicy) {
-                respectOptOut &= TokenGeneratePolicy.fromValue(requestJsonObject.getInteger(parameter)) == TokenGeneratePolicy.respectOptOut();
-            } else {
-                respectOptOut = false;
-            }
+        boolean respectOptOut = false;
+        if (requestJsonObject.containsKey(OPTOUT_CHECK_POLICY_PARAM)) {
+            respectOptOut = OptoutCheckPolicy.fromValue(requestJsonObject.getInteger(OPTOUT_CHECK_POLICY_PARAM)) == OptoutCheckPolicy.respectOptOut();
+        } else if (requestJsonObject.containsKey(POLICY_PARAM)) {
+            respectOptOut = OptoutCheckPolicy.fromValue(requestJsonObject.getInteger(POLICY_PARAM)) == OptoutCheckPolicy.respectOptOut();
         }
 
         final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
@@ -1717,15 +1706,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return true;
     }
 
-    private static final String IDENTITY_MAP_POLICY_PARAM = "policy";
 
-    private IdentityMapPolicy readIdentityMapPolicy(JsonObject req) {
-        return req.containsKey(IDENTITY_MAP_POLICY_PARAM) ?
-                IdentityMapPolicy.fromValue(req.getInteger(IDENTITY_MAP_POLICY_PARAM)) :
-                IdentityMapPolicy.defaultPolicy();
+    private OptoutCheckPolicy readOptoutCheckPolicy(JsonObject req) {
+        return req.containsKey(OPTOUT_CHECK_POLICY_PARAM) ?
+                OptoutCheckPolicy.fromValue(req.getInteger(OPTOUT_CHECK_POLICY_PARAM)) :
+                req.containsKey(POLICY_PARAM) ? OptoutCheckPolicy.fromValue(req.getInteger(POLICY_PARAM)) : OptoutCheckPolicy.defaultPolicy();
     }
 
-    private void recordTokenGeneratePolicy(String apiContact, TokenGeneratePolicy policy) {
+    private void recordTokenGeneratePolicy(String apiContact, OptoutCheckPolicy policy) {
         _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple.Tuple2<>(apiContact, policy), pair -> Counter
                 .builder("uid2.token_generate_policy_usage")
                 .description("Counter for token generate policy usage")
@@ -1733,7 +1721,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .register(Metrics.globalRegistry)).increment();
     }
 
-    private void recordIdentityMapPolicy(String apiContact, IdentityMapPolicy policy) {
+    private void recordIdentityMapPolicy(String apiContact, OptoutCheckPolicy policy) {
         _identityMapPolicyCounters.computeIfAbsent(new Tuple.Tuple2<>(apiContact, policy), pair -> Counter
                 .builder("uid2.identity_map_policy_usage")
                 .description("Counter for identity map policy usage")

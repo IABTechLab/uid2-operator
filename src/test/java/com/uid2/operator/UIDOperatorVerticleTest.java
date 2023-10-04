@@ -41,7 +41,9 @@ import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -59,6 +61,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
@@ -577,7 +580,7 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         JsonObject req = createBatchEmailsRequestPayload();
-        req.put("policy", 1);
+        req.put("optout_check", 1);
         return req;
     }
 
@@ -781,8 +784,9 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void identityMapNewClientWrongPolicySpecified(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"policy", "optout_check"})
+    void identityMapNewClientWrongPolicySpecified(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
         setupSalts();
@@ -792,7 +796,7 @@ public class UIDOperatorVerticleTest {
         JsonArray emails = new JsonArray();
         emails.add("test1@uid2.com");
         req.put("email", emails);
-        req.put("policy", IdentityMapPolicy.JustMap.policy);
+        req.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
 
         send("v2", vertx, "v2/identity/map", false, null, req, 400, respJson -> {
             assertFalse(respJson.containsKey("body"));
@@ -840,8 +844,9 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void identityMapNewClientWrongPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"policy", "optout_check"})
+    void identityMapNewClientWrongPolicySpecifiedOlderKeySuccessful(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         ClientKey newClientKey = new ClientKey(
                 null,
                 null,
@@ -869,7 +874,7 @@ public class UIDOperatorVerticleTest {
         JsonObject req = new JsonObject();
         JsonArray emails = new JsonArray();
         req.put("email", emails);
-        req.put("policy", IdentityMapPolicy.JustMap.policy);
+        req.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
 
         emails.add("test1@uid2.com");
         ;
@@ -900,8 +905,9 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    @Test
-    void tokenGenerateNewClientWrongPolicySpecified(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"policy", "optout_check"})
+    void tokenGenerateNewClientWrongPolicySpecified(String policyParamterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.GENERATOR);
         setupSalts();
@@ -909,7 +915,7 @@ public class UIDOperatorVerticleTest {
 
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", "test@email.com");
-        v2Payload.put("policy", TokenGeneratePolicy.JustGenerate.policy);
+        v2Payload.put(policyParamterKey, OptoutCheckPolicy.DoNotRespect.policy);
 
         sendTokenGenerate("v2", vertx,
                 "", v2Payload, 400,
@@ -959,8 +965,9 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    @Test
-    void tokenGenerateNewClientWrongPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"policy", "optout_check"})
+    void tokenGenerateNewClientWrongPolicySpecifiedOlderKeySuccessful(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         ClientKey newClientKey = new ClientKey(
                 null,
                 null,
@@ -987,7 +994,7 @@ public class UIDOperatorVerticleTest {
 
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", "test@email.com");
-        v2Payload.put("policy", TokenGeneratePolicy.JustGenerate.policy);
+        v2Payload.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
 
         sendTokenGenerate("v2", vertx,
                 "", v2Payload, 200,
@@ -2431,10 +2438,9 @@ public class UIDOperatorVerticleTest {
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 413, json -> testContext.completeNow());
     }
-
     @ParameterizedTest
-    @ValueSource(strings = {"v2"})
-    void tokenGenerateRespectOptOutOption(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @ValueSource(strings = {"policy", "optout_check"})
+    void tokenGenerateRespectOptOutOption(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -2446,12 +2452,12 @@ public class UIDOperatorVerticleTest {
 
         JsonObject req = new JsonObject();
         req.put("email", "random-optout-user@email.io");
-        req.put("policy", 1);
+        req.put(policyParameterKey, 1);
 
         // for EUID
         addAdditionalTokenGenerateParams(req);
 
-        send(apiVersion, vertx, apiVersion + "/token/generate", false, null, req, 200, json -> {
+        send("v2", vertx, "v2/token/generate", false, null, req, 200, json -> {
             try {
                 Assertions.assertEquals(UIDOperatorVerticle.ResponseStatus.OptOut, json.getString("status"));
                 Assertions.assertNull(json.getJsonObject("body"));
@@ -2493,9 +2499,18 @@ public class UIDOperatorVerticleTest {
         });
     }
 
+    private static Stream<Arguments> versionAndPolicy() {
+        return Stream.of(
+                Arguments.arguments("v1", "policy"),
+                Arguments.arguments("v1", "optout_check"),
+                Arguments.arguments("v2", "policy"),
+                Arguments.arguments("v2", "optout_check")
+        );
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void identityMapRespectOptOutOption(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @MethodSource("versionAndPolicy")
+    void identityMapRespectOptOutOption(String apiVersion, String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
@@ -2509,7 +2524,7 @@ public class UIDOperatorVerticleTest {
         JsonArray emails = new JsonArray();
         emails.add("random-optout-user@email.io");
         req.put("email", emails);
-        req.put("policy", 1);
+        req.put(policyParameterKey, 1);
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 200, json -> {
             try {

@@ -55,6 +55,7 @@ import io.vertx.ext.web.handler.StaticHandler;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.util.function.Tuple2;
 
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
@@ -100,8 +101,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
-    private final Map<Tuple.Tuple2<String, OptoutCheckPolicy>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
-    private final Map<Tuple.Tuple2<String, OptoutCheckPolicy>, Counter> _identityMapPolicyCounters = new HashMap<>();
+    private final Map<Tuple.Tuple3<String, OptoutCheckPolicy, String>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
+    private final Map<Tuple.Tuple3<String, OptoutCheckPolicy, String>, Counter> _identityMapPolicyCounters = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
     private final IdentityScope identityScope;
@@ -835,13 +836,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     return;
                 }
 
-                final OptoutCheckPolicy optoutCheckPolicy = readOptoutCheckPolicy(req);
+                final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(req);
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                optoutCheckPolicy));
-                recordTokenGeneratePolicy(apiContact, optoutCheckPolicy);
+                                optoutCheckPolicy.getItem1()));
+                recordTokenGeneratePolicy(apiContact, optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
 
                 if (t.isEmptyToken()) {
                     ResponseUtil.SuccessNoBodyV2("optout", rc);
@@ -1273,8 +1274,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
             if (inputList == null) return;
 
-            OptoutCheckPolicy optoutCheckPolicy = readOptoutCheckPolicy(rc.getBodyAsJson());
-            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy);
+            final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(rc.getBodyAsJson());
+            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1288,7 +1289,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final MappedIdentity mappedIdentity = this.idService.mapIdentity(
                             new MapRequest(
                                     input.toUserIdentity(this.identityScope, 0, now),
-                                    optoutCheckPolicy,
+                                    optoutCheckPolicy.getItem1(),
                                     now));
                     if (mappedIdentity.isOptedOut()) {
                         final JsonObject resp = new JsonObject();
@@ -1346,8 +1347,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            OptoutCheckPolicy optoutCheckPolicy = readOptoutCheckPolicy(requestJsonObject);
-            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy);
+            final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(requestJsonObject);
+            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1361,7 +1362,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final MappedIdentity mappedIdentity = idService.mapIdentity(
                             new MapRequest(
                                     input.toUserIdentity(this.identityScope, 0, now),
-                                    optoutCheckPolicy,
+                                    optoutCheckPolicy.getItem1(),
                                     now));
 
                     if (mappedIdentity.isOptedOut()) {
@@ -1460,8 +1461,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 inputList = createInputList(emailHashes, true);
             }
 
-            final OptoutCheckPolicy optoutCheckPolicy = readOptoutCheckPolicy(obj);
-            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy);
+            final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(obj);
+            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1475,7 +1476,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final MappedIdentity mappedIdentity = this.idService.mapIdentity(
                             new MapRequest(
                                     input.toUserIdentity(this.identityScope, 0, now),
-                                    optoutCheckPolicy,
+                                    optoutCheckPolicy.getItem1(),
                                     now));
                     if (mappedIdentity.isOptedOut()) {
                         final JsonObject resp = new JsonObject();
@@ -1707,25 +1708,29 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
 
-    private OptoutCheckPolicy readOptoutCheckPolicy(JsonObject req) {
-        return req.containsKey(OPTOUT_CHECK_POLICY_PARAM) ?
-                OptoutCheckPolicy.fromValue(req.getInteger(OPTOUT_CHECK_POLICY_PARAM)) :
-                req.containsKey(POLICY_PARAM) ? OptoutCheckPolicy.fromValue(req.getInteger(POLICY_PARAM)) : OptoutCheckPolicy.defaultPolicy();
+    private Tuple.Tuple2<OptoutCheckPolicy, String> readOptoutCheckPolicy(JsonObject req) {
+        if(req.containsKey(OPTOUT_CHECK_POLICY_PARAM)) {
+            return new Tuple.Tuple2<>(OptoutCheckPolicy.fromValue(req.getInteger(OPTOUT_CHECK_POLICY_PARAM)), OPTOUT_CHECK_POLICY_PARAM);
+        } else if(req.containsKey(POLICY_PARAM)) {
+            return new Tuple.Tuple2<>(OptoutCheckPolicy.fromValue(req.getInteger(POLICY_PARAM)), POLICY_PARAM);
+        } else {
+            return new Tuple.Tuple2<>(OptoutCheckPolicy.defaultPolicy(), "null");
+        }
     }
 
-    private void recordTokenGeneratePolicy(String apiContact, OptoutCheckPolicy policy) {
-        _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple.Tuple2<>(apiContact, policy), pair -> Counter
+    private void recordTokenGeneratePolicy(String apiContact, OptoutCheckPolicy policy, String policyParameterKey) {
+        _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple.Tuple3<>(apiContact, policy, policyParameterKey), triple -> Counter
                 .builder("uid2.token_generate_policy_usage")
                 .description("Counter for token generate policy usage")
-                .tags("api_contact", pair.getItem1(), "policy", String.valueOf(pair.getItem2()))
+                .tags("api_contact", triple.getItem1(), "policy", String.valueOf(triple.getItem2()), "policy_parameter", triple.getItem3())
                 .register(Metrics.globalRegistry)).increment();
     }
 
-    private void recordIdentityMapPolicy(String apiContact, OptoutCheckPolicy policy) {
-        _identityMapPolicyCounters.computeIfAbsent(new Tuple.Tuple2<>(apiContact, policy), pair -> Counter
+    private void recordIdentityMapPolicy(String apiContact, OptoutCheckPolicy policy, String policyParameterKey) {
+        _identityMapPolicyCounters.computeIfAbsent(new Tuple.Tuple3<>(apiContact, policy, policyParameterKey), triple -> Counter
                 .builder("uid2.identity_map_policy_usage")
                 .description("Counter for identity map policy usage")
-                .tags("api_contact", pair.getItem1(), "policy", String.valueOf(pair.getItem2()))
+                .tags("api_contact", triple.getItem1(), "policy", String.valueOf(triple.getItem2()), "policy_parameter", triple.getItem3())
                 .register(Metrics.globalRegistry)).increment();
     }
 

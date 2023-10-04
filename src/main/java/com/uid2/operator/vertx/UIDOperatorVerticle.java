@@ -1273,8 +1273,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
             if (inputList == null) return;
 
-            OptoutCheckPolicy identityMapPolicy = readOptoutCheckPolicy(rc.getBodyAsJson());
-            recordIdentityMapPolicy(getApiContact(rc), identityMapPolicy);
+            OptoutCheckPolicy optoutCheckPolicy = readOptoutCheckPolicy(rc.getBodyAsJson());
+            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy);
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();
@@ -1288,7 +1288,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final MappedIdentity mappedIdentity = this.idService.mapIdentity(
                             new MapRequest(
                                     input.toUserIdentity(this.identityScope, 0, now),
-                                    identityMapPolicy,
+                                    optoutCheckPolicy,
                                     now));
                     if (mappedIdentity.isOptedOut()) {
                         final JsonObject resp = new JsonObject();

@@ -831,18 +831,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 }
 
+                final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(req);
+                recordTokenGeneratePolicy(apiContact, optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
+
                 if (!meetPolicyCheckRequirements(rc)) {
                     ResponseUtil.ClientError(rc, "Required opt-out policy argument for token/generate is missing or not set to 1");
                     return;
                 }
 
-                final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(req);
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(clientKey.getSiteId(), 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
                                 optoutCheckPolicy.getItem1()));
-                recordTokenGeneratePolicy(apiContact, optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
 
                 if (t.isEmptyToken()) {
                     ResponseUtil.SuccessNoBodyV2("optout", rc);
@@ -1342,13 +1343,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
+            final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(requestJsonObject);
+            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
+
             if (!meetPolicyCheckRequirements(rc)) {
                 ResponseUtil.ClientError(rc, "Required opt-out policy argument for identity/map is missing or not set to 1");
                 return;
             }
-
-            final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(requestJsonObject);
-            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
 
             final Instant now = Instant.now();
             final JsonArray mapped = new JsonArray();

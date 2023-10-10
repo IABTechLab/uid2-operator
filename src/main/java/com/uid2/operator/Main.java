@@ -473,8 +473,8 @@ public class Main {
                 break;
             case "azure-cc":
                 LOGGER.info("creating uid core client with azure cc attestation protocol");
-                // TODO(lun.wang) set MAA endpoint via config
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureCCAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrl, Const.Config.DefaultMaaServerBaseUrl);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureCCAttestation(maaServerBaseUrl), responseWatcher, CloudUtils.defaultProxy);
                 break;
             default:
                 attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher, CloudUtils.defaultProxy);

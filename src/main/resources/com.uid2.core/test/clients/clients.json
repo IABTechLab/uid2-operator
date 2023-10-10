@@ -10,6 +10,8 @@
       "GENERATOR",
       "ID_READER",
       "SHARER",
+      "OPTOUT_CHECKER",
+      "THIS_IS_NOT_A_REAL_ROLE",
       "OPTOUT"
     ],
     "disabled": false,

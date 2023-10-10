@@ -12,9 +12,10 @@ and expose public Urls via ngrok, which could be used for private operator test.
 # How to run locally
 Set below config in `./e2e/e2e.sh`
  - NGROK_TOKEN: register a NGROK account and fetch from https://dashboard.ngrok.com/get-started/your-authtoken
- - IMAGE_HASH: the image hash "sha256:..." for your operator image, this is to generate valid enclave_id
  - CORE_VERSION: the core image version
  - OPTOUT_VERSION: the optout image version
+ - IMAGE_HASH: the image hash "sha256:..." for your operator image, this is to generate valid GCP OIDC enclave_id
+ - AZURE_CC_POLICY_DIGEST: Azure CC policy digest to be used as enclave_id
 
 and run below command under repo root:
 

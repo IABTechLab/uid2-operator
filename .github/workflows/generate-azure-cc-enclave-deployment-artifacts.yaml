@@ -1,0 +1,41 @@
+name: Generate Azure CC Enclave Deployment Artifacts
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to apply to the Docker file'
+        type: string
+      release_type:
+        description: The type of version number to return. Must be one of [Snapshot, Patch, Minor or Major]
+        required: true
+        type: string
+      java_version:
+        type: string
+        default: '11'
+      publish_vulnerabilities:
+        type: string
+        default: 'true'
+      
+env:
+  REGISTRY: ghcr.io
+  MAVEN_PROFILE: azure
+  ENCLAVE_PROTOCOL: azure-cc
+  IMAGE_NAME: ${{ github.repository }}
+  DOCKER_CONTEXT_PATH: scripts/azure-cc
+
+jobs:
+  build-publish-docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
+      id-token: write
+    steps:
+      - name: Generate Azure deployment artifacts
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.30.0
+          inlineScript: |
+            az extension add --name confcom

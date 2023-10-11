@@ -473,7 +473,7 @@ public class Main {
                 break;
             case "azure-cc":
                 LOGGER.info("creating uid core client with azure cc attestation protocol");
-                String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrl, Const.Config.DefaultMaaServerBaseUrl);
+                String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
                 attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureCCAttestation(maaServerBaseUrl), responseWatcher, CloudUtils.defaultProxy);
                 break;
             default:

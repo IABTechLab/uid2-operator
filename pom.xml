@@ -20,20 +20,11 @@
         <micrometer.version>1.1.0</micrometer.version>
         <enclave-api.version>1.4.0-e5df2e10aa</enclave-api.version>
         <enclave-aws.version>1.1.0</enclave-aws.version>
-        <enclave-azure.version>1.2.9-SNAPSHOT</enclave-azure.version>
+        <enclave-azure.version>1.3.0-1246054713</enclave-azure.version>
         <enclave-gcp.version>1.3.4-649b0b4f7f</enclave-gcp.version>
-        <uid2-shared.version>5.12.7-SNAPSHOT</uid2-shared.version>
+        <uid2-shared.version>5.13.0-a714a3ef26</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
-
-    <repositories>
-        <repository>
-            <id>snapshots-repo</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-            <releases><enabled>false</enabled></releases>
-            <snapshots><enabled>true</enabled></snapshots>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>

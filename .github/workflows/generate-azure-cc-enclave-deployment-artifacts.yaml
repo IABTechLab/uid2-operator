@@ -23,6 +23,8 @@ env:
   ENCLAVE_PROTOCOL: azure-cc
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_CONTEXT_PATH: scripts/azure-cc
+  IMAGE: ghcr.io/iabtechlab/uid2-operator:5.17.18-SNAPSHOT-azure-cc
+  OUTPUT_TEMPLATE_FILE: uid2-operator-deployment-template.json
 
 jobs:
   build-publish-docker:
@@ -39,3 +41,5 @@ jobs:
           azcliversion: 2.30.0
           inlineScript: |
             az extension add --name confcom
+            sed "s#IMAGE_PLACEHOLDER#${{ env.IMAGE }}#g" scripts/azure-cc/deployment-template.json > ${{ env.OUTPUT_TEMPLATE_FILE }}
+            az confcom acipolicygen --approve-wildcards --template-file ${{ env.OUTPUT_TEMPLATE_FILE }}

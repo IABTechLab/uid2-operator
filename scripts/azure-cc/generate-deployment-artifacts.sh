@@ -6,6 +6,7 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
 # Install confcom extension
 az extension add --name confcom
+sudo usermod -aG docker $USER
 
 # Generate deployment template
 sed "s#IMAGE_PLACEHOLDER#${IMAGE}#g" ${INPUT_TEMPLATE_FILE} > ${OUTPUT_TEMPLATE_FILE}

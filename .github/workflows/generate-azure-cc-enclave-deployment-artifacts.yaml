@@ -38,12 +38,6 @@ jobs:
         with:
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
-      - name: Log in to the Docker container registry
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Azure deployment artifacts
         env:
           IMAGE: ghcr.io/iabtechlab/uid2-operator:5.17.18-SNAPSHOT-azure-cc

@@ -23,6 +23,7 @@ env:
   ENCLAVE_PROTOCOL: azure-cc
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_CONTEXT_PATH: scripts/azure-cc
+  OUTPUT_TEMPLATE_FILE: ${{ github.workspace }}/uid2-operator-deployment-template.json
 
 jobs:
   build-publish-docker:
@@ -42,6 +43,12 @@ jobs:
         env:
           IMAGE: ghcr.io/iabtechlab/uid2-operator:5.17.18-SNAPSHOT-azure-cc
           INPUT_TEMPLATE_FILE: ${{ github.workspace }}/scripts/azure-cc/deployment-template.json
-          OUTPUT_TEMPLATE_FILE: ${{ github.workspace }}/uid2-operator-deployment-template.json
+          OUTPUT_TEMPLATE_FILE: ${{ env.OUTPUT_TEMPLATE_FILE }}
         run: |
           bash ./scripts/azure-cc/generate-deployment-artifacts.sh
+      - name: Archive deployment artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: azure-cc-deployment-files
+          path: |
+            ${{ env.OUTPUT_TEMPLATE_FILE }}

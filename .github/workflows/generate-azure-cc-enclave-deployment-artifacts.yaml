@@ -36,6 +36,11 @@ jobs:
       packages: write
       id-token: write
     steps:
+      - name: Checkout full history
+        uses: actions/checkout@v3
+        with:
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
       - name: Generate Azure deployment artifacts
         uses: azure/CLI@v1
         with:

@@ -6,7 +6,7 @@
       "value": ""
     },
     "image": {
-      "value": "ghcr.io/iabtechlab/uid2-operator:5.17.12-SNAPSHOT-azure-cc"
+      "value": "ghcr.io/iabtechlab/uid2-operator:5.17.25-SNAPSHOT-azure-cc"
     },
     "identity": {
       "value": ""

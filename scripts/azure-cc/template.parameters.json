@@ -3,10 +3,10 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "containerGroupName": {
-      "value": "ysh-uid2-operator"
+      "value": "uid2-operator"
     },
     "image": {
-      "value": "ghcr.io/iabtechlab/uid2-operator:5.17.12-SNAPSHOT-azure-cc"
+      "value": "ghcr.io/iabtechlab/uid2-operator:5.17.25-SNAPSHOT-azure-cc"
     },
     "identity": {
       "value": "uid-operator"
@@ -21,10 +21,10 @@
       "value": "integ"
     },
     "coreBaseUrl":  {
-      "value": "https://f872-58-246-6-18.ngrok-free.app"
+      "value": ""
     },
     "optoutBaseUrl":  {
-      "value": "https://cc66-58-246-6-18.ngrok-free.app"
+      "value": ""
     }
   }
 }

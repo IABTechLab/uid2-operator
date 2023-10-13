@@ -14,7 +14,7 @@ IMAGE_HASH=
 # Azure CC enclave configs
 TEST_AZURE_CC=true
 # TODO(lun.wang) eventually digest may be derived via IMAGE_HASH, and no need to be explicitly set
-AZURE_CC_POLICY_DIGEST=3e1f6eb87bd7b73c618cd1522abbb2d3a8a1baf50c10c78a186db347b962e331
+AZURE_CC_POLICY_DIGEST=4ea7a960178c92eee656357f656adbc83ab11e84badc5cd81615154153bd025a
 
 # replace below with your local repo root of uid2-core and uid2-optout
 CORE_ROOT="../../uid2-core"

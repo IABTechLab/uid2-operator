@@ -1581,10 +1581,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     public static String getSiteName(ISiteStore siteStore, int siteId) {
-        if (siteStore == null) return "null"; //this is expected if CSTG is not enabled, eg for private operators
+        if (siteStore == null) return "unknown"; //this is expected if CSTG is not enabled, eg for private operators
 
         final Site site = siteStore.getSite(siteId);
-        return (site == null) ? "null" : site.getName();
+        return (site == null) ? "unknown" : site.getName();
     }
 
     private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader) {

@@ -27,10 +27,17 @@ if [[ -z ${OUTPUT_POLICY_DIGEST_FILE} ]]; then
   exit 1
 fi
 
-# Install confcom extension
+# Install confcom extension, az is originally available in GitHub workflow environment
 az extension add --name confcom
 if [[ $? -ne 0 ]]; then
   echo "Failed to install Azure confcom extension"
+  exit 1
+fi
+
+# Required by az confcom
+sudo usermod -aG docker ${USER}
+if [[ $? -ne 0 ]]; then
+  echo "Failed to add current user to docker group"
   exit 1
 fi
 

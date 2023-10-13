@@ -27,23 +27,10 @@ if [[ -z ${OUTPUT_POLICY_DIGEST_FILE} ]]; then
   exit 1
 fi
 
-# Install Azure cli
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-if [[ $? -ne 0 ]]; then
-  echo "Failed to install Azure cli"
-  exit 1
-fi
-
 # Install confcom extension
 az extension add --name confcom
 if [[ $? -ne 0 ]]; then
   echo "Failed to install Azure confcom extension"
-  exit 1
-fi
-
-sudo usermod -aG docker ${USER} # required by confcom
-if [[ $? -ne 0 ]]; then
-  echo "Failed to add current user to docker group"
   exit 1
 fi
 

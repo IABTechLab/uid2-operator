@@ -1,8 +1,8 @@
 package com.uid2.operator.monitoring;
 
 import com.uid2.operator.model.RefreshResponse;
+import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.store.ISiteStore;
-import com.uid2.shared.model.Site;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 
@@ -42,13 +42,6 @@ public class TokenResponseStatsCollector {
 
     private static final Map<TokenResponseKey, Counter> TokenResponseCounters = new ConcurrentHashMap<>();
 
-    private static String getSiteName(ISiteStore siteStore, int siteId) {
-        if (siteStore == null) return "null"; //this is expected if CSTG is not enabled, eg for private operators
-
-        final Site site = siteStore.getSite(siteId);
-        return (site == null) ? "null" : site.getName();
-    }
-
     public static void record(ISiteStore siteStore, Integer siteId, Endpoint endpoint, ResponseStatus responseStatus) {
         recordInternal(siteStore, siteId, endpoint, responseStatus, endpoint == Endpoint.ClientSideTokenGenerateV2);
     }
@@ -61,7 +54,7 @@ public class TokenResponseStatsCollector {
                     .builder("uid2_token_response_status_count")
                     .description("Counter for token response statuses").tags(
                             "site_id", String.valueOf(siteId),
-                            "site_name", getSiteName(siteStore, siteId),
+                            "site_name", UIDOperatorVerticle.getSiteName(siteStore, siteId),
                             "token_endpoint", String.valueOf(endpoint),
                             "token_response_status", String.valueOf(responseStatus),
                             "cstg", isCstg ? "true" : "false");

@@ -1580,12 +1580,20 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return this.idService.refreshIdentity(refreshToken);
     }
 
+    public static String getSiteName(ISiteStore siteStore, int siteId) {
+        if (siteStore == null) return "null"; //this is expected if CSTG is not enabled, eg for private operators
+
+        final Site site = siteStore.getSite(siteId);
+        return (site == null) ? "null" : site.getName();
+    }
+
     private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader) {
         DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(new Tuple.Tuple2<>(apiContact, hasOriginHeader), k ->
                 DistributionSummary
                         .builder("uid2.token_refresh_duration_seconds")
                         .description("duration between token refreshes")
                         .tag("site_id", String.valueOf(siteId))
+                        .tag("site_name", getSiteName(siteProvider, siteId))
                         .tag("api_contact", apiContact)
                         .tag("has_origin_header", hasOriginHeader ? "true" : "false")
                         .register(Metrics.globalRegistry)
@@ -1598,6 +1606,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         .builder("uid2.advertising_token_expired_on_refresh")
                         .description("status of advertiser token expiry")
                         .tag("site_id", String.valueOf(siteId))
+                        .tag("site_name", getSiteName(siteProvider, siteId))
                         .tag("has_origin_header", hasOriginHeader ? "true" : "false")
                         .tag("is_expired", isExpired ? "true" : "false")
                         .register(Metrics.globalRegistry)
@@ -1822,7 +1831,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         public static final String InvalidHttpOrigin = "invalid_http_origin";
     }
 
-    public static enum UserConsentStatus {
+    public enum UserConsentStatus {
         SUFFICIENT,
         INSUFFICIENT,
         INVALID,

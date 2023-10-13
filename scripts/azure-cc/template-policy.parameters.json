@@ -3,28 +3,28 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "containerGroupName": {
-      "value": "ysh-uid2-operator"
+      "value": ""
     },
     "image": {
       "value": "ghcr.io/iabtechlab/uid2-operator:5.17.12-SNAPSHOT-azure-cc"
     },
     "identity": {
-      "value": "uid-operator"
+      "value": ""
     },
     "vaultName": {
-      "value": "uid-operator"
+      "value": ""
     },
     "operatorKeySecretName": {
-      "value": "operator-key"
+      "value": ""
     },
     "deploymentEnvironment": {
       "value": "integ"
     },
     "coreBaseUrl":  {
-      "value": "https://943b-58-246-6-18.ngrok-free.app"
+      "value": ""
     },
     "optoutBaseUrl":  {
-      "value": "https://3272-58-246-6-18.ngrok-free.app"
+      "value": ""
     }
   }
 }

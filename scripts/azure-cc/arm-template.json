@@ -2,7 +2,7 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "name": {
+    "containerGroupName": {
       "type": "string",
       "defaultValue": "uid2-operator",
       "metadata": {
@@ -22,31 +22,31 @@
         "description": "ManagedIdentity to launch the container"
       }
     },
-    "vault-name": {
+    "vaultName": {
       "type": "string",
       "metadata": {
         "description": "Vault name"
       }
     },
-    "operator-key-secret-name": {
+    "operatorKeySecretName": {
       "type": "string",
       "metadata": {
         "description": "Operator key secret name"
       }
     },
-    "deployment-environment": {
+    "deploymentEnvironment": {
       "type": "string",
       "metadata": {
         "description": "Deployment environment"
       }
     },
-    "core-base-url": {
+    "coreBaseUrl": {
       "type": "string",
       "metadata": {
         "description": "UID2 core base url override"
       }
     },
-    "optout-base-url": {
+    "optoutBaseUrl": {
       "type": "string",
       "metadata": {
         "description": "UID2 optout base url override"
@@ -57,7 +57,7 @@
     {
       "type": "Microsoft.ContainerInstance/containerGroups",
       "apiVersion": "2023-05-01",
-      "name": "[parameters('name')]",
+      "name": "[parameters('containerGroupName')]",
       "location": "[resourceGroup().location]",
       "identity": {
         "type": "userAssigned",
@@ -115,23 +115,23 @@
               "environmentVariables": [
                 {
                   "name": "VAULT_NAME",
-                  "value": "[parameters('vault-name')]"
+                  "value": "[parameters('vaultName')]"
                 },
                 {
                   "name": "OPERATOR_KEY_SECRET_NAME",
-                  "value": "[parameters('operator-key-secret-name')]"
+                  "value": "[parameters('operatorKeySecretName')]"
                 },
                 {
                   "name": "DEPLOYMENT_ENVIRONMENT",
-                  "value": "[parameters('deployment-environment')]"
+                  "value": "[parameters('deploymentEnvironment')]"
                 },
                 {
                   "name": "CORE_BASE_URL",
-                  "value": "[parameters('core-base-url')]"
+                  "value": "[parameters('coreBaseUrl')]"
                 },
                 {
                   "name": "OPTOUT_BASE_URL",
-                  "value": "[parameters('optout-base-url')]"
+                  "value": "[parameters('optoutBaseUrl')]"
                 }
               ]
             }
@@ -155,7 +155,7 @@
   "outputs": {
     "containerIPv4Address": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('name'))).ipAddress.ip]"
+      "value": "[reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('containerGroupName'))).ipAddress.ip]"
     }
   }
 }

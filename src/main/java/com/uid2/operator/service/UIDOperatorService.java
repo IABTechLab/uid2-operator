@@ -1,6 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
@@ -116,7 +117,10 @@ public class UIDOperatorService implements IUIDOperatorService {
 
             if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getTime())) {
                 Duration durationSinceLastRefresh = Duration.between(token.createdAt, Instant.now(this.clock));
-                return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity), durationSinceLastRefresh);
+                IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
+                boolean isCstg = PrivacyBits.fromInt(token.userIdentity.privacyBits).isClientSideTokenGenerated();
+
+                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
             } else {
                 return RefreshResponse.Optout;
             }

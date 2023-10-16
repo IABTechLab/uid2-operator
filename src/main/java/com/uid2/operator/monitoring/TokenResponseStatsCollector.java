@@ -1,11 +1,14 @@
 package com.uid2.operator.monitoring;
 
 import com.uid2.operator.model.RefreshResponse;
-import com.uid2.operator.util.Tuple;
+import com.uid2.operator.vertx.UIDOperatorVerticle;
+import com.uid2.shared.store.ISiteStore;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 
-import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TokenResponseStatsCollector {
     public enum Endpoint {
@@ -37,29 +40,68 @@ public class TokenResponseStatsCollector {
         /* Start of CSTG-related Status */
     }
 
-    private static final HashMap<Tuple.Tuple3<Integer, Endpoint, ResponseStatus>, Counter> TokenResponseCounters = new HashMap<>();
+    private static final Map<TokenResponseKey, Counter> TokenResponseCounters = new ConcurrentHashMap<>();
 
-    public static void record(Integer siteId, Endpoint endpoint, ResponseStatus responseStatus) {
+    public static void record(ISiteStore siteStore, Integer siteId, Endpoint endpoint, ResponseStatus responseStatus) {
+        recordInternal(siteStore, siteId, endpoint, responseStatus, endpoint == Endpoint.ClientSideTokenGenerateV2);
+    }
+
+    private static void recordInternal(ISiteStore siteStore, Integer siteId, Endpoint endpoint, ResponseStatus responseStatus, boolean isCstg) {
         if (siteId == null) return;
 
-        TokenResponseCounters.computeIfAbsent(new Tuple.Tuple3<>(siteId, endpoint, responseStatus), k -> Counter
-                .builder("uid2.token_response_status_count")
-                .description("Counter for token response statuses")
-                .tags("site_id", String.valueOf(k.getItem1()), "token_endpoint", String.valueOf(k.getItem2()), "token_response_status", String.valueOf(k.getItem3()))
-                .register(Metrics.globalRegistry)).increment();
+        TokenResponseCounters.computeIfAbsent(new TokenResponseKey(siteId, endpoint, responseStatus, isCstg), k -> {
+            var builder = Counter
+                    .builder("uid2_token_response_status_count")
+                    .description("Counter for token response statuses").tags(
+                            "site_id", String.valueOf(siteId),
+                            "site_name", UIDOperatorVerticle.getSiteName(siteStore, siteId),
+                            "token_endpoint", String.valueOf(endpoint),
+                            "token_response_status", String.valueOf(responseStatus),
+                            "cstg", isCstg ? "true" : "false");
+
+            return builder.register(Metrics.globalRegistry);
+        }).increment();
     }
 
-    public static void record(Integer siteId, Endpoint endpoint, RefreshResponse r) {
-        if (!r.isRefreshed()) {
-            if (r.isOptOut() || r.isDeprecated()) {
-                TokenResponseStatsCollector.record(siteId, endpoint, TokenResponseStatsCollector.ResponseStatus.OptOut);
-            } else if (r.isInvalidToken()) {
-                TokenResponseStatsCollector.record(siteId, endpoint, TokenResponseStatsCollector.ResponseStatus.InvalidToken);
-            } else if (r.isExpired()) {
-                TokenResponseStatsCollector.record(siteId, endpoint, TokenResponseStatsCollector.ResponseStatus.ExpiredToken);
+    public static void recordRefresh(ISiteStore siteStore, Integer siteId, Endpoint endpoint, RefreshResponse refreshResponse) {
+        if (!refreshResponse.isRefreshed()) {
+            if (refreshResponse.isOptOut() || refreshResponse.isDeprecated()) {
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.OptOut, refreshResponse.isCstg());
+            } else if (refreshResponse.isInvalidToken()) {
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.InvalidToken, refreshResponse.isCstg());
+            } else if (refreshResponse.isExpired()) {
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.ExpiredToken, refreshResponse.isCstg());
             }
         } else {
-            TokenResponseStatsCollector.record(siteId, endpoint, TokenResponseStatsCollector.ResponseStatus.Success);
+            recordInternal(siteStore, siteId, endpoint, ResponseStatus.Success, refreshResponse.isCstg());
         }
     }
+
+    static class TokenResponseKey {
+        private final Integer siteId;
+        private final Endpoint endpoint;
+        private final ResponseStatus responseStatus;
+        private final boolean isCstg;
+
+        public TokenResponseKey(Integer siteId, Endpoint endpoint, ResponseStatus responseStatus, boolean isCstg) {
+            this.siteId = siteId;
+            this.endpoint = endpoint;
+            this.responseStatus = responseStatus;
+            this.isCstg = isCstg;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            TokenResponseKey that = (TokenResponseKey) o;
+            return Objects.equals(siteId, that.siteId) && endpoint == that.endpoint && responseStatus == that.responseStatus && Objects.equals(isCstg, that.isCstg);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(siteId, endpoint, responseStatus, isCstg);
+        }
+    }
+
 }

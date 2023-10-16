@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "containerGroupName": {
+      "value": ""
+    },
+    "image": {
+      "value": "ghcr.io/iabtechlab/uid2-operator:5.17.25-SNAPSHOT-azure-cc"
+    },
+    "identity": {
+      "value": ""
+    },
+    "vaultName": {
+      "value": ""
+    },
+    "operatorKeySecretName": {
+      "value": ""
+    },
+    "deploymentEnvironment": {
+      "value": "integ"
+    },
+    "coreBaseUrl":  {
+      "value": ""
+    },
+    "optoutBaseUrl":  {
+      "value": ""
+    }
+  }
+}

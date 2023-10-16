@@ -52,7 +52,6 @@ import org.mockito.MockitoAnnotations;
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
 import java.net.URLEncoder;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.time.Clock;
@@ -97,8 +96,6 @@ public class UIDOperatorVerticleTest {
     @Mock private IKeysetKeyStore keysetKeyStore;
     @Mock private RotatingKeysetProvider keysetProvider;
     @Mock private ISaltProvider saltProvider;
-    @Mock private IServiceStore serviceProvider;
-    @Mock private IServiceLinkStore serviceLinkProvider;
     @Mock private SecureLinkValidatorService secureLinkValidatorService;
     @Mock private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
     @Mock private IOptOutStore optOutStore;
@@ -535,7 +532,7 @@ public class UIDOperatorVerticleTest {
 
     private void assertTokenStatusMetrics(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus) {
         assertEquals(1, Metrics.globalRegistry
-                .get("uid2.token_response_status_count")
+                .get("uid2_token_response_status_count")
                 .tag("site_id", String.valueOf(siteId))
                 .tag("token_endpoint", String.valueOf(endpoint))
                 .tag("token_response_status", String.valueOf(responseStatus))

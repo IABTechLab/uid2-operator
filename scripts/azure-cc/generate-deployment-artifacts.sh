@@ -6,8 +6,9 @@ set -x
 
 # Following environment variables may be set
 # - INPUT_TEMPLATE_FILE: deployment template file, default is deployment-template.json in this script's directory
-# - OUTPUT_TEMPLATE_FILE: generated deployment template file, default is deployment-template-with-policy.json
-# - OUTPUT_POLICY_DIGEST_FILE: generated policy digest file, default is deployment-digest.txt
+# - OUTPUT_TEMPLATE_FILE: generated deployment template file, default is uid2-operator-deployment-template.json
+# - OUTPUT_PARAMETERS_FILE: generated deployment parameters file, default is uid2-operator-deployment-parameters.json
+# - OUTPUT_POLICY_DIGEST_FILE: generated policy digest file, default is uid2-operator-deployment-digest.txt
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
@@ -25,11 +26,15 @@ if [[ ! -f ${INPUT_TEMPLATE_FILE} ]]; then
 fi
 
 if [[ -z ${OUTPUT_TEMPLATE_FILE} ]]; then
-  OUTPUT_TEMPLATE_FILE=deployment-template-with-policy.json
+  OUTPUT_TEMPLATE_FILE=uid2-operator-deployment-template.json
+fi
+
+if [[ -z ${OUTPUT_PARAMETERS_FILE} ]]; then
+  OUTPUT_PARAMETERS_FILE=uid2-operator-deployment-parameters.json
 fi
 
 if [[ -z ${OUTPUT_POLICY_DIGEST_FILE} ]]; then
-  OUTPUT_POLICY_DIGEST_FILE=deployment-digest.txt
+  OUTPUT_POLICY_DIGEST_FILE=uid2-operator-deployment-digest.txt
 fi
 
 # Install confcom extension, az is originally available in GitHub workflow environment
@@ -58,3 +63,5 @@ if [[ $? -ne 0 ]]; then
   echo "Failed to generate template file"
   exit 1
 fi
+
+cp ${SCRIPT_DIR}/deployment-parameters.json ${OUTPUT_PARAMETERS_FILE}

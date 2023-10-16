@@ -40,12 +40,14 @@
     },
     "coreBaseUrl": {
       "type": "string",
+      "defaultValue": "",
       "metadata": {
         "description": "UID2 core base url override"
       }
     },
     "optoutBaseUrl": {
       "type": "string",
+      "defaultValue": "",
       "metadata": {
         "description": "UID2 optout base url override"
       }

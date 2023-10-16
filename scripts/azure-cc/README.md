@@ -9,16 +9,17 @@ IMAGE={IMAGE} ./generate-deployment-artifacts.sh
 ```
 Following files will be generated:
 
-* `deployment-template-with-policy.json`: to be used for deployment
-* `deployment-digest.txt`: the digest will be used as enclave ID to be registered in admin portal.
+* `uid2-operator-deployment-template.json`: to be used for deployment
+* `uid2-operator-deployment-parameters.json`: to be used for deployment
+* `uid2-operator-deployment-digest.txt`: the digest will be used as enclave ID to be registered in admin portal.
 
 ## Deploy
-Update `deployment-parameters.json` to set deployment parameters, then deploy via following command.
+Update `uid2-operator-deployment-parameters.json` to set deployment parameters, then deploy via following command.
 
 ```
 az deployment group create -g {RESOURCE_GROUP_NAME} -n rollout \
-    --template-file deployment-template-with-policy.json  \
-    --parameters @deployment-parameters.json
+    --template-file uid2-operator-deployment-template.json  \
+    --parameters @uid2-operator-deployment-parameters.json
 ```
 
 ## How to set up azure vault & managed identity

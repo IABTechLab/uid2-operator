@@ -3,24 +3,21 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "containerGroupName": {
-      "value": "uid2-operator"
-    },
-    "identity": {
-      "value": "uid-operator"
-    },
-    "vaultName": {
-      "value": "uid-operator"
-    },
-    "operatorKeySecretName": {
-      "value": "operator-key"
-    },
-    "deploymentEnvironment": {
-      "value": "integ"
-    },
-    "coreBaseUrl":  {
       "value": ""
     },
-    "optoutBaseUrl":  {
+    "location": {
+      "value": ""
+    },
+    "identity": {
+      "value": ""
+    },
+    "vaultName": {
+      "value": ""
+    },
+    "operatorKeySecretName": {
+      "value": ""
+    },
+    "deploymentEnvironment": {
       "value": ""
     }
   }

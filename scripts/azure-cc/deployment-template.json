@@ -2,35 +2,52 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "name": {
+    "containerGroupName": {
       "type": "string",
-      "defaultValue": "uid2-operator",
       "metadata": {
         "description": "Name for the container group"
       }
     },
     "location": {
       "type": "string",
-      "defaultValue": "North Europe",
       "metadata": {
-        "description": "Location for all resources."
+        "description": "Location for the container group"
+      }
+    },
+    "identity": {
+      "type": "string",
+      "metadata": {
+        "description": "ManagedIdentity to launch the container"
+      }
+    },
+    "vaultName": {
+      "type": "string",
+      "metadata": {
+        "description": "Vault name"
+      }
+    },
+    "operatorKeySecretName": {
+      "type": "string",
+      "metadata": {
+        "description": "Operator key secret name"
       }
     },
     "deploymentEnvironment": {
       "type": "string",
-      "defaultValue": "integ",
-      "allowedValues": [
-        "integ",
-        "prod"
-      ],
       "metadata": {
-        "description": "UID2 deployment environment"
+        "description": "Deployment environment"
       }
     },
-    "apiTokenSecretName": {
+    "coreBaseUrl": {
       "type": "string",
       "metadata": {
-        "description": "Operator API token secret name"
+        "description": "UID2 core base url override"
+      }
+    },
+    "optoutBaseUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "UID2 optout base url override"
       }
     }
   },
@@ -38,8 +55,14 @@
     {
       "type": "Microsoft.ContainerInstance/containerGroups",
       "apiVersion": "2023-05-01",
-      "name": "[parameters('name')]",
+      "name": "[parameters('containerGroupName')]",
       "location": "[parameters('location')]",
+      "identity": {
+        "type": "userAssigned",
+        "userAssignedIdentities": {
+          "[resourceID('Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('identity'))]": {}
+        }
+      },
       "properties": {
         "confidentialComputeProperties": {
           "ccePolicy": ""
@@ -89,12 +112,24 @@
               },
               "environmentVariables": [
                 {
+                  "name": "VAULT_NAME",
+                  "value": "[parameters('vaultName')]"
+                },
+                {
+                  "name": "OPERATOR_KEY_SECRET_NAME",
+                  "value": "[parameters('operatorKeySecretName')]"
+                },
+                {
                   "name": "DEPLOYMENT_ENVIRONMENT",
                   "value": "[parameters('deploymentEnvironment')]"
                 },
                 {
-                  "name": "API_TOKEN_SECRET_NAME",
-                  "value": "[parameters('apiTokenSecretName')]"
+                  "name": "CORE_BASE_URL",
+                  "value": "[parameters('coreBaseUrl')]"
+                },
+                {
+                  "name": "OPTOUT_BASE_URL",
+                  "value": "[parameters('optoutBaseUrl')]"
                 }
               ]
             }
@@ -118,7 +153,7 @@
   "outputs": {
     "containerIPv4Address": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('name'))).ipAddress.ip]"
+      "value": "[reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('containerGroupName'))).ipAddress.ip]"
     }
   }
 }

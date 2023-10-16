@@ -2,18 +2,23 @@
 
 ## Generate CCE policy
 
-Note: only `deploymentEnvironment` and `image` need to be specified. Other empty parameters are wildcards.
+Generate deployment files by following command.
 
 ```
-az confcom acipolicygen -a arm-template.json -p template-policy.parameters.json --approve-wildcards -y --debug-mode
+IMAGE={IMAGE} ./generate-deployment-artifacts.sh
 ```
+Following files will be generated:
+
+* `deployment-template-with-policy.json`: to be used for deployment
+* `deployment-digest.txt`: the digest will be used as enclave ID to be registered in admin portal.
 
 ## Deploy
+Update `deployment-parameters.json` to set deployment parameters, then deploy via following command.
 
 ```
 az deployment group create -g {RESOURCE_GROUP_NAME} -n rollout \
-    --template-file arm-template.json  \
-    --parameters @template.parameters.json
+    --template-file deployment-template-with-policy.json  \
+    --parameters @deployment-parameters.json
 ```
 
 ## How to set up azure vault & managed identity

@@ -5,9 +5,6 @@
     "containerGroupName": {
       "value": "uid2-operator"
     },
-    "image": {
-      "value": "ghcr.io/iabtechlab/uid2-operator:5.17.25-SNAPSHOT-azure-cc"
-    },
     "identity": {
       "value": "uid-operator"
     },

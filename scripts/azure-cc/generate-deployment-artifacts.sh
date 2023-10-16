@@ -3,28 +3,33 @@ set -x
 
 # Following environment variables must be set
 # - IMAGE: uid2-operator image
-# - INPUT_TEMPLATE_FILE: input deployment template file
-# - OUTPUT_TEMPLATE_FILE: generated deployment template file
-# - OUTPUT_POLICY_DIGEST_FILE: generated policy digest file
+
+# Following environment variables may be set
+# - INPUT_TEMPLATE_FILE: deployment template file, default is deployment-template.json in this script's directory
+# - OUTPUT_TEMPLATE_FILE: generated deployment template file, default is deployment-template-with-policy.json
+# - OUTPUT_POLICY_DIGEST_FILE: generated policy digest file, default is deployment-digest.txt
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 if [[ -z ${IMAGE} ]]; then
   echo "IMAGE cannot be empty"
   exit 1
 fi
 
-if [[ -z ${INPUT_TEMPLATE_FILE} || ! -f ${INPUT_TEMPLATE_FILE} ]]; then
-  echo "INPUT_TEMPLATE_FILE is empty or not exist"
+if [[ -z ${INPUT_TEMPLATE_FILE} ]]; then
+  INPUT_TEMPLATE_FILE=${SCRIPT_DIR}/deployment-template.json
+fi
+if [[ ! -f ${INPUT_TEMPLATE_FILE} ]]; then
+  echo "INPUT_TEMPLATE_FILE does not exist"
   exit 1
 fi
 
 if [[ -z ${OUTPUT_TEMPLATE_FILE} ]]; then
-  echo "OUTPUT_TEMPLATE_FILE cannot be empty"
-  exit 1
+  OUTPUT_TEMPLATE_FILE=deployment-template-with-policy.json
 fi
 
 if [[ -z ${OUTPUT_POLICY_DIGEST_FILE} ]]; then
-  echo "OUTPUT_POLICY_DIGEST_FILE cannot be empty"
-  exit 1
+  OUTPUT_POLICY_DIGEST_FILE=deployment-digest.txt
 fi
 
 # Install confcom extension, az is originally available in GitHub workflow environment

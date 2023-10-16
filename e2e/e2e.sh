@@ -12,7 +12,7 @@ TEST_GCP_OIDC=false
 IMAGE_HASH=
 
 # Azure CC enclave configs
-TEST_AZURE_CC=false
+TEST_AZURE_CC=true
 # TODO(lun.wang) eventually digest may be derived via IMAGE_HASH, and no need to be explicitly set
 AZURE_CC_POLICY_DIGEST=
 
@@ -21,6 +21,7 @@ CORE_ROOT="../../uid2-core"
 OPTOUT_ROOT="../../uid2-optout"
 
 # copy to a different folder in local to avoid data pollution
+rm -rf "./e2e-target"
 cp -rf "./e2e/" "./e2e-target"
 
 cd ./e2e-target

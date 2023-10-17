@@ -274,18 +274,17 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void sendTokenRefresh(String apiVersion, Vertx vertx, String refreshToken, String v2RefreshDecryptSecret, int expectedHttpCode,
+    private void sendTokenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext, String refreshToken, String v2RefreshDecryptSecret, int expectedHttpCode,
                                   Handler<JsonObject> handler) {
         if (apiVersion.equals("v2")) {
             WebClient client = WebClient.create(vertx);
             client.postAbs(getUrlForEndpoint("v2/token/refresh"))
                     .putHeader("content-type", "text/plain")
-                    .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), ar -> {
-                        assertTrue(ar.succeeded());
-                        assertEquals(expectedHttpCode, ar.result().statusCode());
+                    .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), testContext.succeeding(response -> testContext.verify(() -> {
+                        assertEquals(expectedHttpCode, response.statusCode());
 
-                        if (ar.result().statusCode() == 200 && v2RefreshDecryptSecret != null) {
-                            byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
+                        if (response.statusCode() == 200 && v2RefreshDecryptSecret != null) {
+                            byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(response.bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
                             JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
 
                             if (respJson.getString("status").equals("success"))
@@ -293,17 +292,15 @@ public class UIDOperatorVerticleTest {
 
                             handler.handle(respJson);
                         } else {
-                            handler.handle(tryParseResponse(ar.result()));
+                            handler.handle(tryParseResponse(response));
                         }
-                    });
+                    })));
         } else {
-            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse<Buffer> response = ar.result();
+            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), testContext.succeeding(response -> testContext.verify(() -> {
                 assertEquals(expectedHttpCode, response.statusCode());
                 JsonObject json = response.bodyAsJsonObject();
                 handler.handle(json);
-            });
+            })));
         }
     }
 
@@ -1102,7 +1099,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(apiVersion, vertx, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            sendTokenRefresh(apiVersion, vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
             {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -1270,7 +1267,7 @@ public class UIDOperatorVerticleTest {
     void tokenRefreshNoToken(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
-        sendTokenRefresh(apiVersion, vertx, "", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, testContext, "", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
@@ -1286,7 +1283,7 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
 
-        sendTokenRefresh(apiVersion, vertx, "abcd", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, testContext, "abcd", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
@@ -1299,7 +1296,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void tokenRefreshInvalidTokenUnauthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
-        sendTokenRefresh(apiVersion, vertx, "abcd", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, testContext, "abcd", "", 400, json -> {
             assertEquals("error", json.getString("status"));
             testContext.completeNow();
         });
@@ -1323,7 +1320,7 @@ public class UIDOperatorVerticleTest {
             String refreshToken = bodyJson.getString("refresh_token");
             when(clock.instant()).thenAnswer(i -> now.plusSeconds(300));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 assertEquals(300, Metrics.globalRegistry
                         .get("uid2.token_refresh_duration_seconds")
@@ -1353,7 +1350,7 @@ public class UIDOperatorVerticleTest {
             String refreshToken = bodyJson.getString("refresh_token");
             when(clock.instant()).thenAnswer(i -> now.plusSeconds(identityExpiresAfter.toSeconds() + 1));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 assertEquals(1, Metrics.globalRegistry
@@ -1378,7 +1375,7 @@ public class UIDOperatorVerticleTest {
             String refreshToken = bodyJson.getString("refresh_token");
             when(clock.instant()).thenAnswer(i -> now.plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 400, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 400, refreshRespJson -> {
                 assertEquals("expired_token", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
@@ -1396,7 +1393,7 @@ public class UIDOperatorVerticleTest {
             clearAuth();
             when(clock.instant()).thenAnswer(i -> now.plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, "", 400, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, "", 400, refreshRespJson -> {
                 assertEquals("error", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
@@ -1414,7 +1411,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("optout", refreshRespJson.getString("status"));
                 assertTokenStatusMetrics(
                         clientSiteId,
@@ -1437,7 +1434,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(now.minusSeconds(10));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 testContext.completeNow();
@@ -1455,7 +1452,7 @@ public class UIDOperatorVerticleTest {
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             String refreshToken = bodyJson.getString("refresh_token");
 
-            sendTokenRefresh("v2", vertx, refreshToken, null, 200, refreshRespJson -> {
+            sendTokenRefresh("v2", vertx, testContext, refreshToken, null, 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 JsonObject refreshBodyJson = refreshRespJson.getJsonObject("body");
@@ -1478,7 +1475,7 @@ public class UIDOperatorVerticleTest {
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             String refreshToken = bodyJson.getString("refresh_token");
 
-            sendTokenRefresh("v1", vertx, refreshToken, null, 200, refreshRespJson -> {
+            sendTokenRefresh("v1", vertx, testContext, refreshToken, null, 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
@@ -2030,7 +2027,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(apiVersion, vertx, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            sendTokenRefresh(apiVersion, vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
             {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -3293,7 +3290,7 @@ public class UIDOperatorVerticleTest {
 
                     String genRefreshToken = genBody.getString("refresh_token");
                     //test a subsequent refresh from this cstg call and see if it still works
-                    sendTokenRefresh("v2", vertx, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson ->
+                    sendTokenRefresh("v2", vertx, testContext, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson ->
                     {
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");

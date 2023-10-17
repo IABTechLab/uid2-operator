@@ -175,6 +175,7 @@ jobs:
         with:
           name: UID2 Operator ${{ steps.meta.outputs.version }}
           tag_name: v${{ steps.meta.outputs.version }}
+          body: UID2 Operator for deployment on Azure Confidential Container environment.
           files: |
             ${{ env.OUTPUT_TEMPLATE_FILE }}
             ${{ env.OUTPUT_POLICY_DIGEST_FILE }}

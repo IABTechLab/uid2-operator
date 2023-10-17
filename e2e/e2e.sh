@@ -13,8 +13,7 @@ IMAGE_HASH=
 
 # Azure CC enclave configs
 TEST_AZURE_CC=true
-# TODO(lun.wang) eventually digest may be derived via IMAGE_HASH, and no need to be explicitly set
-AZURE_CC_POLICY_DIGEST=
+IMAGE=ghcr.io/iabtechlab/uid2-operator:5.17.25-SNAPSHOT-azure-cc
 
 # replace below with your local repo root of uid2-core and uid2-optout
 CORE_ROOT="../../uid2-core"

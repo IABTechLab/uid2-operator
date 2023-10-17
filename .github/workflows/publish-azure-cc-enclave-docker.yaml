@@ -171,7 +171,7 @@ jobs:
 
       - name: Release
         uses: softprops/action-gh-release@v1
-        if: inputs.is_release == 'true'
+        if: inputs.is_release
         with:
           name: UID2 Operator - ${{ steps.meta.outputs.version }}
           tag_name: v${{ steps.meta.outputs.version }}

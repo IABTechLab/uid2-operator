@@ -15,6 +15,9 @@ on:
       publish_vulnerabilities:
         type: string
         default: 'true'
+      is_release:
+        type: string
+        default: 'false'
       
 env:
   REGISTRY: ghcr.io
@@ -160,6 +163,17 @@ jobs:
         with:
           name: azure-cc-deployment-files-${{ steps.version.outputs.new_version }}
           path: |
+            ${{ env.OUTPUT_TEMPLATE_FILE }}
+            ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
+            ${{ env.OUTPUT_PARAMETERS_FILE }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: inputs.is_release == 'true'
+        with:
+          name: UID2 Operator - ${{ steps.meta.outputs.version }}
+          tag_name: v${{ steps.meta.outputs.version }}
+          files: |
             ${{ env.OUTPUT_TEMPLATE_FILE }}
             ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
             ${{ env.OUTPUT_PARAMETERS_FILE }}

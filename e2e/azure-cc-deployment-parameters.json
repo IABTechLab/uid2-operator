@@ -5,8 +5,8 @@
     "containerGroupName": {
       "value": ""
     },
-    "image": {
-      "value": "ghcr.io/iabtechlab/uid2-operator:5.17.25-SNAPSHOT-azure-cc"
+    "location": {
+      "value": ""
     },
     "identity": {
       "value": ""
@@ -18,12 +18,12 @@
       "value": ""
     },
     "deploymentEnvironment": {
-      "value": "integ"
-    },
-    "coreBaseUrl":  {
       "value": ""
     },
-    "optoutBaseUrl":  {
+    "coreBaseUrl": {
+      "value": ""
+    },
+    "optoutBaseUrl": {
       "value": ""
     }
   }

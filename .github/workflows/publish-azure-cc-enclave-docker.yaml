@@ -15,6 +15,11 @@ on:
       publish_vulnerabilities:
         type: string
         default: 'true'
+      is_release:
+        type: boolean
+        description: Create a new GitHub release
+        required: false
+        default: false
       
 env:
   REGISTRY: ghcr.io
@@ -22,6 +27,9 @@ env:
   ENCLAVE_PROTOCOL: azure-cc
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_CONTEXT_PATH: scripts/azure-cc
+  OUTPUT_TEMPLATE_FILE: ${{ github.workspace }}/uid2-operator-deployment-template.json
+  OUTPUT_POLICY_DIGEST_FILE: ${{ github.workspace }}/uid2-operator-deployment-digest.txt
+  OUTPUT_PARAMETERS_FILE: ${{ github.workspace }}/uid2-operator-deployment-parameters.json
 
 jobs:
   build-publish-docker:
@@ -144,3 +152,35 @@ jobs:
           build-args: |
             JAR_VERSION=${{ steps.version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}
+
+      - name: Generate Azure deployment artifacts
+        env:
+          IMAGE: ${{ steps.meta.outputs.tags }}
+          INPUT_TEMPLATE_FILE: ${{ github.workspace }}/scripts/azure-cc/deployment-template.json
+          INPUT_PARAMETERS_FILE: ${{ github.workspace }}/scripts/azure-cc/deployment-parameters.json
+          OUTPUT_TEMPLATE_FILE: ${{ env.OUTPUT_TEMPLATE_FILE }}
+          OUTPUT_POLICY_DIGEST_FILE: ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
+          OUTPUT_PARAMETERS_FILE: ${{ env.OUTPUT_PARAMETERS_FILE }}
+        run: |
+          bash ./scripts/azure-cc/generate-deployment-artifacts.sh
+
+      - name: Archive deployment artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: azure-cc-deployment-files-${{ steps.version.outputs.new_version }}
+          path: |
+            ${{ env.OUTPUT_TEMPLATE_FILE }}
+            ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
+            ${{ env.OUTPUT_PARAMETERS_FILE }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: inputs.is_release
+        with:
+          name: UID2 Operator ${{ steps.meta.outputs.version }}
+          tag_name: v${{ steps.meta.outputs.version }}
+          body: UID2 Operator for deployment on Azure Confidential Container environment.
+          files: |
+            ${{ env.OUTPUT_TEMPLATE_FILE }}
+            ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
+            ${{ env.OUTPUT_PARAMETERS_FILE }}

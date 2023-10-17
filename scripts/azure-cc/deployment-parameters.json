@@ -3,27 +3,21 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "containerGroupName": {
-      "value": "uid2-operator"
-    },
-    "image": {
-      "value": "ghcr.io/iabtechlab/uid2-operator:5.17.25-SNAPSHOT-azure-cc"
-    },
-    "identity": {
-      "value": "uid-operator"
-    },
-    "vaultName": {
-      "value": "uid-operator"
-    },
-    "operatorKeySecretName": {
-      "value": "operator-key"
-    },
-    "deploymentEnvironment": {
-      "value": "integ"
-    },
-    "coreBaseUrl":  {
       "value": ""
     },
-    "optoutBaseUrl":  {
+    "location": {
+      "value": ""
+    },
+    "identity": {
+      "value": ""
+    },
+    "vaultName": {
+      "value": ""
+    },
+    "operatorKeySecretName": {
+      "value": ""
+    },
+    "deploymentEnvironment": {
       "value": ""
     }
   }

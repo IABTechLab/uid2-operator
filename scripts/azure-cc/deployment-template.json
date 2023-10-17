@@ -4,20 +4,18 @@
   "parameters": {
     "containerGroupName": {
       "type": "string",
-      "defaultValue": "uid2-operator",
       "metadata": {
         "description": "Name for the container group"
       }
     },
-    "image": {
+    "location": {
       "type": "string",
       "metadata": {
-        "description": "Image for the operator container"
+        "description": "Location for the container group"
       }
     },
     "identity": {
       "type": "string",
-      "defaultValue": "uid-operator",
       "metadata": {
         "description": "ManagedIdentity to launch the container"
       }
@@ -39,18 +37,6 @@
       "metadata": {
         "description": "Deployment environment"
       }
-    },
-    "coreBaseUrl": {
-      "type": "string",
-      "metadata": {
-        "description": "UID2 core base url override"
-      }
-    },
-    "optoutBaseUrl": {
-      "type": "string",
-      "metadata": {
-        "description": "UID2 optout base url override"
-      }
     }
   },
   "resources": [
@@ -58,7 +44,7 @@
       "type": "Microsoft.ContainerInstance/containerGroups",
       "apiVersion": "2023-05-01",
       "name": "[parameters('containerGroupName')]",
-      "location": "[resourceGroup().location]",
+      "location": "[parameters('location')]",
       "identity": {
         "type": "userAssigned",
         "userAssignedIdentities": {
@@ -99,7 +85,7 @@
           {
             "name": "uid2-operator",
             "properties": {
-              "image": "[parameters('image')]",
+              "image": "IMAGE_PLACEHOLDER",
               "ports": [
                 {
                   "port": 8080,
@@ -124,14 +110,6 @@
                 {
                   "name": "DEPLOYMENT_ENVIRONMENT",
                   "value": "[parameters('deploymentEnvironment')]"
-                },
-                {
-                  "name": "CORE_BASE_URL",
-                  "value": "[parameters('coreBaseUrl')]"
-                },
-                {
-                  "name": "OPTOUT_BASE_URL",
-                  "value": "[parameters('optoutBaseUrl')]"
                 }
               ]
             }

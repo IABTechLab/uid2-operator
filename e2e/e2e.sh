@@ -3,7 +3,7 @@ set -x
 # to facilitate local test
 
 # common configs for all enclaves
-NGROK_TOKEN=
+NGROK_TOKEN=2U9hyPLFDbc8nTny7woMOudqAAN_7HiFVXjjcNiVYcXBD1k5w
 CORE_VERSION=2.14.5-SNAPSHOT-default
 OPTOUT_VERSION=2.6.18-60727cf243-default
 
@@ -14,6 +14,11 @@ IMAGE_HASH=
 # Azure CC enclave configs
 TEST_AZURE_CC=true
 IMAGE=ghcr.io/iabtechlab/uid2-operator:5.17.25-SNAPSHOT-azure-cc
+AZURE_OUTPUT_DIR="./azure-artifacts"
+
+AZURE_OUTPUT_DIGEST="$AZURE_OUTPUT_DIR/digest.txt"
+AZURE_OUTPUT_PARAMETERS="$AZURE_OUTPUT_DIR/parameters.json"
+AZURE_OUTPUT_TEMPLATE="$AZURE_OUTPUT_DIR/template.json"
 
 # replace below with your local repo root of uid2-core and uid2-optout
 CORE_ROOT="../../uid2-core"
@@ -36,6 +41,7 @@ if [ "$TEST_GCP_OIDC" = true ]; then
 fi
 
 if [ "$TEST_AZURE_CC" = true ]; then
+    source ./prepare_azure_cc_artifacts.sh
     source ./prepare_azure_cc_enclave_metadata.sh
 fi
 

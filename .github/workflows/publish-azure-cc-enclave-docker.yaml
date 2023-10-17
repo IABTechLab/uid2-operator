@@ -157,6 +157,7 @@ jobs:
         env:
           IMAGE: ${{ steps.meta.outputs.tags }}
           INPUT_TEMPLATE_FILE: ${{ github.workspace }}/scripts/azure-cc/deployment-template.json
+          INPUT_PARAMETERS_FILE: ${{ github.workspace }}/scripts/azure-cc/deployment-parameters.json
           OUTPUT_TEMPLATE_FILE: ${{ env.OUTPUT_TEMPLATE_FILE }}
           OUTPUT_POLICY_DIGEST_FILE: ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
           OUTPUT_PARAMETERS_FILE: ${{ env.OUTPUT_PARAMETERS_FILE }}

@@ -16,8 +16,10 @@ on:
         type: string
         default: 'true'
       is_release:
-        type: string
-        default: 'false'
+        type: boolean
+        description: Create a new GitHub release
+        required: false
+        default: false
       
 env:
   REGISTRY: ghcr.io

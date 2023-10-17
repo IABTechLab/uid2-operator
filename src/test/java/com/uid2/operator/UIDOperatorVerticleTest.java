@@ -3228,36 +3228,13 @@ public class UIDOperatorVerticleTest {
                     EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
-                    assertEquals(clientSideTokenGenerateSiteId, advertisingToken.publisherIdentity.siteId);
-
-                    assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
-                    assertEquals(optOutExpected, PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
-
-                    if(identityType == IdentityType.Email) {
-                        assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email,
-                                TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
-                    }
-                    else if(identityType == IdentityType.Phone) {
-                        assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Phone,
-                                TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
-                    }
-                    else { //should never happen
-                        assertFalse(true);
-                    }
 
                     RefreshToken refreshToken = encoder.decodeRefreshToken(genBody.getString("decrypted_refresh_token"));
-                    assertEquals(clientSideTokenGenerateSiteId, refreshToken.publisherIdentity.siteId);
-                    assertTrue(PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits).isClientSideTokenGenerated());
 
-                    if(optOutExpected) {
-                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(expectedOptedOutIdentity), firstLevelSalt), refreshToken.userIdentity.id);
-                        assertTrue(PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
-                    }
-                    else {
-                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(id), firstLevelSalt), refreshToken.userIdentity.id);
-                        assertFalse(PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                    if (optOutExpected) {
+                        assertAreClientSideGeneratedOptOutTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType);
+                    } else {
+                        assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
                     }
 
                     assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
@@ -3299,33 +3276,15 @@ public class UIDOperatorVerticleTest {
 
                         //make sure the new advertising token from refresh looks right
                         AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, identityType);
-                        assertEquals(clientSideTokenGenerateSiteId, adTokenFromRefresh.publisherIdentity.siteId);
 
                         String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
                         RefreshToken refreshTokenAfterRefresh = encoder.decodeRefreshToken(refreshTokenStringNew);
-                        assertEquals(clientSideTokenGenerateSiteId, refreshTokenAfterRefresh.publisherIdentity.siteId);
 
-                        if(optOutExpected) {
-                            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(expectedOptedOutIdentity), firstLevelSalt), refreshTokenAfterRefresh.userIdentity.id);
-                        }
-                        else {
-                            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(id), firstLevelSalt), refreshTokenAfterRefresh.userIdentity.id);
-                        }
-
-                        if(identityType == IdentityType.Email) {
-                            assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email,
-                                    TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                    firstLevelSalt, rotatingSalt123.getSalt()), adTokenFromRefresh.userIdentity.id);
-                        }
-                        else if(identityType == IdentityType.Phone) {
-                            assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Phone,
-                                    TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                    firstLevelSalt, rotatingSalt123.getSalt()), adTokenFromRefresh.userIdentity.id);
-
-                        }
-                        else { //should never happen
-                            assertFalse(true);
+                        if (optOutExpected) {
+                            assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType);
+                        } else {
+                            assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id);
                         }
 
                         assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
@@ -3337,15 +3296,73 @@ public class UIDOperatorVerticleTest {
                                 TokenResponseStatsCollector.Endpoint.RefreshV2,
                                 TokenResponseStatsCollector.ResponseStatus.Success);
 
-                        //check the CSTG-related privacy bits are still set correctly
-                        assertTrue(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
-                        assertTrue(PrivacyBits.fromInt(refreshTokenAfterRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
-                        assertEquals(optOutExpected, PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
-                        assertEquals(optOutExpected, PrivacyBits.fromInt(refreshTokenAfterRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
-
                         testContext.completeNow();
                     });
                 });
+    }
+
+    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity) {
+        final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits);
+        final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits);
+
+        final byte[] advertisingId = getAdvertisingIdFromIdentity(identityType,
+                identity,
+                firstLevelSalt,
+                rotatingSalt123.getSalt());
+
+        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(identity, firstLevelSalt);
+
+        assertAll(
+                () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenGenerated(), "Advertising token privacy bits CSTG flag is incorrect"),
+                () -> assertFalse(advertisingTokenPrivacyBits.isClientSideTokenOptedOut(), "Advertising token privacy bits CSTG optout flag is incorrect"),
+
+                () -> assertTrue(refreshTokenPrivacyBits.isClientSideTokenGenerated(), "Refresh token privacy bits CSTG flag is incorrect"),
+                () -> assertFalse(refreshTokenPrivacyBits.isClientSideTokenOptedOut(), "Refresh token privacy bits CSTG optout flag is incorrect"),
+
+                () -> assertEquals(siteId, advertisingToken.publisherIdentity.siteId, "Advertising token site ID is incorrect"),
+                () -> assertEquals(siteId, refreshToken.publisherIdentity.siteId, "Refresh token site ID is incorrect"),
+
+                () -> assertArrayEquals(advertisingId, advertisingToken.userIdentity.id, "Advertising token ID is incorrect"),
+                () -> assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id, "Refresh token ID is incorrect")
+        );
+    }
+
+    private void assertAreClientSideGeneratedOptOutTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType) {
+        final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits);
+        final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits);
+
+        final String identity = getClientSideGeneratedTokenOptOutIdentity(identityType);
+
+        final byte[] advertisingId = getAdvertisingIdFromIdentity(identityType,
+                identity,
+                firstLevelSalt,
+                rotatingSalt123.getSalt());
+
+        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(identity, firstLevelSalt);
+
+        assertAll(
+                () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenGenerated(), "Advertising token privacy bits CSTG flag is incorrect"),
+                () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenOptedOut(), "Advertising token privacy bits CSTG optout flag is incorrect"),
+
+                () -> assertTrue(refreshTokenPrivacyBits.isClientSideTokenGenerated(), "Refresh token privacy bits CSTG flag is incorrect"),
+                () -> assertTrue(refreshTokenPrivacyBits.isClientSideTokenOptedOut(), "Refresh token privacy bits CSTG optout flag is incorrect"),
+
+                () -> assertEquals(siteId, advertisingToken.publisherIdentity.siteId, "Advertising token site ID is incorrect"),
+                () -> assertEquals(siteId, refreshToken.publisherIdentity.siteId, "Refresh token site ID is incorrect"),
+
+                () -> assertArrayEquals(advertisingId, advertisingToken.userIdentity.id, "Advertising token ID is incorrect"),
+                () -> assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id, "Refresh token ID is incorrect")
+        );
+    }
+
+    private static String getClientSideGeneratedTokenOptOutIdentity(IdentityType identityType) {
+        switch (identityType) {
+            case Email:
+                return IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
+            case Phone:
+                return IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+        }
+        throw new IllegalArgumentException("Invalid identity type " + identityType);
     }
 
     /********************************************************

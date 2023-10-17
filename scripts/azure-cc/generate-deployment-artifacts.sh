@@ -6,6 +6,7 @@ set -x
 
 # Following environment variables may be set
 # - INPUT_TEMPLATE_FILE: deployment template file, default is deployment-template.json in this script's directory
+# - INPUT_PARAMETERS_FILE: deployment parameters file, default is deployment-parameters.json in this script's directory
 # - OUTPUT_TEMPLATE_FILE: generated deployment template file, default is uid2-operator-deployment-template.json
 # - OUTPUT_PARAMETERS_FILE: generated deployment parameters file, default is uid2-operator-deployment-parameters.json
 # - OUTPUT_POLICY_DIGEST_FILE: generated policy digest file, default is uid2-operator-deployment-digest.txt
@@ -22,6 +23,14 @@ if [[ -z ${INPUT_TEMPLATE_FILE} ]]; then
 fi
 if [[ ! -f ${INPUT_TEMPLATE_FILE} ]]; then
   echo "INPUT_TEMPLATE_FILE does not exist"
+  exit 1
+fi
+
+if [[ -z ${INPUT_PARAMETERS_FILE} ]]; then
+  INPUT_PARAMETERS_FILE=${SCRIPT_DIR}/deployment-parameters.json
+fi
+if [[ ! -f ${INPUT_PARAMETERS_FILE} ]]; then
+  echo "INPUT_PARAMETERS_FILE does not exist"
   exit 1
 fi
 
@@ -64,4 +73,4 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-cp ${SCRIPT_DIR}/deployment-parameters.json ${OUTPUT_PARAMETERS_FILE}
+cp ${INPUT_PARAMETERS_FILE} ${OUTPUT_PARAMETERS_FILE}

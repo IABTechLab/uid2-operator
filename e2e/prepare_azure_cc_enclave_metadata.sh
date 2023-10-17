@@ -12,6 +12,8 @@ if [ -z "$AZURE_CC_POLICY_DIGEST" ]; then
 fi
 
 # generate enclave id
+# TODO run `IMAGE={IMAGE} INPUT_TEMPLATE_FILE=azure-cc-deployment-template.json
+# INPUT_PARAMETERS_FILE=azure-cc-deployment-parameters.json scripts/azure-cc/generate-deployment-artifacts.sh` to generate artifacts
 enclave_id=$AZURE_CC_POLICY_DIGEST
 
 # fetch operator key

@@ -4,8 +4,8 @@ set -ex
 INPUT_DIR="./azure"
 OUT_PUT_DIR="./azure-artifacts"
 
-if [[ ! -f $IMAGE_VERSION ]]; then
-  echo "IMAGE_VERSION does not exist"
+if [ -z "$IMAGE_VERSION" ]; then
+  echo "IMAGE_VERSION can not be empty"
   exit 1
 fi
 

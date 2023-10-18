@@ -28,8 +28,8 @@ cd ./e2e-target
 killall ngrok
 docker compose down
 
-source ./setup_ngrok.sh
 source ./prepare_conf.sh
+source ./setup_ngrok.sh
 
 if [ "$TEST_GCP_OIDC" = true ]; then
     source ./prepare_gcp_enclave_metadata.sh

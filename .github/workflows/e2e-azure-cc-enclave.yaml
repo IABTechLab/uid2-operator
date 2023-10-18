@@ -9,7 +9,7 @@ on:
       core_image_version:
         description: 'The version of UID2 core image'
         type: string
-        default: '2.15.0-50d596678a'
+        default: '2.15.0-50d596678a-default'
       optout_image_version:
         description: 'The version of UID2 optout image'
         type: string

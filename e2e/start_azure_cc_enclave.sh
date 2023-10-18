@@ -47,6 +47,10 @@ if [[ ! -f $OUTPUT_PARAMETERS_FILE ]]; then
   exit 1
 fi
 
+
+fileContent="$(cat "$OUTPUT_PARAMETERS_FILE")"
+echo "file: $fileContent"
+
 cat "$OUTPUT_PARAMETERS_FILE" \
 | jq '(.parameters.containerGroupName.value) |='\"$CONTAINER_GROUP_NAME\"'' \
 | jq '(.parameters.location.value) |='\""$LOCATION"\"'' \
@@ -58,11 +62,15 @@ cat "$OUTPUT_PARAMETERS_FILE" \
 | jq '(.parameters.optoutBaseUrl.value) |='\""$NGROK_URL_OPTOUT"\"'' \
 | tee "$OUTPUT_PARAMETERS_FILE"
 
+
+fileContent="$(cat "$OUTPUT_PARAMETERS_FILE")"
+echo "file: $fileContent"
+
 az deployment group create \
     -g $RESOURCE_GROUP \
     -n $DEPLOYMENT_NAME \
     --template-file "$OUTPUT_TEMPLATE_FILE"  \
-    --parameters "$OUTPUT_PARAMETERS_FILE"
+    --parameters @"$OUTPUT_PARAMETERS_FILE"
 
 # export to Github output
 echo "CONTAINER_GROUP_NAME=$CONTAINER_GROUP_NAME"

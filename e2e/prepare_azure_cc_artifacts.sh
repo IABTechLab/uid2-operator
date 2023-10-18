@@ -14,7 +14,7 @@ IMAGE="ghcr.io/iabtechlab/uid2-operator:$IMAGE_VERSION"
 mkdir -p $OUT_PUT_DIR
 
 INPUT_TEMPLATE_FILE="$INPUT_DIR/template.json"
-INPUT_PARAMETERS_FILE="$INPUT_DIR/template.json"
+INPUT_PARAMETERS_FILE="$INPUT_DIR/parameters.json"
 OUTPUT_TEMPLATE_FILE="$OUT_PUT_DIR/template.json"
 OUTPUT_PARAMETERS_FILE="$OUT_PUT_DIR/parameters.json"
 OUTPUT_POLICY_DIGEST_FILE="$OUT_PUT_DIR/digest.txt"

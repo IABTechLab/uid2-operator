@@ -76,7 +76,7 @@ jobs:
         env:
           OUTPUT_POLICY_DIGEST_FILE: ${{ steps.artifacts.outputs.OUTPUT_POLICY_DIGEST_FILE }}
         run: |
-          cd ./e2e && bash ./prepare_gcp_enclave_metadata.sh
+          cd ./e2e && bash ./prepare_azure_cc_enclave_metadata.sh
 
       - name: Bring up docker compose
         id: docker_compose

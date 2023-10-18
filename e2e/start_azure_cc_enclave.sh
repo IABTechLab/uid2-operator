@@ -66,7 +66,7 @@ az deployment group create \
     -g $RESOURCE_GROUP \
     -n $DEPLOYMENT_NAME \
     --template-file "$OUTPUT_TEMPLATE_FILE"  \
-    --parameters @"$OUTPUT_PARAMETERS_FILE"
+    --parameters "$OUTPUT_PARAMETERS_FILE"
 
 # export to Github output
 echo "CONTAINER_GROUP_NAME=$CONTAINER_GROUP_NAME"

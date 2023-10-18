@@ -8,6 +8,9 @@ COMPOSE_FILE="$ROOT/docker-compose.yml"
 OPTOUT_MOUNT="$ROOT/docker/uid2-optout/mount"
 OPTOUT_HEALTHCHECK_URL="$NGROK_URL_OPTOUT/ops/healthcheck"
 
+source "$ROOT/jq_helper.sh"
+source "$ROOT/healthcheck.sh"
+
 if [ -z "$CORE_VERSION" ]; then
   echo "CORE_VERSION can not be empty"
   exit 1
@@ -37,8 +40,6 @@ fi
 sed -i.bak "s#<CORE_VERSION>#$CORE_VERSION#g" $COMPOSE_FILE
 sed -i.bak "s#<OPTOUT_VERSION>#$OPTOUT_VERSION#g" $COMPOSE_FILE
 
-source ./jq_helper.sh
-
 # set provide_private_site_data to false to workaround the private site path
 jq_inplace_update $CORE_CONFIG_FILE aws_s3_endpoint "$NGROK_URL_LOCALSTACK"
 jq_inplace_update $CORE_CONFIG_FILE kms_aws_endpoint "$NGROK_URL_LOCALSTACK"
@@ -60,8 +61,6 @@ mkdir -p "$OPTOUT_MOUNT" && chmod 777 "$OPTOUT_MOUNT"
 
 docker compose -f "$ROOT/docker-compose.yml" up -d
 docker ps -a
-
-source "$ROOT/healthcheck.sh"
 
 # health check - for 5 mins
 healthcheck "$OPTOUT_HEALTHCHECK_URL" 60 1

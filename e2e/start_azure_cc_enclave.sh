@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
+ROOT="."
 # below resources should be prepared ahead
 RESOURCE_GROUP=uid-enclave-test
 IDENTITY=uid-operator
@@ -11,6 +12,9 @@ LOCATION="East US"
 DEPLOYMENT_ENV="integ"
 CONTAINER_GROUP_NAME="ci-test-$RANDOM"
 DEPLOYMENT_NAME=$CONTAINER_GROUP_NAME
+
+source "$ROOT/jq_helper.sh"
+source "$ROOT/healthcheck.sh"
 
 if [ -z "$IDENTITY" ]; then
   echo "IDENTITY can not be empty"
@@ -47,7 +51,6 @@ if [[ ! -f $OUTPUT_PARAMETERS_FILE ]]; then
   exit 1
 fi
 
-source ./jq_helper.sh
 jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.containerGroupName.value "$CONTAINER_GROUP_NAME"
 jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.location.value "$LOCATION"
 jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.identity.value "$IDENTITY"

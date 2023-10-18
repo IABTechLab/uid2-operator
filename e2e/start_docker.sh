@@ -37,27 +37,23 @@ fi
 sed -i.bak "s#<CORE_VERSION>#$CORE_VERSION#g" $COMPOSE_FILE
 sed -i.bak "s#<OPTOUT_VERSION>#$OPTOUT_VERSION#g" $COMPOSE_FILE
 
+source ./jq_helper.sh
+
 # set provide_private_site_data to false to workaround the private site path
-cat $CORE_CONFIG_FILE \
-| jq '(.aws_s3_endpoint) |='\"$NGROK_URL_LOCALSTACK\"'' \
-| jq '(.kms_aws_endpoint) |='\"$NGROK_URL_LOCALSTACK\"'' \
-| jq '(.core_public_url) |='\"$NGROK_URL_CORE\"'' \
-| jq '(.optout_url) |='\"$NGROK_URL_OPTOUT\"'' \
-| jq '(.provide_private_site_data) |=false' \
-| tee $CORE_CONFIG_FILE
+jq_inplace_update $CORE_CONFIG_FILE aws_s3_endpoint "$NGROK_URL_LOCALSTACK"
+jq_inplace_update $CORE_CONFIG_FILE kms_aws_endpoint "$NGROK_URL_LOCALSTACK"
+jq_inplace_update $CORE_CONFIG_FILE core_public_url "$NGROK_URL_CORE"
+jq_inplace_update $CORE_CONFIG_FILE optout_url "$NGROK_URL_OPTOUT"
+jq_inplace_update_json $CORE_CONFIG_FILE provide_private_site_data false
 
-cat $OPTOUT_CONFIG_FILE \
-| jq '(.aws_s3_endpoint) |='\"$NGROK_URL_LOCALSTACK\"'' \
-| jq '(.partners_metadata_path) |='\"$NGROK_URL_CORE/partners/refresh\"'' \
-| jq '(.operators_metadata_path) |='\"$NGROK_URL_CORE/operators/refresh\"'' \
-| jq '(.core_attest_url) |='\"$NGROK_URL_CORE/attest\"'' \
-| jq '(.core_public_url) |='\"$NGROK_URL_CORE\"'' \
-| jq '(.optout_url) |='\"$NGROK_URL_OPTOUT\"'' \
-| tee $OPTOUT_CONFIG_FILE
-
+jq_inplace_update $OPTOUT_CONFIG_FILE aws_s3_endpoint "$NGROK_URL_LOCALSTACK"
+jq_inplace_update $OPTOUT_CONFIG_FILE partners_metadata_path "$NGROK_URL_CORE/partners/refresh"
+jq_inplace_update $OPTOUT_CONFIG_FILE operators_metadata_path "$NGROK_URL_CORE/operators/refresh"
+jq_inplace_update $OPTOUT_CONFIG_FILE core_attest_url "$NGROK_URL_CORE/attest"
+jq_inplace_update $OPTOUT_CONFIG_FILE core_public_url "$NGROK_URL_CORE"
+jq_inplace_update $OPTOUT_CONFIG_FILE optout_url "$NGROK_URL_OPTOUT"
 
 cat $CORE_CONFIG_FILE
-
 cat $OPTOUT_CONFIG_FILE
 
 mkdir -p "$OPTOUT_MOUNT" && chmod 777 "$OPTOUT_MOUNT"

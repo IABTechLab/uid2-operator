@@ -47,24 +47,17 @@ if [[ ! -f $OUTPUT_PARAMETERS_FILE ]]; then
   exit 1
 fi
 
+source ./jq_helper.sh
+jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.containerGroupName.value "$CONTAINER_GROUP_NAME"
+jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.location.value "$LOCATION"
+jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.identity.value "$IDENTITY"
+jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.vaultName.value "$VAULT_NAME"
+jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.operatorKeySecretName.value "$OPERATOR_KEY_NAME"
+jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.deploymentEnvironment.value "$DEPLOYMENT_ENV"
+jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.coreBaseUrl.value "$NGROK_URL_CORE"
+jq_inplace_update $OUTPUT_PARAMETERS_FILE parameters.optoutBaseUrl.value "$NGROK_URL_OPTOUT"
 
-fileContent="$(cat "$OUTPUT_PARAMETERS_FILE")"
-echo "file: $fileContent"
-
-cat "$OUTPUT_PARAMETERS_FILE" \
-| jq '(.parameters.containerGroupName.value) |='\"$CONTAINER_GROUP_NAME\"'' \
-| jq '(.parameters.location.value) |='\""$LOCATION"\"'' \
-| jq '(.parameters.identity.value) |='\"$IDENTITY\"'' \
-| jq '(.parameters.vaultName.value) |='\"$VAULT_NAME\"'' \
-| jq '(.parameters.operatorKeySecretName.value) |='\"$OPERATOR_KEY_NAME\"'' \
-| jq '(.parameters.deploymentEnvironment.value) |='\"$DEPLOYMENT_ENV\"'' \
-| jq '(.parameters.coreBaseUrl.value) |='\""$NGROK_URL_CORE"\"'' \
-| jq '(.parameters.optoutBaseUrl.value) |='\""$NGROK_URL_OPTOUT"\"'' \
-| tee "$OUTPUT_PARAMETERS_FILE"
-
-
-fileContent="$(cat "$OUTPUT_PARAMETERS_FILE")"
-echo "file: $fileContent"
+cat $OUTPUT_PARAMETERS_FILE
 
 az deployment group create \
     -g $RESOURCE_GROUP \

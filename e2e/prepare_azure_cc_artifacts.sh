@@ -11,7 +11,9 @@ fi
 
 IMAGE="ghcr.io/iabtechlab/uid2-operator:$IMAGE_VERSION"
 
-mkdir -p $OUT_PUT_DIR
+if [ -d "$OUT_PUT_DIR" ]; then
+  echo "$OUT_PUT_DIR  exist."
+fi
 
 INPUT_TEMPLATE_FILE="$INPUT_DIR/template.json"
 INPUT_PARAMETERS_FILE="$INPUT_DIR/parameters.json"
@@ -19,7 +21,12 @@ OUTPUT_TEMPLATE_FILE="$OUT_PUT_DIR/template.json"
 OUTPUT_PARAMETERS_FILE="$OUT_PUT_DIR/parameters.json"
 OUTPUT_POLICY_DIGEST_FILE="$OUT_PUT_DIR/digest.txt"
 
-source ../scripts/azure-cc/generate-deployment-artifacts.sh
+if [[ -d $OUT_PUT_DIR ]]; then
+  echo "$OUT_PUT_DIR  exist. Skip. This only happens during local test."
+else
+  mkdir -p $OUT_PUT_DIR
+  source ../scripts/azure-cc/generate-deployment-artifacts.sh
+fi
 
 if [ -z "$GITHUB_OUTPUT" ]; then
   echo "not in github action"

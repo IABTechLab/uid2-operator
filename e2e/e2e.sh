@@ -4,7 +4,7 @@ set -x
 
 # common configs for all enclaves
 NGROK_TOKEN=
-CORE_VERSION=2.15.0-50d596678a
+CORE_VERSION=2.15.0-50d596678a-default
 OPTOUT_VERSION=2.6.18-60727cf243-default
 
 # GCP OIDC enclave configs

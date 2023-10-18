@@ -1,10 +1,30 @@
 #!/usr/bin/env bash
 set -ex
 
-mkdir -p $AZURE_OUTPUT_DIR
+INPUT_DIR="./azure"
+OUT_PUT_DIR="./azure-artifacts"
 
-# TODO: generate artifacts to azure-artifacts folder
+if [[ ! -f $IMAGE_VERSION ]]; then
+  echo "$IMAGE_VERSION does not exist"
+  exit 1
+fi
 
-AZURE_CC_POLICY_DIGEST="$(cat $AZURE_OUTPUT_DIGEST)"
+IMAGE="ghcr.io/iabtechlab/uid2-operator:$IMAGE_VERSION"
 
-echo "AZURE_CC_POLICY_DIGEST=$AZURE_CC_POLICY_DIGEST"
+mkdir -p $OUT_PUT_DIR
+
+INPUT_TEMPLATE_FILE="$INPUT_DIR/template.json"
+INPUT_PARAMETERS_FILE="$INPUT_DIR/template.json"
+OUTPUT_TEMPLATE_FILE="$OUT_PUT_DIR/template.json"
+OUTPUT_PARAMETERS_FILE="$OUT_PUT_DIR/parameters.json"
+OUTPUT_POLICY_DIGEST_FILE="$OUT_PUT_DIR/digest.txt"
+
+source ../scripts/azure-cc/generate-deployment-artifacts.sh
+
+if [ -z "$GITHUB_OUTPUT" ]; then
+  echo "not in github action"
+else
+  echo "OUTPUT_TEMPLATE_FILE=$OUTPUT_TEMPLATE_FILE" >> $GITHUB_OUTPUT
+  echo "OUTPUT_PARAMETERS_FILE=$OUTPUT_PARAMETERS_FILE" >> $GITHUB_OUTPUT
+  echo "OUTPUT_POLICY_DIGEST_FILE=$OUTPUT_POLICY_DIGEST_FILE" >> $GITHUB_OUTPUT
+fi

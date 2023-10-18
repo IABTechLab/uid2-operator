@@ -37,7 +37,17 @@ if [ -z "$NGROK_URL_OPTOUT" ]; then
   exit 1
 fi
 
-cat "$AZURE_OUTPUT_PARAMETERS" \
+if [[ ! -f $OUTPUT_TEMPLATE_FILE ]]; then
+  echo "OUTPUT_TEMPLATE_FILE does not exist"
+  exit 1
+fi
+
+if [[ ! -f $OUTPUT_PARAMETERS_FILE ]]; then
+  echo "OUTPUT_PARAMETERS_FILE does not exist"
+  exit 1
+fi
+
+cat "$OUTPUT_PARAMETERS_FILE" \
 | jq '(.parameters.containerGroupName.value) |='\"$CONTAINER_GROUP_NAME\"'' \
 | jq '(.parameters.location.value) |='\""$LOCATION"\"'' \
 | jq '(.parameters.identity.value) |='\"$IDENTITY\"'' \
@@ -46,13 +56,13 @@ cat "$AZURE_OUTPUT_PARAMETERS" \
 | jq '(.parameters.deploymentEnvironment.value) |='\"$DEPLOYMENT_ENV\"'' \
 | jq '(.parameters.coreBaseUrl.value) |='\""$NGROK_URL_CORE"\"'' \
 | jq '(.parameters.optoutBaseUrl.value) |='\""$NGROK_URL_OPTOUT"\"'' \
-| tee "$AZURE_OUTPUT_PARAMETERS"
+| tee "$OUTPUT_PARAMETERS_FILE"
 
 az deployment group create \
     -g $RESOURCE_GROUP \
     -n $DEPLOYMENT_NAME \
-    --template-file "$AZURE_OUTPUT_TEMPLATE"  \
-    --parameters "$AZURE_OUTPUT_PARAMETERS"
+    --template-file "$OUTPUT_TEMPLATE_FILE"  \
+    --parameters "$OUTPUT_PARAMETERS_FILE"
 
 # export to Github output
 echo "CONTAINER_GROUP_NAME=$CONTAINER_GROUP_NAME"

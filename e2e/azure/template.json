@@ -4,7 +4,6 @@
   "parameters": {
     "containerGroupName": {
       "type": "string",
-      "defaultValue": "uid2-operator",
       "metadata": {
         "description": "Name for the container group"
       }
@@ -17,7 +16,6 @@
     },
     "identity": {
       "type": "string",
-      "defaultValue": "uid-operator",
       "metadata": {
         "description": "ManagedIdentity to launch the container"
       }

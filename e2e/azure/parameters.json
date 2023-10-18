@@ -20,10 +20,10 @@
     "deploymentEnvironment": {
       "value": ""
     },
-    "coreBaseUrl":  {
+    "coreBaseUrl": {
       "value": ""
     },
-    "optoutBaseUrl":  {
+    "optoutBaseUrl": {
       "value": ""
     }
   }

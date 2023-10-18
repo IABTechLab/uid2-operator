@@ -304,7 +304,7 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void decodeV2RefreshToken(JsonObject respJson) {
+    private String decodeV2RefreshToken(JsonObject respJson) {
         if (respJson.containsKey("body")) {
             JsonObject bodyJson = respJson.getJsonObject("body");
 
@@ -316,7 +316,11 @@ public class UIDOperatorVerticleTest {
 
             String refreshToken = tokenKeyJson.getString("refresh_token");
             bodyJson.put("decrypted_refresh_token", refreshToken);
+
+            return refreshToken;
         }
+
+        return null;
     }
 
     private JsonObject tryParseResponse(HttpResponse<Buffer> resp) {
@@ -3189,6 +3193,63 @@ public class UIDOperatorVerticleTest {
     private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithNoPayload(long timestamp) throws NoSuchAlgorithmException, InvalidKeyException {
         JsonObject identity = new JsonObject();
         return createClientSideTokenGenerateRequestWithPayload(identity, timestamp);
+    }
+
+
+    @ParameterizedTest
+    @CsvSource({"test@example.com,Email", "+61400000000,Phone"})
+    void cstgUserOptsOutAfterTokenGenerate(String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend("cstg.co.uk");
+
+        final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
+
+        // When we generate the token the user hasn't opted out.
+        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                .thenReturn(null);
+
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+        final ArgumentCaptor<UserIdentity> argumentCaptor = ArgumentCaptor.forClass(UserIdentity.class);
+
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "https://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                200,
+                testContext,
+                response -> {
+                    verify(optOutStore, times(1)).getLatestEntry(argumentCaptor.capture());
+                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), argumentCaptor.getValue().id);
+
+                    assertEquals("success", response.getString("status"));
+                    final JsonObject genBody = response.getJsonObject("body");
+
+                    final AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
+                    final RefreshToken refreshToken = encoder.decodeRefreshToken(decodeV2RefreshToken(response));
+
+                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
+
+                    // When we refresh the token the user has opted out.
+                    when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                        .thenReturn(advertisingToken.userIdentity.establishedAt.plusSeconds(1));
+
+                    sendTokenRefresh("v2", vertx, testContext, genBody.getString("refresh_token"), genBody.getString("refresh_response_key"), 200, refreshRespJson -> {
+                        verify(optOutStore, times(2)).getLatestEntry(argumentCaptor.capture());
+                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), argumentCaptor.getValue().id);
+
+                        assertEquals("success", refreshRespJson.getString("status"));
+                        final JsonObject refreshBody = refreshRespJson.getJsonObject("body");
+
+                        final AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
+                        final RefreshToken refreshTokenFromRefresh = encoder.decodeRefreshToken(decodeV2RefreshToken(refreshRespJson));
+
+                        assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenFromRefresh, clientSideTokenGenerateSiteId, identityType);
+
+                        verifyNoMoreInteractions(optOutStore);
+
+                        testContext.completeNow();
+                    });
+                });
     }
 
     // tests for opted out user should lead to generating ad tokens with the default optout identity

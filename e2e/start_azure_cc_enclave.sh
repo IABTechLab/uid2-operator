@@ -58,7 +58,10 @@ cat "$OUTPUT_PARAMETERS_FILE" \
 | jq '(.parameters.optoutBaseUrl.value) |='\""$NGROK_URL_OPTOUT"\"'' \
 | tee "$OUTPUT_PARAMETERS_FILE"
 
-cat "$OUTPUT_PARAMETERS_FILE"
+
+fileContent="$(cat "$OUTPUT_PARAMETERS_FILE")"
+
+echo "file: $fileContent"
 
 az deployment group create \
     -g $RESOURCE_GROUP \

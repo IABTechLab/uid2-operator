@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-mkdir -p AZURE_OUTPUT_DIR
+mkdir -p $AZURE_OUTPUT_DIR
 
 # TODO: generate artifacts to azure-artifacts folder
 

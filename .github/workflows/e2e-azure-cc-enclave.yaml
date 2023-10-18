@@ -1,6 +1,5 @@
 name: E2E AZURE CC Enclave
 on:
-  push:
   workflow_dispatch:
     inputs:
       operator_image_version:

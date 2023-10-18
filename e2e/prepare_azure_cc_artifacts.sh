@@ -5,7 +5,7 @@ INPUT_DIR="./azure"
 OUT_PUT_DIR="./azure-artifacts"
 
 if [[ ! -f $IMAGE_VERSION ]]; then
-  echo "$IMAGE_VERSION does not exist"
+  echo "IMAGE_VERSION does not exist"
   exit 1
 fi
 

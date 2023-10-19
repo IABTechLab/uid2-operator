@@ -3363,36 +3363,28 @@ public class UIDOperatorVerticleTest {
     }
 
     private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity) {
-        final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits);
-        final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits);
-
-        final byte[] advertisingId = getAdvertisingIdFromIdentity(identityType,
+        assertAreClientSideGeneratedTokens(advertisingToken,
+                refreshToken,
+                siteId,
+                identityType,
                 identity,
-                firstLevelSalt,
-                rotatingSalt123.getSalt());
-
-        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(identity, firstLevelSalt);
-
-        assertAll(
-                () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenGenerated(), "Advertising token privacy bits CSTG flag is incorrect"),
-                () -> assertFalse(advertisingTokenPrivacyBits.isClientSideTokenOptedOut(), "Advertising token privacy bits CSTG optout flag is incorrect"),
-
-                () -> assertTrue(refreshTokenPrivacyBits.isClientSideTokenGenerated(), "Refresh token privacy bits CSTG flag is incorrect"),
-                () -> assertFalse(refreshTokenPrivacyBits.isClientSideTokenOptedOut(), "Refresh token privacy bits CSTG optout flag is incorrect"),
-
-                () -> assertEquals(siteId, advertisingToken.publisherIdentity.siteId, "Advertising token site ID is incorrect"),
-                () -> assertEquals(siteId, refreshToken.publisherIdentity.siteId, "Refresh token site ID is incorrect"),
-
-                () -> assertArrayEquals(advertisingId, advertisingToken.userIdentity.id, "Advertising token ID is incorrect"),
-                () -> assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id, "Refresh token ID is incorrect")
-        );
+                false);
     }
 
     private void assertAreClientSideGeneratedOptOutTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType) {
+        final String identity = getClientSideGeneratedTokenOptOutIdentity(identityType);
+
+        assertAreClientSideGeneratedTokens(advertisingToken,
+                refreshToken,
+                siteId,
+                identityType,
+                identity,
+                true);
+    }
+
+    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity, boolean expectedOptOut) {
         final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits);
         final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits);
-
-        final String identity = getClientSideGeneratedTokenOptOutIdentity(identityType);
 
         final byte[] advertisingId = getAdvertisingIdFromIdentity(identityType,
                 identity,
@@ -3403,10 +3395,10 @@ public class UIDOperatorVerticleTest {
 
         assertAll(
                 () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenGenerated(), "Advertising token privacy bits CSTG flag is incorrect"),
-                () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenOptedOut(), "Advertising token privacy bits CSTG optout flag is incorrect"),
+                () -> assertEquals(expectedOptOut, advertisingTokenPrivacyBits.isClientSideTokenOptedOut(), "Advertising token privacy bits CSTG optout flag is incorrect"),
 
                 () -> assertTrue(refreshTokenPrivacyBits.isClientSideTokenGenerated(), "Refresh token privacy bits CSTG flag is incorrect"),
-                () -> assertTrue(refreshTokenPrivacyBits.isClientSideTokenOptedOut(), "Refresh token privacy bits CSTG optout flag is incorrect"),
+                () -> assertEquals(expectedOptOut, refreshTokenPrivacyBits.isClientSideTokenOptedOut(), "Refresh token privacy bits CSTG optout flag is incorrect"),
 
                 () -> assertEquals(siteId, advertisingToken.publisherIdentity.siteId, "Advertising token site ID is incorrect"),
                 () -> assertEquals(siteId, refreshToken.publisherIdentity.siteId, "Refresh token site ID is incorrect"),

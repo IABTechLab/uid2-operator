@@ -6,14 +6,15 @@ METADATA_ROOT="$ROOT/docker/localstack/s3/core"
 OPERATOR_FILE="$METADATA_ROOT/operators/operators.json"
 ENCLAVE_FILE="$METADATA_ROOT/enclaves/enclaves.json"
 
-if [ -z "$AZURE_CC_POLICY_DIGEST" ]; then
-  echo "AZURE_CC_POLICY_DIGEST can not be empty"
+if [[ ! -f $OUTPUT_POLICY_DIGEST_FILE ]]; then
+  echo "OUTPUT_POLICY_DIGEST_FILE does not exist"
   exit 1
 fi
 
-# generate enclave id
-# TODO run `IMAGE={IMAGE} INPUT_TEMPLATE_FILE=azure-cc-deployment-template.json
-# INPUT_PARAMETERS_FILE=azure-cc-deployment-parameters.json scripts/azure-cc/generate-deployment-artifacts.sh` to generate artifacts
+AZURE_CC_POLICY_DIGEST="$(cat $OUTPUT_POLICY_DIGEST_FILE)"
+
+echo "AZURE_CC_POLICY_DIGEST=$AZURE_CC_POLICY_DIGEST"
+
 enclave_id=$AZURE_CC_POLICY_DIGEST
 
 # fetch operator key

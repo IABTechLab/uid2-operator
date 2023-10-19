@@ -36,8 +36,11 @@ public class TokenResponseStatsCollector {
         BadTimestamp,
         InvalidHttpOrigin,
         BadIV,
-        BadPayload,
-        /* Start of CSTG-related Status */
+        BadPayload, //the actual cstg payload in the JSON request 
+        BadJsonPayload, // can't even deserialise the JSON payload 
+        PayloadHasNoBody,
+        /* End of CSTG-related Status */
+        Unknown
     }
 
     private static final Map<TokenResponseKey, Counter> TokenResponseCounters = new ConcurrentHashMap<>();

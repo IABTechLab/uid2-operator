@@ -293,6 +293,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             handleClientSideTokenGenerateImpl(rc);
         } catch (Exception e) {
             LOGGER.error("Unknown error while handling client side token generate", e);
+            recordTokenResponseStats(null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unknown);
             rc.fail(500);
         }
     }
@@ -307,6 +308,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private void SendErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus)
+    {
+        ResponseUtil.Error(errorStatus, statusCode, rc, message);
+        recordTokenResponseStats(siteId, endpoint, responseStatus);
+    }
+    
     private void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus) {
         TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, responseStatus);
     }
@@ -316,13 +323,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             body = rc.body().asJsonObject();
         } catch (DecodeException ex) {
-            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload is not valid");
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "json payload is not valid", 
+                    null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadJsonPayload);
             return;
         }
 
         if (body == null) {
-            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload expected but not found");
-            // We don't have a site ID, so we don't bother calling recordTokenResponseStats.
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "json payload expected but not found", 
+                    null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.PayloadHasNoBody);
             return;
         }
 
@@ -330,7 +338,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final ClientSideKeypair clientSideKeypair = this.clientSideKeypairProvider.getSnapshot().getKeypair(request.getSubscriptionId());
         if (clientSideKeypair == null) {
-            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad subscription_id");
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "bad subscription_id",
+                    null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
             return;
         }
 
@@ -1580,7 +1589,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return this.idService.refreshIdentity(refreshToken);
     }
 
-    public static String getSiteName(ISiteStore siteStore, int siteId) {
+    public static String getSiteName(ISiteStore siteStore, Integer siteId) {
+        if (siteId == null) return "unknown";
         if (siteStore == null) return "unknown"; //this is expected if CSTG is not enabled, eg for private operators
 
         final Site site = siteStore.getSite(siteId);

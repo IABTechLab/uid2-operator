@@ -274,18 +274,17 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void sendTokenRefresh(String apiVersion, Vertx vertx, String refreshToken, String v2RefreshDecryptSecret, int expectedHttpCode,
+    private void sendTokenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext, String refreshToken, String v2RefreshDecryptSecret, int expectedHttpCode,
                                   Handler<JsonObject> handler) {
         if (apiVersion.equals("v2")) {
             WebClient client = WebClient.create(vertx);
             client.postAbs(getUrlForEndpoint("v2/token/refresh"))
                     .putHeader("content-type", "text/plain")
-                    .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), ar -> {
-                        assertTrue(ar.succeeded());
-                        assertEquals(expectedHttpCode, ar.result().statusCode());
+                    .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), testContext.succeeding(response -> testContext.verify(() -> {
+                        assertEquals(expectedHttpCode, response.statusCode());
 
-                        if (ar.result().statusCode() == 200 && v2RefreshDecryptSecret != null) {
-                            byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
+                        if (response.statusCode() == 200 && v2RefreshDecryptSecret != null) {
+                            byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(response.bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
                             JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
 
                             if (respJson.getString("status").equals("success"))
@@ -293,21 +292,19 @@ public class UIDOperatorVerticleTest {
 
                             handler.handle(respJson);
                         } else {
-                            handler.handle(tryParseResponse(ar.result()));
+                            handler.handle(tryParseResponse(response));
                         }
-                    });
+                    })));
         } else {
-            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse<Buffer> response = ar.result();
+            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), testContext.succeeding(response -> testContext.verify(() -> {
                 assertEquals(expectedHttpCode, response.statusCode());
                 JsonObject json = response.bodyAsJsonObject();
                 handler.handle(json);
-            });
+            })));
         }
     }
 
-    private void decodeV2RefreshToken(JsonObject respJson) {
+    private String decodeV2RefreshToken(JsonObject respJson) {
         if (respJson.containsKey("body")) {
             JsonObject bodyJson = respJson.getJsonObject("body");
 
@@ -319,7 +316,11 @@ public class UIDOperatorVerticleTest {
 
             String refreshToken = tokenKeyJson.getString("refresh_token");
             bodyJson.put("decrypted_refresh_token", refreshToken);
+
+            return refreshToken;
         }
+
+        return null;
     }
 
     private JsonObject tryParseResponse(HttpResponse<Buffer> resp) {
@@ -1102,7 +1103,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(apiVersion, vertx, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            sendTokenRefresh(apiVersion, vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
             {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -1270,7 +1271,7 @@ public class UIDOperatorVerticleTest {
     void tokenRefreshNoToken(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
-        sendTokenRefresh(apiVersion, vertx, "", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, testContext, "", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
@@ -1286,7 +1287,7 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
 
-        sendTokenRefresh(apiVersion, vertx, "abcd", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, testContext, "abcd", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
@@ -1299,7 +1300,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void tokenRefreshInvalidTokenUnauthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
-        sendTokenRefresh(apiVersion, vertx, "abcd", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, testContext, "abcd", "", 400, json -> {
             assertEquals("error", json.getString("status"));
             testContext.completeNow();
         });
@@ -1323,7 +1324,7 @@ public class UIDOperatorVerticleTest {
             String refreshToken = bodyJson.getString("refresh_token");
             when(clock.instant()).thenAnswer(i -> now.plusSeconds(300));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 assertEquals(300, Metrics.globalRegistry
                         .get("uid2.token_refresh_duration_seconds")
@@ -1353,7 +1354,7 @@ public class UIDOperatorVerticleTest {
             String refreshToken = bodyJson.getString("refresh_token");
             when(clock.instant()).thenAnswer(i -> now.plusSeconds(identityExpiresAfter.toSeconds() + 1));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 assertEquals(1, Metrics.globalRegistry
@@ -1378,7 +1379,7 @@ public class UIDOperatorVerticleTest {
             String refreshToken = bodyJson.getString("refresh_token");
             when(clock.instant()).thenAnswer(i -> now.plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 400, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 400, refreshRespJson -> {
                 assertEquals("expired_token", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
@@ -1396,7 +1397,7 @@ public class UIDOperatorVerticleTest {
             clearAuth();
             when(clock.instant()).thenAnswer(i -> now.plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, "", 400, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, "", 400, refreshRespJson -> {
                 assertEquals("error", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
@@ -1414,7 +1415,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("optout", refreshRespJson.getString("status"));
                 assertTokenStatusMetrics(
                         clientSiteId,
@@ -1437,7 +1438,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(now.minusSeconds(10));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 testContext.completeNow();
@@ -1455,7 +1456,7 @@ public class UIDOperatorVerticleTest {
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             String refreshToken = bodyJson.getString("refresh_token");
 
-            sendTokenRefresh("v2", vertx, refreshToken, null, 200, refreshRespJson -> {
+            sendTokenRefresh("v2", vertx, testContext, refreshToken, null, 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 JsonObject refreshBodyJson = refreshRespJson.getJsonObject("body");
@@ -1478,7 +1479,7 @@ public class UIDOperatorVerticleTest {
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             String refreshToken = bodyJson.getString("refresh_token");
 
-            sendTokenRefresh("v1", vertx, refreshToken, null, 200, refreshRespJson -> {
+            sendTokenRefresh("v1", vertx, testContext, refreshToken, null, 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
@@ -2030,7 +2031,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(apiVersion, vertx, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            sendTokenRefresh(apiVersion, vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
             {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -3194,6 +3195,63 @@ public class UIDOperatorVerticleTest {
         return createClientSideTokenGenerateRequestWithPayload(identity, timestamp);
     }
 
+
+    @ParameterizedTest
+    @CsvSource({"test@example.com,Email", "+61400000000,Phone"})
+    void cstgUserOptsOutAfterTokenGenerate(String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend("cstg.co.uk");
+
+        final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
+
+        // When we generate the token the user hasn't opted out.
+        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                .thenReturn(null);
+
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+        final ArgumentCaptor<UserIdentity> argumentCaptor = ArgumentCaptor.forClass(UserIdentity.class);
+
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "https://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                200,
+                testContext,
+                response -> {
+                    verify(optOutStore, times(1)).getLatestEntry(argumentCaptor.capture());
+                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), argumentCaptor.getValue().id);
+
+                    assertEquals("success", response.getString("status"));
+                    final JsonObject genBody = response.getJsonObject("body");
+
+                    final AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
+                    final RefreshToken refreshToken = encoder.decodeRefreshToken(decodeV2RefreshToken(response));
+
+                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
+
+                    // When we refresh the token the user has opted out.
+                    when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                        .thenReturn(advertisingToken.userIdentity.establishedAt.plusSeconds(1));
+
+                    sendTokenRefresh("v2", vertx, testContext, genBody.getString("refresh_token"), genBody.getString("refresh_response_key"), 200, refreshRespJson -> {
+                        verify(optOutStore, times(2)).getLatestEntry(argumentCaptor.capture());
+                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), argumentCaptor.getValue().id);
+
+                        assertEquals("success", refreshRespJson.getString("status"));
+                        final JsonObject refreshBody = refreshRespJson.getJsonObject("body");
+
+                        final AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
+                        final RefreshToken refreshTokenFromRefresh = encoder.decodeRefreshToken(decodeV2RefreshToken(refreshRespJson));
+
+                        assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenFromRefresh, clientSideTokenGenerateSiteId, identityType);
+
+                        verifyNoMoreInteractions(optOutStore);
+
+                        testContext.completeNow();
+                    });
+                });
+    }
+
     // tests for opted out user should lead to generating ad tokens with the default optout identity
     // tests for opted in user should lead to generating ad tokens that never match the default optout identity
     // tests for all email/phone combos
@@ -3231,36 +3289,13 @@ public class UIDOperatorVerticleTest {
                     EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
-                    assertEquals(clientSideTokenGenerateSiteId, advertisingToken.publisherIdentity.siteId);
-
-                    assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
-                    assertEquals(optOutExpected, PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
-
-                    if(identityType == IdentityType.Email) {
-                        assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email,
-                                TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
-                    }
-                    else if(identityType == IdentityType.Phone) {
-                        assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Phone,
-                                TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
-                    }
-                    else { //should never happen
-                        assertFalse(true);
-                    }
 
                     RefreshToken refreshToken = encoder.decodeRefreshToken(genBody.getString("decrypted_refresh_token"));
-                    assertEquals(clientSideTokenGenerateSiteId, refreshToken.publisherIdentity.siteId);
-                    assertTrue(PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits).isClientSideTokenGenerated());
 
-                    if(optOutExpected) {
-                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(expectedOptedOutIdentity), firstLevelSalt), refreshToken.userIdentity.id);
-                        assertTrue(PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
-                    }
-                    else {
-                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(id), firstLevelSalt), refreshToken.userIdentity.id);
-                        assertFalse(PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                    if (optOutExpected) {
+                        assertAreClientSideGeneratedOptOutTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType);
+                    } else {
+                        assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
                     }
 
                     assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
@@ -3293,7 +3328,7 @@ public class UIDOperatorVerticleTest {
 
                     String genRefreshToken = genBody.getString("refresh_token");
                     //test a subsequent refresh from this cstg call and see if it still works
-                    sendTokenRefresh("v2", vertx, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson ->
+                    sendTokenRefresh("v2", vertx, testContext, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson ->
                     {
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -3302,33 +3337,15 @@ public class UIDOperatorVerticleTest {
 
                         //make sure the new advertising token from refresh looks right
                         AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, identityType);
-                        assertEquals(clientSideTokenGenerateSiteId, adTokenFromRefresh.publisherIdentity.siteId);
 
                         String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
                         RefreshToken refreshTokenAfterRefresh = encoder.decodeRefreshToken(refreshTokenStringNew);
-                        assertEquals(clientSideTokenGenerateSiteId, refreshTokenAfterRefresh.publisherIdentity.siteId);
 
-                        if(optOutExpected) {
-                            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(expectedOptedOutIdentity), firstLevelSalt), refreshTokenAfterRefresh.userIdentity.id);
-                        }
-                        else {
-                            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(id), firstLevelSalt), refreshTokenAfterRefresh.userIdentity.id);
-                        }
-
-                        if(identityType == IdentityType.Email) {
-                            assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email,
-                                    TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                    firstLevelSalt, rotatingSalt123.getSalt()), adTokenFromRefresh.userIdentity.id);
-                        }
-                        else if(identityType == IdentityType.Phone) {
-                            assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Phone,
-                                    TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                    firstLevelSalt, rotatingSalt123.getSalt()), adTokenFromRefresh.userIdentity.id);
-
-                        }
-                        else { //should never happen
-                            assertFalse(true);
+                        if (optOutExpected) {
+                            assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType);
+                        } else {
+                            assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id);
                         }
 
                         assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
@@ -3340,15 +3357,65 @@ public class UIDOperatorVerticleTest {
                                 TokenResponseStatsCollector.Endpoint.RefreshV2,
                                 TokenResponseStatsCollector.ResponseStatus.Success);
 
-                        //check the CSTG-related privacy bits are still set correctly
-                        assertTrue(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
-                        assertTrue(PrivacyBits.fromInt(refreshTokenAfterRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
-                        assertEquals(optOutExpected, PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
-                        assertEquals(optOutExpected, PrivacyBits.fromInt(refreshTokenAfterRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
-
                         testContext.completeNow();
                     });
                 });
+    }
+
+    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity) {
+        assertAreClientSideGeneratedTokens(advertisingToken,
+                refreshToken,
+                siteId,
+                identityType,
+                identity,
+                false);
+    }
+
+    private void assertAreClientSideGeneratedOptOutTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType) {
+        final String identity = getClientSideGeneratedTokenOptOutIdentity(identityType);
+
+        assertAreClientSideGeneratedTokens(advertisingToken,
+                refreshToken,
+                siteId,
+                identityType,
+                identity,
+                true);
+    }
+
+    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity, boolean expectedOptOut) {
+        final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits);
+        final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits);
+
+        final byte[] advertisingId = getAdvertisingIdFromIdentity(identityType,
+                identity,
+                firstLevelSalt,
+                rotatingSalt123.getSalt());
+
+        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(identity, firstLevelSalt);
+
+        assertAll(
+                () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenGenerated(), "Advertising token privacy bits CSTG flag is incorrect"),
+                () -> assertEquals(expectedOptOut, advertisingTokenPrivacyBits.isClientSideTokenOptedOut(), "Advertising token privacy bits CSTG optout flag is incorrect"),
+
+                () -> assertTrue(refreshTokenPrivacyBits.isClientSideTokenGenerated(), "Refresh token privacy bits CSTG flag is incorrect"),
+                () -> assertEquals(expectedOptOut, refreshTokenPrivacyBits.isClientSideTokenOptedOut(), "Refresh token privacy bits CSTG optout flag is incorrect"),
+
+                () -> assertEquals(siteId, advertisingToken.publisherIdentity.siteId, "Advertising token site ID is incorrect"),
+                () -> assertEquals(siteId, refreshToken.publisherIdentity.siteId, "Refresh token site ID is incorrect"),
+
+                () -> assertArrayEquals(advertisingId, advertisingToken.userIdentity.id, "Advertising token ID is incorrect"),
+                () -> assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id, "Refresh token ID is incorrect")
+        );
+    }
+
+    private static String getClientSideGeneratedTokenOptOutIdentity(IdentityType identityType) {
+        switch (identityType) {
+            case Email:
+                return IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
+            case Phone:
+                return IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+        }
+        throw new IllegalArgumentException("Invalid identity type " + identityType);
     }
 
     /********************************************************

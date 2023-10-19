@@ -308,6 +308,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private void SendErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus)
+    {
+        ResponseUtil.Error(errorStatus, statusCode, rc, message);
+        recordTokenResponseStats(siteId, endpoint, responseStatus);
+    }
+    
     private void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus) {
         TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, responseStatus);
     }
@@ -317,14 +323,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             body = rc.body().asJsonObject();
         } catch (DecodeException ex) {
-            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload is not valid");
-            recordTokenResponseStats(null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadJsonPayload);
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "json payload is not valid", 
+                    null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadJsonPayload);
             return;
         }
 
         if (body == null) {
-            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "json payload expected but not found");
-            recordTokenResponseStats(null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.PayloadHasNoBody);
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "json payload expected but not found", 
+                    null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.PayloadHasNoBody);
             return;
         }
 
@@ -332,8 +338,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final ClientSideKeypair clientSideKeypair = this.clientSideKeypairProvider.getSnapshot().getKeypair(request.getSubscriptionId());
         if (clientSideKeypair == null) {
-            ResponseUtil.Error(ResponseStatus.ClientError, 400, rc, "bad subscription_id");
-            recordTokenResponseStats(null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "bad subscription_id",
+                    null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId);
             return;
         }
 

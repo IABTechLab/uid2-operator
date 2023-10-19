@@ -243,7 +243,6 @@ Resources:
           Fn::Sub: |
             #!/bin/bash -ex
             export EUID_CONFIG_SECRET_KEY="euid-config-stack-${AWS::StackName}"
-            sudo yum install -y nmap-ncat
             sudo yum update -y --security
             while ! nc -z localhost 80;do sleep 10;done
             /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}

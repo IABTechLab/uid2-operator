@@ -160,8 +160,14 @@ public class UIDOperatorService implements IUIDOperatorService {
                 return InputUtil.InputVal.validPhone(
                         ClientSideTokenGenerateOptOutIdentityForPhone,
                         ClientSideTokenGenerateOptOutIdentityForPhone);
+            default:
+                // Assert will fire when this code path is hit by a test.
+                assert false: "Invalid identity type " + identityType;
+                // Provide a fallback value instead of throwing an exception.
+                return InputUtil.InputVal.validEmail(
+                        ClientSideTokenGenerateOptOutIdentityForEmail,
+                        ClientSideTokenGenerateOptOutIdentityForEmail);
         }
-        throw new IllegalArgumentException("Invalid identity type " + identityType);
     }
 
     @Override

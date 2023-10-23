@@ -11,19 +11,21 @@ public class RefreshResponse {
     private final Status status;
     private final IdentityTokens tokens;
     private final Duration durationSinceLastRefresh;
+    private final boolean isCstg;
 
-    private RefreshResponse(Status status, IdentityTokens tokens, Duration durationSinceLastRefresh) {
+    private RefreshResponse(Status status, IdentityTokens tokens, Duration durationSinceLastRefresh, boolean isCstg) {
         this.status = status;
         this.tokens = tokens;
         this.durationSinceLastRefresh = durationSinceLastRefresh;
+        this.isCstg = isCstg;
     }
 
     private RefreshResponse(Status status, IdentityTokens tokens) {
-        this(status, tokens, null);
+        this(status, tokens, null, false);
     }
 
-    public static RefreshResponse Refreshed(IdentityTokens tokens, Duration durationSinceLastRefresh) {
-        return new RefreshResponse(Status.Refreshed, tokens, durationSinceLastRefresh);
+    public static RefreshResponse createRefreshedResponse(IdentityTokens tokens, Duration durationSinceLastRefresh, boolean isCstg) {
+        return new RefreshResponse(Status.Refreshed, tokens, durationSinceLastRefresh, isCstg);
     }
 
     public Status getStatus() {
@@ -37,6 +39,8 @@ public class RefreshResponse {
     public Duration getDurationSinceLastRefresh() {
         return durationSinceLastRefresh;
     }
+
+    public boolean isCstg() { return isCstg;}
 
     public boolean isRefreshed() {
         return Status.Refreshed.equals(this.status);

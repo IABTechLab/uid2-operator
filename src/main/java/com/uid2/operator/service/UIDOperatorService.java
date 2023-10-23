@@ -1,6 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
@@ -9,6 +10,8 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -18,10 +21,14 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
+import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
     public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
+    private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
 
     private static final Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private final ISaltProvider saltProvider;
@@ -103,22 +110,63 @@ public class UIDOperatorService implements IUIDOperatorService {
             return RefreshResponse.Deprecated;
         }
 
-        if (token.expiresAt.isBefore(Instant.now(this.clock))) {
+        final Instant now = clock.instant();
+
+        if (token.expiresAt.isBefore(now)) {
             return RefreshResponse.Expired;
         }
 
+        final PrivacyBits privacyBits = PrivacyBits.fromInt(token.userIdentity.privacyBits);
+        final boolean isCstg = privacyBits.isClientSideTokenGenerated();
+
         try {
             final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.userIdentity);
-            boolean optedOut = logoutEntry.isOptedOut();
+            final boolean optedOut = logoutEntry.isOptedOut();
+
+            final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
 
             if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getTime())) {
-                Duration durationSinceLastRefresh = Duration.between(token.createdAt, Instant.now(this.clock));
-                return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity), durationSinceLastRefresh);
+                IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
+
+                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
+            } else if (isCstg) {
+                // The user has opted out after the userIdentity was established.
+                privacyBits.setClientSideTokenGenerateOptout();
+
+                final UserIdentity cstgOptOutIdentity = getClientSideTokenGenerateOptOutInputVal(token.userIdentity.identityType)
+                        .toUserIdentity(identityScope, privacyBits.getAsInt(), now);
+
+                final IdentityTokens identityTokens = generateIdentity(
+                        new IdentityRequest(
+                                new PublisherIdentity(token.publisherIdentity.siteId, 0, 0),
+                                cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
+
+                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, true);
             } else {
                 return RefreshResponse.Optout;
             }
         } catch (Exception ex) {
             return RefreshResponse.Invalid;
+        }
+    }
+
+    private static InputUtil.InputVal getClientSideTokenGenerateOptOutInputVal(IdentityType identityType) {
+        switch (identityType) {
+            case Email:
+                return InputUtil.InputVal.validEmail(
+                        ClientSideTokenGenerateOptOutIdentityForEmail,
+                        ClientSideTokenGenerateOptOutIdentityForEmail);
+            case Phone:
+                return InputUtil.InputVal.validPhone(
+                        ClientSideTokenGenerateOptOutIdentityForPhone,
+                        ClientSideTokenGenerateOptOutIdentityForPhone);
+            default:
+                // Assert will fire when this code path is hit by a test.
+                assert false: "Invalid identity type " + identityType;
+                // Provide a fallback value instead of throwing an exception.
+                return InputUtil.InputVal.validEmail(
+                        ClientSideTokenGenerateOptOutIdentityForEmail,
+                        ClientSideTokenGenerateOptOutIdentityForEmail);
         }
     }
 
@@ -140,7 +188,15 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     @Override
     public List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp) {
-        return this.saltProvider.getSnapshot(Instant.now()).getModifiedSince(sinceTimestamp);
+        return getSaltProviderSnapshot(Instant.now()).getModifiedSince(sinceTimestamp);
+    }
+
+    private ISaltProvider.ISaltSnapshot getSaltProviderSnapshot(Instant asOf) {
+        ISaltProvider.ISaltSnapshot snapshot = this.saltProvider.getSnapshot(asOf);
+        if(snapshot == null) {
+            LOGGER.error("SaltProvider returned NULL on getSnapshot for instant {}", asOf);
+        }
+        return snapshot;
     }
 
     @Override
@@ -187,11 +243,11 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private byte[] getFirstLevelHash(byte[] identityHash, Instant asOf) {
-        return TokenUtils.getFirstLevelHash(identityHash, this.saltProvider.getSnapshot(asOf).getFirstLevelSalt());
+        return TokenUtils.getFirstLevelHash(identityHash, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
     }
 
     private MappedIdentity getAdvertisingId(UserIdentity firstLevelHashIdentity, Instant asOf) {
-        final SaltEntry rotatingSalt = this.saltProvider.getSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
+        final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
 
         return new MappedIdentity(
                 this.identityV3Enabled

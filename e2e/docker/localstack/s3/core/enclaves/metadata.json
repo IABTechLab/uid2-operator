@@ -1,0 +1,7 @@
+{
+  "version" : 1,
+  "generated" : 1670883129,
+  "enclaves" : {
+    "location" : "enclaves/enclaves.json"
+  }
+}

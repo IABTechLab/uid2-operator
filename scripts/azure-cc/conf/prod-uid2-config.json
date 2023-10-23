@@ -1,0 +1,14 @@
+{
+  "sites_metadata_path": "https://core-prod.uidapi.com/sites/refresh",
+  "clients_metadata_path": "https://core-prod.uidapi.com/clients/refresh",
+  "keysets_metadata_path": "https://core-prod.uidapi.com/key/keyset/refresh",
+  "keyset_keys_metadata_path": "https://core-prod.uidapi.com/key/keyset-keys/refresh",
+  "client_side_keypairs_metadata_path": "https://core-prod.uidapi.com/client_side_keypairs/refresh",
+  "salts_metadata_path": "https://core-prod.uidapi.com/salt/refresh",
+  "services_metadata_path": "https://core-prod.uidapi.com/services/refresh",
+  "service_links_metadata_path": "https://core-prod.uidapi.com/service_links/refresh",
+  "optout_metadata_path": "https://optout-prod.uidapi.com/optout/refresh",
+  "core_attest_url": "https://core-prod.uidapi.com/attest",
+  "optout_api_uri": "https://optout-prod.uidapi.com/optout/replicate",
+  "optout_s3_folder": "optout-v2/"
+}

@@ -1,10 +1,14 @@
 {
-  "service_instances": 1,
+  "service_instances": 4,
   "storage_mock": true,
+  "sites_metadata_path": "/com.uid2.core/test/sites/metadata.json",
   "clients_metadata_path": "/com.uid2.core/test/clients/metadata.json",
-  "keys_metadata_path": "/com.uid2.core/test/keys/metadata.json",
-  "keys_acl_metadata_path": "/com.uid2.core/test/keys_acl/metadata.json",
+  "keysets_metadata_path": "/com.uid2.core/test/keysets/metadata.json",
+  "keyset_keys_metadata_path": "/com.uid2.core/test/keyset_keys/metadata.json",
+  "client_side_keypairs_metadata_path": "/com.uid2.core/test/client_side_keypairs/metadata.json",
   "salts_metadata_path": "/com.uid2.core/test/salts/metadata.json",
+  "services_metadata_path": "/com.uid2.core/test/services/metadata.json",
+  "service_links_metadata_path": "/com.uid2.core/test/service_links/metadata.json",
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,
@@ -14,7 +18,7 @@
   "identity_v3": false,
   "identity_scope": "uid2",
   "enable_v2_encryption": false,
-  "sharing_token_expiry_seconds": 86400,
+  "sharing_token_expiry_seconds": 2592000,
   "cloud_download_threads": 8,
   "cloud_upload_threads": 2,
   "cloud_refresh_interval": 60,
@@ -27,5 +31,9 @@
   "optout_delta_backtrack_in_days": 1,
   "optout_heap_default_capacity": 8192,
   "optout_max_partitions": 30,
-  "optout_partition_interval": 86400
+  "optout_partition_interval": 86400,
+  "client_side_token_generate": true,
+  "client_side_token_generate_domain_name_check_enabled": true,
+  "key_sharing_endpoint_provide_site_domain_names": true,
+  "request_timestamp_delta_max_expected_hours": 48
 }

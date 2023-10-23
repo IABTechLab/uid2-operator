@@ -13,7 +13,7 @@ public class ResponseUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResponseUtil.class);
 
     public static void SuccessNoBody(String status, RoutingContext rc) {
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+        final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", status);
             }
@@ -23,7 +23,7 @@ public class ResponseUtil {
     }
 
     public static void Success(RoutingContext rc, Object body) {
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+        final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", UIDOperatorVerticle.ResponseStatus.Success);
                 put("body", body);
@@ -34,7 +34,7 @@ public class ResponseUtil {
     }
 
     public static void SuccessNoBodyV2(String status, RoutingContext rc) {
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+        final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", status);
             }
@@ -42,13 +42,17 @@ public class ResponseUtil {
         rc.data().put("response", json);
     }
 
-    public static void SuccessV2(RoutingContext rc, Object body) {
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+    public static JsonObject SuccessV2(Object body) {
+        return new JsonObject(new HashMap<>() {
             {
                 put("status", UIDOperatorVerticle.ResponseStatus.Success);
                 put("body", body);
             }
         });
+    }
+
+    public static void SuccessV2(RoutingContext rc, Object body) {
+        final JsonObject json = SuccessV2(body);
         rc.data().put("response", json);
     }
 
@@ -56,9 +60,8 @@ public class ResponseUtil {
         Error(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, message);
     }
 
-    public static void Error(String errorStatus, int statusCode, RoutingContext rc, String message) {
-        logError(errorStatus, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
-        final JsonObject json = new JsonObject(new HashMap<String, Object>() {
+    public static JsonObject Error(String errorStatus, String message) {
+        final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", errorStatus);
             }
@@ -66,9 +69,16 @@ public class ResponseUtil {
         if (message != null) {
             json.put("message", message);
         }
+        return json;
+    }
+
+    public static void Error(String errorStatus, int statusCode, RoutingContext rc, String message) {
+        logError(errorStatus, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+        final JsonObject json = Error(errorStatus, message);
         rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
     }
+
 
     private static void logError(String errorStatus, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
         String errorMessage = "Error response to http request. " + JsonObject.of(

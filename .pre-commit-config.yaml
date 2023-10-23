@@ -12,4 +12,6 @@ repos:
           - /src/target
           - --skip-dirs
           - /src/.idea
+          - --skip-files
+          - /src/e2e/docker/localstack/kms/seed.yaml
           - .

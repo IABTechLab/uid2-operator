@@ -1,0 +1,18 @@
+[
+  {
+    "id": 123,
+    "name": "MegaTest Site",
+    "enabled": true,
+    "domain_names" : ["localhost", "uidapi.com"]
+  },
+  {
+    "id": 124,
+    "name": "TestCorp Site",
+    "enabled": true
+  },
+  {
+    "id": 125,
+    "name": "LoremTestIpsum Site",
+    "enabled": true
+  }
+]

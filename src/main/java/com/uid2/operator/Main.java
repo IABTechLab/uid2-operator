@@ -1,9 +1,11 @@
 package com.uid2.operator;
 
 import ch.qos.logback.classic.LoggerContext;
+import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
+import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
@@ -15,10 +17,7 @@ import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
-import com.uid2.shared.store.reader.IMetadataVersionedStore;
-import com.uid2.shared.store.reader.RotatingClientKeyProvider;
-import com.uid2.shared.store.reader.RotatingKeyAclProvider;
-import com.uid2.shared.store.reader.RotatingKeyStore;
+import com.uid2.shared.store.reader.*;
 import com.uid2.shared.store.scope.GlobalScope;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
@@ -37,9 +36,9 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.impl.HttpUtils;
 import io.vertx.core.json.JsonObject;
 import io.vertx.micrometer.*;
+import io.vertx.micrometer.backends.BackendRegistries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.vertx.micrometer.backends.BackendRegistries;
 
 import javax.management.*;
 import java.lang.management.ManagementFactory;
@@ -60,17 +59,20 @@ public class Main {
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
-
+    private final RotatingSiteStore siteProvider;
     private final RotatingClientKeyProvider clientKeyProvider;
-    private final RotatingKeyStore keyStore;
-    private final RotatingKeyAclProvider keyAclProvider;
+    private final RotatingKeysetKeyStore keysetKeyStore;
+    private final RotatingKeysetProvider keysetProvider;
+    private final RotatingClientSideKeypairStore clientSideKeypairProvider;
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
-    private OperatorDisableHandler disableHandler = null;
-
     private final OperatorMetrics metrics;
-
+    private final boolean clientSideTokenGenerate;
+    private final boolean validateServiceLinks;
     private IStatsCollectorQueue _statsCollectorQueue;
+    private OperatorDisableHandler disableHandler = null;
+    private RotatingServiceStore serviceProvider;
+    private RotatingServiceLinkStore serviceLinkProvider;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -86,6 +88,9 @@ public class Main {
         }
 
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
+        this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
+        this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
+
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
@@ -117,25 +122,47 @@ public class Main {
             this.fsOptOut = configureCloudOptOutStore();
         }
 
+        String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
+        this.siteProvider = new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath)));
+        String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
+        this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
         this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
-        String keysMdPath = this.config.getString(Const.Config.KeysMetadataPathProp);
-        this.keyStore = new RotatingKeyStore(fsStores, new GlobalScope(new CloudPath(keysMdPath)));
-        String keysAclMdPath = this.config.getString(Const.Config.KeysAclMetadataPathProp);
-        this.keyAclProvider = new RotatingKeyAclProvider(fsStores, new GlobalScope(new CloudPath(keysAclMdPath)));
+        String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
+        this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)));
+        String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
+        this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
-
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
 
-        if (useStorageMock && coreAttestUrl == null) {
-            this.clientKeyProvider.loadContent();
-            this.keyStore.loadContent();
-            this.keyAclProvider.loadContent();
-            this.saltProvider.loadContent();
+        if (this.validateServiceLinks) {
+            String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
+            this.serviceProvider = new RotatingServiceStore(fsStores, new GlobalScope(new CloudPath(serviceMdPath)));
+            String serviceLinkMdPath = this.config.getString(Const.Config.ServiceLinkMetadataPathProp);
+            this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
         }
 
-        metrics = new OperatorMetrics(keyStore, saltProvider);
+        if (useStorageMock && coreAttestUrl == null) {
+            if (clientSideTokenGenerate) {
+                this.siteProvider.loadContent();
+                this.clientSideKeypairProvider.loadContent();
+            }
+            this.clientKeyProvider.loadContent();
+            this.saltProvider.loadContent();
+            this.keysetProvider.loadContent();
+            this.keysetKeyStore.loadContent();
+
+            if (this.validateServiceLinks) {
+                this.serviceProvider.loadContent();
+                this.serviceLinkProvider.loadContent();
+            }
+        }
+        metrics = new OperatorMetrics(getKeyManager(), saltProvider);
+    }
+
+    private KeyManager getKeyManager() {
+        return new KeyManager(this.keysetKeyStore, this.keysetProvider);
     }
 
     public static void main(String[] args) throws Exception {
@@ -217,7 +244,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, clientKeyProvider, keyStore, keyAclProvider, saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider));
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;
@@ -255,10 +282,19 @@ public class Main {
 
     private Future<Void> createStoreVerticles() throws Exception {
         // load metadatas for the first time
+        if (clientSideTokenGenerate) {
+            siteProvider.getMetadata();
+            clientSideKeypairProvider.getMetadata();
+        }
         clientKeyProvider.getMetadata();
-        keyStore.getMetadata();
-        keyAclProvider.getMetadata();
+        keysetKeyStore.getMetadata();
+        keysetProvider.getMetadata();
         saltProvider.getMetadata();
+
+        if (validateServiceLinks) {
+            serviceProvider.getMetadata();
+            serviceLinkProvider.getMetadata();
+        }
 
         // create cloud sync for optout store
         OptOutCloudSync optOutCloudSync = new OptOutCloudSync(config, false);
@@ -267,22 +303,34 @@ public class Main {
         // create rotating store verticles to poll for updates
         Promise<Void> promise = Promise.promise();
         List<Future> fs = new ArrayList<>();
-        fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("key", keyStore, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("keys_acl", keyAclProvider, 10000));
-        fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, 10000));
+        if (clientSideTokenGenerate) {
+            fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, "site_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, "client_side_keypairs_refresh_ms"));
+        }
+        fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));
             else promise.complete();
         });
+
+        if (validateServiceLinks) {
+            fs.add(createAndDeployRotatingStoreVerticle("service", serviceProvider, "service_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("service_link", serviceLinkProvider, "service_link_refresh_ms"));
+        }
+
         return promise.future();
     }
 
-    private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, int intervalMs) {
+    private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, String storeRefreshConfigMs) {
+        final int intervalMs = config.getInteger(storeRefreshConfigMs, 10000);
+
+        RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
         Promise<String> promise = Promise.promise();
-        RotatingStoreVerticle saltStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
-        vertx.deployVerticle(saltStoreVerticle, promise);
+        vertx.deployVerticle(rotatingStoreVerticle, promise);
         return promise.future();
     }
 
@@ -409,22 +457,27 @@ public class Main {
         switch (enclavePlatform) {
             case "aws-nitro":
                 LOGGER.info("creating uid core client with aws attestation protocol");
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher, CloudUtils.defaultProxy);
                 break;
             case "gcp-vmid":
                 LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher, CloudUtils.defaultProxy);
                 break;
             case "gcp-oidc":
                 LOGGER.info("creating uid core client with gcp oidc attestation protocol");
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher, CloudUtils.defaultProxy);
                 break;
             case "azure-sgx":
                 LOGGER.info("creating uid core client with azure sgx attestation protocol");
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                break;
+            case "azure-cc":
+                LOGGER.info("creating uid core client with azure cc attestation protocol");
+                String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureCCAttestation(maaServerBaseUrl), responseWatcher, CloudUtils.defaultProxy);
                 break;
             default:
-                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher);
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher, CloudUtils.defaultProxy);
         }
         UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
         UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);

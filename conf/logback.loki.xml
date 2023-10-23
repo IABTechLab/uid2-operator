@@ -3,7 +3,7 @@
         <http class="com.github.loki4j.logback.ApacheHttpSender">
             <url>http://loki:3100/loki/api/v1/push</url>
         </http>
-        <format>
+        <format class="com.uid2.shared.logback.MaskingLokiJsonEncoder">
             <label>
                 <pattern>app=uid2-operator,host=${HOSTNAME},portoffset=${port_offset:-0},level=%level,class=%logger{20}</pattern>
             </label>
@@ -16,8 +16,10 @@
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <!-- encoders are assigned the type
              ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
-        <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="com.uid2.shared.logback.MaskingPatternLayout">
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg %ex%n</pattern>
+            </layout>
         </encoder>
     </appender>
 

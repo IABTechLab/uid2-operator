@@ -18,6 +18,8 @@ on:
       
 env:
   REGISTRY: ghcr.io
+  GCP_REGISTRY: us-docker.pkg.dev
+  GCP_GAR_PROJECT: uid2-prod-project
   MAVEN_PROFILE: gcp
   ENCLAVE_PROTOCOL: gcp-oidc
   IMAGE_NAME: ${{ github.repository }}
@@ -30,6 +32,7 @@ jobs:
       contents: write
       security-events: write
       packages: write
+      id-token: write
     outputs:
       jar_version: ${{ steps.version.outputs.new_version }}
     steps:
@@ -84,6 +87,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Authenticate with Google Cloud
+        id: gcp_auth
+        uses: google-github-actions/auth@v0
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          access_token_lifetime: 300s
+
+      - name: Log in to the GCP Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.GCP_REGISTRY }}
+          username: oauth2accesstoken
+          password: ${{ steps.gcp_auth.outputs.access_token }}
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v4
@@ -93,13 +112,24 @@ jobs:
             type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
             type=raw,value=${{ inputs.tag }}
 
+      - name: Extract metadata (tags, labels) for all Docker images
+        id: meta-all
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
+            type=raw,value=${{ inputs.tag }}
+
       - name: Build and export to Docker
         uses: docker/build-push-action@v3
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
           load: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-all.outputs.tags }}
+          labels: ${{ steps.meta-all.outputs.labels }}
           build-args: |
             JAR_VERSION=${{ steps.version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}
@@ -138,9 +168,8 @@ jobs:
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-all.outputs.tags }}
+          labels: ${{ steps.meta-all.outputs.labels }}
           build-args: |
             JAR_VERSION=${{ steps.version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}
-

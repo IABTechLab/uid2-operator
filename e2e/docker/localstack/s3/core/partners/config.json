@@ -1,0 +1,36 @@
+{
+  "version" : 1,
+  "generated" : 1617149276,
+  "partner_endpoints": [
+    {
+      "name": "mock_get",
+      "url": "https://127.0.0.1:8081/optout/partner_mock",
+      "method": "GET",
+      "query_params": [
+        "action=dooptout",
+        "uid2=${ADVERTISING_ID}",
+        "timestamp=${OPTOUT_EPOCH}"
+      ],
+      "additional_headers": [
+        "Authorization: Bearer 111-1111111"
+      ],
+      "retry_count": 600,
+      "retry_backoff_ms": 6000
+    },
+    {
+      "name": "mock_post",
+      "url": "https://127.0.0.1:8081/optout/partner_mock",
+      "method": "POST",
+      "query_params": [
+        "action=dooptout",
+        "uid2=${ADVERTISING_ID}",
+        "timestamp=${OPTOUT_EPOCH}"
+      ],
+      "additional_headers": [
+        "Authorization: Bearer 111-1111111"
+      ],
+      "retry_count": 600,
+      "retry_backoff_ms": 6000
+    }
+  ]
+}

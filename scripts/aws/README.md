@@ -45,9 +45,9 @@ UID2 Operator application reads configuration from [AWS Secrets Manager](https:/
   "enclave_cpu_count": "6",
   "enclave_memory_mb": "24000",
   "clients_metadata_path": "https://core-integ.uidapi.com/clients/refresh",
-  "keys_metadata_path": "https://core-integ.uidapi.com/key/refresh",
   "salts_metadata_path": "https://core-integ.uidapi.com/salt/refresh",
-  "keys_acl_metadata_path": "https://core-integ.uidapi.com/key/acl/refresh",
+  "keysets_metadata_path": "https://core-integ.uidapi.com/key/keyset/refresh",
+  "keyset_keys_metadata_path": "https://core-integ.uidapi.com/key/keyset-keys/refresh",
   "optout_metadata_path": "https://optout-integ.uidapi.com/optout/refresh",
   "optout_api_uri": "https://core-integ.uidapi.com/optout/replicate",
   "core_attest_url": "https://core-integ.uidapi.com/attest"
@@ -60,7 +60,7 @@ Important Notes:
 - you might need to replicate secret after creation to use it in other regions
 
 6. Replace `api_token` with the provided UID2 Operator Key
-7. Keep selecting default `aws/secretsmanager` as the encrytion key. You can create your own encryption key by clicking on `Add new key` link. 
+7. Keep selecting default `aws/secretsmanager` as the encryption key. You can create your own encryption key by clicking on `Add new key` link. 
 8. Provide secret name as **uid2-operator-config-key** (name must be exact, the bootstrap process depends on it)
 9. Click on Next to create the secret. 
 10. Click on created secret and capture `Secret ARN` value for later steps

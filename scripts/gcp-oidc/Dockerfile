@@ -1,6 +1,9 @@
-FROM eclipse-temurin@sha256:1a6531a7239bea3739d89d8833b03c7732f51e08ecbb78bbc40ef98287c1212d
+FROM eclipse-temurin@sha256:de8e6219ff5360811a453a9237713679a9d9106ba5150290ef37fb23e246ce7d
 
-LABEL "tee.launch_policy.allow_env_override"="API_TOKEN,DEPLOYMENT_ENVIRONMENT"
+LABEL "tee.launch_policy.allow_env_override"="API_TOKEN_SECRET_NAME,DEPLOYMENT_ENVIRONMENT,CORE_BASE_URL,OPTOUT_BASE_URL"
+
+# Install Packages
+RUN apk update && apk add jq
 
 WORKDIR /app
 EXPOSE 8080

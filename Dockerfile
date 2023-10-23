@@ -1,4 +1,4 @@
-FROM eclipse-temurin@sha256:1a6531a7239bea3739d89d8833b03c7732f51e08ecbb78bbc40ef98287c1212d
+FROM eclipse-temurin@sha256:de8e6219ff5360811a453a9237713679a9d9106ba5150290ef37fb23e246ce7d
 
 WORKDIR /app
 EXPOSE 8080
@@ -23,7 +23,7 @@ RUN adduser -D uid2-operator && mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && 
 USER uid2-operator
 
 CMD java \
-    -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
+    -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal -XX:-OmitStackTraceInFastThrow \
     -Djava.security.egd=file:/dev/./urandom \
     -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
     -Dlogback.configurationFile=${LOGBACK_CONF} \

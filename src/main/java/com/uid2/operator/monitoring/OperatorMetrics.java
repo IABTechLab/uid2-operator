@@ -1,8 +1,8 @@
 package com.uid2.operator.monitoring;
 
-import com.uid2.shared.model.EncryptionKey;
+import com.uid2.operator.model.KeyManager;
+import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.store.IKeyStore;
 import com.uid2.shared.store.ISaltProvider;
 import io.micrometer.core.instrument.Gauge;
 
@@ -13,11 +13,11 @@ import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class OperatorMetrics {
     private Set<Integer> encryptionKeyGaugesBySiteId = new HashSet<>();
-    private IKeyStore keyStore;
     private ISaltProvider saltProvider;
+    private KeyManager keyManager;
 
-    public OperatorMetrics(IKeyStore keyStore, ISaltProvider saltProvider) {
-        this.keyStore = keyStore;
+    public OperatorMetrics(KeyManager keyManager, ISaltProvider saltProvider) {
+        this.keyManager = keyManager;
         this.saltProvider = saltProvider;
     }
 
@@ -40,7 +40,7 @@ public class OperatorMetrics {
     }
 
     public void update() {
-        keyStore.getSnapshot().getActiveKeySet().stream()
+        keyManager.getAllKeysets().values().stream()
                 .map(k -> k.getSiteId()).distinct()
                 .filter(s -> !encryptionKeyGaugesBySiteId.contains(s))
                 .forEachOrdered(siteId -> {
@@ -48,7 +48,7 @@ public class OperatorMetrics {
                     Gauge
                             .builder("uid2_encryption_key_activates", () -> {
                                 final Instant now = Instant.now();
-                                final EncryptionKey key = keyStore.getSnapshot().getActiveSiteKey(siteId, now);
+                                final KeysetKey key = keyManager.getActiveKeyBySiteId(siteId, now);
                                 return key == null ? null : key.getActivates().getEpochSecond();
                             })
                             .description("age of encryption keys by site id")

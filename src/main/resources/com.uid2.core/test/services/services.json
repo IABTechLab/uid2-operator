@@ -1,0 +1,14 @@
+[
+  {
+    "service_id": 1,
+    "site_id": 123,
+    "name": "testName1",
+    "roles": ["GENERATOR"]
+  },
+  {
+    "service_id": 2,
+    "site_id": 123,
+    "name": "testName2",
+    "roles": ["ID_READER"]
+  }
+]

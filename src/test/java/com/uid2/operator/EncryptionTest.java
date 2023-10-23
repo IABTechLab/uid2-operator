@@ -2,9 +2,9 @@ package com.uid2.operator;
 
 import com.uid2.shared.encryption.AesCbc;
 import com.uid2.shared.encryption.Random;
-import com.uid2.shared.model.EncryptionKey;
 import com.uid2.shared.model.EncryptedPayload;
 import com.uid2.shared.encryption.AesGcm;
+import com.uid2.shared.model.KeysetKey;
 import junit.framework.TestCase;
 import org.junit.Assert;
 
@@ -16,21 +16,19 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assume.assumeTrue;
-
 public class EncryptionTest extends TestCase {
 
     private int count = 0;
 
     public void testEncryption() throws Exception {
 
-        final EncryptionKey key = new EncryptionKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), -1);
+        final KeysetKey key = new KeysetKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), 10);
         final String testString = "foo@bar.comasdadsjahjhafjhjkfhakjhfkjshdkjfhaskdjfh";
 
         final EncryptedPayload payload = AesCbc.encrypt(testString, key);
         final byte[] decrypted = AesCbc.decrypt(payload.getPayload(), key);
 
-        final String decryptedString = new String(decrypted, "UTF-8");
+        final String decryptedString = new String(decrypted, StandardCharsets.UTF_8);
         Assert.assertEquals(testString, decryptedString);
     }
 
@@ -41,7 +39,7 @@ public class EncryptionTest extends TestCase {
         }
         System.out.println("Java VM property java.security.egd: " + System.getProperty("java.security.egd"));
         final int runs = 1000000;
-        final EncryptionKey key = new EncryptionKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), -1);
+        final KeysetKey key = new KeysetKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), 10);
 
         final EncryptedPayload[] payloads = new EncryptedPayload[runs];
 
@@ -122,7 +120,7 @@ public class EncryptionTest extends TestCase {
     }
 
     public void testGCMEncryptionDecryption() {
-        final EncryptionKey key = new EncryptionKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), -1);
+        final KeysetKey key = new KeysetKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), 10);
         String plaintxt = "hello world";
         EncryptedPayload payload = AesGcm.encrypt(plaintxt.getBytes(StandardCharsets.UTF_8), key);
         String decryptedText = new String(AesGcm.decrypt(payload.getPayload(), 0, key), StandardCharsets.UTF_8);

@@ -2,6 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
 import com.uid2.operator.util.PrivacyBits;
+import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
@@ -38,6 +39,10 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final IdentityScope identityScope;
     private final UserIdentity testOptOutIdentityForEmail;
     private final UserIdentity testOptOutIdentityForPhone;
+    private final UserIdentity testValidateIdentityForEmail;
+    private final UserIdentity testRefreshOptOutIdentityForEmail;
+    private final UserIdentity testRefreshOptOutIdentityForPhone;
+    private final UserIdentity testValidateIdentityForPhone;
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
     private final Duration refreshIdentityAfter;
@@ -55,9 +60,17 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.identityScope = identityScope;
 
         this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
+                InputUtil.normalizeEmail("optout@example.com").getIdentityInput(), Instant.now());
         this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
                 InputUtil.normalizePhone("+00000000000").getIdentityInput(), Instant.now());
+        this.testValidateIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
+                InputUtil.normalizeEmail(UIDOperatorVerticle.ValidationInputEmail).getIdentityInput(), Instant.now());
+        this.testValidateIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
+                InputUtil.normalizePhone(UIDOperatorVerticle.ValidationInputPhone).getIdentityInput(), Instant.now());
+        this.testRefreshOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
+                InputUtil.normalizeEmail("refresh-optout@example.com").getIdentityInput(), Instant.now());
+        this.testRefreshOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
+                InputUtil.normalizePhone("+00000000001").getIdentityInput(), Instant.now());
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
@@ -125,7 +138,9 @@ public class UIDOperatorService implements IUIDOperatorService {
 
             final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
 
-            if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getTime())) {
+            if (token.userIdentity.matches(testRefreshOptOutIdentityForEmail) || token.userIdentity.matches(testRefreshOptOutIdentityForPhone)) {
+                return RefreshResponse.Optout;
+            } else if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getTime())) {
                 IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
 
                 return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
@@ -313,7 +328,10 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private GlobalOptoutResult getGlobalOptOutResult(UserIdentity userIdentity) {
-        if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
+        if (userIdentity.matches(testValidateIdentityForEmail) || userIdentity.matches(testValidateIdentityForPhone)
+        || userIdentity.matches(testRefreshOptOutIdentityForEmail) || userIdentity.matches(testRefreshOptOutIdentityForPhone)) {
+            return new GlobalOptoutResult(null);
+        } else if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
             return new GlobalOptoutResult(Instant.now());
         }
         Instant result = this.optOutStore.getLatestEntry(userIdentity);

@@ -75,7 +75,7 @@ import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
 
-    public static final String ValidationInputEmail = "validate@email.com";
+    public static final String ValidationInputEmail = "validate@example.com";
     public static final byte[] ValidationInputEmailHash = EncodingUtils.getSha256Bytes(ValidationInputEmail);
     public static final String ValidationInputPhone = "+12345678901";
     public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);

@@ -40,9 +40,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final UserIdentity testOptOutIdentityForEmail;
     private final UserIdentity testOptOutIdentityForPhone;
     private final UserIdentity testValidateIdentityForEmail;
+    private final UserIdentity testValidateIdentityForPhone;
     private final UserIdentity testRefreshOptOutIdentityForEmail;
     private final UserIdentity testRefreshOptOutIdentityForPhone;
-    private final UserIdentity testValidateIdentityForPhone;
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
     private final Duration refreshIdentityAfter;

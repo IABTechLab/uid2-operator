@@ -500,25 +500,26 @@ public class UIDOperatorServiceTest {
             "Phone,+12345678901,EUID",
             "PhoneHash,+12345678901,EUID"})
     public void testSpecialIdentityValidateIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
-        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
-
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
-        final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+        final MapRequest mapRequestRespectOptOut = new MapRequest(
                 inputVal.toUserIdentity(scope, 0, this.now),
-                OptoutCheckPolicy.RespectOptOut
-        );
-        IdentityTokens tokens;
+                OptoutCheckPolicy.RespectOptOut,
+                now);
+
+        //make sure this still works without optout record
+        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
+
+
+        final MappedIdentity mappedIdentity;
         if(scope == IdentityScope.EUID) {
-            tokens = euidService.generateIdentity(identityRequest);
+            mappedIdentity = euidService.mapIdentity(mapRequestRespectOptOut);
         }
         else {
-            tokens = uid2Service.generateIdentity(identityRequest);
+            mappedIdentity = uid2Service.mapIdentity(mapRequestRespectOptOut);
         }
-        assertNotNull(tokens);
-        AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), scope, identityRequest.userIdentity.identityType);
-        assertNotNull(advertisingToken.userIdentity);
+        assertNotNull(mappedIdentity);
+        assertFalse(mappedIdentity.isOptedOut());
     }
 
     @ParameterizedTest

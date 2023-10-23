@@ -57,8 +57,10 @@ if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONME
 fi
 
 echo "-- starting on-demand attestation"
-curl -X POST http://localhost/v1/token
-   -H 'Content-Type: application/json'
+cat "/run/container_launcher/teeserver.sock"
+curl --unix-socket /run/container_launcher/teeserver.sock \
+   -X POST http://localhost/v1/token \
+   -H 'Content-Type: application/json' \
    -d '{"audience":"https://core-integ.uidapi.com","nonces":["0000000000000000000"]}'
 
 

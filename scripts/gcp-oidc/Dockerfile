@@ -4,7 +4,7 @@ LABEL "tee.launch_policy.allow_env_override"="API_TOKEN_SECRET_NAME,DEPLOYMENT_E
 LABEL "tee.launch_policy.log_redirect"="always"
 
 # Install Packages
-RUN apk update && apk add jq
+RUN apk update && apk add jq curl
 
 WORKDIR /app
 EXPOSE 8080

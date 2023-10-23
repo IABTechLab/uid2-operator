@@ -45,12 +45,6 @@
       "apiVersion": "2023-05-01",
       "name": "[parameters('containerGroupName')]",
       "location": "[parameters('location')]",
-      "identity": {
-        "type": "userAssigned",
-        "userAssignedIdentities": {
-          "[resourceID('Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('identity'))]": {}
-        }
-      },
       "properties": {
         "confidentialComputeProperties": {
           "ccePolicy": ""

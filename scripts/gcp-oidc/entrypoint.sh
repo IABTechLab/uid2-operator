@@ -56,6 +56,12 @@ if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONME
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
 
+echo "-- starting on-demand attestation"
+curl -X POST http://localhost/v1/token
+   -H 'Content-Type: application/json'
+   -d '{"audience":"https://core-integ.uidapi.com","nonces":["0000000000000000000"]}'
+
+
 # -- start operator
 echo "-- starting java application"
 java \

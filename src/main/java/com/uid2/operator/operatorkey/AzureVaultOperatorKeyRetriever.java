@@ -1,6 +1,6 @@
 package com.uid2.operator.operatorkey;
 
-import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.azure.identity.ManagedIdentityCredentialBuilder;
 import com.azure.security.keyvault.secrets.SecretClientBuilder;
 import com.google.common.base.Strings;
 import com.uid2.operator.Const;
@@ -35,19 +35,18 @@ public class AzureVaultOperatorKeyRetriever implements IOperatorKeyRetriever {
         if (Strings.isNullOrEmpty(secretName)) {
             throw new IllegalArgumentException(Const.Config.AzureSecretNameProp + " is null or empty");
         }
-        
+
         return retrieveInternal(vaultName, secretName);
     }
 
-    // DefaultAzureCredential code can automatically discover and use a managed identity that is assigned to
-    // an App Service, Virtual Machine, or other services.
+    // ManagedIdentityCredential is used here.
     private String retrieveInternal(String vaultName, String secretName) {
         String vaultUrl = "https://" + vaultName + ".vault.azure.net";
         LOGGER.info(String.format("Load secret (%s) from %s", vaultUrl, secretName));
         // It has default ExponentialBackoff retry policy
         var secretClient = new SecretClientBuilder()
                 .vaultUrl(vaultUrl)
-                .credential(new DefaultAzureCredentialBuilder().build())
+                .credential(new ManagedIdentityCredentialBuilder().build())
                 .buildClient();
 
         var retrievedSecret = secretClient.getSecret(secretName);

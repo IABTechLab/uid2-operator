@@ -42,8 +42,8 @@ public class AzureVaultOperatorKeyRetriever implements IOperatorKeyRetriever {
     // ManagedIdentityCredential is used here.
     private String retrieveInternal(String vaultName, String secretName) {
         String vaultUrl = "https://" + vaultName + ".vault.azure.net";
-        LOGGER.info(String.format("Load secret (%s) from %s", vaultUrl, secretName));
-        // It has default ExponentialBackoff retry policy
+        LOGGER.info(String.format("Load OperatorKey secret (%s) from %s", secretName, vaultUrl));
+        // Use default ExponentialBackoff retry policy
         var secretClient = new SecretClientBuilder()
                 .vaultUrl(vaultUrl)
                 .credential(new ManagedIdentityCredentialBuilder().build())
@@ -51,8 +51,7 @@ public class AzureVaultOperatorKeyRetriever implements IOperatorKeyRetriever {
 
         var retrievedSecret = secretClient.getSecret(secretName);
 
-        // TODO: delete it later.
-        LOGGER.info("Secret is loaded. Value: " + retrievedSecret.getValue());
+        LOGGER.info("OperatorKey secret is loaded.");
         return retrievedSecret.getValue();
     }
 }

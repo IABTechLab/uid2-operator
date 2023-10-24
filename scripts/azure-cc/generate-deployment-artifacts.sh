@@ -67,7 +67,7 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-az confcom acipolicygen --approve-wildcards --template-file ${OUTPUT_TEMPLATE_FILE} > ${OUTPUT_POLICY_DIGEST_FILE}
+az confcom acipolicygen --approve-wildcards --debug-mode --template-file ${OUTPUT_TEMPLATE_FILE} > ${OUTPUT_POLICY_DIGEST_FILE}
 if [[ $? -ne 0 ]]; then
   echo "Failed to generate template file"
   exit 1

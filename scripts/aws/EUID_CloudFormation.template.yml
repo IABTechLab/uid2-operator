@@ -71,7 +71,6 @@ Metadata:
           default: Infrastructure Configuration
         Parameters:
           - TrustNetworkCidr
-          - CreateVPC
           - VpcId
           - VpcSubnet1
           - VpcSubnet2
@@ -104,7 +103,7 @@ Metadata:
 Mappings:
   RegionMap:
     eu-central-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
+      AMI: ami-05466678b521dcc49
     eu-west-1:
       AMI: ami-xxxxxxxxxxxxxxxxx
     eu-west-2:
@@ -218,8 +217,7 @@ Resources:
           ToPort: 443
           CidrIp: 0.0.0.0/0
           Description: "Allow Outbound"
-      VpcId: 
-        - !Ref VpcId
+      VpcId: !Ref VpcId
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -249,8 +247,8 @@ Resources:
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     DependsOn:
-     - TokenSecret
-     - SSMKEYAlias
+      - TokenSecret
+      - SSMKEYAlias
     Properties:
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplate

@@ -307,14 +307,15 @@ public class UIDOperatorServiceTest {
     public void testSpecialIdentityOptOutTokenGenerate(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
-        //make sure this still works without optout record
-        when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
-
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
                 inputVal.toUserIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
+
+        // none optout, generated is still opted out with RespectOptOut
+        when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
+
         IdentityTokens tokens;
         if(scope == IdentityScope.EUID) {
             tokens = euidService.generateIdentity(identityRequest);
@@ -323,7 +324,6 @@ public class UIDOperatorServiceTest {
             tokens = uid2Service.generateIdentity(identityRequest);
         }
         assertEquals(tokens, IdentityTokens.LogoutToken);
-
     }
 
     @ParameterizedTest
@@ -343,9 +343,8 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
-        //make sure this still works without optout record
+        // none optout, mapped is still opted out with RespectOptOut
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
-
 
         final MappedIdentity mappedIdentity;
         if(scope == IdentityScope.EUID) {
@@ -381,6 +380,7 @@ public class UIDOperatorServiceTest {
                 inputVal.toUserIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.DoNotRespect
         );
+
         IdentityTokens tokens;
         if(scope == IdentityScope.EUID) {
             tokens = euidService.generateIdentity(identityRequest);
@@ -390,7 +390,7 @@ public class UIDOperatorServiceTest {
         }
         assertNotNull(tokens);
 
-        //make sure this still works even without optout record
+        // none optout, refreshed is still opted out after generating with DoNotRespect
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
         final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
@@ -402,8 +402,10 @@ public class UIDOperatorServiceTest {
             "EmailHash,refresh-optout@example.com,UID2",
             "Email,refresh-optout@example.com,EUID",
             "EmailHash,refresh-optout@example.com,EUID",
-            "Phone,+00000000001,EUID",
-            "PhoneHash,+00000000001,EUID"})
+            "Phone,+00000000002,UID2",
+            "PhoneHash,+00000000002,UID2",
+            "Phone,+00000000002,EUID",
+            "PhoneHash,+00000000002,EUID"})
     public void testSpecialIdentityOptOutGenerateRefresh(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
@@ -412,6 +414,10 @@ public class UIDOperatorServiceTest {
                 inputVal.toUserIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
+
+        // all optout, still generates
+        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
+
         IdentityTokens tokens;
         if(scope == IdentityScope.EUID) {
             tokens = euidService.generateIdentity(identityRequest);
@@ -421,7 +427,7 @@ public class UIDOperatorServiceTest {
         }
         assertNotNull(tokens);
 
-        //make sure this still works even without optout record
+        // none optout, refresh is still opted out
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
         final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
@@ -433,8 +439,10 @@ public class UIDOperatorServiceTest {
             "EmailHash,refresh-optout@example.com,UID2",
             "Email,refresh-optout@example.com,EUID",
             "EmailHash,refresh-optout@example.com,EUID",
-            "Phone,+00000000001,EUID",
-            "PhoneHash,+00000000001,EUID"})
+            "Phone,+00000000002,UID2",
+            "PhoneHash,+00000000002,UID2",
+            "Phone,+00000000002,EUID",
+            "PhoneHash,+00000000002,EUID"})
     public void testSpecialIdentityOptOutRefreshIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
@@ -443,9 +451,8 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
-        //make sure this still works without optout record
-        when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
-
+        // all optout, still maps
+        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
         final MappedIdentity mappedIdentity;
         if(scope == IdentityScope.EUID) {
@@ -468,8 +475,6 @@ public class UIDOperatorServiceTest {
             "Phone,+12345678901,EUID",
             "PhoneHash,+12345678901,EUID"})
     public void testSpecialIdentityValidateGenerate(TestIdentityInputType type, String id, IdentityScope scope) {
-        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
-
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
@@ -477,6 +482,10 @@ public class UIDOperatorServiceTest {
                 inputVal.toUserIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
+
+        // all optout, still generates
+        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
+
         IdentityTokens tokens;
         if(scope == IdentityScope.EUID) {
             tokens = euidService.generateIdentity(identityRequest);
@@ -507,9 +516,8 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
-        //make sure this still works without optout record
+        // all optout, still maps
         when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
-
 
         final MappedIdentity mappedIdentity;
         if(scope == IdentityScope.EUID) {
@@ -552,7 +560,4 @@ public class UIDOperatorServiceTest {
         assertNotNull(refreshResponse.getTokens());
         assertNotEquals(RefreshResponse.Optout, refreshResponse);
     }
-
-
-
 }

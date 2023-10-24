@@ -1,5 +1,6 @@
 package com.uid2.operator.service;
 
+import com.uid2.operator.IdentityConst;
 import com.uid2.operator.model.*;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
@@ -22,8 +23,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
-import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+import static com.uid2.operator.IdentityConst.*;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
@@ -60,17 +60,17 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.identityScope = identityScope;
 
         this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail("optout@example.com").getIdentityInput(), Instant.now());
+                InputUtil.normalizeEmail(OptOutIdentityForEmail).getIdentityInput(), Instant.now());
         this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone("+00000000000").getIdentityInput(), Instant.now());
+                InputUtil.normalizePhone(OptOutIdentityForPhone).getIdentityInput(), Instant.now());
         this.testValidateIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail(UIDOperatorVerticle.ValidationInputEmail).getIdentityInput(), Instant.now());
+                InputUtil.normalizeEmail(ValidateIdentityForEmail).getIdentityInput(), Instant.now());
         this.testValidateIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone(UIDOperatorVerticle.ValidationInputPhone).getIdentityInput(), Instant.now());
+                InputUtil.normalizePhone(ValidateIdentityForPhone).getIdentityInput(), Instant.now());
         this.testRefreshOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail("refresh-optout@example.com").getIdentityInput(), Instant.now());
+                InputUtil.normalizeEmail(RefreshOptOutIdentityForEmail).getIdentityInput(), Instant.now());
         this.testRefreshOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone("+00000000001").getIdentityInput(), Instant.now());
+                InputUtil.normalizePhone(RefreshOptOutIdentityForPhone).getIdentityInput(), Instant.now());
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 

@@ -63,6 +63,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
+import static com.uid2.operator.IdentityConst.ValidateIdentityForEmailHash;
+import static com.uid2.operator.IdentityConst.ValidateIdentityForPhoneHash;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.OPT_OUT_CHECK_CUTOFF_DATE;
 import static com.uid2.shared.Const.Data.*;
@@ -1145,7 +1147,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmail_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = IdentityConst.ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1175,7 +1177,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmailHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = IdentityConst.ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1187,10 +1189,10 @@ public class UIDOperatorVerticleTest {
 
             String advertisingTokenString = genBody.getString("advertising_token");
 
-            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
+            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(ValidateIdentityForEmailHash));
             JsonObject v2Payload = new JsonObject();
             v2Payload.put("token", advertisingTokenString);
-            v2Payload.put("email_hash", EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
+            v2Payload.put("email_hash", EncodingUtils.toBase64String(ValidateIdentityForEmailHash));
 
             send(apiVersion, vertx, apiVersion + "/token/validate", true, v1Param, v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
@@ -1205,7 +1207,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithBothEmailAndEmailHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = IdentityConst.ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1217,7 +1219,7 @@ public class UIDOperatorVerticleTest {
 
             String advertisingTokenString = genBody.getString("advertising_token");
 
-            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
+            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(ValidateIdentityForEmailHash));
             JsonObject v2Payload = new JsonObject();
             v2Payload.put("token", advertisingTokenString);
             v2Payload.put("email", emailAddress);
@@ -1490,7 +1492,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenValidateWithEmail_Mismatch(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = IdentityConst.ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1516,8 +1518,8 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         send(apiVersion, vertx, apiVersion + "/token/validate", true,
-                "token=abcdef&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
-                new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
+                "token=abcdef&email_hash=" + urlEncode(EncodingUtils.toBase64String(ValidateIdentityForEmailHash)),
+                new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(ValidateIdentityForEmailHash)),
                 200,
                 respJson -> {
                     assertFalse(respJson.getBoolean("body"));
@@ -2064,7 +2066,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhone_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = UIDOperatorVerticle.ValidationInputPhone;
+        final String phone = IdentityConst.ValidateIdentityForPhone;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2094,8 +2096,8 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhoneHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = UIDOperatorVerticle.ValidationInputPhone;
-        final String phoneHash = EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputPhoneHash);
+        final String phone = IdentityConst.ValidateIdentityForPhone;
+        final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForPhoneHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2125,8 +2127,8 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithBothPhoneAndPhoneHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = UIDOperatorVerticle.ValidationInputPhone;
-        final String phoneHash = EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash);
+        final String phone = IdentityConst.ValidateIdentityForPhone;
+        final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForEmailHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();

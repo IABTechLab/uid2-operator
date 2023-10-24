@@ -1,6 +1,7 @@
 package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
+import com.uid2.operator.IdentityConst;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -68,18 +69,11 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
-import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
-
-    public static final String ValidationInputEmail = "validate@example.com";
-    public static final byte[] ValidationInputEmailHash = EncodingUtils.getSha256Bytes(ValidationInputEmail);
-    public static final String ValidationInputPhone = "+12345678901";
-    public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
-
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
@@ -736,8 +730,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             }
-            if ((Arrays.equals(ValidationInputEmailHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Email)
-                    || (Arrays.equals(ValidationInputPhoneHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Phone)) {
+            if ((Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Email)
+                    || (Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Phone)) {
                 try {
                     final Instant now = Instant.now();
                     if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
@@ -765,8 +759,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             }
-            if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidationInputEmailHash, input.getIdentityInput()))
-                    || (input.getIdentityType() == IdentityType.Phone && Arrays.equals(ValidationInputPhoneHash, input.getIdentityInput()))) {
+            if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()))
+                    || (input.getIdentityType() == IdentityType.Phone && Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()))) {
                 try {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
@@ -926,7 +920,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleValidate(RoutingContext rc) {
         try {
             final InputUtil.InputVal input = getTokenInput(rc);
-            if (input != null && input.isValid() && Arrays.equals(ValidationInputEmailHash, input.getIdentityInput())) {
+            if (input != null && input.isValid() && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput())) {
                 try {
                     final Instant now = Instant.now();
                     if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {

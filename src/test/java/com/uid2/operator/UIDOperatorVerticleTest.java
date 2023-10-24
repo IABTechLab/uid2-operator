@@ -63,8 +63,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
-import static com.uid2.operator.IdentityConst.ValidateIdentityForEmailHash;
-import static com.uid2.operator.IdentityConst.ValidateIdentityForPhoneHash;
+import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.OPT_OUT_CHECK_CUTOFF_DATE;
 import static com.uid2.shared.Const.Data.*;
@@ -1147,7 +1146,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmail_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = IdentityConst.ValidateIdentityForEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1177,7 +1176,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmailHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = IdentityConst.ValidateIdentityForEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1207,7 +1206,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithBothEmailAndEmailHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = IdentityConst.ValidateIdentityForEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1492,7 +1491,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenValidateWithEmail_Mismatch(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = IdentityConst.ValidateIdentityForEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2066,7 +2065,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhone_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = IdentityConst.ValidateIdentityForPhone;
+        final String phone = ValidateIdentityForPhone;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2096,7 +2095,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhoneHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = IdentityConst.ValidateIdentityForPhone;
+        final String phone = ValidateIdentityForPhone;
         final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForPhoneHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -2127,7 +2126,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithBothPhoneAndPhoneHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = IdentityConst.ValidateIdentityForPhone;
+        final String phone = ValidateIdentityForPhone;
         final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForEmailHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -3413,9 +3412,9 @@ public class UIDOperatorVerticleTest {
     private static String getClientSideGeneratedTokenOptOutIdentity(IdentityType identityType) {
         switch (identityType) {
             case Email:
-                return IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
+                return ClientSideTokenGenerateOptOutIdentityForEmail;
             case Phone:
-                return IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+                return ClientSideTokenGenerateOptOutIdentityForPhone;
         }
         throw new IllegalArgumentException("Invalid identity type " + identityType);
     }

@@ -40,13 +40,13 @@ Parameters:
     Type: String
     Description: VpcId of your existing Virtual Private Cloud (VPC)
     Default: ''
-    ConstraintDescription: must be the VPC Id of an existing Virtual Private Cloud.
+    ConstraintDescription: must be the VPC ID of an existing Virtual Private Cloud.
   VpcSubnet1:
-    Description: AZ1 SubnetId from existing VPC, if using existing VPC
+    Description: AZ1 SubnetId from existing VPC
     Type: String
     Default: ''
   VpcSubnet2:
-    Description: AZ2 SubnetId from existing VPC, if using existing VPC
+    Description: AZ2 SubnetId from existing VPC
     Type: String
     Default: ''
   SSHKeyName:
@@ -91,9 +91,9 @@ Metadata:
       TrustNetworkCidr:
         default: Trusted Network CIDR (required)
       VpcId:
-        default: If choose to use Existing VPC, enter existing VPC Id (required in case of existing VPC)
+        default: Enter existing VPC ID
       VpcSubnet:
-        default: If choose to use Existing VPC, enter existing Subnet Id (required in case of existing VPC)
+        default: Enter existing Subnet ID
       CustomizeEnclaceResource:
         default: Enclave resouce configuration auto calculated or manual
       EnclavememoryinMB:

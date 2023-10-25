@@ -36,11 +36,11 @@ public class AzureVaultOperatorKeyRetriever implements IOperatorKeyRetriever {
             throw new IllegalArgumentException(Const.Config.AzureSecretNameProp + " is null or empty");
         }
 
-        return retrieveInternal(vaultName, secretName);
+        return retrieveFromAzure(vaultName, secretName);
     }
 
     // ManagedIdentityCredential is used here.
-    private String retrieveInternal(String vaultName, String secretName) {
+    private String retrieveFromAzure(String vaultName, String secretName) {
         String vaultUrl = "https://" + vaultName + ".vault.azure.net";
         LOGGER.info(String.format("Load OperatorKey secret (%s) from %s", secretName, vaultUrl));
         // Use default ExponentialBackoff retry policy

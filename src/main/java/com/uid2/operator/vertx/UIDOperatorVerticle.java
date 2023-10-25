@@ -23,10 +23,7 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
-import com.uid2.shared.model.ClientSideKeypair;
-import com.uid2.shared.model.KeysetKey;
-import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.model.Site;
+import com.uid2.shared.model.*;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
@@ -162,14 +159,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     @Override
     public void start(Promise<Void> startPromise) throws Exception {
         this.healthComponent.setHealthStatus(false, "still starting");
-
         this.idService = new UIDOperatorService(
                 this.config,
                 this.optOutStore,
                 this.saltProvider,
                 this.encoder,
                 this.clock,
-                this.identityScope
+                this.identityScope,
+                this.config.getBoolean("advertising_token_v4", false) ? TokenVersion.V4 :
+                        (this.config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2)
         );
 
         final Router router = createRoutesSetup();

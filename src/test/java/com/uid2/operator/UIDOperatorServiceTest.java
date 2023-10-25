@@ -82,7 +82,8 @@ public class UIDOperatorServiceTest {
                 saltProvider,
                 tokenEncoder,
                 this.clock,
-                IdentityScope.UID2
+                IdentityScope.UID2,
+                TokenVersion.V4
         );
 
         config.put("advertising_token_v3", true);
@@ -94,7 +95,8 @@ public class UIDOperatorServiceTest {
                 saltProvider,
                 tokenEncoder,
                 this.clock,
-                IdentityScope.EUID
+                IdentityScope.EUID,
+                TokenVersion.V3
         );
     }
 
@@ -108,10 +110,10 @@ public class UIDOperatorServiceTest {
         when(clock.instant()).thenAnswer(i -> this.now);
     }
 
-    private UserIdentity createUserIdentity(String rawIdentityHash) {
+    private UserIdentity createUserIdentity(String rawIdentityHash, IdentityScope scope, IdentityType type) {
         return new UserIdentity(
-                IdentityScope.UID2,
-                IdentityType.Email,
+                scope,
+                type,
                 rawIdentityHash.getBytes(StandardCharsets.UTF_8),
                 0,
                 this.now.minusSeconds(234),
@@ -119,8 +121,8 @@ public class UIDOperatorServiceTest {
         );
     }
 
-    private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString, IdentityScope scope, IdentityType type) {
-        UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, scope == IdentityScope.EUID ? TokenVersion.V3 : TokenVersion.V2, scope, type);
+    private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString, TokenVersion tokenVersion, IdentityScope scope, IdentityType type) {
+        UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, tokenVersion, scope, type);
         return tokenEncoder.decodeAdvertisingToken(advertisingTokenString);
     }
 
@@ -128,13 +130,13 @@ public class UIDOperatorServiceTest {
     public void testGenerateAndRefresh() {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                createUserIdentity("test-email-hash"),
+                createUserIdentity("test-email-hash", IdentityScope.UID2, IdentityType.Email),
                 OptoutCheckPolicy.DoNotRespect
         );
         final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
         assertNotNull(tokens);
 
-        AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.UID2, IdentityType.Email);
+        AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), TokenVersion.V4, IdentityScope.UID2, IdentityType.Email);
         assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken.expiresAt);
         assertEquals(identityRequest.publisherIdentity.siteId, advertisingToken.publisherIdentity.siteId);
         assertEquals(identityRequest.userIdentity.identityScope, advertisingToken.userIdentity.identityScope);
@@ -156,7 +158,7 @@ public class UIDOperatorServiceTest {
         assertEquals(RefreshResponse.Status.Refreshed, refreshResponse.getStatus());
         assertNotNull(refreshResponse.getTokens());
 
-        AdvertisingToken advertisingToken2 = validateAndGetToken(tokenEncoder, refreshResponse.getTokens().getAdvertisingToken(), IdentityScope.UID2, IdentityType.Email);
+        AdvertisingToken advertisingToken2 = validateAndGetToken(tokenEncoder, refreshResponse.getTokens().getAdvertisingToken(), TokenVersion.V4, IdentityScope.UID2, IdentityType.Email);
         assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken2.expiresAt);
         assertEquals(advertisingToken.publisherIdentity.siteId, advertisingToken2.publisherIdentity.siteId);
         assertEquals(advertisingToken.userIdentity.identityScope, advertisingToken2.userIdentity.identityScope);
@@ -207,9 +209,13 @@ public class UIDOperatorServiceTest {
         assertEquals(RefreshResponse.Invalid, uid2Service.refreshIdentity(refreshToken));
     }
 
-    @Test
-    public void testGenerateTokenForOptOutUser() {
-        final UserIdentity userIdentity = createUserIdentity("test-email-hash-previously-opted-out");
+    @ParameterizedTest
+    @CsvSource({"Email,test@example.com,UID2",
+            "Email,test@example.com,EUID",
+            "Phone,+01010101010,UID2",
+            "Phone,+01010101010,EUID"})
+    public void testGenerateTokenForOptOutUser(IdentityType type, String identity, IdentityScope scope) {
+        final UserIdentity userIdentity = createUserIdentity(identity, scope, type);
 
         final IdentityRequest identityRequestForceGenerate = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
@@ -225,19 +231,33 @@ public class UIDOperatorServiceTest {
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
                 .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
 
-        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequestForceGenerate);
-        AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.UID2, userIdentity.identityType);
+        final IdentityTokens tokens;
+        final AdvertisingToken advertisingToken;
+        final IdentityTokens tokensAfterOptOut;
+        if (scope == IdentityScope.UID2) {
+            tokens = uid2Service.generateIdentity(identityRequestForceGenerate);
+            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), TokenVersion.V4, IdentityScope.UID2, userIdentity.identityType);
+            tokensAfterOptOut = uid2Service.generateIdentity(identityRequestRespectOptOut);
+
+        } else {
+            tokens = euidService.generateIdentity(identityRequestForceGenerate);
+            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), TokenVersion.V3, IdentityScope.EUID, userIdentity.identityType);
+            tokensAfterOptOut = euidService.generateIdentity(identityRequestRespectOptOut);
+        }
         assertNotNull(tokens);
         assertNotNull(advertisingToken.userIdentity);
-
-        final IdentityTokens tokensAfterOptOut = uid2Service.generateIdentity(identityRequestRespectOptOut);
         assertNotNull(tokensAfterOptOut);
         assertTrue(tokensAfterOptOut.getAdvertisingToken() == null || tokensAfterOptOut.getAdvertisingToken().isEmpty());
+
     }
 
-    @Test
-    public void testIdentityMapForOptOutUser() {
-        final UserIdentity userIdentity = createUserIdentity("test-email-hash-previously-opted-out");
+    @ParameterizedTest
+    @CsvSource({"Email,test@example.com,UID2",
+            "Email,test@example.com,EUID",
+            "Phone,+01010101010,UID2",
+            "Phone,+01010101010,EUID"})
+    public void testIdentityMapForOptOutUser(IdentityType type, String identity, IdentityScope scope) {
+        final UserIdentity userIdentity = createUserIdentity(identity, scope, type);
         final Instant now = Instant.now();
 
         final MapRequest mapRequestForceMap = new MapRequest(
@@ -254,11 +274,17 @@ public class UIDOperatorServiceTest {
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
                 .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
 
-        final MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequestForceMap);
+        final MappedIdentity mappedIdentity;
+        final MappedIdentity mappedIdentityShouldBeOptOut;
+        if (scope == IdentityScope.UID2) {
+            mappedIdentity = uid2Service.mapIdentity(mapRequestForceMap);
+            mappedIdentityShouldBeOptOut = uid2Service.mapIdentity(mapRequestRespectOptOut);
+        } else {
+            mappedIdentity = euidService.mapIdentity(mapRequestForceMap);
+            mappedIdentityShouldBeOptOut = euidService.mapIdentity(mapRequestRespectOptOut);
+        }
         assertNotNull(mappedIdentity);
         assertFalse(mappedIdentity.isOptedOut());
-
-        final MappedIdentity mappedIdentityShouldBeOptOut = uid2Service.mapIdentity(mapRequestRespectOptOut);
         assertNotNull(mappedIdentityShouldBeOptOut);
         assertTrue(mappedIdentityShouldBeOptOut.isOptedOut());
     }
@@ -388,6 +414,7 @@ public class UIDOperatorServiceTest {
             tokens = uid2Service.generateIdentity(identityRequest);
         }
         assertNotNull(tokens);
+        assertNotEquals(IdentityTokens.LogoutToken, tokens);
 
         // none optout, refreshed is still opted out after generating with DoNotRespect
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
@@ -405,7 +432,7 @@ public class UIDOperatorServiceTest {
             "PhoneHash,+00000000002,UID2",
             "Phone,+00000000002,EUID",
             "PhoneHash,+00000000002,EUID"})
-    public void testSpecialIdentityOptOutGenerateRefresh(TestIdentityInputType type, String id, IdentityScope scope) {
+    public void testSpecialIdentityRefreshOptOutGenerate(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
@@ -425,6 +452,7 @@ public class UIDOperatorServiceTest {
             tokens = uid2Service.generateIdentity(identityRequest);
         }
         assertNotNull(tokens);
+        assertNotEquals(IdentityTokens.LogoutToken, tokens);
 
         // none optout, refresh is still opted out
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
@@ -442,7 +470,7 @@ public class UIDOperatorServiceTest {
             "PhoneHash,+00000000002,UID2",
             "Phone,+00000000002,EUID",
             "PhoneHash,+00000000002,EUID"})
-    public void testSpecialIdentityOptOutRefreshIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
+    public void testSpecialIdentityRefreshOptOutIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final MapRequest mapRequestRespectOptOut = new MapRequest(
@@ -486,14 +514,17 @@ public class UIDOperatorServiceTest {
         when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
         IdentityTokens tokens;
+        AdvertisingToken advertisingToken;
         if(scope == IdentityScope.EUID) {
             tokens = euidService.generateIdentity(identityRequest);
+            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), TokenVersion.V3, scope, identityRequest.userIdentity.identityType);
         }
         else {
             tokens = uid2Service.generateIdentity(identityRequest);
+            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), TokenVersion.V4, scope, identityRequest.userIdentity.identityType);
         }
         assertNotNull(tokens);
-        AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), scope, identityRequest.userIdentity.identityType);
+        assertNotEquals(IdentityTokens.LogoutToken, tokens);
         assertNotNull(advertisingToken.userIdentity);
     }
 

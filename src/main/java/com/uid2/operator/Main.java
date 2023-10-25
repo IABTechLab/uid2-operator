@@ -472,6 +472,11 @@ public class Main {
                 LOGGER.info("creating uid core client with azure sgx attestation protocol");
                 attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher, CloudUtils.defaultProxy);
                 break;
+            case "azure-cc":
+                LOGGER.info("creating uid core client with azure cc attestation protocol");
+                String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
+                attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureCCAttestation(maaServerBaseUrl), responseWatcher, CloudUtils.defaultProxy);
+                break;
             default:
                 attestationTokenRetriever = new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher, CloudUtils.defaultProxy);
         }

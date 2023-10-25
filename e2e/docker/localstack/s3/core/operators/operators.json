@@ -63,6 +63,21 @@
     "key_salt": "kyrXH8X4F/SCTgw8SkWLBZSXQWBSZKgNqiQQFpJ5h04="
   },
   {
+    "key": "UID2-azure-cc-operator-key",
+    "name": "Publisher (Private, Azure CC)",
+    "contact": "Publisher (Private, Azure CC)",
+    "protocol": "azure-cc",
+    "created": 1618873215,
+    "disabled": false,
+    "roles": [
+      "OPERATOR"
+    ],
+    "site_id": 124,
+    "operator_type": "PRIVATE",
+    "key_hash": "rtXong4ZyjwdshMNEICQv8Kd/vvX6d7PcB02AwcV3ElCnG7tXQvO+NKyqc93ObcVbwcJfZ1RPAGLjJhxdQQ55w==",
+    "key_salt": "0Qw0Ln9qym9pcyQ1lT0oIB0uZ2nWhnVsGBhe8CYJ5xI="
+  },
+  {
     "key": "UID2-O-L-127-pDqphU.6FuXzThQMY8YEsCA8crqvAlzyGrjcF8P6XO84=",
     "name": "OptOut",
     "contact": "OptOut",

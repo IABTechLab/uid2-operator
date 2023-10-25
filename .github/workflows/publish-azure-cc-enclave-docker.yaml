@@ -1,0 +1,186 @@
+name: Publish Azure CC Enclave Docker
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to apply to the Docker file'
+        type: string
+      release_type:
+        description: The type of version number to return. Must be one of [Snapshot, Patch, Minor or Major]
+        required: true
+        type: string
+      java_version:
+        type: string
+        default: '11'
+      publish_vulnerabilities:
+        type: string
+        default: 'true'
+      is_release:
+        type: boolean
+        description: Create a new GitHub release
+        required: false
+        default: false
+      
+env:
+  REGISTRY: ghcr.io
+  MAVEN_PROFILE: azure
+  ENCLAVE_PROTOCOL: azure-cc
+  IMAGE_NAME: ${{ github.repository }}
+  DOCKER_CONTEXT_PATH: scripts/azure-cc
+  OUTPUT_TEMPLATE_FILE: ${{ github.workspace }}/uid2-operator-deployment-template.json
+  OUTPUT_POLICY_DIGEST_FILE: ${{ github.workspace }}/uid2-operator-deployment-digest.txt
+  OUTPUT_PARAMETERS_FILE: ${{ github.workspace }}/uid2-operator-deployment-parameters.json
+
+jobs:
+  build-publish-docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
+      id-token: write
+    outputs:
+      jar_version: ${{ steps.version.outputs.new_version }}
+    steps:
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: ${{ inputs.java_version }}
+
+      - name: Checkout full history
+        uses: actions/checkout@v3
+        with:
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Restore timestamps
+        uses: thetradedesk/git-restore-mtime-action@v1.2
+
+      - name: Set version number
+        id: version
+        uses: IABTechLab/uid2-shared-actions/actions/version_number@main
+        with:
+          type: ${{ inputs.release_type }}
+
+      - name: Update pom.xml
+        run: |
+          current_version=$(grep -o '<version>.*</version>' pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/')
+          new_version=${{ steps.version.outputs.new_version }} 
+          sed -i "0,/$current_version/s//$new_version/" pom.xml
+          echo "Version number updated from $current_version to $new_version"
+
+      - name: Package JAR
+        id: package
+        run: |
+          mvn -B package -P ${{ env.MAVEN_PROFILE }} 
+          echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
+          echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
+          cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
+
+      - name: Commit pom.xml and version.json
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'pom.xml version.json'
+          author_name: Release Workflow
+          author_email: unifiedid-admin+release@thetradedesk.com
+          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+
+      - name: Log in to the Docker container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
+            type=raw,value=${{ inputs.tag }}
+
+      - name: Build and export to Docker
+        uses: docker/build-push-action@v3
+        with:
+          context: ${{ env.DOCKER_CONTEXT_PATH }}
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            JAR_VERSION=${{ steps.version.outputs.new_version }}
+            IMAGE_VERSION=${{ steps.version.outputs.new_version }}
+            BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
+
+      - name: Generate Trivy vulnerability scan report
+        uses: aquasecurity/trivy-action@master
+        if: inputs.publish_vulnerabilities == 'true'
+        with:
+          image-ref: ${{ steps.meta.outputs.tags }}
+          format: 'sarif'
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+          output: 'trivy-results.sarif'
+          hide-progress: true
+
+      - name: Upload Trivy scan report to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: inputs.publish_vulnerabilities == 'true'
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Test with Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.meta.outputs.tags }}
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL'
+          hide-progress: true
+
+      - name: Push to Docker
+        uses: docker/build-push-action@v3
+        with:
+          context: ${{ env.DOCKER_CONTEXT_PATH }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            JAR_VERSION=${{ steps.version.outputs.new_version }}
+            IMAGE_VERSION=${{ steps.version.outputs.new_version }}
+
+      - name: Generate Azure deployment artifacts
+        env:
+          IMAGE: ${{ steps.meta.outputs.tags }}
+          INPUT_TEMPLATE_FILE: ${{ github.workspace }}/scripts/azure-cc/deployment-template.json
+          INPUT_PARAMETERS_FILE: ${{ github.workspace }}/scripts/azure-cc/deployment-parameters.json
+          OUTPUT_TEMPLATE_FILE: ${{ env.OUTPUT_TEMPLATE_FILE }}
+          OUTPUT_POLICY_DIGEST_FILE: ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
+          OUTPUT_PARAMETERS_FILE: ${{ env.OUTPUT_PARAMETERS_FILE }}
+        run: |
+          bash ./scripts/azure-cc/generate-deployment-artifacts.sh
+
+      - name: Archive deployment artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: azure-cc-deployment-files-${{ steps.version.outputs.new_version }}
+          path: |
+            ${{ env.OUTPUT_TEMPLATE_FILE }}
+            ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
+            ${{ env.OUTPUT_PARAMETERS_FILE }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: inputs.is_release
+        with:
+          name: UID2 Operator ${{ steps.meta.outputs.version }}
+          tag_name: v${{ steps.meta.outputs.version }}
+          body: UID2 Operator for deployment on Azure Confidential Container environment.
+          files: |
+            ${{ env.OUTPUT_TEMPLATE_FILE }}
+            ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
+            ${{ env.OUTPUT_PARAMETERS_FILE }}

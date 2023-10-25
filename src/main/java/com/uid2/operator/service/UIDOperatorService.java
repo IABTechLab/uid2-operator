@@ -1,6 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
@@ -19,6 +20,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+
+import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
+import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
@@ -106,22 +110,63 @@ public class UIDOperatorService implements IUIDOperatorService {
             return RefreshResponse.Deprecated;
         }
 
-        if (token.expiresAt.isBefore(Instant.now(this.clock))) {
+        final Instant now = clock.instant();
+
+        if (token.expiresAt.isBefore(now)) {
             return RefreshResponse.Expired;
         }
 
+        final PrivacyBits privacyBits = PrivacyBits.fromInt(token.userIdentity.privacyBits);
+        final boolean isCstg = privacyBits.isClientSideTokenGenerated();
+
         try {
             final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.userIdentity);
-            boolean optedOut = logoutEntry.isOptedOut();
+            final boolean optedOut = logoutEntry.isOptedOut();
+
+            final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
 
             if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getTime())) {
-                Duration durationSinceLastRefresh = Duration.between(token.createdAt, Instant.now(this.clock));
-                return RefreshResponse.Refreshed(this.generateIdentity(token.publisherIdentity, token.userIdentity), durationSinceLastRefresh);
+                IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
+
+                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
+            } else if (isCstg) {
+                // The user has opted out after the userIdentity was established.
+                privacyBits.setClientSideTokenGenerateOptout();
+
+                final UserIdentity cstgOptOutIdentity = getClientSideTokenGenerateOptOutInputVal(token.userIdentity.identityType)
+                        .toUserIdentity(identityScope, privacyBits.getAsInt(), now);
+
+                final IdentityTokens identityTokens = generateIdentity(
+                        new IdentityRequest(
+                                new PublisherIdentity(token.publisherIdentity.siteId, 0, 0),
+                                cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
+
+                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, true);
             } else {
                 return RefreshResponse.Optout;
             }
         } catch (Exception ex) {
             return RefreshResponse.Invalid;
+        }
+    }
+
+    private static InputUtil.InputVal getClientSideTokenGenerateOptOutInputVal(IdentityType identityType) {
+        switch (identityType) {
+            case Email:
+                return InputUtil.InputVal.validEmail(
+                        ClientSideTokenGenerateOptOutIdentityForEmail,
+                        ClientSideTokenGenerateOptOutIdentityForEmail);
+            case Phone:
+                return InputUtil.InputVal.validPhone(
+                        ClientSideTokenGenerateOptOutIdentityForPhone,
+                        ClientSideTokenGenerateOptOutIdentityForPhone);
+            default:
+                // Assert will fire when this code path is hit by a test.
+                assert false: "Invalid identity type " + identityType;
+                // Provide a fallback value instead of throwing an exception.
+                return InputUtil.InputVal.validEmail(
+                        ClientSideTokenGenerateOptOutIdentityForEmail,
+                        ClientSideTokenGenerateOptOutIdentityForEmail);
         }
     }
 

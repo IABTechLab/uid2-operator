@@ -134,6 +134,7 @@ jobs:
 
       - name: Test with Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
+        if: inputs.publish_vulnerabilities == 'true'
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: 'table'

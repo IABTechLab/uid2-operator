@@ -344,7 +344,7 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.RespectOptOut
         );
 
-        // none optout, generated is still opted out with RespectOptOut
+        // identity has no optout record, ensure generate still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
         IdentityTokens tokens;
@@ -374,7 +374,7 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
-        // none optout, mapped is still opted out with RespectOptOut
+        // identity has no optout record, ensure map still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
         final MappedIdentity mappedIdentity;
@@ -422,7 +422,7 @@ public class UIDOperatorServiceTest {
         assertNotNull(tokens);
         assertNotEquals(IdentityTokens.LogoutToken, tokens);
 
-        // none optout, refreshed is still opted out after generating with DoNotRespect
+        // identity has no optout record, ensure refresh still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
         final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
@@ -447,7 +447,7 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.RespectOptOut
         );
 
-        // all optout, still generates
+        // identity has optout record, ensure still generates
         when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
         IdentityTokens tokens;
@@ -460,7 +460,7 @@ public class UIDOperatorServiceTest {
         assertNotNull(tokens);
         assertNotEquals(IdentityTokens.LogoutToken, tokens);
 
-        // none optout, refresh is still opted out
+        // identity has no optout record, ensure refresh still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
         final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
@@ -484,7 +484,7 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
-        // all optout, still maps
+        // all identities have optout records, ensure refresh-optout identities still map
         when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
         final MappedIdentity mappedIdentity;
@@ -516,7 +516,7 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.RespectOptOut
         );
 
-        // all optout, still generates
+        // all identities have optout records, ensure validate identities still get generated
         when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
         IdentityTokens tokens;
@@ -552,7 +552,7 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
-        // all optout, still maps
+        // all identities have optout records, ensure validate identities still get mapped
         when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
         final MappedIdentity mappedIdentity;

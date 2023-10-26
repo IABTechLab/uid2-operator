@@ -165,9 +165,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.saltProvider,
                 this.encoder,
                 this.clock,
-                this.identityScope,
-                this.config.getBoolean("advertising_token_v4", false) ? TokenVersion.V4 :
-                        (this.config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2)
+                this.identityScope
         );
 
         final Router router = createRoutesSetup();

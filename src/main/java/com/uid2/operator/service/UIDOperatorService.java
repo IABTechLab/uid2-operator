@@ -52,7 +52,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final TokenVersion refreshTokenVersion;
     private final boolean identityV3Enabled;
 
-    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope, TokenVersion advertisingTokenVersion) {
+    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
@@ -88,7 +88,11 @@ public class UIDOperatorService implements IUIDOperatorService {
             throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
 
-        this.advertisingTokenVersion = advertisingTokenVersion;
+        if (config.getBoolean("advertising_token_v4", false)) {
+            this.advertisingTokenVersion = TokenVersion.V4;
+        } else {
+            this.advertisingTokenVersion = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
+        }
         this.refreshTokenVersion = TokenVersion.V3;
         this.identityV3Enabled = config.getBoolean("identity_v3", false);
     }
@@ -332,6 +336,10 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
         Instant result = this.optOutStore.getLatestEntry(userIdentity);
         return new GlobalOptoutResult(result);
+    }
+
+    public TokenVersion getAdvertisingTokenVersion() {
+        return advertisingTokenVersion;
     }
 
 }

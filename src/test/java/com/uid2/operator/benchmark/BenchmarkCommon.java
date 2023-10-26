@@ -82,8 +82,7 @@ public class BenchmarkCommon {
                 saltProvider,
                 tokenEncoder,
                 Clock.systemUTC(),
-                IdentityScope.UID2,
-                TokenVersion.V4
+                IdentityScope.UID2
         );
     }
 

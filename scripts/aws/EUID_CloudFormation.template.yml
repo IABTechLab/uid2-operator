@@ -6,7 +6,7 @@ Parameters:
     Type: String
     NoEcho: true
   DeployToEnvironment:
-    Description: Deploy in EUID production environment
+    Description: Environment to deploy to prod/integ
     Type: String
     Default: prod
     AllowedValues:
@@ -79,7 +79,7 @@ Metadata:
           - Subnet2Cidr
     ParameterLabels:
       APIToken:
-        default: OPERATOR_KEY provided by EUID Administrator
+        default: OPERATOR_KEY provided by EUID Administrator. Starts with EUID-O-
       DeployToEnvironment:
         default: EUID environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
@@ -103,7 +103,7 @@ Metadata:
 Mappings:
   RegionMap:
     eu-central-1:
-      AMI: ami-05466678b521dcc49
+      AMI: ami-xxxxxxxxxxxxxxxxx
     eu-west-1:
       AMI: ami-xxxxxxxxxxxxxxxxx
     eu-west-2:

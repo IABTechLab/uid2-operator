@@ -79,7 +79,7 @@ Metadata:
           - Subnet2Cidr
     ParameterLabels:
       APIToken:
-        default: OPERATOR_KEY provided by UID Administrator. Starts with UID2-O-
+        default: OPERATOR_KEY provided by UID Administrator.
       DeployToEnvironment:
         default: UID2 environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:

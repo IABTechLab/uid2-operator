@@ -79,7 +79,7 @@ Metadata:
           - Subnet2Cidr
     ParameterLabels:
       APIToken:
-        default: OPERATOR_KEY provided by EUID Administrator. Starts with EUID-O-
+        default: OPERATOR_KEY provided by EUID Administrator.
       DeployToEnvironment:
         default: EUID environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:

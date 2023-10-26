@@ -6,7 +6,7 @@ Parameters:
     Type: String
     NoEcho: true
   DeployToEnvironment:
-    Description: Deploy in EUID production environment
+    Description: Environment to deploy to prod/integ
     Type: String
     Default: prod
     AllowedValues:
@@ -71,7 +71,6 @@ Metadata:
           default: Infrastructure Configuration
         Parameters:
           - TrustNetworkCidr
-          - CreateVPC
           - VpcId
           - VpcSubnet1
           - VpcSubnet2
@@ -80,7 +79,7 @@ Metadata:
           - Subnet2Cidr
     ParameterLabels:
       APIToken:
-        default: OPERATOR_KEY provided by EUID Administrator
+        default: OPERATOR_KEY provided by EUID Administrator. Starts with EUID-O-
       DeployToEnvironment:
         default: EUID environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
@@ -218,8 +217,7 @@ Resources:
           ToPort: 443
           CidrIp: 0.0.0.0/0
           Description: "Allow Outbound"
-      VpcId: 
-        - !Ref VpcId
+      VpcId: !Ref VpcId
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -249,8 +247,8 @@ Resources:
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     DependsOn:
-     - TokenSecret
-     - SSMKEYAlias
+      - TokenSecret
+      - SSMKEYAlias
     Properties:
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplate

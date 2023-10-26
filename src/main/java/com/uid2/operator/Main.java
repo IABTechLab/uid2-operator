@@ -128,7 +128,6 @@ public class Main {
         }
 
         String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
-        this.siteProvider = new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath)));
         String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
         this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
@@ -147,6 +146,8 @@ public class Main {
             String serviceLinkMdPath = this.config.getString(Const.Config.ServiceLinkMetadataPathProp);
             this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
         }
+
+        this.siteProvider = clientSideTokenGenerate ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath))) : null;
 
         if (useStorageMock && coreAttestUrl == null) {
             if (clientSideTokenGenerate) {

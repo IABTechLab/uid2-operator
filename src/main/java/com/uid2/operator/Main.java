@@ -1,11 +1,11 @@
 package com.uid2.operator;
 
 import ch.qos.logback.classic.LoggerContext;
+import com.uid2.enclave.IOperatorKeyRetriever;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
-import com.uid2.operator.operatorkey.OperatorKeyRetrieverFactory;
 import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.CloudSyncOptOutStore;
 import com.uid2.operator.store.OptOutCloudStorage;
@@ -95,7 +95,7 @@ public class Main {
 
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
 
-        var operatorKeyRetriever = OperatorKeyRetrieverFactory.getOperatorKeyRetriever(this.config);
+        var operatorKeyRetriever = createOperatorKeyRetriever();
         var operatorKey = operatorKeyRetriever.retrieve();
 
         DownloadCloudStorage fsStores;
@@ -487,5 +487,20 @@ public class Main {
         UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
         UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
+    }
+
+    private IOperatorKeyRetriever createOperatorKeyRetriever() throws Exception {
+        var enclavePlatform = this.config.getString("enclave_platform", "");
+        switch (enclavePlatform) {
+            case "azure-cc": {
+                var vaultName = this.config.getString(Const.Config.AzureVaultNameProp);
+                var secretName = this.config.getString(Const.Config.AzureSecretNameProp);
+                return OperatorKeyRetrieverFactory.getAzureOperatorKeyRetriever(vaultName, secretName);
+            }
+            default: {
+                // default to load from config
+                return () -> this.config.getString(Const.Config.CoreApiTokenProp);
+            }
+        }
     }
 }

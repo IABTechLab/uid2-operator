@@ -501,16 +501,8 @@ public class Main {
                 return OperatorKeyRetrieverFactory.getAzureOperatorKeyRetriever(vaultName, secretName);
             }
             case "gcp-oidc": {
-                try{
-                    LOGGER.info("load secret version name.");
-                    var secretVersionName = this.config.getString(Const.Config.GcpSecretVersionNameProp);
-                    return new GcpOperatorKeyRetriever(secretVersionName);
-//                    sut.retrieve();
-//                    return () -> this.config.getString(Const.Config.CoreApiTokenProp);
-                }
-                catch (Exception e){
-                    LOGGER.info("Fail to load secret version." + e);
-                }
+                var secretVersionName = this.config.getString(Const.Config.GcpSecretVersionNameProp);
+                return new GcpOperatorKeyRetriever(secretVersionName);
             }
             default: {
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));

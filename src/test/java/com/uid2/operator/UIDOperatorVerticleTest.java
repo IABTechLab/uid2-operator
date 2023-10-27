@@ -8,6 +8,7 @@ import com.uid2.operator.service.*;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
+import com.uid2.operator.vertx.ClientInputException;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.Utils;
@@ -3415,7 +3416,7 @@ public class UIDOperatorVerticleTest {
             case Phone:
                 return IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
         }
-        throw new IllegalArgumentException("Invalid identity type " + identityType);
+        throw new ClientInputException("Invalid identity type " + identityType);
     }
 
     /********************************************************

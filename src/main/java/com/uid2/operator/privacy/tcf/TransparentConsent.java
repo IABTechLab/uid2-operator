@@ -4,6 +4,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import com.iabtcf.decoder.TCString;
+import com.uid2.operator.vertx.ClientInputException;
 
 /**
  * Wrapper around com.iabtcf.decoder.TCString
@@ -12,11 +13,11 @@ public class TransparentConsent {
 
     private final TCString tcString;
 
-    public TransparentConsent(String consentString) throws IllegalArgumentException {
+    public TransparentConsent(String consentString) throws ClientInputException {
         try {
             this.tcString = TCString.decode(consentString);
         } catch(Exception e) {
-            throw new IllegalArgumentException("unable to parse consentString", e);
+            throw new ClientInputException("unable to parse consentString", e);
         }
     }
 

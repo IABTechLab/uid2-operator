@@ -1,5 +1,7 @@
 package com.uid2.operator.model;
 
+import com.uid2.operator.vertx.ClientInputException;
+
 public enum OptoutCheckPolicy {
     DoNotRespect(0),
     RespectOptOut(1);
@@ -11,7 +13,7 @@ public enum OptoutCheckPolicy {
         switch (value) {
             case 0: return DoNotRespect;
             case 1: return RespectOptOut;
-            default: throw new IllegalArgumentException();
+            default: throw new ClientInputException("Invalid value for OptoutCheckPolicy: " + value);
         }
     }
 

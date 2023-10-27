@@ -751,6 +751,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             } else {
                 ResponseUtil.Success(rc, Boolean.FALSE);
             }
+        } catch (ClientInputException cie) {
+            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
         } catch (Exception e) {
             LOGGER.error("Unknown error while validating token", e);
             rc.fail(500);
@@ -825,7 +827,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
                 switch (validateUserConsent(req)) {
                     case INVALID: {
-                        rc.fail(400);
+                        ResponseUtil.ClientError(rc, "User consent is invalid");
                         recordTokenResponseStats(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidUserConsentString);
                         return;
                     }
@@ -865,8 +867,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     recordTokenResponseStats(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
                 }
             }
-        } catch (IllegalArgumentException iae) {
-            LOGGER.warn("request body contains invalid argument(s)", iae);
+        } catch (ClientInputException cie) {
             ResponseUtil.ClientError(rc, "request body contains invalid argument(s)");
         } catch (Exception e) {
             LOGGER.error("Unknown error while generating token v2", e);
@@ -877,7 +878,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenGenerate(RoutingContext rc) {
         final InputUtil.InputVal input = this.getTokenInput(rc);
         if (input == null || !input.isValid()) {
-            rc.fail(400);
+            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
             return;
         }
 
@@ -903,7 +904,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenRefresh(RoutingContext rc) {
         final List<String> tokenList = rc.queryParam("refresh_token");
         if (tokenList == null || tokenList.size() == 0) {
-            rc.fail(400);
+            ResponseUtil.ClientError(rc, "Invalid refresh_token");
             return;
         }
 
@@ -958,7 +959,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
             });
         } else {
-            rc.fail(400);
+            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
         }
     }
 
@@ -981,7 +982,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             });
             return promise.future();
         } else {
-            rc.fail(400);
+            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
             return Future.failedFuture("");
         }
     }
@@ -1003,7 +1004,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc.fail(500);
             }
         } else {
-            rc.fail(400);
+            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
         }
     }
 
@@ -1095,7 +1096,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                 rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
             } else {
-                rc.fail(400);
+                ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
             }
         } catch (Exception ex) {
             LOGGER.error("Unexpected error while mapping identity", ex);
@@ -1462,11 +1463,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonArray emails = obj.getJsonArray("email");
             final JsonArray emailHashes = obj.getJsonArray("email_hash");
             if (emails == null && emailHashes == null) {
-                rc.fail(400);
+                ResponseUtil.ClientError(rc, "Exactly one of email or email_hash must be specified");
                 return;
             } else if (emails != null && !emails.isEmpty()) {
                 if (emailHashes != null && !emailHashes.isEmpty()) {
-                    rc.fail(400);
+                    ResponseUtil.ClientError(rc, "Only one of email or email_hash can be specified");
                     return;
                 }
                 inputList = createInputList(emails, false);
@@ -1576,7 +1577,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
 
             refreshToken = this.encoder.decodeRefreshToken(tokenStr);
-        } catch (Throwable t) {
+        } catch (ClientInputException cie) {
             return RefreshResponse.Invalid;
         }
         if (refreshToken == null) {
@@ -1766,7 +1767,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final TransparentConsent consentPayload = new TransparentConsent(rawTcString);
             return new TransparentConsentParseResult(consentPayload);
-        } catch (IllegalArgumentException e) {
+        } catch (ClientInputException e) {
             return new TransparentConsentParseResult(e.getMessage());
         }
     }

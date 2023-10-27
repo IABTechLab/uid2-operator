@@ -501,6 +501,7 @@ public class Main {
                 return OperatorKeyRetrieverFactory.getAzureOperatorKeyRetriever(vaultName, secretName);
             }
             case "gcp-oidc": {
+                LOGGER.info("load secret version name.");
                 var secretVersionName = this.config.getString(Const.Config.GcpSecretVersionNameProp);
                 LOGGER.info("secretVersionName: " + secretVersionName);
                 return new GcpOperatorKeyRetriever(secretVersionName);

@@ -8,7 +8,7 @@ if [ -z "${API_TOKEN_SECRET_NAME}" ]; then
   exit 1
 fi
 
-export gcp_secret_version_name="${API_TOKEN_SECRET_NAME}"
+export gcp_secret_version_name="abc"
 
 # -- locate config file
 if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then

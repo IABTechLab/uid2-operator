@@ -32,6 +32,7 @@ import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tag;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
@@ -1538,6 +1539,44 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (invalidCount > 0 || optoutCount > 0) {
             rs.increment();
         }
+        recordIdentityMapStatsForServiceLinks(rc, apiContact, inputCount, invalidCount, optoutCount);
+    }
+
+    private void recordIdentityMapStatsForServiceLinks(RoutingContext rc, String apiContact, int inputCount,
+                                                       int invalidCount, int optoutCount) {
+        // If request is from a service, break it down further by link_id
+        String serviceLinkName = rc.get(SecureLinkValidatorService.LINK_NAME, "");
+        if (!serviceLinkName.isBlank()) {
+            // serviceName will be non-empty as it will be inserted during validation
+            String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
+            DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(serviceName + serviceLinkName,
+                    k -> DistributionSummary.builder("uid2.operator.identity.map.inputs")
+                .description("number of emails or email hashes passed to identity map batch endpoint")
+                .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                Tag.of("service_name", serviceName),
+                Tag.of("service_link_name", serviceLinkName)))
+                .register(Metrics.globalRegistry));
+            ds.record(inputCount);
+
+            Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact,
+                k -> new Tuple.Tuple2<>(
+                Counter.builder("uid2.operator.identity.map.unmapped")
+                .description("invalid identifiers")
+                .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                    Tag.of("reason", "invalid"),
+                    Tag.of("service_name", serviceName),
+                    Tag.of("service_link_name", serviceLinkName)))
+                .register(Metrics.globalRegistry),
+                Counter.builder("uid2.operator.identity.map.unmapped")
+                    .description("optout identifiers")
+                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                        Tag.of("reason", "optout"),
+                        Tag.of("service_name", serviceName),
+                        Tag.of("service_link_name", serviceLinkName)))
+                    .register(Metrics.globalRegistry)));
+            if (invalidCount > 0) counterTuple.getItem1().increment(invalidCount);
+            if (optoutCount > 0) counterTuple.getItem2().increment(optoutCount);
+        }
     }
 
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
@@ -1615,7 +1654,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private InputUtil.InputVal[] createInputListV1(JsonArray a, IdentityType identityType, InputUtil.IdentityInputType inputType) {
-        if (a == null || a.size() == 0) {
+        if (a == null || a.isEmpty()) {
             return new InputUtil.InputVal[0];
         }
         final int size = a.size();

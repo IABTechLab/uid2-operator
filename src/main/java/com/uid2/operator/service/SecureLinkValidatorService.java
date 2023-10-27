@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 
 public class SecureLinkValidatorService {
     public static final String LINK_ID = "link_id";
+    public static final String LINK_NAME = "link_name";
+    public static final String SERVICE_NAME = "service_name";
     private static final Logger LOGGER = LoggerFactory.getLogger(SecureLinkValidatorService.class);
     private final RotatingServiceLinkStore rotatingServiceLinkStore;
 
@@ -25,6 +27,8 @@ public class SecureLinkValidatorService {
         if (profile instanceof ClientKey) {
             ClientKey clientKey = (ClientKey) profile;
             if (clientKey.getServiceId() != 0) {
+                // For now using the client key, in the future when we have multiple keys, this can be changed to service name
+                rc.put(SERVICE_NAME, clientKey.getName());
                 // service_id is set in the request, so need to check if the given link_id is linked to this service
                 if (this.rotatingServiceLinkStore == null) {
                     // this is an invalid configuration. This operator is not set to validate service links, but has a service Id set.
@@ -39,6 +43,7 @@ public class SecureLinkValidatorService {
                         LOGGER.warn("ClientKey has ServiceId set, but LinkId in request was not authorized. ServiceId: {}, LinkId in request: {}", clientKey.getServiceId(), linkId);
                         return false;
                     }
+                    rc.put(LINK_NAME, serviceLink.getName());
                 }
             }
         }

@@ -500,6 +500,10 @@ public class Main {
                 var secretName = this.config.getString(Const.Config.AzureSecretNameProp);
                 return OperatorKeyRetrieverFactory.getAzureOperatorKeyRetriever(vaultName, secretName);
             }
+            case "gcp-oidc": {
+                var secretVersionName = this.config.getString(Const.Config.GcpSecretVersionNameProp);
+                return new GcpOperatorKeyRetriever(secretVersionName);
+            }
             default: {
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));
             }

@@ -136,7 +136,7 @@ jobs:
             BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
 
       - name: Generate Trivy vulnerability scan report
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.12.0
         if: inputs.publish_vulnerabilities == 'true'
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
@@ -154,7 +154,7 @@ jobs:
           sarif_file: 'trivy-results.sarif'
 
       - name: Test with Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.12.0
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: 'table'

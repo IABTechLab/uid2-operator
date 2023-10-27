@@ -37,7 +37,7 @@ public class GcpOperatorKeyRetriever implements IOperatorKeyRetriever {
             var response = client.accessSecretVersion(this.secretVersionName);
             String payload = response.getPayload().getData().toStringUtf8();
             LOGGER.info("Plaintext: %s\n", payload);
-            
+
             return payload;
         } catch (IOException e) {
             LOGGER.error("Error: " + e.getMessage());

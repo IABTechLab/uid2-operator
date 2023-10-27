@@ -1,12 +1,14 @@
 package com.uid2.operator;
 
 import ch.qos.logback.classic.LoggerContext;
+import com.uid2.enclave.IOperatorKeyRetriever;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.service.SecureLinkValidatorService;
-import com.uid2.operator.store.*;
+import com.uid2.operator.store.CloudSyncOptOutStore;
+import com.uid2.operator.store.OptOutCloudStorage;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
@@ -92,13 +94,16 @@ public class Main {
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
 
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
+
+        var operatorKeyRetriever = createOperatorKeyRetriever();
+        var operatorKey = operatorKeyRetriever.retrieve();
+
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
-            String coreApiToken = this.config.getString(Const.Config.CoreApiTokenProp);
             Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
             this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
 
-            var clients = createUidClients(this.vertx, coreAttestUrl, coreApiToken, this.disableHandler::handleResponseStatus);
+            var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.disableHandler::handleResponseStatus);
             UidCoreClient coreClient = clients.getKey();
             UidOptOutClient optOutClient = clients.getValue();
             fsStores = coreClient;
@@ -133,7 +138,7 @@ public class Main {
         this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
-        this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config);
+        this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey);
 
         if (this.validateServiceLinks) {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
@@ -483,5 +488,20 @@ public class Main {
         UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
         UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
+    }
+
+    private IOperatorKeyRetriever createOperatorKeyRetriever() throws Exception {
+        var enclavePlatform = this.config.getString("enclave_platform", "");
+        switch (enclavePlatform) {
+            case "azure-cc": {
+                var vaultName = this.config.getString(Const.Config.AzureVaultNameProp);
+                var secretName = this.config.getString(Const.Config.AzureSecretNameProp);
+                return OperatorKeyRetrieverFactory.getAzureOperatorKeyRetriever(vaultName, secretName);
+            }
+            default: {
+                // default to load from config
+                return () -> this.config.getString(Const.Config.CoreApiTokenProp);
+            }
+        }
     }
 }

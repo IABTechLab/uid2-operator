@@ -3,6 +3,8 @@ package com.uid2.operator;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.secretmanager.v1.*;
 import com.uid2.enclave.IOperatorKeyRetriever;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
 import java.io.IOException;
@@ -10,6 +12,8 @@ import java.util.zip.CRC32C;
 import java.util.zip.Checksum;
 
 public class GcpOperatorKeyRetriever implements IOperatorKeyRetriever {
+    private static final Logger LOGGER = LoggerFactory.getLogger(GcpOperatorKeyRetriever.class);
+
     private final SecretVersionName secretVersionName;
     /**
      * Retrieve secret value from GCP SecretManager
@@ -32,9 +36,11 @@ public class GcpOperatorKeyRetriever implements IOperatorKeyRetriever {
         try(var client = SecretManagerServiceClient.create(settingsBuilder.build())) {
             var response = client.accessSecretVersion(this.secretVersionName);
             String payload = response.getPayload().getData().toStringUtf8();
-            System.out.printf("Plaintext: %s\n", payload);
+            LOGGER.info("Plaintext: %s\n", payload);
+            
             return payload;
         } catch (IOException e) {
+            LOGGER.error("Error: " + e.getMessage());
             throw new RuntimeException(e);
         }
     }

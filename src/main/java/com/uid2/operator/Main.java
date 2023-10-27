@@ -502,6 +502,7 @@ public class Main {
             }
             case "gcp-oidc": {
                 var secretVersionName = this.config.getString(Const.Config.GcpSecretVersionNameProp);
+                LOGGER.info("secretVersionName: " + secretVersionName);
                 return new GcpOperatorKeyRetriever(secretVersionName);
             }
             default: {

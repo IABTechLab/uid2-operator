@@ -504,9 +504,9 @@ public class Main {
                 try{
                     LOGGER.info("load secret version name.");
                     var secretVersionName = this.config.getString(Const.Config.GcpSecretVersionNameProp);
-                    var sut = new GcpOperatorKeyRetriever(secretVersionName);
-                    sut.retrieve();
-                    return () -> this.config.getString(Const.Config.CoreApiTokenProp);
+                    return new GcpOperatorKeyRetriever(secretVersionName);
+//                    sut.retrieve();
+//                    return () -> this.config.getString(Const.Config.CoreApiTokenProp);
                 }
                 catch (Exception e){
                     LOGGER.info("Fail to load secret version." + e);

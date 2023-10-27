@@ -76,7 +76,7 @@ public class UIDOperatorServiceTest {
         uid2Config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         uid2Config.put("advertising_token_v4", false);
-        uid2Config.put("advertising_token_v3", false);
+        uid2Config.put("advertising_token_v3", false); // prod is using v2 token version for now
         uid2Config.put("identity_v3", false);
 
         uid2Service = new UIDOperatorService(
@@ -388,12 +388,6 @@ public class UIDOperatorServiceTest {
         assertTrue(mappedIdentity.isOptedOut());
     }
 
-    //UID2 uses v2 tokens but v2 doesn't handle phone number IdentityType correctly
-    //so passing in a phone number and it will be still casted as an email type in UserIdentity
-    //and UserIdentity won't match to the default UIDOperatorService.testAlwaysOptInIdentityForPhone
-    //as the IdentityType won't match
-    //will only test when we switch to v4 token
-    //this works for EUID because EUID is on v3 token already which persists to correct IdentityType
     @ParameterizedTest
     @CsvSource({"Email,optout@example.com,UID2",
             "EmailHash,optout@example.com,UID2",

@@ -15,7 +15,6 @@ import com.uid2.shared.cloud.CloudStorageException;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.cloud.ICloudStorage;
 import com.uid2.shared.cloud.InMemoryStorageMock;
-import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.optout.OptOutEntry;
 import com.uid2.shared.optout.OptOutHeap;
 import com.uid2.shared.optout.OptOutPartition;

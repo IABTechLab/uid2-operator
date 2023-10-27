@@ -22,6 +22,7 @@ fi
 
 export core_api_token="${API_TOKEN}"
 export optout_api_token="${API_TOKEN}"
+export gcp_secret_version_name="${API_TOKEN_SECRET_NAME}"
 
 # -- locate config file
 if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then

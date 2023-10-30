@@ -751,7 +751,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             } else {
                 ResponseUtil.Success(rc, Boolean.FALSE);
             }
-        } catch (ClientInputException cie) {
+        } catch (ClientInputValidationException cie) {
             ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
         } catch (Exception e) {
             LOGGER.error("Unknown error while validating token", e);
@@ -867,7 +867,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     recordTokenResponseStats(clientKey.getSiteId(), TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success);
                 }
             }
-        } catch (ClientInputException cie) {
+        } catch (ClientInputValidationException cie) {
             ResponseUtil.ClientError(rc, "request body contains invalid argument(s)");
         } catch (Exception e) {
             LOGGER.error("Unknown error while generating token v2", e);
@@ -1577,7 +1577,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
 
             refreshToken = this.encoder.decodeRefreshToken(tokenStr);
-        } catch (ClientInputException cie) {
+        } catch (ClientInputValidationException cie) {
             return RefreshResponse.Invalid;
         }
         if (refreshToken == null) {
@@ -1767,7 +1767,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final TransparentConsent consentPayload = new TransparentConsent(rawTcString);
             return new TransparentConsentParseResult(consentPayload);
-        } catch (ClientInputException e) {
+        } catch (ClientInputValidationException e) {
             return new TransparentConsentParseResult(e.getMessage());
         }
     }

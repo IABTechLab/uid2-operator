@@ -2,9 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
-import com.uid2.operator.vertx.ClientInputException;
-import com.uid2.shared.Const;
-import com.uid2.shared.Const.Data;
+import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.encryption.AesGcm;
@@ -122,7 +120,7 @@ public class V2RequestUtil {
             //  byte 5-N: IV + encrypted body + GCM AUTH TAG
             bytes = Utils.decodeBase64String(bodyString);
         }
-        catch (ClientInputException ex) {
+        catch (ClientInputValidationException ex) {
             return new V2Request("Invalid body: Body is not valid base64.");
         }
 

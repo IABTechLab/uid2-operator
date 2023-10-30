@@ -1,10 +1,12 @@
 package com.uid2.operator.monitoring;
 
 import com.uid2.operator.model.RefreshResponse;
+import com.uid2.operator.service.ResponseUtil;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.store.ISiteStore;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
+import io.vertx.ext.web.RoutingContext;
 
 import java.util.Map;
 import java.util.Objects;
@@ -42,6 +44,21 @@ public class TokenResponseStatsCollector {
         /* End of CSTG-related Status */
         Unknown
     }
+
+//    public static void SendErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider)
+//    {
+//        if (statusCode == 400) {
+//            ResponseUtil.Warning(errorStatus, statusCode, rc, message);
+//        } else if (statusCode == 500) {
+//            ResponseUtil.Error(errorStatus, statusCode, rc, message);
+//            rc.fail(500);
+//        }
+//        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider);
+//    }
+//
+//    private static void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider) {
+//        TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, responseStatus);
+//    }
 
     private static final Map<TokenResponseKey, Counter> TokenResponseCounters = new ConcurrentHashMap<>();
 

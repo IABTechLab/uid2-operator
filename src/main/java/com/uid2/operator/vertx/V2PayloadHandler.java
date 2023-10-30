@@ -2,6 +2,7 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
+import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.ResponseUtil;
 import com.uid2.operator.service.V2RequestUtil;
@@ -28,6 +29,8 @@ public class V2PayloadHandler {
     private Boolean enableEncryption;
 
     private IdentityScope identityScope;
+
+    private TokenResponseStatsCollector tokenResponseStatsCollector;
 
     public V2PayloadHandler(KeyManager keyManager, Boolean enableEncryption, IdentityScope identityScope) {
         this.keyManager = keyManager;
@@ -80,6 +83,7 @@ public class V2PayloadHandler {
         V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
         if (!request.isValid()) {
             ResponseUtil.ClientError(rc, request.errorMessage);
+            // TODO
             return;
         }
         rc.data().put("request", request.payload);
@@ -118,6 +122,8 @@ public class V2PayloadHandler {
         if (bodyString != null && bodyString.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
             request = V2RequestUtil.parseRefreshRequest(bodyString, this.keyManager);
             if (!request.isValid()) {
+                // TODO
+//                tokenResponseStatsCollector.SendErrorResponseAndRecordStats(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, "Required Parameter Missing: exactly one of email or email_hash must be specified", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload);
                 ResponseUtil.ClientError(rc, request.errorMessage);
                 return;
             }
@@ -158,6 +164,21 @@ public class V2PayloadHandler {
             ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
         }
     }
+
+//    public void SendErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus)
+//    {
+//        if (statusCode == 400) {
+//            ResponseUtil.Warning(errorStatus, statusCode, rc, message);
+//        } else if (statusCode == 500) {
+//            ResponseUtil.Error(errorStatus, statusCode, rc, message);
+//            rc.fail(500);
+//        }
+//        recordTokenResponseStats(siteId, endpoint, responseStatus);
+//    }
+//
+//    private void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus) {
+//        TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, responseStatus);
+//    }
 
     private void passThrough(RoutingContext rc, Handler<RoutingContext> apiHandler) {
         rc.data().put("request", rc.body().asJsonObject());

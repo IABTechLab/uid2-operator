@@ -867,8 +867,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenGenerate(RoutingContext rc) {
         final InputUtil.InputVal input = this.getTokenInput(rc);
         Integer siteId = null;
-        if (input == null || !input.isValid()) {
+        if (input == null) {
             SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Required Parameter Missing: exactly one of email or email_hash must be specified", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload);
+            return;
+        }
+        else if (!input.isValid()) {
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Invalid email or email_hash", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload);
             return;
         }
 
@@ -1080,12 +1084,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = this.getTokenInput(rc);
 
         try {
-            if (input != null && input.isValid()) {
+            if (input == null) {
+                ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
+            }
+            else if (input.isValid()) {
+                ResponseUtil.ClientError(rc, "Invalid email or email_hash");
+            }
+            else {
                 final Instant now = Instant.now();
                 final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                 rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-            } else {
-                ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
             }
         } catch (Exception ex) {
             LOGGER.error("Unexpected error while mapping identity", ex);

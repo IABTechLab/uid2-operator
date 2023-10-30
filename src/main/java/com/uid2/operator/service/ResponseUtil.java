@@ -57,13 +57,13 @@ public class ResponseUtil {
     }
 
     public static void ClientError(RoutingContext rc, String message) {
-        Error(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, message);
+        Warning(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, message);
     }
 
-    public static JsonObject Error(String errorStatus, String message) {
+    public static JsonObject Response(String status, String message) {
         final JsonObject json = new JsonObject(new HashMap<>() {
             {
-                put("status", errorStatus);
+                put("status", status);
             }
         });
         if (message != null) {
@@ -74,11 +74,17 @@ public class ResponseUtil {
 
     public static void Error(String errorStatus, int statusCode, RoutingContext rc, String message) {
         logError(errorStatus, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
-        final JsonObject json = Error(errorStatus, message);
+        final JsonObject json = Response(errorStatus, message);
         rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
     }
 
+    public static void Warning(String status, int statusCode, RoutingContext rc, String message) {
+        logWarning(status, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+        final JsonObject json = Response(status, message);
+        rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                .end(json.encode());
+    }
 
     private static void logError(String errorStatus, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
         String errorMessage = "Error response to http request. " + JsonObject.of(
@@ -91,5 +97,18 @@ public class ResponseUtil {
                 "message", message
         ).encode();
         LOGGER.error(errorMessage);
+    }
+
+    private static void logWarning(String status, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
+        String warnMessage = "Warning response to http request. " + JsonObject.of(
+                "errorStatus", status,
+                "contact", contextReader.getContact(),
+                "siteId", contextReader.getSiteId(),
+                "path", contextReader.getPath(),
+                "statusCode", statusCode,
+                "clientAddress", clientAddress,
+                "message", message
+        ).encode();
+        LOGGER.warn(warnMessage);
     }
 }

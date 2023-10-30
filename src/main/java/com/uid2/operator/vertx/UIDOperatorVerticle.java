@@ -310,7 +310,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void SendErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus)
     {
-        ResponseUtil.Error(errorStatus, statusCode, rc, message);
+        if (statusCode == 400 || statusCode == 403) {
+            ResponseUtil.Warning(errorStatus, statusCode, rc, message);
+        } else if (statusCode == 500) {
+            ResponseUtil.Error(errorStatus, statusCode, rc, message);
+            rc.fail(500);
+        }
         recordTokenResponseStats(siteId, endpoint, responseStatus);
     }
     

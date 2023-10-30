@@ -85,14 +85,13 @@ public class ResponseUtil {
                 "errorStatus", errorStatus,
                 "contact", contextReader.getContact(),
                 "siteId", contextReader.getSiteId(),
-                "path", contextReader.getPath(),
                 "statusCode", statusCode,
                 "clientAddress", clientAddress,
                 "message", message
         );
         final String linkName = contextReader.getLinkName();
         if (!linkName.isBlank()) {
-            errorJsonObj.put(SecureLinkValidatorService.LINK_NAME, linkName);
+            errorJsonObj.put(SecureLinkValidatorService.SERVICE_LINK_NAME, linkName);
         }
         final String serviceName = contextReader.getServiceName();
         if (!serviceName.isBlank()) {

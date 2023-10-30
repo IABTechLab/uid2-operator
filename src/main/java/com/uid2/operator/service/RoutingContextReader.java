@@ -44,6 +44,6 @@ public class RoutingContextReader {
     }
 
     public String getLinkName() {
-        return context.get(SecureLinkValidatorService.LINK_NAME, "");
+        return context.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "");
     }
 }

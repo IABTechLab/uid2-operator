@@ -114,5 +114,21 @@
     "key_hash": "EsTnXmois+IXfkOVK6YPkFos5o3OO5O6cErZ0gab1SOA4gWK1a9XH1Ht2gCuQ+CxGYqsLszBLJZRVnl2b2eRAQ==",
     "key_salt": "v00XLTnO3/kS/zzHEkOcBo2QWTDtb4j9wFxU4G8Eu8Q=",
     "key_id": "UID2-C-L-127-aHVyd"
+  },
+  {
+    "key": "UID2-C-L-126-Tv40pS./TtagASU9S0tIqDyBSh283pla4mDyHBZvw+OQ=",
+    "secret": "qcWPpOZmlH2C0xRkdir+7Y+5hhgW1MicOhcqC8y2w8o=",
+    "name": "AWS Venice",
+    "contact": "AWS Venice",
+    "created": 1698695162,
+    "roles": [
+      "MAPPER"
+    ],
+    "site_id": 126,
+    "disabled": false,
+    "service_id": 2,
+    "key_hash": "SFPiVsksiaBXcI52q4hkxMLj3L8sOJ/UhoreNvVmxWOmlVCb1g0XbuAqS6Jw8EyCpGOr0+M85rwjfNJFvpRI5Q==",
+    "key_salt": "+O0XRF8LmdT0bWOKWTHWDART2iyjmGMkk6o9IIHDR4E=",
+    "key_id": "UID2-C-L-126-Tv40p"
   }
 ]

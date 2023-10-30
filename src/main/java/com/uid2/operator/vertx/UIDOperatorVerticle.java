@@ -1543,15 +1543,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void recordIdentityMapStatsForServiceLinks(RoutingContext rc, String apiContact, int inputCount,
-                                                       int invalidCount, int optoutCount) {
+                                                       int invalidCount, int optOutCount) {
         // If request is from a service, break it down further by link_id
-        String serviceLinkName = rc.get(SecureLinkValidatorService.LINK_NAME, "");
+        String serviceLinkName = rc.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "");
         if (!serviceLinkName.isBlank()) {
             // serviceName will be non-empty as it will be inserted during validation
             String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
             DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(serviceName + serviceLinkName,
-                    k -> DistributionSummary.builder("uid2.operator.identity.map.inputs")
-                .description("number of emails or email hashes passed to identity map batch endpoint")
+                    k -> DistributionSummary.builder("uid2.operator.identity.map.services.inputs")
+                .description("number of emails or phone numbers passed to identity map batch endpoint by services")
                 .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                 Tag.of("service_name", serviceName),
                 Tag.of("service_link_name", serviceLinkName)))
@@ -1560,22 +1560,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact,
                 k -> new Tuple.Tuple2<>(
-                Counter.builder("uid2.operator.identity.map.unmapped")
-                .description("invalid identifiers")
+                Counter.builder("uid2.operator.identity.map.services.unmapped")
+                .description("number of invalid identifiers passed to identity map batch endpoint by services")
                 .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                     Tag.of("reason", "invalid"),
                     Tag.of("service_name", serviceName),
                     Tag.of("service_link_name", serviceLinkName)))
                 .register(Metrics.globalRegistry),
-                Counter.builder("uid2.operator.identity.map.unmapped")
-                    .description("optout identifiers")
+                Counter.builder("uid2.operator.identity.map.services.unmapped")
+                    .description("number of optout identifiers passed to identity map batch endpoint by services")
                     .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                         Tag.of("reason", "optout"),
                         Tag.of("service_name", serviceName),
                         Tag.of("service_link_name", serviceLinkName)))
                     .register(Metrics.globalRegistry)));
             if (invalidCount > 0) counterTuple.getItem1().increment(invalidCount);
-            if (optoutCount > 0) counterTuple.getItem2().increment(optoutCount);
+            if (optOutCount > 0) counterTuple.getItem2().increment(optOutCount);
         }
     }
 

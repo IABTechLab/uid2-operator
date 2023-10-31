@@ -491,7 +491,11 @@ public class Main {
     }
 
     private IOperatorKeyRetriever createOperatorKeyRetriever() throws Exception {
-        var enclavePlatform = this.config.getString("enclave_platform", "");
+        var enclavePlatform = this.config.getString("enclave_platform");
+        if (enclavePlatform == null || enclavePlatform.equals("")) {
+            // default to load from config
+            return () -> this.config.getString(Const.Config.CoreApiTokenProp);
+        }
         switch (enclavePlatform) {
             case "azure-cc": {
                 var vaultName = this.config.getString(Const.Config.AzureVaultNameProp);
@@ -499,8 +503,7 @@ public class Main {
                 return OperatorKeyRetrieverFactory.getAzureOperatorKeyRetriever(vaultName, secretName);
             }
             default: {
-                // default to load from config
-                return () -> this.config.getString(Const.Config.CoreApiTokenProp);
+                throw new IllegalArgumentException();
             }
         }
     }

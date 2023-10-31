@@ -502,7 +502,7 @@ public class Main {
             }
             case "gcp-oidc": {
                 var secretVersionName = this.config.getString(Const.Config.GcpSecretVersionNameProp);
-                return new GcpOperatorKeyRetriever(secretVersionName);
+                return OperatorKeyRetrieverFactory.getGcpOperatorKeyRetriever(secretVersionName);
             }
             default: {
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));

@@ -47,7 +47,6 @@ public class KeyManager {
         List<Keyset> keysets = this.keysetProvider.getSnapshot().getAllKeysets().values().stream()
                 .filter(s -> s.isEnabled() && s.isDefault() && s.getSiteId() == siteId).collect(Collectors.toList());
         if (keysets.isEmpty()) {
-            LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d.", siteId));
             return null;
         }
 
@@ -62,6 +61,7 @@ public class KeyManager {
     public KeysetKey getActiveKeyBySiteId(int siteId, Instant asOf) {
         Keyset keyset = getDefaultKeysetBySiteId(siteId);
         if (keyset == null) {
+            LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d.", siteId));
             return null;
         }
 

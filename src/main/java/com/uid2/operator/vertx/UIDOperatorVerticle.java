@@ -569,6 +569,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
             if (defaultKeyset != null) {
                 resp.put("default_keyset_id", defaultKeyset.getKeysetId());
+            } else if (!(roleAuthorize.hasRole(Role.ID_READER) && !(roleAuthorize.hasRole(Role.GENERATOR) || roleAuthorize.hasRole(Role.SHARER)))) {
+                LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d.", clientKey.getSiteId()));
             }
             resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
 

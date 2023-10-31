@@ -503,7 +503,7 @@ public class Main {
                 return OperatorKeyRetrieverFactory.getAzureOperatorKeyRetriever(vaultName, secretName);
             }
             default: {
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));
             }
         }
     }

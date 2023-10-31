@@ -492,7 +492,7 @@ public class Main {
 
     private IOperatorKeyRetriever createOperatorKeyRetriever() throws Exception {
         var enclavePlatform = this.config.getString("enclave_platform");
-        if (enclavePlatform == null || enclavePlatform.equals("")) {
+        if (enclavePlatform == null || enclavePlatform.isEmpty()) {
             // default to load from config
             return () -> this.config.getString(Const.Config.CoreApiTokenProp);
         }

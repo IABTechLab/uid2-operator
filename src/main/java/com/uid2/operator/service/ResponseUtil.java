@@ -1,6 +1,8 @@
 package com.uid2.operator.service;
 
+import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
+import com.uid2.shared.store.ISiteStore;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -58,6 +60,21 @@ public class ResponseUtil {
 
     public static void ClientError(RoutingContext rc, String message) {
         Warning(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, message);
+    }
+
+    public static void SendErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider)
+    {
+        if (statusCode >= 400 && statusCode <= 499) {
+            ResponseUtil.Warning(errorStatus, statusCode, rc, message);
+        } else if (statusCode >= 500 && statusCode <= 599) {
+            ResponseUtil.Error(errorStatus, statusCode, rc, message);
+            rc.fail(statusCode);
+        }
+        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider);
+    }
+
+    public static void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider) {
+        TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, responseStatus);
     }
 
     public static JsonObject Response(String status, String message) {

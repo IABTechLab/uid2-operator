@@ -674,11 +674,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
                 } else if (!AuthMiddleware.isAuthenticated(rc)) {
                     // unauthenticated clients get a generic error
-                    ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                    ResponseUtil.Warning(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
-                    ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
+                    ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
                 } else if (r.isExpired()) {
-                    ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                    ResponseUtil.Warning(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
                 } else {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
@@ -704,11 +704,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
                 } else if (!AuthMiddleware.isAuthenticated(rc)) {
                     // unauthenticated clients get a generic error
-                    ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                    ResponseUtil.Warning(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
-                    ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
+                    ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
                 } else if (r.isExpired()) {
-                    ResponseUtil.Error(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                    ResponseUtil.Warning(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
                 } else {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
@@ -744,7 +744,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.Success(rc, Boolean.FALSE);
             }
         } catch (ClientInputValidationException cie) {
-            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
+            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
         } catch (Exception e) {
             LOGGER.error("Unknown error while validating token", e);
             rc.fail(500);
@@ -952,7 +952,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
             });
         } else {
-            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
+            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
         }
     }
 
@@ -975,7 +975,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             });
             return promise.future();
         } else {
-            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
+            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
             return Future.failedFuture("");
         }
     }
@@ -997,7 +997,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc.fail(500);
             }
         } else {
-            ResponseUtil.Error(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
+            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
         }
     }
 

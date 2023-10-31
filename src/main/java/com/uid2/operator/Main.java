@@ -1,6 +1,7 @@
 package com.uid2.operator;
 
 import ch.qos.logback.classic.LoggerContext;
+import com.google.common.base.Strings;
 import com.uid2.enclave.IOperatorKeyRetriever;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -492,7 +493,7 @@ public class Main {
 
     private IOperatorKeyRetriever createOperatorKeyRetriever() throws Exception {
         var enclavePlatform = this.config.getString("enclave_platform");
-        if (enclavePlatform == null || enclavePlatform.isEmpty()) {
+        if (Strings.isNullOrEmpty(enclavePlatform)) {
             // default to load from config
             return () -> this.config.getString(Const.Config.CoreApiTokenProp);
         }

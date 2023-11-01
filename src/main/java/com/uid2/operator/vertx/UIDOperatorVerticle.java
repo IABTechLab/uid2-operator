@@ -731,7 +731,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.Success(rc, Boolean.FALSE);
             }
         } catch (ClientInputValidationException cie) {
-            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
+            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented", cie);
         } catch (Exception e) {
             LOGGER.error("Unknown error while validating token", e);
             rc.fail(500);
@@ -845,7 +845,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
             }
         } catch (ClientInputValidationException cie) {
-            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "request body contains invalid argument(s)", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "request body contains invalid argument(s)", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider, cie);
         } catch (Exception e) {
             SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while generating token v2", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider, e);
         }

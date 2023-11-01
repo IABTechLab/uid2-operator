@@ -294,7 +294,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             handleClientSideTokenGenerateImpl(rc);
         } catch (Exception e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while handling client side token generate", null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while handling client side token generate", null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e);
         }
     }
 
@@ -314,7 +314,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             body = rc.body().asJsonObject();
         } catch (DecodeException ex) {
             SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "json payload is not valid", 
-                    null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadJsonPayload, siteProvider);
+                    null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadJsonPayload, siteProvider, ex);
             return;
         }
 
@@ -366,7 +366,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
             clientPublicKey = kf.generatePublic(pkSpec);
         } catch (Exception e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "bad public key", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "bad public key", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey, siteProvider, e);
             return;
         }
 
@@ -386,7 +386,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
         } catch (IllegalArgumentException e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "bad iv", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadIV, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "bad iv", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadIV, siteProvider, e);
             return;
         }
 
@@ -399,7 +399,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
             requestPayloadBytes = decrypt(ivAndCiphertext, 0, sharedSecret, aad);
         } catch (Exception e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "payload decryption failed", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "payload decryption failed", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, e);
             return;
         }
 
@@ -407,7 +407,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             requestPayload = new JsonObject(Buffer.buffer(Unpooled.wrappedBuffer(requestPayloadBytes)));
         } catch (DecodeException e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "encrypted payload contains invalid json", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "encrypted payload contains invalid json", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, e);
             return;
         }
 
@@ -676,7 +676,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, r);
         } catch (Exception e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while refreshing token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while refreshing token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e);
         }
     }
 
@@ -705,7 +705,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, r);
         } catch (Exception e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while refreshing token v2", siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while refreshing token v2", siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e);
         }
     }
 
@@ -788,7 +788,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
             }
         } catch (Exception e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while generating token v1", siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while generating token v1", siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e);
         }
     }
 
@@ -847,7 +847,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } catch (ClientInputValidationException cie) {
             SendErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "request body contains invalid argument(s)", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider);
         } catch (Exception e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while generating token v2", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while generating token v2", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider, e);
         }
     }
 
@@ -877,7 +877,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             sendJsonResponse(rc, toJson(t));
 
         } catch (Exception e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while generating token", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while generating token", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e);
         }
     }
 
@@ -900,7 +900,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, r);
         } catch (Exception e) {
-            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while refreshing token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider);
+            SendErrorResponseAndRecordStats(ResponseStatus.UnknownError, 500, rc, "Unknown error while refreshing token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e);
         }
     }
 

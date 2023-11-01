@@ -73,6 +73,17 @@ public class ResponseUtil {
         recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider);
     }
 
+    public static void SendErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, Exception exception)
+    {
+        if (statusCode >= 400 && statusCode <= 499) {
+            Warning(errorStatus, statusCode, rc, message, exception);
+        } else if (statusCode >= 500 && statusCode <= 599) {
+            Error(errorStatus, statusCode, rc, message, exception);
+            rc.fail(statusCode);
+        }
+        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider);
+    }
+
     public static void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider) {
         TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, responseStatus);
     }
@@ -96,8 +107,22 @@ public class ResponseUtil {
                 .end(json.encode());
     }
 
+    public static void Error(String errorStatus, int statusCode, RoutingContext rc, String message, Exception exception) {
+        logError(errorStatus, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress(), exception);
+        final JsonObject json = Response(errorStatus, message);
+        rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                .end(json.encode());
+    }
+
     public static void Warning(String status, int statusCode, RoutingContext rc, String message) {
         logWarning(status, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+        final JsonObject json = Response(status, message);
+        rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                .end(json.encode());
+    }
+
+    public static void Warning(String status, int statusCode, RoutingContext rc, String message, Exception exception) {
+        logWarning(status, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress(), exception);
         final JsonObject json = Response(status, message);
         rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
@@ -116,6 +141,19 @@ public class ResponseUtil {
         LOGGER.error(errorMessage);
     }
 
+    private static void logError(String errorStatus, int statusCode, String message, RoutingContextReader contextReader, String clientAddress, Exception exception) {
+        String errorMessage = "Error response to http request. " + JsonObject.of(
+                "errorStatus", errorStatus,
+                "contact", contextReader.getContact(),
+                "siteId", contextReader.getSiteId(),
+                "path", contextReader.getPath(),
+                "statusCode", statusCode,
+                "clientAddress", clientAddress,
+                "message", message
+        ).encode();
+        LOGGER.error(errorMessage, exception);
+    }
+
     private static void logWarning(String status, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
         String warnMessage = "Warning response to http request. " + JsonObject.of(
                 "errorStatus", status,
@@ -127,5 +165,18 @@ public class ResponseUtil {
                 "message", message
         ).encode();
         LOGGER.warn(warnMessage);
+    }
+
+    private static void logWarning(String status, int statusCode, String message, RoutingContextReader contextReader, String clientAddress, Exception exception) {
+        String warnMessage = "Warning response to http request. " + JsonObject.of(
+                "errorStatus", status,
+                "contact", contextReader.getContact(),
+                "siteId", contextReader.getSiteId(),
+                "path", contextReader.getPath(),
+                "statusCode", statusCode,
+                "clientAddress", clientAddress,
+                "message", message
+        ).encode();
+        LOGGER.warn(warnMessage, exception);
     }
 }

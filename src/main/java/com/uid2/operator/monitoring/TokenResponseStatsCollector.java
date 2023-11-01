@@ -33,7 +33,6 @@ public class TokenResponseStatsCollector {
         MissingParams,
         BadPublicKey,
         BadSubscriptionId,
-        BadTimestamp,
         InvalidHttpOrigin,
         BadIV,
         BadPayload, //the actual cstg payload in the JSON request 

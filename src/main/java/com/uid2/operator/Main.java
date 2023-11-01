@@ -199,7 +199,6 @@ public class Main {
                 app.run();
             } catch (Exception e) {
                 LOGGER.error("Error: " + e.getMessage(), e);
-                ((LoggerContext)org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
                 vertx.close();
                 System.exit(1);
             }

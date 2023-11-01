@@ -19,11 +19,11 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,7 +48,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     private final String remoteApiPath;
     private final String remoteApiBearerToken;
 
-    public CloudSyncOptOutStore(Vertx vertx, ICloudStorage fsLocal, JsonObject jsonConfig) throws MalformedURLException {
+    public CloudSyncOptOutStore(Vertx vertx, ICloudStorage fsLocal, JsonObject jsonConfig, String operatorKey) throws MalformedURLException {
         this.fsLocal = fsLocal;
         this.webClient = WebClient.create(vertx);
 
@@ -58,7 +58,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             this.remoteApiPort = -1 == url.getPort() ? 80 : url.getPort();
             this.remoteApiHost = url.getHost();
             this.remoteApiPath = url.getPath();
-            this.remoteApiBearerToken = "Bearer " + jsonConfig.getString(Const.Config.OptOutApiTokenProp);
+            this.remoteApiBearerToken = "Bearer " + operatorKey;
         } else {
             this.remoteApiPort = -1;
             this.remoteApiHost = null;

@@ -64,6 +64,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
+import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.OPT_OUT_CHECK_CUTOFF_DATE;
 import static com.uid2.shared.Const.Data.*;
@@ -169,7 +170,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 created,
                 Set.of(roles),
-                siteId
+                siteId,
+                "key-id"
         );
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
@@ -814,7 +816,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime,
                 Set.of(Role.MAPPER),
-                201
+                201,
+                null
         );
         ClientKey oldClientKey = new ClientKey(
                 null,
@@ -823,7 +826,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime.minusSeconds(5),
                 Set.of(Role.MAPPER),
-                201
+                201,
+                null
         );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
@@ -853,7 +857,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime,
                 Set.of(Role.MAPPER),
-                201
+                201,
+                null
         );
         ClientKey oldClientKey = new ClientKey(
                 null,
@@ -862,7 +867,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime.minusSeconds(5),
                 Set.of(Role.MAPPER),
-                201
+                201,
+                null
         );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
@@ -935,7 +941,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime,
                 Set.of(Role.GENERATOR),
-                201
+                201,
+                null
         );
         ClientKey oldClientKey = new ClientKey(
                 null,
@@ -944,7 +951,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime.minusSeconds(5),
                 Set.of(Role.GENERATOR),
-                201
+                201,
+                null
         );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
@@ -974,7 +982,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime,
                 Set.of(Role.GENERATOR),
-                201
+                201,
+                null
         );
         ClientKey oldClientKey = new ClientKey(
                 null,
@@ -983,7 +992,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime.minusSeconds(5),
                 Set.of(Role.GENERATOR),
-                201
+                201,
+                null
         );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
@@ -1146,7 +1156,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmail_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1176,7 +1186,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmailHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1188,10 +1198,10 @@ public class UIDOperatorVerticleTest {
 
             String advertisingTokenString = genBody.getString("advertising_token");
 
-            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
+            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(ValidateIdentityForEmailHash));
             JsonObject v2Payload = new JsonObject();
             v2Payload.put("token", advertisingTokenString);
-            v2Payload.put("email_hash", EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
+            v2Payload.put("email_hash", EncodingUtils.toBase64String(ValidateIdentityForEmailHash));
 
             send(apiVersion, vertx, apiVersion + "/token/validate", true, v1Param, v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
@@ -1206,7 +1216,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithBothEmailAndEmailHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1218,7 +1228,7 @@ public class UIDOperatorVerticleTest {
 
             String advertisingTokenString = genBody.getString("advertising_token");
 
-            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
+            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(ValidateIdentityForEmailHash));
             JsonObject v2Payload = new JsonObject();
             v2Payload.put("token", advertisingTokenString);
             v2Payload.put("email", emailAddress);
@@ -1491,7 +1501,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenValidateWithEmail_Mismatch(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1517,8 +1527,8 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         send(apiVersion, vertx, apiVersion + "/token/validate", true,
-                "token=abcdef&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
-                new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
+                "token=abcdef&email_hash=" + urlEncode(EncodingUtils.toBase64String(ValidateIdentityForEmailHash)),
+                new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(ValidateIdentityForEmailHash)),
                 200,
                 respJson -> {
                     assertFalse(respJson.getBoolean("body"));
@@ -2065,7 +2075,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhone_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = UIDOperatorVerticle.ValidationInputPhone;
+        final String phone = ValidateIdentityForPhone;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2095,8 +2105,8 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhoneHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = UIDOperatorVerticle.ValidationInputPhone;
-        final String phoneHash = EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputPhoneHash);
+        final String phone = ValidateIdentityForPhone;
+        final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForPhoneHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2126,8 +2136,8 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithBothPhoneAndPhoneHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = UIDOperatorVerticle.ValidationInputPhone;
-        final String phoneHash = EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash);
+        final String phone = ValidateIdentityForPhone;
+        final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForEmailHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2708,52 +2718,6 @@ public class UIDOperatorVerticleTest {
                 assertEquals(400, result.result().statusCode());
                 testContext.completeNow();
             }));
-    }
-
-    @Test
-    void cstgBadTimestamp(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
-        setupCstgBackend("cstg.co.uk");
-
-        IdentityType identityType = IdentityType.Email;
-        String rawId = "random@unifiedid.com";
-
-        JsonObject identityPayload = new JsonObject();
-        identityPayload.put("email_hash", getSha256(rawId));
-
-        final KeyFactory kf = KeyFactory.getInstance("EC");
-        final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
-        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
-        final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
-
-        final byte[] iv = Random.getBytes(12);
-        final long timestamp = now.minus(5, ChronoUnit.MINUTES).minusSeconds(1).toEpochMilli();
-        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
-        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad);
-        final String payload = EncodingUtils.toBase64String(payloadBytes);
-
-        JsonObject requestJson = new JsonObject();
-        requestJson.put("payload", payload);
-        requestJson.put("iv", EncodingUtils.toBase64String(iv));
-        requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
-        requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
-
-        sendCstg(vertx,
-                "v2/token/client-generate",
-                "https://cstg.co.uk",
-                requestJson,
-                secretKey,
-                400,
-                testContext,
-                respJson -> {
-                    assertEquals("error", respJson.getString("status"));
-                    assertEquals("invalid timestamp: request too old or client time drift", respJson.getString("message"));
-                    assertTokenStatusMetrics(
-                            clientSideTokenGenerateSiteId,
-                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
-                            TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
-                    testContext.completeNow();
-                });
     }
 
     @ParameterizedTest
@@ -3412,9 +3376,9 @@ public class UIDOperatorVerticleTest {
     private static String getClientSideGeneratedTokenOptOutIdentity(IdentityType identityType) {
         switch (identityType) {
             case Email:
-                return IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
+                return ClientSideTokenGenerateOptOutIdentityForEmail;
             case Phone:
-                return IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+                return ClientSideTokenGenerateOptOutIdentityForPhone;
         }
         throw new ClientInputValidationException("Invalid identity type " + identityType);
     }

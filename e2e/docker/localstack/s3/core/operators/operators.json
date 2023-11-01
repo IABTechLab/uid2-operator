@@ -13,7 +13,8 @@
     "site_id": 999,
     "operator_type": "PUBLIC",
     "key_hash": "rTD7MpJn5/j4G6N+Ph659F4FGtiJy7MLNtfVA7XUdu6cYC9ok6EwGeI2upyDOvxvPkOCUn7HBKay8ubPQmRc0A==",
-    "key_salt": "ZpqdDFksFeWx/ouPAoWi39TVuGrSGwijfCN4f0pAl2Y="
+    "key_salt": "ZpqdDFksFeWx/ouPAoWi39TVuGrSGwijfCN4f0pAl2Y=",
+    "key_id": "UID2-O-L-999-dp9Dt"
   },
   {
     "key": "OPLCLAjLRWcVlCDl9+BbwR38gzxYdiWFa751ynWLuI7JU4iA=",
@@ -29,7 +30,8 @@
     "site_id": 999,
     "operator_type": "PRIVATE",
     "key_hash": "SzTmabzOsL5TV9IEa7qQnyEeMOV8Atn9sy0ALnYAHDvDi8YO7nuNSCnf0eBGUaYEsqZTi9toB+38DNGFeITVrQ==",
-    "key_salt": "1QcfCgHA0arN/3a8mShATET1hVmNS90N6S4YBITfXKk="
+    "key_salt": "1QcfCgHA0arN/3a8mShATET1hVmNS90N6S4YBITfXKk=",
+    "key_id": "OPLCL"
   },
   {
     "key": "UID2-O-L-123-Xt/ght.6tODU8mmodEtI3J67LW3vcX50LOsQR4oqMMFk=",
@@ -45,7 +47,8 @@
     "site_id": 123,
     "operator_type": "PUBLIC",
     "key_hash": "kwm4bs6JwsxYA4HRarBQrzeBt9VM0rZ/KhjuyWIkrIH/EcApllVLpWcShzqQSxP3VVZCEwIbCHLLPV83PeHVKw==",
-    "key_salt": "r86XKx52T4NCbTI1Z084HuDOEmtiaGYkmuAVUjXNTC8="
+    "key_salt": "r86XKx52T4NCbTI1Z084HuDOEmtiaGYkmuAVUjXNTC8=",
+    "key_id": "UID2-O-L-123-Xt/gh"
   },
   {
     "key": "UID2-O-L-124-cr24Bt.dYP+Wpo6NWlP7CbvwpzHn0lXS3Cst6Y+qFDK4=",
@@ -60,7 +63,8 @@
     "site_id": 124,
     "operator_type": "PRIVATE",
     "key_hash": "jgl4NnuoVVuYVkWW7IUWHyL9aA5Uglzlb2c0xCAsVk09Tno2RQYIJ2nEqACGpMMarKp1uFbTAr2qKwh2q+ro6g==",
-    "key_salt": "kyrXH8X4F/SCTgw8SkWLBZSXQWBSZKgNqiQQFpJ5h04="
+    "key_salt": "kyrXH8X4F/SCTgw8SkWLBZSXQWBSZKgNqiQQFpJ5h04=",
+    "key_id": "UID2-O-L-124-cr24B"
   },
   {
     "key": "UID2-azure-cc-operator-key",
@@ -75,7 +79,8 @@
     "site_id": 124,
     "operator_type": "PRIVATE",
     "key_hash": "rtXong4ZyjwdshMNEICQv8Kd/vvX6d7PcB02AwcV3ElCnG7tXQvO+NKyqc93ObcVbwcJfZ1RPAGLjJhxdQQ55w==",
-    "key_salt": "0Qw0Ln9qym9pcyQ1lT0oIB0uZ2nWhnVsGBhe8CYJ5xI="
+    "key_salt": "0Qw0Ln9qym9pcyQ1lT0oIB0uZ2nWhnVsGBhe8CYJ5xI=",
+    "key_id": "UID2-azure"
   },
   {
     "key": "UID2-O-L-127-pDqphU.6FuXzThQMY8YEsCA8crqvAlzyGrjcF8P6XO84=",
@@ -90,6 +95,7 @@
     "site_id": 127,
     "operator_type": "PUBLIC",
     "key_hash": "rx3SYxt2PdnIIbhGMc0Cue3/JTk9WwyDiMMOp5WiU6pXbdkhjZ+BxgIChzMMZeLqAi/E4G5XZHMFnOe8Zzx3jg==",
-    "key_salt": "0L8h9CSPfDFEHurZZ33OOogd26zSjApBTWLmYHtauC8="
+    "key_salt": "0L8h9CSPfDFEHurZZ33OOogd26zSjApBTWLmYHtauC8=",
+    "key_id": "UID2-O-L-127-pDqph"
   }
 ]

@@ -65,9 +65,9 @@ public class ResponseUtil {
     public static void SendErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider)
     {
         if (statusCode >= 400 && statusCode <= 499) {
-            ResponseUtil.Warning(errorStatus, statusCode, rc, message);
+            Warning(errorStatus, statusCode, rc, message);
         } else if (statusCode >= 500 && statusCode <= 599) {
-            ResponseUtil.Error(errorStatus, statusCode, rc, message);
+            Error(errorStatus, statusCode, rc, message);
             rc.fail(statusCode);
         }
         recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider);

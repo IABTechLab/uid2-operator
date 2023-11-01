@@ -193,12 +193,21 @@ public class Main {
                 LOGGER.error("Unable to read config: " + ar.cause().getMessage(), ar.cause());
                 return;
             }
-
+            boolean needExit = false;
             try {
                 Main app = new Main(vertx, ar.result());
                 app.run();
             } catch (Exception e) {
                 LOGGER.error("Error: " + e.getMessage(), e);
+                needExit = true;
+            }
+
+            if(needExit){
+                try {
+                    // allow log flush
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                }
                 vertx.close();
                 System.exit(1);
             }

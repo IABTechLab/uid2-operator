@@ -169,7 +169,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 created,
                 Set.of(roles),
-                siteId
+                siteId,
+                "key-id"
         );
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
@@ -814,7 +815,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime,
                 Set.of(Role.MAPPER),
-                201
+                201,
+                null
         );
         ClientKey oldClientKey = new ClientKey(
                 null,
@@ -823,7 +825,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime.minusSeconds(5),
                 Set.of(Role.MAPPER),
-                201
+                201,
+                null
         );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
@@ -853,7 +856,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime,
                 Set.of(Role.MAPPER),
-                201
+                201,
+                null
         );
         ClientKey oldClientKey = new ClientKey(
                 null,
@@ -862,7 +866,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime.minusSeconds(5),
                 Set.of(Role.MAPPER),
-                201
+                201,
+                null
         );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
@@ -935,7 +940,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime,
                 Set.of(Role.GENERATOR),
-                201
+                201,
+                null
         );
         ClientKey oldClientKey = new ClientKey(
                 null,
@@ -944,7 +950,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime.minusSeconds(5),
                 Set.of(Role.GENERATOR),
-                201
+                201,
+                null
         );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
@@ -974,7 +981,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime,
                 Set.of(Role.GENERATOR),
-                201
+                201,
+                null
         );
         ClientKey oldClientKey = new ClientKey(
                 null,
@@ -983,7 +991,8 @@ public class UIDOperatorVerticleTest {
                 "test-contact",
                 newClientCreationDateTime.minusSeconds(5),
                 Set.of(Role.GENERATOR),
-                201
+                201,
+                null
         );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);

@@ -194,12 +194,23 @@ public class Main {
                 return;
             }
 
+            boolean errorQuit = false;
+
             try {
                 Main app = new Main(vertx, ar.result());
                 app.run();
             } catch (Exception e) {
                 LOGGER.error("Error: " + e.getMessage(), e);
-                ((LoggerContext)org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
+                errorQuit = true;
+            }
+
+            if(errorQuit){
+                // allow log to be flushed before quit app.
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    // swallow
+                }
                 vertx.close();
                 System.exit(1);
             }

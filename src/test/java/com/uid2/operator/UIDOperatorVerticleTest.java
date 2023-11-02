@@ -2468,7 +2468,7 @@ public class UIDOperatorVerticleTest {
 
         send("v2", vertx, "v2/token/generate", false, null, req, 200, json -> {
             try {
-                Assertions.assertEquals(UIDOperatorVerticle.ResponseStatus.OptOut, json.getString("status"));
+                Assertions.assertEquals(ResponseUtil.ResponseStatus.OptOut, json.getString("status"));
                 Assertions.assertNull(json.getJsonObject("body"));
                 assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut);
                 testContext.completeNow();
@@ -2638,7 +2638,7 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("please provide exactly one of: email_hash, phone_hash", respJson.getString("message"));
-                    assertEquals(UIDOperatorVerticle.ResponseStatus.ClientError, respJson.getString("status"));
+                    assertEquals(ResponseUtil.ResponseStatus.ClientError, respJson.getString("status"));
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,

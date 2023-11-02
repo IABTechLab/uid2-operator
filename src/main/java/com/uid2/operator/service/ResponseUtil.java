@@ -27,7 +27,7 @@ public class ResponseUtil {
     public static void Success(RoutingContext rc, Object body) {
         final JsonObject json = new JsonObject(new HashMap<>() {
             {
-                put("status", UIDOperatorVerticle.ResponseStatus.Success);
+                put("status", ResponseStatus.Success);
                 put("body", body);
             }
         });
@@ -47,7 +47,7 @@ public class ResponseUtil {
     public static JsonObject SuccessV2(Object body) {
         return new JsonObject(new HashMap<>() {
             {
-                put("status", UIDOperatorVerticle.ResponseStatus.Success);
+                put("status", ResponseStatus.Success);
                 put("body", body);
             }
         });
@@ -59,7 +59,7 @@ public class ResponseUtil {
     }
 
     public static void ClientError(RoutingContext rc, String message) {
-        Warning(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, message);
+        Warning(ResponseStatus.ClientError, 400, rc, message);
     }
 
     public static void SendClientErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider)
@@ -70,7 +70,7 @@ public class ResponseUtil {
 
     public static void SendServerErrorResponseAndRecordStats(RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, Exception exception)
     {
-        Error(UIDOperatorVerticle.ResponseStatus.UnknownError, 500, rc, message, exception);
+        Error(ResponseStatus.UnknownError, 500, rc, message, exception);
         rc.fail(500);
         recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider);
     }
@@ -149,5 +149,18 @@ public class ResponseUtil {
                 "message", message
         ).encode();
         LOGGER.warn(warnMessage);
+    }
+
+    public static class ResponseStatus {
+        public static final String Success = "success";
+        public static final String Unauthorized = "unauthorized";
+        public static final String ClientError = "client_error";
+        public static final String OptOut = "optout";
+        public static final String InvalidToken = "invalid_token";
+        public static final String ExpiredToken = "expired_token";
+        public static final String GenericError = "error";
+        public static final String UnknownError = "unknown";
+        public static final String InsufficientUserConsent = "insufficient_user_consent";
+        public static final String InvalidHttpOrigin = "invalid_http_origin";
     }
 }

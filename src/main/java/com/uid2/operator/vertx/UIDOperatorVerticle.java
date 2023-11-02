@@ -781,7 +781,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         return;
                     }
                     case INSUFFICIENT: {
-                        ResponseUtil.SuccessNoBodyV2(UIDOperatorVerticle.ResponseStatus.InsufficientUserConsent, rc);
+                        ResponseUtil.SuccessNoBodyV2(ResponseStatus.InsufficientUserConsent, rc);
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.InsufficientUserConsent, siteProvider);
                         return;
                     }
@@ -1780,19 +1780,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void sendJsonResponse(RoutingContext rc, JsonArray json) {
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
-    }
-
-    public static class ResponseStatus {
-        public static final String Success = "success";
-        public static final String Unauthorized = "unauthorized";
-        public static final String ClientError = "client_error";
-        public static final String OptOut = "optout";
-        public static final String InvalidToken = "invalid_token";
-        public static final String ExpiredToken = "expired_token";
-        public static final String GenericError = "error";
-        public static final String UnknownError = "unknown";
-        public static final String InsufficientUserConsent = "insufficient_user_consent";
-        public static final String InvalidHttpOrigin = "invalid_http_origin";
     }
 
     public enum UserConsentStatus {

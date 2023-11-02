@@ -23,7 +23,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
 
 import static com.uid2.operator.service.ResponseUtil.SendClientErrorResponseAndRecordStats;
-import static com.uid2.operator.service.ResponseUtil.SendServerErrorResponseAndRecordStats;
 
 public class V2PayloadHandler {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(V2PayloadHandler.class);
@@ -87,7 +86,7 @@ public class V2PayloadHandler {
 
         V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
         if (!request.isValid()) {
-            SendClientErrorResponseAndRecordStats(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider);
+            SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider);
             return;
         }
         rc.data().put("request", request.payload);
@@ -102,7 +101,7 @@ public class V2PayloadHandler {
             JsonObject respJson = (JsonObject) rc.data().get("response");
 
             // DevNote: 200 does not guarantee a token.
-            if (respJson.getString("status").equals(UIDOperatorVerticle.ResponseStatus.Success) && respJson.containsKey("body")) {
+            if (respJson.getString("status").equals(ResponseUtil.ResponseStatus.Success) && respJson.containsKey("body")) {
                 V2RequestUtil.handleRefreshTokenInResponseBody(respJson.getJsonObject("body"), this.keyManager, this.identityScope);
             }
 
@@ -110,7 +109,7 @@ public class V2PayloadHandler {
         }
         catch (Exception ex){
             LOGGER.error("Failed to generate token", ex);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 
@@ -126,7 +125,7 @@ public class V2PayloadHandler {
         if (bodyString != null && bodyString.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
             request = V2RequestUtil.parseRefreshRequest(bodyString, this.keyManager);
             if (!request.isValid()) {
-                SendClientErrorResponseAndRecordStats(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider);
+                SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider);
                 return;
             }
             rc.data().put("request", request.payload);
@@ -163,7 +162,7 @@ public class V2PayloadHandler {
         }
         catch (Exception ex){
             LOGGER.error("Failed to refresh token", ex);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 
@@ -199,7 +198,7 @@ public class V2PayloadHandler {
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
         } catch (Exception ex) {
             LOGGER.error("Failed to generate response", ex);
-            ResponseUtil.Error(UIDOperatorVerticle.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 }

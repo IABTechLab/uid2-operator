@@ -38,4 +38,12 @@ public class RoutingContextReader {
     public String getPath() {
         return context.request().path();
     }
+
+    public String getServiceName() {
+        return context.get(SecureLinkValidatorService.SERVICE_NAME, "");
+    }
+
+    public String getLinkName() {
+        return context.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "");
+    }
 }

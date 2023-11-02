@@ -5,6 +5,7 @@ import com.uid2.shared.auth.Role;
 import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.ServiceLink;
 import com.uid2.shared.store.reader.RotatingServiceLinkStore;
+import com.uid2.shared.store.reader.RotatingServiceStore;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,9 @@ import static org.mockito.Mockito.when;
 public class SecureLinkValidatorServiceTest {
     @Mock
     private RotatingServiceLinkStore rotatingServiceLinkStore;
+
+    @Mock
+    private RotatingServiceStore rotatingServiceStore;
     @Mock
     private RoutingContext routingContext;
 
@@ -35,7 +39,7 @@ public class SecureLinkValidatorServiceTest {
     void validateRequestReturnsTrueWhenServiceIdNotSet() {
         this.setClientKey(0);
 
-        SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore);
+        SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore, this.rotatingServiceStore);
         assertTrue(service.validateRequest(this.routingContext, null));
     }
 
@@ -47,7 +51,7 @@ public class SecureLinkValidatorServiceTest {
 
         when(this.rotatingServiceLinkStore.getServiceLink(10, "999")).thenReturn(new ServiceLink("999", 10, 100, "testServiceLink"));
 
-        SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore);
+        SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore, this.rotatingServiceStore);
         assertTrue(service.validateRequest(this.routingContext, requestJsonObject));
     }
 
@@ -59,7 +63,7 @@ public class SecureLinkValidatorServiceTest {
 
         when(this.rotatingServiceLinkStore.getServiceLink(10, "999")).thenReturn(null);
 
-        SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore);
+        SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore, this.rotatingServiceStore);
         assertFalse(service.validateRequest(this.routingContext, requestJsonObject));
     }
 

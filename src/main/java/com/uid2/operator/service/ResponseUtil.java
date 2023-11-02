@@ -62,25 +62,16 @@ public class ResponseUtil {
         Warning(UIDOperatorVerticle.ResponseStatus.ClientError, 400, rc, message);
     }
 
-    public static void SendErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider)
+    public static void SendClientErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider)
     {
-        if (statusCode >= 400 && statusCode <= 499) {
-            Warning(errorStatus, statusCode, rc, message);
-        } else if (statusCode >= 500 && statusCode <= 599) {
-            Error(errorStatus, statusCode, rc, message);
-            rc.fail(statusCode);
-        }
+        Warning(errorStatus, statusCode, rc, message);
         recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider);
     }
 
-    public static void SendErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, Exception exception)
+    public static void SendServerErrorResponseAndRecordStats(RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, Exception exception)
     {
-        if (statusCode >= 400 && statusCode <= 499) {
-            Warning(errorStatus, statusCode, rc, message, exception);
-        } else if (statusCode >= 500 && statusCode <= 599) {
-            Error(errorStatus, statusCode, rc, message, exception);
-            rc.fail(statusCode);
-        }
+        Error(UIDOperatorVerticle.ResponseStatus.UnknownError, 500, rc, message, exception);
+        rc.fail(500);
         recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider);
     }
 
@@ -116,13 +107,6 @@ public class ResponseUtil {
 
     public static void Warning(String status, int statusCode, RoutingContext rc, String message) {
         logWarning(status, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
-        final JsonObject json = Response(status, message);
-        rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                .end(json.encode());
-    }
-
-    public static void Warning(String status, int statusCode, RoutingContext rc, String message, Exception exception) {
-        logWarning(status, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress(), exception);
         final JsonObject json = Response(status, message);
         rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
@@ -165,18 +149,5 @@ public class ResponseUtil {
                 "message", message
         ).encode();
         LOGGER.warn(warnMessage);
-    }
-
-    private static void logWarning(String status, int statusCode, String message, RoutingContextReader contextReader, String clientAddress, Exception exception) {
-        String warnMessage = "Warning response to http request. " + JsonObject.of(
-                "errorStatus", status,
-                "contact", contextReader.getContact(),
-                "siteId", contextReader.getSiteId(),
-                "path", contextReader.getPath(),
-                "statusCode", statusCode,
-                "clientAddress", clientAddress,
-                "message", message
-        ).encode();
-        LOGGER.warn(warnMessage, exception);
     }
 }

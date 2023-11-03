@@ -22,7 +22,7 @@
         <enclave-aws.version>1.1.0</enclave-aws.version>
         <enclave-azure.version>1.4.0-2195ee834a</enclave-azure.version>
         <enclave-gcp.version>1.4.2-dd1920710d</enclave-gcp.version>
-        <uid2-shared.version>5.16.0-a72b7d9dd1</uid2-shared.version>
+        <uid2-shared.version>5.17.0-7c1a08e2f9</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
 

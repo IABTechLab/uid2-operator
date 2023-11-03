@@ -476,9 +476,6 @@ public class Main {
             case "gcp-oidc":
                 LOGGER.info("creating uid core client with gcp oidc attestation protocol");
                 return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher, CloudUtils.defaultProxy);
-            case "azure-sgx":
-                LOGGER.info("creating uid core client with azure sgx attestation protocol");
-                return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher, CloudUtils.defaultProxy);
             case "azure-cc":
                 LOGGER.info("creating uid core client with azure cc attestation protocol");
                 String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");

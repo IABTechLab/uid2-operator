@@ -58,13 +58,7 @@ variable "ssl" {
   default = false
 }
 
-variable "certificate" {
-  type    = string
-  default = null
+variable "ssl_certificate_domains" {
+  type        = list(string)
+  default     = []
 }
-
-variable "private_key" {
-  type    = string
-  default = null
-}
-

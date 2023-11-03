@@ -208,7 +208,7 @@ public class Main {
                 // allow log to be flushed before quit app.
                 try {
                     Thread.sleep(1000);
-                } catch (InterruptedException e) {
+                } catch (Exception e) {
                     // swallow
                 }
                 vertx.close();

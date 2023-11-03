@@ -22,10 +22,7 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
-import com.uid2.shared.model.ClientSideKeypair;
-import com.uid2.shared.model.KeysetKey;
-import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.model.Site;
+import com.uid2.shared.model.*;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
@@ -35,6 +32,7 @@ import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tag;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
@@ -68,18 +66,11 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
-import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
-
-    public static final String ValidationInputEmail = "validate@email.com";
-    public static final byte[] ValidationInputEmailHash = EncodingUtils.getSha256Bytes(ValidationInputEmail);
-    public static final String ValidationInputPhone = "+12345678901";
-    public static final byte[] ValidationInputPhoneHash = EncodingUtils.getSha256Bytes(ValidationInputPhone);
-
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
@@ -113,8 +104,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
-    private final Duration cstgRequestTimestampDeltaThreshold;
-    private final io.micrometer.core.instrument.Timer cstgRequestTimestampDelta;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
@@ -153,22 +142,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
-        this.cstgRequestTimestampDeltaThreshold = Duration.ofMinutes(config.getInteger("client_side_token_generate_request_timestamp_delta_threshold_in_minutes", 5));
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
-        this.cstgRequestTimestampDelta = io.micrometer.core.instrument.Timer.builder("uid2_request_timestamp_delta")
-                .tag("path", "/v2/token/client-generate")
-                .publishPercentileHistogram()
-                .minimumExpectedValue(Duration.ofSeconds(1))
-                .maximumExpectedValue(Duration.ofHours(config.getInteger("request_timestamp_delta_max_expected_hours", 48)))
-                .register(Metrics.globalRegistry);
     }
 
     @Override
     public void start(Promise<Void> startPromise) throws Exception {
         this.healthComponent.setHealthStatus(false, "still starting");
-
         this.idService = new UIDOperatorService(
                 this.config,
                 this.optOutStore,
@@ -353,16 +334,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin);
                 return;
             }
-        }
-
-        final Duration timestampDelta = Duration.between(Instant.ofEpochMilli(request.getTimestamp()), clock.instant()).abs();
-
-        this.cstgRequestTimestampDelta.record(timestampDelta);
-
-        if (timestampDelta.compareTo(cstgRequestTimestampDeltaThreshold) > 0) {
-            ResponseUtil.Error(ResponseStatus.GenericError, 400, rc, "invalid timestamp: request too old or client time drift");
-            recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
-            return;
         }
 
         if (request.getPayload() == null || request.getIv() == null || request.getPublicKey() == null) {
@@ -569,6 +540,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
             if (defaultKeyset != null) {
                 resp.put("default_keyset_id", defaultKeyset.getKeysetId());
+            } else if (roleAuthorize.hasRole(Role.SHARER)) {
+                LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d. Caller will not be able to encrypt tokens..", clientKey.getSiteId()));
             }
             resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
 
@@ -736,8 +709,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             }
-            if ((Arrays.equals(ValidationInputEmailHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Email)
-                    || (Arrays.equals(ValidationInputPhoneHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Phone)) {
+            if ((Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Email)
+                    || (Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Phone)) {
                 try {
                     final Instant now = Instant.now();
                     if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
@@ -765,8 +738,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
                 return;
             }
-            if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidationInputEmailHash, input.getIdentityInput()))
-                    || (input.getIdentityType() == IdentityType.Phone && Arrays.equals(ValidationInputPhoneHash, input.getIdentityInput()))) {
+            if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()))
+                    || (input.getIdentityType() == IdentityType.Phone && Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()))) {
                 try {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
@@ -926,7 +899,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleValidate(RoutingContext rc) {
         try {
             final InputUtil.InputVal input = getTokenInput(rc);
-            if (input != null && input.isValid() && Arrays.equals(ValidationInputEmailHash, input.getIdentityInput())) {
+            if (input != null && input.isValid() && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput())) {
                 try {
                     final Instant now = Instant.now();
                     if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
@@ -1566,6 +1539,44 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (invalidCount > 0 || optoutCount > 0) {
             rs.increment();
         }
+        recordIdentityMapStatsForServiceLinks(rc, apiContact, inputCount, invalidCount, optoutCount);
+    }
+
+    private void recordIdentityMapStatsForServiceLinks(RoutingContext rc, String apiContact, int inputCount,
+                                                       int invalidCount, int optOutCount) {
+        // If request is from a service, break it down further by link_id
+        String serviceLinkName = rc.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "");
+        if (!serviceLinkName.isBlank()) {
+            // serviceName will be non-empty as it will be inserted during validation
+            String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
+            DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(serviceName + serviceLinkName,
+                    k -> DistributionSummary.builder("uid2.operator.identity.map.services.inputs")
+                .description("number of emails or phone numbers passed to identity map batch endpoint by services")
+                .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                Tag.of("service_name", serviceName),
+                Tag.of("service_link_name", serviceLinkName)))
+                .register(Metrics.globalRegistry));
+            ds.record(inputCount);
+
+            Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact,
+                k -> new Tuple.Tuple2<>(
+                Counter.builder("uid2.operator.identity.map.services.unmapped")
+                .description("number of invalid identifiers passed to identity map batch endpoint by services")
+                .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                    Tag.of("reason", "invalid"),
+                    Tag.of("service_name", serviceName),
+                    Tag.of("service_link_name", serviceLinkName)))
+                .register(Metrics.globalRegistry),
+                Counter.builder("uid2.operator.identity.map.services.unmapped")
+                    .description("number of optout identifiers passed to identity map batch endpoint by services")
+                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                        Tag.of("reason", "optout"),
+                        Tag.of("service_name", serviceName),
+                        Tag.of("service_link_name", serviceLinkName)))
+                    .register(Metrics.globalRegistry)));
+            if (invalidCount > 0) counterTuple.getItem1().increment(invalidCount);
+            if (optOutCount > 0) counterTuple.getItem2().increment(optOutCount);
+        }
     }
 
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
@@ -1643,7 +1654,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private InputUtil.InputVal[] createInputListV1(JsonArray a, IdentityType identityType, InputUtil.IdentityInputType inputType) {
-        if (a == null || a.size() == 0) {
+        if (a == null || a.isEmpty()) {
             return new InputUtil.InputVal[0];
         }
         final int size = a.size();

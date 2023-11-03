@@ -14,5 +14,10 @@
     "id": 125,
     "name": "LoremTestIpsum Site",
     "enabled": true
+  },
+  {
+    "id": 126,
+    "name": "AWS Venice",
+    "enabled": true
   }
 ]

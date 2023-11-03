@@ -7,8 +7,8 @@
   },
   {
     "service_id": 2,
-    "site_id": 123,
+    "site_id": 126,
     "name": "testName2",
-    "roles": ["ID_READER"]
+    "roles": ["MAPPER"]
   }
 ]

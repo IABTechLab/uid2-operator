@@ -1,7 +1,9 @@
 package com.uid2.operator.service;
 
+import com.uid2.operator.IdentityConst;
 import com.uid2.operator.model.*;
 import com.uid2.operator.util.PrivacyBits;
+import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
@@ -21,8 +23,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForEmail;
-import static com.uid2.operator.IdentityConst.ClientSideTokenGenerateOptOutIdentityForPhone;
+import static com.uid2.operator.IdentityConst.*;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
@@ -38,6 +39,10 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final IdentityScope identityScope;
     private final UserIdentity testOptOutIdentityForEmail;
     private final UserIdentity testOptOutIdentityForPhone;
+    private final UserIdentity testValidateIdentityForEmail;
+    private final UserIdentity testValidateIdentityForPhone;
+    private final UserIdentity testRefreshOptOutIdentityForEmail;
+    private final UserIdentity testRefreshOptOutIdentityForPhone;
     private final Duration identityExpiresAfter;
     private final Duration refreshExpiresAfter;
     private final Duration refreshIdentityAfter;
@@ -55,9 +60,17 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.identityScope = identityScope;
 
         this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail("optout@email.com").getIdentityInput(), Instant.now());
+                InputUtil.normalizeEmail(OptOutIdentityForEmail).getIdentityInput(), Instant.now());
         this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone("+00000000000").getIdentityInput(), Instant.now());
+                InputUtil.normalizePhone(OptOutIdentityForPhone).getIdentityInput(), Instant.now());
+        this.testValidateIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
+                InputUtil.normalizeEmail(ValidateIdentityForEmail).getIdentityInput(), Instant.now());
+        this.testValidateIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
+                InputUtil.normalizePhone(ValidateIdentityForPhone).getIdentityInput(), Instant.now());
+        this.testRefreshOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
+                InputUtil.normalizeEmail(RefreshOptOutIdentityForEmail).getIdentityInput(), Instant.now());
+        this.testRefreshOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
+                InputUtil.normalizePhone(RefreshOptOutIdentityForPhone).getIdentityInput(), Instant.now());
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
@@ -92,7 +105,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.userIdentity.identityScope, request.userIdentity.identityType, firstLevelHash, request.userIdentity.privacyBits,
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
 
-        if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity).isOptedOut()) {
+        if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return IdentityTokens.LogoutToken;
         } else {
             return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
@@ -120,7 +133,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final boolean isCstg = privacyBits.isClientSideTokenGenerated();
 
         try {
-            final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.userIdentity);
+            final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.userIdentity, true);
             final boolean optedOut = logoutEntry.isOptedOut();
 
             final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
@@ -173,7 +186,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public MappedIdentity mapIdentity(MapRequest request) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.userIdentity, request.asOf);
-        if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity).isOptedOut()) {
+        if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return MappedIdentity.LogoutIdentity;
         } else {
             return getAdvertisingId(firstLevelHashIdentity, request.asOf);
@@ -312,12 +325,21 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
     }
 
-    private GlobalOptoutResult getGlobalOptOutResult(UserIdentity userIdentity) {
-        if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
+    private GlobalOptoutResult getGlobalOptOutResult(UserIdentity userIdentity, boolean forRefresh) {
+        if (forRefresh && (userIdentity.matches(testRefreshOptOutIdentityForEmail) || userIdentity.matches(testRefreshOptOutIdentityForPhone))) {
+            return new GlobalOptoutResult(Instant.now());
+        } else if (userIdentity.matches(testValidateIdentityForEmail) || userIdentity.matches(testValidateIdentityForPhone)
+        || userIdentity.matches(testRefreshOptOutIdentityForEmail) || userIdentity.matches(testRefreshOptOutIdentityForPhone)) {
+            return new GlobalOptoutResult(null);
+        } else if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
             return new GlobalOptoutResult(Instant.now());
         }
         Instant result = this.optOutStore.getLatestEntry(userIdentity);
         return new GlobalOptoutResult(result);
+    }
+
+    public TokenVersion getAdvertisingTokenVersion() {
+        return advertisingTokenVersion;
     }
 
 }

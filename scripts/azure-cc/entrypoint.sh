@@ -2,7 +2,6 @@
 #
 # This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
-# -- set API tokens
 if [ -z "${VAULT_NAME}" ]; then
   echo "VAULT_NAME cannot be empty"
   exit 1
@@ -13,20 +12,8 @@ if [ -z "${OPERATOR_KEY_SECRET_NAME}" ]; then
   exit 1
 fi
 
-ACCESS_TOKEN=$(wget "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net" -q --header "Metadata: true" -O -| jq -e -r ".access_token")
-if [ $? -ne 0 -o -z "${ACCESS_TOKEN}" ]; then
-  echo "Failed to get access token"
-  exit 1
-fi
-
-OPERATOR_KEY=$(wget "https://${VAULT_NAME}.vault.azure.net/secrets/${OPERATOR_KEY_SECRET_NAME}/?api-version=7.4" -q --header "authorization: Bearer ${ACCESS_TOKEN}" --header "content-type: application/json" -O - | jq -e -r ".value")
-if [ $? -ne 0 -o -z "${OPERATOR_KEY}" ]; then
-  echo "Failed to get operator key"
-  exit 1
-fi
-
-export core_api_token="${OPERATOR_KEY}"
-export optout_api_token="${OPERATOR_KEY}"
+export azure_vault_name="${VAULT_NAME}"
+export azure_secret_name="${OPERATOR_KEY_SECRET_NAME}"
 
 # -- locate config file
 if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then

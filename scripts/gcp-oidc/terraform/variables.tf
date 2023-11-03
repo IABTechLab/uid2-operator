@@ -59,6 +59,6 @@ variable "ssl" {
 }
 
 variable "ssl_certificate_domains" {
-  type        = list(string)
-  default     = []
+  type    = list(string)
+  default = []
 }

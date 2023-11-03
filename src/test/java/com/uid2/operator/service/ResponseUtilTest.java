@@ -18,6 +18,7 @@ import static org.mockito.Mockito.*;
 class ResponseUtilTest {
     private Logger logger;
     private ListAppender<ILoggingEvent> testAppender;
+    private RoutingContext rc;
 
     @BeforeEach
     void setUp() {
@@ -25,6 +26,9 @@ class ResponseUtilTest {
         testAppender = new ListAppender<>();
         testAppender.start();
         logger.addAppender(testAppender);
+        rc = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+        when(rc.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "")).thenReturn("");
+        when(rc.get(SecureLinkValidatorService.SERVICE_NAME, "")).thenReturn("");
     }
 
     @AfterEach
@@ -35,15 +39,12 @@ class ResponseUtilTest {
 
     @Test
     void logsErrorWithNoExtraDetails() {
-        RoutingContext rc = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-
         ResponseUtil.Error("Some error status", 500, rc, "Some error message");
 
         String expected = "Error response to http request. {" +
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":null," +
-                "\"path\":null," +
                 "\"statusCode\":500," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"" +
@@ -56,7 +57,6 @@ class ResponseUtilTest {
 
     @Test
     void logsErrorWithExtraDetailsFromAuthorizable() {
-        RoutingContext rc = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
         IAuthorizable mockAuthorizable = mock(IAuthorizable.class);
         when(mockAuthorizable.getContact()).thenReturn("Test Contract");
         when(mockAuthorizable.getSiteId()).thenReturn(10);
@@ -68,7 +68,6 @@ class ResponseUtilTest {
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":\"Test Contract\"," +
                 "\"siteId\":10," +
-                "\"path\":null," +
                 "\"statusCode\":500," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"" +
@@ -79,7 +78,6 @@ class ResponseUtilTest {
 
     @Test
     void logsErrorWithSiteIdFromContext() {
-        RoutingContext rc = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
         when(rc.get(Const.RoutingContextData.SiteId)).thenReturn(20);
 
         ResponseUtil.Error("Some error status", 500, rc, "Some error message");
@@ -88,7 +86,6 @@ class ResponseUtilTest {
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":20," +
-                "\"path\":null," +
                 "\"statusCode\":500," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"" +
@@ -97,28 +94,8 @@ class ResponseUtilTest {
         assertThat(loggingEvent.getMessage()).isEqualTo(expected);
     }
 
-    @Test
-    void logsErrorWithPath() {
-        RoutingContext rc = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-        when(rc.request().path()).thenReturn("some/path");
-
-        ResponseUtil.Error("Some error status", 500, rc, "Some error message");
-
-        String expected = "Error response to http request. {" +
-                "\"errorStatus\":\"Some error status\"," +
-                "\"contact\":null," +
-                "\"siteId\":null," +
-                "\"path\":\"some/path\"," +
-                "\"statusCode\":500," +
-                "\"clientAddress\":null," +
-                "\"message\":\"Some error message\"" +
-                "}";
-        ILoggingEvent loggingEvent = testAppender.list.get(0);
-        assertThat(loggingEvent.getMessage()).isEqualTo(expected);
-    }
     @Test
     void logsErrorWithClientAddress() {
-        RoutingContext rc = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
         io.vertx.core.net.SocketAddress socket = mock(io.vertx.core.net.SocketAddress.class);
         when(socket.hostAddress()).thenReturn("192.168.10.10");
 
@@ -130,10 +107,30 @@ class ResponseUtilTest {
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":null," +
-                "\"path\":null," +
                 "\"statusCode\":500," +
                 "\"clientAddress\":\"192.168.10.10\"," +
                 "\"message\":\"Some error message\"" +
+                "}";
+        ILoggingEvent loggingEvent = testAppender.list.get(0);
+        assertThat(loggingEvent.getMessage()).isEqualTo(expected);
+    }
+
+    @Test
+    void logsErrorWithServiceAndServiceLinkNames() {
+        RoutingContext rc1 = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+        when(rc1.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "")).thenReturn("TestLink1");
+        when(rc1.get(SecureLinkValidatorService.SERVICE_NAME, "")).thenReturn("TestService1");
+
+        ResponseUtil.Error("Some error status", 500, rc1, "Some error message");
+        String expected = "Error response to http request. {" +
+                "\"errorStatus\":\"Some error status\"," +
+                "\"contact\":null," +
+                "\"siteId\":null," +
+                "\"statusCode\":500," +
+                "\"clientAddress\":null," +
+                "\"message\":\"Some error message\"," +
+                "\"service_link_name\":\"TestLink1\"," +
+                "\"service_name\":\"TestService1\"" +
                 "}";
         ILoggingEvent loggingEvent = testAppender.list.get(0);
         assertThat(loggingEvent.getMessage()).isEqualTo(expected);

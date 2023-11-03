@@ -3,8 +3,10 @@ package com.uid2.operator.service;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.IAuthorizable;
 import com.uid2.shared.middleware.AuthMiddleware;
+import com.uid2.shared.model.Service;
 import com.uid2.shared.model.ServiceLink;
 import com.uid2.shared.store.reader.RotatingServiceLinkStore;
+import com.uid2.shared.store.reader.RotatingServiceStore;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
@@ -12,11 +14,15 @@ import org.slf4j.LoggerFactory;
 
 public class SecureLinkValidatorService {
     public static final String LINK_ID = "link_id";
+    public static final String SERVICE_LINK_NAME = "service_link_name";
+    public static final String SERVICE_NAME = "service_name";
     private static final Logger LOGGER = LoggerFactory.getLogger(SecureLinkValidatorService.class);
     private final RotatingServiceLinkStore rotatingServiceLinkStore;
+    private final RotatingServiceStore rotatingServiceStore;
 
-    public SecureLinkValidatorService(RotatingServiceLinkStore rotatingServiceLinkStore) {
+    public SecureLinkValidatorService(RotatingServiceLinkStore rotatingServiceLinkStore, RotatingServiceStore rotatingServiceStore) {
         this.rotatingServiceLinkStore = rotatingServiceLinkStore;
+        this.rotatingServiceStore = rotatingServiceStore;
     }
 
     public boolean validateRequest(RoutingContext rc, JsonObject requestJsonObject) {
@@ -39,6 +45,11 @@ public class SecureLinkValidatorService {
                         LOGGER.warn("ClientKey has ServiceId set, but LinkId in request was not authorized. ServiceId: {}, LinkId in request: {}", clientKey.getServiceId(), linkId);
                         return false;
                     }
+                    Service service = rotatingServiceStore.getService(clientKey.getServiceId());
+                    if (service != null) {
+                        rc.put(SERVICE_NAME, clientKey.getName());
+                    }
+                    rc.put(SERVICE_LINK_NAME, serviceLink.getName());
                 }
             }
         }

@@ -71,6 +71,11 @@ data "google_compute_image" "confidential_space_image" {
   project    = "confidential-space-images"
 }
 
+data "google_secret_manager_secret_version" "uid_operater_key" {
+  count  = var.uid_operator_key == "" ? 1 : 0
+  secret = var.uid_operator_key_secret_name
+}
+
 module "secret-manager" {
   depends_on = [module.project_services]
   source     = "GoogleCloudPlatform/secret-manager/google"
@@ -79,7 +84,7 @@ module "secret-manager" {
   secrets = [
     {
       name                  = var.uid_operator_key_secret_name
-      secret_data           = var.uid_operator_key
+      secret_data           = var.uid_operator_key != "" ? var.uid_operator_key : data.google_secret_manager_secret_version.uid_operater_key[0].secret_data
       automatic_replication = true
     },
   ]

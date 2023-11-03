@@ -81,15 +81,22 @@ public class ResponseUtil {
 
 
     private static void logError(String errorStatus, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
-        String errorMessage = "Error response to http request. " + JsonObject.of(
+        JsonObject errorJsonObj = JsonObject.of(
                 "errorStatus", errorStatus,
                 "contact", contextReader.getContact(),
                 "siteId", contextReader.getSiteId(),
-                "path", contextReader.getPath(),
                 "statusCode", statusCode,
                 "clientAddress", clientAddress,
                 "message", message
-        ).encode();
-        LOGGER.error(errorMessage);
+        );
+        final String linkName = contextReader.getLinkName();
+        if (!linkName.isBlank()) {
+            errorJsonObj.put(SecureLinkValidatorService.SERVICE_LINK_NAME, linkName);
+        }
+        final String serviceName = contextReader.getServiceName();
+        if (!serviceName.isBlank()) {
+            errorJsonObj.put(SecureLinkValidatorService.SERVICE_NAME, serviceName);
+        }
+        LOGGER.error("Error response to http request. " + errorJsonObj.encode());
     }
 }

@@ -251,7 +251,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider));
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider));
             if (this.disableHandler != null)
                 verticle.setDisableHandler(this.disableHandler);
             return verticle;
@@ -476,9 +476,6 @@ public class Main {
             case "gcp-oidc":
                 LOGGER.info("creating uid core client with gcp oidc attestation protocol");
                 return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher, CloudUtils.defaultProxy);
-            case "azure-sgx":
-                LOGGER.info("creating uid core client with azure sgx attestation protocol");
-                return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureAttestation(), responseWatcher, CloudUtils.defaultProxy);
             case "azure-cc":
                 LOGGER.info("creating uid core client with azure cc attestation protocol");
                 String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
@@ -499,6 +496,10 @@ public class Main {
                 var vaultName = this.config.getString(Const.Config.AzureVaultNameProp);
                 var secretName = this.config.getString(Const.Config.AzureSecretNameProp);
                 return OperatorKeyRetrieverFactory.getAzureOperatorKeyRetriever(vaultName, secretName);
+            }
+            case "gcp-oidc": {
+                var secretVersionName = this.config.getString(Const.Config.GcpSecretVersionNameProp);
+                return OperatorKeyRetrieverFactory.getGcpOperatorKeyRetriever(secretVersionName);
             }
             default: {
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));

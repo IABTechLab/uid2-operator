@@ -199,12 +199,10 @@ public class Main {
                 app.run();
             } catch (Exception e) {
                 LOGGER.error("Error: " + e.getMessage(), e);
-                System.out.format("Error: " + e.getMessage(), e);
             }
 
-            ((LoggerContext)org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
             try {
-                Thread.sleep(1000);
+                Thread.sleep(5000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }

@@ -1,6 +1,5 @@
 package com.uid2.operator;
 
-import ch.qos.logback.classic.LoggerContext;
 import com.google.common.base.Strings;
 import com.uid2.enclave.IOperatorKeyRetriever;
 import com.uid2.operator.model.KeyManager;

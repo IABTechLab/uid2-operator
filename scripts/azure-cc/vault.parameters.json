@@ -3,7 +3,10 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "vaultName": {
-            "value": "company-x"
+            "value": "uid-operatorcompany-x"
+        },
+        "operatorKeyName": {
+            "value": "operator-key"
         }
     }
 }

@@ -5,14 +5,12 @@
     "vnetName": {
       "value": "unified-id-network"
     },
-    "gatewaySubnet": {
+    "gatewaySubnetName": {
       "value": "unified-id-subnet-gateway"
     },
     "containerGroupIPs": {
       "value": [
-        {
-          "ipAddress": "10.0.0.4"
-        }
+        "10.0.0.4"
       ]
     }
   }

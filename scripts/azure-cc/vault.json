@@ -9,23 +9,29 @@
                 "description": "Location for all resources."
             }
         },
-        "containerGroupName": {
+        "operatorIdentifier": {
             "type": "string",
             "defaultValue": "uid-operator",
             "metadata": {
                 "description": "Name for the container group"
             }
         },
-        "operatorKey": {
+        "operatorKeyName": {
             "type": "string",
             "metadata": {
                 "description": "Operator Key"
             }
         },
-        "vaultSuffix": {
+        "operatorKeyValue": {
             "type": "string",
             "metadata": {
-                "description": "Unique suffix for vault name"
+                "description": "Operator Key"
+            }
+        },
+        "vaultName": {
+            "type": "string",
+            "metadata": {
+                "description": "Unique vault name"
             }
         }
     },
@@ -33,13 +39,13 @@
         "tags" : {
             "Service" : "unified-id-operator"
         },
-        "vaultName" : "[concat(parameters('containerGroupName'), parameters('vaultSuffix'))]"
+        "vaultName" : "[parameters('vaultName')]"
     },
     "resources": [
         {
             "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
             "apiVersion": "2023-01-31",
-            "name": "[parameters('containerGroupName')]",
+            "name": "[parameters('operatorIdentifier')]",
             "location": "[parameters('location')]",
             "tags": "[variables('tags')]"
         },
@@ -71,11 +77,11 @@
         {
             "type": "Microsoft.KeyVault/vaults/secrets",
             "apiVersion": "2022-07-01",
-            "name": "[format('{0}/operator-key', variables('vaultName'))]",
+            "name": "[format('{0}/{1}', variables('vaultName'), parameters('operatorKeyName'))]",
             "tags": "[variables('tags')]",
             "properties": {
                 "contentType": "string",
-                "value": "[parameters('operatorKey')]"
+                "value": "[parameters('operatorKeyValue')]"
             },
             "dependsOn": [
                 "[resourceId('Microsoft.KeyVault/vaults', variables('vaultName'))]"
@@ -89,7 +95,7 @@
                 "accessPolicies": [
                     {
                        "tenantId": "[subscription().tenantid]",
-                       "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('containerGroupName'))).principalId]",
+                       "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('operatorIdentifier'))).principalId]",
                        "permissions": {
                             "keys": ["get"],
                             "secrets": ["get", "list"],
@@ -99,7 +105,7 @@
                 ]
             },
             "dependsOn": [
-                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities',  parameters('containerGroupName'))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities',  parameters('operatorIdentifier'))]",
                 "[resourceId('Microsoft.KeyVault/vaults', variables('vaultName'))]"
             ]
         }

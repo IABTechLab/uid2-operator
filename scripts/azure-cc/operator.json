@@ -9,7 +9,7 @@
                 "description": "Location for all resources."
             }
         },
-        "containerGroupName": {
+        "operatorIdentifier": {
             "type": "string",
             "defaultValue": "uid-operator",
             "metadata": {
@@ -41,31 +41,24 @@
                 "description": "Number of container groups to provision"
             }
         },
-        "cpuRequest": {
-            "type": "int",
-            "allowedValues": [2,4,6,8],
-            "metadata": {
-                "description": "Number of cpus required for container"
-            }
-        },
-        "memoryRequest": {
-            "type": "int",
-            "allowedValues": [8,16,32],
-            "metadata": {
-                "description": "Number of memory required for container"
-            }
-        },
         "vaultName": {
             "type": "string",
             "metadata": {
                 "description": "Unique vault name"
             }
-        }
+        },
+        "operatorKeyName": {
+            "type": "string",
+            "metadata": {
+                "description": "Operator Key"
+            }
+        },
     },
     "variables": {
         "tags" : {
             "Service" : "unified-id-operator"
         },
+        "imageVersion": "5.18.60",
         "imageUrl": "ghcr.io/iabtechlab/uid2-operator:5.18.60-SNAPSHOT-azure-cc",
         "subnetID": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Network/virtualNetworks/{2}/subnets/{3}',subscription().subscriptionid, resourceGroup().name, parameters('vnetName'), parameters('computeSubnetName'))]" 
     },
@@ -77,12 +70,12 @@
             },
             "type": "Microsoft.ContainerInstance/containerGroups",
             "apiVersion": "2023-05-01",
-            "name": "[format('{0}-{1}-private',parameters('containerGroupName'), copyIndex())]",
+            "name": "[format('{0}-{1}-{2}',parameters('operatorIdentifier'), copyIndex(), variables('imageVersion'))]",
             "location": "[parameters('location')]",
             "identity": {
                 "type": "userAssigned",
                 "userAssignedIdentities": {
-                    "[resourceID('Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('containerGroupName'))]": {}
+                    "[resourceID('Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('operatorIdentifier'))]": {}
                 }
             },
             "tags": "[variables('tags')]",
@@ -129,8 +122,8 @@
                             ],
                             "resources": {
                                 "requests": {
-                                    "cpu": "[parameters('cpuRequest')]",
-                                    "memoryInGB": "[parameters('memoryRequest')]"
+                                    "cpu": 1,
+                                    "memoryInGB": 1
                                 }
                             },
                             "environmentVariables": [
@@ -140,7 +133,7 @@
                                 },
                                 {
                                     "name": "OPERATOR_KEY_SECRET_NAME",
-                                    "value": "operator-key"
+                                    "value": "[parameters('operatorKeyName')]"
                                 },
                                 {
                                     "name": "DEPLOYMENT_ENVIRONMENT",
@@ -170,5 +163,14 @@
                 }
             }
         }
-    ]
+    ],
+     "outputs": {
+        "ipAddress": {
+            "type": "array",
+            "copy": {
+                "count": "[parameters('count')]",
+                "input": "[reference(format('{0}-{1}-{2}',parameters('operatorIdentifier'), copyIndex(), variables('imageVersion'))).ipAddress.ip]"
+            }
+        }
+  }
   }

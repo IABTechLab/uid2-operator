@@ -4,42 +4,36 @@
     "parameters": {
         "vnetName": {
             "type": "string",
-            "defaultValue": "unified-id-network",
             "metadata": {
                 "description": "VNet name"
             }
         },
         "vnetAddressPrefix": {
             "type": "string",
-            "defaultValue": "10.0.0.0/20",
             "metadata": {
                 "description": "Address prefix"
             }
         },
         "computeSubnetPrefix": {
             "type": "string",
-            "defaultValue": "10.0.0.0/24",
             "metadata": {
                 "description": "Subnet 1 Prefix, used to run operator containers"
             }
         },
         "computeSubnetName": {
             "type": "string",
-            "defaultValue": "unified-id-subnet-operators",
             "metadata": {
                 "description": "Name of subnet that runs operator compute"
             }
         },
         "gatewaySubnetPrefix": {
             "type": "string",
-            "defaultValue": "10.0.1.0/28",
             "metadata": {
                 "description": "Subnet 2 Prefix, used to run application gateway"
             }
         },
         "gatewaySubnetName": {
             "type": "string",
-            "defaultValue": "unified-id-subnet-gateway",
             "metadata": {
                 "description": "Name of subnet that runs gateway"
             }

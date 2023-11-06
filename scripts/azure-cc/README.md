@@ -42,5 +42,5 @@ az deployment group create --name vault --resource-group {RESOURCE_GROUP_NAME} -
 Since the operators are created in private subnet, we need a public IP. Copy the container IP of the created containers running operators to `gateway.parameters.json` and run
 
 ```
-az deployment group create --name vault --resource-group {RESOURCE_GROUP_NAME} --parameters gateway.parameters.json  --template-file gateway.json
+az deployment group create --name gateway --resource-group {RESOURCE_GROUP_NAME} --parameters gateway.parameters.json  --template-file gateway.json
 ```

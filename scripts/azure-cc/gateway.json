@@ -6,7 +6,7 @@
             "type": "string",
             "defaultValue": "[resourceGroup().location]",
             "metadata": {
-                "description": "Location for all resources."
+                "description": "Location for all resources"
             }
         },
         "containerGroupIPs": {
@@ -16,19 +16,26 @@
             }
         },
         "vnetName": {
-            "type": "string",
-            "defaultValue": "unified-id-network"
+            "type": "string"
         },
-        "gatewaySubnet": {
-            "type": "string",
-            "defaultValue": "unified-id-subnet-gateway"
+        "gatewaySubnetName": {
+            "type": "string"
         }
     },
     "variables": {
         "tags" : {
             "Service" : "unified-id-operator"
         },
-        "publicIP": "unified-id-gateway-ip"
+        "publicIP": "unified-id-gateway-ip",
+        "copy": [
+            {
+                "name": "ipAddresses",
+                "count": "[length(parameters('containerGroupIPs'))]",
+                "input": {
+                    "ipAddress": "[parameters('containerGroupIPs')[copyIndex('ipAddresses')]]"
+                }
+            }
+        ]
     },
     "resources": [
         {
@@ -66,7 +73,7 @@
                         "name": "uid-operator-gateway-config",
                         "properties": {
                             "subnet": {
-                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('gatewaySubnet'))]"
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('gatewaySubnetName'))]"
                             }
                         }
                     }
@@ -94,7 +101,7 @@
                     {
                         "name": "uid-operator-pool",
                         "properties": {
-                            "backendAddresses": "[parameters('containerGroupIPs')]"
+                            "backendAddresses": "[variables('ipAddresses')]"
                         }
                     }
                 ],

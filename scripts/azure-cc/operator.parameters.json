@@ -11,17 +11,14 @@
     "vaultName": {
       "value": "uid-operatorcompany-x"
     },
+    "operatorKeyName": {
+      "value": "operator-key"
+    },
     "count": {
       "value": 2
     },
     "deploymentEnvironment": {
       "value": "integ"
-    },
-    "cpuRequest": {
-      "value": 2
-    },
-    "memoryRequest": {
-      "value": 8
     }
   }
 }

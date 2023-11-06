@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vnetName": {
+      "value": "unified-id-network"
+    },
+    "computeSubnetName": {
+      "value": "unified-id-subnet-operators"
+    },
+    "vaultSuffix": {
+      "value": "company-x"
+    },
+    "count": {
+      "value": 2
+    },
+    "deploymentEnvironment": {
+      "value": "integ"
+    }
+  }
+}

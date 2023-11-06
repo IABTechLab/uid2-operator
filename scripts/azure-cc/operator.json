@@ -1,0 +1,161 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "containerGroupName": {
+            "type": "string",
+            "defaultValue": "uid-operator",
+            "metadata": {
+                "description": "Name for the container group"
+            }
+        },
+        "deploymentEnvironment": {
+            "type": "string",
+            "metadata": {
+                "description": "Deployment environment"
+            },
+            "allowedValues": ["prod", "integ"]
+        },
+        "computeSubnetName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of subnet to deploy containers in"
+            }
+        },
+        "vnetName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of vnet to deploy containers in"
+            }
+        },
+        "count": {
+            "type": "int",
+            "defaultValue": 2,
+            "metadata": {
+                "description": "Number of container groups to provision"
+            }
+        },
+        "vaultSuffix": {
+            "type": "string",
+            "metadata": {
+                "description": "Unique suffix for vault name"
+            }
+        }
+    },
+    "variables": {
+        "tags" : {
+            "Service" : "unified-id-operator"
+        },
+        "imageUrl": "ghcr.io/iabtechlab/uid2-operator:5.18.60-SNAPSHOT-azure-cc",
+        "subnetID": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Network/virtualNetworks/{2}/subnets/{3}',subscription().subscriptionid, resourceGroup().location, parameters('vnetName'), parameters('computeSubnetName'))]" 
+    },
+    "resources": [
+        {
+            "copy": {
+                "name": "count",
+                "count": "[length(range(0, parameters('count')))]"
+            },
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "apiVersion": "2023-05-01",
+            "name": "[format('{0}-{1}-private',parameters('containerGroupName'), copyIndex())]",
+            "location": "[parameters('location')]",
+            "identity": {
+                "type": "userAssigned",
+                "userAssignedIdentities": {
+                    "[resourceID('Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('containerGroupName'))]": {}
+                }
+            },
+            "tags": "[variables('tags')]",
+            "properties": {
+                "confidentialComputeProperties": {
+                    "ccePolicy": ""
+                },
+                "containers": [
+                    {
+                        "name": "skr",
+                        "properties": {
+                            "image": "mcr.microsoft.com/aci/skr:2.3",
+                            "command": [
+                                "/skr.sh"
+                            ],
+                            "ports": [
+                                {
+                                    "port": 9000
+                                }
+                            ],
+                            "resources": {
+                                "requests": {
+                                    "cpu": 1,
+                                    "memoryInGB": 1
+                                }
+                            },
+                            "environmentVariables": [
+                                {
+                                    "name": "Port",
+                                    "value": "9000"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "uid2-operator",
+                        "properties": {
+                            "image": "[variables('imageUrl')]",
+                            "ports": [
+                                {
+                                "port": 8080,
+                                "protocol": "TCP"
+                                }
+                            ],
+                            "resources": {
+                                "requests": {
+                                    "cpu": 4,
+                                    "memoryInGB": 16
+                                }
+                            },
+                            "environmentVariables": [
+                                {
+                                    "name": "VAULT_NAME",
+                                    "value": "[concat(parameters('containerGroupName'), parameters('vaultSuffix'))]"
+                                },
+                                {
+                                    "name": "OPERATOR_KEY_SECRET_NAME",
+                                    "value": "operator-key"
+                                },
+                                {
+                                    "name": "DEPLOYMENT_ENVIRONMENT",
+                                    "value": "[parameters('deploymentEnvironment')]"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "sku": "Confidential",
+                "osType": "Linux",
+                "restartPolicy": "Never",
+                "subnetIds": [
+                    {
+                        "id": "[variables('subnetID')]",
+                        "name": "[parameters('computeSubnetName')]"
+                    }
+                ],
+                "ipAddress": {
+                    "type": "Private",
+                    "ports": [
+                        {
+                            "port": 8080,
+                            "protocol": "TCP"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+  }

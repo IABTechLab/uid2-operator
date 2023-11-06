@@ -43,22 +43,22 @@
         },
         "cpuRequest": {
             "type": "int",
-            "allowedValues": [4,6,8],
+            "allowedValues": [2,4,6,8],
             "metadata": {
                 "description": "Number of cpus required for container"
             }
         },
         "memoryRequest": {
             "type": "int",
-            "allowedValues": [16,32],
+            "allowedValues": [8,16,32],
             "metadata": {
                 "description": "Number of memory required for container"
             }
         },
-        "vaultSuffix": {
+        "vaultName": {
             "type": "string",
             "metadata": {
-                "description": "Unique suffix for vault name"
+                "description": "Unique vault name"
             }
         }
     },
@@ -136,7 +136,7 @@
                             "environmentVariables": [
                                 {
                                     "name": "VAULT_NAME",
-                                    "value": "[concat(parameters('containerGroupName'), parameters('vaultSuffix'))]"
+                                    "value": "[parameters('vaultName')]"
                                 },
                                 {
                                     "name": "OPERATOR_KEY_SECRET_NAME",

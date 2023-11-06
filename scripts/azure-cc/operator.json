@@ -52,7 +52,7 @@
             "metadata": {
                 "description": "Operator Key"
             }
-        },
+        }
     },
     "variables": {
         "tags" : {
@@ -60,7 +60,12 @@
         },
         "imageVersion": "5.18.60",
         "imageUrl": "ghcr.io/iabtechlab/uid2-operator:5.18.60-SNAPSHOT-azure-cc",
-        "subnetID": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Network/virtualNetworks/{2}/subnets/{3}',subscription().subscriptionid, resourceGroup().name, parameters('vnetName'), parameters('computeSubnetName'))]" 
+        "subnetID": [
+            {
+                "id": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Network/virtualNetworks/{2}/subnets/{3}',subscription().subscriptionid, resourceGroup().name, parameters('vnetName'), parameters('computeSubnetName'))]",
+                "name": "[parameters('computeSubnetName')]"
+            }
+        ]
     },
     "resources": [
         {
@@ -146,14 +151,9 @@
                 "sku": "Confidential",
                 "osType": "Linux",
                 "restartPolicy": "Never",
-                "subnetIds": [
-                    {
-                        "id": "[variables('subnetID')]",
-                        "name": "[parameters('computeSubnetName')]"
-                    }
-                ],
+                "subnetIds":  "[if(equals(parameters('computeSubnetName'),''), json('null'), variables('subnetID'))]",
                 "ipAddress": {
-                    "type": "Private",
+                    "type": "[if(equals(parameters('computeSubnetName'),''), 'Public', 'Private')]",
                     "ports": [
                         {
                             "port": 8080,

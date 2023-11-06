@@ -36,7 +36,7 @@ az deployment group create --name vault --resource-group {RESOURCE_GROUP_NAME} -
 Create the operator containers now. 
  
 ```
-az deployment group create --name vault --resource-group {RESOURCE_GROUP_NAME} --parameters operator.parameters.json  --template-file operator.json
+az deployment group create --name operator --resource-group {RESOURCE_GROUP_NAME} --parameters operator.parameters.json  --template-file operator.json
 ```
 
 Since the operators are created in private subnet, we need a public IP. Copy the container IP of the created containers running operators to `gateway.parameters.json` and run

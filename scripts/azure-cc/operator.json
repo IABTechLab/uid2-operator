@@ -11,7 +11,6 @@
         },
         "operatorIdentifier": {
             "type": "string",
-            "defaultValue": "uid-operator",
             "metadata": {
                 "description": "Name for the container group"
             }
@@ -58,8 +57,8 @@
         "tags" : {
             "Service" : "unified-id-operator"
         },
-        "imageVersion": "5.18.60",
-        "imageUrl": "ghcr.io/iabtechlab/uid2-operator:5.18.60-SNAPSHOT-azure-cc",
+        "imageVersion": "5.18.60-SNAPSHOT-azure-cc",
+        "imageUrl": "[format('ghcr.io/iabtechlab/uid2-operator:{0}',variables('imageVersion'))]",
         "subnetID": [
             {
                 "id": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Network/virtualNetworks/{2}/subnets/{3}',subscription().subscriptionid, resourceGroup().name, parameters('vnetName'), parameters('computeSubnetName'))]",
@@ -75,7 +74,7 @@
             },
             "type": "Microsoft.ContainerInstance/containerGroups",
             "apiVersion": "2023-05-01",
-            "name": "[format('{0}-{1}-{2}',parameters('operatorIdentifier'), copyIndex(), variables('imageVersion'))]",
+            "name": "[format('{0}-{1}-{2}',parameters('operatorIdentifier'), variables('imageVersion'), copyIndex())]",
             "location": "[parameters('location')]",
             "identity": {
                 "type": "userAssigned",
@@ -173,4 +172,4 @@
             }
         }
   }
-  }
+}

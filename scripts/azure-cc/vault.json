@@ -11,7 +11,6 @@
         },
         "operatorIdentifier": {
             "type": "string",
-            "defaultValue": "uid-operator",
             "metadata": {
                 "description": "Name for the container group"
             }
@@ -110,4 +109,4 @@
             ]
         }
     ]
-  }
+}

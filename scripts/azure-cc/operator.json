@@ -37,9 +37,22 @@
         },
         "count": {
             "type": "int",
-            "defaultValue": 2,
             "metadata": {
                 "description": "Number of container groups to provision"
+            }
+        },
+        "cpuRequest": {
+            "type": "int",
+            "allowedValues": [4,6,8],
+            "metadata": {
+                "description": "Number of cpus required for container"
+            }
+        },
+        "memoryRequest": {
+            "type": "int",
+            "allowedValues": [16,32],
+            "metadata": {
+                "description": "Number of memory required for container"
             }
         },
         "vaultSuffix": {
@@ -116,8 +129,8 @@
                             ],
                             "resources": {
                                 "requests": {
-                                    "cpu": 4,
-                                    "memoryInGB": 16
+                                    "cpu": "[parameters('cpuRequest')]",
+                                    "memoryInGB": "[parameters('memoryRequest')]"
                                 }
                             },
                             "environmentVariables": [

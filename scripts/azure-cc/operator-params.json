@@ -16,6 +16,12 @@
     },
     "deploymentEnvironment": {
       "value": "integ"
+    },
+    "cpuRequest": {
+      "value": 4
+    },
+    "memoryRequest": {
+      "value": 16
     }
   }
 }

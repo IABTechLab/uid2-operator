@@ -121,6 +121,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final int keyId = b.getInt(2);
         final KeysetKey key = this.keyManager.getKey(keyId);
 
+        if (key == null) {
+            throw new ClientInputValidationException("Failed to fetch key with id: " + keyId);
+        }
+
         final byte[] decryptedPayload = AesGcm.decrypt(bytes, 6, key);
 
         final Buffer b2 = Buffer.buffer(decryptedPayload);

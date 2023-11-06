@@ -8,8 +8,8 @@
     "computeSubnetName": {
       "value": "unified-id-subnet-operators"
     },
-    "vaultSuffix": {
-      "value": "company-x"
+    "vaultName": {
+      "value": "uid-operatorcompany-x"
     },
     "count": {
       "value": 2
@@ -18,10 +18,10 @@
       "value": "integ"
     },
     "cpuRequest": {
-      "value": 4
+      "value": 2
     },
     "memoryRequest": {
-      "value": 16
+      "value": 8
     }
   }
 }

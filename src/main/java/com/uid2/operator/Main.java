@@ -492,6 +492,9 @@ public class Main {
             return () -> this.config.getString(Const.Config.CoreApiTokenProp);
         }
         switch (enclavePlatform) {
+            case "aws-nitro": {
+                return () -> this.config.getString(Const.Config.CoreApiTokenProp);
+            }
             case "azure-cc": {
                 var vaultName = this.config.getString(Const.Config.AzureVaultNameProp);
                 var secretName = this.config.getString(Const.Config.AzureSecretNameProp);

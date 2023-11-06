@@ -18,7 +18,7 @@ Following files will be generated:
 Create a resource group for running the UID2 Operator
   
 ```
-az deployment group create -g {RESOURCE_GROUP_NAME}
+az deployment group create -g {RESOURCE_GROUP_NAME} --location {LOCATION}
 ```
 
 Once resource group is created, you can create the networking required. This is optional if you need to use your existing network. However it is recommend. 

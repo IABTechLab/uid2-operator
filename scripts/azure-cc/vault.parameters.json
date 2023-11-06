@@ -10,6 +10,9 @@
         },
         "operatorKeyName": {
             "value": "operator-key"
+        },
+        "operatorKeyValue": {
+            "value": "XXXXXXX"
         }
     }
 }

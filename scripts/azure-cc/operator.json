@@ -67,7 +67,7 @@
             "Service" : "unified-id-operator"
         },
         "imageUrl": "ghcr.io/iabtechlab/uid2-operator:5.18.60-SNAPSHOT-azure-cc",
-        "subnetID": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Network/virtualNetworks/{2}/subnets/{3}',subscription().subscriptionid, resourceGroup().location, parameters('vnetName'), parameters('computeSubnetName'))]" 
+        "subnetID": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Network/virtualNetworks/{2}/subnets/{3}',subscription().subscriptionid, resourceGroup().name, parameters('vnetName'), parameters('computeSubnetName'))]" 
     },
     "resources": [
         {

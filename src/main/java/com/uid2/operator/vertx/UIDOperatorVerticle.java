@@ -1530,8 +1530,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         String serviceLinkName = rc.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "");
         if (!serviceLinkName.isBlank()) {
             // serviceName will be non-empty as it will be inserted during validation
-            String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
-            DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(serviceName + serviceLinkName,
+            final String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
+            final String metricKey = serviceName + serviceLinkName;
+            DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(metricKey,
                     k -> DistributionSummary.builder("uid2.operator.identity.map.services.inputs")
                 .description("number of emails or phone numbers passed to identity map batch endpoint by services")
                 .tags(Arrays.asList(Tag.of("api_contact", apiContact),
@@ -1540,7 +1541,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .register(Metrics.globalRegistry));
             ds.record(inputCount);
 
-            Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact,
+            Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(metricKey,
                 k -> new Tuple.Tuple2<>(
                 Counter.builder("uid2.operator.identity.map.services.unmapped")
                 .description("number of invalid identifiers passed to identity map batch endpoint by services")

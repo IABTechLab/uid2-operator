@@ -3,48 +3,48 @@ set -x
 
 # Following environment variables must be set
 # - IMAGE: uid2-operator image
-
-# Following environment variables may be set
-# - INPUT_TEMPLATE_FILE: deployment template file, default is deployment-template.json in this script's directory
-# - INPUT_PARAMETERS_FILE: deployment parameters file, default is deployment-parameters.json in this script's directory
-# - OUTPUT_TEMPLATE_FILE: generated deployment template file, default is uid2-operator-deployment-template.json
-# - OUTPUT_PARAMETERS_FILE: generated deployment parameters file, default is uid2-operator-deployment-parameters.json
-# - OUTPUT_POLICY_DIGEST_FILE: generated policy digest file, default is uid2-operator-deployment-digest.txt
+# - OUTPUT_DIR: output directory to store the artifacts
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+INPUT_DIR=${SCRIPT_DIR}
 
 if [[ -z ${IMAGE} ]]; then
   echo "IMAGE cannot be empty"
   exit 1
 fi
-
-if [[ -z ${INPUT_TEMPLATE_FILE} ]]; then
-  INPUT_TEMPLATE_FILE=${SCRIPT_DIR}/deployment-template.json
-fi
-if [[ ! -f ${INPUT_TEMPLATE_FILE} ]]; then
-  echo "INPUT_TEMPLATE_FILE does not exist"
+IMAGE_VERSION=$(echo $IMAGE | awk -F':' '{print $2}')
+if [[ -z ${IMAGE_VERSION} ]]; then
+  echo "Failed to extract image version from ${IMAGE}"
   exit 1
 fi
 
-if [[ -z ${INPUT_PARAMETERS_FILE} ]]; then
-  INPUT_PARAMETERS_FILE=${SCRIPT_DIR}/deployment-parameters.json
-fi
-if [[ ! -f ${INPUT_PARAMETERS_FILE} ]]; then
-  echo "INPUT_PARAMETERS_FILE does not exist"
+if [[ -z ${OUTPUT_DIR} ]]; then
+  echo "OUTPUT_DIR cannot be empty"
   exit 1
 fi
 
-if [[ -z ${OUTPUT_TEMPLATE_FILE} ]]; then
-  OUTPUT_TEMPLATE_FILE=uid2-operator-deployment-template.json
+mkdir -p ${OUTPUT_DIR}
+if [[ $? -ne 0 ]]; then
+  echo "Failed to create ${OUTPUT_DIR}"
+  exit 1
 fi
 
-if [[ -z ${OUTPUT_PARAMETERS_FILE} ]]; then
-  OUTPUT_PARAMETERS_FILE=uid2-operator-deployment-parameters.json
-fi
+# Input files
+INPUT_FILES=(
+    operator.json operator.parameters.json
+    vault.json vault.parameters.json
+    vnet.json vnet.parameters.json
+    gateway.json gateway.parameters.json
+)
 
-if [[ -z ${OUTPUT_POLICY_DIGEST_FILE} ]]; then
-  OUTPUT_POLICY_DIGEST_FILE=uid2-operator-deployment-digest.txt
-fi
+# Copy input files to output dir
+for f in ${INPUT_FILES[@]}; do
+    cp ${INPUT_DIR}/${f} ${OUTPUT_DIR}/${f}
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to copy ${INPUT_DIR}/${f} to ${OUTPUT_DIR}"
+        exit 1
+    fi
+done
 
 # Install confcom extension, az is originally available in GitHub workflow environment
 az extension add --name confcom
@@ -60,17 +60,17 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-# Generate deployment template
-sed "s#IMAGE_PLACEHOLDER#${IMAGE}#g" ${INPUT_TEMPLATE_FILE} > ${OUTPUT_TEMPLATE_FILE}
+# Generate operator template
+sed -i "s#IMAGE_PLACEHOLDER#${IMAGE}#g" ${OUTPUT_DIR}/operator.json && \
+  sed -i "s#IMAGE_VERSION_PLACEHOLDER#${IMAGE_VERSION}#g" ${OUTPUT_DIR}/operator.json
 if [[ $? -ne 0 ]]; then
-  echo "Failed to pre-process template file"
+  echo "Failed to pre-process operator template file"
   exit 1
 fi
 
-az confcom acipolicygen --approve-wildcards --template-file ${OUTPUT_TEMPLATE_FILE} > ${OUTPUT_POLICY_DIGEST_FILE}
+POLICY_DIGEST_FILE=operator-digest.txt
+az confcom acipolicygen --approve-wildcards --template-file ${OUTPUT_DIR}/operator.json > ${OUTPUT_DIR}/${POLICY_DIGEST_FILE}
 if [[ $? -ne 0 ]]; then
-  echo "Failed to generate template file"
+  echo "Failed to generate operator template file"
   exit 1
 fi
-
-cp ${INPUT_PARAMETERS_FILE} ${OUTPUT_PARAMETERS_FILE}

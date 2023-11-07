@@ -29,19 +29,20 @@ az deployment group create --name vnet --resource-group ${RESOURCE_GROUP_NAME} -
 ```
 
 Now, create vault to store the operator key, and the identity to run operator.
-Please set the `vaultName` and `operatorKeyValue` parameters before running below command. 
+Please set the `vaultName` and `operatorKeyValue` parameters in `vault.parameters.json` before running below command. 
 
 ```
 az deployment group create --name vault --resource-group ${RESOURCE_GROUP_NAME} --template-file vault.json --parameters vault.parameters.json
 ```
 
 Create the operator containers now. 
+Please set the `vaultName` parameter in `operator.parameters.json` as the same as in `vault.parameters.json` before running below command. 
  
 ```
 az deployment group create --name operator --resource-group ${RESOURCE_GROUP_NAME} --template-file operator.json --parameters operator.parameters.json
 ```
 
-Since the operators are created in private subnet, we need a public IP. Copy the container IP of the created containers running operators to `gateway.parameters.json` and run
+Since the operators are created in private subnet, we need a public IP. Copy the container IP of the created containers running operators to parameter `containerGroupIPs` in `gateway.parameters.json` and run
 
 ```
 az deployment group create --name gateway --resource-group ${RESOURCE_GROUP_NAME} --template-file gateway.json --parameters gateway.parameters.json

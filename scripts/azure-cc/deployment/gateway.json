@@ -186,10 +186,5 @@
             ]
         }
     ],
-    "outputs": {
-    "containerIPv4Address": {
-      "type": "string",
-      "value": "[reference(resourceId('Microsoft.Network/applicationGateways', 'uid-operator-gateway')).backendAddressPools]"
-    }
-  }
+    "outputs": {}
 }

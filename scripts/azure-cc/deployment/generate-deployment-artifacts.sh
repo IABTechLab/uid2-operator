@@ -4,10 +4,6 @@ set -x
 # Following environment variables must be set
 # - IMAGE: uid2-operator image
 # - OUTPUT_DIR: output directory to store the artifacts
-#
-# This script generates following output
-# - Deployment files will be stored to ${OUTPUT_DIR}
-# - Deployment files will also be archived into file ${OUTPUT_DIR}/uid2-operator-deployment-artifacts.zip
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 INPUT_DIR=${SCRIPT_DIR}
@@ -76,12 +72,5 @@ POLICY_DIGEST_FILE=operator-digest.txt
 az confcom acipolicygen --approve-wildcards --template-file ${OUTPUT_DIR}/operator.json > ${OUTPUT_DIR}/${POLICY_DIGEST_FILE}
 if [[ $? -ne 0 ]]; then
   echo "Failed to generate operator template file"
-  exit 1
-fi
-
-# Archive output files
-zip -j ${OUTPUT_DIR}/uid2-operator-deployment-artifacts.zip ${OUTPUT_DIR}/*
-if [[ $? -ne 0 ]]; then
-  echo "Failed to archive output files"
   exit 1
 fi

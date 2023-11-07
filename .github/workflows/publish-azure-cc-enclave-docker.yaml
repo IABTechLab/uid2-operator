@@ -165,6 +165,11 @@ jobs:
           path: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}
 
+      - name: Generate release archive
+        if: inputs.is_release
+        run: |
+          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+
       - name: Release
         uses: softprops/action-gh-release@v1
         if: inputs.is_release
@@ -173,4 +178,4 @@ jobs:
           tag_name: v${{ steps.meta.outputs.version }}
           body: UID2 Operator for deployment on Azure Confidential Container environment.
           files: |
-            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts.zip
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip

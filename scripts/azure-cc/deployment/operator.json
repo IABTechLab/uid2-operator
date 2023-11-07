@@ -167,7 +167,7 @@
             "type": "array",
             "copy": {
                 "count": "[parameters('count')]",
-                "input": "[reference(format('{0}-{1}-{2}',parameters('operatorIdentifier'), copyIndex(), variables('imageVersion'))).ipAddress.ip]"
+                "input": "[reference(format('{0}-{1}-{2}',parameters('operatorIdentifier'), variables('imageVersion'), copyIndex())).ipAddress.ip]"
             }
         }
   }

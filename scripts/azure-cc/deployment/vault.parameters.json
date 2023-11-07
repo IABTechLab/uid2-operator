@@ -6,13 +6,13 @@
             "value": "uid-operator"
         },
         "vaultName": {
-            "value": "uid-operatorcompany-x"
+            "value": ""
         },
         "operatorKeyName": {
             "value": "operator-key"
         },
         "operatorKeyValue": {
-            "value": "XXXXXXX"
+            "value": ""
         }
     }
 }

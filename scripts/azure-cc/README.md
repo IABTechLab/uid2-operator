@@ -5,7 +5,7 @@
 Generate deployment files by following command.
 
 ```
-IMAGE={IMAGE} OUTPUT_DIR=output ./generate-deployment-artifacts.sh
+IMAGE={IMAGE} OUTPUT_DIR=output ./deployment/generate-deployment-artifacts.sh
 ```
 Following files will be generated:
 

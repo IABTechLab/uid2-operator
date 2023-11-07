@@ -156,7 +156,7 @@ jobs:
           IMAGE: ${{ steps.meta.outputs.tags }}
           OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
         run: |
-          bash ./scripts/azure-cc/generate-deployment-artifacts.sh
+          bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 
       - name: Archive deployment artifacts
         uses: actions/upload-artifact@v3

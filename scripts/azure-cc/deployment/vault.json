@@ -56,7 +56,7 @@
             "location": "[parameters('location')]",
             "properties": {
                 "accessPolicies": [],
-                "enableRbacAuthorization": true,
+                "enableRbacAuthorization": false,
                 "enableSoftDelete": true,
                 "softDeleteRetentionInDays": 90,
                 "enabledForDeployment": false,

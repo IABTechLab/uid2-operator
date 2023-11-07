@@ -80,7 +80,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Archive output files
-zip -r ${OUTPUT_DIR}/uid2-operator-deployment-artifacts.zip ${OUTPUT_DIR}/*
+zip -j ${OUTPUT_DIR}/uid2-operator-deployment-artifacts.zip ${OUTPUT_DIR}/*
 if [[ $? -ne 0 ]]; then
   echo "Failed to archive output files"
   exit 1

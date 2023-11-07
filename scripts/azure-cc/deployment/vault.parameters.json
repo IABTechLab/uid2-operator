@@ -1,18 +1,18 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-    "contentVersion": "1.0.0.0",
-    "parameters": {
-        "operatorIdentifier": {
-            "value": "uid-operator"
-        },
-        "vaultName": {
-            "value": ""
-        },
-        "operatorKeyName": {
-            "value": "operator-key"
-        },
-        "operatorKeyValue": {
-            "value": ""
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "operatorIdentifier": {
+      "value": "uid-operator"
+    },
+    "vaultName": {
+      "value": ""
+    },
+    "operatorKeyName": {
+      "value": "operator-key"
+    },
+    "operatorKeyValue": {
+      "value": ""
     }
+  }
 }

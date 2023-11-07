@@ -1,112 +1,119 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "parameters": {
-        "location": {
-            "type": "string",
-            "defaultValue": "[resourceGroup().location]",
-            "metadata": {
-                "description": "Location for all resources."
-            }
-        },
-        "operatorIdentifier": {
-            "type": "string",
-            "metadata": {
-                "description": "Name for the container group"
-            }
-        },
-        "operatorKeyName": {
-            "type": "string",
-            "metadata": {
-                "description": "Operator Key"
-            }
-        },
-        "operatorKeyValue": {
-            "type": "string",
-            "metadata": {
-                "description": "Operator Key"
-            }
-        },
-        "vaultName": {
-            "type": "string",
-            "metadata": {
-                "description": "Unique vault name"
-            }
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
     },
-    "variables": {
-        "tags" : {
-            "Service" : "unified-id-operator"
-        },
-        "vaultName" : "[parameters('vaultName')]"
+    "operatorIdentifier": {
+      "type": "string",
+      "metadata": {
+        "description": "Name for the container group"
+      }
     },
-    "resources": [
-        {
-            "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
-            "apiVersion": "2023-01-31",
-            "name": "[parameters('operatorIdentifier')]",
-            "location": "[parameters('location')]",
-            "tags": "[variables('tags')]"
+    "operatorKeyName": {
+      "type": "string",
+      "metadata": {
+        "description": "Operator Key"
+      }
+    },
+    "operatorKeyValue": {
+      "type": "string",
+      "metadata": {
+        "description": "Operator Key"
+      }
+    },
+    "vaultName": {
+      "type": "string",
+      "metadata": {
+        "description": "Unique vault name"
+      }
+    }
+  },
+  "variables": {
+    "tags": {
+      "Service": "unified-id-operator"
+    },
+    "vaultName": "[parameters('vaultName')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[parameters('operatorIdentifier')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]"
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2021-11-01-preview",
+      "name": "[variables('vaultName')]",
+      "tags": "[variables('tags')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "accessPolicies": [],
+        "enableRbacAuthorization": false,
+        "enableSoftDelete": true,
+        "softDeleteRetentionInDays": 90,
+        "enabledForDeployment": false,
+        "enabledForDiskEncryption": false,
+        "enabledForTemplateDeployment": false,
+        "tenantId": "[subscription().tenantId]",
+        "sku": {
+          "name": "standard",
+          "family": "A"
         },
-        {
-            "type": "Microsoft.KeyVault/vaults",
-            "apiVersion": "2021-11-01-preview",
-            "name":  "[variables('vaultName')]",
-            "tags": "[variables('tags')]",
-            "location": "[parameters('location')]",
-            "properties": {
-                "accessPolicies": [],
-                "enableRbacAuthorization": false,
-                "enableSoftDelete": true,
-                "softDeleteRetentionInDays": 90,
-                "enabledForDeployment": false,
-                "enabledForDiskEncryption": false,
-                "enabledForTemplateDeployment": false,
-                "tenantId": "[subscription().tenantId]",
-                "sku": {
-                    "name": "standard",
-                    "family": "A"
-                },
-                "networkAcls": {
-                    "defaultAction": "Allow",
-                    "bypass": "AzureServices"
-                }
-            }
-        },
-        {
-            "type": "Microsoft.KeyVault/vaults/secrets",
-            "apiVersion": "2022-07-01",
-            "name": "[format('{0}/{1}', variables('vaultName'), parameters('operatorKeyName'))]",
-            "tags": "[variables('tags')]",
-            "properties": {
-                "contentType": "string",
-                "value": "[parameters('operatorKeyValue')]"
-            },
-            "dependsOn": [
-                "[resourceId('Microsoft.KeyVault/vaults', variables('vaultName'))]"
-            ]
-        },
-        {
-            "type": "Microsoft.KeyVault/vaults/accessPolicies",
-            "name": "[concat(variables('vaultName'), '/add')]",
-            "apiVersion": "2016-10-01",
-            "properties": {
-                "accessPolicies": [
-                    {
-                       "tenantId": "[subscription().tenantid]",
-                       "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('operatorIdentifier'))).principalId]",
-                       "permissions": {
-                            "keys": ["get"],
-                            "secrets": ["get", "list"],
-                            "storage": [ "get" ]
-                        }
-                    }
-                ]
-            },
-            "dependsOn": [
-                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities',  parameters('operatorIdentifier'))]",
-                "[resourceId('Microsoft.KeyVault/vaults', variables('vaultName'))]"
-            ]
+        "networkAcls": {
+          "defaultAction": "Allow",
+          "bypass": "AzureServices"
         }
-    ]
+      }
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2022-07-01",
+      "name": "[format('{0}/{1}', variables('vaultName'), parameters('operatorKeyName'))]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "contentType": "string",
+        "value": "[parameters('operatorKeyValue')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('vaultName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/accessPolicies",
+      "name": "[concat(variables('vaultName'), '/add')]",
+      "apiVersion": "2016-10-01",
+      "properties": {
+        "accessPolicies": [
+          {
+            "tenantId": "[subscription().tenantid]",
+            "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('operatorIdentifier'))).principalId]",
+            "permissions": {
+              "keys": [
+                "get"
+              ],
+              "secrets": [
+                "get",
+                "list"
+              ],
+              "storage": [
+                "get"
+              ]
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities',  parameters('operatorIdentifier'))]",
+        "[resourceId('Microsoft.KeyVault/vaults', variables('vaultName'))]"
+      ]
+    }
+  ]
 }

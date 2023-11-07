@@ -1,174 +1,177 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "parameters": {
-        "location": {
-            "type": "string",
-            "defaultValue": "[resourceGroup().location]",
-            "metadata": {
-                "description": "Location for all resources."
-            }
-        },
-        "operatorIdentifier": {
-            "type": "string",
-            "metadata": {
-                "description": "Name for the container group"
-            }
-        },
-        "deploymentEnvironment": {
-            "type": "string",
-            "metadata": {
-                "description": "Deployment environment"
-            },
-            "allowedValues": ["prod", "integ"]
-        },
-        "computeSubnetName": {
-            "type": "string",
-            "metadata": {
-                "description": "Name of subnet to deploy containers in"
-            }
-        },
-        "vnetName": {
-            "type": "string",
-            "metadata": {
-                "description": "Name of vnet to deploy containers in"
-            }
-        },
-        "count": {
-            "type": "int",
-            "metadata": {
-                "description": "Number of container groups to provision"
-            }
-        },
-        "vaultName": {
-            "type": "string",
-            "metadata": {
-                "description": "Unique vault name"
-            }
-        },
-        "operatorKeyName": {
-            "type": "string",
-            "metadata": {
-                "description": "Operator Key"
-            }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "operatorIdentifier": {
+      "type": "string",
+      "metadata": {
+        "description": "Name for the container group"
+      }
+    },
+    "deploymentEnvironment": {
+      "type": "string",
+      "metadata": {
+        "description": "Deployment environment"
+      },
+      "allowedValues": [
+        "prod",
+        "integ"
+      ]
+    },
+    "computeSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of subnet to deploy containers in"
+      }
+    },
+    "vnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of vnet to deploy containers in"
+      }
+    },
+    "count": {
+      "type": "int",
+      "metadata": {
+        "description": "Number of container groups to provision"
+      }
+    },
+    "vaultName": {
+      "type": "string",
+      "metadata": {
+        "description": "Unique vault name"
+      }
+    },
+    "operatorKeyName": {
+      "type": "string",
+      "metadata": {
+        "description": "Operator Key"
+      }
+    }
+  },
+  "variables": {
+    "tags": {
+      "Service": "unified-id-operator"
+    },
+    "imageVersion": "IMAGE_VERSION_PLACEHOLDER",
+    "subnetID": [
+      {
+        "id": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Network/virtualNetworks/{2}/subnets/{3}',subscription().subscriptionid, resourceGroup().name, parameters('vnetName'), parameters('computeSubnetName'))]",
+        "name": "[parameters('computeSubnetName')]"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "copy": {
+        "name": "count",
+        "count": "[length(range(0, parameters('count')))]"
+      },
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}-{1}-{2}',parameters('operatorIdentifier'), variables('imageVersion'), copyIndex())]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "userAssigned",
+        "userAssignedIdentities": {
+          "[resourceID('Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('operatorIdentifier'))]": {}
         }
-    },
-    "variables": {
-        "tags" : {
-            "Service" : "unified-id-operator"
+      },
+      "tags": "[variables('tags')]",
+      "properties": {
+        "confidentialComputeProperties": {
+          "ccePolicy": ""
         },
-        "imageVersion": "IMAGE_VERSION_PLACEHOLDER",
-        "subnetID": [
-            {
-                "id": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Network/virtualNetworks/{2}/subnets/{3}',subscription().subscriptionid, resourceGroup().name, parameters('vnetName'), parameters('computeSubnetName'))]",
-                "name": "[parameters('computeSubnetName')]"
-            }
-        ]
-    },
-    "resources": [
-        {
-            "copy": {
-                "name": "count",
-                "count": "[length(range(0, parameters('count')))]"
-            },
-            "type": "Microsoft.ContainerInstance/containerGroups",
-            "apiVersion": "2023-05-01",
-            "name": "[format('{0}-{1}-{2}',parameters('operatorIdentifier'), variables('imageVersion'), copyIndex())]",
-            "location": "[parameters('location')]",
-            "identity": {
-                "type": "userAssigned",
-                "userAssignedIdentities": {
-                    "[resourceID('Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('operatorIdentifier'))]": {}
-                }
-            },
-            "tags": "[variables('tags')]",
+        "containers": [
+          {
+            "name": "uid2-operator",
             "properties": {
-                "confidentialComputeProperties": {
-                    "ccePolicy": ""
-                },
-                "containers": [
-                    {
-                        "name": "uid2-operator",
-                        "properties": {
-                            "image": "IMAGE_PLACEHOLDER",
-                            "ports": [
-                                {
-                                "port": 8080,
-                                "protocol": "TCP"
-                                }
-                            ],
-                            "resources": {
-                                "requests": {
-                                    "cpu": 4,
-                                    "memoryInGB": 16
-                                }
-                            },
-                            "environmentVariables": [
-                                {
-                                    "name": "VAULT_NAME",
-                                    "value": "[parameters('vaultName')]"
-                                },
-                                {
-                                    "name": "OPERATOR_KEY_SECRET_NAME",
-                                    "value": "[parameters('operatorKeyName')]"
-                                },
-                                {
-                                    "name": "DEPLOYMENT_ENVIRONMENT",
-                                    "value": "[parameters('deploymentEnvironment')]"
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "name": "skr",
-                        "properties": {
-                            "image": "mcr.microsoft.com/aci/skr:2.3",
-                            "command": [
-                                "/skr.sh"
-                            ],
-                            "ports": [
-                                {
-                                    "port": 9000
-                                }
-                            ],
-                            "resources": {
-                                "requests": {
-                                    "cpu": 1,
-                                    "memoryInGB": 1
-                                }
-                            },
-                            "environmentVariables": [
-                                {
-                                    "name": "Port",
-                                    "value": "9000"
-                                }
-                            ]
-                        }
-                    }
-                ],
-                "sku": "Confidential",
-                "osType": "Linux",
-                "restartPolicy": "Never",
-                "subnetIds":  "[if(equals(parameters('computeSubnetName'),''), json('null'), variables('subnetID'))]",
-                "ipAddress": {
-                    "type": "[if(equals(parameters('computeSubnetName'),''), 'Public', 'Private')]",
-                    "ports": [
-                        {
-                            "port": 8080,
-                            "protocol": "TCP"
-                        }
-                    ]
+              "image": "IMAGE_PLACEHOLDER",
+              "ports": [
+                {
+                  "port": 8080,
+                  "protocol": "TCP"
                 }
+              ],
+              "resources": {
+                "requests": {
+                  "cpu": 4,
+                  "memoryInGB": 16
+                }
+              },
+              "environmentVariables": [
+                {
+                  "name": "VAULT_NAME",
+                  "value": "[parameters('vaultName')]"
+                },
+                {
+                  "name": "OPERATOR_KEY_SECRET_NAME",
+                  "value": "[parameters('operatorKeyName')]"
+                },
+                {
+                  "name": "DEPLOYMENT_ENVIRONMENT",
+                  "value": "[parameters('deploymentEnvironment')]"
+                }
+              ]
             }
-        }
-    ],
-     "outputs": {
+          },
+          {
+            "name": "skr",
+            "properties": {
+              "image": "mcr.microsoft.com/aci/skr:2.3",
+              "command": [
+                "/skr.sh"
+              ],
+              "ports": [
+                {
+                  "port": 9000
+                }
+              ],
+              "resources": {
+                "requests": {
+                  "cpu": 1,
+                  "memoryInGB": 1
+                }
+              },
+              "environmentVariables": [
+                {
+                  "name": "Port",
+                  "value": "9000"
+                }
+              ]
+            }
+          }
+        ],
+        "sku": "Confidential",
+        "osType": "Linux",
+        "restartPolicy": "Never",
+        "subnetIds": "[if(equals(parameters('computeSubnetName'),''), json('null'), variables('subnetID'))]",
         "ipAddress": {
-            "type": "array",
-            "copy": {
-                "count": "[parameters('count')]",
-                "input": "[reference(format('{0}-{1}-{2}',parameters('operatorIdentifier'), variables('imageVersion'), copyIndex())).ipAddress.ip]"
+          "type": "[if(equals(parameters('computeSubnetName'),''), 'Public', 'Private')]",
+          "ports": [
+            {
+              "port": 8080,
+              "protocol": "TCP"
             }
+          ]
         }
+      }
+    }
+  ],
+  "outputs": {
+    "ipAddress": {
+      "type": "array",
+      "copy": {
+        "count": "[parameters('count')]",
+        "input": "[reference(format('{0}-{1}-{2}',parameters('operatorIdentifier'), variables('imageVersion'), copyIndex())).ipAddress.ip]"
+      }
+    }
   }
 }

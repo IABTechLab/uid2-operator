@@ -1,24 +1,24 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-    "contentVersion": "1.0.0.0",
-    "parameters": {
-        "vnetName": {
-            "value": "unified-id-network"
-        },
-        "computeSubnetName": {
-            "value": "unified-id-subnet-operators"
-        },
-        "gatewaySubnetName": {
-            "value": "unified-id-subnet-gateway"
-        },
-        "vnetAddressPrefix": {
-            "value": "10.0.0.0/20"
-        },
-        "computeSubnetPrefix": {
-            "value": "10.0.0.0/24"
-        },
-        "gatewaySubnetPrefix": {
-            "value": "10.0.1.0/28"
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vnetName": {
+      "value": "unified-id-network"
+    },
+    "computeSubnetName": {
+      "value": "unified-id-subnet-operators"
+    },
+    "gatewaySubnetName": {
+      "value": "unified-id-subnet-gateway"
+    },
+    "vnetAddressPrefix": {
+      "value": "10.0.0.0/20"
+    },
+    "computeSubnetPrefix": {
+      "value": "10.0.0.0/24"
+    },
+    "gatewaySubnetPrefix": {
+      "value": "10.0.1.0/28"
     }
+  }
 }

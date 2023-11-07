@@ -1,195 +1,197 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "parameters": {
-        "location": {
-            "type": "string",
-            "defaultValue": "[resourceGroup().location]",
-            "metadata": {
-                "description": "Location for all resources"
-            }
-        },
-        "containerGroupIPs": {
-            "type": "array",
-            "metadata": {
-                "description": "containerGroupIP"
-            }
-        },
-        "vnetName": {
-            "type": "string"
-        },
-        "gatewaySubnetName": {
-            "type": "string"
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources"
+      }
     },
-    "variables": {
-        "tags" : {
-            "Service" : "unified-id-operator"
-        },
-        "publicIP": "unified-id-gateway-ip",
-        "copy": [
-            {
-                "name": "ipAddresses",
-                "count": "[length(parameters('containerGroupIPs'))]",
-                "input": {
-                    "ipAddress": "[parameters('containerGroupIPs')[copyIndex('ipAddresses')]]"
-                }
-            }
-        ]
+    "containerGroupIPs": {
+      "type": "array",
+      "metadata": {
+        "description": "containerGroupIP"
+      }
     },
-    "resources": [
-        {
-            "type": "Microsoft.Network/publicIPAddresses",
-            "apiVersion": "2023-04-01",
-            "name": "[variables('publicIP')]",
-            "location": "[parameters('location')]",
-            "tags": "[variables('tags')]",
-            "sku": {
-                "name": "Standard",
-                "tier": "Regional"
-            },
-            "properties": {
-                "deleteOption": "Delete",
-                "idleTimeoutInMinutes": 5,
-                "publicIPAllocationMethod": "Static"
-            },
-            "zones": [
-                "1"
-            ]
-        },
-        {
-            "type": "Microsoft.Network/applicationGateways",
-            "apiVersion": "2023-04-01",
-            "name": "uid-operator-gateway",
-            "location": "[parameters('location')]",
-            "tags": "[variables('tags')]",
-            "properties": {
-                "sku": {
-                    "name": "Standard_v2",
-                    "tier": "Standard_v2"
-                },
-                "gatewayIPConfigurations": [
-                    {
-                        "name": "uid-operator-gateway-config",
-                        "properties": {
-                            "subnet": {
-                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('gatewaySubnetName'))]"
-                            }
-                        }
-                    }
-                ],
-                "frontendIPConfigurations": [
-                    {
-                        "name": "uid-operator-frontend-ip",
-                        "properties": {
-                            "privateIPAllocationMethod": "Dynamic",
-                            "publicIPAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}',  variables('publicIP')))]"
-                            }
-                        }
-                    }
-                ],
-                "frontendPorts": [
-                    {
-                        "name": "port_80",
-                        "properties": {
-                            "port": 80
-                        }
-                    }
-                ],
-                "backendAddressPools": [
-                    {
-                        "name": "uid-operator-pool",
-                        "properties": {
-                            "backendAddresses": "[variables('ipAddresses')]"
-                        }
-                    }
-                ],
-                "backendHttpSettingsCollection": [
-                    {
-                        "name": "uid-operator-backend-setting",
-                        "properties": {
-                            "connectionDraining": {
-                                "enabled": false,
-                                "drainTimeoutInSec": 1
-                            },
-                            "cookieBasedAffinity": "Disabled",
-                            "port": 8080,
-                            "probeEnabled": true,
-                            "protocol": "HTTP",
-                            "requestTimeout": 20,
-                            "probe": {
-                                "id": "[format('{0}/resourceGroups/{1}/providers/Microsoft.Network/applicationGateways/uid-operator-gateway/probes/operator-health', subscription().id, resourceGroup().name)]"
-                            },
-                            "pickHostNameFromBackendAddress":true
-                        }
-                    }
-                ],
-                "enableHttp2": true,
-                "httpListeners": [
-                    {
-                        "name": "listener",
-                        "properties": {
-                        "frontendIPConfiguration": {
-                            "id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', 'uid-operator-gateway', 'uid-operator-frontend-ip')]"
-                        },
-                        "frontendPort": {
-                            "id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts', 'uid-operator-gateway', 'port_80')]"
-                        },
-                        "protocol": "Http",
-                        "requireServerNameIndication": false
-                        }
-                    }
-                ],
-                "requestRoutingRules": [
-                    {
-                        "name": "uid-operator-routing-rule",
-                        "properties": {
-                            "priority": 1,
-                            "ruleType": "Basic",
-                            "httpListener": {
-                                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners', 'uid-operator-gateway', 'listener')]"
-                            },
-                            "backendAddressPool": {
-                                "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', 'uid-operator-gateway', 'uid-operator-pool')]"
-                            },
-                            "backendHttpSettings": {
-                                "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', 'uid-operator-gateway', 'uid-operator-backend-setting')]"
-                            }
-                        }
-                    }
-                ],
-                "autoscaleConfiguration": {
-                    "minCapacity": 1,
-                    "maxCapacity": 2
-                },
-                "probes": [
-                        {
-                            "name": "operator-health",
-                            "properties": {
-                            "interval": 30,
-                            "match": {
-                                "statusCodes": [ "200" ]
-                            },
-                            "minServers": 1,
-                            "path": "/ops/healthcheck",
-                            "pickHostNameFromBackendHttpSettings": true,
-                            "protocol": "HTTP",
-                            "timeout": 30,
-                            "unhealthyThreshold": 1
-                            }
-                        }
-                ]
-            },
-            "dependsOn": [
-                "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIP'))]"
-            ]
-        }
-    ],
-    "outputs": {
-        "gatewayIP": {
-            "type": "string",
-            "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIP'))).ipAddress]"
-        }
+    "vnetName": {
+      "type": "string"
+    },
+    "gatewaySubnetName": {
+      "type": "string"
     }
+  },
+  "variables": {
+    "tags": {
+      "Service": "unified-id-operator"
+    },
+    "publicIP": "unified-id-gateway-ip",
+    "copy": [
+      {
+        "name": "ipAddresses",
+        "count": "[length(parameters('containerGroupIPs'))]",
+        "input": {
+          "ipAddress": "[parameters('containerGroupIPs')[copyIndex('ipAddresses')]]"
+        }
+      }
+    ]
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('publicIP')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Standard",
+        "tier": "Regional"
+      },
+      "properties": {
+        "deleteOption": "Delete",
+        "idleTimeoutInMinutes": 5,
+        "publicIPAllocationMethod": "Static"
+      },
+      "zones": [
+        "1"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/applicationGateways",
+      "apiVersion": "2023-04-01",
+      "name": "uid-operator-gateway",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "sku": {
+          "name": "Standard_v2",
+          "tier": "Standard_v2"
+        },
+        "gatewayIPConfigurations": [
+          {
+            "name": "uid-operator-gateway-config",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('gatewaySubnetName'))]"
+              }
+            }
+          }
+        ],
+        "frontendIPConfigurations": [
+          {
+            "name": "uid-operator-frontend-ip",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}',  variables('publicIP')))]"
+              }
+            }
+          }
+        ],
+        "frontendPorts": [
+          {
+            "name": "port_80",
+            "properties": {
+              "port": 80
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "uid-operator-pool",
+            "properties": {
+              "backendAddresses": "[variables('ipAddresses')]"
+            }
+          }
+        ],
+        "backendHttpSettingsCollection": [
+          {
+            "name": "uid-operator-backend-setting",
+            "properties": {
+              "connectionDraining": {
+                "enabled": false,
+                "drainTimeoutInSec": 1
+              },
+              "cookieBasedAffinity": "Disabled",
+              "port": 8080,
+              "probeEnabled": true,
+              "protocol": "HTTP",
+              "requestTimeout": 20,
+              "probe": {
+                "id": "[format('{0}/resourceGroups/{1}/providers/Microsoft.Network/applicationGateways/uid-operator-gateway/probes/operator-health', subscription().id, resourceGroup().name)]"
+              },
+              "pickHostNameFromBackendAddress": true
+            }
+          }
+        ],
+        "enableHttp2": true,
+        "httpListeners": [
+          {
+            "name": "listener",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', 'uid-operator-gateway', 'uid-operator-frontend-ip')]"
+              },
+              "frontendPort": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts', 'uid-operator-gateway', 'port_80')]"
+              },
+              "protocol": "Http",
+              "requireServerNameIndication": false
+            }
+          }
+        ],
+        "requestRoutingRules": [
+          {
+            "name": "uid-operator-routing-rule",
+            "properties": {
+              "priority": 1,
+              "ruleType": "Basic",
+              "httpListener": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners', 'uid-operator-gateway', 'listener')]"
+              },
+              "backendAddressPool": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', 'uid-operator-gateway', 'uid-operator-pool')]"
+              },
+              "backendHttpSettings": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', 'uid-operator-gateway', 'uid-operator-backend-setting')]"
+              }
+            }
+          }
+        ],
+        "autoscaleConfiguration": {
+          "minCapacity": 1,
+          "maxCapacity": 2
+        },
+        "probes": [
+          {
+            "name": "operator-health",
+            "properties": {
+              "interval": 30,
+              "match": {
+                "statusCodes": [
+                  "200"
+                ]
+              },
+              "minServers": 1,
+              "path": "/ops/healthcheck",
+              "pickHostNameFromBackendHttpSettings": true,
+              "protocol": "HTTP",
+              "timeout": 30,
+              "unhealthyThreshold": 1
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIP'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "gatewayIP": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIP'))).ipAddress]"
+    }
+  }
 }

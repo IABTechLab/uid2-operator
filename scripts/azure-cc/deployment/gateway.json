@@ -186,5 +186,10 @@
             ]
         }
     ],
-    "outputs": {}
+    "outputs": {
+        "gatewayIP": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIP'))).ipAddress]"
+        }
+    }
 }

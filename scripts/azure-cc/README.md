@@ -22,13 +22,14 @@ Create a resource group for running the UID2 Operator
 az group create -g {RESOURCE_GROUP_NAME} --location {LOCATION}
 ```
 
-Once resource group is created, you can create the networking required. This is optional if you need to use your existing network. However it is recommend. 
+Once resource group is created, you can create the networking required. This is optional if you need to use your existing network. However it is recommended. 
 
 ```
 az deployment group create --name vnet --resource-group ${RESOURCE_GROUP_NAME} --template-file vnet.json --parameters vnet.parameters.json
 ```
 
-Now, create vault to store the operator key, and the identity to run operator 
+Now, create vault to store the operator key, and the identity to run operator.
+Please set the `vaultName` and `operatorKeyValue` parameters before running below command. 
 
 ```
 az deployment group create --name vault --resource-group ${RESOURCE_GROUP_NAME} --template-file vault.json --parameters vault.parameters.json

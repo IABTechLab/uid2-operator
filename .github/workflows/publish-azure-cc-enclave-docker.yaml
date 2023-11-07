@@ -173,4 +173,4 @@ jobs:
           tag_name: v${{ steps.meta.outputs.version }}
           body: UID2 Operator for deployment on Azure Confidential Container environment.
           files: |
-            ${{ env.ARTIFACTS_OUTPUT_DIR/uid2-operator-deployment-artifacts.zip }}
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts.zip

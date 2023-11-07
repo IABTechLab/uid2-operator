@@ -88,6 +88,38 @@
                 },
                 "containers": [
                     {
+                        "name": "uid2-operator",
+                        "properties": {
+                            "image": "IMAGE_PLACEHOLDER",
+                            "ports": [
+                                {
+                                "port": 8080,
+                                "protocol": "TCP"
+                                }
+                            ],
+                            "resources": {
+                                "requests": {
+                                    "cpu": 4,
+                                    "memoryInGB": 16
+                                }
+                            },
+                            "environmentVariables": [
+                                {
+                                    "name": "VAULT_NAME",
+                                    "value": "[parameters('vaultName')]"
+                                },
+                                {
+                                    "name": "OPERATOR_KEY_SECRET_NAME",
+                                    "value": "[parameters('operatorKeyName')]"
+                                },
+                                {
+                                    "name": "DEPLOYMENT_ENVIRONMENT",
+                                    "value": "[parameters('deploymentEnvironment')]"
+                                }
+                            ]
+                        }
+                    },
+                    {
                         "name": "skr",
                         "properties": {
                             "image": "mcr.microsoft.com/aci/skr:2.3",
@@ -109,38 +141,6 @@
                                 {
                                     "name": "Port",
                                     "value": "9000"
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "name": "uid2-operator",
-                        "properties": {
-                            "image": "IMAGE_PLACEHOLDER",
-                            "ports": [
-                                {
-                                "port": 8080,
-                                "protocol": "TCP"
-                                }
-                            ],
-                            "resources": {
-                                "requests": {
-                                    "cpu": 1,
-                                    "memoryInGB": 1
-                                }
-                            },
-                            "environmentVariables": [
-                                {
-                                    "name": "VAULT_NAME",
-                                    "value": "[parameters('vaultName')]"
-                                },
-                                {
-                                    "name": "OPERATOR_KEY_SECRET_NAME",
-                                    "value": "[parameters('operatorKeyName')]"
-                                },
-                                {
-                                    "name": "DEPLOYMENT_ENVIRONMENT",
-                                    "value": "[parameters('deploymentEnvironment')]"
                                 }
                             ]
                         }

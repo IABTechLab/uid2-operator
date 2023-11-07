@@ -1,17 +1,18 @@
 # UID2 Operator - Azure Confidential Container package
 
-## Generate CCE policy
+## Generate Deployment Artifacts
 
 Generate deployment files by following command.
 
 ```
-IMAGE={IMAGE} ./generate-deployment-artifacts.sh
+IMAGE={IMAGE} OUTPUT_DIR=output ./generate-deployment-artifacts.sh
 ```
 Following files will be generated:
 
-* `uid2-operator-deployment-template.json`: to be used for deployment
-* `uid2-operator-deployment-parameters.json`: to be used for deployment
-* `uid2-operator-deployment-digest.txt`: the digest will be used as enclave ID to be registered in admin portal.
+* Deployment files will be stored to directory `output`
+  * `operator-digest.txt`: the digest will be used as enclave ID to be registered in admin portal.
+  * Other files are used to deploy to Azure as described in the next section.
+* Deployment files will also be archived into file `output/uid2-operator-deployment-artifacts.zip`
 
 ## Deploy
 

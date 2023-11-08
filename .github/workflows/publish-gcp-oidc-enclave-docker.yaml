@@ -184,7 +184,7 @@ jobs:
       - name: Generate GCP deployment artifacts
         env:
           IMAGE: ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
-          IMAGE_DIGET: ${{ steps.push-to-docker.outputs.digest }}
+          IMAGE_DIGEST: ${{ steps.push-to-docker.outputs.digest }}
           OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
         run: |
           bash ./scripts/gcp-oidc/generate-deployment-artifacts.sh

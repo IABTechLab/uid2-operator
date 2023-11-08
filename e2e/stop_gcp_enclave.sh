@@ -22,7 +22,6 @@ gcloud config set project $GCP_PROJECT
 
 gcloud config set compute/zone asia-southeast1-a
 
-gcloud compute instances delete $GCP_INSTANCE_NAME \
-    --quiet
+gcloud compute instances delete $GCP_INSTANCE_NAME --quiet
 
-gcloud secrets delete $OPERATOR_KEY_SECRET_NAME
+gcloud secrets delete $OPERATOR_KEY_SECRET_NAME --quiet

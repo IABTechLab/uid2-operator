@@ -1,54 +1,49 @@
 # UID2 Operator - Azure Confidential Container package
 
-## Generate CCE policy
+## Generate Deployment Artifacts
 
 Generate deployment files by following command.
 
 ```
-IMAGE={IMAGE} ./generate-deployment-artifacts.sh
+IMAGE={IMAGE} OUTPUT_DIR=output ./deployment/generate-deployment-artifacts.sh
 ```
 Following files will be generated:
 
-* `uid2-operator-deployment-template.json`: to be used for deployment
-* `uid2-operator-deployment-parameters.json`: to be used for deployment
-* `uid2-operator-deployment-digest.txt`: the digest will be used as enclave ID to be registered in admin portal.
+* Deployment files will be stored to directory `output`
+  * `operator-digest.txt`: the digest will be used as enclave ID to be registered in admin portal.
+  * Other files are used to deploy to Azure as described in the next section.
+* Deployment files will also be archived into file `output/uid2-operator-deployment-artifacts.zip`
 
 ## Deploy
-Update `uid2-operator-deployment-parameters.json` to set deployment parameters, then deploy via following command.
 
+Create a resource group for running the UID2 Operator
+  
 ```
-az deployment group create -g {RESOURCE_GROUP_NAME} -n rollout \
-    --template-file uid2-operator-deployment-template.json  \
-    --parameters @uid2-operator-deployment-parameters.json
-```
-
-## How to set up azure vault & managed identity
-Create a user-assigned managed identity
-```
-az identity create -g {RESOURCE_GROUP_NAME} -n {IDENTITY_NAME}
+az group create -g {RESOURCE_GROUP_NAME} --location {LOCATION}
 ```
 
-Create key vault
+Once resource group is created, you can create the networking required. This is optional if you need to use your existing network. However it is recommended. 
+
 ```
-az keyvault create -g {RESOURCE_GROUP_NAME} -n {VAULT_NAME}
+az deployment group create --name vnet --resource-group ${RESOURCE_GROUP_NAME} --template-file vnet.json --parameters vnet.parameters.json
 ```
 
-Create a secret (if one doesn't exist) or update a secret in a KeyVault.
+Now, create vault to store the operator key, and the identity to run operator.
+Please set the `vaultName` and `operatorKeyValue` parameters in `vault.parameters.json` before running below command. 
+
 ```
-az keyvault secret set -n {SECRET_NAME} --vault-name {VAULT_NAME} --value {SECRET_VALUE}
+az deployment group create --name vault --resource-group ${RESOURCE_GROUP_NAME} --template-file vault.json --parameters vault.parameters.json
 ```
 
-Grant vault permission
- - get security principal id of the managed identity first,
- - then grant read permission
+Create the operator containers now. 
+Please set the `vaultName` parameter in `operator.parameters.json` as the same as in `vault.parameters.json` before running below command. 
+ 
 ```
-SP_ID=$(az identity show \
-  -g {RESOURCE_GROUP_NAME} \
-  -n {IDENTITY_NAME} \
-  --query principalId --output tsv)
-az keyvault set-policy \
-   -g {RESOURCE_GROUP_NAME} \
-   -n {VAULT_NAME} \
-   --object-id $SP_ID \
-   --secret-permissions get
+az deployment group create --name operator --resource-group ${RESOURCE_GROUP_NAME} --template-file operator.json --parameters operator.parameters.json
+```
+
+Since the operators are created in private subnet, we need a public IP. Copy the container IP of the created containers running operators to parameter `containerGroupIPs` in `gateway.parameters.json` and run
+
+```
+az deployment group create --name gateway --resource-group ${RESOURCE_GROUP_NAME} --template-file gateway.json --parameters gateway.parameters.json
 ```

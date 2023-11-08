@@ -41,6 +41,12 @@ gcloud config set project $GCP_PROJECT
 
 gcloud config set compute/zone asia-southeast1-a
 
+gcloud compute firewall-rules create operator-tcp \
+  --direction=INGRESS --priority=1000 --network=default --action=ALLOW \
+  --rules=tcp:8080 \
+  --source-ranges=0.0.0.0/0 \
+  --target-service-accounts=$SERVICE_ACCOUNT
+
 # create secret
 echo -n "$OPERATOR_KEY" | gcloud secrets create $OPERATOR_KEY_SECRET_NAME \
     --replication-policy="automatic" \

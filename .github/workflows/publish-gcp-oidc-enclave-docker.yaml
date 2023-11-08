@@ -118,6 +118,14 @@ jobs:
             type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
             type=raw,value=${{ inputs.tag }}
 
+      - name: Extract metadata (tags, labels) for GCP image
+        id: meta-gcp
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
+
       - name: Extract metadata (tags, labels) for all Docker images
         id: meta-all
         uses: docker/metadata-action@v4
@@ -183,7 +191,7 @@ jobs:
 
       - name: Generate GCP deployment artifacts
         env:
-          IMAGE: ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          IMAGE: ${{ steps.meta-gcp.outputs.tags }}
           IMAGE_DIGEST: ${{ steps.push-to-docker.outputs.digest }}
           OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
         run: |

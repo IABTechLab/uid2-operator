@@ -9,11 +9,11 @@ on:
       core_image_version:
         description: 'The version of UID2 core image'
         type: string
-        default: '2.9.0-46b2d8519f-master-default'
+        default: '2.15.0-50d596678a-default'
       optout_image_version:
         description: 'The version of UID2 optout image'
         type: string
-        default: '2.5.0-80ad3156c0-default'
+        default: '2.6.18-60727cf243-default'
 
 env:
   REGISTRY: ghcr.io
@@ -82,10 +82,14 @@ jobs:
         run: |
           cd ./e2e && bash ./start_docker.sh
 
-      - name: Bring up GCP
-        uses: 'google-github-actions/auth@v1'
+      - name: Authenticate with Google Cloud
+        id: gcp_auth
+        uses: google-github-actions/auth@v0
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIAL }}'
+          token_format: access_token
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          access_token_lifetime: 1200s
 
       - name: Set up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v1'
@@ -96,7 +100,7 @@ jobs:
           NGROK_URL_CORE: ${{ steps.ngrok.outputs.NGROK_URL_CORE }}
           NGROK_URL_OPTOUT: ${{ steps.ngrok.outputs.NGROK_URL_OPTOUT }}
           IMAGE_HASH: ${{ inputs.operator_image_hash }}
-          OPERATOR_KEY: ${{ steps.metadata.outputs.OPERATOR_KEY }}
+          SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
         run: |
           cd ./e2e && bash ./start_gcp_enclave.sh
 
@@ -104,6 +108,7 @@ jobs:
         if: always()
         env:
           GCP_INSTANCE_NAME: ${{ steps.start_gcp.outputs.GCP_INSTANCE_NAME }}
+          SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
         run: |
           cd ./e2e && bash ./stop_gcp_enclave.sh
 

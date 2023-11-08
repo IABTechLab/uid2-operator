@@ -8,11 +8,12 @@ CORE_VERSION=2.15.0-50d596678a-default
 OPTOUT_VERSION=2.6.18-60727cf243-default
 
 # GCP OIDC enclave configs
-TEST_GCP_OIDC=false
-IMAGE_HASH=
+TEST_GCP_OIDC=true
+# starts with sha256:
+IMAGE_HASH=sha256:
 
 # Azure CC enclave configs
-TEST_AZURE_CC=true
+TEST_AZURE_CC=false
 IMAGE_VERSION=
 
 # replace below with your local repo root of uid2-core and uid2-optout

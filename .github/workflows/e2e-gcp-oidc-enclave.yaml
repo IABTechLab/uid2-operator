@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       operator_image_hash:
-        description: 'The hash of GCP enclave image'
+        description: 'The hash of GCP enclave image(start with sha256:)'
         type: string
         required: true
       core_image_version:
@@ -24,6 +24,7 @@ jobs:
     permissions:
       contents: write
       packages: read
+      id-token: write
     steps:
       - name: Checkout full history
         uses: actions/checkout@v3

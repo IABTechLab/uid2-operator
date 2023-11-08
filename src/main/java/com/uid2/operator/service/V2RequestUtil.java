@@ -120,7 +120,7 @@ public class V2RequestUtil {
             //  byte 5-N: IV + encrypted body + GCM AUTH TAG
             bytes = Utils.decodeBase64String(bodyString);
         }
-        catch (ClientInputValidationException ex) {
+        catch (IllegalArgumentException ex) {
             return new V2Request("Invalid body: Body is not valid base64.");
         }
 

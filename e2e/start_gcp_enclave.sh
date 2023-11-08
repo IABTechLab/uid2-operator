@@ -46,7 +46,7 @@ echo -n "$OPERATOR_KEY" | gcloud secrets create $OPERATOR_KEY_SECRET_NAME \
     --replication-policy="automatic" \
     --data-file=-
 
-OPERATOR_KEY_SECRET_VERSION=$(gcloud secrets versions describe latest --secret $OPERATOR_KEY_SECRET_NAME--format 'value(name)')
+OPERATOR_KEY_SECRET_VERSION=$(gcloud secrets versions describe latest --secret $OPERATOR_KEY_SECRET_NAME --format 'value(name)')
 
 gcloud compute instances create $GCP_INSTANCE_NAME \
     --confidential-compute \

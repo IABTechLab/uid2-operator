@@ -3,6 +3,7 @@ set -x
 
 # Following environment variables must be set
 # - IMAGE: uid2-operator image
+# - IMAGE_DIGEST: uid2-operator image digest
 # - OUTPUT_DIR: output directory to store the artifacts
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -10,6 +11,11 @@ INPUT_DIR=${SCRIPT_DIR}/terraform
 
 if [[ -z ${IMAGE} ]]; then
   echo "IMAGE cannot be empty"
+  exit 1
+fi
+
+if [[ -z ${IMAGE_DIGEST} ]]; then
+  echo "IMAGE_DIGEST cannot be empty"
   exit 1
 fi
 
@@ -42,13 +48,6 @@ done
 sed -i "s#IMAGE_PLACEHOLDER#${IMAGE}#g" ${OUTPUT_DIR}/terraform.tfvars
 if [[ $? -ne 0 ]]; then
   echo "Failed to pre-process tfvars file"
-  exit 1
-fi
-
-# Get image digest
-IMAGE_DIGEST=`docker inspect --format="{{index .RepoDigests 0}}" ${IMAGE} | awk -F':' '{print $2}'`
-if [[ -z ${IMAGE_DIGEST} ]]; then
-  echo "Failed to get image digest"
   exit 1
 fi
 

@@ -11,6 +11,8 @@ OPTOUT_VERSION=2.6.18-60727cf243-default
 TEST_GCP_OIDC=true
 # starts with sha256:
 IMAGE_HASH=sha256:
+GCP_PROJECT=uid2-test
+SERVICE_ACCOUNT='github-ci@uid2-test.iam.gserviceaccount.com'
 
 # Azure CC enclave configs
 TEST_AZURE_CC=false

@@ -98,18 +98,21 @@ jobs:
       - name: Start GCP private operator
         id: start_gcp
         env:
+          GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+          SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
           NGROK_URL_CORE: ${{ steps.ngrok.outputs.NGROK_URL_CORE }}
           NGROK_URL_OPTOUT: ${{ steps.ngrok.outputs.NGROK_URL_OPTOUT }}
+          OPERATOR_KEY: ${{ steps.metadata.outputs.OPERATOR_KEY }}
           IMAGE_HASH: ${{ inputs.operator_image_hash }}
-          SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
         run: |
           cd ./e2e && bash ./start_gcp_enclave.sh
 
       - name: Stop GCP private operator
         if: always()
         env:
-          GCP_INSTANCE_NAME: ${{ steps.start_gcp.outputs.GCP_INSTANCE_NAME }}
+          GCP_PROJECT: ${{ vars.GCP_PROJECT }}
           SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          GCP_INSTANCE_NAME: ${{ steps.start_gcp.outputs.GCP_INSTANCE_NAME }}
         run: |
           cd ./e2e && bash ./stop_gcp_enclave.sh
 

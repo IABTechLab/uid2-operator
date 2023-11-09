@@ -27,9 +27,7 @@ env:
   ENCLAVE_PROTOCOL: azure-cc
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_CONTEXT_PATH: scripts/azure-cc
-  OUTPUT_TEMPLATE_FILE: ${{ github.workspace }}/uid2-operator-deployment-template.json
-  OUTPUT_POLICY_DIGEST_FILE: ${{ github.workspace }}/uid2-operator-deployment-digest.txt
-  OUTPUT_PARAMETERS_FILE: ${{ github.workspace }}/uid2-operator-deployment-parameters.json
+  ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
 
 jobs:
   build-publish-docker:
@@ -156,22 +154,21 @@ jobs:
       - name: Generate Azure deployment artifacts
         env:
           IMAGE: ${{ steps.meta.outputs.tags }}
-          INPUT_TEMPLATE_FILE: ${{ github.workspace }}/scripts/azure-cc/deployment-template.json
-          INPUT_PARAMETERS_FILE: ${{ github.workspace }}/scripts/azure-cc/deployment-parameters.json
-          OUTPUT_TEMPLATE_FILE: ${{ env.OUTPUT_TEMPLATE_FILE }}
-          OUTPUT_POLICY_DIGEST_FILE: ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
-          OUTPUT_PARAMETERS_FILE: ${{ env.OUTPUT_PARAMETERS_FILE }}
+          OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
         run: |
-          bash ./scripts/azure-cc/generate-deployment-artifacts.sh
+          bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 
       - name: Archive deployment artifacts
         uses: actions/upload-artifact@v3
         with:
           name: azure-cc-deployment-files-${{ steps.version.outputs.new_version }}
           path: |
-            ${{ env.OUTPUT_TEMPLATE_FILE }}
-            ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
-            ${{ env.OUTPUT_PARAMETERS_FILE }}
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}
+
+      - name: Generate release archive
+        if: inputs.is_release
+        run: |
+          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
 
       - name: Release
         uses: softprops/action-gh-release@v1
@@ -181,6 +178,4 @@ jobs:
           tag_name: v${{ steps.meta.outputs.version }}
           body: UID2 Operator for deployment on Azure Confidential Container environment.
           files: |
-            ${{ env.OUTPUT_TEMPLATE_FILE }}
-            ${{ env.OUTPUT_POLICY_DIGEST_FILE }}
-            ${{ env.OUTPUT_PARAMETERS_FILE }}
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip

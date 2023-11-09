@@ -15,6 +15,11 @@ on:
       publish_vulnerabilities:
         type: string
         default: 'true'
+      is_release:
+        type: boolean
+        description: Create a new GitHub release
+        required: false
+        default: false
       
 env:
   REGISTRY: ghcr.io
@@ -24,6 +29,7 @@ env:
   ENCLAVE_PROTOCOL: gcp-oidc
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_CONTEXT_PATH: scripts/gcp-oidc
+  ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
 
 jobs:
   build-publish-docker:
@@ -112,6 +118,14 @@ jobs:
             type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
             type=raw,value=${{ inputs.tag }}
 
+      - name: Extract metadata (tags, labels) for GCP image
+        id: meta-gcp
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
+
       - name: Extract metadata (tags, labels) for all Docker images
         id: meta-all
         uses: docker/metadata-action@v4
@@ -164,6 +178,7 @@ jobs:
           hide-progress: true
 
       - name: Push to Docker
+        id: push-to-docker
         uses: docker/build-push-action@v3
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
@@ -173,3 +188,33 @@ jobs:
           build-args: |
             JAR_VERSION=${{ steps.version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}
+
+      - name: Generate GCP deployment artifacts
+        env:
+          IMAGE: ${{ steps.meta-gcp.outputs.tags }}
+          IMAGE_DIGEST: ${{ steps.push-to-docker.outputs.digest }}
+          OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+        run: |
+          bash ./scripts/gcp-oidc/generate-deployment-artifacts.sh
+
+      - name: Archive deployment artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: gcp-oidc-deployment-files-${{ steps.version.outputs.new_version }}
+          path: |
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}
+
+      - name: Generate release archive
+        if: inputs.is_release
+        run: |
+          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: inputs.is_release
+        with:
+          name: UID2 Operator ${{ steps.meta.outputs.version }}
+          tag_name: v${{ steps.meta.outputs.version }}
+          body: UID2 Operator for deployment on GCP confidential space environment.
+          files: |
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip

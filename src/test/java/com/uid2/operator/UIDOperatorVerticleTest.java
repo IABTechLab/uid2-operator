@@ -8,6 +8,7 @@ import com.uid2.operator.service.*;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
+import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.Utils;
@@ -2467,7 +2468,7 @@ public class UIDOperatorVerticleTest {
 
         send("v2", vertx, "v2/token/generate", false, null, req, 200, json -> {
             try {
-                Assertions.assertEquals(UIDOperatorVerticle.ResponseStatus.OptOut, json.getString("status"));
+                Assertions.assertEquals(ResponseUtil.ResponseStatus.OptOut, json.getString("status"));
                 Assertions.assertNull(json.getJsonObject("body"));
                 assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut);
                 testContext.completeNow();
@@ -2637,7 +2638,7 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("please provide exactly one of: email_hash, phone_hash", respJson.getString("message"));
-                    assertEquals(UIDOperatorVerticle.ResponseStatus.ClientError, respJson.getString("status"));
+                    assertEquals(ResponseUtil.ResponseStatus.ClientError, respJson.getString("status"));
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
@@ -3379,7 +3380,7 @@ public class UIDOperatorVerticleTest {
             case Phone:
                 return ClientSideTokenGenerateOptOutIdentityForPhone;
         }
-        throw new IllegalArgumentException("Invalid identity type " + identityType);
+        throw new ClientInputValidationException("Invalid identity type " + identityType);
     }
 
     /********************************************************

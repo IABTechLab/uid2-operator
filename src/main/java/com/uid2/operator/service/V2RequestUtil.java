@@ -2,8 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
-import com.uid2.shared.Const;
-import com.uid2.shared.Const.Data;
+import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.encryption.AesGcm;

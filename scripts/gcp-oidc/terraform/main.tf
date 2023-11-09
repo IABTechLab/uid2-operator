@@ -173,16 +173,16 @@ module "mig" {
 }
 
 module "gce_lb_http" {
-  depends_on        = [module.project_services]
-  source            = "GoogleCloudPlatform/lb-http/google"
-  version           = "~>9.2.0"
-  name              = "mig-http-lb"
-  project           = var.project_id
-  target_tags       = [var.network_name]
-  firewall_networks = [google_compute_network.default.name]
-  ssl               = var.ssl
-  private_key       = var.private_key
-  certificate       = var.certificate
+  depends_on                      = [module.project_services]
+  source                          = "GoogleCloudPlatform/lb-http/google"
+  version                         = "~>9.2.0"
+  name                            = "mig-http-lb"
+  project                         = var.project_id
+  target_tags                     = [var.network_name]
+  firewall_networks               = [google_compute_network.default.name]
+  ssl                             = var.ssl
+  https_redirect                  = var.ssl
+  managed_ssl_certificate_domains = var.ssl_certificate_domains
 
   backends = {
     default = {

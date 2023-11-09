@@ -72,9 +72,9 @@ data "google_compute_image" "confidential_space_image" {
 }
 
 data "google_secret_manager_secret_version" "uid_operater_key" {
-  depends_on  = [module.project_services]
-  count       = var.uid_operator_key == "" ? 1 : 0
-  secret      = var.uid_operator_key_secret_name
+  depends_on = [module.project_services]
+  count      = var.uid_operator_key == "" ? 1 : 0
+  secret     = var.uid_operator_key_secret_name
 }
 
 module "secret-manager" {

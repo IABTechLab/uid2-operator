@@ -71,6 +71,12 @@ data "google_compute_image" "confidential_space_image" {
   project    = "confidential-space-images"
 }
 
+data "google_secret_manager_secret_version" "uid_operater_key" {
+  depends_on = [module.project_services]
+  count      = var.uid_operator_key == "" ? 1 : 0
+  secret     = var.uid_operator_key_secret_name
+}
+
 module "secret-manager" {
   depends_on = [module.project_services]
   source     = "GoogleCloudPlatform/secret-manager/google"
@@ -79,7 +85,7 @@ module "secret-manager" {
   secrets = [
     {
       name                  = var.uid_operator_key_secret_name
-      secret_data           = var.uid_operator_key
+      secret_data           = var.uid_operator_key != "" ? var.uid_operator_key : data.google_secret_manager_secret_version.uid_operater_key[0].secret_data
       automatic_replication = true
     },
   ]
@@ -167,16 +173,16 @@ module "mig" {
 }
 
 module "gce_lb_http" {
-  depends_on        = [module.project_services]
-  source            = "GoogleCloudPlatform/lb-http/google"
-  version           = "~>9.2.0"
-  name              = "mig-http-lb"
-  project           = var.project_id
-  target_tags       = [var.network_name]
-  firewall_networks = [google_compute_network.default.name]
-  ssl               = var.ssl
-  private_key       = var.private_key
-  certificate       = var.certificate
+  depends_on                      = [module.project_services]
+  source                          = "GoogleCloudPlatform/lb-http/google"
+  version                         = "~>9.2.0"
+  name                            = "mig-http-lb"
+  project                         = var.project_id
+  target_tags                     = [var.network_name]
+  firewall_networks               = [google_compute_network.default.name]
+  ssl                             = var.ssl
+  https_redirect                  = var.ssl
+  managed_ssl_certificate_domains = var.ssl_certificate_domains
 
   backends = {
     default = {

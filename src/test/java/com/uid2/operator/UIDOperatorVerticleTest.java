@@ -1015,6 +1015,38 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"policy", "optout_check"})
+    void tokenGenerateOldClientWrongNoPolicySpecifiedOptOutToken(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.GENERATOR),
+                201,
+                null
+        );
+        when(clientKeyProvider.get(any())).thenReturn(oldClientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(oldClientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", "optout@example.com");
+        v2Payload.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 200,
+                json -> {
+                    assertTrue(json.containsKey("body"));
+                    assertEquals("success", json.getString("status"));
+                    testContext.completeNow();
+                });
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateForEmail(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
@@ -3376,9 +3408,9 @@ public class UIDOperatorVerticleTest {
     private static String getClientSideGeneratedTokenOptOutIdentity(IdentityType identityType) {
         switch (identityType) {
             case Email:
-                return ClientSideTokenGenerateOptOutIdentityForEmail;
+                return OptOutTokenIdentityForEmail;
             case Phone:
-                return ClientSideTokenGenerateOptOutIdentityForPhone;
+                return OptOutTokenIdentityForPhone;
         }
         throw new ClientInputValidationException("Invalid identity type " + identityType);
     }

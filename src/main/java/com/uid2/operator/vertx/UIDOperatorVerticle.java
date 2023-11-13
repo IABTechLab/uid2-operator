@@ -1,6 +1,7 @@
 package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
+import com.uid2.operator.IdentityConst;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -424,10 +425,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             privacyBits.setClientSideTokenGenerateOptout();
             UserIdentity cstgOptOutIdentity;
             if(input.getIdentityType() == IdentityType.Email) {
-                cstgOptOutIdentity = InputUtil.InputVal.validEmail(ClientSideTokenGenerateOptOutIdentityForEmail, ClientSideTokenGenerateOptOutIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
+                cstgOptOutIdentity = InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
             }
             else {
-                cstgOptOutIdentity = InputUtil.InputVal.validPhone(ClientSideTokenGenerateOptOutIdentityForPhone, ClientSideTokenGenerateOptOutIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
+                cstgOptOutIdentity = InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
             }
             identityTokens = this.idService.generateIdentity(
                     new IdentityRequest(
@@ -810,7 +811,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                 optoutCheckPolicy.getItem1()));
 
                 if (t.isEmptyToken()) {
-                    ResponseUtil.SuccessNoBodyV2("optout", rc);
+                    if(optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) {
+                        final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
+                                ? InputUtil.normalizeEmail(OptOutTokenIdentityForEmail)
+                                : InputUtil.normalizePhone(OptOutTokenIdentityForPhone);
+                        final IdentityTokens optOutTokens = this.idService.generateIdentity(
+                                new IdentityRequest(
+                                        new PublisherIdentity(siteId, 0, 0),
+                                        optOutTokenInput.toUserIdentity(this.identityScope, 1, Instant.now()),
+                                        OptoutCheckPolicy.DoNotRespect));
+                        ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
+                    } else {
+                        ResponseUtil.SuccessNoBodyV2("optout", rc);
+                    }
                     recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider);
                 } else {
                     ResponseUtil.SuccessV2(rc, toJsonV1(t));

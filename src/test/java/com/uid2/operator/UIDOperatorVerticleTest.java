@@ -1529,7 +1529,7 @@ public class UIDOperatorVerticleTest {
             when(this.optOutStore.getLatestEntry(any())).thenReturn(now.minusSeconds(10));
 
             sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
-                assertEquals("success", refreshRespJson.getString("status"));
+                assertEquals("optout", refreshRespJson.getString("status"));
 
                 testContext.completeNow();
             });
@@ -2281,7 +2281,7 @@ public class UIDOperatorVerticleTest {
                 HttpResponse<Buffer> response = ar.result();
                 assertEquals(200, response.statusCode());
                 JsonObject json = response.bodyAsJsonObject();
-                assertEquals("success", json.getString("status"));
+                assertEquals("optout", json.getString("status"));
 
                 testContext.completeNow();
             });

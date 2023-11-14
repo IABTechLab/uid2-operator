@@ -821,11 +821,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                         optOutTokenInput.toUserIdentity(this.identityScope, 1, Instant.now()),
                                         OptoutCheckPolicy.DoNotRespect));
                         ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
+                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
                     } else { // new participant
                         ResponseUtil.SuccessNoBodyV2("optout", rc);
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider);
                     }
-                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
                 } else {
                     ResponseUtil.SuccessV2(rc, toJsonV1(t));
                     recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);

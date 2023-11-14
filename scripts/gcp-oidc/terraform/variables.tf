@@ -29,13 +29,13 @@ variable "uid_deployment_env" {
   }
 }
 
-variable "uid_api_token" {
+variable "uid_operator_key" {
   type = string
 }
 
-variable "uid_api_token_secret_name" {
+variable "uid_operator_key_secret_name" {
   type    = string
-  default = "secret-api-token"
+  default = "secret-operator-key"
 }
 
 variable "max_replicas" {
@@ -58,13 +58,7 @@ variable "ssl" {
   default = false
 }
 
-variable "certificate" {
-  type    = string
-  default = null
+variable "ssl_certificate_domains" {
+  type    = list(string)
+  default = []
 }
-
-variable "private_key" {
-  type    = string
-  default = null
-}
-

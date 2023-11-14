@@ -6,7 +6,6 @@ public class Const extends com.uid2.shared.Const {
         public static final String OptOutBloomFilterSizeProp = "optout_bloom_filter_size";
         public static final String OptOutHeapDefaultCapacityProp = "optout_heap_default_capacity";
         public static final String OptOutS3PathCompatProp = "optout_s3_path_compat";
-        public static final String OptOutApiTokenProp = "optout_api_token";
         public static final String OptOutApiUriProp = "optout_api_uri";
         public static final String OptOutInMemCacheProp = "optout_inmem_cache";
         public static final String StorageMockProp = "storage_mock";
@@ -16,5 +15,10 @@ public class Const extends com.uid2.shared.Const {
         public static final String SharingTokenExpiryProp = "sharing_token_expiry_seconds";
         public static final String EnableClientSideTokenGenerate = "client_side_token_generate";
         public static final String ValidateServiceLinks = "validate_service_links";
+
+        public static final String AzureVaultNameProp = "azure_vault_name";
+        public static final String AzureSecretNameProp = "azure_secret_name";
+
+        public static final String GcpSecretVersionNameProp = "gcp_secret_version_name";
     }
 }

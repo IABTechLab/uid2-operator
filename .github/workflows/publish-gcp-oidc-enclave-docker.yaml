@@ -15,15 +15,21 @@ on:
       publish_vulnerabilities:
         type: string
         default: 'true'
+      is_release:
+        type: boolean
+        description: Create a new GitHub release
+        required: false
+        default: false
       
 env:
   REGISTRY: ghcr.io
   GCP_REGISTRY: us-docker.pkg.dev
-  GCP_PROJECT: uid2-prod-project
+  GCP_GAR_PROJECT: uid2-prod-project
   MAVEN_PROFILE: gcp
   ENCLAVE_PROTOCOL: gcp-oidc
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_CONTEXT_PATH: scripts/gcp-oidc
+  ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
 
 jobs:
   build-publish-docker:
@@ -32,6 +38,7 @@ jobs:
       contents: write
       security-events: write
       packages: write
+      id-token: write
     outputs:
       jar_version: ${{ steps.version.outputs.new_version }}
     steps:
@@ -86,12 +93,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Authenticate with Google Cloud
+        id: gcp_auth
+        uses: google-github-actions/auth@v0
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          access_token_lifetime: 300s
+
       - name: Log in to the GCP Registry
         uses: docker/login-action@v2
         with:
           registry: ${{ env.GCP_REGISTRY }}
-          username: _json_key
-          password: ${{ secrets.GCP_CREDENTIAL }}
+          username: oauth2accesstoken
+          password: ${{ steps.gcp_auth.outputs.access_token }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -102,13 +118,21 @@ jobs:
             type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
             type=raw,value=${{ inputs.tag }}
 
+      - name: Extract metadata (tags, labels) for GCP image
+        id: meta-gcp
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
+
       - name: Extract metadata (tags, labels) for all Docker images
         id: meta-all
         uses: docker/metadata-action@v4
         with:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-            ${{ env.GCP_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_NAME }}
+            ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
             type=raw,value=${{ inputs.tag }}
@@ -126,7 +150,7 @@ jobs:
             BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
 
       - name: Generate Trivy vulnerability scan report
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.12.0
         if: inputs.publish_vulnerabilities == 'true'
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
@@ -144,7 +168,7 @@ jobs:
           sarif_file: 'trivy-results.sarif'
 
       - name: Test with Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.12.0
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: 'table'
@@ -154,6 +178,7 @@ jobs:
           hide-progress: true
 
       - name: Push to Docker
+        id: push-to-docker
         uses: docker/build-push-action@v3
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
@@ -163,3 +188,33 @@ jobs:
           build-args: |
             JAR_VERSION=${{ steps.version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}
+
+      - name: Generate GCP deployment artifacts
+        env:
+          IMAGE: ${{ steps.meta-gcp.outputs.tags }}
+          IMAGE_DIGEST: ${{ steps.push-to-docker.outputs.digest }}
+          OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+        run: |
+          bash ./scripts/gcp-oidc/generate-deployment-artifacts.sh
+
+      - name: Archive deployment artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: gcp-oidc-deployment-files-${{ steps.version.outputs.new_version }}
+          path: |
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}
+
+      - name: Generate release archive
+        if: inputs.is_release
+        run: |
+          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: inputs.is_release
+        with:
+          name: UID2 Operator ${{ steps.meta.outputs.version }}
+          tag_name: v${{ steps.meta.outputs.version }}
+          body: UID2 Operator for deployment on GCP confidential space environment.
+          files: |
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip

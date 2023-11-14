@@ -4,20 +4,20 @@ import java.time.Instant;
 
 public final class MapRequest {
     public final UserIdentity userIdentity;
-    public final IdentityMapPolicy identityMapPolicy;
+    public final OptoutCheckPolicy optoutCheckPolicy;
     public final Instant asOf;
 
     public MapRequest(
             UserIdentity userIdentity,
-            IdentityMapPolicy identityMapPolicy,
+            OptoutCheckPolicy optoutCheckPolicy,
             Instant asOf)
     {
         this.userIdentity = userIdentity;
-        this.identityMapPolicy = identityMapPolicy;
+        this.optoutCheckPolicy = optoutCheckPolicy;
         this.asOf = asOf;
     }
 
     public boolean shouldCheckOptOut() {
-        return identityMapPolicy.equals(IdentityMapPolicy.RespectOptOut);
+        return optoutCheckPolicy.equals(OptoutCheckPolicy.RespectOptOut);
     }
 }

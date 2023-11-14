@@ -1,6 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.encryption.AesCbc;
 import com.uid2.shared.encryption.AesGcm;
@@ -72,16 +73,17 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     @Override
     public RefreshToken decodeRefreshToken(String s) {
-        final byte[] bytes = EncodingUtils.fromBase64(s);
-        final Buffer b = Buffer.buffer(bytes);
-
-        if (b.getByte(1) == TokenVersion.V3.rawVersion) {
-            return decodeRefreshTokenV3(b, bytes);
-        } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
-            return decodeRefreshTokenV2(b);
+        if (s != null && !s.isEmpty()) {
+            final byte[] bytes = EncodingUtils.fromBase64(s);
+            final Buffer b = Buffer.buffer(bytes);
+            if (b.getByte(1) == TokenVersion.V3.rawVersion) {
+                return decodeRefreshTokenV3(b, bytes);
+            } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
+                return decodeRefreshTokenV2(b);
+            }
         }
 
-        throw new IllegalArgumentException("Invalid refresh token version");
+        throw new ClientInputValidationException("Invalid refresh token version");
     }
 
     private RefreshToken decodeRefreshTokenV2(Buffer b) {
@@ -119,6 +121,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final int keyId = b.getInt(2);
         final KeysetKey key = this.keyManager.getKey(keyId);
 
+        if (key == null) {
+            throw new ClientInputValidationException("Failed to fetch key with id: " + keyId);
+        }
+
         final byte[] decryptedPayload = AesGcm.decrypt(bytes, 6, key);
 
         final Buffer b2 = Buffer.buffer(decryptedPayload);
@@ -133,10 +139,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final byte[] id = b2.getBytes(58, 90);
 
         if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
-            throw new IllegalArgumentException("Failed to decode refreshTokenV3: Identity scope mismatch");
+            throw new ClientInputValidationException("Failed to decode refreshTokenV3: Identity scope mismatch");
         }
         if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
-            throw new IllegalArgumentException("Failed to decode refreshTokenV3: Identity type mismatch");
+            throw new ClientInputValidationException("Failed to decode refreshTokenV3: Identity type mismatch");
         }
 
         return new RefreshToken(
@@ -148,7 +154,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     public AdvertisingToken decodeAdvertisingToken(String base64AdvertisingToken) {
         //Logic and code copied from: https://github.com/IABTechLab/uid2-client-java/blob/0220ef43c1661ecf3b8f4ed2db524e2db31c06b5/src/main/java/com/uid2/client/Uid2Encryption.java#L37
         if (base64AdvertisingToken.length() < 4) {
-            throw new IllegalArgumentException("Advertising token is too short");
+            throw new ClientInputValidationException("Advertising token is too short");
         }
 
         String headerStr = base64AdvertisingToken.substring(0, 4);
@@ -173,7 +179,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
             bytes = Uid2Base64UrlCoder.decode(base64AdvertisingToken);  //same as V3 but use Base64URL encoding
             tokenVersion = TokenVersion.V4;
         } else {
-            throw new IllegalArgumentException("Invalid advertising token version");
+            throw new ClientInputValidationException("Invalid advertising token version");
         }
 
         final Buffer b = Buffer.buffer(bytes);
@@ -240,10 +246,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         if (id.length > 32)
         {
             if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
-                throw new IllegalArgumentException("Failed decoding advertisingTokenV3: Identity scope mismatch");
+                throw new ClientInputValidationException("Failed decoding advertisingTokenV3: Identity scope mismatch");
             }
             if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
-                throw new IllegalArgumentException("Failed decoding advertisingTokenV3: Identity type mismatch");
+                throw new ClientInputValidationException("Failed decoding advertisingTokenV3: Identity type mismatch");
             }
         }
 
@@ -262,7 +268,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
             case V3:
                 return encodeV3(t, serviceKey);
             default:
-                throw new IllegalArgumentException("RefreshToken version " + t.version + " not supported");
+                throw new ClientInputValidationException("RefreshToken version " + t.version + " not supported");
         }
     }
 

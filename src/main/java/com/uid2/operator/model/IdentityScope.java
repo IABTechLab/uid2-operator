@@ -1,5 +1,7 @@
 package com.uid2.operator.model;
 
+import com.uid2.operator.vertx.ClientInputValidationException;
+
 public enum IdentityScope {
     UID2(0),
     EUID(1);
@@ -12,7 +14,7 @@ public enum IdentityScope {
         switch (value) {
             case 0: return UID2;
             case 1: return EUID;
-            default: throw new IllegalArgumentException();
+            default: throw new ClientInputValidationException("Invalid value for IdentityScope: " + value);
         }
     }
 
@@ -20,7 +22,7 @@ public enum IdentityScope {
         switch (str.toLowerCase()) {
             case "uid2": return UID2;
             case "euid": return EUID;
-            default: throw new IllegalArgumentException();
+            default: throw new ClientInputValidationException("Invalid string for IdentityScope: " + str);
         }
     }
 }

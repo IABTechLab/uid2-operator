@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "operatorIdentifier": {
+      "value": "uid-operator"
+    },
+    "vnetName": {
+      "value": "unified-id-network"
+    },
+    "computeSubnetName": {
+      "value": "unified-id-subnet-operators"
+    },
+    "vaultName": {
+      "value": ""
+    },
+    "operatorKeyName": {
+      "value": "operator-key"
+    },
+    "count": {
+      "value": 2
+    },
+    "deploymentEnvironment": {
+      "value": "integ"
+    }
+  }
+}

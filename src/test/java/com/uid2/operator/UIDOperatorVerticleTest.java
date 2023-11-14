@@ -12,6 +12,8 @@ import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
+import com.uid2.operator.vertx.ClientInputValidationException;
+import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -22,6 +24,8 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.encryption.Uid2Base64UrlCoder;
 import com.uid2.shared.model.*;
+import com.uid2.shared.secret.KeyHashResult;
+import com.uid2.shared.secret.KeyHasher;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import io.micrometer.core.instrument.Metrics;
@@ -42,7 +46,9 @@ import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -61,8 +67,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
+import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.OPT_OUT_CHECK_CUTOFF_DATE;
 import static com.uid2.shared.Const.Data.*;
@@ -80,6 +88,8 @@ public class UIDOperatorVerticleTest {
     private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
     private static final Duration refreshExpiresAfter = Duration.ofMinutes(15);
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
+    private static final KeyHasher keyHasher = new KeyHasher();
+    private static final String clientKey = "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=";
     private static final byte[] clientSecret = Random.getRandomKeyBytes();
     private static final String clientSideTokenGenerateSubscriptionId = "4WvryDGbR5";
     private static final String clientSideTokenGeneratePublicKey = "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
@@ -94,8 +104,6 @@ public class UIDOperatorVerticleTest {
     @Mock private IKeysetKeyStore keysetKeyStore;
     @Mock private RotatingKeysetProvider keysetProvider;
     @Mock private ISaltProvider saltProvider;
-    @Mock private IServiceStore serviceProvider;
-    @Mock private IServiceLinkStore serviceLinkProvider;
     @Mock private SecureLinkValidatorService secureLinkValidatorService;
     @Mock private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
     @Mock private IOptOutStore optOutStore;
@@ -158,16 +166,18 @@ public class UIDOperatorVerticleTest {
     protected void fakeAuth(int siteId, Role... roles) {
         fakeAuth(siteId, legacyClientCreationDateTime, roles);
     }
+
     protected void fakeAuth(int siteId, Instant created, Role... roles) {
+        KeyHashResult khr = keyHasher.hashKey(clientKey);
         ClientKey clientKey = new ClientKey(
-                "test-key",
-                "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=",
-                "fsSGnDxa/V9eJZ9Tas+dowwyO/X1UsC68RN9qM2xUu9ZOaKEOv9EVd7pkt3As/nE5B6TRu0PzK+IDzSQhD1+rw==",
+                khr.getHash(),
+                khr.getSalt(),
                 Utils.toBase64String(clientSecret),
                 "test-contact",
                 created,
                 Set.of(roles),
-                siteId
+                siteId,
+                "key-id"
         );
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
@@ -228,16 +238,23 @@ public class UIDOperatorVerticleTest {
 
     protected void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode,
                                      Handler<JsonObject> handler) {
-        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler);
+        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler, true);
     }
 
-    private void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode, String referer, Handler<JsonObject> handler) {
+    protected void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode,
+                                     Handler<JsonObject> handler, boolean additionalParams) {
+        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler, additionalParams);
+    }
+
+    private void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode, String referer, Handler<JsonObject> handler, boolean additionalParams) {
         if (apiVersion.equals("v2")) {
             ClientKey ck = (ClientKey) clientKeyProvider.get("");
 
             long nonce = new BigInteger(Random.getBytes(8)).longValue();
 
-            addAdditionalTokenGenerateParams(v2PostPayload);
+            if(additionalParams) {
+                addAdditionalTokenGenerateParams(v2PostPayload);
+            }
 
             postV2(ck, vertx, apiVersion + "/token/generate", v2PostPayload, nonce, referer, ar -> {
                 assertTrue(ar.succeeded());
@@ -266,18 +283,17 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void sendTokenRefresh(String apiVersion, Vertx vertx, String refreshToken, String v2RefreshDecryptSecret, int expectedHttpCode,
+    private void sendTokenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext, String refreshToken, String v2RefreshDecryptSecret, int expectedHttpCode,
                                   Handler<JsonObject> handler) {
         if (apiVersion.equals("v2")) {
             WebClient client = WebClient.create(vertx);
             client.postAbs(getUrlForEndpoint("v2/token/refresh"))
                     .putHeader("content-type", "text/plain")
-                    .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), ar -> {
-                        assertTrue(ar.succeeded());
-                        assertEquals(expectedHttpCode, ar.result().statusCode());
+                    .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), testContext.succeeding(response -> testContext.verify(() -> {
+                        assertEquals(expectedHttpCode, response.statusCode());
 
-                        if (ar.result().statusCode() == 200 && v2RefreshDecryptSecret != null) {
-                            byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
+                        if (response.statusCode() == 200 && v2RefreshDecryptSecret != null) {
+                            byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(response.bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
                             JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
 
                             if (respJson.getString("status").equals("success"))
@@ -285,21 +301,19 @@ public class UIDOperatorVerticleTest {
 
                             handler.handle(respJson);
                         } else {
-                            handler.handle(tryParseResponse(ar.result()));
+                            handler.handle(tryParseResponse(response));
                         }
-                    });
+                    })));
         } else {
-            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse<Buffer> response = ar.result();
+            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), testContext.succeeding(response -> testContext.verify(() -> {
                 assertEquals(expectedHttpCode, response.statusCode());
                 JsonObject json = response.bodyAsJsonObject();
                 handler.handle(json);
-            });
+            })));
         }
     }
 
-    private void decodeV2RefreshToken(JsonObject respJson) {
+    private String decodeV2RefreshToken(JsonObject respJson) {
         if (respJson.containsKey("body")) {
             JsonObject bodyJson = respJson.getJsonObject("body");
 
@@ -311,7 +325,11 @@ public class UIDOperatorVerticleTest {
 
             String refreshToken = tokenKeyJson.getString("refresh_token");
             bodyJson.put("decrypted_refresh_token", refreshToken);
+
+            return refreshToken;
         }
+
+        return null;
     }
 
     private JsonObject tryParseResponse(HttpResponse<Buffer> resp) {
@@ -327,7 +345,7 @@ public class UIDOperatorVerticleTest {
         ClientKey ck = clientKeyProvider.getClientKey("");
         HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint(endpoint));
         if (ck != null)
-            req.putHeader("Authorization", "Bearer " + ck.getKey());
+            req.putHeader("Authorization", "Bearer " + clientKey);
         req.send(handler);
     }
 
@@ -336,7 +354,7 @@ public class UIDOperatorVerticleTest {
         ClientKey ck = clientKeyProvider.getClientKey("");
         HttpRequest<Buffer> req = client.postAbs(getUrlForEndpoint(endpoint));
         if (ck != null)
-            req.putHeader("Authorization", "Bearer " + ck.getKey());
+            req.putHeader("Authorization", "Bearer " + clientKey);
         req.sendJsonObject(body, handler);
     }
 
@@ -356,7 +374,7 @@ public class UIDOperatorVerticleTest {
             bufBody.appendBytes(AesGcm.encrypt(b.getBytes(), ck.getSecretBytes()));
         }
 
-        final String apiKey = ck == null ? "" : ck.getKey();
+        final String apiKey = ck == null ? "" : clientKey;
         HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
                 .putHeader("Authorization", "Bearer " + apiKey)
                 .putHeader("content-type", "text/plain");
@@ -524,7 +542,7 @@ public class UIDOperatorVerticleTest {
 
     private void assertTokenStatusMetrics(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus) {
         assertEquals(1, Metrics.globalRegistry
-                .get("uid2.token_response_status_count")
+                .get("uid2_token_response_status_count")
                 .tag("site_id", String.valueOf(siteId))
                 .tag("token_endpoint", String.valueOf(endpoint))
                 .tag("token_response_status", String.valueOf(responseStatus))
@@ -569,7 +587,7 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         JsonObject req = createBatchEmailsRequestPayload();
-        req.put("policy", 1);
+        req.put("optout_check", 1);
         return req;
     }
 
@@ -773,8 +791,9 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void identityMapNewClientWrongPolicySpecified(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"policy", "optout_check"})
+    void identityMapNewClientWrongPolicySpecified(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
         setupSalts();
@@ -784,7 +803,7 @@ public class UIDOperatorVerticleTest {
         JsonArray emails = new JsonArray();
         emails.add("test1@uid2.com");
         req.put("email", emails);
-        req.put("policy", IdentityMapPolicy.JustMap.policy);
+        req.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
 
         send("v2", vertx, "v2/identity/map", false, null, req, 400, respJson -> {
             assertFalse(respJson.containsKey("body"));
@@ -796,10 +815,26 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void identityMapNewClientNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
-                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
-        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
-                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+        ClientKey newClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime,
+                Set.of(Role.MAPPER),
+                201,
+                null
+        );
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.MAPPER),
+                201,
+                null
+        );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
@@ -818,12 +853,29 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void identityMapNewClientWrongPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
-                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
-        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
-                .withSiteId(201).withRoles(Set.of(Role.MAPPER)).withContact("test-contact");
+    @ParameterizedTest
+    @ValueSource(strings = {"policy", "optout_check"})
+    void identityMapNewClientWrongPolicySpecifiedOlderKeySuccessful(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
+        ClientKey newClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime,
+                Set.of(Role.MAPPER),
+                201,
+                null
+        );
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.MAPPER),
+                201,
+                null
+        );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
@@ -833,7 +885,7 @@ public class UIDOperatorVerticleTest {
         JsonObject req = new JsonObject();
         JsonArray emails = new JsonArray();
         req.put("email", emails);
-        req.put("policy", IdentityMapPolicy.JustMap.policy);
+        req.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
 
         emails.add("test1@uid2.com");
         ;
@@ -864,8 +916,9 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    @Test
-    void tokenGenerateNewClientWrongPolicySpecified(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"policy", "optout_check"})
+    void tokenGenerateNewClientWrongPolicySpecified(String policyParamterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.GENERATOR);
         setupSalts();
@@ -873,7 +926,7 @@ public class UIDOperatorVerticleTest {
 
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", "test@email.com");
-        v2Payload.put("policy", TokenGeneratePolicy.JustGenerate.policy);
+        v2Payload.put(policyParamterKey, OptoutCheckPolicy.DoNotRespect.policy);
 
         sendTokenGenerate("v2", vertx,
                 "", v2Payload, 400,
@@ -887,10 +940,26 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void tokenGenerateNewClientNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
-                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
-        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
-                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+        ClientKey newClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime,
+                Set.of(Role.GENERATOR),
+                201,
+                null
+        );
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.GENERATOR),
+                201,
+                null
+        );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
@@ -909,12 +978,29 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    @Test
-    void tokenGenerateNewClientWrongPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime)
-                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
-        ClientKey oldClientKey = new ClientKey("test-key", null, null, Utils.toBase64String(clientSecret), newClientCreationDateTime.minusSeconds(5))
-                .withSiteId(201).withRoles(Set.of(Role.GENERATOR)).withContact("test-contact");
+    @ParameterizedTest
+    @ValueSource(strings = {"policy", "optout_check"})
+    void tokenGenerateNewClientWrongPolicySpecifiedOlderKeySuccessful(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
+        ClientKey newClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime,
+                Set.of(Role.GENERATOR),
+                201,
+                null
+        );
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.GENERATOR),
+                201,
+                null
+        );
         when(clientKeyProvider.get(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
         when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
@@ -923,7 +1009,7 @@ public class UIDOperatorVerticleTest {
 
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", "test@email.com");
-        v2Payload.put("policy", TokenGeneratePolicy.JustGenerate.policy);
+        v2Payload.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
 
         sendTokenGenerate("v2", vertx,
                 "", v2Payload, 200,
@@ -1034,7 +1120,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(apiVersion, vertx, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            sendTokenRefresh(apiVersion, vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
             {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -1076,7 +1162,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmail_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1106,7 +1192,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmailHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1118,10 +1204,10 @@ public class UIDOperatorVerticleTest {
 
             String advertisingTokenString = genBody.getString("advertising_token");
 
-            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
+            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(ValidateIdentityForEmailHash));
             JsonObject v2Payload = new JsonObject();
             v2Payload.put("token", advertisingTokenString);
-            v2Payload.put("email_hash", EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
+            v2Payload.put("email_hash", EncodingUtils.toBase64String(ValidateIdentityForEmailHash));
 
             send(apiVersion, vertx, apiVersion + "/token/validate", true, v1Param, v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
@@ -1136,7 +1222,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithBothEmailAndEmailHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1148,7 +1234,7 @@ public class UIDOperatorVerticleTest {
 
             String advertisingTokenString = genBody.getString("advertising_token");
 
-            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash));
+            String v1Param = "token=" + urlEncode(advertisingTokenString) + "&email=" + emailAddress + "&email_hash=" + urlEncode(EncodingUtils.toBase64String(ValidateIdentityForEmailHash));
             JsonObject v2Payload = new JsonObject();
             v2Payload.put("token", advertisingTokenString);
             v2Payload.put("email", emailAddress);
@@ -1202,7 +1288,7 @@ public class UIDOperatorVerticleTest {
     void tokenRefreshNoToken(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
-        sendTokenRefresh(apiVersion, vertx, "", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, testContext, "", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
@@ -1218,7 +1304,7 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
 
-        sendTokenRefresh(apiVersion, vertx, "abcd", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, testContext, "abcd", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
@@ -1231,7 +1317,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void tokenRefreshInvalidTokenUnauthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
-        sendTokenRefresh(apiVersion, vertx, "abcd", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, testContext, "abcd", "", 400, json -> {
             assertEquals("error", json.getString("status"));
             testContext.completeNow();
         });
@@ -1255,7 +1341,7 @@ public class UIDOperatorVerticleTest {
             String refreshToken = bodyJson.getString("refresh_token");
             when(clock.instant()).thenAnswer(i -> now.plusSeconds(300));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 assertEquals(300, Metrics.globalRegistry
                         .get("uid2.token_refresh_duration_seconds")
@@ -1285,7 +1371,7 @@ public class UIDOperatorVerticleTest {
             String refreshToken = bodyJson.getString("refresh_token");
             when(clock.instant()).thenAnswer(i -> now.plusSeconds(identityExpiresAfter.toSeconds() + 1));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 assertEquals(1, Metrics.globalRegistry
@@ -1310,7 +1396,7 @@ public class UIDOperatorVerticleTest {
             String refreshToken = bodyJson.getString("refresh_token");
             when(clock.instant()).thenAnswer(i -> now.plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 400, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 400, refreshRespJson -> {
                 assertEquals("expired_token", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
@@ -1328,7 +1414,7 @@ public class UIDOperatorVerticleTest {
             clearAuth();
             when(clock.instant()).thenAnswer(i -> now.plusMillis(refreshExpiresAfter.toMillis()).plusSeconds(60));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, "", 400, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, "", 400, refreshRespJson -> {
                 assertEquals("error", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
@@ -1346,7 +1432,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("optout", refreshRespJson.getString("status"));
                 assertTokenStatusMetrics(
                         clientSiteId,
@@ -1369,7 +1455,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(now.minusSeconds(10));
 
-            sendTokenRefresh(apiVersion, vertx, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
+            sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 testContext.completeNow();
@@ -1387,7 +1473,7 @@ public class UIDOperatorVerticleTest {
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             String refreshToken = bodyJson.getString("refresh_token");
 
-            sendTokenRefresh("v2", vertx, refreshToken, null, 200, refreshRespJson -> {
+            sendTokenRefresh("v2", vertx, testContext, refreshToken, null, 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 JsonObject refreshBodyJson = refreshRespJson.getJsonObject("body");
@@ -1410,7 +1496,7 @@ public class UIDOperatorVerticleTest {
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             String refreshToken = bodyJson.getString("refresh_token");
 
-            sendTokenRefresh("v1", vertx, refreshToken, null, 200, refreshRespJson -> {
+            sendTokenRefresh("v1", vertx, testContext, refreshToken, null, 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 testContext.completeNow();
             });
@@ -1421,7 +1507,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenValidateWithEmail_Mismatch(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = UIDOperatorVerticle.ValidationInputEmail;
+        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1447,8 +1533,8 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         send(apiVersion, vertx, apiVersion + "/token/validate", true,
-                "token=abcdef&email_hash=" + urlEncode(EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
-                new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash)),
+                "token=abcdef&email_hash=" + urlEncode(EncodingUtils.toBase64String(ValidateIdentityForEmailHash)),
+                new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(ValidateIdentityForEmailHash)),
                 200,
                 respJson -> {
                     assertFalse(respJson.getBoolean("body"));
@@ -1993,7 +2079,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(apiVersion, vertx, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            sendTokenRefresh(apiVersion, vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
             {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -2026,7 +2112,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhone_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = UIDOperatorVerticle.ValidationInputPhone;
+        final String phone = ValidateIdentityForPhone;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2056,8 +2142,8 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhoneHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = UIDOperatorVerticle.ValidationInputPhone;
-        final String phoneHash = EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputPhoneHash);
+        final String phone = ValidateIdentityForPhone;
+        final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForPhoneHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2087,8 +2173,8 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithBothPhoneAndPhoneHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = UIDOperatorVerticle.ValidationInputPhone;
-        final String phoneHash = EncodingUtils.toBase64String(UIDOperatorVerticle.ValidationInputEmailHash);
+        final String phone = ValidateIdentityForPhone;
+        final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForEmailHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2398,10 +2484,9 @@ public class UIDOperatorVerticleTest {
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 413, json -> testContext.completeNow());
     }
-
     @ParameterizedTest
-    @ValueSource(strings = {"v2"})
-    void tokenGenerateRespectOptOutOption(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @ValueSource(strings = {"policy", "optout_check"})
+    void tokenGenerateRespectOptOutOption(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -2413,14 +2498,14 @@ public class UIDOperatorVerticleTest {
 
         JsonObject req = new JsonObject();
         req.put("email", "random-optout-user@email.io");
-        req.put("policy", 1);
+        req.put(policyParameterKey, 1);
 
         // for EUID
         addAdditionalTokenGenerateParams(req);
 
-        send(apiVersion, vertx, apiVersion + "/token/generate", false, null, req, 200, json -> {
+        send("v2", vertx, "v2/token/generate", false, null, req, 200, json -> {
             try {
-                Assertions.assertEquals(UIDOperatorVerticle.ResponseStatus.OptOut, json.getString("status"));
+                Assertions.assertEquals(ResponseUtil.ResponseStatus.OptOut, json.getString("status"));
                 Assertions.assertNull(json.getJsonObject("body"));
                 assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut);
                 testContext.completeNow();
@@ -2460,9 +2545,18 @@ public class UIDOperatorVerticleTest {
         });
     }
 
+    private static Stream<Arguments> versionAndPolicy() {
+        return Stream.of(
+                Arguments.arguments("v1", "policy"),
+                Arguments.arguments("v1", "optout_check"),
+                Arguments.arguments("v2", "policy"),
+                Arguments.arguments("v2", "optout_check")
+        );
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void identityMapRespectOptOutOption(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @MethodSource("versionAndPolicy")
+    void identityMapRespectOptOutOption(String apiVersion, String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
@@ -2476,7 +2570,7 @@ public class UIDOperatorVerticleTest {
         JsonArray emails = new JsonArray();
         emails.add("random-optout-user@email.io");
         req.put("email", emails);
-        req.put("policy", 1);
+        req.put(policyParameterKey, 1);
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 200, json -> {
             try {
@@ -2531,7 +2625,7 @@ public class UIDOperatorVerticleTest {
                     assertStatsCollector("/v2/token/generate", "test-referer", null, null);
 
                     testContext.completeNow();
-                });
+                }, true);
     }
 
     private void postCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
@@ -2560,7 +2654,7 @@ public class UIDOperatorVerticleTest {
     {
         setupSalts();
         setupKeys();
-        ClientSideKeypair keypair = new ClientSideKeypair(clientSideTokenGenerateSubscriptionId, clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, clientSideTokenGenerateSiteId, "", Instant.now(), false);
+        ClientSideKeypair keypair = new ClientSideKeypair(clientSideTokenGenerateSubscriptionId, clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, clientSideTokenGenerateSiteId, "", Instant.now(), false, "");
         when(clientSideKeypairProvider.getSnapshot()).thenReturn(clientSideKeypairSnapshot);
         when(clientSideKeypairSnapshot.getKeypair(clientSideTokenGenerateSubscriptionId)).thenReturn(keypair);
         when(siteProvider.getSite(eq(clientSideTokenGenerateSiteId))).thenReturn(new Site(clientSideTokenGenerateSiteId, "test", true, new HashSet<>(List.of(domainNames))));
@@ -2581,7 +2675,7 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("please provide exactly one of: email_hash, phone_hash", respJson.getString("message"));
-                    assertEquals(UIDOperatorVerticle.ResponseStatus.ClientError, respJson.getString("status"));
+                    assertEquals(ResponseUtil.ResponseStatus.ClientError, respJson.getString("status"));
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
@@ -2638,61 +2732,29 @@ public class UIDOperatorVerticleTest {
         setupCstgBackend("cstg.co.uk");
 
         postCstg(vertx,
-                "v2/token/client-generate",
-                "https://cstg.co.uk",
-                null,
-                testContext.succeeding(result -> testContext.verify(() -> {
-                    JsonObject response = result.bodyAsJsonObject();
-                    assertEquals("client_error", response.getString("status"));
-                    assertEquals("json payload expected but not found", response.getString("message"));
-                    testContext.completeNow();
-                })));
+                 "v2/token/client-generate",
+                 "https://cstg.co.uk",
+                 null,
+                 testContext.succeeding(result -> testContext.verify(() -> {
+                     JsonObject response = result.bodyAsJsonObject();
+                     assertEquals("client_error", response.getString("status"));
+                     assertEquals("json payload expected but not found", response.getString("message"));
+                     testContext.completeNow();
+                 })));
     }
 
     @Test
-    void cstgBadTimestamp(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgForInvalidJsonPayloadReturns400(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
 
-        IdentityType identityType = IdentityType.Email;
-        String rawId = "random@unifiedid.com";
-
-        JsonObject identityPayload = new JsonObject();
-        identityPayload.put("email_hash", getSha256(rawId));
-
-        final KeyFactory kf = KeyFactory.getInstance("EC");
-        final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
-        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
-        final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
-
-        final byte[] iv = Random.getBytes(12);
-        final long timestamp = now.minus(5, ChronoUnit.MINUTES).minusSeconds(1).toEpochMilli();
-        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
-        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad);
-        final String payload = EncodingUtils.toBase64String(payloadBytes);
-
-        JsonObject requestJson = new JsonObject();
-        requestJson.put("payload", payload);
-        requestJson.put("iv", EncodingUtils.toBase64String(iv));
-        requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
-        requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
-
-        sendCstg(vertx,
-                "v2/token/client-generate",
-                "https://cstg.co.uk",
-                requestJson,
-                secretKey,
-                400,
-                testContext,
-                respJson -> {
-                    assertEquals("error", respJson.getString("status"));
-                    assertEquals("invalid timestamp: request too old or client time drift", respJson.getString("message"));
-                    assertTokenStatusMetrics(
-                            clientSideTokenGenerateSiteId,
-                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
-                            TokenResponseStatsCollector.ResponseStatus.BadTimestamp);
-                    testContext.completeNow();
-                });
+        WebClient client = WebClient.create(vertx);
+        client.postAbs(getUrlForEndpoint("v2/token/client-generate"))
+            .putHeader("origin", "https://cstg.co.uk")
+            .putHeader("Content-Type", "application/json")
+            .sendBuffer(Buffer.buffer("not a valid json payload"), result -> testContext.verify(() -> {
+                assertEquals(400, result.result().statusCode());
+                testContext.completeNow();
+            }));
     }
 
     @ParameterizedTest
@@ -3135,6 +3197,63 @@ public class UIDOperatorVerticleTest {
         return createClientSideTokenGenerateRequestWithPayload(identity, timestamp);
     }
 
+
+    @ParameterizedTest
+    @CsvSource({"test@example.com,Email", "+61400000000,Phone"})
+    void cstgUserOptsOutAfterTokenGenerate(String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend("cstg.co.uk");
+
+        final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
+
+        // When we generate the token the user hasn't opted out.
+        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                .thenReturn(null);
+
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+        final ArgumentCaptor<UserIdentity> argumentCaptor = ArgumentCaptor.forClass(UserIdentity.class);
+
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "https://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                200,
+                testContext,
+                response -> {
+                    verify(optOutStore, times(1)).getLatestEntry(argumentCaptor.capture());
+                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), argumentCaptor.getValue().id);
+
+                    assertEquals("success", response.getString("status"));
+                    final JsonObject genBody = response.getJsonObject("body");
+
+                    final AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
+                    final RefreshToken refreshToken = encoder.decodeRefreshToken(decodeV2RefreshToken(response));
+
+                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
+
+                    // When we refresh the token the user has opted out.
+                    when(optOutStore.getLatestEntry(any(UserIdentity.class)))
+                        .thenReturn(advertisingToken.userIdentity.establishedAt.plusSeconds(1));
+
+                    sendTokenRefresh("v2", vertx, testContext, genBody.getString("refresh_token"), genBody.getString("refresh_response_key"), 200, refreshRespJson -> {
+                        verify(optOutStore, times(2)).getLatestEntry(argumentCaptor.capture());
+                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), argumentCaptor.getValue().id);
+
+                        assertEquals("success", refreshRespJson.getString("status"));
+                        final JsonObject refreshBody = refreshRespJson.getJsonObject("body");
+
+                        final AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
+                        final RefreshToken refreshTokenFromRefresh = encoder.decodeRefreshToken(decodeV2RefreshToken(refreshRespJson));
+
+                        assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenFromRefresh, clientSideTokenGenerateSiteId, identityType);
+
+                        verifyNoMoreInteractions(optOutStore);
+
+                        testContext.completeNow();
+                    });
+                });
+    }
+
     // tests for opted out user should lead to generating ad tokens with the default optout identity
     // tests for opted in user should lead to generating ad tokens that never match the default optout identity
     // tests for all email/phone combos
@@ -3172,36 +3291,13 @@ public class UIDOperatorVerticleTest {
                     EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
-                    assertEquals(clientSideTokenGenerateSiteId, advertisingToken.publisherIdentity.siteId);
-
-                    assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
-                    assertEquals(optOutExpected, PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
-
-                    if(identityType == IdentityType.Email) {
-                        assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email,
-                                TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
-                    }
-                    else if(identityType == IdentityType.Phone) {
-                        assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Phone,
-                                TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
-                    }
-                    else { //should never happen
-                        assertFalse(true);
-                    }
 
                     RefreshToken refreshToken = encoder.decodeRefreshToken(genBody.getString("decrypted_refresh_token"));
-                    assertEquals(clientSideTokenGenerateSiteId, refreshToken.publisherIdentity.siteId);
-                    assertTrue(PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits).isClientSideTokenGenerated());
 
-                    if(optOutExpected) {
-                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(expectedOptedOutIdentity), firstLevelSalt), refreshToken.userIdentity.id);
-                        assertTrue(PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
-                    }
-                    else {
-                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(id), firstLevelSalt), refreshToken.userIdentity.id);
-                        assertFalse(PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                    if (optOutExpected) {
+                        assertAreClientSideGeneratedOptOutTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType);
+                    } else {
+                        assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
                     }
 
                     assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
@@ -3234,7 +3330,7 @@ public class UIDOperatorVerticleTest {
 
                     String genRefreshToken = genBody.getString("refresh_token");
                     //test a subsequent refresh from this cstg call and see if it still works
-                    sendTokenRefresh("v2", vertx, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson ->
+                    sendTokenRefresh("v2", vertx, testContext, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson ->
                     {
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -3243,33 +3339,15 @@ public class UIDOperatorVerticleTest {
 
                         //make sure the new advertising token from refresh looks right
                         AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, identityType);
-                        assertEquals(clientSideTokenGenerateSiteId, adTokenFromRefresh.publisherIdentity.siteId);
 
                         String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
                         RefreshToken refreshTokenAfterRefresh = encoder.decodeRefreshToken(refreshTokenStringNew);
-                        assertEquals(clientSideTokenGenerateSiteId, refreshTokenAfterRefresh.publisherIdentity.siteId);
 
-                        if(optOutExpected) {
-                            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(expectedOptedOutIdentity), firstLevelSalt), refreshTokenAfterRefresh.userIdentity.id);
-                        }
-                        else {
-                            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(getSha256(id), firstLevelSalt), refreshTokenAfterRefresh.userIdentity.id);
-                        }
-
-                        if(identityType == IdentityType.Email) {
-                            assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email,
-                                    TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                    firstLevelSalt, rotatingSalt123.getSalt()), adTokenFromRefresh.userIdentity.id);
-                        }
-                        else if(identityType == IdentityType.Phone) {
-                            assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Phone,
-                                    TokenUtils.getIdentityHashString(optOutExpected? expectedOptedOutIdentity : id),
-                                    firstLevelSalt, rotatingSalt123.getSalt()), adTokenFromRefresh.userIdentity.id);
-
-                        }
-                        else { //should never happen
-                            assertFalse(true);
+                        if (optOutExpected) {
+                            assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType);
+                        } else {
+                            assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id);
                         }
 
                         assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
@@ -3281,15 +3359,65 @@ public class UIDOperatorVerticleTest {
                                 TokenResponseStatsCollector.Endpoint.RefreshV2,
                                 TokenResponseStatsCollector.ResponseStatus.Success);
 
-                        //check the CSTG-related privacy bits are still set correctly
-                        assertTrue(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
-                        assertTrue(PrivacyBits.fromInt(refreshTokenAfterRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
-                        assertEquals(optOutExpected, PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
-                        assertEquals(optOutExpected, PrivacyBits.fromInt(refreshTokenAfterRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
-
                         testContext.completeNow();
                     });
                 });
+    }
+
+    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity) {
+        assertAreClientSideGeneratedTokens(advertisingToken,
+                refreshToken,
+                siteId,
+                identityType,
+                identity,
+                false);
+    }
+
+    private void assertAreClientSideGeneratedOptOutTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType) {
+        final String identity = getClientSideGeneratedTokenOptOutIdentity(identityType);
+
+        assertAreClientSideGeneratedTokens(advertisingToken,
+                refreshToken,
+                siteId,
+                identityType,
+                identity,
+                true);
+    }
+
+    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity, boolean expectedOptOut) {
+        final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits);
+        final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits);
+
+        final byte[] advertisingId = getAdvertisingIdFromIdentity(identityType,
+                identity,
+                firstLevelSalt,
+                rotatingSalt123.getSalt());
+
+        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(identity, firstLevelSalt);
+
+        assertAll(
+                () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenGenerated(), "Advertising token privacy bits CSTG flag is incorrect"),
+                () -> assertEquals(expectedOptOut, advertisingTokenPrivacyBits.isClientSideTokenOptedOut(), "Advertising token privacy bits CSTG optout flag is incorrect"),
+
+                () -> assertTrue(refreshTokenPrivacyBits.isClientSideTokenGenerated(), "Refresh token privacy bits CSTG flag is incorrect"),
+                () -> assertEquals(expectedOptOut, refreshTokenPrivacyBits.isClientSideTokenOptedOut(), "Refresh token privacy bits CSTG optout flag is incorrect"),
+
+                () -> assertEquals(siteId, advertisingToken.publisherIdentity.siteId, "Advertising token site ID is incorrect"),
+                () -> assertEquals(siteId, refreshToken.publisherIdentity.siteId, "Refresh token site ID is incorrect"),
+
+                () -> assertArrayEquals(advertisingId, advertisingToken.userIdentity.id, "Advertising token ID is incorrect"),
+                () -> assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id, "Refresh token ID is incorrect")
+        );
+    }
+
+    private static String getClientSideGeneratedTokenOptOutIdentity(IdentityType identityType) {
+        switch (identityType) {
+            case Email:
+                return ClientSideTokenGenerateOptOutIdentityForEmail;
+            case Phone:
+                return ClientSideTokenGenerateOptOutIdentityForPhone;
+        }
+        throw new ClientInputValidationException("Invalid identity type " + identityType);
     }
 
     /********************************************************

@@ -6,19 +6,12 @@ Parameters:
     Type: String
     NoEcho: true
   DeployToEnvironment:
-    Description: Deploy in UID2 production environment
+    Description: Environment to deploy to prod/integ
     Type: String
     Default: prod
     AllowedValues:
       - prod
       - integ
-  CreateVPC:
-    Description: Create a New VPC or use Existing VPC?
-    Type: String
-    Default: false
-    AllowedValues:
-      - true
-      - false
   TrustNetworkCidr:
     Description: The IP address range that can be used to SSH and HTTPS to the EC2 instances
     Type: String
@@ -56,30 +49,6 @@ Parameters:
     Description: AZ2 SubnetId from existing VPC, if using existing VPC
     Type: String
     Default: ''
-  NewVpcCidr:
-    Description: CIDR for New VPC
-    Type: String
-    MinLength: '9'
-    MaxLength: '18'
-    Default: 10.0.0.0/24
-    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
-    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
-  Subnet1Cidr:
-    Description: CIDR for Subnet in AZ1
-    Type: String
-    MinLength: '9'
-    MaxLength: '18'
-    Default: 10.0.0.0/25
-    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
-    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
-  Subnet2Cidr:
-    Description: CIDR for Subnet in AZ1
-    Type: String
-    MinLength: '9'
-    MaxLength: '18'
-    Default: 10.0.0.128/25
-    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
-    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
   SSHKeyName:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
     Type: 'AWS::EC2::KeyPair::KeyName'
@@ -102,7 +71,6 @@ Metadata:
           default: Infrastructure Configuration
         Parameters:
           - TrustNetworkCidr
-          - CreateVPC
           - VpcId
           - VpcSubnet1
           - VpcSubnet2
@@ -111,7 +79,7 @@ Metadata:
           - Subnet2Cidr
     ParameterLabels:
       APIToken:
-        default: OPERATOR_KEY provided by UID Administrator
+        default: OPERATOR_KEY provided by UID Administrator.
       DeployToEnvironment:
         default: UID2 environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
@@ -122,14 +90,10 @@ Metadata:
         default: Instance root Volume size, enter in GB
       TrustNetworkCidr:
         default: Trusted Network CIDR (required)
-      CreateVPC:
-        default: Choose to use Existing VPC or Create new VPC (required)
       VpcId:
         default: If choose to use Existing VPC, enter existing VPC Id (required in case of existing VPC)
       VpcSubnet:
         default: If choose to use Existing VPC, enter existing Subnet Id (required in case of existing VPC)
-      NewVpcCidr:
-        default: If choose to create new VPC, enter CIDR for new VPC (required in case of new VPC)
       CustomizeEnclaceResource:
         default: Enclave resouce configuration auto calculated or manual
       EnclavememoryinMB:
@@ -178,9 +142,6 @@ Mappings:
       AMI: ami-xxxxxxxxxxxxxxxxx
     af-south-1:
       AMI: ami-xxxxxxxxxxxxxxxxx
-Conditions:
-  shouldCreateVpc:
-    !Equals [true, !Ref CreateVPC]
 Resources:
   KMSKey:
     Type: AWS::KMS::Key
@@ -258,91 +219,6 @@ Resources:
       Path: /
       Roles:
         - !Ref WorkerRole
-  VPC:
-    Condition: shouldCreateVpc
-    Type: 'AWS::EC2::VPC'
-    Properties:
-      EnableDnsSupport: 'true'
-      EnableDnsHostnames: 'true'
-      CidrBlock: !Ref NewVpcCidr
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-  Subnet1:
-    Condition: shouldCreateVpc
-    Type: 'AWS::EC2::Subnet'
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Ref Subnet1Cidr
-      MapPublicIpOnLaunch: true
-      AvailabilityZone: !Select 
-        - 0
-        - Fn::GetAZs: !Ref 'AWS::Region'
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Name
-          Value: SubnetAZ1
-  Subnet2:
-    Condition: shouldCreateVpc
-    Type: 'AWS::EC2::Subnet'
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Ref Subnet2Cidr
-      MapPublicIpOnLaunch: true
-      AvailabilityZone: !Select 
-        - 1
-        - Fn::GetAZs: !Ref 'AWS::Region'
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Name
-          Value: SubnetAZ2
-  InternetGateway:
-    Condition: shouldCreateVpc
-    Type: 'AWS::EC2::InternetGateway'
-    Properties:
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: Public
-  AttachGateway:
-    Condition: shouldCreateVpc
-    Type: 'AWS::EC2::VPCGatewayAttachment'
-    Properties:
-      VpcId: !Ref VPC
-      InternetGatewayId: !Ref InternetGateway
-  Route1:
-    Condition: shouldCreateVpc
-    Type: 'AWS::EC2::Route'
-    DependsOn: AttachGateway
-    Properties:
-      RouteTableId: !Ref RouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
-  RouteTable:
-    Condition: shouldCreateVpc
-    Type: 'AWS::EC2::RouteTable'
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: Public
-  Subnet1RouteTableAssociation:
-    Condition: shouldCreateVpc
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref Subnet1
-      RouteTableId: !Ref RouteTable
-  Subnet2RouteTableAssociation:
-    Condition: shouldCreateVpc
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref Subnet2
-      RouteTableId: !Ref RouteTable
   SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -369,10 +245,7 @@ Resources:
           ToPort: 443
           CidrIp: 0.0.0.0/0
           Description: "Allow Outbound"
-      VpcId: !If 
-        - shouldCreateVpc
-        - !Ref VPC
-        - !Ref VpcId
+      VpcId: !Ref VpcId
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -396,7 +269,6 @@ Resources:
           Fn::Sub: |
             #!/bin/bash -ex
             export UID2_CONFIG_SECRET_KEY="uid2-config-stack-${AWS::StackName}"
-            sudo yum install -y nmap-ncat
             sudo yum update -y --security
             while ! nc -z localhost 80;do sleep 10;done
             /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}
@@ -415,12 +287,9 @@ Resources:
         - GroupTotalInstances
       MaxSize: 1
       MinSize: 1
-      VPCZoneIdentifier: !If 
-        - shouldCreateVpc
-        - - !Ref Subnet1
-          - !Ref Subnet2
-        - - !Ref VpcSubnet1
-          - !Ref VpcSubnet2
+      VPCZoneIdentifier: 
+        - !Ref VpcSubnet1
+        - !Ref VpcSubnet2
       Tags:
       - Key: Name
         Value: 'UID Instance'

@@ -1,5 +1,7 @@
 package com.uid2.operator.model;
 
+import com.uid2.operator.vertx.ClientInputValidationException;
+
 public enum IdentityType {
     Email(0), Phone(1);
 
@@ -11,7 +13,7 @@ public enum IdentityType {
         switch (value) {
             case 0: return Email;
             case 1: return Phone;
-            default: throw new IllegalArgumentException();
+            default: throw new ClientInputValidationException("Invalid valid for IdentityType: " + value);
         }
     }
 }

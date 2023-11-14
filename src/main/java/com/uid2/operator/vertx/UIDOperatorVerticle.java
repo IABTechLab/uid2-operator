@@ -813,13 +813,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 if (t.isEmptyToken()) {
                     if(optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
                         final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
-                                ? InputUtil.normalizeEmail(OptOutTokenIdentityForEmail)
-                                : InputUtil.normalizePhone(OptOutTokenIdentityForPhone);
+                                ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
+                                : InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone);
                         final IdentityTokens optOutTokens = this.idService.generateIdentity(
                                 new IdentityRequest(
                                         new PublisherIdentity(siteId, 0, 0),
                                         optOutTokenInput.toUserIdentity(this.identityScope, 1, Instant.now()),
                                         OptoutCheckPolicy.DoNotRespect));
+
                         ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
                     } else { // new participant

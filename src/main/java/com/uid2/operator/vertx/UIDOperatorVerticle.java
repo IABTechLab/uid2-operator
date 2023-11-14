@@ -808,10 +808,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                optoutCheckPolicy.getItem1()));
+                                OptoutCheckPolicy.respectOptOut()));
 
                 if (t.isEmptyToken()) {
-                    if(optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) {
+                    if(optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
                         final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
                                 ? InputUtil.normalizeEmail(OptOutTokenIdentityForEmail)
                                 : InputUtil.normalizePhone(OptOutTokenIdentityForPhone);
@@ -821,10 +821,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                         optOutTokenInput.toUserIdentity(this.identityScope, 1, Instant.now()),
                                         OptoutCheckPolicy.DoNotRespect));
                         ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
-                    } else {
+                    } else { // new participant
                         ResponseUtil.SuccessNoBodyV2("optout", rc);
+                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider);
                     }
-                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider);
+                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
                 } else {
                     ResponseUtil.SuccessV2(rc, toJsonV1(t));
                     recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);

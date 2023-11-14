@@ -136,7 +136,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
             final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
 
-            if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getTime())) {
+            if (!optedOut) {
                 IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
 
                 return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);

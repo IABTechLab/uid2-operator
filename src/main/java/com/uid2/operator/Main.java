@@ -252,7 +252,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider));
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider));
             return verticle;
         };
 
@@ -460,7 +460,7 @@ public class Main {
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }
 
-    private AttestationTokenRetriever getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Integer> responseWatcher) throws Exception {
+    private AttestationTokenRetriever getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
         String enclavePlatform = this.config.getString("enclave_platform");
         if (Strings.isNullOrEmpty(enclavePlatform)) {
             return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher, CloudUtils.defaultProxy);

@@ -1073,6 +1073,8 @@ public class UIDOperatorVerticleTest {
                     final String token = advertisingTokenString;
                     final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, optOutTokenInput.toUserIdentity(getIdentityScope(), 0, now), now);
                     assertTrue(matchedOptedOutIdentity);
+                    assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
+                    assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
 
                     assertTokenStatusMetrics(
                             201,

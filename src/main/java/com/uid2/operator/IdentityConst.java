@@ -4,8 +4,6 @@ import com.uid2.operator.service.EncodingUtils;
 
 public class IdentityConst {
 
-    // the identities used to generate advertising token when CSTG finds the identity in the request
-    // has opted out
     public static final String OptOutTokenIdentityForEmail = "optout@unifiedid.com";
     public static final String OptOutTokenIdentityForPhone = "+00000000001";
     public static final String ValidateIdentityForEmail = "validate@example.com";

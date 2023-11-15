@@ -1530,6 +1530,7 @@ public class UIDOperatorVerticleTest {
 
             sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
                 assertEquals("optout", refreshRespJson.getString("status"));
+                assertNull(refreshRespJson.getJsonObject("body"));
 
                 testContext.completeNow();
             });
@@ -2282,6 +2283,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals(200, response.statusCode());
                 JsonObject json = response.bodyAsJsonObject();
                 assertEquals("optout", json.getString("status"));
+                assertNull(json.getJsonObject("body"));
 
                 testContext.completeNow();
             });

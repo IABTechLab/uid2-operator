@@ -815,10 +815,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
                                 ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
                                 : InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone);
+
+                        PrivacyBits pb = new PrivacyBits();
+                        pb.setLegacyBit();
+                        pb.setClientSideTokenGenerateOptout();
+
                         final IdentityTokens optOutTokens = this.idService.generateIdentity(
                                 new IdentityRequest(
                                         new PublisherIdentity(siteId, 0, 0),
-                                        optOutTokenInput.toUserIdentity(this.identityScope, 1, Instant.now()),
+                                        optOutTokenInput.toUserIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
                                         OptoutCheckPolicy.DoNotRespect));
 
                         ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));

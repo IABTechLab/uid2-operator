@@ -1884,6 +1884,40 @@ public class UIDOperatorVerticleTest {
         });
     }
 
+    @Test
+    void attestRecoverOnSuccess(Vertx vertx, VertxTestContext testContext) {
+        System.setSecurityManager(new NoExitSecurityManager());
+
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        // Verify success before revoking auth
+        get(vertx, "v1/token/generate?email=test@uid2.com", ar -> {
+            assertEquals(200, ar.result().statusCode());
+
+            // Failure starts
+            this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
+
+            when(clock.instant()).thenAnswer(i -> Instant.now().plus(6, ChronoUnit.HOURS));
+
+            this.operatorShutdownHandler.handleResponse(Pair.of(200, ""));
+
+            // Can server before waiting period passes
+            when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
+
+            assertDoesNotThrow(() -> {
+                this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
+            });
+            testContext.completeNow();
+        });
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateBothPhoneAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {

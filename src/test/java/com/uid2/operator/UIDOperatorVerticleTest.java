@@ -1014,6 +1014,87 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
+    @ParameterizedTest // TODO: remove test after optout check phase 3
+    @CsvSource({"policy,someoptout@example.com,Email",
+            "policy,+01234567890,Phone",
+            "optout_check,someoptout@example.com,Email",
+            "optout_check,+01234567890,Phone"})
+    void tokenGenerateOptOutToken(String policyParameterKey, String identity, IdentityType identityType,
+                                           Vertx vertx, VertxTestContext testContext) {
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.GENERATOR),
+                201,
+                null
+        );
+        when(clientKeyProvider.get(any())).thenReturn(oldClientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(oldClientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
+        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put(identityType.name().toLowerCase(), identity);
+        v2Payload.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 200,
+                json -> {
+                    InputUtil.InputVal optOutTokenInput = identityType == IdentityType.Email ?
+                            InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail) :
+                            InputUtil.InputVal.validPhone(OptOutIdentityForPhone, OptOutTokenIdentityForPhone);
+
+                    assertEquals("success", json.getString("status"));
+
+                    JsonObject body = json.getJsonObject("body");
+                    assertNotNull(body);
+
+                    decodeV2RefreshToken(json);
+
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+
+                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, identityType);
+                    RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString("decrypted_refresh_token"));
+                    final byte[] advertisingId = getAdvertisingIdFromIdentity(identityType,
+                            optOutTokenInput.getNormalized(),
+                            firstLevelSalt,
+                            rotatingSalt123.getSalt());
+                    final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(optOutTokenInput.getNormalized(), firstLevelSalt);
+                    assertArrayEquals(advertisingId, advertisingToken.userIdentity.id);
+                    assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id);
+
+                    String advertisingTokenString = body.getString("advertising_token");
+                    final Instant now = Instant.now();
+                    final String token = advertisingTokenString;
+                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, optOutTokenInput.toUserIdentity(getIdentityScope(), 0, now), now);
+                    assertTrue(matchedOptedOutIdentity);
+                    assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
+                    assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
+
+                    assertTokenStatusMetrics(
+                            201,
+                            TokenResponseStatsCollector.Endpoint.GenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.Success);
+
+                    sendTokenRefresh("v2", vertx, testContext, body.getString("refresh_token"), body.getString("refresh_response_key"), 200, refreshRespJson ->
+                    {
+                        assertEquals("optout", refreshRespJson.getString("status"));
+                        JsonObject refreshBody = refreshRespJson.getJsonObject("body");
+                        assertNull(refreshBody);
+                        assertTokenStatusMetrics(
+                                201,
+                                TokenResponseStatsCollector.Endpoint.RefreshV2,
+                                TokenResponseStatsCollector.ResponseStatus.OptOut);
+                        testContext.completeNow();
+                    });
+                });
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateForEmail(String apiVersion, Vertx vertx, VertxTestContext testContext) {
@@ -1450,7 +1531,8 @@ public class UIDOperatorVerticleTest {
             when(this.optOutStore.getLatestEntry(any())).thenReturn(now.minusSeconds(10));
 
             sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
-                assertEquals("success", refreshRespJson.getString("status"));
+                assertEquals("optout", refreshRespJson.getString("status"));
+                assertNull(refreshRespJson.getJsonObject("body"));
 
                 testContext.completeNow();
             });
@@ -2202,7 +2284,8 @@ public class UIDOperatorVerticleTest {
                 HttpResponse<Buffer> response = ar.result();
                 assertEquals(200, response.statusCode());
                 JsonObject json = response.bodyAsJsonObject();
-                assertEquals("success", json.getString("status"));
+                assertEquals("optout", json.getString("status"));
+                assertNull(json.getJsonObject("body"));
 
                 testContext.completeNow();
             });
@@ -3376,9 +3459,9 @@ public class UIDOperatorVerticleTest {
     private static String getClientSideGeneratedTokenOptOutIdentity(IdentityType identityType) {
         switch (identityType) {
             case Email:
-                return ClientSideTokenGenerateOptOutIdentityForEmail;
+                return OptOutTokenIdentityForEmail;
             case Phone:
-                return ClientSideTokenGenerateOptOutIdentityForPhone;
+                return OptOutTokenIdentityForPhone;
         }
         throw new ClientInputValidationException("Invalid identity type " + identityType);
     }

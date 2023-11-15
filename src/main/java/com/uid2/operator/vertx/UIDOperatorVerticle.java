@@ -1,6 +1,7 @@
 package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
+import com.uid2.operator.IdentityConst;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -424,10 +425,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             privacyBits.setClientSideTokenGenerateOptout();
             UserIdentity cstgOptOutIdentity;
             if(input.getIdentityType() == IdentityType.Email) {
-                cstgOptOutIdentity = InputUtil.InputVal.validEmail(ClientSideTokenGenerateOptOutIdentityForEmail, ClientSideTokenGenerateOptOutIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
+                cstgOptOutIdentity = InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
             }
             else {
-                cstgOptOutIdentity = InputUtil.InputVal.validPhone(ClientSideTokenGenerateOptOutIdentityForPhone, ClientSideTokenGenerateOptOutIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
+                cstgOptOutIdentity = InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
             }
             identityTokens = this.idService.generateIdentity(
                     new IdentityRequest(
@@ -807,11 +808,30 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                optoutCheckPolicy.getItem1()));
+                                OptoutCheckPolicy.respectOptOut()));
 
                 if (t.isEmptyToken()) {
-                    ResponseUtil.SuccessNoBodyV2("optout", rc);
-                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider);
+                    if(optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
+                        final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
+                                ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
+                                : InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone);
+
+                        PrivacyBits pb = new PrivacyBits();
+                        pb.setLegacyBit();
+                        pb.setClientSideTokenGenerateOptout();
+
+                        final IdentityTokens optOutTokens = this.idService.generateIdentity(
+                                new IdentityRequest(
+                                        new PublisherIdentity(siteId, 0, 0),
+                                        optOutTokenInput.toUserIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
+                                        OptoutCheckPolicy.DoNotRespect));
+
+                        ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
+                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
+                    } else { // new participant, or legacy specified policy/optout_check=1
+                        ResponseUtil.SuccessNoBodyV2("optout", rc);
+                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider);
+                    }
                 } else {
                     ResponseUtil.SuccessV2(rc, toJsonV1(t));
                     recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);

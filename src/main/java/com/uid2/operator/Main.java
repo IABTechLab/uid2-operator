@@ -102,8 +102,7 @@ public class Main {
 
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
-            Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
-            this.shutdownHandler = new OperatorShutdownHandler(disableWaitTime, Clock.systemUTC());
+            this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Clock.systemUTC());
 
             var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleResponse);
             UidCoreClient coreClient = clients.getKey();

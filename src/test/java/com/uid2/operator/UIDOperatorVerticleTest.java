@@ -1826,36 +1826,8 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"Unauthorized", "{\"status\": \"unauthorized\"}"})
-    void shutdownOnDeauthorization(String responseBody, Vertx vertx, VertxTestContext testContext) {
-        System.setSecurityManager(new NoExitSecurityManager());
-
-        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-        logWatcher.start();
-        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
-
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.GENERATOR);
-        setupSalts();
-        setupKeys();
-
-        get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response -> testContext.verify(() -> {
-            // Request should succeed before revoking auth
-            assertEquals(200, response.statusCode());
-
-            // Revoke auth
-            try {
-                this.operatorShutdownHandler.handleResponse(Pair.of(401,responseBody));
-            } catch (RuntimeException e) {
-                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation failed due to invalid operator key. shutting down operator"));
-                testContext.completeNow();
-            }
-        })));
-    }
-
     @Test
-    void shutdownOnInvalidEnclaveId(Vertx vertx, VertxTestContext testContext) {
+    void shutdownOn401(Vertx vertx, VertxTestContext testContext) {
         System.setSecurityManager(new NoExitSecurityManager());
 
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
@@ -1873,9 +1845,9 @@ public class UIDOperatorVerticleTest {
 
             // Revoke auth
             try {
-                this.operatorShutdownHandler.handleResponse(Pair.of(401, "{\"status\":\"The enclave identifier is unknown\"}"));
+                this.operatorShutdownHandler.handleResponse(Pair.of(401, "Unauthorized"));
             } catch (RuntimeException e) {
-                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation failed due to unknown enclave identifier. shutting down operator"));
+                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation failed with 401, shutting down operator, core response: "));
                 testContext.completeNow();
             }
         })));

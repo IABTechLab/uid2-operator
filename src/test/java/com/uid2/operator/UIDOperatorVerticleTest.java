@@ -780,8 +780,9 @@ public class UIDOperatorVerticleTest {
         send("v2", vertx, "v2/identity/map", false, null, req, 200, respJson -> {
             assertTrue(respJson.containsKey("body"));
             assertFalse(respJson.containsKey("client_error"));
-//            assertEquals("client_error", respJson.getString("status"));
-//            assertEquals("Required opt-out policy argument for identity/map is missing or not set to 1", respJson.getString("message"));
+            JsonArray mappedArr = respJson.getJsonObject("body").getJsonArray("mapped");
+            Assertions.assertEquals(1, mappedArr.size());
+            Assertions.assertEquals(emails.getString(0), mappedArr.getJsonObject(0).getString("identifier"));
             testContext.completeNow();
         });
     }
@@ -799,14 +800,13 @@ public class UIDOperatorVerticleTest {
         emails.add("test1@uid2.com");
         req.put("email", emails);
         req.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
-        // TODO
-        // ignore check for policy parameter i request body but always check identifiers for optout
 
         send("v2", vertx, "v2/identity/map", false, null, req, 200, respJson -> {
             assertTrue(respJson.containsKey("body"));
             assertFalse(respJson.containsKey("client_error"));
-//            assertEquals("client_error", respJson.getString("status"));
-//            assertEquals("Required opt-out policy argument for identity/map is missing or not set to 1", respJson.getString("message"));
+            JsonArray mappedArr = respJson.getJsonObject("body").getJsonArray("mapped");
+            Assertions.assertEquals(1, mappedArr.size());
+            Assertions.assertEquals(emails.getString(0), mappedArr.getJsonObject(0).getString("identifier"));
             testContext.completeNow();
         });
     }
@@ -2498,14 +2498,15 @@ public class UIDOperatorVerticleTest {
         JsonArray emails = new JsonArray();
         emails.add("random-optout-user@email.io");
         req.put("email", emails);
-        // TODO fix test
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 200, json -> {
             try {
-//                Assertions.assertTrue(json.getJsonObject("body").getJsonArray("unmapped") == null ||
-//                        json.getJsonObject("body").getJsonArray("unmapped").isEmpty());
-//                Assertions.assertEquals(1, json.getJsonObject("body").getJsonArray("mapped").size());
-//                Assertions.assertEquals("random-optout-user@email.io", json.getJsonObject("body").getJsonArray("mapped").getJsonObject(0).getString("identifier"));
+                Assertions.assertTrue(json.getJsonObject("body").getJsonArray("mapped") == null ||
+                        json.getJsonObject("body").getJsonArray("mapped").isEmpty());
+                JsonArray unmappedArr = json.getJsonObject("body").getJsonArray("unmapped");
+                Assertions.assertEquals(1, unmappedArr.size());
+                Assertions.assertEquals("random-optout-user@email.io", unmappedArr.getJsonObject(0).getString("identifier"));
+                Assertions.assertEquals("optout", unmappedArr.getJsonObject(0).getString("reason"));
                 testContext.completeNow();
             } catch (Exception e) {
                 testContext.failNow(e);

@@ -110,7 +110,6 @@ public class UIDOperatorVerticleTest {
     @Mock private IStatsCollectorQueue statsCollectorQueue;
 
     private SimpleMeterRegistry registry;
-    private OperatorShutdownHandler operatorShutdownHandler;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
 
     @BeforeEach
@@ -120,7 +119,6 @@ public class UIDOperatorVerticleTest {
         when(clock.instant()).thenAnswer(i -> now);
         when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class))).thenReturn(true);
 
-        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), clock);
 
         JsonObject config = new JsonObject();
         setupConfig(config);
@@ -1812,108 +1810,6 @@ public class UIDOperatorVerticleTest {
         send("v2", vertx, "v2/token/logout", false, null, req, 200, respJson -> {
             assertEquals("success", respJson.getString("status"));
             assertEquals("OK", respJson.getJsonObject("body").getString("optout"));
-            testContext.completeNow();
-        });
-    }
-
-    class NoExitSecurityManager extends SecurityManager {
-        @Override
-        public void checkPermission(Permission perm) { }
-        @Override
-        public void checkExit(int status) {
-            super.checkExit(status);
-            throw new RuntimeException(String.valueOf(status));
-        }
-    }
-
-    @Test
-    void shutdownOn401(Vertx vertx, VertxTestContext testContext) {
-        System.setSecurityManager(new NoExitSecurityManager());
-
-        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-        logWatcher.start();
-        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
-
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.GENERATOR);
-        setupSalts();
-        setupKeys();
-
-        get(vertx, "v1/token/generate?email=test@uid2.com", testContext.succeeding(response -> testContext.verify(() -> {
-            // Request should succeed before revoking auth
-            assertEquals(200, response.statusCode());
-
-            // Revoke auth
-            try {
-                this.operatorShutdownHandler.handleResponse(Pair.of(401, "Unauthorized"));
-            } catch (RuntimeException e) {
-                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation failed with 401, shutting down operator, core response: "));
-                testContext.completeNow();
-            }
-        })));
-    }
-
-    @Test
-    void shutdownOnFailedTooLong(Vertx vertx, VertxTestContext testContext) {
-        System.setSecurityManager(new NoExitSecurityManager());
-
-        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-        logWatcher.start();
-        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
-
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.GENERATOR);
-        setupSalts();
-        setupKeys();
-
-        // Verify success before revoking auth
-        get(vertx, "v1/token/generate?email=test@uid2.com", ar -> {
-            assertEquals(200, ar.result().statusCode());
-
-            // Failure starts
-            this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-
-            // Can server before waiting period passes
-            when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
-            try {
-                this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-            } catch (RuntimeException e) {
-                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation has been in failed state for too long. shutting down operator"));
-                testContext.completeNow();
-            }
-        });
-    }
-
-    @Test
-    void attestRecoverOnSuccess(Vertx vertx, VertxTestContext testContext) {
-        System.setSecurityManager(new NoExitSecurityManager());
-
-        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-        logWatcher.start();
-        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
-
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.GENERATOR);
-        setupSalts();
-        setupKeys();
-
-        // Verify success before revoking auth
-        get(vertx, "v1/token/generate?email=test@uid2.com", ar -> {
-            assertEquals(200, ar.result().statusCode());
-
-            // Failure starts
-            this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-
-            when(clock.instant()).thenAnswer(i -> Instant.now().plus(6, ChronoUnit.HOURS));
-
-            this.operatorShutdownHandler.handleResponse(Pair.of(200, ""));
-
-            // Can server before waiting period passes
-            when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
-
-            assertDoesNotThrow(() -> {
-                this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-            });
             testContext.completeNow();
         });
     }

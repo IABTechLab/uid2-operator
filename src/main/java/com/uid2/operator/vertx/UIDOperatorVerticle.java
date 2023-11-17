@@ -94,7 +94,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
     private final Map<Tuple.Tuple3<String, OptoutCheckPolicy, String>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
-    private final Map<Tuple.Tuple3<String, OptoutCheckPolicy, String>, Counter> _identityMapPolicyCounters = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
     private final IdentityScope identityScope;
@@ -1259,55 +1258,58 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private JsonObject handleIdentityMapCommon(RoutingContext rc, InputUtil.InputVal[] inputList) {
+        final Instant now = Instant.now();
+        final JsonArray mapped = new JsonArray();
+        final JsonArray unmapped = new JsonArray();
+        final int count = inputList.length;
+        int invalidCount = 0;
+        int optoutCount = 0;
+        for (int i = 0; i < count; ++i) {
+            final InputUtil.InputVal input = inputList[i];
+            if (input != null && input.isValid()) {
+                final MappedIdentity mappedIdentity = idService.mapIdentity(
+                        new MapRequest(
+                                input.toUserIdentity(this.identityScope, 0, now),
+                                OptoutCheckPolicy.respectOptOut(),
+                                now));
+
+                if (mappedIdentity.isOptedOut()) {
+                    final JsonObject resp = new JsonObject();
+                    resp.put("identifier", input.getProvided());
+                    resp.put("reason", "optout");
+                    unmapped.add(resp);
+                    optoutCount++;
+                } else {
+                    final JsonObject resp = new JsonObject();
+                    resp.put("identifier", input.getProvided());
+                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+                    resp.put("bucket_id", mappedIdentity.bucketId);
+                    mapped.add(resp);
+                }
+            } else {
+                final JsonObject resp = new JsonObject();
+                resp.put("identifier", input == null ? "null" : input.getProvided());
+                resp.put("reason", "invalid identifier");
+                unmapped.add(resp);
+                invalidCount++;
+            }
+        }
+
+        recordIdentityMapStats(rc, inputList.length, invalidCount, optoutCount);
+
+        final JsonObject resp = new JsonObject();
+        resp.put("mapped", mapped);
+        if (!unmapped.isEmpty()) resp.put("unmapped", unmapped);
+        return resp;
+    }
+
     private void handleIdentityMapBatchV1(RoutingContext rc) {
         try {
             final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
             if (inputList == null) return;
 
-            final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(rc.getBodyAsJson());
-            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
-
-            final Instant now = Instant.now();
-            final JsonArray mapped = new JsonArray();
-            final JsonArray unmapped = new JsonArray();
-            final int count = inputList.length;
-            int invalidCount = 0;
-            int optoutCount = 0;
-            for (int i = 0; i < count; ++i) {
-                final InputUtil.InputVal input = inputList[i];
-                if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = this.idService.mapIdentity(
-                            new MapRequest(
-                                    input.toUserIdentity(this.identityScope, 0, now),
-                                    optoutCheckPolicy.getItem1(),
-                                    now));
-                    if (mappedIdentity.isOptedOut()) {
-                        final JsonObject resp = new JsonObject();
-                        resp.put("identifier", input.getProvided());
-                        resp.put("reason", "optout");
-                        unmapped.add(resp);
-                        optoutCount++;
-                    } else {
-                        final JsonObject resp = new JsonObject();
-                        resp.put("identifier", input.getProvided());
-                        resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-                        resp.put("bucket_id", mappedIdentity.bucketId);
-                        mapped.add(resp);
-                    }
-                } else {
-                    final JsonObject resp = new JsonObject();
-                    resp.put("identifier", input == null ? "null" : input.getProvided());
-                    resp.put("reason", "invalid identifier");
-                    unmapped.add(resp);
-                    invalidCount++;
-                }
-            }
-
-            recordIdentityMapStats(rc, inputList.length, invalidCount, optoutCount);
-
-            final JsonObject resp = new JsonObject();
-            resp.put("mapped", mapped);
-            if (!unmapped.isEmpty()) resp.put("unmapped", unmapped);
+            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
             ResponseUtil.Success(rc, resp);
         } catch (Exception e) {
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping batched identity", e);
@@ -1331,56 +1333,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(requestJsonObject);
-            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
-
-            if (!meetPolicyCheckRequirements(rc)) {
-                ResponseUtil.ClientError(rc, "Required opt-out policy argument for identity/map is missing or not set to 1");
-                return;
-            }
-
-            final Instant now = Instant.now();
-            final JsonArray mapped = new JsonArray();
-            final JsonArray unmapped = new JsonArray();
-            final int count = inputList.length;
-            int invalidCount = 0;
-            int optoutCount = 0;
-            for (int i = 0; i < count; ++i) {
-                final InputUtil.InputVal input = inputList[i];
-                if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = idService.mapIdentity(
-                            new MapRequest(
-                                    input.toUserIdentity(this.identityScope, 0, now),
-                                    optoutCheckPolicy.getItem1(),
-                                    now));
-
-                    if (mappedIdentity.isOptedOut()) {
-                        final JsonObject resp = new JsonObject();
-                        resp.put("identifier", input.getProvided());
-                        resp.put("reason", "optout");
-                        unmapped.add(resp);
-                        optoutCount++;
-                    } else {
-                        final JsonObject resp = new JsonObject();
-                        resp.put("identifier", input.getProvided());
-                        resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-                        resp.put("bucket_id", mappedIdentity.bucketId);
-                        mapped.add(resp);
-                    }
-                } else {
-                    final JsonObject resp = new JsonObject();
-                    resp.put("identifier", input == null ? "null" : input.getProvided());
-                    resp.put("reason", "invalid identifier");
-                    unmapped.add(resp);
-                    invalidCount++;
-                }
-            }
-
-            recordIdentityMapStats(rc, inputList.length, invalidCount, optoutCount);
-
-            final JsonObject resp = new JsonObject();
-            resp.put("mapped", mapped);
-            if (!unmapped.isEmpty()) resp.put("unmapped", unmapped);
+            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v2", e);
@@ -1449,49 +1402,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 inputList = createInputList(emailHashes, true);
             }
 
-            final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(obj);
-            recordIdentityMapPolicy(getApiContact(rc), optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
-
-            final Instant now = Instant.now();
-            final JsonArray mapped = new JsonArray();
-            final JsonArray unmapped = new JsonArray();
-            final int count = inputList.length;
-            int invalidCount = 0;
-            int optoutCount = 0;
-            for (int i = 0; i < count; ++i) {
-                final InputUtil.InputVal input = inputList[i];
-                if (input != null && input.isValid()) {
-                    final MappedIdentity mappedIdentity = this.idService.mapIdentity(
-                            new MapRequest(
-                                    input.toUserIdentity(this.identityScope, 0, now),
-                                    optoutCheckPolicy.getItem1(),
-                                    now));
-                    if (mappedIdentity.isOptedOut()) {
-                        final JsonObject resp = new JsonObject();
-                        resp.put("identifier", input.getProvided());
-                        resp.put("reason", "optout");
-                        unmapped.add(resp);
-                        optoutCount++;
-                    } else {
-                        final JsonObject resp = new JsonObject();
-                        resp.put("identifier", input.getProvided());
-                        resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-                        mapped.add(resp);
-                    }
-                } else {
-                    final JsonObject resp = new JsonObject();
-                    resp.put("identifier", input == null ? "null" : input.getProvided());
-                    resp.put("reason", "invalid identifier");
-                    unmapped.add(resp);
-                    invalidCount++;
-                }
-            }
-
-            recordIdentityMapStats(rc, inputList.length, invalidCount, optoutCount);
-
-            final JsonObject resp = new JsonObject();
-            resp.put("mapped", mapped);
-            if (!unmapped.isEmpty()) resp.put("unmapped", unmapped);
+            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
             sendJsonResponse(rc, resp);
         } catch (Exception e) {
             LOGGER.error("Unknown error while mapping batched identity", e);
@@ -1762,13 +1673,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .register(Metrics.globalRegistry)).increment();
     }
 
-    private void recordIdentityMapPolicy(String apiContact, OptoutCheckPolicy policy, String policyParameterKey) {
-        _identityMapPolicyCounters.computeIfAbsent(new Tuple.Tuple3<>(apiContact, policy, policyParameterKey), triple -> Counter
-                .builder("uid2.identity_map_policy_usage")
-                .description("Counter for identity map policy usage")
-                .tags("api_contact", triple.getItem1(), "policy", String.valueOf(triple.getItem2()), "policy_parameter", triple.getItem3())
-                .register(Metrics.globalRegistry)).increment();
-    }
 
     private TransparentConsentParseResult getUserConsentV2(JsonObject req) {
         final String rawTcString = req.getString("tcf_consent_string");

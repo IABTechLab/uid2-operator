@@ -25,7 +25,7 @@ if [[ -d $OUT_PUT_DIR ]]; then
   echo "$OUT_PUT_DIR  exist. Skip. This only happens during local test."
 else
   mkdir -p $OUT_PUT_DIR
-  source ../scripts/azure-cc/generate-deployment-artifacts.sh
+  source ../scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 fi
 
 if [ -z "$GITHUB_OUTPUT" ]; then

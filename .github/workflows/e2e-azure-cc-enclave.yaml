@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       operator_image_version:
-        description: 'The version of GCP enclave image'
+        description: 'The version of Azure enclave image'
         type: string
         required: true
       core_image_version:

@@ -51,7 +51,8 @@ else
   fi
 
   # Generate deployment template
-  sed -i "s#IMAGE_PLACEHOLDER#$IMAGE#g" $INPUT_TEMPLATE_FILE > $OUTPUT_TEMPLATE_FILE
+  cp $INPUT_TEMPLATE_FILE $OUTPUT_TEMPLATE_FILE
+  sed -i "s#IMAGE_PLACEHOLDER#$IMAGE#g" $OUTPUT_TEMPLATE_FILE
   if [[ $? -ne 0 ]]; then
     echo "Failed to pre-process template file"
     exit 1

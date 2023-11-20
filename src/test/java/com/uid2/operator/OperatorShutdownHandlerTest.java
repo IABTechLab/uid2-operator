@@ -90,7 +90,7 @@ public class OperatorShutdownHandlerTest {
 
             this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
 
-            when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
+            when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(60));
             try {
                 this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
             } catch (RuntimeException e) {

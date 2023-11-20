@@ -8,9 +8,9 @@ import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.service.SecureLinkValidatorService;
+import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.store.CloudSyncOptOutStore;
 import com.uid2.operator.store.OptOutCloudStorage;
-import com.uid2.operator.vertx.OperatorDisableHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
@@ -42,6 +42,7 @@ import io.vertx.micrometer.*;
 import io.vertx.micrometer.backends.BackendRegistries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.utils.Pair;
 
 import javax.management.*;
 import java.lang.management.ManagementFactory;
@@ -69,11 +70,11 @@ public class Main {
     private final RotatingClientSideKeypairStore clientSideKeypairProvider;
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
+    private OperatorShutdownHandler shutdownHandler = null;
     private final OperatorMetrics metrics;
     private final boolean clientSideTokenGenerate;
     private final boolean validateServiceLinks;
     private IStatsCollectorQueue _statsCollectorQueue;
-    private OperatorDisableHandler disableHandler = null;
     private RotatingServiceStore serviceProvider;
     private RotatingServiceLinkStore serviceLinkProvider;
 
@@ -101,10 +102,9 @@ public class Main {
 
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
-            Duration disableWaitTime = Duration.ofHours(this.config.getInteger(Const.Config.FailureShutdownWaitHoursProp, 120));
-            this.disableHandler = new OperatorDisableHandler(disableWaitTime, Clock.systemUTC());
+            this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Clock.systemUTC());
 
-            var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.disableHandler::handleResponseStatus);
+            var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleResponse);
             UidCoreClient coreClient = clients.getKey();
             UidOptOutClient optOutClient = clients.getValue();
             fsStores = coreClient;
@@ -252,8 +252,6 @@ public class Main {
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
             UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider));
-            if (this.disableHandler != null)
-                verticle.setDisableHandler(this.disableHandler);
             return verticle;
         };
 
@@ -453,7 +451,7 @@ public class Main {
                 .register(globalRegistry);
     }
 
-    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Integer> responseWatcher) throws Exception {
+    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
         AttestationTokenRetriever attestationTokenRetriever = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
         Boolean enforceHttps = this.config.getBoolean("enforce_https", true);
         UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
@@ -461,7 +459,7 @@ public class Main {
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }
 
-    private AttestationTokenRetriever getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Integer> responseWatcher) throws Exception {
+    private AttestationTokenRetriever getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
         String enclavePlatform = this.config.getString("enclave_platform");
         if (Strings.isNullOrEmpty(enclavePlatform)) {
             return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher, CloudUtils.defaultProxy);

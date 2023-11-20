@@ -58,56 +58,71 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void shutdownOn401(Vertx vertx, VertxTestContext testContext) {
-        System.setSecurityManager(new NoExitSecurityManager());
-
-        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-        logWatcher.start();
-        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
-
-        // Revoke auth
+        SecurityManager origSecurityManager = System.getSecurityManager();
         try {
-            this.operatorShutdownHandler.handleResponse(Pair.of(401, "Unauthorized"));
-        } catch (RuntimeException e) {
-            Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation failed with 401, shutting down operator, core response: "));
-            testContext.completeNow();
+            System.setSecurityManager(new NoExitSecurityManager());
+
+            ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+            logWatcher.start();
+            ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+            // Revoke auth
+            try {
+                this.operatorShutdownHandler.handleResponse(Pair.of(401, "Unauthorized"));
+            } catch (RuntimeException e) {
+                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation failed with 401, shutting down operator, core response: "));
+                testContext.completeNow();
+            }
+        } finally {
+            System.setSecurityManager(origSecurityManager);
         }
     }
 
     @Test
     void shutdownOnFailedTooLong(Vertx vertx, VertxTestContext testContext) {
-        System.setSecurityManager(new NoExitSecurityManager());
-
-        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-        logWatcher.start();
-        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
-
-        this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
+        SecurityManager origSecurityManager = System.getSecurityManager();
         try {
+            System.setSecurityManager(new NoExitSecurityManager());
+
+            ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+            logWatcher.start();
+            ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
             this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-        } catch (RuntimeException e) {
-            Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation has been in failed state for too long. shutting down operator"));
-            testContext.completeNow();
+
+            when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
+            try {
+                this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
+            } catch (RuntimeException e) {
+                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation has been in failed state for too long. shutting down operator"));
+                testContext.completeNow();
+            }
+        } finally {
+            System.setSecurityManager(origSecurityManager);
         }
     }
 
     @Test
     void attestRecoverOnSuccess(Vertx vertx, VertxTestContext testContext) {
-        System.setSecurityManager(new NoExitSecurityManager());
+        SecurityManager origSecurityManager = System.getSecurityManager();
+        try {
+            System.setSecurityManager(new NoExitSecurityManager());
 
-        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-        logWatcher.start();
-        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+            ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+            logWatcher.start();
+            ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
-        this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(6, ChronoUnit.HOURS));
-        this.operatorShutdownHandler.handleResponse(Pair.of(200, ""));
-
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
-        assertDoesNotThrow(() -> {
             this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-        });
-        testContext.completeNow();
+            when(clock.instant()).thenAnswer(i -> Instant.now().plus(6, ChronoUnit.HOURS));
+            this.operatorShutdownHandler.handleResponse(Pair.of(200, ""));
+
+            when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
+            assertDoesNotThrow(() -> {
+                this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
+            });
+            testContext.completeNow();
+        } finally {
+            System.setSecurityManager(origSecurityManager);
+        }
     }
 }

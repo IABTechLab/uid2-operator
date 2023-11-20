@@ -285,7 +285,6 @@
                             <value>file:/dev/./urandom</value>
                         </property>
                     </systemProperties>
-                    <forkMode>once</forkMode>
                 </configuration>
             </plugin>
             <plugin>

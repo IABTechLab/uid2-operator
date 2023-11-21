@@ -1037,7 +1037,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (input == null) {
                 ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
             }
-            else if (input.isValid()) {
+            else if (!input.isValid()) {
                 ResponseUtil.ClientError(rc, "Invalid email or email_hash");
             }
             else {

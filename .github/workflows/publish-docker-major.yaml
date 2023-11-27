@@ -18,7 +18,7 @@ on:
 
 jobs:
   build-publish-docker-default:
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@v1.0
     if: ${{ inputs.cloud_provider == 'all' || inputs.cloud_provider == 'default' }}
     with: 
       tag: ${{ inputs.tag }}
@@ -27,7 +27,7 @@ jobs:
     secrets: inherit
 
   build-publish-docker-gcp:
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@v1.0
     needs: build-publish-docker-default
     if: ${{ inputs.cloud_provider == 'all' || inputs.cloud_provider == 'gcp' }}
     with: 
@@ -38,7 +38,7 @@ jobs:
     secrets: inherit
 
   build-publish-docker-aws:
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@v1.0
     needs: build-publish-docker-default
     if: ${{ inputs.cloud_provider == 'all' || inputs.cloud_provider == 'aws' }}
     with: 
@@ -49,7 +49,7 @@ jobs:
     secrets: inherit
 
   build-publish-docker-azure:
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@main
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@v1.0
     needs: build-publish-docker-default
     if: ${{ inputs.cloud_provider == 'all' || inputs.cloud_provider == 'azure' }}
     with: 

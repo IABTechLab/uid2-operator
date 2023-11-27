@@ -336,7 +336,7 @@ public class UIDOperatorServiceTest {
             "PhoneHash,+00000000000,UID2",
             "Phone,+00000000000,EUID",
             "PhoneHash,+00000000000,EUID"})
-    public void testSpecialIdentityOptOutTokenGenerate(TestIdentityInputType type, String id, IdentityScope scope) {
+    void testSpecialIdentityOptOutTokenGenerate(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
@@ -367,7 +367,7 @@ public class UIDOperatorServiceTest {
             "PhoneHash,+00000000000,UID2",
             "Phone,+00000000000,EUID",
             "PhoneHash,+00000000000,EUID"})
-    public void testSpecialIdentityOptOutIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
+    void testSpecialIdentityOptOutIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final MapRequest mapRequestRespectOptOut = new MapRequest(
@@ -398,7 +398,7 @@ public class UIDOperatorServiceTest {
             "PhoneHash,+00000000000,UID2",
             "Phone,+00000000000,EUID",
             "PhoneHash,+00000000000,EUID"})
-    public void testSpecialIdentityOptOutTokenRefresh(TestIdentityInputType type, String id, IdentityScope scope) {
+    void testSpecialIdentityOptOutTokenRefresh(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
@@ -433,7 +433,7 @@ public class UIDOperatorServiceTest {
             "PhoneHash,+00000000002,UID2",
             "Phone,+00000000002,EUID",
             "PhoneHash,+00000000002,EUID"})
-    public void testSpecialIdentityRefreshOptOutGenerate(TestIdentityInputType type, String id, IdentityScope scope) {
+    void testSpecialIdentityRefreshOptOutGenerate(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
@@ -471,7 +471,7 @@ public class UIDOperatorServiceTest {
             "PhoneHash,+00000000002,UID2",
             "Phone,+00000000002,EUID",
             "PhoneHash,+00000000002,EUID"})
-    public void testSpecialIdentityRefreshOptOutIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
+    void testSpecialIdentityRefreshOptOutIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final MapRequest mapRequestRespectOptOut = new MapRequest(
@@ -502,7 +502,7 @@ public class UIDOperatorServiceTest {
             "PhoneHash,+12345678901,UID2",
             "Phone,+12345678901,EUID",
             "PhoneHash,+12345678901,EUID"})
-    public void testSpecialIdentityValidateGenerate(TestIdentityInputType type, String id, IdentityScope scope) {
+    void testSpecialIdentityValidateGenerate(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
@@ -539,7 +539,7 @@ public class UIDOperatorServiceTest {
             "PhoneHash,+12345678901,UID2",
             "Phone,+12345678901,EUID",
             "PhoneHash,+12345678901,EUID"})
-    public void testSpecialIdentityValidateIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
+    void testSpecialIdentityValidateIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final MapRequest mapRequestRespectOptOut = new MapRequest(
@@ -568,7 +568,7 @@ public class UIDOperatorServiceTest {
             "PhoneHash,+61401234567,EUID",
             "Email,blah@unifiedid.com,EUID",
             "EmailHash,blah@unifiedid.com,EUID"})
-    public void testNormalIdentityOptIn(TestIdentityInputType type, String id, IdentityScope scope) {
+    void testNormalIdentityOptIn(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),

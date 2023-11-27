@@ -1,8 +1,5 @@
 package com.uid2.operator;
 
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -11,7 +8,6 @@ import com.uid2.operator.service.*;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
-import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.shared.Utils;
@@ -52,8 +48,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.utils.Pair;
 
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
@@ -150,7 +144,7 @@ public class UIDOperatorVerticleTest {
 
         config.put("identity_scope", getIdentityScope().toString());
         config.put("advertising_token_v3", getTokenVersion() == TokenVersion.V3);
-        config.put("advertising_token_v4", getTokenVersion() == TokenVersion.V4);
+        config.put("advertising_token_v4_percentage", getTokenVersion() == TokenVersion.V4 ? 100 : 0);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         config.put("key_sharing_endpoint_provide_site_domain_names", true);
@@ -885,7 +879,7 @@ public class UIDOperatorVerticleTest {
         req.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
 
         emails.add("test1@uid2.com");
-        ;
+
         send("v2", vertx, "v2/identity/map", false, null, req, 200, respJson -> {
             assertTrue(respJson.containsKey("body"));
             assertEquals("success", respJson.getString("status"));
@@ -2629,7 +2623,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void cstgNoBody(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgNoBody(Vertx vertx, VertxTestContext testContext) {
         setupCstgBackend("cstg.co.uk");
 
         postCstg(vertx,
@@ -2707,7 +2701,6 @@ public class UIDOperatorVerticleTest {
     void cstgBadPublicKey(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
 
-        IdentityType identityType = IdentityType.Email;
         String rawId = "random@unifiedid.com";
 
         JsonObject identityPayload = new JsonObject();
@@ -3674,8 +3667,6 @@ public class UIDOperatorVerticleTest {
             int siteId = siteDetail.getInteger("id");
             assertTrue(expectedSites.get(siteId).containsAll((Collection<String>) siteDetail.getMap().get("domain_names")));
         }
-
-        return;
     }
 
     @ParameterizedTest

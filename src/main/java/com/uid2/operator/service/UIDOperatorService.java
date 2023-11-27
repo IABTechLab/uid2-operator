@@ -1,9 +1,7 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.IdentityConst;
 import com.uid2.operator.model.*;
 import com.uid2.operator.util.PrivacyBits;
-import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
@@ -22,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static com.uid2.operator.IdentityConst.*;
 
@@ -48,7 +47,8 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Duration refreshIdentityAfter;
 
     private final OperatorIdentity operatorIdentity;
-    private final TokenVersion advertisingTokenVersion;
+    private final TokenVersion tokenVersionToUseIfNotV4;
+    private final int advertisingTokenV4Percentage;
     private final TokenVersion refreshTokenVersion;
     private final boolean identityV3Enabled;
 
@@ -88,11 +88,9 @@ public class UIDOperatorService implements IUIDOperatorService {
             throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
 
-        if (config.getBoolean("advertising_token_v4", false)) {
-            this.advertisingTokenVersion = TokenVersion.V4;
-        } else {
-            this.advertisingTokenVersion = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
-        }
+        this.advertisingTokenV4Percentage = config.getInteger("advertising_token_v4_percentage", 0);
+        this.tokenVersionToUseIfNotV4 = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
+
         this.refreshTokenVersion = TokenVersion.V3;
         this.identityV3Enabled = config.getBoolean("identity_v3", false);
     }
@@ -295,16 +293,13 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
-        return new AdvertisingToken(
-                this.advertisingTokenVersion,
-                now,
-                now.plusMillis(identityExpiresAfter.toMillis()),
-                this.operatorIdentity,
-                publisherIdentity,
-                userIdentity);
+        int randomNum = ThreadLocalRandom.current().nextInt(1, 101);
+        var tokenVersion = (randomNum <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
+
+        return new AdvertisingToken(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
     }
 
-    protected class GlobalOptoutResult {
+    static protected class GlobalOptoutResult {
         private final boolean isOptedOut;
         //can be null if isOptedOut is false!
         private final Instant time;
@@ -338,8 +333,8 @@ public class UIDOperatorService implements IUIDOperatorService {
         return new GlobalOptoutResult(result);
     }
 
-    public TokenVersion getAdvertisingTokenVersion() {
-        return advertisingTokenVersion;
+    public TokenVersion getAdvertisingTokenVersionForTests() {
+        assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want most tests to be deterministic
+        return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
     }
-
 }

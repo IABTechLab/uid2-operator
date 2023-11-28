@@ -88,7 +88,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
 
-        this.advertisingTokenV4Percentage = config.getInteger("advertising_token_v4_percentage", 0);
+        this.advertisingTokenV4Percentage = config.getInteger("advertising_token_v4_percentage", 0); //0 indicates token v4 will not be used
         this.tokenVersionToUseIfNotV4 = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
 
         this.refreshTokenVersion = TokenVersion.V3;
@@ -334,7 +334,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     public TokenVersion getAdvertisingTokenVersionForTests() {
-        assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want most tests to be deterministic
+        assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
         return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
     }
 }

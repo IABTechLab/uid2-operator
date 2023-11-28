@@ -38,7 +38,7 @@ jobs:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ inputs.version_number_input }}
       cloud_provider: 'default'
-      force_release: false
+      force_release: 'yes'
     secrets: inherit
   
   Artifacts:

@@ -13,7 +13,7 @@
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,
   "advertising_token_v3": false,
-  "advertising_token_v4": false,
+  "advertising_token_v4_percentage": 0,
   "refresh_token_v3": false,
   "identity_v3": false,
   "identity_scope": "uid2",

@@ -1,7 +1,6 @@
 name: Release Public Operator
 run-name: ${{ inputs.release_type == 'Snapshot' && 'Publish Pre-release' || format('Release {0}', inputs.release_type)}} Public Operator by @${{ github.actor }}  
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       release_type:

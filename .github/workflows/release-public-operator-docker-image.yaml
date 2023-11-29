@@ -1,5 +1,4 @@
-name: Release Public Operator
-run-name: ${{ inputs.release_type == 'Snapshot' && 'Publish Pre-release' || format('Release {0}', inputs.release_type)}} Public Operator by @${{ github.actor }}  
+name: Publish Public Operator
 on:
   workflow_dispatch:
     inputs:
@@ -21,10 +20,6 @@ on:
         description: The type of version number to return. Must be one of [Snapshot, Patch, Minor or Major]
         required: true
         type: string
-      version_number_input:
-        description: If set, the version number will not be incremented and the given number will be used.
-        type: string
-        default: ''
     outputs:
       image_tag:
         description: The tag used to describe the image in docker
@@ -38,7 +33,7 @@ jobs:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ inputs.version_number_input }}
       cloud_provider: 'default'
-      force_release: 'yes'
+      force_release: 'no' #do not create a release for the component builds, will be created by the parent
     secrets: inherit
   
   Artifacts:

@@ -1,6 +1,5 @@
 name: Publish Public Operator
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       release_type:
@@ -25,7 +24,6 @@ on:
       image_tag:
         description: The tag used to describe the image in docker
         value: ${{ jobs.Image.outputs.image_tag }}
-
   
 jobs:
   Image:

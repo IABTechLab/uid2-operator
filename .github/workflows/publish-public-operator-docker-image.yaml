@@ -28,7 +28,7 @@ on:
   
 jobs:
   Image:
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@v2.1.0-pre
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@v2.2.0-pre
     with: 
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ inputs.version_number_input }}

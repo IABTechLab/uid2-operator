@@ -532,12 +532,14 @@ public class UIDOperatorVerticleTest {
     }
 
     private void assertTokenStatusMetrics(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus) {
-        assertEquals(1, Metrics.globalRegistry
+        final double actual = Metrics.globalRegistry
                 .get("uid2_token_response_status_count")
                 .tag("site_id", String.valueOf(siteId))
                 .tag("token_endpoint", String.valueOf(endpoint))
                 .tag("token_response_status", String.valueOf(responseStatus))
-                .counter().count());
+                .tag("advertising_token_version", responseStatus == TokenResponseStatsCollector.ResponseStatus.Success ? String.valueOf(getTokenVersion()) : "null")
+                .counter().count();
+        assertEquals(1, actual);
     }
 
     private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {

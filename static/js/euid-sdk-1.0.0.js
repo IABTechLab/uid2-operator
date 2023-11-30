@@ -234,7 +234,7 @@ class EUID {
             _refreshReq = req;
             req.overrideMimeType("text/plain");
             req.open("POST", url, true);
-            req.setRequestHeader('X-EUID-Client-Version', 'euid-sdk-' + EUID.VERSION);
+            req.setRequestHeader('X-UID2-Client-Version', 'euid-sdk-' + EUID.VERSION);
             req.onreadystatechange = () => {
                 _refreshReq = undefined;
                 if (req.readyState !== req.DONE) return;

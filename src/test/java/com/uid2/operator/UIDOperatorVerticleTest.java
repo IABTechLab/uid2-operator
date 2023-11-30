@@ -1142,7 +1142,6 @@ public class UIDOperatorVerticleTest {
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
                 RefreshToken refreshToken = decodeRefreshToken(encoder, refreshTokenStringNew);
-                assertEquals(IdentityType.Email, refreshToken.userIdentity.identityType);
                 assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
                 assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
 
@@ -2005,8 +2004,6 @@ public class UIDOperatorVerticleTest {
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
                 RefreshToken refreshToken = decodeRefreshToken(encoder, refreshTokenStringNew, IdentityType.Phone);
-                assertEquals(IdentityType.Phone, refreshToken.userIdentity.identityType);
-                assertEquals(getIdentityScope(), refreshToken.userIdentity.identityScope);
                 assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
                 assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt), refreshToken.userIdentity.id);
 

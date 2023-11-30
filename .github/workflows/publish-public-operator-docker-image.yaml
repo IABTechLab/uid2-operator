@@ -1,5 +1,5 @@
 name: Publish Public Operator
-run-name: ${{ format('Publish {0} Public Operator {1}', inputs.release_type, inputs.version_number_input != '' && (format('Build Number {0}', inputs.version_number_input))) || '' }}
+run-name: ${{ format('Publish {0} Public Operator {1}', inputs.release_type) }}
 on:
   workflow_dispatch:
     inputs:

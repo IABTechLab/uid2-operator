@@ -736,7 +736,11 @@ public class UIDOperatorVerticleTest {
     private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder encoder, JsonObject body, IdentityType identityType) { //See UID2-79+Token+and+ID+format+v3
         final String advertisingTokenString = body.getString("advertising_token");
         validateAdvertisingToken(advertisingTokenString, getTokenVersion(), getIdentityScope(), identityType);
-        return encoder.decodeAdvertisingToken(advertisingTokenString);
+        AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(advertisingTokenString);
+        if (getTokenVersion() == TokenVersion.V4) {
+            assertEquals(identityType, advertisingToken.userIdentity.identityType);
+        }
+        return advertisingToken;
     }
 
     public static void validateAdvertisingToken(String advertisingTokenString, TokenVersion tokenVersion, IdentityScope identityScope, IdentityType identityType) {
@@ -762,6 +766,16 @@ public class UIDOperatorVerticleTest {
                 assertEquals(-1, advertisingTokenString.indexOf('/'));
             }
         }
+    }
+
+    RefreshToken decodeRefreshToken(EncryptedTokenEncoder encoder, String refreshTokenString, IdentityType identityType) {
+        RefreshToken refreshToken = encoder.decodeRefreshToken(refreshTokenString);
+        assertEquals(getIdentityScope(), refreshToken.userIdentity.identityScope);
+        assertEquals(identityType, refreshToken.userIdentity.identityType);
+        return refreshToken;
+    }
+    RefreshToken decodeRefreshToken(EncryptedTokenEncoder encoder, String refreshTokenString) {
+        return decodeRefreshToken(encoder, refreshTokenString, IdentityType.Email);
     }
 
     @Test
@@ -1041,7 +1055,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                     assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-                    RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
+                    RefreshToken refreshToken = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
                     assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
                     assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
 
@@ -1083,7 +1097,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                     assertArrayEquals(getAdvertisingIdFromIdentityHash(IdentityType.Email, emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-                    RefreshToken refreshToken = encoder.decodeRefreshToken(apiVersion.equals("v2") ? body.getString("decrypted_refresh_token") : body.getString("refresh_token"));
+                    RefreshToken refreshToken = decodeRefreshToken(encoder, apiVersion.equals("v2") ? body.getString("decrypted_refresh_token") : body.getString("refresh_token"));
                     assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
                     assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentityHash(emailHash, firstLevelSalt), refreshToken.userIdentity.id);
 
@@ -1129,7 +1143,7 @@ public class UIDOperatorVerticleTest {
 
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
-                RefreshToken refreshToken = encoder.decodeRefreshToken(refreshTokenStringNew);
+                RefreshToken refreshToken = decodeRefreshToken(encoder, refreshTokenStringNew);
                 assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
                 assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
 
@@ -1185,12 +1199,11 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmailHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
 
-        generateTokens(apiVersion, vertx, "email", emailAddress, genRespJson -> {
+        generateTokens(apiVersion, vertx, "email", ValidateIdentityForEmail, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
             JsonObject genBody = genRespJson.getJsonObject("body");
             assertNotNull(genBody);
@@ -1268,7 +1281,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
             assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-            RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
+            RefreshToken refreshToken = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
             assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
             assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
 
@@ -1907,7 +1920,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
             assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-            RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
+            RefreshToken refreshToken = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Phone);
             assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
             assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt), refreshToken.userIdentity.id);
 
@@ -1946,7 +1959,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
             assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingToken.userIdentity.id);
 
-            RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
+            RefreshToken refreshToken = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Phone);
             assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
             assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt), refreshToken.userIdentity.id);
 
@@ -1992,7 +2005,7 @@ public class UIDOperatorVerticleTest {
 
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
-                RefreshToken refreshToken = encoder.decodeRefreshToken(refreshTokenStringNew);
+                RefreshToken refreshToken = decodeRefreshToken(encoder, refreshTokenStringNew, IdentityType.Phone);
                 assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
                 assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt), refreshToken.userIdentity.id);
 
@@ -2039,13 +2052,12 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhoneHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = ValidateIdentityForPhone;
         final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForPhoneHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
 
-        generateTokens(apiVersion, vertx, "phone", phone, genRespJson -> {
+        generateTokens(apiVersion, vertx, "phone", ValidateIdentityForPhone, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
             JsonObject genBody = genRespJson.getJsonObject("body");
             assertNotNull(genBody);
@@ -3118,7 +3130,7 @@ public class UIDOperatorVerticleTest {
                     final JsonObject genBody = response.getJsonObject("body");
 
                     final AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
-                    final RefreshToken refreshToken = encoder.decodeRefreshToken(decodeV2RefreshToken(response));
+                    final RefreshToken refreshToken = decodeRefreshToken(encoder, decodeV2RefreshToken(response), identityType);
 
                     assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
 
@@ -3134,7 +3146,7 @@ public class UIDOperatorVerticleTest {
                         final JsonObject refreshBody = refreshRespJson.getJsonObject("body");
 
                         final AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
-                        final RefreshToken refreshTokenFromRefresh = encoder.decodeRefreshToken(decodeV2RefreshToken(refreshRespJson));
+                        final RefreshToken refreshTokenFromRefresh = decodeRefreshToken(encoder, decodeV2RefreshToken(refreshRespJson), identityType);
 
                         assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenFromRefresh, clientSideTokenGenerateSiteId, identityType);
 
@@ -3183,7 +3195,7 @@ public class UIDOperatorVerticleTest {
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
 
-                    RefreshToken refreshToken = encoder.decodeRefreshToken(genBody.getString("decrypted_refresh_token"));
+                    RefreshToken refreshToken = decodeRefreshToken(encoder, genBody.getString("decrypted_refresh_token"), identityType);
 
                     if (optOutExpected) {
                         assertAreClientSideGeneratedOptOutTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType);
@@ -3210,8 +3222,7 @@ public class UIDOperatorVerticleTest {
                     }
 
                     final Instant now = Instant.now();
-                    final String token = advertisingTokenString;
-                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, input.toUserIdentity(getIdentityScope(), 0, now), now);
+                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(advertisingTokenString, input.toUserIdentity(getIdentityScope(), 0, now), now);
 
                     assertEquals(optOutExpected, matchedOptedOutIdentity);
                     assertTokenStatusMetrics(
@@ -3233,7 +3244,7 @@ public class UIDOperatorVerticleTest {
 
                         String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
-                        RefreshToken refreshTokenAfterRefresh = encoder.decodeRefreshToken(refreshTokenStringNew);
+                        RefreshToken refreshTokenAfterRefresh = decodeRefreshToken(encoder, refreshTokenStringNew, identityType);
 
                         if (optOutExpected) {
                             assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType);

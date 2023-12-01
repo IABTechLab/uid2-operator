@@ -2630,8 +2630,12 @@ public class UIDOperatorVerticleTest {
                 200,
                 testContext,
                 respJson -> {
-                    assertTrue(respJson.containsKey("body"));
                     assertEquals("success", respJson.getString("status"));
+
+                    JsonObject refreshBody = respJson.getJsonObject("body");
+                    assertNotNull(refreshBody);
+                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+                    validateAndGetToken(encoder, refreshBody, IdentityType.Email); //to validate token version is correct
                     testContext.completeNow();
                 });
     }

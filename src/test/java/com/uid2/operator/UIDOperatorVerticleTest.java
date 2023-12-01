@@ -1183,12 +1183,11 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmailHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
 
-        generateTokens(apiVersion, vertx, "email", emailAddress, genRespJson -> {
+        generateTokens(apiVersion, vertx, "email", ValidateIdentityForEmail, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
             JsonObject genBody = genRespJson.getJsonObject("body");
             assertNotNull(genBody);
@@ -2037,13 +2036,12 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithPhoneHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String phone = ValidateIdentityForPhone;
         final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForPhoneHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
 
-        generateTokens(apiVersion, vertx, "phone", phone, genRespJson -> {
+        generateTokens(apiVersion, vertx, "phone", ValidateIdentityForPhone, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
             JsonObject genBody = genRespJson.getJsonObject("body");
             assertNotNull(genBody);
@@ -2616,8 +2614,12 @@ public class UIDOperatorVerticleTest {
                 200,
                 testContext,
                 respJson -> {
-                    assertTrue(respJson.containsKey("body"));
                     assertEquals("success", respJson.getString("status"));
+
+                    JsonObject refreshBody = respJson.getJsonObject("body");
+                    assertNotNull(refreshBody);
+                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+                    validateAndGetToken(encoder, refreshBody, IdentityType.Email); //to validate token version is correct
                     testContext.completeNow();
                 });
     }
@@ -3208,8 +3210,7 @@ public class UIDOperatorVerticleTest {
                     }
 
                     final Instant now = Instant.now();
-                    final String token = advertisingTokenString;
-                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, input.toUserIdentity(getIdentityScope(), 0, now), now);
+                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(advertisingTokenString, input.toUserIdentity(getIdentityScope(), 0, now), now);
 
                     assertEquals(optOutExpected, matchedOptedOutIdentity);
                     assertTokenStatusMetrics(

@@ -1,7 +1,6 @@
 name: Publish All Operators
 run-name: ${{ format('Publish All {0} Operators', inputs.release_type) }}
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       release_type:
@@ -27,10 +26,10 @@ jobs:
         env: 
             GITHUB_CONTEXT: ${{ toJson(github) }}
 
-      - name: Check branch and release type
-        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2
-        with:
-          release_type: ${{ inputs.release_type }}
+      #- name: Check branch and release type
+      #  uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2
+      #  with:
+      #    release_type: ${{ inputs.release_type }}
     
       - name: Checkout repo
         uses: actions/checkout@v4

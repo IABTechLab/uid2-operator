@@ -21,6 +21,10 @@ on:
         description: The type of version number to return. Must be one of [Snapshot, Patch, Minor or Major]
         required: true
         type: string
+      version_number_input:
+        description: If set, the version number will not be incremented and the given number will be used.
+        type: string
+        default: ''
     outputs:
       image_tag:
         description: The tag used to describe the image in docker

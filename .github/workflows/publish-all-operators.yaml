@@ -10,8 +10,7 @@ on:
         - Major
         - Minor
         - Patch
-        - Snapshot  #remove this
-  
+
 jobs:
   start:
     name: Start Operator Build
@@ -72,6 +71,22 @@ jobs:
   #  name: AWS Private Operator
   #  needs: start
   #  uses: ./.github/workflows/publish-aws-operator-AMI.yaml
+  #  with:
+  #    release_type: ${{ inputs.release_type }}
+  #    version_number_input: ${{ needs.start.outputs.new_version }}
+
+  #buildGCP:
+  #  name: GCP Private Operator
+  #  needs: start
+  #  uses: ./.github/workflows/publish-gcp-operator-docker-image.yaml
+  #  with:
+  #    release_type: ${{ inputs.release_type }}
+  #    version_number_input: ${{ needs.start.outputs.new_version }}
+
+  #buildAzure:
+  #  name: Azure Private Operator
+  #  needs: start
+  #  uses: ./.github/workflows/publish-azure-operator-docker-image.yaml
   #  with:
   #    release_type: ${{ inputs.release_type }}
   #    version_number_input: ${{ needs.start.outputs.new_version }}

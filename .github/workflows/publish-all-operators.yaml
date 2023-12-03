@@ -1,5 +1,5 @@
 name: Publish All Operators
-run-name: ${{ format('Publish All {0} Operators', inputs.release_type) }}
+run-name: ${{ format('Publish All Operators: {0} Release', inputs.release_type) }}
 on:
   workflow_dispatch:
     inputs:
@@ -90,11 +90,14 @@ jobs:
             GITHUB_CONTEXT: ${{ toJson(github) }}
 
       - name: Download Public Artifacts
-        uses: Legit-Labs/action-download-artifact@v2.18.0
+        uses: actions/download-artifact@v3
         with:
-          workflow: publish-public-operator-docker-image.yaml
-          workflow_conclusion: success
-          branch: main
-          run_id: ${{ github.run_id }}
+          name: image_details
           path: ./artifacts/public_operator
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: operator_release
+          path: ./artifacts/
+  

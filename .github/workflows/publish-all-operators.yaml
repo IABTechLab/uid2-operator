@@ -90,11 +90,11 @@ jobs:
             GITHUB_CONTEXT: ${{ toJson(github) }}
 
       - name: Download Public Artifacts
-        uses: Legit-Labs/action-download-artifact@v2
+        uses: Legit-Labs/action-download-artifact@v2.18.0
         with:
-          worflow: publish-public-operator-docker-image.yaml
+          workflow: publish-public-operator-docker-image.yaml
           workflow_conclusion: success
           branch: main
           run_id: ${{ github.run_id }}
-          path: public_operator
+          path: ./artifacts/public_operator
 

@@ -96,14 +96,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [buildPublic]
     steps:
-      - name: Show Context
-        run: |
-          printenv
-          echo "$GITHUB_CONTEXT"
-        shell: bash
-        env: 
-            GITHUB_CONTEXT: ${{ toJson(github) }}
-
       - name: Download Public Artifacts
         uses: actions/download-artifact@v3
         with:

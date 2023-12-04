@@ -817,10 +817,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                         OptoutCheckPolicy.DoNotRespect));
 
                         ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
-                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
+                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, optOutTokens.getAdvertisingTokenVersion());
                     } else { // new participant, or legacy specified policy/optout_check=1
                         ResponseUtil.SuccessNoBodyV2("optout", rc);
-                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider);
+                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider, null);
                     }
                 } else {
                     ResponseUtil.SuccessV2(rc, toJsonV1(t));

@@ -109,6 +109,13 @@ jobs:
           name: gcp-oidc-deployment-files
           path: ./artifacts/gcp_oidc_operator
 
+      - name: Delete Public Artifacts
+        uses: geekyeggo/delete-artifact@v2
+        with: 
+          name: |
+            image_details
+            gcp-oidc-deployment-files
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:

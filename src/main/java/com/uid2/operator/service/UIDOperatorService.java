@@ -135,7 +135,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
             final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
 
-            if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getTime())) {
+            if (!optedOut) {
                 IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
 
                 return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
@@ -164,19 +164,19 @@ public class UIDOperatorService implements IUIDOperatorService {
         switch (identityType) {
             case Email:
                 return InputUtil.InputVal.validEmail(
-                        ClientSideTokenGenerateOptOutIdentityForEmail,
-                        ClientSideTokenGenerateOptOutIdentityForEmail);
+                        OptOutTokenIdentityForEmail,
+                        OptOutTokenIdentityForEmail);
             case Phone:
                 return InputUtil.InputVal.validPhone(
-                        ClientSideTokenGenerateOptOutIdentityForPhone,
-                        ClientSideTokenGenerateOptOutIdentityForPhone);
+                        OptOutTokenIdentityForPhone,
+                        OptOutTokenIdentityForPhone);
             default:
                 // Assert will fire when this code path is hit by a test.
                 assert false: "Invalid identity type " + identityType;
                 // Provide a fallback value instead of throwing an exception.
                 return InputUtil.InputVal.validEmail(
-                        ClientSideTokenGenerateOptOutIdentityForEmail,
-                        ClientSideTokenGenerateOptOutIdentityForEmail);
+                        OptOutTokenIdentityForEmail,
+                        OptOutTokenIdentityForEmail);
         }
     }
 

@@ -10,6 +10,7 @@ on:
         - Major
         - Minor
         - Patch
+        - Snapshot
 
 jobs:
   start:
@@ -75,13 +76,13 @@ jobs:
   #    release_type: ${{ inputs.release_type }}
   #    version_number_input: ${{ needs.start.outputs.new_version }}
 
-  #buildGCP:
-  #  name: GCP Private Operator
-  #  needs: start
-  #  uses: ./.github/workflows/publish-gcp-operator-docker-image.yaml
-  #  with:
-  #    release_type: ${{ inputs.release_type }}
-  #    version_number_input: ${{ needs.start.outputs.new_version }}
+  buildGCP:
+    name: GCP Private Operator
+    needs: start
+    uses: ./.github/workflows/publish-gcp-oidc-enclave-docker.yaml
+    with:
+      release_type: ${{ inputs.release_type }}
+      version_number_input: ${{ needs.start.outputs.new_version }}
 
   #buildAzure:
   #  name: Azure Private Operator
@@ -101,6 +102,12 @@ jobs:
         with:
           name: image_details
           path: ./artifacts/public_operator
+
+      - name: Download GCP Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: gcp-oidc-deployment-files
+          path: ./artifacts/gcp_oidc_operator
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3

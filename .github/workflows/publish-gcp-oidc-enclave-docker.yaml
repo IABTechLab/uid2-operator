@@ -246,7 +246,7 @@ jobs:
       - name: Archive deployment artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: gcp-oidc-deployment-files-${{ steps.version.outputs.new_version }}
+          name: gcp-oidc-deployment-files
           path: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}
 

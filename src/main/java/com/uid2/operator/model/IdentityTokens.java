@@ -1,18 +1,22 @@
 package com.uid2.operator.model;
 
+import com.uid2.shared.model.TokenVersion;
+
 import java.time.Instant;
 
 public class IdentityTokens {
-    public static IdentityTokens LogoutToken = new IdentityTokens("", "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+    public static IdentityTokens LogoutToken = new IdentityTokens("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
     private final String advertisingToken;
+    private final TokenVersion advertisingTokenVersion;
     private final String refreshToken;
     private final Instant identityExpires;
     private final Instant refreshExpires;
     private final Instant refreshFrom;
 
-    public IdentityTokens(String advertisingToken, String refreshToken,
+    public IdentityTokens(String advertisingToken, TokenVersion advertisingTokenVersion, String refreshToken,
                           Instant identityExpires, Instant refreshExpires, Instant refreshFrom) {
         this.advertisingToken = advertisingToken;
+        this.advertisingTokenVersion = advertisingTokenVersion;
         this.refreshToken = refreshToken;
         this.identityExpires = identityExpires;
         this.refreshExpires = refreshExpires;
@@ -21,6 +25,10 @@ public class IdentityTokens {
 
     public String getAdvertisingToken() {
         return advertisingToken;
+    }
+
+    public TokenVersion getAdvertisingTokenVersion() {
+        return advertisingTokenVersion;
     }
 
     public String getRefreshToken() {

@@ -3,7 +3,7 @@ set -ex
 
 ROOT="."
 # below resources should be prepared ahead
-RESOURCE_GROUP=uid-enclave-test
+RESOURCE_GROUP=uid-enclave-ci-cd
 IDENTITY=uid-operator
 VAULT_NAME=uid-operator
 OPERATOR_KEY_NAME=operator-key-ci

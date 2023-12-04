@@ -2,6 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
+import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.ISiteStore;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonObject;
@@ -65,18 +66,18 @@ public class ResponseUtil {
     public static void SendClientErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider)
     {
         Warning(errorStatus, statusCode, rc, message);
-        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider);
+        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null);
     }
 
     public static void SendServerErrorResponseAndRecordStats(RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, Exception exception)
     {
         Error(ResponseStatus.UnknownError, 500, rc, message, exception);
         rc.fail(500);
-        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider);
+        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null);
     }
 
-    public static void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider) {
-        TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, responseStatus);
+    public static void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, TokenVersion advertisingTokenVersion) {
+        TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, advertisingTokenVersion, responseStatus);
     }
 
     public static JsonObject Response(String status, String message) {

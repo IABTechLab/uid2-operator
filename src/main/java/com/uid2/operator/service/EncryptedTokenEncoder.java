@@ -324,6 +324,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new IdentityTokens(
                 base64AdvertisingToken,
+                advertisingToken.version,
                 EncodingUtils.toBase64String(encode(refreshToken, asOf)),
                 advertisingToken.expiresAt,
                 refreshToken.expiresAt,

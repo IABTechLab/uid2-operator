@@ -98,7 +98,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
     private final IdentityScope identityScope;
     private final V2PayloadHandler v2PayloadHandler;
-    private Handler<RoutingContext> disableHandler = null;
     private final boolean phoneSupport;
     private final int tcfVendorId;
     private final IStatsCollectorQueue _statsCollectorQueue;
@@ -178,16 +177,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
-    public void setDisableHandler(Handler<RoutingContext> h) {
-        this.disableHandler = h;
-    }
-
     private Router createRoutesSetup() throws IOException {
         final Router router = Router.router(vertx);
-
-        if (this.disableHandler != null) {
-            router.route().handler(this.disableHandler);
-        }
 
         router.allowForward(AllowForwardHeaders.X_FORWARD);
         router.route().handler(new RequestCapturingHandler());
@@ -439,7 +430,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
+        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, identityTokens.getAdvertisingTokenVersion());
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
@@ -758,7 +749,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
                 ResponseUtil.Success(rc, toJsonV1(t));
-                recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
+                recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion());
             }
         } catch (Exception e) {
             SendServerErrorResponseAndRecordStats(rc, "Unknown error while generating token v1", siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e);
@@ -783,7 +774,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                     case INSUFFICIENT: {
                         ResponseUtil.SuccessNoBodyV2(ResponseStatus.InsufficientUserConsent, rc);
-                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.InsufficientUserConsent, siteProvider);
+                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.InsufficientUserConsent, siteProvider, null);
                         return;
                     }
                     case SUFFICIENT: {
@@ -833,7 +824,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 } else {
                     ResponseUtil.SuccessV2(rc, toJsonV1(t));
-                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
+                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion());
                 }
             }
         } catch (ClientInputValidationException cie) {
@@ -865,7 +856,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
-            recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider);
+            recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion());
             sendJsonResponse(rc, toJson(t));
 
         } catch (Exception e) {
@@ -1065,7 +1056,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (input == null) {
                 ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
             }
-            else if (input.isValid()) {
+            else if (!input.isValid()) {
                 ResponseUtil.ClientError(rc, "Invalid email or email_hash");
             }
             else {
@@ -1461,8 +1452,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         String serviceLinkName = rc.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "");
         if (!serviceLinkName.isBlank()) {
             // serviceName will be non-empty as it will be inserted during validation
-            String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
-            DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(serviceName + serviceLinkName,
+            final String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
+            final String metricKey = serviceName + serviceLinkName;
+            DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(metricKey,
                     k -> DistributionSummary.builder("uid2.operator.identity.map.services.inputs")
                 .description("number of emails or phone numbers passed to identity map batch endpoint by services")
                 .tags(Arrays.asList(Tag.of("api_contact", apiContact),
@@ -1471,7 +1463,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .register(Metrics.globalRegistry));
             ds.record(inputCount);
 
-            Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact,
+            Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(metricKey,
                 k -> new Tuple.Tuple2<>(
                 Counter.builder("uid2.operator.identity.map.services.unmapped")
                 .description("number of invalid identifiers passed to identity map batch endpoint by services")

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-RESOURCE_GROUP=uid-enclave-test
+RESOURCE_GROUP=uid-enclave-ci-cd
 
 if [ -z "$CONTAINER_GROUP_NAME" ]; then
   echo "CONTAINER_GROUP_NAME can not be empty"

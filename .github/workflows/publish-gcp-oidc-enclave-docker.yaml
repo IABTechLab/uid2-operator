@@ -2,24 +2,33 @@ name: Publish GCP OIDC Enclave Docker
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'The tag to apply to the Docker file'
+      release_type:
+        type: choice
+        description: 'The type of release'
+        options:
+        - Major
+        - Minor
+        - Patch
+        - Snapshot
+      version_number_input:
+        description: If set, the version number will not be incremented and the given number will be used.
         type: string
+        default: ''
+  workflow_call:
+    inputs:
       release_type:
         description: The type of version number to return. Must be one of [Snapshot, Patch, Minor or Major]
         required: true
         type: string
-      java_version:
+      version_number_input:
+        description: If set, the version number will not be incremented and the given number will be used.
         type: string
-        default: '11'
-      publish_vulnerabilities:
-        type: string
-        default: 'true'
-      is_release:
-        type: boolean
-        description: Create a new GitHub release
-        required: false
-        default: false
+        default: ''
+      
+    outputs:
+      image_tag:
+        description: The tag used to describe the image in docker
+        value: ${{ jobs.buildImage.outputs.image_tag }}
       
 env:
   REGISTRY: ghcr.io
@@ -32,7 +41,8 @@ env:
   ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
 
 jobs:
-  build-publish-docker:
+  buildImage:
+    name: Build Image
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -41,16 +51,41 @@ jobs:
       id-token: write
     outputs:
       jar_version: ${{ steps.version.outputs.new_version }}
+      image_tag: ${{ steps.updatePom.outputs.image_tag }}
     steps:
+      - name: Check branch and release type
+        id: checkRelease
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2-pre
+        with:
+          release_type: ${{ inputs.release_type }}
+
+      - name: Show Context
+        run: |
+          printenv
+          echo "$GITHUB_CONTEXT"
+        shell: bash
+        env: 
+            GITHUB_CONTEXT: ${{ toJson(github) }}
+            IS_RELEASE: ${{ steps.checkRelease.outputs.IS_RELEASE }}
+  
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: ${{ inputs.java_version }}
+          java-version: '11'
 
-      - name: Checkout full history
-        uses: actions/checkout@v3
+      - name: Checkout full history on Main
+        uses: actions/checkout@v4
+        if: ${{ inputs.version_number_input == ''}}
         with:
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Checkout full history at tag v${{ inputs.version_number_input }}
+        uses: actions/checkout@v4
+        if: ${{ inputs.version_number_input != ''}}
+        with:
+          ref: v${{ inputs.version_number_input }}
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
 
@@ -62,13 +97,17 @@ jobs:
         uses: IABTechLab/uid2-shared-actions/actions/version_number@main
         with:
           type: ${{ inputs.release_type }}
+          version_number: ${{ inputs.version_number_input }}
+          branch_name: ${{ github.ref }}
 
       - name: Update pom.xml
+        id: updatePom
         run: |
           current_version=$(grep -o '<version>.*</version>' pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/')
           new_version=${{ steps.version.outputs.new_version }} 
-          sed -i "0,/$current_version/s//$new_version/" pom.xml
+          sed -i "0,/$current_version/s/$current_version/$new_version/" pom.xml
           echo "Version number updated from $current_version to $new_version"
+          echo "image_tag=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}" >> $GITHUB_OUTPUT
 
       - name: Package JAR
         id: package
@@ -79,6 +118,7 @@ jobs:
           cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
 
       - name: Commit pom.xml and version.json
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE != 'true' }} 
         uses: EndBug/add-and-commit@v9
         with:
           add: 'pom.xml version.json'
@@ -86,8 +126,18 @@ jobs:
           author_email: unifiedid-admin+release@thetradedesk.com
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
 
+      - name: Commit pom.xml, version.json and set tag
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }} 
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'pom.xml version.json'
+          author_name: Release Workflow
+          author_email: unifiedid-admin+release@thetradedesk.com
+          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+          tag: v${{ steps.version.outputs.new_version }}
+
       - name: Log in to the Docker container registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -111,20 +161,19 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
-            type=raw,value=${{ inputs.tag }}
+            type=raw,value=${{ steps.updatePom.outputs.image_tag }}
 
       - name: Extract metadata (tags, labels) for GCP image
         id: meta-gcp
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
+            type=raw,value=${{ steps.updatePom.outputs.image_tag }}
 
       - name: Extract metadata (tags, labels) for all Docker images
         id: meta-all
@@ -135,10 +184,9 @@ jobs:
             ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
-            type=raw,value=${{ inputs.tag }}
 
       - name: Build and export to Docker
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v5
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
           load: true
@@ -150,8 +198,7 @@ jobs:
             BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
 
       - name: Generate Trivy vulnerability scan report
-        uses: aquasecurity/trivy-action@0.12.0
-        if: inputs.publish_vulnerabilities == 'true'
+        uses: aquasecurity/trivy-action@0.14.0
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: 'sarif'
@@ -163,12 +210,11 @@ jobs:
 
       - name: Upload Trivy scan report to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
-        if: inputs.publish_vulnerabilities == 'true'
         with:
           sarif_file: 'trivy-results.sarif'
 
       - name: Test with Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.12.0
+        uses: aquasecurity/trivy-action@0.14.0
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: 'table'
@@ -179,7 +225,7 @@ jobs:
 
       - name: Push to Docker
         id: push-to-docker
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v5
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
           push: true
@@ -205,16 +251,29 @@ jobs:
             ${{ env.ARTIFACTS_OUTPUT_DIR }}
 
       - name: Generate release archive
-        if: inputs.is_release
+        if: ${{ steps.checkRelease.outputs.IS_RELEASE == 'true' }}
         run: |
-          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+            zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: inputs.is_release
+      - name: Build Changelog
+        id: github_release
+        if: ${{ steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        uses: mikepenz/release-changelog-builder-action@v3
         with:
-          name: UID2 Operator ${{ steps.meta.outputs.version }}
-          tag_name: v${{ steps.meta.outputs.version }}
-          body: UID2 Operator for deployment on GCP confidential space environment.
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}\n## Installation\n```\ndocker pull ${{ steps.meta.outputs.tags }}\n```\n\n## Image reference to deploy: \n```\n${{ steps.updatePom.outputs.image_tag }}\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
+              "pr_template": " - #{{TITLE}} - ( PR: ##{{NUMBER}} )"
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        if: ${{ steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ steps.version.outputs.new_version }}
+          body: ${{ steps.github_release.outputs.changelog }}
+          draft: true
           files: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip

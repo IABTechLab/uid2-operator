@@ -297,7 +297,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (rawUid.length > 2)
         {
             int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
-            pseudoRandomNumber = (hash % 99) + 1; //1 to 100
+            pseudoRandomNumber = (hash % 100) + 1; //1 to 100
         }
 
         var tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;

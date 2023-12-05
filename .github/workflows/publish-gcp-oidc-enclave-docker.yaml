@@ -1,4 +1,5 @@
-name: Publish GCP OIDC Enclave Docker
+name: Publish GCP OIDC Operator
+run-name: ${{ format('Publish {0} GCP OIDC Operator', inputs.release_type) }}
 on:
   workflow_dispatch:
     inputs:

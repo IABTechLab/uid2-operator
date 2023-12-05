@@ -31,7 +31,7 @@
   "key_sharing_endpoint_provide_site_domain_names": true,
   "validate_service_links": true,
   "optout_s3_bucket": "test-optout-bucket",
-  "optout_s3_folder": "optout",
+  "optout_s3_folder": "optout-v2/",
   "optout_metadata_path": "http://optout:8081/optout/refresh",
   "optout_api_uri": "http://optout:8081/optout/replicate",
   "optout_api_token": "UID2-O-L-999-dp9Dt0.JVoGpynN4J8nMA7FxmzsavxJa8B9H74y9xdEE="

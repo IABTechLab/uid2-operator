@@ -24,16 +24,6 @@
   "cloud_download_threads": 8,
   "cloud_upload_threads": 2,
   "cloud_refresh_interval": 60,
-  "optout_inmem_cache": false,
-  "optout_synthetic_logs_enabled": false,
-  "optout_data_dir": "/opt/uid2/operator-optout/",
-  "optout_s3_folder": "optout/",
-  "optout_bloom_filter_size": 8192,
-  "optout_delta_rotate_interval": 300,
-  "optout_delta_backtrack_in_days": 1,
-  "optout_heap_default_capacity": 8192,
-  "optout_max_partitions": 30,
-  "optout_partition_interval": 86400,
   "client_side_token_generate": false,
   "validate_service_links": false
 }

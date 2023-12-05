@@ -20,7 +20,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 
 import static com.uid2.operator.IdentityConst.*;
 
@@ -136,7 +135,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
             final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
 
-            if (!optedOut || token.userIdentity.establishedAt.isAfter(logoutEntry.getTime())) {
+            if (!optedOut) {
                 IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
 
                 return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
@@ -165,19 +164,19 @@ public class UIDOperatorService implements IUIDOperatorService {
         switch (identityType) {
             case Email:
                 return InputUtil.InputVal.validEmail(
-                        ClientSideTokenGenerateOptOutIdentityForEmail,
-                        ClientSideTokenGenerateOptOutIdentityForEmail);
+                        OptOutTokenIdentityForEmail,
+                        OptOutTokenIdentityForEmail);
             case Phone:
                 return InputUtil.InputVal.validPhone(
-                        ClientSideTokenGenerateOptOutIdentityForPhone,
-                        ClientSideTokenGenerateOptOutIdentityForPhone);
+                        OptOutTokenIdentityForPhone,
+                        OptOutTokenIdentityForPhone);
             default:
                 // Assert will fire when this code path is hit by a test.
                 assert false: "Invalid identity type " + identityType;
                 // Provide a fallback value instead of throwing an exception.
                 return InputUtil.InputVal.validEmail(
-                        ClientSideTokenGenerateOptOutIdentityForEmail,
-                        ClientSideTokenGenerateOptOutIdentityForEmail);
+                        OptOutTokenIdentityForEmail,
+                        OptOutTokenIdentityForEmail);
         }
     }
 
@@ -293,9 +292,15 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
-        int randomNum = ThreadLocalRandom.current().nextInt(1, 101);
-        var tokenVersion = (randomNum <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
+        int pseudoRandomNumber = 1;
+        final var rawUid = userIdentity.id;
+        if (rawUid.length > 2)
+        {
+            int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
+            pseudoRandomNumber = (hash % 100) + 1; //1 to 100
+        }
 
+        var tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         return new AdvertisingToken(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
     }
 

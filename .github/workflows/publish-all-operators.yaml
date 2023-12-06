@@ -13,10 +13,10 @@ on:
         - Snapshot
       include_aws:
         type: choice
-        description: 'Yes to include the AWS build (slow)'
+        description: 'Include AWS build (slow)?'
         options:
-        - Yes
-        - No
+        - true
+        - false
 
 jobs:
   start:
@@ -76,7 +76,7 @@ jobs:
 
   buildAWS:
     name: AWS Private Operator
-    if: ${{ inputs.include_aws == 'Yes' }}
+    if: ${{ inputs.include_aws }}
     needs: start
     uses: UnifiedID2/aws-operator-building/.github/workflows/build-uid2-operator.yaml@tjm-UID2-2280-update-aws-build-allow-call
     with:

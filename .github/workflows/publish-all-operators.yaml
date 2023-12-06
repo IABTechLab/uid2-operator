@@ -10,6 +10,7 @@ on:
         - Major
         - Minor
         - Patch
+        - Snapshot
       include_aws:
         type: choice
         description: 'Yes to include the AWS build (slow)'

@@ -10,6 +10,12 @@ on:
         - Major
         - Minor
         - Patch
+      include_aws:
+        type: choice
+        description: 'Yes to include the AWS build (slow)'
+        options:
+        - Yes
+        - No
 
 jobs:
   start:
@@ -67,13 +73,14 @@ jobs:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
 
-  #buildAWS:
-  #  name: AWS Private Operator
-  #  needs: start
-  #  uses: ./.github/workflows/publish-aws-operator-AMI.yaml
-  #  with:
-  #    release_type: ${{ inputs.release_type }}
-  #    version_number_input: ${{ needs.start.outputs.new_version }}
+  buildAWS:
+    name: AWS Private Operator
+    if: ${{ inputs.include_aws == 'Yes' }}
+    needs: start
+    uses: UnifiedID2/aws-operator-building/.github/workflows/build-uid2-operator.yaml@tjm-UID2-2280-update-aws-build-allow-call
+    with:
+      is_release: true
+      build_commit_hash: ${{ needs.start.outputs.new_version }}
 
   buildGCP:
     name: GCP Private Operator

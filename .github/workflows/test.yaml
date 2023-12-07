@@ -11,6 +11,7 @@ on:
           - Minor
           - Patch
           - Snapshot
+  pull_request:
 
 jobs:
   start:
@@ -30,7 +31,7 @@ jobs:
       - name: Check branch and release type
         uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2
         with:
-          release_type: ${{ inputs.release_type }}
+          release_type: Snapshot
 
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -41,7 +42,7 @@ jobs:
         id: version
         uses: IABTechLab/uid2-shared-actions/actions/version_number@v1.0
         with:
-          type: ${{ inputs.release_type }}
+          type: Snapshot
           branch_name: ${{ github.ref }}
 
       - name: Update pom.xml
@@ -57,7 +58,7 @@ jobs:
           add: 'pom.xml version.json'
           author_name: Release Workflow
           author_email: unifiedid-admin+release@thetradedesk.com
-          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+          message: 'Released Snapshot version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }}
 
   buildPublic:
@@ -65,7 +66,7 @@ jobs:
     needs: start
     uses: ./.github/workflows/publish-public-operator-docker-image.yaml
     with:
-      release_type: ${{ inputs.release_type }}
+      release_type: Snapshot
       version_number_input: ${{ needs.start.outputs.new_version }}
 
 

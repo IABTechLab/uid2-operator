@@ -1,0 +1,15 @@
+name: Test Call Remote
+on: [workflow_dispatch]
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    name: "📦 Trigger Project Test"
+    steps:
+    - uses: passeidireto/trigger-external-workflow-action@main
+      env:
+        PAYLOAD_AUTHOR: ${{ github.author }}
+        PAYLOAD_REVISION: "3"
+      with:
+        repository: UnifiedID2/aws-operator-building
+        event: doc_update
+        github_pat: ${{ secrets.remote_repo_pat }}

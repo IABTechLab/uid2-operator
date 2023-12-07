@@ -11,9 +11,6 @@ on:
           - Minor
           - Patch
           - Snapshot
-  pull_request:
-
-
 
 jobs:
   start:

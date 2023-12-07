@@ -10,6 +10,10 @@ on:
           - Major
           - Minor
           - Patch
+          - Snapshot
+  pull_request:
+
+
 
 jobs:
   start:
@@ -29,7 +33,7 @@ jobs:
       - name: Check branch and release type
         uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2
         with:
-          release_type: ${{ inputs.release_type }}
+          release_type: patch
 
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -40,7 +44,7 @@ jobs:
         id: version
         uses: IABTechLab/uid2-shared-actions/actions/version_number@v1.0
         with:
-          type: ${{ inputs.release_type }}
+          type: patch
           branch_name: ${{ github.ref }}
 
       - name: Update pom.xml
@@ -56,7 +60,7 @@ jobs:
           add: 'pom.xml version.json'
           author_name: Release Workflow
           author_email: unifiedid-admin+release@thetradedesk.com
-          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+          message: 'Released patch version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }}
 
   buildPublic:
@@ -64,43 +68,7 @@ jobs:
     needs: start
     uses: ./.github/workflows/publish-public-operator-docker-image.yaml
     with:
-      release_type: ${{ inputs.release_type }}
+      release_type: patch
       version_number_input: ${{ needs.start.outputs.new_version }}
 
-  collectAllArtifacts:
-    name: Collect All Artifacts
-    runs-on: ubuntu-latest
-    needs: [buildPublic, buildGCP, buildAzure]
-    steps:
-      - name: Download Public Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: image_details
-          path: ./artifacts/public_operator
-
-      - name: Download GCP Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: gcp-oidc-deployment-files
-          path: ./artifacts/gcp_oidc_operator
-
-      - name: Download Azure Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: azure-cc-deployment-files
-          path: ./artifacts/azure_cc_operator
-
-      - name: Delete Public Artifacts
-        uses: geekyeggo/delete-artifact@v2
-        with:
-          name: |
-            image_details
-            gcp-oidc-deployment-files
-            azure-cc-deployment-files
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: operator_release
-          path: ./artifacts/
 

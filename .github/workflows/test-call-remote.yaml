@@ -1,5 +1,5 @@
 name: Test Call Remote
-on: [workflow_dispatch, pull_request]
+on: [workflow_dispatch]
 jobs:
   trigger:
     runs-on: ubuntu-latest

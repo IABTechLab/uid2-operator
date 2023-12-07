@@ -6,7 +6,7 @@ jobs:
     name: "📦 Trigger Project Test"
     steps:
     - name: Deploy Your Service
-      uses: adityakar/workflow-dispatcher@v1.0
+      uses: adityakar/workflow-dispatcher@master
       with:
         owner: UnifiedID2
         repo: aws-operator-building

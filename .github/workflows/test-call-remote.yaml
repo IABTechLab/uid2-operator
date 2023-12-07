@@ -5,11 +5,13 @@ jobs:
     runs-on: ubuntu-latest
     name: "📦 Trigger Project Test"
     steps:
-    - uses: passeidireto/trigger-external-workflow-action@main
-      env:
-        PAYLOAD_AUTHOR: ${{ github.actor }}
-        PAYLOAD_REVISION: "3"
+    - name: Deploy Your Service
+      uses: adityakar/workflow-dispatcher@v1.0
       with:
-        repository: UnifiedID2/aws-operator-building
-        event: doc_update
-        github_pat: ${{ secrets.remote_repo_pat }}
+        owner: UnifiedID2
+        repo: aws-operator-building
+        token: ${{ secrets.REMOTE_REPO_PAT }}
+        event_type: doc_update
+        client_payload: '{"git-ref": "${{ github.event.inputs.git-ref }}", "AUTHOR": "${{ github.actor }}", "REVISION": "4"}'
+        wait_time: 5
+        max_time: 180

@@ -36,6 +36,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Vulnerability Scan
+        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan_filesystem@v2.4.0-pre
+        with:
+          publish_vulnerabilities: true
+
       - name: Set version number
         id: version
         uses: IABTechLab/uid2-shared-actions/actions/version_number@v1.0

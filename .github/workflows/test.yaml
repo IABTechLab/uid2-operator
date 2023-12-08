@@ -70,4 +70,4 @@ jobs:
           CORE_VERSION: ${{ inputs.core_image_version }}
           OPTOUT_VERSION: ${{ inputs.optout_image_version }}
         run: |
-          cd ./e2e && bash ./start_docker.sh
+          cd ./e2e && bash ./docker-build-public.sh

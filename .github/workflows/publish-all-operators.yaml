@@ -40,7 +40,8 @@ jobs:
       - name: Vulnerability Scan
         uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan_filesystem@v2.4.0-pre
         with:
-          publish_vulnerabilities: true
+          scan_severity: MEDIUM,HIGH,CRITICAL
+          failure_severity: HIGH,CRITICAL
 
       - name: Set version number
         id: version

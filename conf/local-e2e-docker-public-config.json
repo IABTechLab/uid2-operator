@@ -30,7 +30,6 @@
   "optout_s3_folder": "optout-v2/",
   "optout_metadata_path": "http://optout:8081/optout/refresh",
   "optout_api_uri": "http://optout:8081/optout/replicate",
-  "optout_api_token": "UID2-O-L-999-dp9Dt0.JVoGpynN4J8nMA7FxmzsavxJa8B9H74y9xdEE=",
   "optout_delta_rotate_interval": 60,
   "cloud_refresh_interval": 30
 }

@@ -1,5 +1,4 @@
 name: Kat test pipeline
-run-name: ${{ format('Kat test pipeline{0} {1} Release', ':', inputs.release_type) }}
 on:
   pull_request:
   workflow_dispatch:

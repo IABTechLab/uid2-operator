@@ -10,7 +10,6 @@ on:
         - Major
         - Minor
         - Patch
-        - Snapshot
 
 jobs:
   start:

@@ -26,7 +26,9 @@ services:
     ports:
       - "127.0.0.1:8088:8088"
     volumes:
+      - ./docker/uid2-core/conf/default-config.json:/app/conf/default-config.json
       - ./docker/uid2-core/conf/local-e2e-docker-config.json:/app/conf/local-config.json
+      - ./docker/uid2-core/conf/logback.loki-e2e.xml:/app/conf/logback.xml
     depends_on:
       localstack:
         condition: service_healthy
@@ -43,7 +45,10 @@ services:
       - "127.0.0.1:8090:8081"
       - "127.0.0.1:5090:5005"
     volumes:
+      - ./docker/uid2-optout/conf/run_tool_local_e2e.sh:/app/run_tool.sh
+      - ./docker/uid2-optout/conf/default-config.json:/app/conf/default-config.json
       - ./docker/uid2-optout/conf/local-e2e-docker-config.json:/app/conf/local-config.json
+      - ./docker/uid2-optout/conf/logback.loki.xml:/app/conf/logback.xml
       - ./docker/uid2-optout/mount/:/opt/uid2/optout/
     depends_on:
       core:

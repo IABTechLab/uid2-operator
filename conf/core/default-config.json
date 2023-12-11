@@ -1,0 +1,20 @@
+{
+    "pre_signed_url_expiry": 1800,
+    "core_s3_bucket": null,
+    "aws_region": null,
+    "aws_access_key_id": null,
+    "aws_secret_access_key": null,
+    "sites_metadata_path": null,
+    "clients_metadata_path": null,
+    "client_side_keypairs_metadata_path": null,
+    "services_metadata_path": null,
+    "service_links_metadata_path": null,
+    "keys_metadata_path": null,
+    "salts_metadata_path": null,
+    "operators_metadata_path": null,
+    "enclaves_metadata_path": null,
+    "partners_metadata_path": null,
+    "att_token_enc_key": null,
+    "att_token_enc_salt": null,
+    "enforceJwt": false
+}

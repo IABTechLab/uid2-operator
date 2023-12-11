@@ -1,7 +1,7 @@
 <configuration>
     <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
         <http class="com.github.loki4j.logback.ApacheHttpSender">
-            <url>http://loki:3100/loki/api/v1/push</url>
+            <url>http://${LOKI_HOSTNAME}:3100/loki/api/v1/push</url>
         </http>
         <format class="com.uid2.shared.logback.MaskingLokiJsonEncoder">
             <label>

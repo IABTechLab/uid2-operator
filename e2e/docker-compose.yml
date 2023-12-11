@@ -40,20 +40,17 @@ services:
     container_name: optout
     image: ghcr.io/iabtechlab/uid2-optout:<OPTOUT_VERSION>
     ports:
-      - "127.0.0.1:8081:8081"
+      - "127.0.0.1:8090:8081"
+      - "127.0.0.1:5090:5005"
     volumes:
       - ./docker/uid2-optout/conf/local-e2e-docker-config.json:/app/conf/local-config.json
       - ./docker/uid2-optout/mount/:/opt/uid2/optout/
     depends_on:
-      localstack:
-        condition: service_healthy
       core:
         condition: service_healthy
     healthcheck:
-      test: wget --tries=1 --spider http://localhost:8088/ops/healthcheck || exit 1
+      test: [ "CMD", "wget", "--spider", "http://localhost:8081/ops/healthcheck" ]
       interval: 5s
-      timeout: 5s
-      retries: 10
 
   publicoperator:
     container_name: public_operator
@@ -67,6 +64,8 @@ services:
     depends_on:
       core:
         condition: service_healthy
+      optout:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "--spider", "http://localhost:8080/ops/healthcheck" ]
       interval: 5s
@@ -74,9 +73,6 @@ services:
   e2etest:
     container_name: e2e_test
     image: ghcr.io/iabtechlab/uid2-e2e:<E2E_VERSION>
-    build:
-      context: .
-      dockerfile: Dockerfile
     depends_on:
       core:
         condition: service_healthy

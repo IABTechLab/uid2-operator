@@ -54,3 +54,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  publicoperator:
+    container_name: public_operator
+    image: ghcr.io/iabtechlab/uid2-operator:<OPERATOR_VERSION>
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:9080:9080"
+      - "127.0.0.1:5080:5005"
+    volumes:
+      - ../conf/local-e2e-docker-public-config.json:/app/conf/local-config.json
+    depends_on:
+      core:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "http://localhost:8080/ops/healthcheck" ]
+      interval: 5s

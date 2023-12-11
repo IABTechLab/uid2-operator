@@ -11,10 +11,10 @@ on:
           - Minor
           - Patch
           - Snapshot
-      operator_image_hash:
-        description: 'The hash of GCP enclave image(start with sha256:)'
+      operator_image_version:
+        description: 'The version of UID2 operator image'
         type: string
-        required: true
+        default: 'latest'
       core_image_version:
         description: 'The version of UID2 core image'
         type: string
@@ -82,5 +82,6 @@ jobs:
           OPTOUT_ROOT: '../'
           CORE_VERSION: ${{ inputs.core_image_version }}
           OPTOUT_VERSION: ${{ inputs.optout_image_version }}
+          OPERATOR_VERSION: ${{ inputs.operator_image_version }}
         run: |
           cd ./e2e && bash ./docker-build-public.sh

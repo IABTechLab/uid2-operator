@@ -18,11 +18,11 @@ on:
       core_image_version:
         description: 'The version of UID2 core image'
         type: string
-        default: 'latest'
+        default: '2.15.8-d2e5469826-default'
       optout_image_version:
         description: 'The version of UID2 optout image'
         type: string
-        default: 'latest'
+        default: '2.7.3-4f813a8ad9-default'
 
 env:
   REGISTRY: ghcr.io

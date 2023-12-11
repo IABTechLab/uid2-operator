@@ -23,6 +23,10 @@ on:
         description: 'The version of UID2 optout image'
         type: string
         default: '2.7.3-4f813a8ad9-default'
+      e2e_image_version:
+        description: 'The version of E2E image'
+        type: string
+        default: 'latest'
 
 env:
   REGISTRY: ghcr.io
@@ -83,5 +87,6 @@ jobs:
           CORE_VERSION: ${{ inputs.core_image_version }}
           OPTOUT_VERSION: ${{ inputs.optout_image_version }}
           OPERATOR_VERSION: ${{ inputs.operator_image_version }}
+          E2E_VERSION: ${{ inputs.e2e_image_version }}
         run: |
           cd ./e2e && bash ./docker-build-public.sh

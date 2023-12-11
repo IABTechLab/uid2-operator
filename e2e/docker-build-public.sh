@@ -44,10 +44,16 @@ if [ -z "$OPERATOR_VERSION" ]; then
   exit 1
 fi
 
+if [ -z "$E2E_VERSION" ]; then
+  echo "E2E_VERSION can not be empty"
+  exit 1
+fi
+
 # replace placeholders
 sed -i.bak "s#<CORE_VERSION>#$CORE_VERSION#g" $COMPOSE_FILE
 sed -i.bak "s#<OPTOUT_VERSION>#$OPTOUT_VERSION#g" $COMPOSE_FILE
 sed -i.bak "s#<OPERATOR_VERSION>#$OPERATOR_VERSION#g" $COMPOSE_FILE
+sed -i.bak "s#<E2E_VERSION>#$E2E_VERSION#g" $COMPOSE_FILE
 
 cat $CORE_CONFIG_FILE
 cat $OPTOUT_CONFIG_FILE

@@ -67,6 +67,28 @@ services:
     depends_on:
       core:
         condition: service_healthy
+      optout:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "--spider", "http://localhost:8080/ops/healthcheck" ]
       interval: 5s
+
+  e2etest:
+    container_name: E2E tests
+    image: ghcr.io/iabtechlab/uid2-e2e:<E2E_VERSION>
+    environment:
+      - UID2_E2E_API_KEY=UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo=
+      - UID2_E2E_API_KEY_OLD=UID2-C-L-1000-qxpBsF.ibeCDBpD2bq4Zm7inDacGioUk1aaLeNJrabow=
+      - UID2_E2E_API_SECRET=DzBzbjTJcYL0swDtFs2krRNu+g1Eokm2tBU4dEuD0Wk=
+      - UID2_E2E_API_SECRET_OLD=VT7+t0G/RVueMuVZAL56I2c3JJFSYQfhbu8yo0V/Tds=
+      - UID2_E2E_ENV=local
+      - UID2_E2E_IDENTITY_SCOPE=UID2
+      - UID2_E2E_PHONE_SUPPORT=true
+      - UID2_E2E_SITE_ID=999
+    depends_on:
+      core:
+        condition: service_healthy
+      optout:
+        condition: service_healthy
+      operator:
+        condition: service_healthy

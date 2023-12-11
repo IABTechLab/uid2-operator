@@ -4,7 +4,7 @@
     "name": "Special",
     "contact": "Special",
     "protocol": "trusted",
-    "created": 1618873215,
+    "created": 1701210253,
     "disabled": false,
     "roles": [
       "OPERATOR",
@@ -18,10 +18,10 @@
   },
   {
     "key": "OPLCLAjLRWcVlCDl9+BbwR38gzxYdiWFa751ynWLuI7JU4iA=",
-    "name": "Special (Old, Private)",
-    "contact": "Special (Old, Private)",
+    "name": "Special (Legacy Key, Private)",
+    "contact": "Special (Legacy Key, Private)",
     "protocol": "trusted",
-    "created": 1618873215,
+    "created": 1701210253,
     "disabled": false,
     "roles": [
       "OPERATOR",

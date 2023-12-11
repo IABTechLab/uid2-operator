@@ -4,7 +4,7 @@
     "secret": "DzBzbjTJcYL0swDtFs2krRNu+g1Eokm2tBU4dEuD0Wk=",
     "name": "Special",
     "contact": "Special",
-    "created": 1609459200,
+    "created": 1701210253,
     "roles": [
       "MAPPER",
       "GENERATOR",
@@ -21,9 +21,9 @@
   {
     "key": "LOCALbGlvbnVuZGVybGluZXdpbmRzY2FyZWRzb2Z0ZGVzZXI=",
     "secret": "c3RlZXBzcGVuZHNsb3BlZnJlcXVlbnRseWRvd2lkZWM=",
-    "name": "Special (Old)",
-    "contact": "Special (Old)",
-    "created": 1609459200,
+    "name": "Special (Legacy Key)",
+    "contact": "Special (Legacy Key)",
+    "created": 1701210253,
     "roles": [
       "MAPPER",
       "GENERATOR",
@@ -59,7 +59,8 @@
     "contact": "Publisher",
     "created": 1609459200,
     "roles": [
-      "GENERATOR"
+      "GENERATOR",
+      "ID_READER"
     ],
     "disabled": false,
     "site_id": 124,
@@ -90,7 +91,8 @@
     "contact": "Advertiser",
     "created": 1609459200,
     "roles": [
-      "MAPPER"
+      "MAPPER",
+      "SHARER"
     ],
     "disabled": false,
     "site_id": 126,
@@ -112,5 +114,24 @@
     "key_hash": "BEEnHVPHwbMYUtZk/N6jjnN04U7xpu6hV5yF4Nn2Zw9pigD43JLZdEleRW/Mz7LAQfYtLTJk768J8WK6F4Ku/Q==",
     "key_salt": "cw9wfsevy1xRiPys5JkBSTPHmTickWkFWQ0zrIF2C60=",
     "key_id": "UID2-C-L-127-aHVyd"
+  },
+  {
+    "key": "UID2-C-L-1000-qxpBsF.ibeCDBpD2bq4Zm7inDacGioUk1aaLeNJrabow=",
+    "secret": "VT7+t0G/RVueMuVZAL56I2c3JJFSYQfhbu8yo0V/Tds=",
+    "name": "Legacy Site Client",
+    "contact": "Legacy Site Client",
+    "created": 1609459200,
+    "roles": [
+      "MAPPER",
+      "GENERATOR",
+      "ID_READER",
+      "SHARER",
+      "OPTOUT"
+    ],
+    "disabled": false,
+    "site_id": 1000,
+    "key_hash": "654FIeR8DFtLi5AC8RXvwfBQ1b9J8L+dVyJUxoTSCpMBQ3z937CxQ1fp40fHIs9SbQPnivBMV5s+TdDMZXZqgQ==",
+    "key_salt": "huTnT+HyINotMK0W00Gy7VGaQT9XR0KaxZTBvVuTCF0=",
+    "key_id": "UID2-C-L-1000-qxpBs"
   }
 ]

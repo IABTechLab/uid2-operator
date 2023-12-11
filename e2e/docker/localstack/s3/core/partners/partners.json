@@ -1,8 +1,8 @@
 [
   {
-    "name" : "ttd",
-    "url" : "https://test-trade-desk.com/track/uid2optout",
-    "method" : "GET",
+    "name": "Partner",
+    "url": "http://proxy:8091/api/optout",
+    "method": "GET",
     "query_params" : [ "action=dooptout", "uid2=${ADVERTISING_ID}", "timestamp=${OPTOUT_EPOCH}" ],
     "additional_headers" : [ "Authorization: Bearer 000-0000000" ],
     "retry_count" : 600,

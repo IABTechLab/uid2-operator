@@ -19,11 +19,9 @@ fi
 mkdir -p "$CORE_CONFIG_FILE_DIR"
 cp "$CORE_ROOT/conf/core/default-config.json" "$CORE_CONFIG_FILE_DIR"
 cp "$CORE_ROOT/conf/core/local-e2e-docker-config.json" "$CORE_CONFIG_FILE_DIR"
-cp "$CORE_ROOT/conf/core/logback.loki-e2e.xml" "$CORE_CONFIG_FILE_DIR"
 mkdir -p "$OPTOUT_CONFIG_FILE_DIR"
 cp "$OPTOUT_ROOT/conf/optout/default-config.json" "$OPTOUT_CONFIG_FILE_DIR"
 cp "$OPTOUT_ROOT/conf/optout/local-e2e-docker-config.json" "$OPTOUT_CONFIG_FILE_DIR"
-cp "$OPTOUT_ROOT/conf/optout/logback.loki.xml" "$OPTOUT_CONFIG_FILE_DIR"
 cp "$OPTOUT_ROOT/conf/optout/run_tool_local_e2e.sh" "$OPTOUT_CONFIG_FILE_DIR"
 
 

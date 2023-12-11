@@ -78,6 +78,8 @@ jobs:
       - name: Bring up docker compose
         id: docker-compose
         env:
+          CORE_ROOT: '../'
+          OPTOUT_ROOT: '../'
           CORE_VERSION: ${{ inputs.core_image_version }}
           OPTOUT_VERSION: ${{ inputs.optout_image_version }}
         run: |

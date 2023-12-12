@@ -49,7 +49,7 @@ public class SecureLinkValidatorServiceTest {
         JsonObject requestJsonObject = new JsonObject();
         requestJsonObject.put(SecureLinkValidatorService.LINK_ID, "999");
 
-        when(this.rotatingServiceLinkStore.getServiceLink(10, "999")).thenReturn(new ServiceLink("999", 10, 100, "testServiceLink"));
+        when(this.rotatingServiceLinkStore.getServiceLink(10, "999")).thenReturn(new ServiceLink("999", 10, 100, "testServiceLink", null));
 
         SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore, this.rotatingServiceStore);
         assertTrue(service.validateRequest(this.routingContext, requestJsonObject));

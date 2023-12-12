@@ -82,8 +82,8 @@ jobs:
       - name: Bring up docker compose
         id: docker-compose
         env:
-          CORE_ROOT: '../conf/core'
-          OPTOUT_ROOT: '../conf/optout'
+          CORE_ROOT: '../core'
+          OPTOUT_ROOT: '../optout'
           NGINX_ROOT: '../conf'
           CORE_VERSION: ${{ inputs.core_image_version }}
           OPTOUT_VERSION: ${{ inputs.optout_image_version }}

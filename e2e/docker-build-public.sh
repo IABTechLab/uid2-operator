@@ -25,11 +25,11 @@ fi
 mkdir -p "$NIGINX_CONFIG_FILE_DIR"
 cp "$NGINX_ROOT/nginx.conf" "$NIGINX_CONFIG_FILE_DIR"
 mkdir -p "$CORE_CONFIG_FILE_DIR"
-cp "$CORE_ROOT/default-config.json" "$CORE_CONFIG_FILE_DIR"
-cp "$CORE_ROOT/local-e2e-docker-config.json" "$CORE_CONFIG_FILE_DIR"
+cp "$CORE_ROOT/conf/default-config.json" "$CORE_CONFIG_FILE_DIR"
+cp "$CORE_ROOT/conf/local-e2e-docker-config.json" "$CORE_CONFIG_FILE_DIR"
 mkdir -p "$OPTOUT_CONFIG_FILE_DIR"
-cp "$OPTOUT_ROOT/default-config.json" "$OPTOUT_CONFIG_FILE_DIR"
-cp "$OPTOUT_ROOT/local-e2e-docker-config.json" "$OPTOUT_CONFIG_FILE_DIR"
+cp "$OPTOUT_ROOT/conf/default-config.json" "$OPTOUT_CONFIG_FILE_DIR"
+cp "$OPTOUT_ROOT/conf/local-e2e-docker-config.json" "$OPTOUT_CONFIG_FILE_DIR"
 cp "$OPTOUT_ROOT/run_tool_local_e2e.sh" "$OPTOUT_CONFIG_FILE_DIR"
 
 

@@ -103,6 +103,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: ghcr.io/iabtechlab/uid2-e2e:latest
+          options: --network e2e_default
           run: |
             export UID2_E2E_ENV="github-test-pipeline"
             export UID2_E2E_SITE_ID="999"
@@ -113,7 +114,7 @@ jobs:
             export UID2_E2E_IDENTITY_SCOPE="UID2"
             export UID2_E2E_PHONE_SUPPORT="true"
             export UID2_E2E_PIPELINE_OPERATOR_TYPE="PUBLIC"
-            export UID2_E2E_PIPELINE_OPERATOR_URL="http://172.17.0.1:8080"
+            export UID2_E2E_PIPELINE_OPERATOR_URL="http://publicoperator:8080"
             export UID2_E2E_PIPELINE_OPERATOR_CLOUD_PROVIDER="PUBLIC"
             if [ "$UID2_E2E_PIPELINE_OPERATOR_TYPE" != "PUBLIC" ] && [ "$UID2_E2E_PIPELINE_OPERATOR_TYPE" != "PRIVATE" ] ; then
               echo "ERROR: Incorrect operator type: $UID2_E2E_PIPELINE_OPERATOR_TYPE"

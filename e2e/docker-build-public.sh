@@ -77,3 +77,7 @@ chmod 777 "$ROOT/docker/localstack/init-aws-optout.sh"
 
 docker compose -f "$ROOT/docker-compose.yml" up -d
 docker ps -a
+docker network ls
+docker network inspect e2e_default
+docker network inspect host
+docker network inspect bridge

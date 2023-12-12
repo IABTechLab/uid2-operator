@@ -92,24 +92,33 @@ jobs:
         run: |
           cd ./e2e && bash ./docker-build-public.sh
 
+      - name: Check out the E2E repo
+        uses: actions/checkout@v3
+        with:
+          repository: IABTechLab/uid2-e2e
+          token: ${{ secrets.GHCR_PAT }}
+          path: github-e2e-test
+
       - name: Run E2E tests
-        id: e2e-tests
-        env:
-          UID2_E2E_ENV: "github-test-pipeline"
-          UID2_E2E_SITE_ID: "999"
-          UID2_E2E_API_KEY: "UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo="
-          UID2_E2E_API_SECRET: "DzBzbjTJcYL0swDtFs2krRNu+g1Eokm2tBU4dEuD0Wk="
-          UID2_E2E_API_KEY_OLD: "UID2-C-L-1000-qxpBsF.ibeCDBpD2bq4Zm7inDacGioUk1aaLeNJrabow="
-          UID2_E2E_API_SECRET_OLD: "VT7+t0G/RVueMuVZAL56I2c3JJFSYQfhbu8yo0V/Tds="
-          UID2_E2E_IDENTITY_SCOPE: "UID2"
-          UID2_E2E_PHONE_SUPPORT: "true"
-          UID2_E2E_PIPELINE_OPERATOR_TYPE: "PUBLIC"
-          UID2_E2E_PIPELINE_OPERATOR_URL: "http://localhost:8080"
-        run: |
-          if [ "$UID2_E2E_PIPELINE_OPERATOR_TYPE" != "PUBLIC" ] && [ "$UID2_E2E_PIPELINE_OPERATOR_TYPE" != "PRIVATE" ] ; then
-            echo "ERROR: Incorrect operator type: $UID2_E2E_PIPELINE_OPERATOR_TYPE"
-          elif [ "$UID2_E2E_PIPELINE_OPERATOR_TYPE" = "PUBLIC" ] ; then
-            mvn test -Dtest="E2EPublicOperatorTestSuite"
-          else
-            mvn test -Dtest="E2EPrivateOperatorTestSuite"
-          fi
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ghcr.io/iabtechlab/uid2-e2e:latest
+          run: |
+            export UID2_E2E_ENV="github-test-pipeline"
+            export UID2_E2E_SITE_ID="999"
+            export UID2_E2E_API_KEY="UID2-C-L-999-fCXrMM.fsR3mDqAXELtWWMS+xG1s7RdgRTMqdOH2qaAo="
+            export UID2_E2E_API_SECRET="DzBzbjTJcYL0swDtFs2krRNu+g1Eokm2tBU4dEuD0Wk="
+            export UID2_E2E_API_KEY_OLD="UID2-C-L-1000-qxpBsF.ibeCDBpD2bq4Zm7inDacGioUk1aaLeNJrabow="
+            export UID2_E2E_API_SECRET_OLD="VT7+t0G/RVueMuVZAL56I2c3JJFSYQfhbu8yo0V/Tds="
+            export UID2_E2E_IDENTITY_SCOPE="UID2"
+            export UID2_E2E_PHONE_SUPPORT="true"
+            export UID2_E2E_PIPELINE_OPERATOR_TYPE="PUBLIC"
+            export UID2_E2E_PIPELINE_OPERATOR_URL="http://172.17.0.1:8080"
+            export UID2_E2E_PIPELINE_OPERATOR_CLOUD_PROVIDER="PUBLIC"
+            if [ "$UID2_E2E_PIPELINE_OPERATOR_TYPE" != "PUBLIC" ] && [ "$UID2_E2E_PIPELINE_OPERATOR_TYPE" != "PRIVATE" ] ; then
+              echo "ERROR: Incorrect operator type: $UID2_E2E_PIPELINE_OPERATOR_TYPE"
+            elif [ "$UID2_E2E_PIPELINE_OPERATOR_TYPE" = "PUBLIC" ] ; then
+              mvn test -Dtest="E2EPublicOperatorTestSuite"
+            else
+              mvn test -Dtest="E2EPrivateOperatorTestSuite"
+            fi

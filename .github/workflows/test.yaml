@@ -104,6 +104,7 @@ jobs:
           UID2_E2E_IDENTITY_SCOPE: "UID2"
           UID2_E2E_PHONE_SUPPORT: "true"
           UID2_E2E_PIPELINE_OPERATOR_TYPE: "PUBLIC"
+          UID2_E2E_PIPELINE_OPERATOR_URL: "http://localhost:8080"
         run: |
           if [ "$UID2_E2E_PIPELINE_OPERATOR_TYPE" != "PUBLIC" ] && [ "$UID2_E2E_PIPELINE_OPERATOR_TYPE" != "PRIVATE" ] ; then
             echo "ERROR: Incorrect operator type: $UID2_E2E_PIPELINE_OPERATOR_TYPE"

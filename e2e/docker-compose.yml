@@ -7,10 +7,11 @@ services:
     ports:
       - "127.0.0.1:5001:5001"
     volumes:
-      - "./docker/localstack/init-aws-optout.sh:/etc/localstack/init/ready.d/init-aws-optout.sh:ro"
-      - "./docker/localstack/init-aws-core.sh:/etc/localstack/init/ready.d/init-aws-core.sh:ro"
-      - "./docker/localstack/s3:/s3"
-      - "./docker/localstack/kms/seed.yaml:/init/seed.yaml"
+      - "./docker/uid2-core/src/init-aws.sh:/etc/localstack/init/ready.d/init-aws-core.sh:ro"
+      - "./docker/uid2-core/src/s3/core:/s3/core"
+      - "./docker/uid2-core/src/kms/seed.yaml:/init/seed.yaml"
+      - "./docker/uid2-optout/src/init-aws.sh:/etc/localstack/init/ready.d/init-aws-optout.sh:ro"
+      - "./docker/uid2-optout/src/s3/optout:/s3/optout"
     environment:
       - EDGE_PORT=5001
       - KMS_PROVIDER=local-kms

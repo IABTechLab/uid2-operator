@@ -5,6 +5,8 @@ set -ex
 ROOT="."
 CORE_CONFIG_FILE_DIR="$ROOT/docker/uid2-core/conf"
 OPTOUT_CONFIG_FILE_DIR="$ROOT/docker/uid2-optout/conf"
+CORE_RESOURCE_FILE_DIR="$ROOT/docker/uid2-core/src"
+OPTOUT_RESOURCE_FILE_DIR="$ROOT/docker/uid2-optout/src"
 NIGINX_CONFIG_FILE_DIR="$ROOT/docker/conf"
 
 if [ -z "$CORE_ROOT" ]; then
@@ -14,6 +16,11 @@ fi
 
 if [ -z "$OPTOUT_ROOT" ]; then
   echo "$OPTOUT_ROOT can not be empty"
+  exit 1
+fi
+
+if [ -z "$ADMIN_ROOT" ]; then
+  echo "$ADMIN_ROOT can not be empty"
   exit 1
 fi
 
@@ -27,10 +34,12 @@ cp "$NGINX_ROOT/nginx.conf" "$NIGINX_CONFIG_FILE_DIR"
 mkdir -p "$CORE_CONFIG_FILE_DIR"
 cp "$CORE_ROOT/conf/default-config.json" "$CORE_CONFIG_FILE_DIR"
 cp "$CORE_ROOT/conf/local-e2e-docker-config.json" "$CORE_CONFIG_FILE_DIR"
+cp -r "$ADMIN_ROOT/src/main/resources/localstack" "$CORE_RESOURCE_FILE_DIR"
 mkdir -p "$OPTOUT_CONFIG_FILE_DIR"
 cp "$OPTOUT_ROOT/conf/default-config.json" "$OPTOUT_CONFIG_FILE_DIR"
 cp "$OPTOUT_ROOT/conf/local-e2e-docker-config.json" "$OPTOUT_CONFIG_FILE_DIR"
 cp "$OPTOUT_ROOT/run_tool_local_e2e.sh" "$OPTOUT_CONFIG_FILE_DIR"
+cp -r "$OPTOUT_ROOT/src/main/resources/localstack" "$OPTOUT_RESOURCE_FILE_DIR"
 
 
 CORE_CONFIG_FILE="$ROOT/docker/uid2-core/conf/local-e2e-docker-config.json"
@@ -72,12 +81,9 @@ cat $CORE_CONFIG_FILE
 cat $OPTOUT_CONFIG_FILE
 
 mkdir -p "$OPTOUT_MOUNT" && chmod 777 "$OPTOUT_MOUNT"
-chmod 777 "$ROOT/docker/localstack/init-aws-core.sh"
-chmod 777 "$ROOT/docker/localstack/init-aws-optout.sh"
+chmod 777 "$CORE_RESOURCE_FILE_DIR/init-aws.sh"
+chmod 777 "$OPTOUT_RESOURCE_FILE_DIR/init-aws.sh"
 
 docker compose -f "$ROOT/docker-compose.yml" up -d
 docker ps -a
 docker network ls
-docker network inspect e2e_default
-docker network inspect host
-docker network inspect bridge

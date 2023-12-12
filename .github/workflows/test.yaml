@@ -79,11 +79,19 @@ jobs:
           token: ${{ secrets.GHCR_PAT }}
           path: optout
 
+      - name: Checkout uid2-admin repo
+        uses: actions/checkout@v3
+        with:
+          repository: IABTechLab/uid2-admin
+          token: ${{ secrets.GHCR_PAT }}
+          path: admin
+
       - name: Bring up docker compose
         id: docker-compose
         env:
           CORE_ROOT: '../core'
           OPTOUT_ROOT: '../optout'
+          ADMIN_ROOT: '../admin'
           NGINX_ROOT: '../conf'
           CORE_VERSION: ${{ inputs.core_image_version }}
           OPTOUT_VERSION: ${{ inputs.optout_image_version }}

@@ -87,12 +87,3 @@ services:
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:80/health" ]
       interval: 5s
-
-  e2etest:
-    container_name: e2e_test
-    image: ghcr.io/iabtechlab/uid2-e2e:<E2E_VERSION>
-    depends_on:
-      core:
-        condition: service_healthy
-      publicoperator:
-        condition: service_healthy

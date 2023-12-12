@@ -100,13 +100,6 @@ jobs:
         run: |
           cd ./e2e && bash ./docker-build-public.sh
 
-      - name: Check out the E2E repo
-        uses: actions/checkout@v3
-        with:
-          repository: IABTechLab/uid2-e2e
-          token: ${{ secrets.GHCR_PAT }}
-          path: github-e2e-test
-
       - name: Run E2E tests
         uses: addnab/docker-run-action@v3
         with:

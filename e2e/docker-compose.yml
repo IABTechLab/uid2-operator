@@ -7,7 +7,8 @@ services:
     ports:
       - "127.0.0.1:5001:5001"
     volumes:
-      - "./docker/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"
+      - "./docker/localstack/init-aws-optout.sh:/etc/localstack/init/ready.d/init-aws-optout.sh:ro"
+      - "./docker/localstack/init-aws-core.sh:/etc/localstack/init/ready.d/init-aws-core.sh:ro"
       - "./docker/localstack/s3:/s3"
       - "./docker/localstack/kms/seed.yaml:/init/seed.yaml"
     environment:
@@ -34,7 +35,7 @@ services:
       localstack:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "http://localhost:8088/ops/healthcheck" ]
+      test: wget --tries=1 --spider http://localhost:8088/ops/healthcheck || exit 1
       interval: 10s
 
   optout:
@@ -52,7 +53,7 @@ services:
       core:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "http://localhost:8081/ops/healthcheck" ]
+      test: wget --tries=1 --spider http://localhost:8081/ops/healthcheck || exit 1
       interval: 5s
 
   publicoperator:
@@ -63,6 +64,7 @@ services:
       - "127.0.0.1:9080:9080"
       - "127.0.0.1:5080:5005"
     volumes:
+      - ../conf/default-config.json:/app/conf/default-config.json
       - ../conf/local-e2e-docker-public-config.json:/app/conf/local-config.json
     depends_on:
       core:
@@ -70,7 +72,7 @@ services:
       optout:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "http://localhost:8080/ops/healthcheck" ]
+      test: wget --tries=1 --spider http://localhost:8080/ops/healthcheck || exit 1
       interval: 5s
 
   proxy:

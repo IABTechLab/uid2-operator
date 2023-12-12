@@ -72,6 +72,8 @@ cat $CORE_CONFIG_FILE
 cat $OPTOUT_CONFIG_FILE
 
 mkdir -p "$OPTOUT_MOUNT" && chmod 777 "$OPTOUT_MOUNT"
+chmod 777 "$ROOT/docker/localstack/init-aws-core.sh"
+chmod 777 "$ROOT/docker/localstack/init-aws-optout.sh"
 
 docker compose -f "$ROOT/docker-compose.yml" up -d
 docker ps -a

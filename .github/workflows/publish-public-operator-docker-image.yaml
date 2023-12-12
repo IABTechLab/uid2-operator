@@ -33,83 +33,14 @@ on:
   
 jobs:
   Image:
-    name: Build Image
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      security-events: write
-      packages: write
-    outputs:
-      jar_version: ${{ steps.version.outputs.new_version }}
-      image_tag: ${{ steps.updatePom.outputs.image_tag }}
-    steps:
-      - name: Check branch and release type
-        id: checkRelease
-        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2
-        with:
-          release_type: ${{ inputs.release_type }}
-
-      - name: Show Context
-        run: |
-          printenv
-          echo "$GITHUB_CONTEXT"
-        shell: bash
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-          IS_RELEASE: ${{ steps.checkRelease.outputs.IS_RELEASE }}
-
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: ${{ inputs.java_version }}
-
-      - name: Checkout full history on Main
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input == ''}}
-        with:
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Checkout full history at tag v${{ inputs.version_number_input }}
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input != ''}}
-        with:
-          ref: v${{ inputs.version_number_input }}
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Restore timestamps
-        uses: thetradedesk/git-restore-mtime-action@v1.2
-
-      - name: Set version number
-        id: version
-        uses: IABTechLab/uid2-shared-actions/actions/version_number@main
-        with:
-          type: ${{ inputs.release_type }}
-          version_number: ${{ inputs.version_number_input }}
-          branch_name: ${{ github.ref }}
-
-      - name: Update pom.xml
-        id: updatePom
-        run: |
-          current_version=$(grep -o '<version>.*</version>' pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/')
-          new_version=${{ steps.version.outputs.new_version }} 
-          sed -i "0,/$current_version/s/$current_version/$new_version/" pom.xml
-          echo "Version number updated from $current_version to $new_version"
-          echo "image_tag=${{ steps.version.outputs.new_version }}-default" >> $GITHUB_OUTPUT
-
-      - name: Package JAR
-        id: package
-        run: |
-          if [[ "${{ inputs.skip_tests }}" == "false" ]]; then
-            mvn -B package -P 'default'
-          else
-            mvn -B package -P 'default' -DskipTests
-          fi
-          echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
-          echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
-
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@v2.2.1
+    with: 
+      release_type: ${{ inputs.release_type }}
+      version_number_input: ${{ inputs.version_number_input }}
+      cloud_provider: 'default'
+      force_release: 'no' #do not create a release for the component builds, will be created by the parent
+    secrets: inherit
+  
   Artifacts:
     runs-on: ubuntu-latest
     needs: Image

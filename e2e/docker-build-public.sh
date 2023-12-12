@@ -5,6 +5,7 @@ set -ex
 ROOT="."
 CORE_CONFIG_FILE_DIR="$ROOT/docker/uid2-core/conf"
 OPTOUT_CONFIG_FILE_DIR="$ROOT/docker/uid2-optout/conf"
+NIGINX_CONFIG_FILE_DIR="$ROOT/docker/conf"
 
 if [ -z "$CORE_ROOT" ]; then
   echo "CORE_ROOT can not be empty"
@@ -16,13 +17,20 @@ if [ -z "$OPTOUT_ROOT" ]; then
   exit 1
 fi
 
+if [ -z "$NGINX_ROOT" ]; then
+  echo "$NGINX_ROOT can not be empty"
+  exit 1
+fi
+
+mkdir -p "$NIGINX_CONFIG_FILE_DIR"
+cp "$NGINX_ROOT/nginx.conf" "$NIGINX_CONFIG_FILE_DIR"
 mkdir -p "$CORE_CONFIG_FILE_DIR"
-cp "$CORE_ROOT/conf/core/default-config.json" "$CORE_CONFIG_FILE_DIR"
-cp "$CORE_ROOT/conf/core/local-e2e-docker-config.json" "$CORE_CONFIG_FILE_DIR"
+cp "$CORE_ROOT/default-config.json" "$CORE_CONFIG_FILE_DIR"
+cp "$CORE_ROOT/local-e2e-docker-config.json" "$CORE_CONFIG_FILE_DIR"
 mkdir -p "$OPTOUT_CONFIG_FILE_DIR"
-cp "$OPTOUT_ROOT/conf/optout/default-config.json" "$OPTOUT_CONFIG_FILE_DIR"
-cp "$OPTOUT_ROOT/conf/optout/local-e2e-docker-config.json" "$OPTOUT_CONFIG_FILE_DIR"
-cp "$OPTOUT_ROOT/conf/optout/run_tool_local_e2e.sh" "$OPTOUT_CONFIG_FILE_DIR"
+cp "$OPTOUT_ROOT/default-config.json" "$OPTOUT_CONFIG_FILE_DIR"
+cp "$OPTOUT_ROOT/local-e2e-docker-config.json" "$OPTOUT_CONFIG_FILE_DIR"
+cp "$OPTOUT_ROOT/run_tool_local_e2e.sh" "$OPTOUT_CONFIG_FILE_DIR"
 
 
 CORE_CONFIG_FILE="$ROOT/docker/uid2-core/conf/local-e2e-docker-config.json"

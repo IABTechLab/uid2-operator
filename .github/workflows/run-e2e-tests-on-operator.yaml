@@ -1,6 +1,5 @@
 name: Run operator E2E tests
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       release_type:

@@ -110,7 +110,5 @@ jobs:
         id: e2e
         uses: IABTechLab/uid2-shared-actions/actions/run_e2e_tests@kcc-UID2-2338-build-test-pipeline-for-operator
         with:
-          type: ${{ inputs.release_type }}
-          version_number: ${{ inputs.version_number_input }}
-          branch_name: ${{ github.ref }}
+          e2e_image_version: ${{ inputs.e2e_image_version }}
 

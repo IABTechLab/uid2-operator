@@ -40,10 +40,18 @@ jobs:
       cloud_provider: 'default'
       force_release: 'no' #do not create a release for the component builds, will be created by the parent
     secrets: inherit
-  
+
+  E2E:
+    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+    needs: Image
+    with:
+      release_type: ${{ inputs.release_type }}
+      operator_image_version: ${{ needs.Image.outputs.image_tag }}
+    secrets: inherit
+
   Artifacts:
     runs-on: ubuntu-latest
-    needs: Image
+    needs: E2E
     steps:
       - name: collect artifacts
         run: |

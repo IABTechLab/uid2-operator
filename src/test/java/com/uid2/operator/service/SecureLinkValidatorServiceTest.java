@@ -36,7 +36,7 @@ public class SecureLinkValidatorServiceTest {
     }
 
     @Test
-    void validateRequest_ServiceIdNotSet_ReturnsTrue() {
+    void validateRequest_serviceIdNotSet_returnsTrue() {
         this.setClientKey(0);
 
         SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore, this.rotatingServiceStore);
@@ -44,7 +44,7 @@ public class SecureLinkValidatorServiceTest {
     }
 
     @Test
-    void validateRequest_LinkIdFound_ReturnsTrue() {
+    void validateRequest_linkIdFound_returnsTrue() {
         this.setClientKey(10);
         JsonObject requestJsonObject = new JsonObject();
         requestJsonObject.put(SecureLinkValidatorService.LINK_ID, "999");
@@ -56,7 +56,7 @@ public class SecureLinkValidatorServiceTest {
     }
 
     @Test
-    void validateRequest_LinkIdNotFound_ReturnsFalse() {
+    void validateRequest_linkIdNotFound_returnsFalse() {
         this.setClientKey(10);
         JsonObject requestJsonObject = new JsonObject();
         requestJsonObject.put(SecureLinkValidatorService.LINK_ID, "999");

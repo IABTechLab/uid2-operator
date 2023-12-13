@@ -1,0 +1,117 @@
+name: Run operator E2E tests
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        type: choice
+        description: 'The type of release'
+        options:
+          - Major
+          - Minor
+          - Patch
+          - Snapshot
+      operator_image_version:
+        description: 'The version of UID2 operator image'
+        type: string
+        default: 'latest'
+      core_image_version:
+        description: 'The version of UID2 core image'
+        type: string
+        default: '2.15.8-d2e5469826-default'
+      optout_image_version:
+        description: 'The version of UID2 optout image'
+        type: string
+        default: '2.7.3-4f813a8ad9-default'
+      e2e_image_version:
+        description: 'The version of E2E image'
+        type: string
+        default: 'latest'
+  workflow_call:
+    inputs:
+      release_type:
+        description: The type of version number to return. Must be one of [Snapshot, Patch, Minor or Major]
+        required: true
+        type: string
+      operator_image_version:
+        description: 'The version of UID2 operator image'
+        type: string
+        default: 'latest'
+      core_image_version:
+        description: 'The version of UID2 core image'
+        type: string
+        default: '2.15.8-d2e5469826-default'
+      optout_image_version:
+        description: 'The version of UID2 optout image'
+        type: string
+        default: '2.7.3-4f813a8ad9-default'
+      e2e_image_version:
+        description: 'The version of E2E image'
+        type: string
+        default: 'latest'
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  e2e-test:
+    name: E2E Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+      id-token: write
+    steps:
+      - name: Log in to the Docker container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          # we use personal access token here since we need to pull images from private repo (core)
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Checkout full history
+        uses: actions/checkout@v3
+
+      - name: Checkout uid2-core repo
+        uses: actions/checkout@v3
+        with:
+          repository: IABTechLab/uid2-core
+          token: ${{ secrets.GHCR_PAT }}
+          path: core
+
+      - name: Checkout uid2-optout repo
+        uses: actions/checkout@v3
+        with:
+          repository: IABTechLab/uid2-optout
+          token: ${{ secrets.GHCR_PAT }}
+          path: optout
+
+      - name: Checkout uid2-admin repo
+        uses: actions/checkout@v3
+        with:
+          repository: IABTechLab/uid2-admin
+          token: ${{ secrets.GHCR_PAT }}
+          path: admin
+
+      - name: Bring up docker compose
+        id: docker-compose
+        env:
+          CORE_ROOT: '../core'
+          OPTOUT_ROOT: '../optout'
+          ADMIN_ROOT: '../admin'
+          CORE_VERSION: ${{ inputs.core_image_version }}
+          OPTOUT_VERSION: ${{ inputs.optout_image_version }}
+          OPERATOR_VERSION: ${{ inputs.operator_image_version }}
+          E2E_VERSION: ${{ inputs.e2e_image_version }}
+        run: |
+          cd ./e2e && bash ./docker-build-public.sh
+
+      - name: Run e2e tests
+        id: e2e
+        uses: IABTechLab/uid2-shared-actions/actions/run_e2e_tests@kcc-UID2-2338-build-test-pipeline-for-operator
+        with:
+          type: ${{ inputs.release_type }}
+          version_number: ${{ inputs.version_number_input }}
+          branch_name: ${{ github.ref }}
+

@@ -7,10 +7,10 @@ services:
     ports:
       - "127.0.0.1:5001:5001"
     volumes:
-      - "./docker/uid2-core/src/init-aws.sh:/etc/localstack/init/ready.d/init-aws-core.sh:ro"
+      - "./docker/uid2-core/src/init-aws.sh:/etc/localstack/init/ready.d/init-aws-core.sh"
       - "./docker/uid2-core/src/s3/core:/s3/core"
       - "./docker/uid2-core/src/kms/seed.yaml:/init/seed.yaml"
-      - "./docker/uid2-optout/src/init-aws.sh:/etc/localstack/init/ready.d/init-aws-optout.sh:ro"
+      - "./docker/uid2-optout/src/init-aws.sh:/etc/localstack/init/ready.d/init-aws-optout.sh"
       - "./docker/uid2-optout/src/s3/optout:/s3/optout"
     environment:
       - EDGE_PORT=5001
@@ -65,8 +65,8 @@ services:
       - "127.0.0.1:9080:9080"
       - "127.0.0.1:5080:5005"
     volumes:
-      - ../conf/default-config.json:/app/conf/default-config.json
-      - ../conf/local-e2e-docker-public-config.json:/app/conf/local-config.json
+      - ./docker/uid2-operator/conf/default-config.json:/app/conf/default-config.json
+      - ./docker/uid2-operator/conf/local-e2e-docker-config.json:/app/conf/local-config.json
     depends_on:
       core:
         condition: service_healthy

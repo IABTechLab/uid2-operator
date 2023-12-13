@@ -6,52 +6,18 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: 'latest'
-      core_image_version:
-        description: The version of UID2 core image, default to latest
-        type: string
-        default: '2.15.8-d2e5469826-default'
-      optout_image_version:
-        description: The version of UID2 optout image, default to latest
-        type: string
-        default: '2.7.3-4f813a8ad9-default'
-      e2e_image_version:
-        description: The version of E2E image, default to latest
-        type: string
-        default: 'latest'
   workflow_call:
     inputs:
       operator_image_version:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: 'latest'
-      core_image_version:
-        description: The version of UID2 core image, default to latest
-        type: string
-        default: '2.15.8-d2e5469826-default'
-      optout_image_version:
-        description: The version of UID2 optout image, default to latest
-        type: string
-        default: '2.7.3-4f813a8ad9-default'
-      e2e_image_version:
-        description: The version of E2E image, default to latest
-        type: string
-        default: 'latest'
-
-env:
-  REGISTRY: ghcr.io
 
 jobs:
   e2e-test:
     name: E2E Test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: read
-      id-token: write
-    steps:
-      - name: Run E2E tests
-        uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@kcc-UID2-2338-build-test-pipeline-for-operator
-        with:
-          operator_image_version: ${{ inputs.operator_image_version }}
-          operator_root: './'
-        secrets: inherit
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@kcc-UID2-2338-build-test-pipeline-for-operator
+    with:
+      operator_image_version: ${{ inputs.operator_image_version }}
+      operator_root: '..'
+    secrets: inherit

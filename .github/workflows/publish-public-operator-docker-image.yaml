@@ -46,7 +46,6 @@ jobs:
     needs: Image
     with:
       operator_image_version: ${{ needs.Image.outputs.image_tag }}
-      operator_root: './'
     secrets: inherit
 
   Artifacts:

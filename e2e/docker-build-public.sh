@@ -24,13 +24,6 @@ if [ -z "$ADMIN_ROOT" ]; then
   exit 1
 fi
 
-if [ -z "$NGINX_ROOT" ]; then
-  echo "$NGINX_ROOT can not be empty"
-  exit 1
-fi
-
-mkdir -p "$NIGINX_CONFIG_FILE_DIR"
-cp "$NGINX_ROOT/nginx.conf" "$NIGINX_CONFIG_FILE_DIR"
 mkdir -p "$CORE_CONFIG_FILE_DIR"
 cp "$CORE_ROOT/conf/default-config.json" "$CORE_CONFIG_FILE_DIR"
 cp "$CORE_ROOT/conf/local-e2e-docker-config.json" "$CORE_CONFIG_FILE_DIR"

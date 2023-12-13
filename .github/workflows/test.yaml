@@ -92,7 +92,6 @@ jobs:
           CORE_ROOT: '../core'
           OPTOUT_ROOT: '../optout'
           ADMIN_ROOT: '../admin'
-          NGINX_ROOT: '../conf'
           CORE_VERSION: ${{ inputs.core_image_version }}
           OPTOUT_VERSION: ${{ inputs.optout_image_version }}
           OPERATOR_VERSION: ${{ inputs.operator_image_version }}

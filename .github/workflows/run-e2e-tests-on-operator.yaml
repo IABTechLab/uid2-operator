@@ -30,6 +30,10 @@ on:
         description: 'The branch of UID2-admin to test on'
         type: string
         default: 'main'
+      operator_branch:
+        description: 'The branch of UID2-operator to test on'
+        type: string
+        default: 'main'
   workflow_call:
     inputs:
       operator_image_version:
@@ -60,6 +64,10 @@ on:
         description: 'The branch of UID2-admin to test on'
         type: string
         default: 'main'
+      operator_branch:
+        description: 'The branch of UID2-operator to test on'
+        type: string
+        default: 'main'
 
 jobs:
   e2e-test:
@@ -73,5 +81,6 @@ jobs:
       core_branch: ${{ inputs.core_branch }}
       optout_branch: ${{ inputs.optout_branch }}
       admin_branch: ${{ inputs.admin_branch }}
+      operator_branch: ${{ github.ref }}
       operator_root: '..'
     secrets: inherit

@@ -46,6 +46,7 @@ jobs:
     needs: Image
     with:
       operator_image_version: ${{ needs.Image.outputs.image_tag }}
+      operator_branch: ${{ github.ref }}
     secrets: inherit
 
   Artifacts:

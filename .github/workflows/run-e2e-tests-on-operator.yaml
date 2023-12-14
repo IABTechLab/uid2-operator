@@ -3,13 +3,37 @@ on:
   workflow_dispatch:
     inputs:
       operator_image_version:
-        description: If set, the version number will not be incremented and the given number will be used.
+        description: The pipeline will run the E2E test with this operator image version
+        type: string
+        default: 'latest'
+      core_image_version:
+        description: The pipeline will run the E2E test with this core image version
+        type: string
+        default: 'latest'
+      optout_image_version:
+        description: The pipeline will run the E2E test with this optout image version
+        type: string
+        default: 'latest'
+      e2e_image_version:
+        description: The pipeline will run the E2E test with this e2e image version
         type: string
         default: 'latest'
   workflow_call:
     inputs:
       operator_image_version:
-        description: If set, the version number will not be incremented and the given number will be used.
+        description: The pipeline will run the E2E test with this operator image version
+        type: string
+        default: 'latest'
+      core_image_version:
+        description: The pipeline will run the E2E test with this core image version
+        type: string
+        default: 'latest'
+      optout_image_version:
+        description: The pipeline will run the E2E test with this optout image version
+        type: string
+        default: 'latest'
+      e2e_image_version:
+        description: The pipeline will run the E2E test with this e2e image version
         type: string
         default: 'latest'
 
@@ -19,5 +43,8 @@ jobs:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@kcc-UID2-2338-build-test-pipeline-for-operator
     with:
       operator_image_version: ${{ inputs.operator_image_version }}
+      core_image_version: ${{ inputs.core_image_version }}
+      optout_image_version: ${{ inputs.optout_image_version }}
+      e2e_image_version: ${{ inputs.e2e_image_version }}
       operator_root: '..'
     secrets: inherit

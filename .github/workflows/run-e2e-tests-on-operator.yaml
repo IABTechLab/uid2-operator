@@ -18,6 +18,18 @@ on:
         description: The pipeline will run the E2E test with this e2e image version
         type: string
         default: 'latest'
+      core_branch:
+        description: 'The branch of UID2-core to test on'
+        type: string
+        default: 'main'
+      optout_branch:
+        description: 'The branch of UID2-optout to test on'
+        type: string
+        default: 'main'
+      admin_branch:
+        description: 'The branch of UID2-admin to test on'
+        type: string
+        default: 'main'
   workflow_call:
     inputs:
       operator_image_version:
@@ -36,6 +48,18 @@ on:
         description: The pipeline will run the E2E test with this e2e image version
         type: string
         default: 'latest'
+      core_branch:
+        description: 'The branch of UID2-core to test on'
+        type: string
+        default: 'main'
+      optout_branch:
+        description: 'The branch of UID2-optout to test on'
+        type: string
+        default: 'main'
+      admin_branch:
+        description: 'The branch of UID2-admin to test on'
+        type: string
+        default: 'main'
 
 jobs:
   e2e-test:
@@ -46,5 +70,8 @@ jobs:
       core_image_version: ${{ inputs.core_image_version }}
       optout_image_version: ${{ inputs.optout_image_version }}
       e2e_image_version: ${{ inputs.e2e_image_version }}
+      core_branch: ${{ inputs.core_branch }}
+      optout_branch: ${{ inputs.optout_branch }}
+      admin_branch: ${{ inputs.admin_branch }}
       operator_root: '..'
     secrets: inherit

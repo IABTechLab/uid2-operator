@@ -1,0 +1,85 @@
+name: Run operator E2E tests
+on:
+  workflow_dispatch:
+    inputs:
+      operator_image_version:
+        description: The pipeline will run the E2E test with this operator image version
+        type: string
+        default: 'latest'
+      core_image_version:
+        description: The pipeline will run the E2E test with this core image version
+        type: string
+        default: 'latest'
+      optout_image_version:
+        description: The pipeline will run the E2E test with this optout image version
+        type: string
+        default: 'latest'
+      e2e_image_version:
+        description: The pipeline will run the E2E test with this e2e image version
+        type: string
+        default: 'latest'
+      core_branch:
+        description: 'The branch of UID2-core to test on'
+        type: string
+        default: 'main'
+      optout_branch:
+        description: 'The branch of UID2-optout to test on'
+        type: string
+        default: 'main'
+      admin_branch:
+        description: 'The branch of UID2-admin to test on'
+        type: string
+        default: 'main'
+      operator_branch:
+        description: 'The branch of UID2-operator to test on'
+        type: string
+        default: 'main'
+  workflow_call:
+    inputs:
+      operator_image_version:
+        description: The pipeline will run the E2E test with this operator image version
+        type: string
+        default: 'latest'
+      core_image_version:
+        description: The pipeline will run the E2E test with this core image version
+        type: string
+        default: 'latest'
+      optout_image_version:
+        description: The pipeline will run the E2E test with this optout image version
+        type: string
+        default: 'latest'
+      e2e_image_version:
+        description: The pipeline will run the E2E test with this e2e image version
+        type: string
+        default: 'latest'
+      core_branch:
+        description: 'The branch of UID2-core to test on'
+        type: string
+        default: 'main'
+      optout_branch:
+        description: 'The branch of UID2-optout to test on'
+        type: string
+        default: 'main'
+      admin_branch:
+        description: 'The branch of UID2-admin to test on'
+        type: string
+        default: 'main'
+      operator_branch:
+        description: 'The branch of UID2-operator to test on'
+        type: string
+        default: 'main'
+
+jobs:
+  e2e-test:
+    name: E2E Test
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@main
+    with:
+      operator_image_version: ${{ inputs.operator_image_version }}
+      core_image_version: ${{ inputs.core_image_version }}
+      optout_image_version: ${{ inputs.optout_image_version }}
+      e2e_image_version: ${{ inputs.e2e_image_version }}
+      core_branch: ${{ inputs.core_branch }}
+      optout_branch: ${{ inputs.optout_branch }}
+      admin_branch: ${{ inputs.admin_branch }}
+      operator_branch: ${{ github.ref }}
+    secrets: inherit

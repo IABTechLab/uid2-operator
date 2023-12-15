@@ -30,8 +30,8 @@ public class ServiceLinkStoreTest {
         List<ServiceLink> serviceLinks = new ArrayList<>(serviceLinkProvider.getAllServiceLinks());
         assertEquals(2, serviceLinks.size());
 
-        ServiceLink sl1 = new ServiceLink("testId1", 1, 123, "testName1");
-        ServiceLink sl2 = new ServiceLink("testId2", 2, 123, "testName2");
+        ServiceLink sl1 = new ServiceLink("testId1", 1, 123, "testName1", null);
+        ServiceLink sl2 = new ServiceLink("testId2", 2, 123, "testName2", null);
         assertTrue(serviceLinks.contains(sl1));
         assertTrue(serviceLinks.contains(sl2));
 

@@ -88,6 +88,8 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
 
         this.advertisingTokenV4Percentage = config.getInteger("advertising_token_v4_percentage", 0); //0 indicates token v4 will not be used
+        LOGGER.info("Advertising token v4 percentage is {}", advertisingTokenV4Percentage);
+
         this.tokenVersionToUseIfNotV4 = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
 
         this.refreshTokenVersion = TokenVersion.V3;

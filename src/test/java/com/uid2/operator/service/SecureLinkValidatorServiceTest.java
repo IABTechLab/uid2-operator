@@ -68,7 +68,7 @@ public class SecureLinkValidatorServiceTest {
     }
 
     @Test
-    void validateRequest_RoleNotInServiceLink_returnsFalse() {
+    void validateRequest_roleNotInServiceLink_returnsFalse() {
         this.setClientKey(10);
         JsonObject requestJsonObject = new JsonObject();
         requestJsonObject.put(SecureLinkValidatorService.LINK_ID, "999");

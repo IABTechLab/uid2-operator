@@ -46,6 +46,7 @@ import software.amazon.awssdk.utils.Pair;
 
 import javax.management.*;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Clock;
@@ -179,6 +180,7 @@ public class Main {
         final String vertxConfigPath = System.getProperty(Const.Config.VERTX_CONFIG_PATH_PROP);
         if (vertxConfigPath != null) {
             System.out.format("Running CUSTOM CONFIG mode, config: %s\n", vertxConfigPath);
+            LOGGER.info("Contents of custom config file {}: {}", vertxConfigPath, Files.readString(Path.of(vertxConfigPath)));
         }
         else if (!Utils.isProductionEnvironment()) {
             System.out.format("Running LOCAL DEBUG mode, config: %s\n", Const.Config.LOCAL_CONFIG_PATH);
@@ -187,12 +189,16 @@ public class Main {
             System.out.format("Running PRODUCTION mode, config: %s\n", Const.Config.OVERRIDE_CONFIG_PATH);
         }
 
+        LOGGER.info("Contents of default config file {}: {}", Const.Config.DEFAULT_CONFIG_PATH, Files.readString(Path.of(Const.Config.DEFAULT_CONFIG_PATH)));
+
         Vertx vertx = createVertx();
         VertxUtils.createConfigRetriever(vertx).getConfig(ar -> {
             if (ar.failed()) {
                 LOGGER.error("Unable to read config: " + ar.cause().getMessage(), ar.cause());
                 return;
             }
+
+            LOGGER.info("Config: {}", ar.result().toString());
 
             try {
                 Main app = new Main(vertx, ar.result());

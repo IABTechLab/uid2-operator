@@ -111,7 +111,7 @@ public class UIDOperatorVerticleTest {
         mocks = MockitoAnnotations.openMocks(this);
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(clock.instant()).thenAnswer(i -> now);
-        when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class))).thenReturn(true);
+        when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class), any(Role.class))).thenReturn(true);
 
 
         JsonObject config = new JsonObject();
@@ -4117,7 +4117,7 @@ public class UIDOperatorVerticleTest {
     @Test
     void secureLinkValidationPassesReturnsIdentity(Vertx vertx, VertxTestContext testContext) {
         JsonObject req = setupIdentityMapServiceLinkTest();
-        when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class))).thenReturn(true);
+        when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class), any(Role.class))).thenReturn(true);
 
         send("v2", vertx, "v2" + "/identity/map", false, null, req, 200, json -> {
             checkIdentityMapResponse(json, "test1@uid2.com", "test2@uid2.com");
@@ -4128,7 +4128,7 @@ public class UIDOperatorVerticleTest {
     @Test
     void secureLinkValidationFailsReturnsIdentityError(Vertx vertx, VertxTestContext testContext) {
         JsonObject req = setupIdentityMapServiceLinkTest();
-        when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class))).thenReturn(false);
+        when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class), any(Role.class))).thenReturn(false);
 
         send("v2", vertx, "v2" + "/identity/map", false, null, req, 401, json -> {
             assertEquals("unauthorized", json.getString("status"));

@@ -2,6 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.IAuthorizable;
+import com.uid2.shared.auth.Role;
 import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.Service;
 import com.uid2.shared.model.ServiceLink;
@@ -25,7 +26,7 @@ public class SecureLinkValidatorService {
         this.rotatingServiceStore = rotatingServiceStore;
     }
 
-    public boolean validateRequest(RoutingContext rc, JsonObject requestJsonObject) {
+    public boolean validateRequest(RoutingContext rc, JsonObject requestJsonObject, Role role) {
         boolean result = true;
         final IAuthorizable profile = AuthMiddleware.getAuthClient(rc);
         if (profile instanceof ClientKey) {
@@ -43,6 +44,10 @@ public class SecureLinkValidatorService {
                     ServiceLink serviceLink = this.rotatingServiceLinkStore.getServiceLink(clientKey.getServiceId(), linkId);
                     if (serviceLink == null) {
                         LOGGER.warn("ClientKey has ServiceId set, but LinkId in request was not authorized. ServiceId: {}, LinkId in request: {}", clientKey.getServiceId(), linkId);
+                        return false;
+                    }
+                    if (!serviceLink.getRoles().contains(role)) {
+                        LOGGER.warn("ServiceLink {} does not have have role {}", linkId, role);
                         return false;
                     }
                     Service service = rotatingServiceStore.getService(clientKey.getServiceId());

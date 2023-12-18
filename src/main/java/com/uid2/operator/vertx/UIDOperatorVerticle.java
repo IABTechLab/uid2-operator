@@ -1319,7 +1319,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
 
             JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
-            if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject)) {
+            if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
                 ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
                 return;
             }

@@ -35,7 +35,7 @@ public class SecureLinkValidatorService {
                 // service_id is set in the request, so need to check if the given link_id is linked to this service
                 if (this.rotatingServiceLinkStore == null) {
                     // this is an invalid configuration. This operator is not set to validate service links, but has a service Id set.
-                    LOGGER.warn("Invalid configuration. Operator not set to validate service links (validate_service_links=false in config), but the calling client has a ServiceId set. ");
+                    LOGGER.warn("Path: {} , Invalid configuration. Operator not set to validate service links (validate_service_links=false in config), but the calling client has a ServiceId set. ", rc.normalizedPath());
                     return false;
                 }
 
@@ -43,11 +43,12 @@ public class SecureLinkValidatorService {
                     String linkId = requestJsonObject.getString(LINK_ID);
                     ServiceLink serviceLink = this.rotatingServiceLinkStore.getServiceLink(clientKey.getServiceId(), linkId);
                     if (serviceLink == null) {
-                        LOGGER.warn("ClientKey has ServiceId set, but LinkId in request was not authorized. ServiceId: {}, LinkId in request: {}", clientKey.getServiceId(), linkId);
+                        LOGGER.warn("Path: {} , ClientKey has ServiceId set, but LinkId in request was not authorized. ServiceId: {}, LinkId in request: {}", rc.normalizedPath(), clientKey.getServiceId(), linkId);
                         return false;
                     }
                     if (!serviceLink.getRoles().contains(role)) {
-                        LOGGER.warn("ServiceLink {} does not have have role {}", linkId, role);
+                        LOGGER.warn("Path: {} , ServiceLink {} does not have role {}", rc.normalizedPath(), linkId, role);
+
                         return false;
                     }
                     Service service = rotatingServiceStore.getService(clientKey.getServiceId());

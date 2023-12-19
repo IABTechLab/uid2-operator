@@ -81,10 +81,7 @@ build/entrypoint.sh: build_artifacts
 build_artifacts: build/build_artifacts.stamp
 
 build/build_artifacts.stamp build/vsockpx build/libjnsm.so: Dockerfile.nitro.builder
-	docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder .
-	docker create --name uid2-nitro-builder uid2-nitro-builder
-	docker cp uid2-nitro-builder:/build .
-	docker rm uid2-nitro-builder
+	DOCKER_BUILDKIT=1 docker build --output type=local,dest=build -t uid2-nitro-builder -f Dockerfile.nitro.builder .
 	mkdir -p build/conf
 	touch build/build_artifacts.stamp
 

@@ -40,19 +40,19 @@ public class SecureLinkValidatorServiceTest {
         this.setClientKey(0);
 
         SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore, this.rotatingServiceStore);
-        assertTrue(service.validateRequest(this.routingContext, null));
+        assertTrue(service.validateRequest(this.routingContext, null, Role.MAPPER));
     }
 
     @Test
-    void validateRequest_linkIdFound_returnsTrue() {
+    void validateRequest_linkIdFoundAndRoleAllowed_returnsTrue() {
         this.setClientKey(10);
         JsonObject requestJsonObject = new JsonObject();
         requestJsonObject.put(SecureLinkValidatorService.LINK_ID, "999");
 
-        when(this.rotatingServiceLinkStore.getServiceLink(10, "999")).thenReturn(new ServiceLink("999", 10, 100, "testServiceLink", null));
+        when(this.rotatingServiceLinkStore.getServiceLink(10, "999")).thenReturn(new ServiceLink("999", 10, 100, "testServiceLink", Set.of(Role.MAPPER)));
 
         SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore, this.rotatingServiceStore);
-        assertTrue(service.validateRequest(this.routingContext, requestJsonObject));
+        assertTrue(service.validateRequest(this.routingContext, requestJsonObject, Role.MAPPER));
     }
 
     @Test
@@ -64,7 +64,19 @@ public class SecureLinkValidatorServiceTest {
         when(this.rotatingServiceLinkStore.getServiceLink(10, "999")).thenReturn(null);
 
         SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore, this.rotatingServiceStore);
-        assertFalse(service.validateRequest(this.routingContext, requestJsonObject));
+        assertFalse(service.validateRequest(this.routingContext, requestJsonObject, Role.MAPPER));
+    }
+
+    @Test
+    void validateRequest_roleNotInServiceLink_returnsFalse() {
+        this.setClientKey(10);
+        JsonObject requestJsonObject = new JsonObject();
+        requestJsonObject.put(SecureLinkValidatorService.LINK_ID, "999");
+
+        when(this.rotatingServiceLinkStore.getServiceLink(10, "999")).thenReturn(new ServiceLink("999", 10, 100, "testServiceLink", Set.of(Role.SHARER, Role.CLIENTKEY_ISSUER)));
+
+        SecureLinkValidatorService service = new SecureLinkValidatorService(this.rotatingServiceLinkStore, this.rotatingServiceStore);
+        assertFalse(service.validateRequest(this.routingContext, requestJsonObject, Role.MAPPER));
     }
 
     private void setClientKey(int serviceId) {

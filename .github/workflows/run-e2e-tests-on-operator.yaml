@@ -4,10 +4,11 @@ on:
     inputs:
       operator_type:
         type: choice
-        description: 'The type of operator [either public or private]'
+        description: The type of operator [either public or gcp or azure]
         options:
         - public
-        - private
+        - gcp
+        - azure
       operator_image_version:
         description: The pipeline will run the E2E test with this operator image version
         type: string
@@ -43,7 +44,7 @@ on:
   workflow_call:
     inputs:
       operator_type:
-        description: 'The type of operator [either public or private]'
+        description: The type of operator [either public or gcp or azure]
         type: string
         default: 'public'
       operator_image_version:

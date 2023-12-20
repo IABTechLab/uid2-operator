@@ -46,7 +46,7 @@ jobs:
   e2e:
     name: E2E
     uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
-    needs: Image
+    needs: image
     with:
       operator_image_version: ${{ needs.Image.outputs.image_tag }}
       operator_branch: ${{ github.ref }}

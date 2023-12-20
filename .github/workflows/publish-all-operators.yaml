@@ -125,3 +125,28 @@ jobs:
         with:
           name: operator_release
           path: ./artifacts/
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [start, collectAllArtifacts]
+    steps:
+      - name: Build changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v3
+        with:
+          toTag: v${{ needs.start.outputs.new_version }}
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}\n## Installation\n```\ndocker pull ${{ needs.start.outputs.new_version }}-<OPERATOR TYPE>\n```\n\n## Image reference to deploy: \n```\n${{ needs.start.outputs.new_version }}-<OPERATOR TYPE>\n```\n\n## TODO\nPlease attach both UID2 and EUID AWS private operator artifacts here.\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
+              "pr_template": " - #{{TITLE}} - ( PR: ##{{NUMBER}} )"
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ needs.start.outputs.new_version }}
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: true

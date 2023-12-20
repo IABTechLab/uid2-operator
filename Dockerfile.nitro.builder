@@ -13,9 +13,9 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /build
-ADD conf ./conf
-ADD src ./src
-ADD static ./static
+COPY conf ./conf
+COPY src ./src
+COPY static ./static
 COPY ./pom.xml ./pom.xml
 
 # build operator jar and save package version

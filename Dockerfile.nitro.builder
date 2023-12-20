@@ -13,7 +13,6 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /build
-COPY conf ./conf
 COPY src ./src
 COPY static ./static
 COPY ./pom.xml ./pom.xml

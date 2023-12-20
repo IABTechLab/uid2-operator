@@ -1,4 +1,5 @@
 name: Run operator E2E tests
+run-name: ${{ format('Run inputs.operator_type operator E2E tests') }} by @${{ github.actor }}
 on:
   workflow_dispatch:
     inputs:
@@ -94,4 +95,7 @@ jobs:
       optout_branch: ${{ inputs.optout_branch }}
       admin_branch: ${{ inputs.admin_branch }}
       operator_branch: ${{ github.ref }}
+      gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
+      gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      gcp_project: ${{ vars.GCP_PROJECT }}
     secrets: inherit

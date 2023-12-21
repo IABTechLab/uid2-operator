@@ -144,7 +144,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create release
+      - name: Create draft release
         uses: softprops/action-gh-release@v1
         with:
           name: ${{ needs.start.outputs.new_version }}

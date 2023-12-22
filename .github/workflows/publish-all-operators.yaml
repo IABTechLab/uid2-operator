@@ -1,5 +1,5 @@
 name: Publish All Operators
-run-name: ${{ format('Publish All Operators{0} {1} Release', ':', inputs.release_type) }}
+run-name: ${{ format('Publish All Operators - {0} Release', inputs.release_type) }}
 on:
   workflow_dispatch:
     inputs:
@@ -36,7 +36,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Vulnerability Scan
+      - name: Scan vulnerabilities
         uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan_filesystem@v2.4.0
         with:
           scan_severity: HIGH,CRITICAL
@@ -73,14 +73,6 @@ jobs:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
 
-  #buildAWS:
-  #  name: AWS Private Operator
-  #  needs: start
-  #  uses: ./.github/workflows/publish-aws-operator-AMI.yaml
-  #  with:
-  #    release_type: ${{ inputs.release_type }}
-  #    version_number_input: ${{ needs.start.outputs.new_version }}
-
   buildGCP:
     name: GCP Private Operator
     needs: start
@@ -102,25 +94,25 @@ jobs:
     runs-on: ubuntu-latest
     needs: [buildPublic, buildGCP, buildAzure]
     steps:
-      - name: Download Public Artifacts
+      - name: Download public artifacts
         uses: actions/download-artifact@v3
         with:
           name: image_details
           path: ./artifacts/public_operator
 
-      - name: Download GCP Artifacts
+      - name: Download GCP artifacts
         uses: actions/download-artifact@v3
         with:
           name: gcp-oidc-deployment-files
           path: ./artifacts/gcp_oidc_operator
 
-      - name: Download Azure Artifacts
+      - name: Download Azure artifacts
         uses: actions/download-artifact@v3
         with:
           name: azure-cc-deployment-files
           path: ./artifacts/azure_cc_operator
 
-      - name: Delete Public Artifacts
+      - name: Delete staging artifacts
         uses: geekyeggo/delete-artifact@v2
         with: 
           name: |
@@ -133,4 +125,28 @@ jobs:
         with:
           name: operator_release
           path: ./artifacts/
-  
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [start, collectAllArtifacts]
+    steps:
+      - name: Build changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v3
+        with:
+          toTag: v${{ needs.start.outputs.new_version }}
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}\n## Installation\n```\ndocker pull ${{ needs.start.outputs.new_version }}-<OPERATOR TYPE>\n```\n\n## Image reference to deploy: \n```\n${{ needs.start.outputs.new_version }}-<OPERATOR TYPE>\n```\n\n## TODO\nPlease attach both UID2 and EUID AWS private operator artifacts here.\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
+              "pr_template": " - #{{TITLE}} - ( PR: ##{{NUMBER}} )"
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ needs.start.outputs.new_version }}
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: true

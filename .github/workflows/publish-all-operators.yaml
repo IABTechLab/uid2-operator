@@ -100,7 +100,7 @@ jobs:
       - name: Download public artifacts
         uses: actions/download-artifact@v3
         with:
-          name: image_details
+          name: image-details
           path: ./artifacts/public_operator
 
       - name: Download GCP artifacts
@@ -119,7 +119,7 @@ jobs:
         uses: geekyeggo/delete-artifact@v2
         with: 
           name: |
-            image_details
+            image-details
             gcp-oidc-deployment-files
             azure-cc-deployment-files
 

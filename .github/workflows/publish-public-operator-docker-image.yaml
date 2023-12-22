@@ -59,13 +59,13 @@ jobs:
     steps:
       - name: Collect artifacts
         run: |
-          mkdir -p image_details
+          mkdir -p image-details
           IMAGE_TAG=${{ needs.image.outputs.image_tag }}
           IMAGE=$(jq -n --arg img "$IMAGE_TAG" '{image_tag: $img}')
-          echo $IMAGE > image_details/image.json
+          echo $IMAGE > image-details/image.json
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: image_details
-          path: image_details/
+          name: image-details
+          path: image-details/

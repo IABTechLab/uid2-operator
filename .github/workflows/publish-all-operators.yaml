@@ -72,6 +72,7 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+    secrets: inherit
 
   buildGCP:
     name: GCP Private Operator
@@ -80,6 +81,7 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+    secrets: inherit
 
   buildAzure:
     name: Azure Private Operator
@@ -88,6 +90,7 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+    secrets: inherit
 
   collectAllArtifacts:
     name: Collect All Artifacts

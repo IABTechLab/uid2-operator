@@ -35,11 +35,11 @@ clean:
 
 build_eif: uid2operator.eif euidoperator.eif
 
-euidoperator.eif: build_artifacts loki_override build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py
+euidoperator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py
 	cd build; docker build -t euidoperator . --build-arg IDENTITY_SCOPE='EUID' --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
 	cd build; nitro-cli build-enclave --docker-uri euidoperator --output-file euidoperator.eif
 
-uid2operator.eif: build_artifacts loki_override build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py
+uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py
 	cd build; docker build -t uid2operator . --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`;
 	cd build; nitro-cli build-enclave --docker-uri uid2operator --output-file uid2operator.eif
 
@@ -49,7 +49,10 @@ build/load_config.py: ./scripts/aws/load_config.py
 build/make_config.py: ./scripts/aws/make_config.py
 	cp ./scripts/aws/make_config.py ./build/
 
-build/configs: build/conf/prod-uid2-config.json build/conf/integ-uid2-config.json build/conf/prod-euid-config.json build/conf/integ-euid-config.json
+build/configs: build/conf/default-config.json build/conf/prod-uid2-config.json build/conf/integ-uid2-config.json build/conf/prod-euid-config.json build/conf/integ-euid-config.json build/conf/logback.loki.xml
+
+build/conf/default-config.json: build_artifacts ./scripts/aws/conf/default-config.json
+	cp ./scripts/aws/conf/default-config.json ./build/conf/default-config.json
 
 build/conf/prod-uid2-config.json: build_artifacts ./scripts/aws/conf/prod-uid2-config.json
 	cp ./scripts/aws/conf/prod-uid2-config.json ./build/conf/prod-uid2-config.json
@@ -63,11 +66,8 @@ build/conf/integ-uid2-config.json: build_artifacts ./scripts/aws/conf/integ-uid2
 build/conf/integ-euid-config.json: build_artifacts ./scripts/aws/conf/integ-euid-config.json
 	cp ./scripts/aws/conf/integ-euid-config.json ./build/conf/integ-euid-config.json
 
-loki_override: build/loki_override.stamp
-
-build/loki_override.stamp build/conf/logback.loki.xml: ./scripts/aws/conf/logback.loki.xml
-	cp ./scripts/aws/conf/logback.loki.xml build/conf/
-	touch ./build/loki_override.stamp
+build/conf/logback.loki.xml: ./scripts/aws/conf/logback.loki.xml
+	cp ./scripts/aws/conf/logback.loki.xml build/conf/logback.loki.xml
 
 build/Dockerfile: build_artifacts ./scripts/aws/Dockerfile
 	cp ./scripts/aws/Dockerfile ./build/
@@ -85,6 +85,7 @@ build/build_artifacts.stamp build/vsockpx build/libjnsm.so: Dockerfile.nitro.bui
 	docker create --name uid2-nitro-builder uid2-nitro-builder
 	docker cp uid2-nitro-builder:/build .
 	docker rm uid2-nitro-builder
+	mkdir -p build/conf
 	touch build/build_artifacts.stamp
 
 .PHONY: install uninstall setup_nitro build_artifacts build_eif loki_override build/configs

@@ -38,5 +38,5 @@ COPY --from=build-operator /build/src /src
 COPY --from=build-operator /build/static /static
 COPY --from=build-operator /build/target /target
 COPY --from=build-operator /build/package.version /package.version
-COPY --from=build-attestation-aws /build/uid2-attestation-aws /uid2-attestation-aws
-COPY --from=build-vsockproxy /build/uid2-aws-enclave-vsockproxy /uid2-aws-enclave-vsockproxy
+COPY --from=build-attestation-aws /build/libjnsm.so /libjnsm.so
+COPY --from=build-vsockproxy /build/vsockpx /vsockpx

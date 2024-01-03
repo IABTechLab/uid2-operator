@@ -252,13 +252,13 @@ jobs:
             ${{ env.ARTIFACTS_OUTPUT_DIR }}
 
       - name: Generate release archive
-        if: ${{ steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
         run: |
             zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
 
       - name: Build Changelog
         id: github_release
-        if: ${{ steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
         uses: mikepenz/release-changelog-builder-action@v3
         with:
           configurationJson: |
@@ -270,7 +270,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
-        if: ${{ steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           name: ${{ steps.version.outputs.new_version }}

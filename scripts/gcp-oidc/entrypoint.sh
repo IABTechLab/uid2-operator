@@ -43,9 +43,9 @@ if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONME
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
 
-# -- replace `enforce_https` value to false if IS_E2E_TEST is true
-if [ "${IS_E2E_TEST}" == 'true' ]; then
-    sed -i "s#"enforce_https": true#"enforce_https": false#g" ${FINAL_CONFIG}
+# -- replace `enforce_https` value to ENFORCE_HTTPS if provided
+if [ -n "${ENFORCE_HTTPS}" ]; then
+    sed -i "s#"enforce_https": true#"enforce_https": ${ENFORCE_HTTPS}#g" ${FINAL_CONFIG}
 fi
 
 # -- start operator

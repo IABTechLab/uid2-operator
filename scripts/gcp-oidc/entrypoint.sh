@@ -43,6 +43,11 @@ if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONME
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
 
+# -- replace `enforce_https` value to ENFORCE_HTTPS if provided
+if [ -n "${ENFORCE_HTTPS}" ]; then
+    sed -i "s#"enforce_https": true#"enforce_https": ${ENFORCE_HTTPS}#g" ${FINAL_CONFIG}
+fi
+
 # -- start operator
 echo "-- starting java application"
 java \

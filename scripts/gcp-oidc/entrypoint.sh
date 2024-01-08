@@ -37,16 +37,20 @@ fi
 # -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
 # -- using hardcoded domains is fine because they should not be changed frequently
 if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONMENT}" != 'prod' ]; then
-    echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
-    sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
+  echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
+  sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
 
-    sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
+  sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
 
 # -- replace `enforce_https` value to ENFORCE_HTTPS if provided
-if [ -n "${ENFORCE_HTTPS}" ]; then
-    sed -i "s#"enforce_https": true#"enforce_https": ${ENFORCE_HTTPS}#g" ${FINAL_CONFIG}
+if [ "${ENFORCE_HTTPS}" == false ]; then
+  echo "-- replacing enforce_https by ${ENFORCE_HTTPS}"
+  cat "${FINAL_CONFIG}"
+  sed '/enforce_https/s/true/false/' ${FINAL_CONFIG}
 fi
+
+cat $FINAL_CONFIG
 
 # -- start operator
 echo "-- starting java application"

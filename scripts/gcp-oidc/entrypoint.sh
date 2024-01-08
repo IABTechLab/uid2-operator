@@ -57,7 +57,7 @@ fi
 # -- replace `enforce_https` value to ENFORCE_HTTPS if provided
 if [ "${ENFORCE_HTTPS}" == false ]; then
     echo "-- replacing enforce_https by ${ENFORCE_HTTPS}"
-    jq_inplace_update_json $FINAL_CONFIG enforce_https $ENFORCE_HTTPS
+    jq_inplace_update_json $FINAL_CONFIG enforce_https false
 fi
 
 cat $FINAL_CONFIG

@@ -1,7 +1,15 @@
 name: Run operator E2E tests
+run-name: ${{ format('Run {0} operator E2E tests', inputs.operator_type) }} by @${{ github.actor }}
 on:
   workflow_dispatch:
     inputs:
+      operator_type:
+        type: choice
+        description: The type of operator [either public or gcp or azure]
+        options:
+        - public
+        - gcp
+        - azure
       operator_image_version:
         description: The pipeline will run the E2E test with this operator image version
         type: string
@@ -36,6 +44,10 @@ on:
         default: 'main'
   workflow_call:
     inputs:
+      operator_type:
+        description: The type of operator [either public or gcp or azure]
+        type: string
+        default: 'public'
       operator_image_version:
         description: The pipeline will run the E2E test with this operator image version
         type: string
@@ -72,8 +84,9 @@ on:
 jobs:
   e2e-test:
     name: E2E Test
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v2.7
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v2
     with:
+      operator_type: ${{ inputs.operator_type }}
       operator_image_version: ${{ inputs.operator_image_version }}
       core_image_version: ${{ inputs.core_image_version }}
       optout_image_version: ${{ inputs.optout_image_version }}
@@ -82,4 +95,7 @@ jobs:
       optout_branch: ${{ inputs.optout_branch }}
       admin_branch: ${{ inputs.admin_branch }}
       operator_branch: ${{ github.ref }}
+      gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
+      gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      gcp_project: ${{ vars.GCP_PROJECT }}
     secrets: inherit

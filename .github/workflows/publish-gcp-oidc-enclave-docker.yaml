@@ -117,12 +117,6 @@ jobs:
           echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
           echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
           cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
-          
-      - name: E2E
-        uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
-        with:
-          operator_image_version: ${{ steps.updatePom.outputs.image_tag }}
-          operator_branch: ${{ github.ref }}
 
       - name: Commit pom.xml and version.json
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE != 'true' }} 
@@ -284,3 +278,13 @@ jobs:
           draft: true
           files: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
+  
+  e2e:
+    name: E2E
+    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+    needs: buildImage
+    with:
+      operator_type: gcp
+      operator_image_version: ${{ needs.buildImage.outputs.image_tag }}
+      operator_branch: ${{ github.ref }}
+    secrets: inherit

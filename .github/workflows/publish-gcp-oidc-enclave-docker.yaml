@@ -117,13 +117,33 @@ jobs:
           echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
           echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
           cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
-          
+
+  e2e:
+    name: Run E2E tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
+      pull-requests: write
+    needs: buildImage
+    steps:
       - name: E2E
         uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
         with:
           operator_image_version: ${{ steps.updatePom.outputs.image_tag }}
           operator_branch: ${{ github.ref }}
-
+  
+  release:
+    name: Create releases
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
+      pull-requests: write
+    needs: e2e
+    steps:
       - name: Commit pom.xml and version.json
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE != 'true' }} 
         uses: EndBug/add-and-commit@v9

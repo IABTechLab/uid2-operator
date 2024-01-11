@@ -98,4 +98,4 @@ jobs:
       gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
       gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       gcp_project: ${{ vars.GCP_PROJECT }}
-    secrets: inherit
+      azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}

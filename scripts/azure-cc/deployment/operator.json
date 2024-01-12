@@ -54,6 +54,12 @@
       "metadata": {
         "description": "Operator Key"
       }
+    },
+    "enforceHttps": {
+      "type": "bool",
+      "metadata": {
+        "description": "Whether to use HTTPS to communicate with core and optout service"
+      }
     }
   },
   "variables": {
@@ -118,6 +124,10 @@
                 {
                   "name": "DEPLOYMENT_ENVIRONMENT",
                   "value": "[parameters('deploymentEnvironment')]"
+                },
+                {
+                  "name": "ENFORCE_HTTPS",
+                  "value": "[parameters('enforceHttps')]"
                 }
               ]
             }

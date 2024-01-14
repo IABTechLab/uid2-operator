@@ -53,6 +53,8 @@ if [ -n "${ENFORCE_HTTPS}" ]; then
     sed -i "s#"enforce_https": true#"enforce_https": ${ENFORCE_HTTPS}#g" ${FINAL_CONFIG}
 fi
 
+cat $FINAL_CONFIG
+
 # -- start operator
 echo "-- starting java application"
 java \

@@ -2,16 +2,6 @@
 #
 # This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
-# for number/boolean
-# https://jqlang.github.io/jq/manual/
-# --argjson foo 123 will bind $foo to 123.
-function jq_inplace_update_json() {
-    local file=$1
-    local field=$2
-    local value=$3
-    jq --argjson v "$value" ".$field = \$v" "$file" > tmp.json && mv tmp.json "$file"
-}
-
 if [ -z "${VAULT_NAME}" ]; then
   echo "VAULT_NAME cannot be empty"
   exit 1
@@ -61,7 +51,7 @@ fi
 # -- replace `enforce_https` value to ENFORCE_HTTPS if provided
 if [ -n "${ENFORCE_HTTPS}" ]; then
     echo "-- replacing enforce_https by ${ENFORCE_HTTPS}"
-    jq_inplace_update_json $FINAL_CONFIG enforce_https false
+    sed -i '' 's/"enforce_https": true/"enforce_https": false/' ${FINAL_CONFIG}
 fi
 
 cat $FINAL_CONFIG

@@ -2,6 +2,18 @@
 #
 # This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
+TMP_FINAL_CONFIG="/tmp/final-config.tmp"
+
+# for number/boolean
+# https://jqlang.github.io/jq/manual/
+# --argjson foo 123 will bind $foo to 123.
+function jq_inplace_update_json() {
+    local file=$1
+    local field=$2
+    local value=$3
+    jq --argjson v "$value" ".$field = \$v" "$file" > $TMP_FINAL_CONFIG && mv $TMP_FINAL_CONFIG "$file"
+}
+
 if [ -z "${VAULT_NAME}" ]; then
   echo "VAULT_NAME cannot be empty"
   exit 1
@@ -47,6 +59,14 @@ if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONME
 
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
+
+# -- replace `enforce_https` value to ENFORCE_HTTPS if provided
+if [ "${ENFORCE_HTTPS}" == false ]; then
+    echo "-- replacing enforce_https by ${ENFORCE_HTTPS}"
+    jq_inplace_update_json $FINAL_CONFIG enforce_https false
+fi
+
+cat $FINAL_CONFIG
 
 # -- start operator
 echo "-- starting java application"

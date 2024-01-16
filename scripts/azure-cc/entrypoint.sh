@@ -6,11 +6,11 @@
 # https://jqlang.github.io/jq/manual/
 # --argjson foo 123 will bind $foo to 123.
 function jq_inplace_update_json() {
-    TMP_FINAL_CONFIG="/tmp/final-config.tmp"
+    local tmpFile="/tmp/json.tmp"
     local file=$1
     local field=$2
     local value=$3
-    jq --argjson v "$value" ".$field = \$v" "$file" > $TMP_FINAL_CONFIG && mv $TMP_FINAL_CONFIG "$file"
+    jq --argjson v "$value" ".$field = \$v" "$file" > $tmpFile && mv $tmpFile "$file"
 }
 
 if [ -z "${VAULT_NAME}" ]; then

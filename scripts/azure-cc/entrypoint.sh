@@ -2,12 +2,11 @@
 #
 # This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
-TMP_FINAL_CONFIG="/tmp/final-config.tmp"
-
 # for number/boolean
 # https://jqlang.github.io/jq/manual/
 # --argjson foo 123 will bind $foo to 123.
 function jq_inplace_update_json() {
+    TMP_FINAL_CONFIG="/tmp/final-config.tmp"
     local file=$1
     local field=$2
     local value=$3

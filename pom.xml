@@ -22,9 +22,18 @@
         <enclave-aws.version>1.1.0</enclave-aws.version>
         <enclave-azure.version>1.5.0-115595d597</enclave-azure.version>
         <enclave-gcp.version>1.4.2-dd1920710d</enclave-gcp.version>
-        <uid2-shared.version>6.0.10-208e0b52b2</uid2-shared.version>
+        <uid2-shared.version>6.0.14-SNAPSHOT</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>snapshots-repo</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+            <releases><enabled>false</enabled></releases>
+            <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+    </repositories>
 
     <dependencies>
         <dependency>

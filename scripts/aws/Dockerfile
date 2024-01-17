@@ -1,16 +1,21 @@
 FROM openjdk:11.0-jre-slim-bullseye
 
 WORKDIR /app
+
 ARG JAR_NAME=uid2-operator
 ARG JAR_VERSION=1.0.0
 ARG IMAGE_VERSION=1.0.0.unknownhash
 ARG IDENTITY_SCOPE=UID2
+
 ENV JAR_NAME=${JAR_NAME}
 ENV JAR_VERSION=${JAR_VERSION}
 ENV IMAGE_VERSION=${IMAGE_VERSION}
 ENV IDENTITY_SCOPE=${IDENTITY_SCOPE}
 ENV ENCLAVE_ENVIRONMENT=aws-nitro
 ENV UID2_CONFIG_SECRET_KEY="uid2-operator-config-key"
+ENV OPTOUT_BASE_URL=""
+ENV OPTOUT_BASE_URL=""
+ENV ENFORCE_HTTPS="true"
 
 RUN apt update -y \
     && apt install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip \

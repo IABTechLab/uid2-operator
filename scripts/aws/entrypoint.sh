@@ -5,12 +5,10 @@ ulimit -n 65536
 
 # -- setup loopback device
 echo "Setting up loopback device..."
-
 ifconfig lo 127.0.0.1
 
 # -- start vsock proxy
 echo "Starting vsock proxy..."
-
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
 
 # -- load env vars via proxy
@@ -45,12 +43,12 @@ python3 /app/load_config.py > ${OVERRIDES_CONFIG}
 
 echo "Loading config final..."
 export FINAL_CONFIG="/app/conf/config-final.json"
-if [ "$IDENTITY_SCOPE" = 'UID2' ]; then
+if [ "${IDENTITY_SCOPE}" = 'UID2' ]; then
   python3 /app/make_config.py /app/conf/prod-uid2-config.json /app/conf/integ-uid2-config.json ${OVERRIDES_CONFIG} "$(nproc)" > ${FINAL_CONFIG}
-elif [ "$IDENTITY_SCOPE" = 'EUID' ]; then
+elif [ "${IDENTITY_SCOPE}" = 'EUID' ]; then
   python3 /app/make_config.py /app/conf/prod-euid-config.json /app/conf/integ-euid-config.json ${OVERRIDES_CONFIG} "$(nproc)" > ${FINAL_CONFIG}
 else
-  echo "Unrecognized IDENTITY_SCOPE $IDENTITY_SCOPE"
+  echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"
   exit 1
 fi
 
@@ -75,7 +73,6 @@ fi
 
 # -- setup loki
 echo "Setting up Loki..."
-
 [[ "$(get_config_value 'loki_enabled')" == "true" ]] \
   && SETUP_LOKI_LINE="-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory -Dlogback.configurationFile=./conf/logback.loki.xml" \
   || SETUP_LOKI_LINE=""
@@ -88,7 +85,6 @@ cd /app
 
 # -- start operator
 echo "Starting Java application..."
-
 java \
   -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
   -Djava.security.egd=file:/dev/./urandom \

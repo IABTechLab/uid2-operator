@@ -41,6 +41,16 @@ echo "Loading config overrides..."
 export OVERRIDES_CONFIG="/app/conf/config-overrides.json"
 python3 /app/load_config.py > ${OVERRIDES_CONFIG}
 
+export DEPLOYMENT_ENVIRONMENT=$(jq -r '.environment' < ${OVERRIDES_CONFIG})
+if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then
+  echo "DEPLOYMENT_ENVIRONMENT cannot be empty"
+  exit 1
+fi
+if [ "${DEPLOYMENT_ENVIRONMENT}" != 'prod' ] && [ "${DEPLOYMENT_ENVIRONMENT}" != 'integ' ]; then
+  echo "Unrecognized DEPLOYMENT_ENVIRONMENT ${DEPLOYMENT_ENVIRONMENT}"
+  exit 1
+fi
+
 echo "Loading config final..."
 export FINAL_CONFIG="/app/conf/config-final.json"
 if [ "${IDENTITY_SCOPE}" = 'UID2' ]; then
@@ -58,16 +68,15 @@ get_config_value() {
 
 # -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
 # -- using hardcoded domains is fine because they should not be changed frequently
-if [ -n "${CORE_BASE_URL}" ] && [ -n "${OPTOUT_BASE_URL}" ]; then
+if [ -n "${CORE_BASE_URL}" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
     echo "Replacing core and optout URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}..."
-
     sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
 
 # -- replace `enforce_https` value to ENFORCE_HTTPS if provided
-if [ "${ENFORCE_HTTPS}" == false ]; then
-    echo "-- replacing enforce_https by ${ENFORCE_HTTPS}"
+if [ "${ENFORCE_HTTPS}" == false ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
+    echo "Replacing enforce_https by ${ENFORCE_HTTPS}..."
     jq_inplace_update_json ${FINAL_CONFIG} enforce_https false
 fi
 

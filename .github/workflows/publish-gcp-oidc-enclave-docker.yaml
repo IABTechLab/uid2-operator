@@ -37,7 +37,7 @@ env:
   GCP_GAR_PROJECT: uid2-prod-project
   MAVEN_PROFILE: gcp
   ENCLAVE_PROTOCOL: gcp-oidc
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: uid2-operator-gcp
   DOCKER_CONTEXT_PATH: scripts/gcp-oidc
   ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
 
@@ -108,7 +108,7 @@ jobs:
           new_version=${{ steps.version.outputs.new_version }} 
           sed -i "0,/$current_version/s/$current_version/$new_version/" pom.xml
           echo "Version number updated from $current_version to $new_version"
-          echo "image_tag=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}" >> $GITHUB_OUTPUT
+          echo "image_tag=${{ steps.version.outputs.new_version }}" >> $GITHUB_OUTPUT
 
       - name: Package JAR
         id: package
@@ -184,7 +184,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
             ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
+            type=raw,value=${{ steps.version.outputs.new_version }}
 
       - name: Build and export to Docker
         uses: docker/build-push-action@v5
@@ -254,7 +254,7 @@ jobs:
       - name: Generate release archive
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
         run: |
-            zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+            zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-gcp-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
 
       - name: Build Changelog
         id: github_release
@@ -277,7 +277,7 @@ jobs:
           body: ${{ steps.github_release.outputs.changelog }}
           draft: true
           files: |
-            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-gcp-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
   
   e2e:
     name: E2E

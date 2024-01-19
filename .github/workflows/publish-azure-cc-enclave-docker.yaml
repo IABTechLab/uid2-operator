@@ -106,7 +106,7 @@ jobs:
           new_version=${{ steps.version.outputs.new_version }} 
           sed -i "0,/$current_version/s/$current_version/$new_version/" pom.xml
           echo "Version number updated from $current_version to $new_version"
-          echo "image_tag=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}" >> $GITHUB_OUTPUT
+          echo "image_tag=${{ steps.version.outputs.new_version }}" >> $GITHUB_OUTPUT
 
       - name: Package JAR
         id: package

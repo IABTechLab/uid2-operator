@@ -104,7 +104,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
-    private final boolean cstgDoOptoutResponse;
+    protected boolean cstgDoOptoutResponse;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
@@ -442,7 +442,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         else { //user not opted out and already generated valid identity token
             response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
         }
-        V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
+        if (responseStatus == TokenResponseStatsCollector.ResponseStatus.Success) {
+            V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
+        }
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
         recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, responseStatus, siteProvider, identityTokens.getAdvertisingTokenVersion());

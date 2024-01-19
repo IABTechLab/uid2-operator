@@ -131,7 +131,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
 
         final PrivacyBits privacyBits = PrivacyBits.fromInt(token.userIdentity.privacyBits);
-        final boolean shouldCstgOptedOutUserReturnOptOutToken = privacyBits.isClientSideTokenGenerated() && this.cstgDoOptoutResponse;
+        final boolean shouldCstgOptedOutUserReturnOptOutToken = privacyBits.isClientSideTokenGenerated() && !this.cstgDoOptoutResponse;
 
         try {
             final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.userIdentity, true);

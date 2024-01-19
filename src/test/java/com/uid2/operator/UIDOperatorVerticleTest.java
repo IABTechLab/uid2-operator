@@ -3207,9 +3207,10 @@ public class UIDOperatorVerticleTest {
 
 
     @ParameterizedTest
-    @CsvSource({"test@example.com,Email", "+61400000000,Phone"})
-    void cstgUserOptsOutAfterTokenGenerate(String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    @CsvSource({"true,test@example.com,Email", "true,+61400000000,Phone", "false,test@example.com,Email", "false,+61400000000,Phone"})
+    void cstgUserOptsOutAfterTokenGenerate(boolean doCstgOptoutResponse, String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
+        this.uidOperatorVerticle.setCstgOptoutResponse(doCstgOptoutResponse);
 
         final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
 
@@ -3244,6 +3245,13 @@ public class UIDOperatorVerticleTest {
                         .thenReturn(advertisingToken.userIdentity.establishedAt.plusSeconds(1));
 
                     sendTokenRefresh("v2", vertx, testContext, genBody.getString("refresh_token"), genBody.getString("refresh_response_key"), 200, refreshRespJson -> {
+
+                        if (doCstgOptoutResponse || getIdentityScope() == IdentityScope.EUID) {
+                            assertEquals("optout", refreshRespJson.getString("status"));
+                            testContext.completeNow();
+                            return;
+                        }
+
                         verify(optOutStore, times(2)).getLatestEntry(argumentCaptor.capture());
                         assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), argumentCaptor.getValue().id);
 
@@ -3266,13 +3274,19 @@ public class UIDOperatorVerticleTest {
     // tests for opted in user should lead to generating ad tokens that never match the default optout identity
     // tests for all email/phone combos
     @ParameterizedTest
-    @CsvSource({"true,abc@abc.com,Email,optout@unifiedid.com",
-            "true,+61400000000,Phone,+00000000001",
-            "false,abc@abc.com,Email,optout@unifiedid.com",
-            "false,+61400000000,Phone,+00000000001"})
-    void cstgOptedOutTest(boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
+    @CsvSource({"true,true,abc@abc.com,Email,optout@unifiedid.com",
+            "true,true,+61400000000,Phone,+00000000001",
+            "true,false,abc@abc.com,Email,optout@unifiedid.com",
+            "true,false,+61400000000,Phone,+00000000001",
+            "false,true,abc@abc.com,Email,optout@unifiedid.com",
+            "false,true,+61400000000,Phone,+00000000001",
+            "false,false,abc@abc.com,Email,optout@unifiedid.com",
+            "false,false,+61400000000,Phone,+00000000001"})
+    void cstgOptedOutTest(boolean doCstgOptoutResponse, boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
                           Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
+        this.uidOperatorVerticle.setCstgOptoutResponse(doCstgOptoutResponse);
+
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
         if(optOutExpected)
         {
@@ -3292,6 +3306,13 @@ public class UIDOperatorVerticleTest {
                 200,
                 testContext,
                 respJson -> {
+
+                    if (optOutExpected && (doCstgOptoutResponse || getIdentityScope() == IdentityScope.EUID)) {
+                        assertEquals("optout", respJson.getString("status"));
+                        testContext.completeNow();
+                        return;
+                    }
+
                     JsonObject genBody = respJson.getJsonObject("body");
                     assertNotNull(genBody);
 
@@ -3303,7 +3324,7 @@ public class UIDOperatorVerticleTest {
                     RefreshToken refreshToken = decodeRefreshToken(encoder, genBody.getString("decrypted_refresh_token"), identityType);
 
                     if (optOutExpected) {
-                        assertAreClientSideGeneratedOptOutTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType);
+                            assertAreClientSideGeneratedOptOutTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType);
                     } else {
                         assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
                     }

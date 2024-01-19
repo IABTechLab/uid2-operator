@@ -37,7 +37,7 @@ env:
   GCP_GAR_PROJECT: uid2-prod-project
   MAVEN_PROFILE: gcp
   ENCLAVE_PROTOCOL: gcp-oidc
-  IMAGE_NAME: uid2-operator-gcp
+  IMAGE_NAME: iabtechlab/uid2-operator-gcp
   DOCKER_CONTEXT_PATH: scripts/gcp-oidc
   ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
 

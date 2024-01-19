@@ -35,7 +35,7 @@ env:
   REGISTRY: ghcr.io
   MAVEN_PROFILE: azure
   ENCLAVE_PROTOCOL: azure-cc
-  IMAGE_NAME: uid2-operator-azure
+  IMAGE_NAME: iabtechlab/uid2-operator-azure
   DOCKER_CONTEXT_PATH: scripts/azure-cc
   ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
 

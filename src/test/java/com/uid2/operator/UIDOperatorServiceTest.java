@@ -85,7 +85,8 @@ public class UIDOperatorServiceTest {
                 saltProvider,
                 tokenEncoder,
                 this.clock,
-                IdentityScope.UID2
+                IdentityScope.UID2,
+                false
         );
 
         final JsonObject euidConfig = new JsonObject();
@@ -102,7 +103,8 @@ public class UIDOperatorServiceTest {
                 saltProvider,
                 tokenEncoder,
                 this.clock,
-                IdentityScope.EUID
+                IdentityScope.EUID,
+                false
         );
     }
 

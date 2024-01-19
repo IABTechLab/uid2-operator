@@ -104,6 +104,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
+    private final boolean cstgDoOptoutResponse;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
@@ -142,6 +143,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
+        //EUID must always return optout response for CSTG regardless of settings
+        this.cstgDoOptoutResponse = config.getBoolean("client_side_token_generate_optout_response_enabled", false) || identityScope == IdentityScope.EUID;
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
@@ -156,7 +159,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.saltProvider,
                 this.encoder,
                 this.clock,
-                this.identityScope
+                this.identityScope,
+                this.cstgDoOptoutResponse
         );
 
         final Router router = createRoutesSetup();
@@ -410,27 +414,38 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         OptoutCheckPolicy.RespectOptOut));
 
 
+        JsonObject response;
+        TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
+
         if (identityTokens.isEmptyToken()) {
-            //user opted out we will generate a token with the opted out user identity
-            privacyBits.setClientSideTokenGenerateOptout();
-            UserIdentity cstgOptOutIdentity;
-            if(input.getIdentityType() == IdentityType.Email) {
-                cstgOptOutIdentity = InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
+            //always return optout response if it's EUID or when feature switch is on
+            if (this.identityScope == IdentityScope.EUID || cstgDoOptoutResponse ) {
+                response = ResponseUtil.SuccessNoBodyV2("optout");
+                responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
             }
             else {
-                cstgOptOutIdentity = InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
+                //user opted out we will generate a token with the opted out user identity
+                privacyBits.setClientSideTokenGenerateOptout();
+                UserIdentity cstgOptOutIdentity;
+                if (input.getIdentityType() == IdentityType.Email) {
+                    cstgOptOutIdentity = InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
+                } else {
+                    cstgOptOutIdentity = InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
+                }
+                identityTokens = this.idService.generateIdentity(
+                        new IdentityRequest(
+                                new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
+                                cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
+                response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
             }
-            identityTokens = this.idService.generateIdentity(
-                    new IdentityRequest(
-                            new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
-                            cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
         }
-        JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
+        else { //user not opted out and already generated valid identity token
+            response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
+        }
         V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
-
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, identityTokens.getAdvertisingTokenVersion());
+        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, responseStatus, siteProvider, identityTokens.getAdvertisingTokenVersion());
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

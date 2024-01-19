@@ -81,7 +81,8 @@ public class BenchmarkCommon {
                 saltProvider,
                 tokenEncoder,
                 Clock.systemUTC(),
-                IdentityScope.UID2
+                IdentityScope.UID2,
+                false
         );
     }
 

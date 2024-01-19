@@ -35,7 +35,7 @@ env:
   REGISTRY: ghcr.io
   MAVEN_PROFILE: azure
   ENCLAVE_PROTOCOL: azure-cc
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: uid2-operator-azure
   DOCKER_CONTEXT_PATH: scripts/azure-cc
   ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
 
@@ -217,7 +217,7 @@ jobs:
       - name: Generate release archive
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
         run: |
-          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-azure-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
 
       - name: Build Changelog
         id: github_release
@@ -240,7 +240,7 @@ jobs:
           body: ${{ steps.github_release.outputs.changelog }}
           draft: true
           files: |
-            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-azure-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
   
   e2e:
     name: E2E

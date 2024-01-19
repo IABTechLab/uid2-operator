@@ -2,7 +2,7 @@
 set -x
 
 # Following environment variables must be set
-# - IMAGE: uid2-operator image
+# - IMAGE: uid2-operator-azure image
 # - OUTPUT_DIR: output directory to store the artifacts
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )

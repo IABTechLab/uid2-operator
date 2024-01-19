@@ -9,7 +9,7 @@ if [ -z "$IMAGE_VERSION" ]; then
   exit 1
 fi
 
-IMAGE="ghcr.io/iabtechlab/uid2-operator:$IMAGE_VERSION"
+IMAGE="ghcr.io/iabtechlab/uid2-operator-azure:$IMAGE_VERSION"
 
 if [ -d "$OUT_PUT_DIR" ]; then
   echo "$OUT_PUT_DIR  exist."

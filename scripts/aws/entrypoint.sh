@@ -14,9 +14,9 @@ echo "Starting vsock proxy..."
 # -- load env vars via proxy
 echo "Loading env vars via proxy..."
 
-if [ "${IDENTITY_SCOPE}" = 'UID2' ]; then
+if [ "${IDENTITY_SCOPE}" = "UID2" ]; then
   UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
-elif [ "${IDENTITY_SCOPE}" = 'EUID' ]; then
+elif [ "${IDENTITY_SCOPE}" = "EUID" ]; then
   UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | grep EUID_CONFIG_SECRET_KEY=)" =~ ^export\ EUID_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "euid-operator-config-key")
 else
   echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"

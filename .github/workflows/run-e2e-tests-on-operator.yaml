@@ -1,6 +1,5 @@
 name: Run operator E2E tests
 run-name: ${{ format('Run {0} operator E2E tests', inputs.operator_type) }} by @${{ github.actor }}
-
 on:
   workflow_dispatch:
     inputs:

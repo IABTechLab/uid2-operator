@@ -1,90 +1,114 @@
 name: Run operator E2E tests
 run-name: ${{ format('Run {0} operator E2E tests', inputs.operator_type) }} by @${{ github.actor }}
+
 on:
   workflow_dispatch:
     inputs:
       operator_type:
         type: choice
-        description: The type of operator [either public or gcp or azure]
+        description: The operator type [public, gcp, azure, aws]
         options:
         - public
         - gcp
         - azure
+        - aws
       operator_image_version:
         description: The pipeline will run the E2E test with this operator image version
         type: string
-        default: 'latest'
+        default: latest
       core_image_version:
         description: The pipeline will run the E2E test with this core image version
         type: string
-        default: 'latest'
+        default: latest
       optout_image_version:
         description: The pipeline will run the E2E test with this optout image version
         type: string
-        default: 'latest'
+        default: latest
       e2e_image_version:
         description: The pipeline will run the E2E test with this e2e image version
         type: string
-        default: 'latest'
+        default: latest
       core_branch:
-        description: 'The branch of UID2-core to test on'
+        description: The branch of uid2-core to test on
         type: string
-        default: 'main'
+        default: main
       optout_branch:
-        description: 'The branch of UID2-optout to test on'
+        description: The branch of uid2-optout to test on
         type: string
-        default: 'main'
+        default: main
       admin_branch:
-        description: 'The branch of UID2-admin to test on'
+        description: The branch of uid2-admin to test on
         type: string
-        default: 'main'
+        default: main
       operator_branch:
-        description: 'The branch of UID2-operator to test on'
+        description: The branch of uid2-operator to test on
         type: string
-        default: 'main'
+        default: main
+      aws_region:
+        description: The AWS region [us-east-1, us-west-1, ca-central-1]
+        type: string
+      aws_ami:
+        description: The AWS AMI ID
+        type: string
+      aws_pcr0:
+        description: The AWS PCR0
+        type: string
+
   workflow_call:
     inputs:
       operator_type:
-        description: The type of operator [either public or gcp or azure]
+        description: The operator type [public, gcp, azure, aws]
         type: string
-        default: 'public'
+        default: public
       operator_image_version:
         description: The pipeline will run the E2E test with this operator image version
         type: string
-        default: 'latest'
+        default: latest
       core_image_version:
         description: The pipeline will run the E2E test with this core image version
         type: string
-        default: 'latest'
+        default: latest
       optout_image_version:
         description: The pipeline will run the E2E test with this optout image version
         type: string
-        default: 'latest'
+        default: latest
       e2e_image_version:
         description: The pipeline will run the E2E test with this e2e image version
         type: string
-        default: 'latest'
+        default: latest
       core_branch:
-        description: 'The branch of UID2-core to test on'
+        description: The branch of uid2-core to test on
         type: string
-        default: 'main'
+        default: main
       optout_branch:
-        description: 'The branch of UID2-optout to test on'
+        description: The branch of uid2-optout to test on
         type: string
-        default: 'main'
+        default: main
       admin_branch:
-        description: 'The branch of UID2-admin to test on'
+        description: The branch of uid2-admin to test on
         type: string
-        default: 'main'
+        default: main
       operator_branch:
-        description: 'The branch of UID2-operator to test on'
+        description: The branch of uid2-operator to test on
         type: string
-        default: 'main'
+        default: main
+      aws_region:
+        description: The AWS region [us-east-1, us-west-1, ca-central-1]
+        type: string
+        default: us-east-1
+      aws_ami:
+        description: The AWS AMI ID
+        type: string
+        default: ''
+      aws_pcr0:
+        description: The AWS PCR0
+        type: string
+        default: ''
 
 jobs:
   e2e-test:
     name: E2E Test
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v2
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@gdm-UID2-2341-aws-test-pipeline
     with:
       operator_type: ${{ inputs.operator_type }}
       operator_image_version: ${{ inputs.operator_image_version }}
@@ -98,4 +122,7 @@ jobs:
       gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
       gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       gcp_project: ${{ vars.GCP_PROJECT }}
+      aws_region: ${{ inputs.aws_region }}
+      aws_ami: ${{ inputs.aws_ami }}
+      aws_pcr0: ${{ inputs.aws_pcr0 }}
     secrets: inherit

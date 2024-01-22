@@ -5,8 +5,6 @@ import com.uid2.shared.attest.UidOptOutClient;
 import com.uid2.shared.cloud.CloudStorageException;
 import com.uid2.shared.cloud.URLStorageWithMetadata;
 import com.uid2.shared.optout.OptOutMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;

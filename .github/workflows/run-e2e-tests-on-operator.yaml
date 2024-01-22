@@ -43,15 +43,14 @@ on:
         description: The branch of uid2-operator to test on
         type: string
         default: main
-      aws_region:
-        description: The AWS region [us-east-1, us-west-1, ca-central-1]
+      aws:
+        description: The arguments for AWS private operator
         type: string
-      aws_ami:
-        description: The AWS AMI ID
-        type: string
-      aws_pcr0:
-        description: The AWS PCR0
-        type: string
+        default: '{
+          "region": "us-east-1",
+          "ami": "ami-xxxxx",
+          "pcr0": "xxxxx"
+        }'
 
   workflow_call:
     inputs:
@@ -91,18 +90,14 @@ on:
         description: The branch of uid2-operator to test on
         type: string
         default: main
-      aws_region:
-        description: The AWS region [us-east-1, us-west-1, ca-central-1]
+      aws:
+        description: The arguments for AWS private operator
         type: string
-        default: us-east-1
-      aws_ami:
-        description: The AWS AMI ID
-        type: string
-        default: ''
-      aws_pcr0:
-        description: The AWS PCR0
-        type: string
-        default: ''
+        default: '{
+          "region": "us-east-1",
+          "ami": "ami-xxxxx",
+          "pcr0": "xxxxx"
+        }'
 
 jobs:
   e2e-test:
@@ -121,7 +116,7 @@ jobs:
       gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
       gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       gcp_project: ${{ vars.GCP_PROJECT }}
-      aws_region: ${{ inputs.aws_region }}
-      aws_ami: ${{ inputs.aws_ami }}
-      aws_pcr0: ${{ inputs.aws_pcr0 }}
+      aws_region: ${{ fromJson(inputs.aws).region }}
+      aws_ami: ${{ fromJson(inputs.aws).ami }}
+      aws_pcr0: ${{ fromJson(inputs.aws).pcr0 }}
     secrets: inherit

@@ -5,6 +5,8 @@ import com.uid2.shared.attest.UidOptOutClient;
 import com.uid2.shared.cloud.CloudStorageException;
 import com.uid2.shared.cloud.URLStorageWithMetadata;
 import com.uid2.shared.optout.OptOutMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,7 +30,7 @@ public class OptOutCloudStorage extends URLStorageWithMetadata {
 
     @Override
     protected List<String> extractListFromMetadata() throws CloudStorageException {
-        try (InputStream input = this.uidOptOutClient.downloadFromOptOut(metadataPath)) {
+        try (InputStream input = this.uidOptOutClient.download(metadataPath)) {
             OptOutMetadata m = OptOutMetadata.fromJsonString(Utils.readToEnd(input));
             return m.optoutLogs.stream().map(o -> o.location).collect(Collectors.toList());
         } catch (IOException e) {

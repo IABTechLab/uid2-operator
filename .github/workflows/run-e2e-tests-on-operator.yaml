@@ -1,11 +1,12 @@
-name: Run operator E2E tests
-run-name: ${{ format('Run {0} operator E2E tests', inputs.operator_type) }} by @${{ github.actor }}
+name: Run Operator E2E Tests
+run-name: ${{ format('Run {0} Operator E2E Tests', inputs.operator_type) }} by @${{ github.actor }}
 on:
   workflow_dispatch:
     inputs:
       operator_type:
-        type: choice
         description: The operator type [public, gcp, azure, aws]
+        required: true
+        type: choice
         options:
         - public
         - gcp

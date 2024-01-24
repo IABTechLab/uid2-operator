@@ -1,5 +1,6 @@
 package com.uid2.operator.vertx;
 
+import com.uid2.operator.service.ShutdownService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
@@ -14,17 +15,19 @@ public class OperatorShutdownHandler {
     private final Duration shutdownWaitTime;
     private final AtomicReference<Instant> failureStartTime = new AtomicReference<>(null);
     private final Clock clock;
+    private final ShutdownService shutdownService;
 
-    public OperatorShutdownHandler(Duration shutdownWaitTime, Clock clock) {
+    public OperatorShutdownHandler(Duration shutdownWaitTime, Clock clock, ShutdownService shutdownService) {
         this.shutdownWaitTime = shutdownWaitTime;
         this.clock = clock;
+        this.shutdownService = shutdownService;
     }
 
 
     public void handleResponse(Pair<Integer, String> response) {
         if (response.left() == 401) {
             LOGGER.error("core attestation failed with 401, shutting down operator, core response: " + response.right());
-            System.exit(1);
+            this.shutdownService.Shutdown(1);
         }
         if (response.left() == 200) {
             failureStartTime.set(null);
@@ -34,7 +37,7 @@ public class OperatorShutdownHandler {
                 failureStartTime.set(clock.instant());
             } else if (Duration.between(t, clock.instant()).compareTo(this.shutdownWaitTime) > 0) {
                 LOGGER.error("core attestation has been in failed state for too long. shutting down operator");
-                System.exit(1);
+                this.shutdownService.Shutdown(1);
             }
         }
     }

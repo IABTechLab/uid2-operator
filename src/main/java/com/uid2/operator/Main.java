@@ -8,6 +8,7 @@ import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.service.SecureLinkValidatorService;
+import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.store.CloudSyncOptOutStore;
 import com.uid2.operator.store.OptOutCloudStorage;
@@ -102,7 +103,7 @@ public class Main {
 
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
-            this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Clock.systemUTC());
+            this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Clock.systemUTC(), new ShutdownService());
 
             var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleResponse);
             UidCoreClient coreClient = clients.getKey();

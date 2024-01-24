@@ -3,6 +3,7 @@ package com.uid2.operator;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
@@ -26,32 +27,26 @@ import java.time.temporal.ChronoUnit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(VertxExtension.class)
 public class OperatorShutdownHandlerTest {
 
     private AutoCloseable mocks;
-    @Mock private Clock clock;
+    @Mock
+    private Clock clock;
+
+    @Mock
+    private ShutdownService shutdownService;
+
     private OperatorShutdownHandler operatorShutdownHandler;
-
-    /*class NoExitSecurityManager extends SecurityManager {
-        @Override
-        public void checkPermission(Permission perm) { }
-
-        @Override
-        public void checkExit(int status) {
-            super.checkExit(status);
-            throw new RuntimeException(String.valueOf(status));
-        }
-    }*/
 
     @BeforeEach
     void beforeEach() {
         mocks = MockitoAnnotations.openMocks(this);
         when(clock.instant()).thenAnswer(i -> Instant.now());
-        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), clock);
+        doThrow(new RuntimeException()).when(shutdownService).Shutdown(1);
+        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), clock, shutdownService);
     }
 
     @AfterEach
@@ -59,16 +54,10 @@ public class OperatorShutdownHandlerTest {
         mocks.close();
     }
 
-    /*
+
     // These tests have been removed as Java 21 does not support the getSecurityManager. Another approach will need to be found.
     @Test
     void shutdownOn401(Vertx vertx, VertxTestContext testContext) {
-        new MockUp<System>() {
-            @mockit.Mock
-            public void exit(int value) {
-                throw new RuntimeException(String.valueOf(value));
-            }
-        };
         try {
             ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
             logWatcher.start();
@@ -77,9 +66,8 @@ public class OperatorShutdownHandlerTest {
             // Revoke auth
             try {
                 this.operatorShutdownHandler.handleResponse(Pair.of(401, "Unauthorized"));
-                assertTrue(false); // if this is executed, the exit method was not called.
             } catch (RuntimeException e) {
-                assertEquals(e.getMessage(), "1");
+                verify(shutdownService).Shutdown(1);
                 Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation failed with 401, shutting down operator, core response: "));
                 testContext.completeNow();
             }
@@ -89,49 +77,37 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void shutdownOnFailedTooLong(Vertx vertx, VertxTestContext testContext) {
-        SecurityManager origSecurityManager = System.getSecurityManager();
+
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+        this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
+
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(60));
         try {
-            System.setSecurityManager(new NoExitSecurityManager());
-
-            ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-            logWatcher.start();
-            ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
-
             this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-
-            when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(60));
-            try {
-                this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-            } catch (RuntimeException e) {
-                Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation has been in failed state for too long. shutting down operator"));
-                testContext.completeNow();
-            }
-        } finally {
-            System.setSecurityManager(origSecurityManager);
+        } catch (RuntimeException e) {
+            verify(shutdownService).Shutdown(1);
+            Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation has been in failed state for too long. shutting down operator"));
+            testContext.completeNow();
         }
     }
 
     @Test
     void attestRecoverOnSuccess(Vertx vertx, VertxTestContext testContext) {
-        SecurityManager origSecurityManager = System.getSecurityManager();
-        try {
-            System.setSecurityManager(new NoExitSecurityManager());
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
-            ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-            logWatcher.start();
-            ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+        this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(6, ChronoUnit.HOURS));
+        this.operatorShutdownHandler.handleResponse(Pair.of(200, ""));
 
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
+        assertDoesNotThrow(() -> {
             this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-            when(clock.instant()).thenAnswer(i -> Instant.now().plus(6, ChronoUnit.HOURS));
-            this.operatorShutdownHandler.handleResponse(Pair.of(200, ""));
-
-            when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
-            assertDoesNotThrow(() -> {
-                this.operatorShutdownHandler.handleResponse(Pair.of(500, ""));
-            });
-            testContext.completeNow();
-        } finally {
-            System.setSecurityManager(origSecurityManager);
-        }
-    }*/
+        });
+        testContext.completeNow();
+    }
 }

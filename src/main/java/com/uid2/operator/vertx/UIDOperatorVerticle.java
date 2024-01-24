@@ -104,6 +104,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
+    private final boolean cstgDoAppNameCheck;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
@@ -142,6 +143,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
+        this.cstgDoAppNameCheck = config.getBoolean("client_side_token_generate_app_name_check_enabled", true);
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
@@ -304,14 +306,32 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
+        String origin = rc.request().getHeader("origin");
+        
         if (cstgDoDomainNameCheck) {
             final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(clientSideKeypair);
-            String origin = rc.request().getHeader("origin");
-
             boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
             if (!allowedDomain) {
-                SendClientErrorResponseAndRecordStats(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin, siteProvider);
-                return;
+                if (cstgDoAppNameCheck) {
+                    String appName = request.getAppName();
+                    boolean allowedApp = domainNames.contains(appName);
+                    
+                    if (appName == null) {
+                        SendClientErrorResponseAndRecordStats(ResponseStatus.InvalidAppName, 403, rc, "app name is not provided", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin, siteProvider);
+                        return;
+                    }
+                    else if(!allowedApp) {
+                        SendClientErrorResponseAndRecordStats(ResponseStatus.InvalidAppName, 403, rc, "app name is not on the allowed list", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin, siteProvider);
+                        return;
+                    }
+                    else {
+                        //app is allowed proceed to handle this CSTG request 
+                    }
+                }
+                else {
+                     SendClientErrorResponseAndRecordStats(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin, siteProvider);
+                     return;    
+                }
             }
         }
 

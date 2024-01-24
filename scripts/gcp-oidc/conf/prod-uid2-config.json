@@ -10,5 +10,6 @@
   "optout_metadata_path": "https://optout-prod.uidapi.com/optout/refresh",
   "core_attest_url": "https://core-prod.uidapi.com/attest",
   "optout_api_uri": "https://optout-prod.uidapi.com/optout/replicate",
-  "optout_s3_folder": "optout-v2/"
+  "optout_s3_folder": "optout-v2/",
+  "identity_token_expires_after_seconds": 259200
 }

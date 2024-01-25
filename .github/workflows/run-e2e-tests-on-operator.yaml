@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       operator_type:
-        description: The operator type [public, gcp, azure, aws]
+        description: The operator type [Public, GCP, Azure, AWS]
         required: true
         type: choice
         options:
-        - public
-        - gcp
-        - azure
-        - aws
+        - Public
+        - GCP
+        - Azure
+        - AWS
       operator_image_version:
         description: The pipeline will run the E2E test with this operator image version (for GCP, check http://us-docker.pkg.dev/uid2-prod-project/iabtechlab/uid2-operator)
         type: string
@@ -56,7 +56,7 @@ on:
   workflow_call:
     inputs:
       operator_type:
-        description: The operator type [public, gcp, azure, aws]
+        description: The operator type [Public, GCP, Azure, AWS]
         type: string
         default: public
       operator_image_version:

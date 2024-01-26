@@ -3245,7 +3245,7 @@ public class UIDOperatorVerticleTest {
                     final AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
                     final RefreshToken refreshToken = decodeRefreshToken(encoder, decodeV2RefreshToken(response), identityType);
 
-                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
+                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id, setOptoutCheckFlagInRequest);
 
                     // When we refresh the token the user has opted out.
                     when(optOutStore.getLatestEntry(any(UserIdentity.class)))
@@ -3271,7 +3271,7 @@ public class UIDOperatorVerticleTest {
                         final AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
                         final RefreshToken refreshTokenFromRefresh = decodeRefreshToken(encoder, decodeV2RefreshToken(refreshRespJson), identityType);
 
-                        assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenFromRefresh, clientSideTokenGenerateSiteId, identityType);
+                        assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenFromRefresh, clientSideTokenGenerateSiteId, identityType, setOptoutCheckFlagInRequest);
 
                         verifyNoMoreInteractions(optOutStore);
 
@@ -3341,9 +3341,9 @@ public class UIDOperatorVerticleTest {
                     RefreshToken refreshToken = decodeRefreshToken(encoder, genBody.getString("decrypted_refresh_token"), identityType);
 
                     if (optOutExpected) {
-                            assertAreClientSideGeneratedOptOutTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType);
+                            assertAreClientSideGeneratedOptOutTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, setOptoutCheckFlagInRequest);
                     } else {
-                        assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
+                        assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id, setOptoutCheckFlagInRequest);
                     }
 
                     assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
@@ -3403,9 +3403,9 @@ public class UIDOperatorVerticleTest {
                         RefreshToken refreshTokenAfterRefresh = decodeRefreshToken(encoder, refreshTokenStringNew, identityType);
 
                         if (optOutExpected) {
-                            assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType);
+                            assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, setOptoutCheckFlagInRequest);
                         } else {
-                            assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id);
+                            assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id, setOptoutCheckFlagInRequest);
                         }
 
                         assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
@@ -3422,16 +3422,18 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity) {
+    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity,
+                                                    boolean expectClientSideTokenGenerateOptoutCheckOn) {
         assertAreClientSideGeneratedTokens(advertisingToken,
                 refreshToken,
                 siteId,
                 identityType,
                 identity,
-                false);
+                false,
+                expectClientSideTokenGenerateOptoutCheckOn);
     }
 
-    private void assertAreClientSideGeneratedOptOutTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType) {
+    private void assertAreClientSideGeneratedOptOutTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, boolean expectClientSideTokenGenerateOptoutCheckOn) {
         final String identity = getClientSideGeneratedTokenOptOutIdentity(identityType);
 
         assertAreClientSideGeneratedTokens(advertisingToken,
@@ -3439,10 +3441,12 @@ public class UIDOperatorVerticleTest {
                 siteId,
                 identityType,
                 identity,
-                true);
+                true,
+                expectClientSideTokenGenerateOptoutCheckOn);
     }
 
-    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity, boolean expectedOptOut) {
+    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity, boolean expectedOptOut,
+                                                    boolean expectClientSideTokenGenerateOptoutCheckOn) {
         final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits);
         final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits);
 
@@ -3454,6 +3458,9 @@ public class UIDOperatorVerticleTest {
         final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(identity, firstLevelSalt);
 
         assertAll(
+                () -> assertEquals(advertisingTokenPrivacyBits.isClientSideTokenGenerateOptoutCheckOn(), expectClientSideTokenGenerateOptoutCheckOn, "Advertising token privacy bits CSTG Optout Check flag is incorrect"),
+                () -> assertEquals(refreshTokenPrivacyBits.isClientSideTokenGenerateOptoutCheckOn(), expectClientSideTokenGenerateOptoutCheckOn, "Refresh token privacy bits CSTG Optout Check flag is incorrect"),
+
                 () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenGenerated(), "Advertising token privacy bits CSTG flag is incorrect"),
                 () -> assertEquals(expectedOptOut, advertisingTokenPrivacyBits.isClientSideTokenOptedOut(), "Advertising token privacy bits CSTG optout flag is incorrect"),
 

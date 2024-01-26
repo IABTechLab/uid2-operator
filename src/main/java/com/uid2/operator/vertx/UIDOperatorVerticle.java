@@ -424,7 +424,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
             }
             else {
-                //user opted out we will generate a token with the opted out user identity
+                //user opted out we will generate an optout token with the opted out user identity
                 privacyBits.setClientSideTokenGenerateOptout();
                 UserIdentity cstgOptOutIdentity;
                 if (input.getIdentityType() == IdentityType.Email) {
@@ -442,6 +442,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         else { //user not opted out and already generated valid identity token
             response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
         }
+        //if returning an optout token or a successful identity token created originally
         if (responseStatus == TokenResponseStatsCollector.ResponseStatus.Success) {
             V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
         }

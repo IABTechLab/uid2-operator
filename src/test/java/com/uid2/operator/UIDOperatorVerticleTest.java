@@ -3264,6 +3264,10 @@ public class UIDOperatorVerticleTest {
                             return;
                         }
 
+                        // EUID can't have an opt out token ever
+                        assertEquals(getIdentityScope(), IdentityScope.UID2);
+                        assertEquals(true, !doCstgOptoutResponse);
+
                         verify(optOutStore, times(2)).getLatestEntry(argumentCaptor.capture());
                         assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), argumentCaptor.getValue().id);
 
@@ -3398,6 +3402,10 @@ public class UIDOperatorVerticleTest {
                             return;
                         }
 
+                        // EUID can't have an opt out token - the only way is when optout isn't expected
+                        if(getIdentityScope() == IdentityScope.EUID) {
+                            assert(!optOutExpected);
+                        }
 
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");

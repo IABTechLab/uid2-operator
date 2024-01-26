@@ -3208,18 +3208,13 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "true,true,test@example.com,Email",
-            "true,true,+61400000000,Phone",
-            "true,false,test@example.com,Email",
-            "true,false,+61400000000,Phone",
-            "false,true,test@example.com,Email",
-            "false,true,+61400000000,Phone",
-            "false,false,test@example.com,Email",
-            "false,false,+61400000000,Phone",
+            "true,test@example.com,Email",
+            "true,+61400000000,Phone",
+            "false,test@example.com,Email",
+            "false,+61400000000,Phone",
     })
-    void cstgUserOptsOutAfterTokenGenerate(boolean setOptoutCheckFlagInRequest, boolean doCstgOptoutResponse, String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgUserOptsOutAfterTokenGenerate(boolean setOptoutCheckFlagInRequest, String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
-        this.uidOperatorVerticle.setCstgOptoutResponse(doCstgOptoutResponse);
 
         final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
         if(setOptoutCheckFlagInRequest) {
@@ -3258,7 +3253,7 @@ public class UIDOperatorVerticleTest {
 
                     sendTokenRefresh("v2", vertx, testContext, genBody.getString("refresh_token"), genBody.getString("refresh_response_key"), 200, refreshRespJson -> {
 
-                        if (doCstgOptoutResponse || getIdentityScope() == IdentityScope.EUID) {
+                        if (setOptoutCheckFlagInRequest || getIdentityScope() == IdentityScope.EUID) {
                             assertEquals("optout", refreshRespJson.getString("status"));
                             testContext.completeNow();
                             return;
@@ -3266,7 +3261,6 @@ public class UIDOperatorVerticleTest {
 
                         // EUID can't have an opt out token ever
                         assertEquals(getIdentityScope(), IdentityScope.UID2);
-                        assertEquals(true, !doCstgOptoutResponse);
 
                         verify(optOutStore, times(2)).getLatestEntry(argumentCaptor.capture());
                         assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), argumentCaptor.getValue().id);
@@ -3291,27 +3285,18 @@ public class UIDOperatorVerticleTest {
     // tests for all email/phone combos
     @ParameterizedTest
     @CsvSource({
-            "true,true,true,abc@abc.com,Email,optout@unifiedid.com",
-            "true,true,true,+61400000000,Phone,+00000000001",
-            "true,true,false,abc@abc.com,Email,optout@unifiedid.com",
-            "true,true,false,+61400000000,Phone,+00000000001",
-            "true,false,true,abc@abc.com,Email,optout@unifiedid.com",
-            "true,false,true,+61400000000,Phone,+00000000001",
-            "true,false,false,abc@abc.com,Email,optout@unifiedid.com",
-            "true,false,false,+61400000000,Phone,+00000000001",
-            "false,true,true,abc@abc.com,Email,optout@unifiedid.com",
-            "false,true,true,+61400000000,Phone,+00000000001",
-            "false,true,false,abc@abc.com,Email,optout@unifiedid.com",
-            "false,true,false,+61400000000,Phone,+00000000001",
-            "false,false,true,abc@abc.com,Email,optout@unifiedid.com",
-            "false,false,true,+61400000000,Phone,+00000000001",
-            "false,false,false,abc@abc.com,Email,optout@unifiedid.com",
-            "false,false,false,+61400000000,Phone,+00000000001"
+            "true,true,abc@abc.com,Email,optout@unifiedid.com",
+            "true,true,+61400000000,Phone,+00000000001",
+            "true,false,abc@abc.com,Email,optout@unifiedid.com",
+            "true,false,+61400000000,Phone,+00000000001",
+            "false,true,abc@abc.com,Email,optout@unifiedid.com",
+            "false,true,+61400000000,Phone,+00000000001",
+            "false,false,abc@abc.com,Email,optout@unifiedid.com",
+            "false,false,+61400000000,Phone,+00000000001"
     })
-    void cstgOptedOutTest(boolean setOptoutCheckFlagInRequest, boolean doCstgOptoutResponse, boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
+    void cstgOptedOutTest(boolean setOptoutCheckFlagInRequest, boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
                           Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
-        this.uidOperatorVerticle.setCstgOptoutResponse(doCstgOptoutResponse);
 
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
 
@@ -3339,8 +3324,7 @@ public class UIDOperatorVerticleTest {
                 respJson -> {
 
                     if (optOutExpected
-                            && (setOptoutCheckFlagInRequest || getIdentityScope() == IdentityScope.EUID)
-                            && (doCstgOptoutResponse || getIdentityScope() == IdentityScope.EUID)) {
+                            && (setOptoutCheckFlagInRequest || getIdentityScope() == IdentityScope.EUID)) {
                         assertEquals("optout", respJson.getString("status"));
                         testContext.completeNow();
                         return;
@@ -3395,8 +3379,7 @@ public class UIDOperatorVerticleTest {
                     {
 
                         if (optOutExpected
-                                && (setOptoutCheckFlagInRequest || getIdentityScope() == IdentityScope.EUID)
-                                && (doCstgOptoutResponse || getIdentityScope() == IdentityScope.EUID)) {
+                                && (setOptoutCheckFlagInRequest || getIdentityScope() == IdentityScope.EUID)) {
                             assertEquals("optout", respJson.getString("status"));
                             testContext.completeNow();
                             return;

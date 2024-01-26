@@ -36,10 +36,4 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
         this.keySharingEndpointProvideSiteDomainNames = enable;
     }
 
-    public void setCstgOptoutResponse(boolean enable) {
-        this.cstgDoOptoutResponseForUID2 = enable;
-        UIDOperatorService concreteUIDOperatorService = ((UIDOperatorService) this.idService);
-        concreteUIDOperatorService.setCstgDoOptoutResponseForUid2(enable);
-    }
-
 }

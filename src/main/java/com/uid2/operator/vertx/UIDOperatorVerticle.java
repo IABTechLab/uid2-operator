@@ -103,9 +103,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
-
-    // UID2-2635 EUID MUST have optout response in CSTG request processing so this feature switch is just for UID2
-    protected boolean cstgDoOptoutResponseForUID2;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
@@ -144,8 +141,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
-        //UID2-2635 EUID must always return optout response for CSTG regardless of settings so this feature switch is for UID2 only
-        this.cstgDoOptoutResponseForUID2 = config.getBoolean("client_side_token_generate_optout_response_for_uid2_enabled", false);
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
@@ -160,8 +155,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.saltProvider,
                 this.encoder,
                 this.clock,
-                this.identityScope,
-                this.cstgDoOptoutResponseForUID2
+                this.identityScope
         );
 
         final Router router = createRoutesSetup();
@@ -408,18 +402,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();
 
+        boolean cstgRequestHasOptoutCheckFlag = request.getOptoutCheck() == OptoutCheckPolicy.RespectOptOut.ordinal();
+        if(cstgRequestHasOptoutCheckFlag) {
+            privacyBits.setClientSideTokenGenerateOptoutCheck();
+        }
+
         IdentityTokens identityTokens = this.idService.generateIdentity(
                 new IdentityRequest(
                         new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                         OptoutCheckPolicy.RespectOptOut));
 
-        boolean cstgRequestHasOptoutCheckFlag = request.getOptoutCheck() == OptoutCheckPolicy.RespectOptOut.ordinal();
         JsonObject response;
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
         if (identityTokens.isEmptyToken()) {
-            if (UIDOperatorService.shouldCstgOptedOutUserReturnOptOutResponse(identityScope, cstgDoOptoutResponseForUID2, cstgRequestHasOptoutCheckFlag)) {
+            if (UIDOperatorService.shouldCstgOptedOutUserReturnOptOutResponse(identityScope, cstgRequestHasOptoutCheckFlag)) {
                 response = ResponseUtil.SuccessNoBodyV2("optout");
                 responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
             }

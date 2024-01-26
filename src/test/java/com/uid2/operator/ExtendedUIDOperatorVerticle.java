@@ -4,6 +4,7 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.SecureLinkValidatorService;
+import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.store.*;
@@ -37,6 +38,8 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
 
     public void setCstgOptoutResponse(boolean enable) {
         this.cstgDoOptoutResponseForUID2 = enable;
+        UIDOperatorService concreteUIDOperatorService = ((UIDOperatorService) this.idService);
+        concreteUIDOperatorService.setCstgDoOptoutResponseForUid2(enable);
     }
 
 }

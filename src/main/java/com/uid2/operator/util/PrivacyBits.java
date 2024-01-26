@@ -7,7 +7,6 @@ public class PrivacyBits {
     private static final int BIT_CSTG = 1;
     private static final int BIT_CSTG_OPTOUT = 2;
 
-
     private int bits = 0;
 
     public static PrivacyBits fromInt(int privacyBits) { return new PrivacyBits(privacyBits); }

@@ -50,7 +50,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final int advertisingTokenV4Percentage;
     private final TokenVersion refreshTokenVersion;
     private final boolean identityV3Enabled;
-    private final boolean cstgDoOptoutResponseForUid2;
+    protected boolean cstgDoOptoutResponseForUid2;
 
     public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
                               IdentityScope identityScope, boolean cstgDoOptoutResponseForUid2) {
@@ -98,6 +98,11 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.cstgDoOptoutResponseForUid2 = cstgDoOptoutResponseForUid2;
     }
 
+    public void setCstgDoOptoutResponseForUid2(boolean cstgDoOptoutResponseForUid2) {
+        this.cstgDoOptoutResponseForUid2 = cstgDoOptoutResponseForUid2;
+    }
+
+
     @Override
     public IdentityTokens generateIdentity(IdentityRequest request) {
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
@@ -132,7 +137,10 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         final PrivacyBits privacyBits = PrivacyBits.fromInt(token.userIdentity.privacyBits);
         final boolean isCstg = privacyBits.isClientSideTokenGenerated();
-        final boolean shouldCstgOptedOutUserReturnOptOutToken = !shouldCstgOptedOutUserReturnOptOutResponse(identityScope, cstgDoOptoutResponseForUid2);
+        final boolean hasCstgOptOutFlag = !privacyBits.isClientSideTokenOptedOut();
+
+        final boolean shouldCstgOptedOutUserReturnOptOutToken = !shouldCstgOptedOutUserReturnOptOutResponse(identityScope,
+                cstgDoOptoutResponseForUid2, hasCstgOptOutFlag);
 
         try {
             final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.userIdentity, true);
@@ -349,10 +357,11 @@ public class UIDOperatorService implements IUIDOperatorService {
         return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
     }
 
-    public static boolean shouldCstgOptedOutUserReturnOptOutResponse(IdentityScope identityScope, boolean cstgDoOptoutResponseForUid2) {
-        if(identityScope == IdentityScope.EUID) {
+    public static boolean shouldCstgOptedOutUserReturnOptOutResponse(IdentityScope identityScope, boolean cstgDoOptoutResponseForUid2, boolean
+            cstgRequestHasOptoutCheckFlag) {
+        if (identityScope == IdentityScope.EUID) {
             return true;
         }
-        return cstgDoOptoutResponseForUid2;
+        return cstgDoOptoutResponseForUid2 && cstgRequestHasOptoutCheckFlag;
     }
 }

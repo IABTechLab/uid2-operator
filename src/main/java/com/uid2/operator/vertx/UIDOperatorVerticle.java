@@ -414,12 +414,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                         OptoutCheckPolicy.RespectOptOut));
 
-
+        boolean cstgRequestHasOptoutCheckFlag = request.getOptoutCheck() == OptoutCheckPolicy.RespectOptOut.ordinal();
         JsonObject response;
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
         if (identityTokens.isEmptyToken()) {
-            if (UIDOperatorService.shouldCstgOptedOutUserReturnOptOutResponse(IdentityScope.EUID, cstgDoOptoutResponseForUID2)) {
+            if (UIDOperatorService.shouldCstgOptedOutUserReturnOptOutResponse(identityScope, cstgDoOptoutResponseForUID2, cstgRequestHasOptoutCheckFlag)) {
                 response = ResponseUtil.SuccessNoBodyV2("optout");
                 responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
             }

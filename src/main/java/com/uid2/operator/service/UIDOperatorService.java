@@ -50,10 +50,10 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final int advertisingTokenV4Percentage;
     private final TokenVersion refreshTokenVersion;
     private final boolean identityV3Enabled;
-    private final boolean cstgDoOptoutResponse;
+    private final boolean cstgDoOptoutResponseForUid2;
 
     public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, boolean cstgDoOptoutResponse) {
+                              IdentityScope identityScope, boolean cstgDoOptoutResponseForUid2) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
@@ -95,7 +95,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.refreshTokenVersion = TokenVersion.V3;
         this.identityV3Enabled = config.getBoolean("identity_v3", false);
 
-        this.cstgDoOptoutResponse = cstgDoOptoutResponse;
+        this.cstgDoOptoutResponseForUid2 = cstgDoOptoutResponseForUid2;
     }
 
     @Override
@@ -131,7 +131,8 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
 
         final PrivacyBits privacyBits = PrivacyBits.fromInt(token.userIdentity.privacyBits);
-        final boolean shouldCstgOptedOutUserReturnOptOutToken = privacyBits.isClientSideTokenGenerated() && !this.cstgDoOptoutResponse;
+        final boolean isCstg = privacyBits.isClientSideTokenGenerated();
+        final boolean shouldCstgOptedOutUserReturnOptOutToken = !shouldCstgOptedOutUserReturnOptOutResponse(identityScope, cstgDoOptoutResponseForUid2);
 
         try {
             final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.userIdentity, true);
@@ -142,8 +143,8 @@ public class UIDOperatorService implements IUIDOperatorService {
             if (!optedOut) {
                 IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
 
-                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, shouldCstgOptedOutUserReturnOptOutToken);
-            } else if (shouldCstgOptedOutUserReturnOptOutToken) {
+                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
+            } else if (isCstg && shouldCstgOptedOutUserReturnOptOutToken) {
 
                 // The user has opted out after the userIdentity was established.
                 privacyBits.setClientSideTokenGenerateOptout();
@@ -346,5 +347,12 @@ public class UIDOperatorService implements IUIDOperatorService {
     public TokenVersion getAdvertisingTokenVersionForTests() {
         assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
         return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
+    }
+
+    public static boolean shouldCstgOptedOutUserReturnOptOutResponse(IdentityScope identityScope, boolean cstgDoOptoutResponseForUid2) {
+        if(identityScope == IdentityScope.EUID) {
+            return true;
+        }
+        return cstgDoOptoutResponseForUid2;
     }
 }

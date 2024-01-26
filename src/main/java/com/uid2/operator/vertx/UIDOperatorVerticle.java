@@ -1,7 +1,6 @@
 package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
-import com.uid2.operator.IdentityConst;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -104,7 +103,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
-    protected boolean cstgDoOptoutResponse;
+
+    // UID2-2635 EUID MUST have optout response in CSTG request processing so this feature switch is just for UID2
+    protected boolean cstgDoOptoutResponseForUID2;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
@@ -143,8 +144,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
-        //EUID must always return optout response for CSTG regardless of settings
-        this.cstgDoOptoutResponse = config.getBoolean("client_side_token_generate_optout_response_enabled", false) || identityScope == IdentityScope.EUID;
+        //UID2-2635 EUID must always return optout response for CSTG regardless of settings so this feature switch is for UID2 only
+        this.cstgDoOptoutResponseForUID2 = config.getBoolean("client_side_token_generate_optout_response_for_uid2_enabled", false);
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
@@ -160,7 +161,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.encoder,
                 this.clock,
                 this.identityScope,
-                this.cstgDoOptoutResponse
+                this.cstgDoOptoutResponseForUID2
         );
 
         final Router router = createRoutesSetup();
@@ -418,8 +419,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
         if (identityTokens.isEmptyToken()) {
-            //always return optout response if it's EUID or when feature switch is on
-            if (this.identityScope == IdentityScope.EUID || cstgDoOptoutResponse ) {
+            if (UIDOperatorService.shouldCstgOptedOutUserReturnOptOutResponse(IdentityScope.EUID, cstgDoOptoutResponseForUID2)) {
                 response = ResponseUtil.SuccessNoBodyV2("optout");
                 responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
             }

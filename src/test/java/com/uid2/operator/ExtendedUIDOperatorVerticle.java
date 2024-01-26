@@ -36,7 +36,7 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
     }
 
     public void setCstgOptoutResponse(boolean enable) {
-        this.cstgDoOptoutResponse = enable;
+        this.cstgDoOptoutResponseForUID2 = enable;
     }
 
 }

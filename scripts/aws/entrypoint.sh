@@ -15,26 +15,37 @@ echo "Starting vsock proxy..."
 echo "Loading env vars via proxy..."
 
 if [ "${IDENTITY_SCOPE}" = "UID2" ]; then
-  UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
+  USER_DATA=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data)
+  UID2_CONFIG_SECRET_KEY=$([[ "$(echo USER_DATA | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
+  CORE_BASE_URL=$([[ "$(echo USER_DATA | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
+  OPTOUT_BASE_URL=$([[ "$(echo USER_DATA | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
+  ENFORCE_HTTPS=$([[ "$(echo USER_DATA | grep ENFORCE_HTTPS=)" =~ ^export\ ENFORCE_HTTPS=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
 elif [ "${IDENTITY_SCOPE}" = "EUID" ]; then
-  UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | grep EUID_CONFIG_SECRET_KEY=)" =~ ^export\ EUID_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "euid-operator-config-key")
+  USER_DATA=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data)
+  UID2_CONFIG_SECRET_KEY=$([[ "$(echo USER_DATA | grep EUID_CONFIG_SECRET_KEY=)" =~ ^export\ EUID_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "euid-operator-config-key")
+  CORE_BASE_URL=$([[ "$(echo USER_DATA | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
+  OPTOUT_BASE_URL=$([[ "$(echo USER_DATA | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
+  ENFORCE_HTTPS=$([[ "$(echo USER_DATA | grep ENFORCE_HTTPS=)" =~ ^export\ ENFORCE_HTTPS=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
 else
   echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"
   exit 1
 fi
 echo "UID2_CONFIG_SECRET_KEY=${UID2_CONFIG_SECRET_KEY}"
+echo "CORE_BASE_URL=${CORE_BASE_URL}"
+echo "OPTOUT_BASE_URL=${OPTOUT_BASE_URL}"
+echo "ENFORCE_HTTPS=${ENFORCE_HTTPS}"
 
 export AWS_REGION_NAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r '.region')
 echo "AWS_REGION_NAME=${AWS_REGION_NAME}"
 echo "127.0.0.1 secretsmanager.${AWS_REGION_NAME}.amazonaws.com" >> /etc/hosts
 
 IAM_ROLE=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/iam/security-credentials/)
-echo "IAM_ROLE=$IAM_ROLE"
+echo "IAM_ROLE=${IAM_ROLE}"
 
-CREDS_ENDPOINT="http://169.254.169.254/latest/meta-data/iam/security-credentials/$IAM_ROLE"
-export AWS_ACCESS_KEY_ID=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.AccessKeyId')
-export AWS_SECRET_KEY=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.Token')
+CREDS_ENDPOINT="http://169.254.169.254/latest/meta-data/iam/security-credentials/${IAM_ROLE}"
+export AWS_ACCESS_KEY_ID=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r '.AccessKeyId')
+export AWS_SECRET_KEY=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r '.SecretAccessKey')
+export AWS_SESSION_TOKEN=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r '.Token')
 
 # -- load configs via proxy
 echo "Loading config overrides..."
@@ -42,6 +53,7 @@ export OVERRIDES_CONFIG="/app/conf/config-overrides.json"
 python3 /app/load_config.py > ${OVERRIDES_CONFIG}
 
 export DEPLOYMENT_ENVIRONMENT=$(jq -r '.environment' < ${OVERRIDES_CONFIG})
+echo "DEPLOYMENT_ENVIRONMENT=${DEPLOYMENT_ENVIRONMENT}"
 if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then
   echo "DEPLOYMENT_ENVIRONMENT cannot be empty"
   exit 1

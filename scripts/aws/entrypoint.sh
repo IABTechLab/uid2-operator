@@ -16,17 +16,16 @@ echo "Loading env vars via proxy..."
 
 if [ "${IDENTITY_SCOPE}" = "UID2" ]; then
   USER_DATA=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data)
-  echo ${USER_DATA}
-  UID2_CONFIG_SECRET_KEY=$([[ "$(echo USER_DATA | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
-  CORE_BASE_URL=$([[ "$(echo USER_DATA | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
-  OPTOUT_BASE_URL=$([[ "$(echo USER_DATA | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
-  ENFORCE_HTTPS=$([[ "$(echo USER_DATA | grep ENFORCE_HTTPS=)" =~ ^export\ ENFORCE_HTTPS=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
+  UID2_CONFIG_SECRET_KEY=$([[ "$(echo "${USER_DATA}" | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
+  CORE_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
+  OPTOUT_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
+  ENFORCE_HTTPS=$([[ "$(echo "${USER_DATA}" | grep ENFORCE_HTTPS=)" =~ ^export\ ENFORCE_HTTPS=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "false")
 elif [ "${IDENTITY_SCOPE}" = "EUID" ]; then
   USER_DATA=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data)
-  UID2_CONFIG_SECRET_KEY=$([[ "$(echo USER_DATA | grep EUID_CONFIG_SECRET_KEY=)" =~ ^export\ EUID_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "euid-operator-config-key")
-  CORE_BASE_URL=$([[ "$(echo USER_DATA | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
-  OPTOUT_BASE_URL=$([[ "$(echo USER_DATA | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
-  ENFORCE_HTTPS=$([[ "$(echo USER_DATA | grep ENFORCE_HTTPS=)" =~ ^export\ ENFORCE_HTTPS=\"(.*)\" ]] && echo "${BASH_REMATCH[1]}" || echo "")
+  UID2_CONFIG_SECRET_KEY=$([[ "$(echo "${USER_DATA}" | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
+  CORE_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
+  OPTOUT_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
+  ENFORCE_HTTPS=$([[ "$(echo "${USER_DATA}" | grep ENFORCE_HTTPS=)" =~ ^export\ ENFORCE_HTTPS=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "false")
 else
   echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"
   exit 1

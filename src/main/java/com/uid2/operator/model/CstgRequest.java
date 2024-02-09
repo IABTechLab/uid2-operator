@@ -11,9 +11,6 @@ public class CstgRequest {
     private String publicKey;
     private long timestamp;
 
-    @JsonProperty("optout_check")
-    private int optoutCheck = 0;
-
     public String getPayload() {
         return payload;
     }
@@ -33,7 +30,5 @@ public class CstgRequest {
     public long getTimestamp() {
         return timestamp;
     }
-
-    public int getOptoutCheck() { return optoutCheck; }
 }
 

@@ -2695,10 +2695,15 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"https://blahblah.com", "http://local1host:8080"})
-    void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    @CsvSource({
+            "true,https://blahblah.com",
+            "false,https://blahblah.com",
+            "true,http://local1host:8080", //intentionally spelling localhost wrong here!
+            "false,http://local1host:8080",
+    })
+    void cstgDomainNameCheckFails(boolean setOptoutCheckFlagInRequest, String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
@@ -2719,10 +2724,17 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"https://cstg.co.uk", "https://cstg2.com", "http://localhost:8080"})
-    void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    @CsvSource({
+            "true,https://cstg.co.uk",
+            "false,https://cstg.co.uk",
+            "true,https://cstg2.com",
+            "false,https://cstg2.com",
+            "true,http://localhost:8080",
+            "false,http://localhost:8080",
+    })
+    void cstgDomainNameCheckPasses(boolean setOptoutCheckFlagInRequest, String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk", "cstg2.com", "localhost");
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
@@ -3184,7 +3196,7 @@ public class UIDOperatorVerticleTest {
         return new Tuple.Tuple2<>(requestJson, secretKey);
     }
 
-    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId, long timestamp) throws NoSuchAlgorithmException, InvalidKeyException {
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId, long timestamp, boolean setOptoutCheckFlagInRequest) throws NoSuchAlgorithmException, InvalidKeyException {
 
         JsonObject identity = new JsonObject();
 
@@ -3197,6 +3209,11 @@ public class UIDOperatorVerticleTest {
         else { //can't be other types
             assertFalse(true);
         }
+
+        if(setOptoutCheckFlagInRequest) {
+            identity.put("optout_check", 1);
+        }
+
         return createClientSideTokenGenerateRequestWithPayload(identity, timestamp);
     }
 
@@ -3216,10 +3233,7 @@ public class UIDOperatorVerticleTest {
     void cstgUserOptsOutAfterTokenGenerate(boolean setOptoutCheckFlagInRequest, String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
 
-        final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
-        if(setOptoutCheckFlagInRequest) {
-            data.getItem1().put("optout_check", 1);
-        }
+        final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
 
         // When we generate the token the user hasn't opted out.
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
@@ -3298,11 +3312,7 @@ public class UIDOperatorVerticleTest {
                           Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
-
-        if(setOptoutCheckFlagInRequest) {
-            data.getItem1().put("optout_check", 1);
-        }
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
 
         if(optOutExpected)
         {

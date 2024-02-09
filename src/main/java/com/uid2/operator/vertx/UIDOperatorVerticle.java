@@ -374,6 +374,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final String emailHash = requestPayload.getString("email_hash");
         final String phoneHash = requestPayload.getString("phone_hash");
+        final int optoutCheck = requestPayload.getInteger("optout_check", 0);
+        final boolean cstgRequestHasOptoutCheckFlag = optoutCheck == OptoutCheckPolicy.RespectOptOut.ordinal();
         final InputUtil.InputVal input;
 
 
@@ -402,7 +404,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();
 
-        boolean cstgRequestHasOptoutCheckFlag = request.getOptoutCheck() == OptoutCheckPolicy.RespectOptOut.ordinal();
         if(cstgRequestHasOptoutCheckFlag) {
             privacyBits.setClientSideTokenGenerateOptoutResponse();
         }

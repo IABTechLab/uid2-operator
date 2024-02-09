@@ -3,16 +3,6 @@
 set -o pipefail
 ulimit -n 65536
 
-# for number/boolean
-# https://jqlang.github.io/jq/manual/
-# --argjson foo 123 will bind $foo to 123.
-function jq_inplace_update_json() {
-    local file=$1
-    local field=$2
-    local value=$3
-    jq --argjson v "${value}" ".${field} = \$v" "${file}" > ${TMP_FINAL_CONFIG} && mv ${TMP_FINAL_CONFIG} "${file}"
-}
-
 # -- setup loopback device
 echo "Setting up loopback device..."
 ifconfig lo 127.0.0.1
@@ -86,6 +76,17 @@ fi
 
 get_config_value() {
   jq -r ".\"$1\"" ${FINAL_CONFIG}
+}
+
+# for number/boolean
+# https://jqlang.github.io/jq/manual/
+# --argjson foo 123 will bind $foo to 123.
+TMP_FINAL_CONFIG="/tmp/final-config.tmp"
+function jq_inplace_update_json() {
+    local file=$1
+    local field=$2
+    local value=$3
+    jq --argjson v "${value}" ".${field} = \$v" "${file}" > ${TMP_FINAL_CONFIG} && mv ${TMP_FINAL_CONFIG} "${file}"
 }
 
 # -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided

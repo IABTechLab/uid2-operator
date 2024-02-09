@@ -3458,8 +3458,8 @@ public class UIDOperatorVerticleTest {
         final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(identity, firstLevelSalt);
 
         assertAll(
-                () -> assertEquals(advertisingTokenPrivacyBits.isClientSideTokenGenerateOptoutCheckOn(), expectClientSideTokenGenerateOptoutCheckOn, "Advertising token privacy bits CSTG Optout Check flag is incorrect"),
-                () -> assertEquals(refreshTokenPrivacyBits.isClientSideTokenGenerateOptoutCheckOn(), expectClientSideTokenGenerateOptoutCheckOn, "Refresh token privacy bits CSTG Optout Check flag is incorrect"),
+                () -> assertEquals(advertisingTokenPrivacyBits.isClientSideTokenGenerateOptoutResponseOn(), expectClientSideTokenGenerateOptoutCheckOn, "Advertising token privacy bits CSTG Optout Check flag is incorrect"),
+                () -> assertEquals(refreshTokenPrivacyBits.isClientSideTokenGenerateOptoutResponseOn(), expectClientSideTokenGenerateOptoutCheckOn, "Refresh token privacy bits CSTG Optout Check flag is incorrect"),
 
                 () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenGenerated(), "Advertising token privacy bits CSTG flag is incorrect"),
                 () -> assertEquals(expectedOptOut, advertisingTokenPrivacyBits.isClientSideTokenOptedOut(), "Advertising token privacy bits CSTG optout flag is incorrect"),

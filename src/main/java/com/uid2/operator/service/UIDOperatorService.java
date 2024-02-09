@@ -129,7 +129,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         final PrivacyBits privacyBits = PrivacyBits.fromInt(token.userIdentity.privacyBits);
         final boolean isCstg = privacyBits.isClientSideTokenGenerated();
-        final boolean hasCstgOptOutFlag = privacyBits.isClientSideTokenGenerateOptoutCheckOn();
+        final boolean hasCstgOptOutFlag = privacyBits.isClientSideTokenGenerateOptoutResponseOn();
         final boolean shouldCstgOptedOutUserReturnOptOutToken = !shouldCstgOptedOutUserReturnOptOutResponse(identityScope, hasCstgOptOutFlag);
 
         try {

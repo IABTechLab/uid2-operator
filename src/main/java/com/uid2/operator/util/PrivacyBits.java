@@ -6,7 +6,7 @@ public class PrivacyBits {
     private static final int BIT_LEGACY = 0;
     private static final int BIT_CSTG = 1;
     private static final int BIT_CSTG_OPTOUT = 2;
-    private static final int BIT_CSTG_OPTOUT_CHECK = 3;
+    private static final int BIT_CSTG_OPTOUT_RESPONSE = 3;
 
     private int bits = 0;
 
@@ -33,9 +33,9 @@ public class PrivacyBits {
         return isBitSet(BIT_CSTG_OPTOUT);
     }
 
-    public void setClientSideTokenGenerateOptoutCheck() { setBit(BIT_CSTG_OPTOUT_CHECK); }
-    public boolean isClientSideTokenGenerateOptoutCheckOn() {
-        return isBitSet(BIT_CSTG_OPTOUT_CHECK);
+    public void setClientSideTokenGenerateOptoutResponse() { setBit(BIT_CSTG_OPTOUT_RESPONSE); }
+    public boolean isClientSideTokenGenerateOptoutResponseOn() {
+        return isBitSet(BIT_CSTG_OPTOUT_RESPONSE);
     }
 
     public void setLegacyBit() {

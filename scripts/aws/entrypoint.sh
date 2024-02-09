@@ -10,7 +10,7 @@ function jq_inplace_update_json() {
     local file=$1
     local field=$2
     local value=$3
-    jq --argjson v "$value" ".$field = \$v" "$file" > $TMP_FINAL_CONFIG && mv $TMP_FINAL_CONFIG "$file"
+    jq --argjson v "${value}" ".${field} = \$v" "${file}" > ${TMP_FINAL_CONFIG} && mv ${TMP_FINAL_CONFIG} "${file}"
 }
 
 # -- setup loopback device
@@ -45,7 +45,7 @@ echo "CORE_BASE_URL=${CORE_BASE_URL}"
 echo "OPTOUT_BASE_URL=${OPTOUT_BASE_URL}"
 echo "ENFORCE_HTTPS=${ENFORCE_HTTPS}"
 
-export AWS_REGION_NAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r '.region')
+export AWS_REGION_NAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r ".region")
 echo "AWS_REGION_NAME=${AWS_REGION_NAME}"
 echo "127.0.0.1 secretsmanager.${AWS_REGION_NAME}.amazonaws.com" >> /etc/hosts
 
@@ -53,31 +53,31 @@ IAM_ROLE=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/met
 echo "IAM_ROLE=${IAM_ROLE}"
 
 CREDS_ENDPOINT="http://169.254.169.254/latest/meta-data/iam/security-credentials/${IAM_ROLE}"
-export AWS_ACCESS_KEY_ID=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r '.AccessKeyId')
-export AWS_SECRET_KEY=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r '.Token')
+export AWS_ACCESS_KEY_ID=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r ".AccessKeyId")
+export AWS_SECRET_KEY=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r ".SecretAccessKey")
+export AWS_SESSION_TOKEN=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r ".Token")
 
 # -- load configs via proxy
 echo "Loading config overrides..."
 export OVERRIDES_CONFIG="/app/conf/config-overrides.json"
 python3 /app/load_config.py > ${OVERRIDES_CONFIG}
 
-export DEPLOYMENT_ENVIRONMENT=$(jq -r '.environment' < ${OVERRIDES_CONFIG})
+export DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < ${OVERRIDES_CONFIG})
 echo "DEPLOYMENT_ENVIRONMENT=${DEPLOYMENT_ENVIRONMENT}"
 if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then
   echo "DEPLOYMENT_ENVIRONMENT cannot be empty"
   exit 1
 fi
-if [ "${DEPLOYMENT_ENVIRONMENT}" != 'prod' ] && [ "${DEPLOYMENT_ENVIRONMENT}" != 'integ' ]; then
+if [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "integ" ]; then
   echo "Unrecognized DEPLOYMENT_ENVIRONMENT ${DEPLOYMENT_ENVIRONMENT}"
   exit 1
 fi
 
 echo "Loading config final..."
 export FINAL_CONFIG="/app/conf/config-final.json"
-if [ "${IDENTITY_SCOPE}" = 'UID2' ]; then
+if [ "${IDENTITY_SCOPE}" = "UID2" ]; then
   python3 /app/make_config.py /app/conf/prod-uid2-config.json /app/conf/integ-uid2-config.json ${OVERRIDES_CONFIG} "$(nproc)" > ${FINAL_CONFIG}
-elif [ "${IDENTITY_SCOPE}" = 'EUID' ]; then
+elif [ "${IDENTITY_SCOPE}" = "EUID" ]; then
   python3 /app/make_config.py /app/conf/prod-euid-config.json /app/conf/integ-euid-config.json ${OVERRIDES_CONFIG} "$(nproc)" > ${FINAL_CONFIG}
 else
   echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"

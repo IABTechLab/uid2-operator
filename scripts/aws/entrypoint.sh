@@ -126,6 +126,6 @@ java \
   -Djava.security.egd=file:/dev/./urandom \
   -Djava.library.path=/app/lib \
   -Dvertx-config-path="${FINAL_CONFIG}" \
-  $SETUP_LOKI_LINE \
+  ${SETUP_LOKI_LINE} \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
   -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar

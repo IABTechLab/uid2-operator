@@ -94,7 +94,9 @@ function jq_inplace_update_json() {
 if [ -n "${CORE_BASE_URL}" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
     echo "Replacing core and optout URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}..."
     sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
+    sed -i "s#https://core-prod.uidapi.com#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
+    sed -i "s#https://optout-prod.uidapi.com#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
 fi
 
 # -- replace `enforce_https` value to ENFORCE_HTTPS if provided
@@ -124,6 +126,6 @@ java \
   -Djava.security.egd=file:/dev/./urandom \
   -Djava.library.path=/app/lib \
   -Dvertx-config-path="${FINAL_CONFIG}" \
-  "${SETUP_LOKI_LINE}" \
+  $SETUP_LOKI_LINE \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
   -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar

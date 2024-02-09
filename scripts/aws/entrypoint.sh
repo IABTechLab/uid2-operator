@@ -1,4 +1,4 @@
-#!/bin/bash -euf
+#!/bin/bash -eufx
 
 set -o pipefail
 ulimit -n 65536
@@ -43,16 +43,16 @@ IAM_ROLE=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/met
 echo "IAM_ROLE=${IAM_ROLE}"
 
 CREDS_ENDPOINT="http://169.254.169.254/latest/meta-data/iam/security-credentials/${IAM_ROLE}"
-export AWS_ACCESS_KEY_ID=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r ".AccessKeyId")
-export AWS_SECRET_KEY=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r ".SecretAccessKey")
-export AWS_SESSION_TOKEN=$(curl -s -x socks5h://127.0.0.1:3305 ${CREDS_ENDPOINT} | jq -r ".Token")
+export AWS_ACCESS_KEY_ID=$(curl -s -x socks5h://127.0.0.1:3305 "${CREDS_ENDPOINT}" | jq -r ".AccessKeyId")
+export AWS_SECRET_KEY=$(curl -s -x socks5h://127.0.0.1:3305 "${CREDS_ENDPOINT}" | jq -r ".SecretAccessKey")
+export AWS_SESSION_TOKEN=$(curl -s -x socks5h://127.0.0.1:3305 "${CREDS_ENDPOINT}" | jq -r ".Token")
 
 # -- load configs via proxy
 echo "Loading config overrides..."
 export OVERRIDES_CONFIG="/app/conf/config-overrides.json"
-python3 /app/load_config.py > ${OVERRIDES_CONFIG}
+python3 /app/load_config.py > "${OVERRIDES_CONFIG}"
 
-export DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < ${OVERRIDES_CONFIG})
+export DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${OVERRIDES_CONFIG}")
 echo "DEPLOYMENT_ENVIRONMENT=${DEPLOYMENT_ENVIRONMENT}"
 if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then
   echo "DEPLOYMENT_ENVIRONMENT cannot be empty"
@@ -86,22 +86,24 @@ function jq_inplace_update_json() {
     local file=$1
     local field=$2
     local value=$3
-    jq --argjson v "${value}" ".${field} = \$v" "${file}" > ${TMP_FINAL_CONFIG} && mv ${TMP_FINAL_CONFIG} "${file}"
+    jq --argjson v "${value}" ".${field} = \$v" "${file}" > "${TMP_FINAL_CONFIG}" && mv "${TMP_FINAL_CONFIG}" "${file}"
 }
 
 # -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
 # -- using hardcoded domains is fine because they should not be changed frequently
 if [ -n "${CORE_BASE_URL}" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
     echo "Replacing core and optout URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}..."
-    sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
-    sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
+    sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
+    sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
 fi
 
 # -- replace `enforce_https` value to ENFORCE_HTTPS if provided
 if [ "${ENFORCE_HTTPS}" == false ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
     echo "Replacing enforce_https by ${ENFORCE_HTTPS}..."
-    jq_inplace_update_json ${FINAL_CONFIG} enforce_https false
+    jq_inplace_update_json "${FINAL_CONFIG}" enforce_https false
 fi
+
+cat "${FINAL_CONFIG}"
 
 # -- setup loki
 echo "Setting up Loki..."
@@ -121,7 +123,7 @@ java \
   -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
   -Djava.security.egd=file:/dev/./urandom \
   -Djava.library.path=/app/lib \
-  -Dvertx-config-path=/app/conf/config-final.json \
-  "$SETUP_LOKI_LINE" \
+  -Dvertx-config-path="${FINAL_CONFIG}" \
+  "${SETUP_LOKI_LINE}" \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
   -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar

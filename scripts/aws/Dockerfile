@@ -11,7 +11,7 @@ ENV JAR_NAME=${JAR_NAME}
 ENV JAR_VERSION=${JAR_VERSION}
 ENV IMAGE_VERSION=${IMAGE_VERSION}
 ENV IDENTITY_SCOPE=${IDENTITY_SCOPE}
-ENV ENCLAVE_ENVIRONMENT=aws-nitro
+ENV ENCLAVE_ENVIRONMENT="aws-nitro"
 ENV UID2_CONFIG_SECRET_KEY="uid2-operator-config-key"
 
 RUN apt update -y \
@@ -20,18 +20,18 @@ RUN apt update -y \
 RUN pip3 install boto3==1.16.9
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
-COPY ./static             /app/static
-COPY ./vsockpx            /app/
-COPY ./libjnsm.so         /app/lib/
-COPY ./load_config.py     /app/
-COPY ./make_config.py     /app/
-COPY ./entrypoint.sh      /app/
-COPY ./proxies.nitro.yaml /app/
+COPY ./static                      /app/static
+COPY ./vsockpx                     /app/
+COPY ./load_config.py              /app/
+COPY ./make_config.py              /app/
+COPY ./entrypoint.sh               /app/
+COPY ./proxies.nitro.yaml          /app/
+COPY ./libjnsm.so                  /app/lib/
 COPY ./conf/default-config.json    /app/conf/
-COPY ./conf/prod-uid2-config.json  /app/conf/prod-uid2-config.json
-COPY ./conf/integ-uid2-config.json /app/conf/integ-uid2-config.json
-COPY ./conf/prod-euid-config.json  /app/conf/prod-euid-config.json
-COPY ./conf/integ-euid-config.json /app/conf/integ-euid-config.json
+COPY ./conf/prod-uid2-config.json  /app/conf/
+COPY ./conf/integ-uid2-config.json /app/conf/
+COPY ./conf/prod-euid-config.json  /app/conf/
+COPY ./conf/integ-euid-config.json /app/conf/
 COPY ./conf/*.xml                  /app/conf/
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh

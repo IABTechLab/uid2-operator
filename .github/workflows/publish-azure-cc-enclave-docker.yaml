@@ -15,6 +15,10 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
+      skip_e2e_test:
+        description: If true, will skip the step for E2E tests
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       release_type:
@@ -25,6 +29,10 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
+      skip_e2e_test:
+        description: If true, will skip the step for E2E tests
+        type: boolean
+        default: false
       
     outputs:
       image_tag:
@@ -245,6 +253,7 @@ jobs:
   e2e:
     name: E2E
     uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+    if: ${{ inputs.skip_e2e_test != 'true'}}
     needs: buildImage
     with:
       operator_type: azure

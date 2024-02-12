@@ -38,8 +38,6 @@ on:
       image_tag:
         description: The tag used to describe the image in docker
         value: ${{ jobs.buildImage.outputs.image_tag }}
-  
-  pull_request:
       
 env:
   REGISTRY: ghcr.io

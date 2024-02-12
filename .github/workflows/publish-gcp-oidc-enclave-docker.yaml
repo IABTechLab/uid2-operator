@@ -290,7 +290,7 @@ jobs:
   e2e:
     name: E2E
     uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
-    if: ${{ inputs.skip_e2e_test != 'true'}}
+    if: ${{ inputs.skip_e2e_test || true }}
     needs: buildImage
     with:
       operator_type: gcp

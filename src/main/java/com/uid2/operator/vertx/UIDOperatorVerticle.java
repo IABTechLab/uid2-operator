@@ -423,6 +423,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
             }
             else {
+                privacyBits.setClientSideTokenGenerateOptout();
                 //user opted out we will generate an optout token with the opted out user identity
                 identityTokens = generateOptedOutIdentityTokens(privacyBits, input, clientSideKeypair);
                 response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
@@ -441,19 +442,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private IdentityTokens generateOptedOutIdentityTokens(PrivacyBits privacyBits, InputUtil.InputVal input, ClientSideKeypair clientSideKeypair) {
-        IdentityTokens identityTokens;
-        privacyBits.setClientSideTokenGenerateOptout();
         UserIdentity cstgOptOutIdentity;
         if (input.getIdentityType() == IdentityType.Email) {
             cstgOptOutIdentity = InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
         } else {
             cstgOptOutIdentity = InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
         }
-        identityTokens = this.idService.generateIdentity(
+        return this.idService.generateIdentity(
                 new IdentityRequest(
                         new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                         cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
-        return identityTokens;
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

@@ -17,9 +17,8 @@ on:
         default: ''
       skip_e2e_test:
         description: If true, will skip the step for E2E tests
-        required: true
         type: boolean
-        default: true
+        default: false
   workflow_call:
     inputs:
       release_type:
@@ -32,9 +31,8 @@ on:
         default: ''
       skip_e2e_test:
         description: If true, will skip the step for E2E tests
-        required: true
         type: boolean
-        default: true
+        default: false
       
     outputs:
       image_tag:

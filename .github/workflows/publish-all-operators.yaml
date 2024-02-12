@@ -12,9 +12,8 @@ on:
         - Patch
       skip_e2e_test:
         description: If true, will skip the step for E2E tests
-        required: true
         type: boolean
-        default: true
+        default: false
 
 jobs:
   start:

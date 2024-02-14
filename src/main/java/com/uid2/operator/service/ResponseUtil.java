@@ -36,12 +36,17 @@ public class ResponseUtil {
                 .end(json.encode());
     }
 
-    public static void SuccessNoBodyV2(String status, RoutingContext rc) {
+    public static JsonObject SuccessNoBodyV2(String status) {
         final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", status);
             }
         });
+        return json;
+    }
+
+    public static void SuccessNoBodyV2(String status, RoutingContext rc) {
+        final JsonObject json = SuccessNoBodyV2(status);
         rc.data().put("response", json);
     }
 

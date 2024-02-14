@@ -33,12 +33,12 @@ on:
         description: If true, will skip the step for E2E tests
         type: boolean
         default: false
-      
+
     outputs:
       image_tag:
-        description: The tag used to describe the image in docker
+        description: The tag used to describe the image in Docker
         value: ${{ jobs.buildImage.outputs.image_tag }}
-      
+
 env:
   REGISTRY: ghcr.io
   MAVEN_PROFILE: azure
@@ -74,7 +74,7 @@ jobs:
         env: 
             GITHUB_CONTEXT: ${{ toJson(github) }}
             IS_RELEASE: ${{ steps.checkRelease.outputs.IS_RELEASE }}
-  
+
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
@@ -249,7 +249,7 @@ jobs:
           draft: true
           files: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
-  
+
   e2e:
     name: E2E
     uses: ./.github/workflows/run-e2e-tests-on-operator.yaml

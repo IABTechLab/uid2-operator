@@ -29,7 +29,7 @@ on:
 
     outputs:
       image_tag:
-        description: The tag used to describe the image in docker
+        description: The tag used to describe the image in Docker
         value: ${{ jobs.Image.outputs.image_tag }}
 
 jobs:

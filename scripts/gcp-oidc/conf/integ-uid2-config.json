@@ -10,6 +10,5 @@
   "optout_metadata_path": "https://21db-113-29-30-226.ngrok-free.app/optout/refresh",
   "core_attest_url": "https://b8ce-113-29-30-226.ngrok-free.app/attest",
   "optout_api_uri": "https://21db-113-29-30-226.ngrok-free.app/optout/replicate",
-  "optout_s3_folder": "uid-optout-integ/",
-  "enforce_https": false
+  "optout_s3_folder": "uid-optout-integ/"
 }

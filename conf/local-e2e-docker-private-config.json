@@ -1,7 +1,6 @@
 {
   "service_instances": 1,
   "storage_mock": false,
-  "enforce_https": false,
   "core_attest_url": "http://core:8088/attest",
   "core_api_token": "OPLCLAjLRWcVlCDl9+BbwR38gzxYdiWFa751ynWLuI7JU4iA=",
   "sites_metadata_path": "http://core:8088/sites/refresh",

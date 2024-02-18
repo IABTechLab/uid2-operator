@@ -4,16 +4,6 @@
 
 TMP_FINAL_CONFIG="/tmp/final-config.tmp"
 
-# for number/boolean
-# https://jqlang.github.io/jq/manual/
-# --argjson foo 123 will bind $foo to 123.
-function jq_inplace_update_json() {
-    local file=$1
-    local field=$2
-    local value=$3
-    jq --argjson v "$value" ".$field = \$v" "$file" > $TMP_FINAL_CONFIG && mv $TMP_FINAL_CONFIG "$file"
-}
-
 if [ -z "${VAULT_NAME}" ]; then
   echo "VAULT_NAME cannot be empty"
   exit 1
@@ -53,18 +43,12 @@ fi
 
 # -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
 # -- using hardcoded domains is fine because they should not be changed frequently
-#if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONMENT}" != 'prod' ]; then
-#    echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
-#    sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
-#
-#    sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
-#fi
+if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONMENT}" != 'prod' ]; then
+    echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
+    sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
 
-# -- replace `enforce_https` value to ENFORCE_HTTPS if provided
-#if [ "${ENFORCE_HTTPS}" == false ]; then
-#    echo "-- replacing enforce_https by ${ENFORCE_HTTPS}"
-#    jq_inplace_update_json $FINAL_CONFIG enforce_https false
-#fi
+    sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
+fi
 
 cat $FINAL_CONFIG
 

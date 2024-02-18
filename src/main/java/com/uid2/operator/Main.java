@@ -453,9 +453,8 @@ public class Main {
 
     private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
         AttestationTokenRetriever attestationTokenRetriever = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
-        Boolean enforceHttps = this.config.getBoolean("enforce_https", true);
-        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
-        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
+        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationTokenRetriever);
+        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationTokenRetriever);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }
 

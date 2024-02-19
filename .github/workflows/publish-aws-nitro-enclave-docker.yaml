@@ -35,9 +35,9 @@ on:
         default: false
 
     outputs:
-      image_tag:
-        description: The tag used to describe the image in docker
-        value: ${{ jobs.buildImage.outputs.image_tag }}
+      pcr0:
+        description: The EIF PCR0
+        value: ${{ jobs.buildImage.outputs.pcr0 }}
 
 env:
   ENCLAVE_PROTOCOL: aws-nitro
@@ -48,7 +48,6 @@ jobs:
     name: Build Image
     runs-on: ubuntu-latest
     outputs:
-      ami_id: ${{ steps.createAMI.outputs.AMI_ID }}
       pcr0: ${{ steps.showPCR0.outputs.PCR0 }}
     steps:
       - name: Check branch and release type
@@ -139,21 +138,22 @@ jobs:
           docker build -t amazonlinux -f ./scripts/aws/pipeline/amazonlinux.Dockerfile .
           docker run -d --privileged --name amazonlinux amazonlinux:latest
 
-      - name: Build UID2 AWS Nitro EIF
+      - name: Build AWS Nitro EIF
         run: |
           make -f Makefile.nitro uid2operator.eif
           docker cp amazonlinux:/uid2operator.eif ./build/uid2operator.eif
 
-      - name: Build EUID AWS Nitro EIF
+      - name: Show PCR0
+        id: showPCR0
         run: |
-          make -f Makefile.nitro euidoperator.eif
-          docker cp amazonlinux:/euidoperator.eif ./build/euidoperator.eif
+          PCR0=$(nitro-cli describe-eif --eif-path uid2operator.eif | jq -r '.Measurements.PCR0' | xxd -r -p | base64)
+          echo "PCR0: " $PCR0
+          echo "PCR0=$PCR0" >> $GITHUB_OUTPUT
 
       - name: Prepare artifacts
         run: |
           mkdir -p artifacts
           cp ./build/uid2operator.eif ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2operator.eif
-          cp ./build/euidoperator.eif ${{ env.ARTIFACTS_OUTPUT_DIR }}/euidoperator.eif
 
       - uses: actions/upload-artifact@v3
         with:

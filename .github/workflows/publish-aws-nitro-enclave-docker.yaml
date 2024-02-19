@@ -150,10 +150,40 @@ jobs:
           echo "PCR0: " $PCR0
           echo "PCR0=$PCR0" >> $GITHUB_OUTPUT
 
+      - name: Download dante
+        run: |
+          wget https://www.inet.no/dante/files/dante-1.4.3.tar.gz
+          echo "418a065fe1a4b8ace8fbf77c2da269a98f376e7115902e76cda7e741e4846a5d dante-1.4.3.tar.gz" > dante_checksum
+          sha256sum --check dante_checksum
+          tar -xf dante-1.4.3.tar.gz
+
+      - name: Make dante
+        working-directory: ./dante-1.4.3
+        run: |
+          ./configure
+          make
+
+      - name: Make vsockpx for Amazon Linux 2
+        run: |
+          git clone https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git
+          mkdir uid2-aws-enclave-vsockproxy/build
+          cd uid2-aws-enclave-vsockproxy/build
+          cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          make
+
       - name: Prepare artifacts
         run: |
-          mkdir -p artifacts
-          cp ./build/uid2operator.eif ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2operator.eif
+          mkdir -p ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          cp ./dante-1.4.3/sockd/sockd          ${{ env.ARTIFACTS_OUTPUT_DIR }}/
+          cp ./build/uid2operator.eif           ${{ env.ARTIFACTS_OUTPUT_DIR }}/
+          cp ./scripts/aws/start.sh             ${{ env.ARTIFACTS_OUTPUT_DIR }}/
+          cp ./scripts/aws/stop.sh              ${{ env.ARTIFACTS_OUTPUT_DIR }}/
+          cp ./scripts/aws/proxies.host.yaml    ${{ env.ARTIFACTS_OUTPUT_DIR }}/
+          cp ./scripts/aws/sockd.conf           ${{ env.ARTIFACTS_OUTPUT_DIR }}/
+          cp ./scripts/aws/uid2operator.service ${{ env.ARTIFACTS_OUTPUT_DIR }}/
+          cp ./scripts/aws/pipeline/VERSION     ${{ env.ARTIFACTS_OUTPUT_DIR }}/
+          cp ./uid2-aws-enclave-vsockproxy/build/vsock-bridge/src/vsock-bridge ${{ env.ARTIFACTS_OUTPUT_DIR }}/vsockpx
+          echo "UID2" >> ${{ env.ARTIFACTS_OUTPUT_DIR }}/identity_scope
 
       - uses: actions/upload-artifact@v3
         with:

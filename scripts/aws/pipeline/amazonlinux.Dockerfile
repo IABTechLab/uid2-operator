@@ -22,6 +22,6 @@ RUN yum -y install aws-nitro-enclaves-cli-devel
 
 RUN systemctl enable docker
 
-COPY ./aws/pipeline/aws_nitro_eif.sh /aws_nitro_eif.sh
+COPY ./scripts/aws/pipeline/aws_nitro_eif.sh /aws_nitro_eif.sh
 
 CMD ["/usr/sbin/init"]

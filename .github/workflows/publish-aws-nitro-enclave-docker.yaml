@@ -86,14 +86,6 @@ jobs:
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-region: us-east-2
-          role-to-assume: arn:aws:iam::072245134533:role/github-runner-for-uid2-operator
-      - run: aws sts get-caller-identity
-        shell: bash
-
       - name: Restore timestamps
         uses: thetradedesk/git-restore-mtime-action@v1.2
 

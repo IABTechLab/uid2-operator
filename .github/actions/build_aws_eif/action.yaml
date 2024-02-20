@@ -17,7 +17,7 @@ runs:
       id: identityScope
       shell: bash
       run: |
-        echo "${${{ inputs.identity_scope }}@u}" >> ./build/identity_scope
+        echo "${{ inputs.identity_scope }}" | tr '[:lower:]' '[:upper:]' >> ./build/identity_scope
 
     - name: Build EIF
       id: EIF

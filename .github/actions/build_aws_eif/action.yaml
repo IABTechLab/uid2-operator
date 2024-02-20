@@ -33,7 +33,7 @@ runs:
       shell: bash
       run: |
         docker cp amazonlinux:/pcr0.txt ./build/pcr0.txt
-        cat pcr0.txt
+        cat ./build/pcr0.txt
 
     - name: Prepare artifacts
       shell: bash

@@ -129,15 +129,15 @@ public class V2RequestUtil {
 
         KeysetKey key = keyManager.getKey(keyId);
         if (key == null) {
-            return new V2Request("Invalid key: Generator of this token does not exist.");
+            return new V2Request(String.format("Invalid key: Generator of this token (Key ID: %d) does not exist.", keyId));
         }
 
         byte[] decrypted;
         try {
             decrypted = AesGcm.decrypt(bytes, 5, key);
         } catch (Exception ex) {
-            LOGGER.error("Invalid data: Check encryption method and encryption key", ex);
-            return new V2Request("Invalid data: Check encryption method and encryption key");
+            LOGGER.error("Invalid data: Check encryption method and encryption key.", ex);
+            return new V2Request("Invalid data: Check encryption method and encryption key.");
         }
 
         try {
@@ -147,8 +147,8 @@ public class V2RequestUtil {
 
             return new V2Request(null, refreshToken, responseKey);
         } catch (Exception ex) {
-            LOGGER.error("Invalid format: Payload is not valid json or missing required data", ex);
-            return new V2Request("Invalid format: Payload is not valid json or missing required data");
+            LOGGER.error("Invalid format: Payload is not valid json or missing required data.", ex);
+            return new V2Request("Invalid format: Payload is not valid json or missing required data.");
         }
     }
 

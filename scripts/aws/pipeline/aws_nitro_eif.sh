@@ -11,3 +11,6 @@ done
 
 docker load -i /$1.tar
 nitro-cli build-enclave --docker-uri $1 --output-file $1.eif
+
+PCR0=$(nitro-cli describe-eif --eif-path $1.eif | jq -r '.Measurements.PCR0' | xxd -r -p | base64)
+echo "PCR0=${PCR0}" >> pcr0.txt

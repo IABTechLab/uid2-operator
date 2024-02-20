@@ -32,9 +32,8 @@ runs:
     - name: Show PCR0
       shell: bash
       run: |
-        PCR0=$(nitro-cli describe-eif --eif-path ${{ inputs.identity_scope }}operator.eif | jq -r '.Measurements.PCR0' | xxd -r -p | base64)
-        echo "PCR0: ${PCR0}"
-        echo "PCR0=${PCR0}" >> ${GITHUB_OUTPUT}
+        docker cp amazonlinux:/pcr0.txt ./build/pcr0.txt
+        cat pcr0.txt
 
     - name: Prepare artifacts
       shell: bash

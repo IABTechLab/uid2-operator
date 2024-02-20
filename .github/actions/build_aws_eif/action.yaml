@@ -13,21 +13,23 @@ runs:
   using: "composite"
 
   steps:
+    - name: Create build folder
+      shell: bash
+      run: |
+        mkdir -p build/
+
     - name: Set identity scope
-      id: identityScope
       shell: bash
       run: |
         echo "${{ inputs.identity_scope }}" | tr '[:lower:]' '[:upper:]' >> ./build/identity_scope
 
     - name: Build EIF
-      id: EIF
       shell: bash
       run: |
         make -f Makefile.nitro ${{ inputs.identity_scope }}operator.eif
         docker cp amazonlinux:/${{ inputs.identity_scope }}operator.eif ./build/${{ inputs.identity_scope }}operator.eif
 
     - name: Show PCR0
-      id: PCR0
       shell: bash
       run: |
         PCR0=$(nitro-cli describe-eif --eif-path ${{ inputs.identity_scope }}operator.eif | jq -r '.Measurements.PCR0' | xxd -r -p | base64)
@@ -35,7 +37,6 @@ runs:
         echo "PCR0=${PCR0}" >> ${GITHUB_OUTPUT}
 
     - name: Prepare artifacts
-      id: artifacts
       shell: bash
       run: |
         ARTIFACTS_OUTPUT_DIR="${{ inputs.artifacts_base_output_dir }}/${{ inputs.identity_scope }}"

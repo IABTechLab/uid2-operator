@@ -48,6 +48,10 @@ jobs:
 #        with:
 #          release_type: ${{ inputs.release_type }}
 
+      - name: Free up space
+        run: |
+          rm -rf /opt/hostedtoolcache
+
       - name: Show Context
         run: |
           printenv

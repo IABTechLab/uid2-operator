@@ -114,24 +114,24 @@ jobs:
           echo "Version number updated from $current_version to $new_version"
           echo "image_tag=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}" >> $GITHUB_OUTPUT
 
-      - name: Commit pom.xml and version.json
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE != 'true' }}
-        uses: EndBug/add-and-commit@v9
-        with:
-          add: 'pom.xml version.json'
-          author_name: Release Workflow
-          author_email: unifiedid-admin+release@thetradedesk.com
-          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-
-      - name: Commit pom.xml, version.json and set tag
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
-        uses: EndBug/add-and-commit@v9
-        with:
-          add: 'pom.xml version.json'
-          author_name: Release Workflow
-          author_email: unifiedid-admin+release@thetradedesk.com
-          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-          tag: v${{ steps.version.outputs.new_version }}
+#      - name: Commit pom.xml and version.json
+#        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE != 'true' }}
+#        uses: EndBug/add-and-commit@v9
+#        with:
+#          add: 'pom.xml version.json'
+#          author_name: Release Workflow
+#          author_email: unifiedid-admin+release@thetradedesk.com
+#          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+#
+#      - name: Commit pom.xml, version.json and set tag
+#        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+#        uses: EndBug/add-and-commit@v9
+#        with:
+#          add: 'pom.xml version.json'
+#          author_name: Release Workflow
+#          author_email: unifiedid-admin+release@thetradedesk.com
+#          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+#          tag: v${{ steps.version.outputs.new_version }}
 
       - name: Run amazonlinux Docker image
         run: |

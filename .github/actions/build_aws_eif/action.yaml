@@ -14,48 +14,51 @@ runs:
 
   steps:
     - name: Create build folder
+      id: buildFolder
       shell: bash
       run: |
-        mkdir -p build/
+        BUILD_FOLDER="./build/${{ inputs.identity_scope }}"
+        mkdir -p $BUILD_FOLDER
+        echo "BUILD_FOLDER=$BUILD_FOLDER" >> $GITHUB_OUTPUT
 
     - name: Set identity scope
       shell: bash
       run: |
-        echo "${{ inputs.identity_scope }}" | tr '[:lower:]' '[:upper:]' >> ./build/identity_scope.txt
-        cat ./build/identity_scope.txt
+        echo "${{ inputs.identity_scope }}" | tr '[:lower:]' '[:upper:]' > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt
+        cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt
 
     - name: Get version number from pom.xml
       shell: bash
       run: |
-        echo `grep -o '<version>.*</version>' ./pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/'` >> ./build/version_number.txt
-        cat ./build/version_number.txt
+        echo `grep -o '<version>.*</version>' ./pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/'` > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
+        cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
 
     - name: Build EIF
       shell: bash
       run: |
         make -f Makefile.nitro ${{ inputs.identity_scope }}operator.eif
-        docker cp amazonlinux:/${{ inputs.identity_scope }}operator.eif ./build/${{ inputs.identity_scope }}operator.eif
+        docker cp amazonlinux:/${{ inputs.identity_scope }}operator.eif ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/${{ inputs.identity_scope }}operator.eif
 
     - name: Show PCR0
       shell: bash
       run: |
-        docker cp amazonlinux:/pcr0.txt ./build/pcr0.txt
-        cat ./build/pcr0.txt
+        docker cp amazonlinux:/pcr0.txt ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/pcr0.txt
+        cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/pcr0.txt
 
     - name: Prepare artifacts
       shell: bash
       run: |
         ARTIFACTS_OUTPUT_DIR="${{ inputs.artifacts_base_output_dir }}/${{ inputs.identity_scope }}"
         mkdir -p ${ARTIFACTS_OUTPUT_DIR}
-        cp ./dante-1.4.3/sockd/sockd                                         ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./build/${{ inputs.identity_scope }}operator.eif                  ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./build/identity_scope.txt                                        ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./build/version_number.txt                                        ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./build/pcr0.txt                                                  ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/start.sh                                            ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/stop.sh                                             ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/proxies.host.yaml                                   ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/sockd.conf                                          ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/uid2operator.service                                ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/pipeline/$(cat ./build/identity_scope.txt)_VERSION  ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./uid2-aws-enclave-vsockproxy/build/vsock-bridge/src/vsock-bridge ${ARTIFACTS_OUTPUT_DIR}/vsockpx
+        cp ./dante-1.4.3/sockd/sockd                                                                              ${ARTIFACTS_OUTPUT_DIR}/
+        cp ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/${{ inputs.identity_scope }}operator.eif                 ${ARTIFACTS_OUTPUT_DIR}/
+        cp ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt                                       ${ARTIFACTS_OUTPUT_DIR}/
+        cp ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt                                       ${ARTIFACTS_OUTPUT_DIR}/
+        cp ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/pcr0.txt                                                 ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/start.sh                                                                                 ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/stop.sh                                                                                  ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/proxies.host.yaml                                                                        ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/sockd.conf                                                                               ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/uid2operator.service                                                                     ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/pipeline/$(cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt)_VERSION ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./uid2-aws-enclave-vsockproxy/build/vsock-bridge/src/vsock-bridge                                      ${ARTIFACTS_OUTPUT_DIR}/vsockpx

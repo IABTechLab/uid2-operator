@@ -1,25 +1,5 @@
 package com.uid2.operator.nitro;
 
-import com.uid2.shared.Const;
-import com.uid2.shared.attest.AttestationFactory;
-import com.uid2.shared.secure.AttestationResult;
-import com.uid2.shared.secure.NitroAttestationProvider;
-import com.uid2.shared.secure.NitroEnclaveIdentifier;
-import com.uid2.shared.secure.nitro.AttestationRequest;
-import com.uid2.shared.secure.nitro.InMemoryAWSCertificateStore;
-import org.junit.Test;
-
-import javax.crypto.Cipher;
-
-import static org.junit.Assert.*;
-
-import java.nio.charset.StandardCharsets;
-import java.security.*;
-import java.security.spec.KeySpec;
-import java.security.spec.RSAPublicKeySpec;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-
 public class AttestationTest {
 
 //    @Test

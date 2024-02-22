@@ -2,66 +2,24 @@ CONFIG_DIR=/etc/uid2operator
 DATA_DIR=/opt/uid2operator
 
 .PHONY: all
+
 all: build_eif
-
-##################################################################################################################################################################
-
-# Base
-
-install: ./build/uid2operator.eif ./build/dante-1.4.3/sockd ./build/uid2-aws-enclave-vsockproxy/build/vsock-bridge ./scripts/aws/start.sh ./scripts/aws/stop.sh ./scripts/aws/allocator.template.yaml ./scripts/aws/proxies.host.yaml ./scripts/aws/uid2operator.service
-	mkdir -p $(CONFIG_DIR)
-	mkdir -p $(DATA_DIR)
-	cp ./scripts/aws/proxies.host.yaml                                         $(CONFIG_DIR)/proxy.yaml
-	cp ./scripts/aws/allocator.template.yaml                                   $(CONFIG_DIR)/
-	cp ./build/uid2operator.eif                                                $(DATA_DIR)/
-	cp ./scripts/aws/start.sh                                                  $(DATA_DIR)/start.sh
-	cp ./scripts/aws/stop.sh                                                   $(DATA_DIR)/stop.sh
-	cp ./scripts/aws/sockd.conf                                                /etc/
-	cp ./scripts/aws/uid2operator.service                                      /etc/systemd/system/
-	cp ./build/uid2-aws-enclave-vsockproxy/build/vsock-bridge/src/vsock-bridge /usr/bin/vsockpx
-	cp ./build/dante-1.4.3/sockd/sockd                                         /usr/bin/
-	chmod +x /usr/bin/vsockpx
-
-uninstall:
-	rm -rf $(CONFIG_DIR)
-	rm -rf $(DATA_DIR)
-	rm /usr/bin/vsockpx
-	rm /etc/systemd/system/uid2operator.service
-
-clean:
-	rm -rf build
-
-##################################################################################################################################################################
-
-# Dependencies
-
-./build/dante-1.4.3/sockd:
-	cd build;             wget https://www.inet.no/dante/files/dante-1.4.3.tar.gz
-    cd build;             echo "418a065fe1a4b8ace8fbf77c2da269a98f376e7115902e76cda7e741e4846a5d dante-1.4.3.tar.gz" > dante_checksum
-    cd build;             sha256sum --check dante_checksum
-	cd build;             tar -xf dante-1.4.3.tar.gz
-	cd build/dante-1.4.3; ./configure
-	cd build/dante-1.4.3; make
-
-./build/uid2-aws-enclave-vsockproxy/build/vsock-bridge:
-	cd build;                                   git clone https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git
-	cd build/uid2-aws-enclave-vsockproxy;       mkdir -p build/
-	cd build/uid2-aws-enclave-vsockproxy/build; cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
-	cd build/uid2-aws-enclave-vsockproxy/build; make
 
 ##################################################################################################################################################################
 
 # EIF
 
+.PHONY: build_eif
+
 build_eif: uid2operator.eif euidoperator.eif
 
-euidoperator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py
-	cd build; docker build -t euidoperator . --build-arg IDENTITY_SCOPE='EUID' --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`; docker save -o ./euidoperator.tar euidoperator; docker cp ./euidoperator.tar amazonlinux:/euidoperator.tar
-	docker exec amazonlinux bash aws_nitro_eif.sh euidoperator
-
-uid2operator.eif: build_artifacts build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/configs build/load_config.py build/make_config.py
+uid2operator.eif: build_artifacts build_configs build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/load_config.py build/make_config.py
 	cd build; docker build -t uid2operator . --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`; docker save -o ./uid2operator.tar uid2operator; docker cp ./uid2operator.tar amazonlinux:/uid2operator.tar
 	docker exec amazonlinux bash aws_nitro_eif.sh uid2operator
+
+euidoperator.eif: build_artifacts build_configs build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/load_config.py build/make_config.py
+	cd build; docker build -t euidoperator . --build-arg IDENTITY_SCOPE='EUID' --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`; docker save -o ./euidoperator.tar euidoperator; docker cp ./euidoperator.tar amazonlinux:/euidoperator.tar
+	docker exec amazonlinux bash aws_nitro_eif.sh euidoperator
 
 ##################################################################################################################################################################
 
@@ -75,27 +33,29 @@ build/make_config.py: ./scripts/aws/make_config.py
 
 ##################################################################################################################################################################
 
-# Artifacts
+# Configs
 
-build/configs: build/conf/default-config.json build/conf/prod-uid2-config.json build/conf/integ-uid2-config.json build/conf/prod-euid-config.json build/conf/integ-euid-config.json build/conf/logback.loki.xml
+.PHONY: build_configs
+
+build_configs: build/conf/default-config.json build/conf/prod-uid2-config.json build/conf/integ-uid2-config.json build/conf/prod-euid-config.json build/conf/integ-euid-config.json build/conf/logback.loki.xml
 
 build/conf/default-config.json: build_artifacts ./scripts/aws/conf/default-config.json
-	cp ./scripts/aws/conf/default-config.json ./build/conf/default-config.json
+	cp ./scripts/aws/conf/default-config.json ./build/conf/
 
 build/conf/prod-uid2-config.json: build_artifacts ./scripts/aws/conf/prod-uid2-config.json
-	cp ./scripts/aws/conf/prod-uid2-config.json ./build/conf/prod-uid2-config.json
+	cp ./scripts/aws/conf/prod-uid2-config.json ./build/conf/
 
 build/conf/prod-euid-config.json: build_artifacts ./scripts/aws/conf/prod-euid-config.json
-	cp ./scripts/aws/conf/prod-euid-config.json ./build/conf/prod-euid-config.json
+	cp ./scripts/aws/conf/prod-euid-config.json ./build/conf/
 
 build/conf/integ-uid2-config.json: build_artifacts ./scripts/aws/conf/integ-uid2-config.json
-	cp ./scripts/aws/conf/integ-uid2-config.json ./build/conf/integ-uid2-config.json
+	cp ./scripts/aws/conf/integ-uid2-config.json ./build/conf/
 
 build/conf/integ-euid-config.json: build_artifacts ./scripts/aws/conf/integ-euid-config.json
-	cp ./scripts/aws/conf/integ-euid-config.json ./build/conf/integ-euid-config.json
+	cp ./scripts/aws/conf/integ-euid-config.json ./build/conf/
 
 build/conf/logback.loki.xml: build_artifacts ./scripts/aws/conf/logback.loki.xml
-	cp ./scripts/aws/conf/logback.loki.xml ./build/conf/logback.loki.xml
+	cp ./scripts/aws/conf/logback.loki.xml ./build/conf/
 
 build/Dockerfile: build_artifacts ./scripts/aws/Dockerfile
 	cp ./scripts/aws/Dockerfile ./build/
@@ -106,14 +66,18 @@ build/proxies.nitro.yaml: build_artifacts ./scripts/aws/proxies.nitro.yaml
 build/entrypoint.sh: build_artifacts
 	cp ./scripts/aws/entrypoint.sh ./build/
 
+##################################################################################################################################################################
+
+# Artifacts
+
+.PHONY: build_artifacts
+
 build_artifacts: build/build_artifacts.stamp
 
-build/build_artifacts.stamp build/vsockpx build/libjnsm.so: Dockerfile.nitro.builder
+build/build_artifacts.stamp: Dockerfile.nitro.builder
 	docker build -t uid2-nitro-builder -f Dockerfile.nitro.builder .
 	docker create --name uid2-nitro-builder uid2-nitro-builder
 	docker cp uid2-nitro-builder:/build .
 	docker rm uid2-nitro-builder
 	mkdir -p build/conf
 	touch build/build_artifacts.stamp
-
-.PHONY: install uninstall setup_nitro build_artifacts build_eif loki_override build/configs

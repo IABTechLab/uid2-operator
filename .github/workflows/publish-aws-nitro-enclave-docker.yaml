@@ -115,27 +115,6 @@ jobs:
 #          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
 #          tag: v${{ steps.version.outputs.new_version }}
 
-      - name: Download dante
-        run: |
-          wget https://www.inet.no/dante/files/dante-1.4.3.tar.gz
-          echo "418a065fe1a4b8ace8fbf77c2da269a98f376e7115902e76cda7e741e4846a5d dante-1.4.3.tar.gz" > dante_checksum
-          sha256sum --check dante_checksum
-          tar -xf dante-1.4.3.tar.gz
-
-      - name: Make dante
-        working-directory: ./dante-1.4.3
-        run: |
-          ./configure
-          make
-
-      - name: Make vsockpx for Amazon Linux 2
-        run: |
-          git clone https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git
-          mkdir uid2-aws-enclave-vsockproxy/build
-          cd uid2-aws-enclave-vsockproxy/build
-          cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
-          make
-
       - name: Run amazonlinux Docker image
         run: |
           docker build -t amazonlinux -f ./scripts/aws/pipeline/amazonlinux.Dockerfile .

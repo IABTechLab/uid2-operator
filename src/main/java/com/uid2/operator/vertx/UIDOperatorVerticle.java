@@ -1,7 +1,6 @@
 package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
-import com.uid2.operator.IdentityConst;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -395,6 +394,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final String emailHash = requestPayload.getString("email_hash");
         final String phoneHash = requestPayload.getString("phone_hash");
+        final int optoutCheck = requestPayload.getInteger("optout_check", 0);
+        final boolean cstgRequestHasOptoutCheckFlag = optoutCheck == OptoutCheckPolicy.RespectOptOut.ordinal();
         final InputUtil.InputVal input;
 
 
@@ -423,34 +424,54 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();
 
+        if(cstgRequestHasOptoutCheckFlag) {
+            privacyBits.setClientSideTokenGenerateOptoutResponse();
+        }
+
         IdentityTokens identityTokens = this.idService.generateIdentity(
                 new IdentityRequest(
                         new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                         input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                         OptoutCheckPolicy.RespectOptOut));
 
+        JsonObject response;
+        TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
         if (identityTokens.isEmptyToken()) {
-            //user opted out we will generate a token with the opted out user identity
-            privacyBits.setClientSideTokenGenerateOptout();
-            UserIdentity cstgOptOutIdentity;
-            if(input.getIdentityType() == IdentityType.Email) {
-                cstgOptOutIdentity = InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
+            if (UIDOperatorService.shouldCstgOptedOutUserReturnOptOutResponse(identityScope, cstgRequestHasOptoutCheckFlag)) {
+                response = ResponseUtil.SuccessNoBodyV2("optout");
+                responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
             }
             else {
-                cstgOptOutIdentity = InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(),  Instant.now());
+                privacyBits.setClientSideTokenGenerateOptout();
+                //user opted out we will generate an optout token with the opted out user identity
+                identityTokens = generateOptedOutIdentityTokens(privacyBits, input, clientSideKeypair);
+                response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
             }
-            identityTokens = this.idService.generateIdentity(
-                    new IdentityRequest(
-                            new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
-                            cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
         }
-        JsonObject response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
-        V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
-
+        else { //user not opted out and already generated valid identity token
+            response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
+        }
+        //if returning an optout token or a successful identity token created originally
+        if (responseStatus == TokenResponseStatsCollector.ResponseStatus.Success) {
+            V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
+        }
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, identityTokens.getAdvertisingTokenVersion());
+        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, responseStatus, siteProvider, identityTokens.getAdvertisingTokenVersion());
+    }
+
+    private IdentityTokens generateOptedOutIdentityTokens(PrivacyBits privacyBits, InputUtil.InputVal input, ClientSideKeypair clientSideKeypair) {
+        UserIdentity cstgOptOutIdentity;
+        if (input.getIdentityType() == IdentityType.Email) {
+            cstgOptOutIdentity = InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
+        } else {
+            cstgOptOutIdentity = InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
+        }
+        return this.idService.generateIdentity(
+                new IdentityRequest(
+                        new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
+                        cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

@@ -2,20 +2,19 @@
 #
 # This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
-# for number/boolean
-# https://jqlang.github.io/jq/manual/
-# --argjson foo 123 will bind $foo to 123.
-function jq_inplace_update_json() {
-    local file=$1
-    local field=$2
-    local value=$3
-    jq --argjson v "$value" ".$field = \$v" "$file" > tmp.json && mv tmp.json "$file"
-}
-
-
 # -- set API tokens
 if [ -z "${API_TOKEN_SECRET_NAME}" ]; then
   echo "API_TOKEN_SECRET_NAME cannot be empty"
+  exit 1
+fi
+
+if [ -z "${CORE_BASE_URL}" ]; then
+  echo "CORE_BASE_URL cannot be empty"
+  exit 1
+fi
+
+if [ -z "${OPTOUT_BASE_URL}" ]; then
+  echo "OPTOUT_BASE_URL cannot be empty"
   exit 1
 fi
 
@@ -45,20 +44,12 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-# -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
 # -- using hardcoded domains is fine because they should not be changed frequently
-if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONMENT}" != 'prod' ]; then
-    echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
-    sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
+echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
+sed -i "s#https://core.uidapi.com#${CORE_BASE_URL}#g" ${FINAL_CONFIG}
 
-    sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
-fi
+sed -i "s#https://optout.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 
-# -- replace `enforce_https` value to ENFORCE_HTTPS if provided
-if [ "${ENFORCE_HTTPS}" == false ]; then
-    echo "-- replacing enforce_https by ${ENFORCE_HTTPS}"
-    jq_inplace_update_json $FINAL_CONFIG enforce_https false
-fi
 
 cat $FINAL_CONFIG
 

@@ -31,7 +31,6 @@ Parameters:
       - m5a.4xlarge
       - m5n.2xlarge
       - m5n.4xlarge
-    ConstraintDescription: must be a valid EC2 instance type.
   RootVolumeSize:
     Description: Instance root volume size
     Type: Number
@@ -103,7 +102,7 @@ Metadata:
 Mappings:
   RegionMap:
     us-east-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
+      AMI: ami-069965aca2f4bb943
     us-east-2:
       AMI: ami-xxxxxxxxxxxxxxxxx
     us-west-1:

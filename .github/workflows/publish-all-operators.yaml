@@ -10,10 +10,6 @@ on:
         - Major
         - Minor
         - Patch
-      skip_e2e_test:
-        description: If true, will skip the step for E2E tests
-        type: boolean
-        default: false
 
 jobs:
   start:
@@ -85,7 +81,6 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
-      skip_e2e_test: ${{ inputs.skip_e2e_test }}
     secrets: inherit
 
   buildAzure:
@@ -95,7 +90,6 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
-      skip_e2e_test: ${{ inputs.skip_e2e_test }}
     secrets: inherit
 
   collectAllArtifacts:

@@ -83,6 +83,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             return;
         }
 
+        LOGGER.debug("CloudSyncOptOutStore calling endpoint: {}", remoteApiHost);
         this.webClient.get(remoteApiPort, remoteApiHost, remoteApiPath).
             addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.id))
             .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId))

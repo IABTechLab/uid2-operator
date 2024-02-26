@@ -452,31 +452,31 @@ public class Main {
     }
 
     private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
-        AttestationTokenRetriever attestationTokenRetriever = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
-        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationTokenRetriever);
-        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationTokenRetriever);
+        AttestationResponseHandler attestationResponseHandler = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
+        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
+        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }
 
-    private AttestationTokenRetriever getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
+    private AttestationResponseHandler getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
         String enclavePlatform = this.config.getString("enclave_platform");
         if (Strings.isNullOrEmpty(enclavePlatform)) {
-            return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher, CloudUtils.defaultProxy);
+            return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher, CloudUtils.defaultProxy);
         }
         switch (enclavePlatform) {
             case "aws-nitro":
                 LOGGER.info("creating uid core client with aws attestation protocol");
-                return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher, CloudUtils.defaultProxy);
             case "gcp-vmid":
                 LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-                return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher, CloudUtils.defaultProxy);
             case "gcp-oidc":
                 LOGGER.info("creating uid core client with gcp oidc attestation protocol");
-                return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher, CloudUtils.defaultProxy);
             case "azure-cc":
                 LOGGER.info("creating uid core client with azure cc attestation protocol");
                 String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
-                return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureCCAttestation(maaServerBaseUrl), responseWatcher, CloudUtils.defaultProxy);
+                return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureCCAttestation(maaServerBaseUrl), responseWatcher, CloudUtils.defaultProxy);
             default:
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));
         }

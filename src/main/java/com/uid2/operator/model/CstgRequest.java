@@ -11,6 +11,9 @@ public class CstgRequest {
     private String publicKey;
     private long timestamp;
 
+    @JsonProperty("app_name")
+    private String appName;
+
     public String getPayload() {
         return payload;
     }
@@ -29,6 +32,10 @@ public class CstgRequest {
 
     public long getTimestamp() {
         return timestamp;
+    }
+
+    public String getAppName() {
+        return appName;
     }
 }
 

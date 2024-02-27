@@ -17,7 +17,7 @@
   "refresh_token_v3": false,
   "identity_v3": false,
   "identity_scope": "uid2",
-  "enable_v2_encryption": false,
+  "enable_v2_encryption": true,
   "sharing_token_expiry_seconds": 2592000,
   "cloud_download_threads": 8,
   "cloud_upload_threads": 2,
@@ -34,5 +34,6 @@
   "optout_partition_interval": 86400,
   "client_side_token_generate": true,
   "client_side_token_generate_domain_name_check_enabled": true,
+  "client_side_token_generate_app_name_check_enabled": true,
   "key_sharing_endpoint_provide_site_domain_names": true
 }

@@ -60,9 +60,9 @@ runs:
         cp ./scripts/aws/proxies.host.yaml                                                                        ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/sockd.conf                                                                               ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/uid2operator.service                                                                     ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/pipeline/$(cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt)_VERSION ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/pipeline/$(cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt)_VERSION ${ARTIFACTS_OUTPUT_DIR}/VERSION
 
         docker cp amazonlinux:/sockd                                    ${ARTIFACTS_OUTPUT_DIR}/
         docker cp amazonlinux:/vsockpx                                  ${ARTIFACTS_OUTPUT_DIR}/
-        docker cp amazonlinux:/${{ inputs.identity_scope }}operator.eif ${ARTIFACTS_OUTPUT_DIR}/
+        docker cp amazonlinux:/${{ inputs.identity_scope }}operator.eif ${ARTIFACTS_OUTPUT_DIR}/uid2operator.eif
         docker cp amazonlinux:/pcr0.txt                                 ${ARTIFACTS_OUTPUT_DIR}/

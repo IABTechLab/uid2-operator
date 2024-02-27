@@ -33,7 +33,7 @@ on:
 
 env:
   ENCLAVE_PROTOCOL: aws-nitro
-  ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
+  ARTIFACTS_BASE_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
 
 jobs:
   buildImage:
@@ -124,15 +124,15 @@ jobs:
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@gdm-UID2-2770-aws-eif
         with:
           identity_scope: uid2
-          artifacts_base_output_dir: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
 
       - name: Build EUID AWS EIF
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@gdm-UID2-2770-aws-eif
         with:
           identity_scope: euid
-          artifacts_base_output_dir: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
 
       - uses: actions/upload-artifact@v3
         with:
           name: aws-nitro-deployment-files
-          path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}

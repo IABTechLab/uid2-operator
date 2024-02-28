@@ -3924,14 +3924,24 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-        // Tests:
-        //   SHARER has access to a keyset that has the same site_id as ID_READER's  - direct access
-        //   SHARER has access to a keyset with allowed_sites that includes us       - access through sharing
-        //   SHARER has no access to a keyset that is disabled                       - direct reject
-        //   SHARER has no access to a keyset with a missing allowed_sites           - reject by sharing
-        //   SHARER has no access to a keyset with an empty allowed_sites            - reject by sharing
-        //   SHARER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharingKeysets_SHARER(Vertx vertx, VertxTestContext testContext) {
+    void keySharingKeysets_SHARER_CustomMaxSharingLifetimeSeconds(Vertx vertx, VertxTestContext testContext) {
+        this.uidOperatorVerticle.setMaxSharingLifetimeSeconds(999999);
+        keySharingKeysets_SHARER(vertx, testContext, 999999);
+    }
+    
+    @Test
+    void keySharingKeysets_SHARER_defaultMaxSharingLifetimeSeconds(Vertx vertx, VertxTestContext testContext) {
+        keySharingKeysets_SHARER(vertx, testContext, this.config.getInteger(Const.Config.SharingTokenExpiryProp));
+    }
+
+    // Tests:
+    //   SHARER has access to a keyset that has the same site_id as ID_READER's  - direct access
+    //   SHARER has access to a keyset with allowed_sites that includes us       - access through sharing
+    //   SHARER has no access to a keyset that is disabled                       - direct reject
+    //   SHARER has no access to a keyset with a missing allowed_sites           - reject by sharing
+    //   SHARER has no access to a keyset with an empty allowed_sites            - reject by sharing
+    //   SHARER has no access to a keyset with an allowed_sites for other sites  - reject by sharing    
+    void keySharingKeysets_SHARER(Vertx vertx, VertxTestContext testContext, int expectedMaxSharingLifetimeSeconds) {
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.SHARER);
@@ -3966,7 +3976,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
            
-            assertEquals(this.config.getInteger(Const.Config.SharingTokenExpiryProp), respJson.getJsonObject("body").getInteger("max_sharing_lifetime_seconds"));
+            assertEquals(expectedMaxSharingLifetimeSeconds, respJson.getJsonObject("body").getInteger("max_sharing_lifetime_seconds"));
             assertEquals(getIdentityScope().toString(), respJson.getJsonObject("body").getString("identity_scope"));
 
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);

@@ -67,10 +67,10 @@ jobs:
         shell: bash
         env: 
             GITHUB_CONTEXT: ${{ toJson(github) }}
-            IS_RELEASE: ${{ steps.checkRelease.outputs.IS_RELEASE }}
+            IS_RELEASE: ${{ steps.checkRelease.outputs.is_release }}
   
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -91,7 +91,7 @@ jobs:
           fetch-depth: 0
 
       - name: Restore timestamps
-        uses: thetradedesk/git-restore-mtime-action@v1.2
+        uses: thetradedesk/git-restore-mtime-action@v1.3
 
       - name: Set version number
         id: version
@@ -119,21 +119,17 @@ jobs:
           cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
 
       - name: Commit pom.xml and version.json
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE != 'true' }} 
-        uses: EndBug/add-and-commit@v9
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release != 'true' }} 
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
         with:
           add: 'pom.xml version.json'
-          author_name: Release Workflow
-          author_email: unifiedid-admin+release@thetradedesk.com
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
 
       - name: Commit pom.xml, version.json and set tag
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }} 
-        uses: EndBug/add-and-commit@v9
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }} 
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
         with:
           add: 'pom.xml version.json'
-          author_name: Release Workflow
-          author_email: unifiedid-admin+release@thetradedesk.com
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }}
 
@@ -245,20 +241,20 @@ jobs:
           bash ./scripts/gcp-oidc/generate-deployment-artifacts.sh
 
       - name: Archive deployment artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gcp-oidc-deployment-files
           path: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}
 
       - name: Generate release archive
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
         run: |
             zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
 
       - name: Build Changelog
         id: github_release
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
         uses: mikepenz/release-changelog-builder-action@v3
         with:
           configurationJson: |
@@ -270,7 +266,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           name: ${{ steps.version.outputs.new_version }}

@@ -122,7 +122,7 @@ jobs:
             azure-cc-deployment-files
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: uid2-operator-release-${{ needs.start.outputs.new_version }}
           path: ./artifacts/

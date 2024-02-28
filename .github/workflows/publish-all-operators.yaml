@@ -27,7 +27,6 @@ jobs:
             GITHUB_CONTEXT: ${{ toJson(github) }}
 
       - name: Check branch and release type
-        id: checkRelease
         uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2
         with:
           release_type: ${{ inputs.release_type }}
@@ -57,15 +56,7 @@ jobs:
           sed -i "s/$current_version/$new_version/g" pom.xml
           echo "Version number updated from $current_version to $new_version"
 
-      - name: Commit pom.xml and version.json
-        if: ${{ steps.checkRelease.outputs.is_release != 'true' }} 
-        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
-        with:
-          add: 'pom.xml version.json'
-          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-
       - name: Commit pom.xml, version.json and set tag
-        if: ${{ steps.checkRelease.outputs.is_release == 'true' }} 
         uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
         with:
           add: 'pom.xml version.json'

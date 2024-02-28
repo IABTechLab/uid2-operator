@@ -5,7 +5,7 @@ on:
     inputs:
       release_type:
         type: choice
-        description: 'The type of release'
+        description: The type of release
         options:
         - Major
         - Minor

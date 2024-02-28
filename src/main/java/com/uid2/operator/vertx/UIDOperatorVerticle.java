@@ -535,6 +535,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d. Caller will not be able to encrypt tokens..", clientKey.getSiteId()));
             }
             resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
+            resp.put("max_sharing_lifetime_seconds", config.getString(Const.Config.SharingTokenExpiryProp, getSharingTokenExpirySeconds()));
+            resp.put("identity_scope", this.identityScope.name());
+                        
 
             // include 'keyset_id' field, if:
             //   (a) a key belongs to caller's enabled site

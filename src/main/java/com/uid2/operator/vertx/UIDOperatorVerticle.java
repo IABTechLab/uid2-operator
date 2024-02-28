@@ -106,6 +106,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
+    protected int maxSharingLifetimeSeconds;
     protected boolean keySharingEndpointProvideSiteDomainNames;
 
     public UIDOperatorVerticle(JsonObject config,
@@ -144,6 +145,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
+        this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
     }
 
     @Override
@@ -535,7 +537,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d. Caller will not be able to encrypt tokens..", clientKey.getSiteId()));
             }
             resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
-            resp.put("max_sharing_lifetime_seconds", config.getString(Const.Config.SharingTokenExpiryProp, getSharingTokenExpirySeconds()));
+            resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds);
             resp.put("identity_scope", this.identityScope.name());
                         
 

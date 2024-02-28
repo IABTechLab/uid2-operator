@@ -105,6 +105,7 @@ public class UIDOperatorVerticleTest {
 
     private SimpleMeterRegistry registry;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
+    private JsonObject config;
 
     @BeforeEach
     public void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
@@ -114,7 +115,7 @@ public class UIDOperatorVerticleTest {
         when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class), any(Role.class))).thenReturn(true);
 
 
-        JsonObject config = new JsonObject();
+        config = new JsonObject();
         setupConfig(config);
         if(testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
@@ -3964,6 +3965,10 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
             assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
+           
+            assertEquals(this.config.getInteger(Const.Config.SharingTokenExpiryProp), respJson.getJsonObject("body").getInteger("max_sharing_lifetime_seconds"));
+            assertEquals(getIdentityScope().toString(), respJson.getJsonObject("body").getString("identity_scope"));
+
             checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
 
             HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 104);

@@ -36,4 +36,8 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
         this.keySharingEndpointProvideSiteDomainNames = enable;
     }
 
+    public void setMaxSharingLifetimeSeconds(int maxSharingLifetimeSeconds) {
+        this.maxSharingLifetimeSeconds = maxSharingLifetimeSeconds;
+    }
+
 }

@@ -96,19 +96,19 @@ jobs:
     needs: [start, buildPublic, buildGCP, buildAzure]
     steps:
       - name: Download public artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: image-details
           path: ./artifacts/public_operator
 
       - name: Download GCP artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: gcp-oidc-deployment-files
           path: ./artifacts/gcp_oidc_operator
 
       - name: Download Azure artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: azure-cc-deployment-files
           path: ./artifacts/azure_cc_operator

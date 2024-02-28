@@ -206,7 +206,7 @@ jobs:
           hide-progress: true
 
       - name: Upload Trivy scan report to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -255,7 +255,7 @@ jobs:
       - name: Build Changelog
         id: github_release
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
-        uses: mikepenz/release-changelog-builder-action@v3
+        uses: mikepenz/release-changelog-builder-action@v4
         with:
           configurationJson: |
             {

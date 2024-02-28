@@ -3975,7 +3975,8 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
             assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
-           
+
+            assertEquals(config.getInteger(Const.Config.SharingTokenExpiryProp), Integer.parseInt(respJson.getJsonObject("body").getString("token_expiry_seconds")));
             assertEquals(expectedMaxSharingLifetimeSeconds, respJson.getJsonObject("body").getInteger("max_sharing_lifetime_seconds"));
             assertEquals(getIdentityScope().toString(), respJson.getJsonObject("body").getString("identity_scope"));
 

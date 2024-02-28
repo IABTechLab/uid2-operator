@@ -5,14 +5,19 @@ import com.uid2.shared.attest.UidOptOutClient;
 import com.uid2.shared.cloud.CloudStorageException;
 import com.uid2.shared.cloud.URLStorageWithMetadata;
 import com.uid2.shared.optout.OptOutMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Proxy;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class OptOutCloudStorage extends URLStorageWithMetadata {
+    private static final Logger LOGGER = LoggerFactory.getLogger(OptOutCloudStorage.class);
+
     private final UidOptOutClient uidOptOutClient;
     private final String metadataPath;
 
@@ -29,10 +34,17 @@ public class OptOutCloudStorage extends URLStorageWithMetadata {
     @Override
     protected List<String> extractListFromMetadata() throws CloudStorageException {
         try (InputStream input = this.uidOptOutClient.download(metadataPath)) {
-            OptOutMetadata m = OptOutMetadata.fromJsonString(Utils.readToEnd(input));
-            return m.optoutLogs.stream().map(o -> o.location).collect(Collectors.toList());
+            String jsonString = Utils.readToEnd(input);
+            if (jsonString != null && !jsonString.isEmpty()) {
+                OptOutMetadata m = OptOutMetadata.fromJsonString(jsonString);
+                return m.optoutLogs.stream().map(o -> o.location).collect(Collectors.toList());
+            } else {
+                LOGGER.warn("Empty string returned from UidOptOutClient. Unable to read OptOut metadata");
+                return new ArrayList<String>();
+            }
         } catch (IOException e) {
-            throw new CloudStorageException("extractListFromMetadata error" + e.getMessage(), e);
+            // Intentionally not logging the exception as it may contain sensitive URLs
+            throw new CloudStorageException("extractListFromMetadata error");
         }
     }
 }

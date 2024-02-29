@@ -13,35 +13,35 @@ on:
       operator_image_version:
         description: The pipeline will run the E2E test with this operator image version
         type: string
-        default: 'latest'
+        default: latest
       core_image_version:
         description: The pipeline will run the E2E test with this core image version
         type: string
-        default: 'latest'
+        default: latest
       optout_image_version:
         description: The pipeline will run the E2E test with this optout image version
         type: string
-        default: 'latest'
+        default: latest
       e2e_image_version:
         description: The pipeline will run the E2E test with this e2e image version
         type: string
-        default: 'latest'
+        default: latest
       core_branch:
-        description: 'The branch of UID2-core to test on'
+        description: 'Core: use this branch for Core config to test with'
         type: string
-        default: 'main'
+        default: main
       optout_branch:
-        description: 'The branch of UID2-optout to test on'
+        description: 'Optout: use this branch for Optout config to test with'
         type: string
-        default: 'main'
+        default: main
       admin_branch:
-        description: 'The branch of UID2-admin to test on'
+        description: 'Admin: use this branch for Admin config to test with'
         type: string
-        default: 'main'
+        default: main
       operator_branch:
-        description: 'The branch of UID2-operator to test on'
+        description: 'Operator: use this branch for Operator config to test with'
         type: string
-        default: 'main'
+        default: main
   workflow_call:
     inputs:
       operator_type:
@@ -51,35 +51,35 @@ on:
       operator_image_version:
         description: The pipeline will run the E2E test with this operator image version
         type: string
-        default: 'latest'
+        default: latest
       core_image_version:
         description: The pipeline will run the E2E test with this core image version
         type: string
-        default: 'latest'
+        default: latest
       optout_image_version:
         description: The pipeline will run the E2E test with this optout image version
         type: string
-        default: 'latest'
+        default: latest
       e2e_image_version:
         description: The pipeline will run the E2E test with this e2e image version
         type: string
-        default: 'latest'
+        default: latest
       core_branch:
-        description: 'The branch of UID2-core to test on'
+        description: 'Core: use this branch for Core config to test with'
         type: string
-        default: 'main'
+        default: main
       optout_branch:
-        description: 'The branch of UID2-optout to test on'
+        description: 'Optout: use this branch for Optout config to test with'
         type: string
-        default: 'main'
+        default: main
       admin_branch:
-        description: 'The branch of UID2-admin to test on'
+        description: 'Admin: use this branch for Admin config to test with'
         type: string
-        default: 'main'
+        default: main
       operator_branch:
-        description: 'The branch of UID2-operator to test on'
+        description: 'Operator: use this branch for Operator config to test with'
         type: string
-        default: 'main'
+        default: main
 
 jobs:
   e2e-test:

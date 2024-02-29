@@ -10,6 +10,5 @@
   "optout_metadata_path": "https://optout-integ.uidapi.com/optout/refresh",
   "core_attest_url": "https://core-integ.uidapi.com/attest",
   "optout_api_uri": "https://optout-integ.uidapi.com/optout/replicate",
-  "optout_s3_folder": "uid-optout-integ/",
-  "enforce_https": true
+  "optout_s3_folder": "uid-optout-integ/"
 }

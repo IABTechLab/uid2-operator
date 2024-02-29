@@ -1,7 +1,6 @@
 {
   "service_instances": 1,
   "storage_mock": false,
-  "enforce_https": false,
   "core_attest_url": "http://core:8088/attest",
   "core_api_token": "UID2-O-L-999-dp9Dt0.JVoGpynN4J8nMA7FxmzsavxJa8B9H74y9xdEE=",
   "sites_metadata_path": "http://core:8088/sites/refresh",
@@ -28,7 +27,7 @@
   "validate_service_links": true,
   "optout_s3_bucket": "test-optout-bucket",
   "optout_s3_folder": "optout-v2/",
-  "optout_metadata_path": "http://optout:8081/optout/refresh",
+  "optout_metadata_path": "/optout/refresh",
   "optout_api_uri": "http://optout:8081/optout/replicate",
   "optout_delta_rotate_interval": 60,
   "cloud_refresh_interval": 30

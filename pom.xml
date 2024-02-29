@@ -6,7 +6,7 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.27.0-d4082509df</version>
+    <version>5.27.30-2ceb45287e</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -18,13 +18,23 @@
         <vertx.verticle>com.uid2.operator.vertx.UIDOperatorVerticle</vertx.verticle>
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
         <micrometer.version>1.1.0</micrometer.version>
-        <enclave-api.version>1.5.0-676519b018</enclave-api.version>
-        <enclave-aws.version>1.1.0</enclave-aws.version>
-        <enclave-azure.version>1.5.0-115595d597</enclave-azure.version>
-        <enclave-gcp.version>1.4.2-dd1920710d</enclave-gcp.version>
-        <uid2-shared.version>6.1.8-6e6866128b</uid2-shared.version>
+        <enclave-api.version>2.0.0-f968aec0e3</enclave-api.version>
+        <enclave-aws.version>2.0.0-f7c174410e</enclave-aws.version>
+        <enclave-azure.version>2.0.4-ef52553c57</enclave-azure.version>
+        <enclave-gcp.version>2.0.0-21f950573a</enclave-gcp.version>
+        <uid2-shared.version>7.3.0-0c9c5b24fe</uid2-shared.version>
         <image.version>${project.version}</image.version>
     </properties>
+
+
+    <repositories>
+        <repository>
+            <id>snapshots-repo</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+            <releases><enabled>false</enabled></releases>
+            <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+    </repositories>
 
     <dependencies>
         <dependency>

@@ -540,7 +540,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             // "token_expiry_seconds" : "2592000"
             // it should be an integer instead, but we can't change it until we confirm that the oldest version of each of our SDKs support this
             resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
-            resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds);
+
+            if (roleAuthorize.hasRole(Role.SHARER)) {
+                resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds);
+            }
+
             resp.put("identity_scope", this.identityScope.name());
                         
 

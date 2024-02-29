@@ -51,7 +51,8 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final TokenVersion refreshTokenVersion;
     private final boolean identityV3Enabled;
 
-    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope) {
+    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
+                              IdentityScope identityScope) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
@@ -128,6 +129,8 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         final PrivacyBits privacyBits = PrivacyBits.fromInt(token.userIdentity.privacyBits);
         final boolean isCstg = privacyBits.isClientSideTokenGenerated();
+        final boolean hasCstgOptOutCheckFlag = privacyBits.isClientSideTokenGenerateOptoutResponseOn();
+        final boolean shouldCstgOptedOutUserReturnOptOutToken = !shouldCstgOptedOutUserReturnOptOutResponse(identityScope, hasCstgOptOutCheckFlag);
 
         try {
             final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.userIdentity, true);
@@ -139,7 +142,8 @@ public class UIDOperatorService implements IUIDOperatorService {
                 IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
 
                 return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
-            } else if (isCstg) {
+            } else if (isCstg && shouldCstgOptedOutUserReturnOptOutToken) {
+
                 // The user has opted out after the userIdentity was established.
                 privacyBits.setClientSideTokenGenerateOptout();
 
@@ -341,5 +345,13 @@ public class UIDOperatorService implements IUIDOperatorService {
     public TokenVersion getAdvertisingTokenVersionForTests() {
         assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
         return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
+    }
+
+    public static boolean shouldCstgOptedOutUserReturnOptOutResponse(IdentityScope identityScope,
+                                                                     boolean cstgRequestHasOptoutCheckFlag) {
+        if (identityScope == IdentityScope.EUID) {
+            return true;
+        }
+        return cstgRequestHasOptoutCheckFlag;
     }
 }

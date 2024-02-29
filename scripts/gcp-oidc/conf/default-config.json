@@ -34,10 +34,9 @@
   "identity_token_expires_after_seconds": 86400,
   "refresh_token_expires_after_seconds": 2592000,
   "refresh_identity_token_after_seconds": 3600,
-  "enforce_https": true,
   "allow_legacy_api": false,
   "failure_shutdown_wait_hours": 120,
   "sharing_token_expiry_seconds": 2592000,
   "validate_service_links": false,
-  "advertising_token_v4_percentage": 100
+  "advertising_token_v4_percentage": 0
 }

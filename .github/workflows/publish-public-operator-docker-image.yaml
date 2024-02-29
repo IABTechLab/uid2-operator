@@ -5,7 +5,7 @@ on:
     inputs:
       release_type:
         type: choice
-        description: 'The type of release'
+        description: The type of release
         options:
         - Major
         - Minor
@@ -29,7 +29,7 @@ on:
 
     outputs:
       image_tag:
-        description: The tag used to describe the image in docker
+        description: The tag used to describe the image in Docker
         value: ${{ jobs.Image.outputs.image_tag }}
 
 jobs:
@@ -65,7 +65,7 @@ jobs:
           echo $IMAGE > image-details/image.json
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: image-details
           path: image-details/

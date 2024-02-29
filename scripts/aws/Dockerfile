@@ -20,13 +20,13 @@ RUN apt update -y \
 RUN pip3 install boto3==1.16.9
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
-COPY ./static                      /app/static
-COPY ./vsockpx                     /app/
-COPY ./load_config.py              /app/
-COPY ./make_config.py              /app/
-COPY ./entrypoint.sh               /app/
-COPY ./proxies.nitro.yaml          /app/
-COPY ./libjnsm.so                  /app/lib/
+COPY ./static             /app/static
+COPY ./libjnsm.so         /app/lib/
+COPY ./vsockpx            /app/
+COPY ./load_config.py     /app/
+COPY ./make_config.py     /app/
+COPY ./entrypoint.sh      /app/
+COPY ./proxies.nitro.yaml /app/
 COPY ./conf/default-config.json    /app/conf/
 COPY ./conf/prod-uid2-config.json  /app/conf/
 COPY ./conf/integ-uid2-config.json /app/conf/

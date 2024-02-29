@@ -521,12 +521,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
             Keyset defaultKeyset = keyManagerSnapshot.getDefaultKeyset();
 
-            MissingAclMode mode = MissingAclMode.DENY_ALL;
             // This will break if another Type is added to this map
             IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
-            if (roleAuthorize.hasRole(Role.ID_READER)) {
-                mode = MissingAclMode.ALLOW_ALL;
-            }
+            final MissingAclMode mode = getMissingAclMode(clientKey);
 
             final JsonObject resp = new JsonObject();
             resp.put("caller_site_id", clientKey.getSiteId());
@@ -1723,11 +1720,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return json;
     }
 
+    private static MissingAclMode getMissingAclMode(ClientKey clientKey) {
+        return clientKey.hasRole(Role.ID_READER) ? MissingAclMode.ALLOW_ALL : MissingAclMode.DENY_ALL;
+    }
+
     private JsonArray getAccessibleKeysAsJson(List<KeysetKey> keys, ClientKey clientKey) {
-        MissingAclMode mode = MissingAclMode.DENY_ALL;
-        if (clientKey.getRoles().contains(Role.ID_READER)) {
-            mode = MissingAclMode.ALLOW_ALL;
-        }
+        final MissingAclMode mode = getMissingAclMode(clientKey);
 
         KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
         Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();

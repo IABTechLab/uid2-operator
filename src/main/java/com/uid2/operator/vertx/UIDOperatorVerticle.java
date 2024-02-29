@@ -536,6 +536,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             } else if (roleAuthorize.hasRole(Role.SHARER)) {
                 LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d. Caller will not be able to encrypt tokens..", clientKey.getSiteId()));
             }
+            // this is written out as a String, i.e. in the JSON response of key/sharing endpoint, it would show: 
+            // "token_expiry_seconds" : "2592000"
+            // it should be an integer instead, but we can't change it until we confirm that the oldest version of each of our SDKs support this
             resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
             resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds);
             resp.put("identity_scope", this.identityScope.name());

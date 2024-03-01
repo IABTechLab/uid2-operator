@@ -187,6 +187,12 @@
             <version>1.35</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.instancio</groupId>
+            <artifactId>instancio-junit</artifactId>
+            <version>4.3.2</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <profiles>

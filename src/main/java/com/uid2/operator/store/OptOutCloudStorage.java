@@ -37,14 +37,19 @@ public class OptOutCloudStorage extends URLStorageWithMetadata {
             String jsonString = Utils.readToEnd(input);
             if (jsonString != null && !jsonString.isEmpty()) {
                 OptOutMetadata m = OptOutMetadata.fromJsonString(jsonString);
-                return m.optoutLogs.stream().map(o -> o.location).collect(Collectors.toList());
+                if (m != null) {
+                    return m.optoutLogs.stream().map(o -> o.location).collect(Collectors.toList());
+                } else {
+                    LOGGER.warn("Unable to parse the OptOut metadata into OptOutMetaData type. Start of the response from OptOut: {}", jsonString.substring(0, jsonString.length() > 50 ? 50 : jsonString.length()));
+                    return new ArrayList<String>();
+                }
             } else {
                 LOGGER.warn("Empty string returned from UidOptOutClient. Unable to read OptOut metadata");
                 return new ArrayList<String>();
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             // Intentionally not logging the exception as it may contain sensitive URLs
-            throw new CloudStorageException("extractListFromMetadata error");
+            throw new CloudStorageException("extractListFromMetadata error.");
         }
     }
 }

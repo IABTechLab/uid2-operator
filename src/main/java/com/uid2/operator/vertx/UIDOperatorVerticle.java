@@ -517,13 +517,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
             List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
             Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
-            KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
             // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
             Keyset defaultKeyset = keyManagerSnapshot.getDefaultKeyset();
 
             // This will break if another Type is added to this map
             IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
-            final MissingAclMode mode = getMissingAclMode(clientKey);
 
             final JsonObject resp = new JsonObject();
             resp.put("caller_site_id", clientKey.getSiteId());
@@ -543,24 +541,21 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
 
             resp.put("identity_scope", this.identityScope.name());
-                        
 
             // include 'keyset_id' field, if:
             //   (a) a key belongs to caller's enabled site
             //   (b) a key belongs to master_keyset
             // otherwise, when a key is accessible by caller, the key can be used for decryption only. skip 'keyset_id' field.
-            for (KeysetKey key: keysetKeyStore) {
+            final List<KeysetKey> accessibleKeys = getAccessibleKeys(keysetKeyStore, keyManagerSnapshot, clientKey);
+
+            for (KeysetKey key : accessibleKeys) {
                 JsonObject keyObj = toJson(key);
                 Keyset keyset = keysetMap.get(key.getKeysetId());
 
-                if (keyset == null || !keyset.isEnabled()) {
-                    continue;
-                } else if (clientKey.getSiteId() == keyset.getSiteId()) {
+                if (clientKey.getSiteId() == keyset.getSiteId()) {
                     keyObj.put("keyset_id", key.getKeysetId());
                 } else if (key.getKeysetId() == Data.MasterKeysetId) {
                     keyObj.put("keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
-                } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
-                    continue;
                 }
                 keys.add(keyObj);
                 accessibleSites.add(keyset.getSiteId());

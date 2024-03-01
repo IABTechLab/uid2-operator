@@ -70,9 +70,7 @@ public class OptOutCloudStorageTest {
     public void extractListFromMetadata_notJsonResponse() throws CloudStorageException {
         when(uidOptOutClient.download(anyString())).thenReturn(new ByteArrayInputStream("Unauthorized".getBytes()));
 
-        List<String> response = this.optOutCloudStorage.extractListFromMetadata();
-        assertAll("extractListFromMetadata_success valid response",
-                () -> assertNotNull(response),
-                () -> assertEquals(0, response.size()));
+        assertThrows(CloudStorageException.class,
+                () -> this.optOutCloudStorage.extractListFromMetadata());
     }
 }

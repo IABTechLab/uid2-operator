@@ -13,12 +13,6 @@ runs:
   using: "composite"
 
   steps:
-    - name: Cleanup
-      shell: bash
-      run: |
-        docker stop $(docker ps -a -q)
-        docker system prune -f
-
     - name: Run amazonlinux Docker image
       shell: bash
       run: |

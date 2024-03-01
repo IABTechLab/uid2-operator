@@ -115,11 +115,6 @@ jobs:
 #          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
 #          tag: v${{ steps.version.outputs.new_version }}
 
-      - name: Run amazonlinux Docker image
-        run: |
-          docker build -t amazonlinux -f ./scripts/aws/pipeline/amazonlinux.Dockerfile .
-          docker run -d --privileged --name amazonlinux amazonlinux:latest
-
       - name: Build UID2 AWS EIF
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
         with:
@@ -131,6 +126,10 @@ jobs:
         with:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
+
+      - name: Free up space
+        run: |
+          find . ! -name '${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}' -type f -exec rm -f {} +
 
       - uses: actions/upload-artifact@v3
         with:

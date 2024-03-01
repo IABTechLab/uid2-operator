@@ -25,13 +25,9 @@ public class OptOutCloudStorageTest {
     private OptOutCloudStorage optOutCloudStorage;
 
     @BeforeEach
-    public void setUp() {
+    public void setup() {
         this.uidOptOutClient = mock(UidOptOutClient.class);
         this.optOutCloudStorage = new OptOutCloudStorage(this.uidOptOutClient, "/test/path");
-    }
-
-    @AfterEach
-    public void tearDown() throws Exception {
     }
 
     @Test
@@ -61,7 +57,7 @@ public class OptOutCloudStorageTest {
         when(uidOptOutClient.download(anyString())).thenReturn(InputStream.nullInputStream());
 
         List<String> response = this.optOutCloudStorage.extractListFromMetadata();
-        assertAll("extractListFromMetadata_success valid response",
+        assertAll("extractListFromMetadata_emptyResponse empty list returned",
                 () -> assertNotNull(response),
                 () -> assertEquals(0, response.size()));
     }

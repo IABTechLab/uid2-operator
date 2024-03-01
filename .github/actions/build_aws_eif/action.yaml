@@ -13,11 +13,15 @@ runs:
   using: "composite"
 
   steps:
-    - name: Run amazonlinux Docker image
+    - name: Cleanup
       shell: bash
       run: |
         docker stop $(docker ps -a -q)
         docker system prune -f
+
+    - name: Run amazonlinux Docker image
+      shell: bash
+      run: |
         docker build -t amazonlinux -f ./scripts/aws/pipeline/amazonlinux.Dockerfile .
         docker run -d --privileged --name amazonlinux amazonlinux:latest
 
@@ -66,3 +70,9 @@ runs:
         docker cp amazonlinux:/vsockpx                                  ${ARTIFACTS_OUTPUT_DIR}/
         docker cp amazonlinux:/${{ inputs.identity_scope }}operator.eif ${ARTIFACTS_OUTPUT_DIR}/uid2operator.eif
         docker cp amazonlinux:/pcr0.txt                                 ${ARTIFACTS_OUTPUT_DIR}/
+
+    - name: Cleanup
+      shell: bash
+      run: |
+        docker stop $(docker ps -a -q)
+        docker system prune -f

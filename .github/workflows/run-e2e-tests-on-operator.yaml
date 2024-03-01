@@ -13,7 +13,7 @@ on:
         - azure
         - aws
       operator_image_version:
-        description: The pipeline will run the E2E test with this operator image version (for GCP, check http://us-docker.pkg.dev/uid2-prod-project/iabtechlab/uid2-operator)
+        description: The pipeline will run the E2E test with this operator image version (for GCP/Azure, check https://github.com/IABTechLab/uid2-operator/pkgs/container/uid2-operator)
         type: string
         default: latest
       core_image_version:

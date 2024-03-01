@@ -127,10 +127,6 @@ jobs:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
 
-      - name: Test
-        run: |
-          ls .
-
       - uses: actions/upload-artifact@v3
         with:
           name: aws-nitro-deployment-files

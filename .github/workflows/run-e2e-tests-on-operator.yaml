@@ -29,19 +29,19 @@ on:
         type: string
         default: latest
       core_branch:
-        description: The branch of uid2-core to test on
+        description: 'Core: use this branch for Core config to test with'
         type: string
         default: main
       optout_branch:
-        description: The branch of uid2-optout to test on
+        description: 'Optout: use this branch for Optout config to test with'
         type: string
         default: main
       admin_branch:
-        description: The branch of uid2-admin to test on
+        description: 'Admin: use this branch for Admin config to test with'
         type: string
         default: main
       operator_branch:
-        description: The branch of uid2-operator to test on
+        description: 'Operator: use this branch for Operator config to test with'
         type: string
         default: main
       aws:
@@ -76,19 +76,19 @@ on:
         type: string
         default: latest
       core_branch:
-        description: The branch of uid2-core to test on
+        description: 'Core: use this branch for Core config to test with'
         type: string
         default: main
       optout_branch:
-        description: The branch of uid2-optout to test on
+        description: 'Optout: use this branch for Optout config to test with'
         type: string
         default: main
       admin_branch:
-        description: The branch of uid2-admin to test on
+        description: 'Admin: use this branch for Admin config to test with'
         type: string
         default: main
       operator_branch:
-        description: The branch of uid2-operator to test on
+        description: 'Operator: use this branch for Operator config to test with'
         type: string
         default: main
       aws:

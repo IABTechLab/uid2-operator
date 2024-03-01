@@ -19,13 +19,11 @@ if [ "${IDENTITY_SCOPE}" = "UID2" ]; then
   UID2_CONFIG_SECRET_KEY=$([[ "$(echo "${USER_DATA}" | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
   CORE_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
   OPTOUT_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
-  ENFORCE_HTTPS=$([[ "$(echo "${USER_DATA}" | grep ENFORCE_HTTPS=)" =~ ^export\ ENFORCE_HTTPS=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "false")
 elif [ "${IDENTITY_SCOPE}" = "EUID" ]; then
   USER_DATA=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data)
   UID2_CONFIG_SECRET_KEY=$([[ "$(echo "${USER_DATA}" | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
   CORE_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
   OPTOUT_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
-  ENFORCE_HTTPS=$([[ "$(echo "${USER_DATA}" | grep ENFORCE_HTTPS=)" =~ ^export\ ENFORCE_HTTPS=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "false")
 else
   echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"
   exit 1
@@ -33,7 +31,6 @@ fi
 echo "UID2_CONFIG_SECRET_KEY=${UID2_CONFIG_SECRET_KEY}"
 echo "CORE_BASE_URL=${CORE_BASE_URL}"
 echo "OPTOUT_BASE_URL=${OPTOUT_BASE_URL}"
-echo "ENFORCE_HTTPS=${ENFORCE_HTTPS}"
 
 export AWS_REGION_NAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r ".region")
 echo "AWS_REGION_NAME=${AWS_REGION_NAME}"
@@ -97,12 +94,6 @@ if [ -n "${CORE_BASE_URL}" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${DEPLOYMENT_E
     sed -i "s#https://core-prod.uidapi.com#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
     sed -i "s#https://optout-prod.uidapi.com#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
-fi
-
-# -- replace `enforce_https` value to ENFORCE_HTTPS if provided
-if [ "${ENFORCE_HTTPS}" == false ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
-    echo "Replacing enforce_https by ${ENFORCE_HTTPS}..."
-    jq_inplace_update_json "${FINAL_CONFIG}" enforce_https false
 fi
 
 cat "${FINAL_CONFIG}"

@@ -48,7 +48,7 @@ jobs:
 #        with:
 #          release_type: ${{ inputs.release_type }}
 
-      - name: Free up space
+      - name: Free up space - delete preinstalled tools
         run: |
           rm -rf /opt/hostedtoolcache
 
@@ -127,11 +127,12 @@ jobs:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
 
-      - name: Free up space
+      - name: Test
         run: |
-          find . ! -name '${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}' -type f -exec rm -f {} +
+          ls .
 
       - uses: actions/upload-artifact@v3
         with:
           name: aws-nitro-deployment-files
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
+          if-no-files-found: error

@@ -1724,19 +1724,24 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return clientKey.hasRole(Role.ID_READER) ? MissingAclMode.ALLOW_ALL : MissingAclMode.DENY_ALL;
     }
 
-    private JsonArray getAccessibleKeysAsJson(List<KeysetKey> keys, ClientKey clientKey) {
+    /**
+     * Returns the keyset keys that can be accessed by the site belonging to the specified client key.
+     */
+    private static List<KeysetKey> getAccessibleKeys(List<KeysetKey> keys, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey) {
         final MissingAclMode mode = getMissingAclMode(clientKey);
+        final KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
 
+        return keys.stream()
+                .filter(key -> keysetSnapshot.canClientAccessKey(clientKey, key, mode))
+                .collect(Collectors.toList());
+    }
+
+    private JsonArray getAccessibleKeysAsJson(List<KeysetKey> keys, ClientKey clientKey) {
         KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
         Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
-        KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
 
         final JsonArray a = new JsonArray();
-        for (KeysetKey k : keys) {
-            if (!keysetSnapshot.canClientAccessKey(clientKey, k, mode)) {
-                continue;
-            }
-
+        for (KeysetKey k : getAccessibleKeys(keys, keyManagerSnapshot, clientKey)) {
             final JsonObject o = new JsonObject();
             o.put("id", k.getId());
             o.put("created", k.getCreated().getEpochSecond());

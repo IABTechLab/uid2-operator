@@ -550,7 +550,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             //   (b) a key belongs to master_keyset
             // otherwise, when a key is accessible by caller, the key can be used for decryption only. skip 'keyset_id' field.
             for (KeysetKey key: keysetKeyStore) {
-                JsonObject keyObj = new JsonObject();
+                JsonObject keyObj = toJson(key);
                 Keyset keyset = keysetMap.get(key.getKeysetId());
 
                 if (keyset == null || !keyset.isEnabled()) {
@@ -562,11 +562,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
                     continue;
                 }
-                keyObj.put("id", key.getId());
-                keyObj.put("created", key.getCreated().getEpochSecond());
-                keyObj.put("activates", key.getActivates().getEpochSecond());
-                keyObj.put("expires", key.getExpires().getEpochSecond());
-                keyObj.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
                 keys.add(keyObj);
                 accessibleSites.add(keyset.getSiteId());
             }
@@ -1743,16 +1738,25 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final JsonArray a = new JsonArray();
         for (KeysetKey k : getAccessibleKeys(keys, keyManagerSnapshot, clientKey)) {
-            final JsonObject o = new JsonObject();
-            o.put("id", k.getId());
-            o.put("created", k.getCreated().getEpochSecond());
-            o.put("activates", k.getActivates().getEpochSecond());
-            o.put("expires", k.getExpires().getEpochSecond());
-            o.put("secret", EncodingUtils.toBase64String(k.getKeyBytes()));
+            final JsonObject o = toJson(k);
             o.put("site_id", keysetMap.get(k.getKeysetId()).getSiteId());
             a.add(o);
         }
         return a;
+    }
+
+    /**
+     * Converts the specified keyset key to a JSON object.
+     * Includes the following fields: id, created, activates, expires, and secret.
+     */
+    private static JsonObject toJson(KeysetKey key) {
+        final JsonObject json = new JsonObject();
+        json.put("id", key.getId());
+        json.put("created", key.getCreated().getEpochSecond());
+        json.put("activates", key.getActivates().getEpochSecond());
+        json.put("expires", key.getExpires().getEpochSecond());
+        json.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
+        return json;
     }
 
     private JsonObject toJson(IdentityTokens t) {

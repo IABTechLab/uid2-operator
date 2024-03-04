@@ -48,6 +48,7 @@ jobs:
       security-events: write
       packages: write
       id-token: write
+      pull-requests: write
     outputs:
       jar_version: ${{ steps.version.outputs.new_version }}
       image_tag: ${{ steps.updatePom.outputs.image_tag }}

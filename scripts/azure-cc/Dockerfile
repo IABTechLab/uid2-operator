@@ -1,4 +1,4 @@
-FROM eclipse-temurin@sha256:de8e6219ff5360811a453a9237713679a9d9106ba5150290ef37fb23e246ce7d
+FROM eclipse-temurin@sha256:124d6d14a08ad71b0c10b107f663de7b42787fb48cda8a82e5b1ca881772a832
 
 # Install Packages
 RUN apk update && apk add jq

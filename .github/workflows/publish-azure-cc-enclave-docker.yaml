@@ -15,6 +15,11 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
+      vulnerability_severity:
+        description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised.
+        type: string
+        default: 'CRITICAL, HIGH'
+
   workflow_call:
     inputs:
       release_type:
@@ -182,7 +187,7 @@ jobs:
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
-          severity: 'CRITICAL'
+          severity: ${{ inputs.vulnerability_severity }}
           hide-progress: true
 
       - name: Push to Docker

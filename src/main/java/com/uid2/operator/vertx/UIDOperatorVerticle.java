@@ -558,54 +558,47 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 keys.add(keyObj);
             }
             resp.put("keys", keys);
-            //without cstg enabled, operator won't have site data and siteProvider could be null
-            //and adding keySharingEndpointProvideSiteDomainNames in case something goes wrong
-            //and we can still enable cstg feature but turn off site domain name download in
-            // key/sharing endpoint
-            if(keySharingEndpointProvideSiteDomainNames && clientSideTokenGenerate) {
-                final List<Integer> accessibleSites = accessibleKeys.stream()
-                        .map(key -> keysetMap.get(key.getKeysetId()).getSiteId())
-                        .sorted()
-                        .distinct()
-                        .collect(Collectors.toUnmodifiableList());
 
-                final JsonArray sites = new JsonArray();
-                for (Integer siteId : accessibleSites) {
-                    Site s = siteProvider.getSite(siteId);
-                    if(s == null || s.getDomainNames().isEmpty()) {
-                        continue;
-                    }
-                    JsonObject siteObj = new JsonObject();
-                    siteObj.put("id", siteId);
-                    siteObj.put("domain_names", s.getDomainNames().stream().sorted().collect(Collectors.toList()));
-                    sites.add(siteObj);
-                }
-                /*
-                The end result will look something like this:
-                "site_data": [
-                        {
-                            "id": 101,
-                            "domain_names": [
-                                "101.co.uk",
-                                "101.com"
-                            ]
-                        },
-                        {
-                            "id": 102,
-                            "domain_names": [
-                                "102.co.uk",
-                                "102.com"
-                            ]
-                        }
-                    ]
-                 */
-                resp.put("site_data", sites);
+            final List<Site> sites = getSitesWithDomainNames(accessibleKeys, keysetMap);
+            if (sites != null) {
+                resp.put("site_data", sites.stream().map(UIDOperatorVerticle::toJson).collect(Collectors.toList()));
             }
+
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);
             rc.fail(500);
         }
+    }
+
+    private List<Site> getSitesWithDomainNames(List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
+        //without cstg enabled, operator won't have site data and siteProvider could be null
+        //and adding keySharingEndpointProvideSiteDomainNames in case something goes wrong
+        //and we can still enable cstg feature but turn off site domain name download in
+        // key/sharing endpoint
+        if (!keySharingEndpointProvideSiteDomainNames || !clientSideTokenGenerate) {
+            return null;
+        }
+
+        return keys.stream()
+                .mapToInt(key -> keysetMap.get(key.getKeysetId()).getSiteId())
+                .sorted()
+                .distinct()
+                .mapToObj(siteProvider::getSite)
+                .filter(Objects::nonNull)
+                .filter(site -> !site.getDomainNames().isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Converts the specified site to a JSON object.
+     * Includes the following fields: id, domain_names.
+     */
+    private static JsonObject toJson(Site site) {
+        JsonObject siteObj = new JsonObject();
+        siteObj.put("id", site.getId());
+        siteObj.put("domain_names", site.getDomainNames().stream().sorted().collect(Collectors.toList()));
+        return siteObj;
     }
 
     private void handleHealthCheck(RoutingContext rc) {

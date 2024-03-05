@@ -55,7 +55,7 @@ cat $FINAL_CONFIG
 # -- start operator
 echo "-- starting java application"
 java \
-    -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
+    -XX:MaxRAMPercentage=95.0 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
     -Djava.security.egd=file:/dev/./urandom \
     -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
     -Dlogback.configurationFile=${LOGBACK_CONF} \

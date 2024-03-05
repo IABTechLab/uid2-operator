@@ -1726,13 +1726,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     /**
      * Returns the keyset keys that can be accessed by the site belonging to the specified client key.
+     * Keyset keys belonging to the master keyset can be accessed by any site.
      */
     private static List<KeysetKey> getAccessibleKeys(List<KeysetKey> keys, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey) {
         final MissingAclMode mode = getMissingAclMode(clientKey);
         final KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
 
         return keys.stream()
-                .filter(key -> keysetSnapshot.canClientAccessKey(clientKey, key, mode))
+                .filter(key -> key.getKeysetId() == Data.MasterKeysetId || keysetSnapshot.canClientAccessKey(clientKey, key, mode))
                 .collect(Collectors.toList());
     }
 

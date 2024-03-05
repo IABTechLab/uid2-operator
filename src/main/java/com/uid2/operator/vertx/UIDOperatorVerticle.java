@@ -542,16 +542,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             resp.put("identity_scope", this.identityScope.name());
 
-            // include 'keyset_id' field, if:
-            //   (a) a key belongs to caller's enabled site
-            //   (b) a key belongs to master_keyset
-            // otherwise, when a key is accessible by caller, the key can be used for decryption only. skip 'keyset_id' field.
             final List<KeysetKey> accessibleKeys = getAccessibleKeys(keysetKeyStore, keyManagerSnapshot, clientKey);
 
             for (KeysetKey key : accessibleKeys) {
                 JsonObject keyObj = toJson(key);
                 Keyset keyset = keysetMap.get(key.getKeysetId());
 
+                // include 'keyset_id' field, if:
+                //   (a) a key belongs to caller's enabled site
+                //   (b) a key belongs to master_keyset
+                // otherwise, when a key is accessible by caller, the key can be used for decryption only. skip 'keyset_id' field.
                 if (clientKey.getSiteId() == keyset.getSiteId()) {
                     keyObj.put("keyset_id", key.getKeysetId());
                 } else if (key.getKeysetId() == Data.MasterKeysetId) {

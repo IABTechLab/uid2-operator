@@ -68,7 +68,6 @@ import java.util.stream.Collectors;
 
 import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.ResponseUtil.*;
-import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
@@ -514,30 +513,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
             List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
             Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
-            // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
-            Keyset defaultKeyset = keyManagerSnapshot.getDefaultKeyset();
-
-            // This will break if another Type is added to this map
-            IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
 
             final JsonObject resp = new JsonObject();
-            resp.put("caller_site_id", clientKey.getSiteId());
-            resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
-            if (defaultKeyset != null) {
-                resp.put("default_keyset_id", defaultKeyset.getKeysetId());
-            } else if (roleAuthorize.hasRole(Role.SHARER)) {
-                LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d. Caller will not be able to encrypt tokens..", clientKey.getSiteId()));
-            }
-            // this is written out as a String, i.e. in the JSON response of key/sharing endpoint, it would show: 
-            // "token_expiry_seconds" : "2592000"
-            // it should be an integer instead, but we can't change it until we confirm that the oldest version of each of our SDKs support this
-            resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
-
-            if (roleAuthorize.hasRole(Role.SHARER)) {
-                resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds);
-            }
-
-            resp.put("identity_scope", this.identityScope.name());
+            addSharingHeaderFields(resp, keyManagerSnapshot, clientKey);
 
             final List<KeysetKey> accessibleKeys = getAccessibleKeys(keysetKeyStore, keyManagerSnapshot, clientKey);
 
@@ -569,6 +547,30 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             LOGGER.error("handleKeysSharing", e);
             rc.fail(500);
         }
+    }
+
+    private void addSharingHeaderFields(JsonObject resp, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey) {
+        resp.put("caller_site_id", clientKey.getSiteId());
+        resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
+
+        // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
+        final Keyset defaultKeyset = keyManagerSnapshot.getDefaultKeyset();
+        if (defaultKeyset != null) {
+            resp.put("default_keyset_id", defaultKeyset.getKeysetId());
+        } else if (clientKey.hasRole(Role.SHARER)) {
+            LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d. Caller will not be able to encrypt tokens..", clientKey.getSiteId()));
+        }
+
+        // this is written out as a String, i.e. in the JSON response of key/sharing endpoint, it would show:
+        // "token_expiry_seconds" : "2592000"
+        // it should be an integer instead, but we can't change it until we confirm that the oldest version of each of our SDKs support this
+        resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
+
+        if (clientKey.hasRole(Role.SHARER)) {
+            resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds);
+        }
+
+        resp.put("identity_scope", this.identityScope.name());
     }
 
     private List<Site> getSitesWithDomainNames(List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {

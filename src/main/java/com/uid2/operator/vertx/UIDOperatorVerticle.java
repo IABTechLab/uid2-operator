@@ -510,8 +510,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public void handleKeysSharing(RoutingContext rc) {
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
-            final JsonArray keys = new JsonArray();
-            final JsonArray sites = new JsonArray();
 
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
             List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
@@ -543,6 +541,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             final List<KeysetKey> accessibleKeys = getAccessibleKeys(keysetKeyStore, keyManagerSnapshot, clientKey);
 
+            final JsonArray keys = new JsonArray();
             for (KeysetKey key : accessibleKeys) {
                 JsonObject keyObj = toJson(key);
                 Keyset keyset = keysetMap.get(key.getKeysetId());
@@ -570,6 +569,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         .distinct()
                         .collect(Collectors.toUnmodifiableList());
 
+                final JsonArray sites = new JsonArray();
                 for (Integer siteId : accessibleSites) {
                     Site s = siteProvider.getSite(siteId);
                     if(s == null || s.getDomainNames().isEmpty()) {

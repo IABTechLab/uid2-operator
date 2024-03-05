@@ -512,7 +512,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
             final JsonArray keys = new JsonArray();
             final JsonArray sites = new JsonArray();
-            final Set<Integer> accessibleSites = new HashSet<>();
 
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
             List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
@@ -558,7 +557,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     keyObj.put("keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
                 }
                 keys.add(keyObj);
-                accessibleSites.add(keyset.getSiteId());
             }
             resp.put("keys", keys);
             //without cstg enabled, operator won't have site data and siteProvider could be null
@@ -566,7 +564,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             //and we can still enable cstg feature but turn off site domain name download in
             // key/sharing endpoint
             if(keySharingEndpointProvideSiteDomainNames && clientSideTokenGenerate) {
-                for (Integer siteId : accessibleSites.stream().sorted().collect(Collectors.toList())) {
+                final List<Integer> accessibleSites = accessibleKeys.stream()
+                        .map(key -> keysetMap.get(key.getKeysetId()).getSiteId())
+                        .sorted()
+                        .distinct()
+                        .collect(Collectors.toUnmodifiableList());
+
+                for (Integer siteId : accessibleSites) {
                     Site s = siteProvider.getSite(siteId);
                     if(s == null || s.getDomainNames().isEmpty()) {
                         continue;

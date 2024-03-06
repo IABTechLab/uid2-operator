@@ -43,7 +43,7 @@ on:
 jobs:
   image:
     name: Image
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@v2
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-java-to-docker-versioned.yaml@v2
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ inputs.version_number_input }}

@@ -395,7 +395,7 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void checkEncryptionKeysSharing(JsonObject response, int callersSiteId, KeysetKey... expectedKeys) {
+    private void checkEncryptionKeys(JsonObject response, SharingEndpoint endpoint, int callersSiteId, KeysetKey... expectedKeys) {
         assertEquals("success", response.getString("status"));
         final JsonArray responseKeys = response.getJsonObject("body").getJsonArray("keys");
         assertNotNull(responseKeys);
@@ -414,14 +414,38 @@ public class UIDOperatorVerticleTest {
             assertTrue(expectedKeyset.isEnabled());
 
             final var actualKeysetId = actualKey.getInteger("keyset_id");
-            assertTrue(actualKeysetId == null || actualKeysetId > 0); //SDKs currently have an assumption that keyset ids are positive; that will be fixed.
-            if (expectedKeyset.getSiteId() == callersSiteId) {
-                assertEquals(expectedKey.getKeysetId(), actualKeysetId);
-            } else if (expectedKeyset.getSiteId() == MasterKeySiteId) {
-                assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, actualKeysetId);
-            } else {
-                assertNull(actualKeysetId); //we only send keyset ids if the caller is allowed to encrypt using that keyset (so only the caller's keysets and the master keyset)
+
+            switch (endpoint) {
+                case SHARING:
+                    assertTrue(actualKeysetId == null || actualKeysetId > 0); //SDKs currently have an assumption that keyset ids are positive; that will be fixed.
+
+                    if (expectedKeyset.getSiteId() == callersSiteId) {
+                        assertEquals(expectedKey.getKeysetId(), actualKeysetId);
+                    } else if (expectedKeyset.getSiteId() == MasterKeySiteId) {
+                        assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, actualKeysetId);
+                    } else {
+                        assertNull(actualKeysetId); //we only send keyset ids if the caller is allowed to encrypt using that keyset (so only the caller's keysets and the master keyset)
+                    }
+                    break;
+                case BIDSTREAM:
+                    assertNull(actualKeysetId);
+                    break;
             }
+        }
+    }
+
+    private enum SharingEndpoint {
+        SHARING("/key/sharing"),
+        BIDSTREAM("/key/bidstream");
+
+        private String path;
+
+        SharingEndpoint(String path) {
+            this.path = path;
+        }
+
+        public String getPath() {
+            return this.path;
         }
     }
 
@@ -3807,7 +3831,7 @@ public class UIDOperatorVerticleTest {
 
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
-            checkEncryptionKeysSharing(respJson, siteId, expectedKeys);
+            checkEncryptionKeys(respJson, SharingEndpoint.SHARING, siteId, expectedKeys);
             testContext.completeNow();
         });
     }
@@ -3851,7 +3875,12 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans =  {true, false})
+    @CsvSource({
+            "true, SHARING",
+            "false, SHARING",
+            "true, BIDSTREAM",
+            "false, BIDSTREAM",
+    })
         // Tests:
         //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
         //   ID_READER has access to a keyset with a missing allowed_sites              - access through sharing
@@ -3859,7 +3888,7 @@ public class UIDOperatorVerticleTest {
         //   ID_READER has no access to a keyset that is disabled                       - direct reject
         //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharingKeysets_IDREADER(boolean provideSiteDomainNames, Vertx vertx, VertxTestContext testContext) {
+    void keySharingKeysets_IDREADER(boolean provideSiteDomainNames, SharingEndpoint endpoint, Vertx vertx, VertxTestContext testContext) {
 
         if (!provideSiteDomainNames) {
             this.uidOperatorVerticle.setKeySharingEndpointProvideSiteDomainNames(false);
@@ -3901,23 +3930,25 @@ public class UIDOperatorVerticleTest {
         doReturn(new Site(104, "site104", true, new HashSet<>())).when(siteProvider).getSite(104);
 
         Arrays.sort(expectedKeys, Comparator.comparing(KeysetKey::getId));
-        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+        send(apiVersion, vertx, apiVersion + endpoint.getPath(), true, null, null, 200, respJson -> {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
-            assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
-            assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
-            checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
+
+            final JsonObject body = respJson.getJsonObject("body");
+
+            checkSharingResponseHeaderFields(endpoint, body, clientSiteId);
+
+            checkEncryptionKeys(respJson, endpoint, clientSiteId, expectedKeys);
 
             if(provideSiteDomainNames) {
                 HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102);
                 // site 104 has empty domain name list intentionally previously so while site 104 should be included in
                 // this /key/sharing response, it won't appear in this domain name list
-                verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
+                verifyExpectedSiteDetail(expectedSites, body.getJsonArray("site_data"));
             }
             else {
                 //otherwise we shouldn't even have a 'sites' field
-                assertNull(respJson.getJsonObject("body").getJsonArray("site_data"));
+                assertNull(body.getJsonArray("site_data"));
             }
             testContext.completeNow();
         });
@@ -3979,8 +4010,9 @@ public class UIDOperatorVerticleTest {
             assertEquals(config.getInteger(Const.Config.SharingTokenExpiryProp), Integer.parseInt(respJson.getJsonObject("body").getString("token_expiry_seconds")));
             assertEquals(expectedMaxSharingLifetimeSeconds, respJson.getJsonObject("body").getInteger("max_sharing_lifetime_seconds"));
             assertEquals(getIdentityScope().toString(), respJson.getJsonObject("body").getString("identity_scope"));
+            assertNotNull(respJson.getJsonObject("body").getInteger("allow_clock_skew_seconds"));
 
-            checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
+            checkEncryptionKeys(respJson, SharingEndpoint.SHARING, clientSiteId, expectedKeys);
 
             HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 104);
             verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
@@ -4008,7 +4040,7 @@ public class UIDOperatorVerticleTest {
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
             verifyExpectedSiteDetail(new HashMap<>(), respJson.getJsonObject("body").getJsonArray("site_data"));
-            checkEncryptionKeysSharing(respJson, siteId, encryptionKeys);
+            checkEncryptionKeys(respJson, SharingEndpoint.SHARING, siteId, encryptionKeys);
             testContext.completeNow();
         });
     }
@@ -4082,13 +4114,25 @@ public class UIDOperatorVerticleTest {
                     verifyExpectedSiteDetail(expectedSites, siteData);
                     break;
             }
-            checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys);
+            checkEncryptionKeys(respJson, SharingEndpoint.SHARING, clientSiteId, expectedKeys);
             testContext.completeNow();
         });
     }
 
+    private static List<Arguments> keySharingRotatingKeysets_IDREADER_source() {
+        final String[] testRuns = {"KeysetAccess", "AddKeyset", "AddKey", "RotateKey", "DisableKey", "DisableKeyset"};
+
+        final List<Arguments> arguments = new ArrayList<>();
+        for (SharingEndpoint endpoint : SharingEndpoint.values()) {
+            for (String testRun : testRuns) {
+                arguments.add(Arguments.of(testRun, endpoint));
+            }
+        }
+        return arguments;
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"KeysetAccess", "AddKeyset", "AddKey", "RotateKey", "DisableKey", "DisableKeyset"})
+    @MethodSource("keySharingRotatingKeysets_IDREADER_source")
         // "KeysetAccess"
         //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
         //   ID_READER has access to a keyset with a missing allowed_sites              - access through sharing
@@ -4096,7 +4140,7 @@ public class UIDOperatorVerticleTest {
         //   ID_READER has no access to a keyset that is disabled                       - direct reject
         //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharingRotatingKeysets_IDREADER(String testRun, Vertx vertx, VertxTestContext testContext) {
+    void keySharingRotatingKeysets_IDREADER(String testRun, SharingEndpoint endpoint, Vertx vertx, VertxTestContext testContext) {
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.ID_READER);
@@ -4186,15 +4230,34 @@ public class UIDOperatorVerticleTest {
 
         // test and validate results
         expectedKeys.sort(Comparator.comparing(KeysetKey::getId));
-        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+        send(apiVersion, vertx, apiVersion + endpoint.getPath(), true, null, null, 200, respJson -> {
             System.out.println(respJson);
             assertEquals("success", respJson.getString("status"));
-            assertEquals(clientSiteId, respJson.getJsonObject("body").getInteger("caller_site_id"));
-            assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, respJson.getJsonObject("body").getInteger("master_keyset_id"));
-            assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
-            checkEncryptionKeysSharing(respJson, clientSiteId, expectedKeys.toArray(new KeysetKey[0]));
+            final JsonObject body = respJson.getJsonObject("body");
+
+            checkSharingResponseHeaderFields(endpoint, body, clientSiteId);
+
+            checkEncryptionKeys(respJson, endpoint, clientSiteId, expectedKeys.toArray(new KeysetKey[0]));
             testContext.completeNow();
         });
+    }
+
+    private void checkSharingResponseHeaderFields(SharingEndpoint endpoint, JsonObject body, int clientSiteId) {
+        assertEquals(this.getIdentityScope().toString(), body.getString("identity_scope"));
+        assertNotNull(body.getInteger("allow_clock_skew_seconds"));
+
+        switch (endpoint) {
+            case SHARING:
+                assertEquals(clientSiteId, body.getInteger("caller_site_id"));
+                assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, body.getInteger("master_keyset_id"));
+                assertEquals(4, body.getInteger("default_keyset_id"));
+                // NOTE: this is intentionally a string, not an integer. See comment in UIDOperatorVerticle.
+                assertNotNull(body.getString("token_expiry_seconds"));
+                break;
+            case BIDSTREAM:
+                assertNotNull(body.getInteger("max_bidstream_lifetime_seconds"));
+                break;
+        }
     }
 
     @Test

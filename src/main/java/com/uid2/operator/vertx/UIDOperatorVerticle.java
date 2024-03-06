@@ -105,6 +105,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
+    private final int allowClockSkewSeconds;
     protected int maxSharingLifetimeSeconds;
     protected boolean keySharingEndpointProvideSiteDomainNames;
 
@@ -144,6 +145,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
+        this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
         this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
     }
 
@@ -570,6 +572,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds);
         }
 
+        resp.put("allow_clock_skew_seconds", allowClockSkewSeconds);
         resp.put("identity_scope", this.identityScope.name());
     }
 

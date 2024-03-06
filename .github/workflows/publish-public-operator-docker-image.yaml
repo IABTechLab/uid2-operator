@@ -15,6 +15,10 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
+      vulnerability_severity:
+        description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised. Must be one of ['CRITICAL', 'CRITICAL,HIGH' or 'CRITICAL,HIGH,MEDIUM'] (without space in between).
+        type: string
+        default: 'CRITICAL,HIGH'
 
   workflow_call:
     inputs:
@@ -41,6 +45,7 @@ jobs:
       version_number_input: ${{ inputs.version_number_input }}
       cloud_provider: 'default'
       force_release: 'no' # Do not create a release for the component builds, will be created by the parent
+      vulnerability_severity: ${{ inputs.vulnerability_severity }}
     secrets: inherit
 
   e2e:

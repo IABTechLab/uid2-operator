@@ -13,6 +13,7 @@ public class Const extends com.uid2.shared.Const {
         public static final String FailureShutdownWaitHoursProp = "failure_shutdown_wait_hours";
         public static final String AllowLegacyAPIProp = "allow_legacy_api";
         public static final String SharingTokenExpiryProp = "sharing_token_expiry_seconds";
+        public static final String MaxBidstreamLifetimeSecondsProp = "max_bidstream_lifetime_seconds";
         public static final String AllowClockSkewSecondsProp = "allow_clock_skew_seconds";
         public static final String MaxSharingLifetimeProp = "max_sharing_lifetime_seconds";
         public static final String EnableClientSideTokenGenerate = "client_side_token_generate";

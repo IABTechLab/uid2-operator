@@ -105,6 +105,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
+    private final int maxBidstreamLifetimeSeconds;
     private final int allowClockSkewSeconds;
     protected int maxSharingLifetimeSeconds;
     protected boolean keySharingEndpointProvideSiteDomainNames;
@@ -145,6 +146,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
+        final Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
+        this.maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
+        if (this.maxBidstreamLifetimeSeconds < identityTokenExpiresAfterSeconds) {
+            LOGGER.error("Max bidstream lifetime seconds ({} seconds) is less than identity token lifetime ({} seconds)", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds);
+            throw new RuntimeException("Max bidstream lifetime seconds is less than identity token lifetime seconds");
+        }
         this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
         this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
     }
@@ -252,6 +259,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         v2Router.post("/key/sharing").handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
+        v2Router.post("/key/bidstream").handler(bodyHandler).handler(auth.handleV1(
+                rc -> v2PayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
         v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
@@ -539,15 +548,49 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             resp.put("keys", keys);
 
-            final List<Site> sites = getSitesWithDomainNames(accessibleKeys, keysetMap);
-            if (sites != null) {
-                resp.put("site_data", sites.stream().map(UIDOperatorVerticle::toJson).collect(Collectors.toList()));
-            }
+            addSites(resp, accessibleKeys, keysetMap);
 
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);
             rc.fail(500);
+        }
+    }
+
+    public void handleKeysBidstream(RoutingContext rc) {
+        final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
+
+        final KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
+        final List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
+        final Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
+
+        final List<KeysetKey> accessibleKeys = getAccessibleKeys(keysetKeyStore, keyManagerSnapshot, clientKey);
+
+        final List<JsonObject> keysJson = accessibleKeys.stream()
+                .map(UIDOperatorVerticle::toJson)
+                .collect(Collectors.toList());
+
+        final JsonObject resp = new JsonObject();
+        addBidstreamHeaderFields(resp);
+        resp.put("keys", keysJson);
+        addSites(resp, accessibleKeys, keysetMap);
+
+        ResponseUtil.SuccessV2(rc, resp);
+    }
+
+    private void addBidstreamHeaderFields(JsonObject resp) {
+        resp.put("max_bidstream_lifetime_seconds", maxBidstreamLifetimeSeconds);
+        addIdentityScopeField(resp);
+        addAllowClockSkewSecondsField(resp);
+    }
+
+    private void addSites(JsonObject resp, List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
+        final List<Site> sites = getSitesWithDomainNames(keys, keysetMap);
+        if (sites != null) {
+            final List<JsonObject> sitesJson = sites.stream()
+                    .map(UIDOperatorVerticle::toJson)
+                    .collect(Collectors.toList());
+            resp.put("site_data", sitesJson);
         }
     }
 
@@ -572,8 +615,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds);
         }
 
-        resp.put("allow_clock_skew_seconds", allowClockSkewSeconds);
+        addIdentityScopeField(resp);
+        addAllowClockSkewSecondsField(resp);
+    }
+
+    private void addIdentityScopeField(JsonObject resp) {
         resp.put("identity_scope", this.identityScope.name());
+    }
+
+    private void addAllowClockSkewSecondsField(JsonObject resp) {
+        resp.put("allow_clock_skew_seconds", allowClockSkewSeconds);
     }
 
     private List<Site> getSitesWithDomainNames(List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {

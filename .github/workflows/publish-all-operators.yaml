@@ -10,6 +10,10 @@ on:
         - Major
         - Minor
         - Patch
+      vulnerability_severity:
+        description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised. Must be one of ['CRITICAL', 'CRITICAL,HIGH' or 'CRITICAL,HIGH,MEDIUM'] (without space in between).
+        type: string
+        default: 'CRITICAL,HIGH'
 
 jobs:
   start:
@@ -70,6 +74,7 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+      vulnerability_severity: ${{ inputs.vulnerability_severity }}
     secrets: inherit
 
   buildGCP:
@@ -79,6 +84,7 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+      vulnerability_severity: ${{ inputs.vulnerability_severity }}
     secrets: inherit
 
   buildAzure:
@@ -88,6 +94,7 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+      vulnerability_severity: ${{ inputs.vulnerability_severity }}
     secrets: inherit
 
   collectAllArtifacts:
@@ -114,7 +121,7 @@ jobs:
           path: ./artifacts/azure_cc_operator
 
       - name: Delete staging artifacts
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v4
         with: 
           name: |
             image-details

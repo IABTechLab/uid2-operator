@@ -42,11 +42,11 @@ jobs:
     outputs:
       pcr0: ${{ steps.showPCR0.outputs.PCR0 }}
     steps:
-#      - name: Check branch and release type
-#        id: checkRelease
-#        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2
-#        with:
-#          release_type: ${{ inputs.release_type }}
+      - name: Check branch and release type
+        id: checkRelease
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2
+        with:
+          release_type: ${{ inputs.release_type }}
 
       - name: Free up space - delete preinstalled tools
         run: |
@@ -59,7 +59,7 @@ jobs:
         shell: bash
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
-#          IS_RELEASE: ${{ steps.checkRelease.outputs.IS_RELEASE }}
+          IS_RELEASE: ${{ steps.checkRelease.outputs.IS_RELEASE }}
 
       - name: Checkout full history on Main
         uses: actions/checkout@v4
@@ -96,24 +96,24 @@ jobs:
           echo "Version number updated from $current_version to $new_version"
           echo "image_tag=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}" >> $GITHUB_OUTPUT
 
-#      - name: Commit pom.xml and version.json
-#        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE != 'true' }}
-#        uses: EndBug/add-and-commit@v9
-#        with:
-#          add: 'pom.xml version.json'
-#          author_name: Release Workflow
-#          author_email: unifiedid-admin+release@thetradedesk.com
-#          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-#
-#      - name: Commit pom.xml, version.json and set tag
-#        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
-#        uses: EndBug/add-and-commit@v9
-#        with:
-#          add: 'pom.xml version.json'
-#          author_name: Release Workflow
-#          author_email: unifiedid-admin+release@thetradedesk.com
-#          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-#          tag: v${{ steps.version.outputs.new_version }}
+      - name: Commit pom.xml and version.json
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE != 'true' }}
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'pom.xml version.json'
+          author_name: Release Workflow
+          author_email: unifiedid-admin+release@thetradedesk.com
+          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+
+      - name: Commit pom.xml, version.json and set tag
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'pom.xml version.json'
+          author_name: Release Workflow
+          author_email: unifiedid-admin+release@thetradedesk.com
+          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+          tag: v${{ steps.version.outputs.new_version }}
 
       - name: Build UID2 AWS EIF
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@gdm-UID2-2341-aws-test-pipeline

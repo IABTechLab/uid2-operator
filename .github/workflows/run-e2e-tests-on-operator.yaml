@@ -26,17 +26,16 @@ on:
         default: '{
           "operator": "latest",
           "core": "latest",
-          "optout": "latest"
+          "optout": "latest" 
         }'
       branch:
         description: The branches for config
         type: string
         required: true
         default: '{
-          "operator": "main",
           "core": "main",
           "optout": "main",
-          "admin": "main",
+          "admin": "main" 
         }'
       aws:
         description: The arguments for AWS private operator
@@ -63,7 +62,7 @@ on:
         default: '{
           "operator": "latest",
           "core": "latest",
-          "optout": "latest"
+          "optout": "latest" 
         }'
       branch:
         description: The branches for config
@@ -71,7 +70,7 @@ on:
         default: '{
           "core": "main",
           "optout": "main",
-          "admin": "main",
+          "admin": "main" 
         }'
       aws:
         description: The arguments for AWS private operator

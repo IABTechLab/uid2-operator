@@ -13,35 +13,35 @@ on:
         - azure
         - aws
       operator_image_version:
-        description: The pipeline will run the E2E test with this operator image version (for GCP/Azure, check https://github.com/IABTechLab/uid2-operator/pkgs/container/uid2-operator)
+        description: 'Image: Operator image version for public/gcp/azure (check https://github.com/IABTechLab/uid2-operator/pkgs/container/uid2-operator)'
         type: string
         default: latest
       core_image_version:
-        description: The pipeline will run the E2E test with this core image version
+        description: 'Image: Core image version'
         type: string
         default: latest
       optout_image_version:
-        description: The pipeline will run the E2E test with this optout image version
+        description: 'Image: Optout image version'
         type: string
         default: latest
       e2e_image_version:
-        description: The pipeline will run the E2E test with this E2E image version
+        description: 'Image: E2E image version'
         type: string
         default: latest
       core_branch:
-        description: 'Core: use this branch for Core config to test with'
+        description: 'Config: Core branch for config'
         type: string
         default: main
       optout_branch:
-        description: 'Optout: use this branch for Optout config to test with'
+        description: 'Config: Optout branch for config'
         type: string
         default: main
       admin_branch:
-        description: 'Admin: use this branch for Admin config to test with'
+        description: 'Config: Admin branch for config'
         type: string
         default: main
       operator_branch:
-        description: 'Operator: use this branch for Operator config to test with'
+        description: 'Config: Operator branch for config'
         type: string
         default: main
       aws:
@@ -60,35 +60,35 @@ on:
         type: string
         default: public
       operator_image_version:
-        description: The pipeline will run the E2E test with this operator image version
+        description: 'Image: Operator image version for public/gcp/azure'
         type: string
         default: latest
       core_image_version:
-        description: The pipeline will run the E2E test with this core image version
+        description: 'Image: Core image version'
         type: string
         default: latest
       optout_image_version:
-        description: The pipeline will run the E2E test with this optout image version
+        description: 'Image: Optout image version'
         type: string
         default: latest
       e2e_image_version:
-        description: The pipeline will run the E2E test with this e2e image version
+        description: 'Image: E2E image version'
         type: string
         default: latest
       core_branch:
-        description: 'Core: use this branch for Core config to test with'
+        description: 'Config: Core branch for config'
         type: string
         default: main
       optout_branch:
-        description: 'Optout: use this branch for Optout config to test with'
+        description: 'Config: Optout branch for config'
         type: string
         default: main
       admin_branch:
-        description: 'Admin: use this branch for Admin config to test with'
+        description: 'Config: Admin branch for config'
         type: string
         default: main
       operator_branch:
-        description: 'Operator: use this branch for Operator config to test with'
+        description: 'Config: Operator branch for config'
         type: string
         default: main
       aws:

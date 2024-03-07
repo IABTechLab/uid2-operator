@@ -12,38 +12,37 @@ on:
         - gcp
         - azure
         - aws
-      operator_image_version:
-        description: 'Image: Operator image version for public/gcp/azure (check https://github.com/IABTechLab/uid2-operator/pkgs/container/uid2-operator)'
+
+      identity_scope:
+        description: The identity scope [UID2, EUID]
+        required: true
+        type: choice
+        options:
+          - UID2
+          - EUID
+
+      image_version:
+        description: The image versions (for gcp/azure, set appropriate operator image)
         type: string
-        default: latest
-      core_image_version:
-        description: 'Image: Core image version'
+        required: true
+        default: '{
+          "operator": "latest",
+          "core": "latest",
+          "optout": "latest",
+          "e2e": "latest"
+        }'
+
+      branch:
+        description: The branches for config
         type: string
-        default: latest
-      optout_image_version:
-        description: 'Image: Optout image version'
-        type: string
-        default: latest
-      e2e_image_version:
-        description: 'Image: E2E image version'
-        type: string
-        default: latest
-      core_branch:
-        description: 'Config: Core branch for config'
-        type: string
-        default: main
-      optout_branch:
-        description: 'Config: Optout branch for config'
-        type: string
-        default: main
-      admin_branch:
-        description: 'Config: Admin branch for config'
-        type: string
-        default: main
-      operator_branch:
-        description: 'Config: Operator branch for config'
-        type: string
-        default: main
+        required: true
+        default: '{
+          "operator": "main",
+          "core": "main",
+          "optout": "main",
+          "admin": "main",
+        }'
+
       aws:
         description: The arguments for AWS private operator
         type: string
@@ -103,7 +102,7 @@ on:
 jobs:
   e2e-test:
     name: E2E Test
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@gdm-UID2-2341-aws-test-pipeline
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v2
     with:
       operator_type: ${{ inputs.operator_type }}
       operator_image_version: ${{ inputs.operator_image_version }}

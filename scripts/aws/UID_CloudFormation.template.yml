@@ -38,15 +38,15 @@ Parameters:
     Default: 15
   VpcId:
     Type: String
-    Description: VpcId of your existing Virtual Private Cloud (VPC)
+    Description: VPC ID of your existing Virtual Private Cloud (VPC)
     Default: ''
-    ConstraintDescription: must be the VPC Id of an existing Virtual Private Cloud.
+    ConstraintDescription: must be the VPC ID of an existing Virtual Private Cloud.
   VpcSubnet1:
-    Description: AZ1 SubnetId from existing VPC, if using existing VPC
+    Description: AZ1 Subnet ID from existing VPC, if using existing VPC
     Type: String
     Default: ''
   VpcSubnet2:
-    Description: AZ2 SubnetId from existing VPC, if using existing VPC
+    Description: AZ2 Subnet ID from existing VPC, if using existing VPC
     Type: String
     Default: ''
   SSHKeyName:
@@ -175,7 +175,7 @@ Resources:
   TokenSecret:
     Type: AWS::SecretsManager::Secret
     Properties: 
-      Description: UID Token
+      Description: UID2 Token
       KmsKeyId: !GetAtt KMSKey.Arn
       Name: !Sub 'uid2-config-stack-${AWS::StackName}'
       SecretString: !Sub '{
@@ -222,7 +222,7 @@ Resources:
   SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: UID EC2 Security Group
+      GroupDescription: UID2 EC2 Security Group
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: '22'
@@ -292,7 +292,7 @@ Resources:
         - !Ref VpcSubnet2
       Tags:
       - Key: Name
-        Value: 'UID Instance'
+        Value: 'UID2 Instance'
         PropagateAtLaunch: true
     CreationPolicy:
       ResourceSignal:

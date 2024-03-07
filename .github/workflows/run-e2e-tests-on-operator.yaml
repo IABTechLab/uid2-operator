@@ -26,7 +26,8 @@ on:
         default: '{
           "operator": "latest",
           "core": "latest",
-          "optout": "latest" 
+          "optout": "latest",
+          "e2e": "latest" 
         }'
       branch:
         description: The branches for config

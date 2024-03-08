@@ -4253,6 +4253,9 @@ public class UIDOperatorVerticleTest {
                 assertEquals(4, body.getInteger("default_keyset_id"));
                 // NOTE: this is intentionally a string, not an integer. See comment in UIDOperatorVerticle.
                 assertNotNull(body.getString("token_expiry_seconds"));
+
+                // Check that /key/bidstream fields are not present.
+                assertFalse(body.containsKey("max_bidstream_lifetime_seconds"));
                 break;
             case BIDSTREAM:
                 assertNotNull(body.getInteger("max_bidstream_lifetime_seconds"));

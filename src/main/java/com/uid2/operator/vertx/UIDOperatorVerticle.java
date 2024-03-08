@@ -535,10 +535,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 JsonObject keyObj = toJson(key);
                 Keyset keyset = keysetMap.get(key.getKeysetId());
 
-                // include 'keyset_id' field, if:
-                //   (a) a key belongs to caller's enabled site
-                //   (b) a key belongs to master_keyset
-                // otherwise, when a key is accessible by caller, the key can be used for decryption only. skip 'keyset_id' field.
+                // Include keyset ID if:
+                // - The key belongs to the caller's site, or
+                // - The key belongs to the master keyset.
+                // Otherwise, the key can be used for decryption only so we don't include the keyset ID.
                 if (clientKey.getSiteId() == keyset.getSiteId()) {
                     keyObj.put("keyset_id", key.getKeysetId());
                 } else if (key.getKeysetId() == Data.MasterKeysetId) {

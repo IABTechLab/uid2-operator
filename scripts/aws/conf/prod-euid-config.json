@@ -20,6 +20,7 @@
   "optout_inmem_cache": true,
   "optout_s3_folder": "optout/",
   "identity_token_expires_after_seconds": 259200,
+  "max_bidstream_lifetime_seconds": 259210,
   "refresh_token_expires_after_seconds": 2592000,
   "refresh_identity_token_after_seconds": 3600,
   "allow_legacy_api": false,

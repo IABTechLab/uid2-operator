@@ -14,6 +14,7 @@
   "services_metadata_path": "http://core:8088/services/refresh",
   "service_links_metadata_path": "http://core:8088/service_links/refresh",
   "identity_token_expires_after_seconds": 3600,
+  "max_bidstream_lifetime_seconds": 3610,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,
   "advertising_token_v3": false,

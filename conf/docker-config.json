@@ -33,6 +33,7 @@
   "services_metadata_path": "/com.uid2.core/test/services/metadata.json",
   "service_links_metadata_path": "/com.uid2.core/test/service_links/metadata.json",
   "identity_token_expires_after_seconds": 3600,
+  "max_bidstream_lifetime_seconds": 3610,
   "optout_metadata_path": null,
   "optout_inmem_cache": false,
   "enclave_platform": null,

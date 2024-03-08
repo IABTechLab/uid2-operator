@@ -11,6 +11,8 @@ import io.vertx.core.json.JsonObject;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Map;
+import java.util.Set;
 
 //An extended UIDOperatorVerticle to expose classes for testing purposes
 public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
@@ -36,7 +38,11 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
         this.keySharingEndpointProvideSiteDomainNames = enable;
     }
 
-    public void setlastInvalidOriginProcessTime(Instant lastInvalidOriginProcessTime) {
+    public void setLastInvalidOriginProcessTime(Instant lastInvalidOriginProcessTime) {
         this.lastInvalidOriginProcessTime = lastInvalidOriginProcessTime;
+    }
+
+    public void setSiteIdToInvalidOrigins(Map<Integer, Set<String>> siteIdToInvalidOrigins) {
+        this.siteIdToInvalidOrigins = siteIdToInvalidOrigins;
     }
 }

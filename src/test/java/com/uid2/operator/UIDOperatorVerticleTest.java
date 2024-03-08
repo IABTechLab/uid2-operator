@@ -2737,7 +2737,7 @@ public class UIDOperatorVerticleTest {
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
-        this.uidOperatorVerticle.setlastInvalidOriginProcessTime(Instant.now().minusSeconds(3600));
+        this.uidOperatorVerticle.setLastInvalidOriginProcessTime(Instant.now().minusSeconds(3600));
 
         setupCstgBackend();
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
@@ -2753,6 +2753,47 @@ public class UIDOperatorVerticleTest {
                     assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
                     Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOrigin: site test (123): http://gototest.com"));
+                    assertTokenStatusMetrics(
+                            clientSideTokenGenerateSiteId,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin);
+                    testContext.completeNow();
+                });
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "true,http://gototest.com",
+            "false,http://gototest.com",
+    })
+    void cstgDomainNameCheckFailsAndLogSeveralInvalidHttpOrigin(boolean setOptoutCheckFlagInRequest, String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
+        this.uidOperatorVerticle.setLastInvalidOriginProcessTime(Instant.now().minusSeconds(3600));
+
+        Map<Integer, Set<String>> siteIdToInvalidOrigins = new HashMap<>();
+        siteIdToInvalidOrigins.put(clientSideTokenGenerateSiteId, new HashSet<>(Arrays.asList("http://localhost1.com", "http://localhost2.com")));
+        siteIdToInvalidOrigins.put(124, new HashSet<>(Arrays.asList("http://xyz1.com", "http://xyz2.com")));
+
+        this.uidOperatorVerticle.setSiteIdToInvalidOrigins(siteIdToInvalidOrigins);
+
+        setupCstgBackend();
+        when(siteProvider.getSite(124)).thenReturn(new Site(124, "test2", true, new HashSet<>()));
+
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                httpOrigin,
+                data.getItem1(),
+                data.getItem2(),
+                403,
+                testContext,
+                respJson -> {
+                    assertFalse(respJson.containsKey("body"));
+                    assertEquals("unexpected http origin", respJson.getString("message"));
+                    assertEquals("invalid_http_origin", respJson.getString("status"));
+                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOrigin: site test (123): http://localhost1.com, http://gototest.com, http://localhost2.com | site test2 (124): http://xyz1.com, http://xyz2.com"));
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,

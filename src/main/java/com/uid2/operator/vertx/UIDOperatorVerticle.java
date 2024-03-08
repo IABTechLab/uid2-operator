@@ -108,8 +108,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
     protected boolean keySharingEndpointProvideSiteDomainNames;
-    private Map<Integer, Set<String>> siteIdToInvalidOrigins;
-    protected Instant lastInvalidOriginProcessTime;
+    protected Map<Integer, Set<String>> siteIdToInvalidOrigins = new HashMap<>();
+    protected Instant lastInvalidOriginProcessTime = Instant.now();
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -147,8 +147,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
-        this.lastInvalidOriginProcessTime = Instant.now();
-        this.siteIdToInvalidOrigins = new HashMap<>();
         this.clientSideTokenGenerateLogInvalidHttpOrigin = config.getBoolean("client_side_token_generate_log_invalid_http_origins", false);
     }
 
@@ -1781,23 +1779,23 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private String generateInvalidHttpOriginMessage(Map<Integer, Set<String>> siteIdToInvalidOrigins) {
         StringBuilder invalidHttpOriginMessage = new StringBuilder();
         invalidHttpOriginMessage.append("InvalidHttpOrigin: ");
-        boolean mapHasFirstEle = false;
+        boolean mapHasFirstElement = false;
         for (Map.Entry<Integer, Set<String>> entry : siteIdToInvalidOrigins.entrySet()) {
-            if(mapHasFirstEle) {
+            if(mapHasFirstElement) {
                 invalidHttpOriginMessage.append(" | ");
             }
-            mapHasFirstEle = true;
+            mapHasFirstElement = true;
             int siteId = entry.getKey();
             Set<String> origins = entry.getValue();
             String siteName = getSiteName(siteProvider, siteId);
             String site = "site " + siteName + " (" + siteId + "): ";
             invalidHttpOriginMessage.append(site);
-            boolean setHasFirstEle = false;
+            boolean setHasFirstElement = false;
             for (String origin : origins) {
-                if(setHasFirstEle) {
+                if(setHasFirstElement) {
                     invalidHttpOriginMessage.append(", ");
                 }
-                setHasFirstEle = true;
+                setHasFirstElement = true;
                 invalidHttpOriginMessage.append(origin);
             }
         }

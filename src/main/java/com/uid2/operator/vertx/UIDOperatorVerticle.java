@@ -1781,22 +1781,25 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private String generateInvalidHttpOriginMessage(Map<Integer, Set<String>> siteIdToInvalidOrigins) {
         StringBuilder invalidHttpOriginMessage = new StringBuilder();
         invalidHttpOriginMessage.append("InvalidHttpOrigin: ");
+        boolean mapHasFirstEle = false;
         for (Map.Entry<Integer, Set<String>> entry : siteIdToInvalidOrigins.entrySet()) {
+            if(mapHasFirstEle) {
+                invalidHttpOriginMessage.append(" | ");
+            }
+            mapHasFirstEle = true;
             int siteId = entry.getKey();
             Set<String> origins = entry.getValue();
             String siteName = getSiteName(siteProvider, siteId);
             String site = "site " + siteName + " (" + siteId + "): ";
             invalidHttpOriginMessage.append(site);
+            boolean setHasFirstEle = false;
             for (String origin : origins) {
-                invalidHttpOriginMessage.append(origin).append(", ");
+                if(setHasFirstEle) {
+                    invalidHttpOriginMessage.append(", ");
+                }
+                setHasFirstEle = true;
+                invalidHttpOriginMessage.append(origin);
             }
-            if (!origins.isEmpty()) {
-                invalidHttpOriginMessage.delete(invalidHttpOriginMessage.length() - 2, invalidHttpOriginMessage.length());
-            }
-            invalidHttpOriginMessage.append(" | ");
-        }
-        if (!siteIdToInvalidOrigins.isEmpty()) {
-            invalidHttpOriginMessage.delete(invalidHttpOriginMessage.length() - 3, invalidHttpOriginMessage.length());
         }
         return invalidHttpOriginMessage.toString();
     }

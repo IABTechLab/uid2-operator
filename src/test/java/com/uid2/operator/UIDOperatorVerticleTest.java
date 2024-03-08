@@ -4256,6 +4256,13 @@ public class UIDOperatorVerticleTest {
                 break;
             case BIDSTREAM:
                 assertNotNull(body.getInteger("max_bidstream_lifetime_seconds"));
+
+                // Check that /key/sharing header fields are not present.
+                assertFalse(body.containsKey("caller_site_id"));
+                assertFalse(body.containsKey("default_keyset_id"));
+                assertFalse(body.containsKey("master_keyset_id"));
+                assertFalse(body.containsKey("max_sharing_lifetime_seconds"));
+                assertFalse(body.containsKey("token_expiry_seconds"));
                 break;
         }
     }

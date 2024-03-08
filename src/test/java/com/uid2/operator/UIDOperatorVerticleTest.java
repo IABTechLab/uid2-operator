@@ -4255,7 +4255,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, body.getInteger("master_keyset_id"));
                 assertEquals(4, body.getInteger("default_keyset_id"));
                 // NOTE: this is intentionally a string, not an integer. See comment in UIDOperatorVerticle.
-                assertNotNull(body.getString("token_expiry_seconds"));
+                assertEquals(config.getInteger(Const.Config.SharingTokenExpiryProp), Integer.parseInt(body.getString("token_expiry_seconds")));
 
                 // Check that /key/bidstream fields are not present.
                 assertFalse(body.containsKey("max_bidstream_lifetime_seconds"));

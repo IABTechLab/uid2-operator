@@ -1771,7 +1771,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         Set<String> uniqueInvalidOrigins = siteIdToInvalidOrigins.computeIfAbsent(siteId, k -> new HashSet<>());
         uniqueInvalidOrigins.add(origin);
 
-        if (Duration.between(lastInvalidOriginProcessTime, Instant.now()).compareTo(Duration.ofMinutes(1)) >= 0) {
+        if (Duration.between(lastInvalidOriginProcessTime, Instant.now()).compareTo(Duration.ofMinutes(60)) >= 0) {
             lastInvalidOriginProcessTime = Instant.now();
             LOGGER.error(generateInvalidHttpOriginMessage(siteIdToInvalidOrigins));
             siteIdToInvalidOrigins.clear();
@@ -1781,17 +1781,23 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private String generateInvalidHttpOriginMessage(Map<Integer, Set<String>> siteIdToInvalidOrigins) {
         StringBuilder invalidHttpOriginMessage = new StringBuilder();
         invalidHttpOriginMessage.append("InvalidHttpOrigin: ");
-        siteIdToInvalidOrigins.forEach((siteId, origins) -> {
+        for (Map.Entry<Integer, Set<String>> entry : siteIdToInvalidOrigins.entrySet()) {
+            int siteId = entry.getKey();
+            Set<String> origins = entry.getValue();
             String siteName = getSiteName(siteProvider, siteId);
             String site = "site " + siteName + " (" + siteId + "): ";
             invalidHttpOriginMessage.append(site);
-            origins.forEach(origin ->  invalidHttpOriginMessage.append(origin).append(", "));
+            for (String origin : origins) {
+                invalidHttpOriginMessage.append(origin).append(", ");
+            }
             if (!origins.isEmpty()) {
                 invalidHttpOriginMessage.delete(invalidHttpOriginMessage.length() - 2, invalidHttpOriginMessage.length());
             }
             invalidHttpOriginMessage.append(" | ");
-        });
-        invalidHttpOriginMessage.delete(invalidHttpOriginMessage.length() - 3, invalidHttpOriginMessage.length());
+        }
+        if (!siteIdToInvalidOrigins.isEmpty()) {
+            invalidHttpOriginMessage.delete(invalidHttpOriginMessage.length() - 3, invalidHttpOriginMessage.length());
+        }
         return invalidHttpOriginMessage.toString();
     }
 

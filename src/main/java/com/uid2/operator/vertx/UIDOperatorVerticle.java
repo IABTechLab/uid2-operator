@@ -5,7 +5,6 @@ import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
-import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.privacy.tcf.TransparentConsent;
 import com.uid2.operator.privacy.tcf.TransparentConsentParseResult;
@@ -51,7 +50,6 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
-import lombok.extern.flogger.Flogger;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,14 +103,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
-    private final Duration invalidOriginProcessTimeInterval;
-    private final static long invalidOriginPerMin = 3600L; // We set the time interval to one hour
+    private final boolean clientSideTokenGenerateLogInvalidHttpOrigin;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
     protected boolean keySharingEndpointProvideSiteDomainNames;
-    protected Map<Integer, Set<String>> invalidOriginMap;
-    private Instant lastInvalidOriginProcessTime;
+    private Map<Integer, Set<String>> siteIdToInvalidOrigins;
+    protected Instant lastInvalidOriginProcessTime;
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -150,9 +147,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
-        this.invalidOriginProcessTimeInterval = Duration.ofMinutes(invalidOriginPerMin);
         this.lastInvalidOriginProcessTime = Instant.now();
-        this.invalidOriginMap = new HashMap<>();
+        this.siteIdToInvalidOrigins = new HashMap<>();
+        this.clientSideTokenGenerateLogInvalidHttpOrigin = config.getBoolean("client_side_token_generate_log_invalid_http_origins", false);
     }
 
     @Override
@@ -318,7 +315,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
             if (!allowedDomain) {
-                handleInvalidHttpOriginError(clientSideKeypair.getSiteId(), origin);
+                if (clientSideTokenGenerateLogInvalidHttpOrigin) {
+                    handleInvalidHttpOriginError(clientSideKeypair.getSiteId(), origin);
+                }
                 SendClientErrorResponseAndRecordStats(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin, siteProvider);
                 return;
             }
@@ -1769,15 +1768,31 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void handleInvalidHttpOriginError(int siteId, String origin) {
-        Set<String> uniqueInvalidOrigins = invalidOriginMap.getOrDefault(siteId, new HashSet<>());
+        Set<String> uniqueInvalidOrigins = siteIdToInvalidOrigins.computeIfAbsent(siteId, k -> new HashSet<>());
         uniqueInvalidOrigins.add(origin);
-        invalidOriginMap.put(siteId, uniqueInvalidOrigins);
 
-        if (Duration.between(lastInvalidOriginProcessTime, Instant.now()).compareTo(invalidOriginProcessTimeInterval) >= 0) {
+        if (Duration.between(lastInvalidOriginProcessTime, Instant.now()).compareTo(Duration.ofMinutes(1)) >= 0) {
             lastInvalidOriginProcessTime = Instant.now();
-            LOGGER.error("Invalid origin: " + invalidOriginMap.toString());
-            invalidOriginMap.clear();
+            LOGGER.error(generateInvalidHttpOriginMessage(siteIdToInvalidOrigins));
+            siteIdToInvalidOrigins.clear();
         }
+    }
+
+    private String generateInvalidHttpOriginMessage(Map<Integer, Set<String>> siteIdToInvalidOrigins) {
+        StringBuilder invalidHttpOriginMessage = new StringBuilder();
+        invalidHttpOriginMessage.append("InvalidHttpOrigin: ");
+        siteIdToInvalidOrigins.forEach((siteId, origins) -> {
+            String siteName = getSiteName(siteProvider, siteId);
+            String site = "site " + siteName + " (" + siteId + "): ";
+            invalidHttpOriginMessage.append(site);
+            origins.forEach(origin ->  invalidHttpOriginMessage.append(origin).append(", "));
+            if (!origins.isEmpty()) {
+                invalidHttpOriginMessage.delete(invalidHttpOriginMessage.length() - 2, invalidHttpOriginMessage.length());
+            }
+            invalidHttpOriginMessage.append(" | ");
+        });
+        invalidHttpOriginMessage.delete(invalidHttpOriginMessage.length() - 3, invalidHttpOriginMessage.length());
+        return invalidHttpOriginMessage.toString();
     }
 
     public enum UserConsentStatus {

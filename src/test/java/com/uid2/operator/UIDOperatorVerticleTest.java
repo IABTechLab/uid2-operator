@@ -149,6 +149,8 @@ public class UIDOperatorVerticleTest {
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         config.put("key_sharing_endpoint_provide_site_domain_names", true);
+
+        config.put(Const.Config.AllowClockSkewSecondsProp, 3600);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -4244,7 +4246,7 @@ public class UIDOperatorVerticleTest {
 
     private void checkSharingResponseHeaderFields(SharingEndpoint endpoint, JsonObject body, int clientSiteId) {
         assertEquals(this.getIdentityScope().toString(), body.getString("identity_scope"));
-        assertNotNull(body.getInteger("allow_clock_skew_seconds"));
+        assertEquals(config.getInteger(Const.Config.AllowClockSkewSecondsProp), body.getInteger("allow_clock_skew_seconds"));
 
         switch (endpoint) {
             case SHARING:

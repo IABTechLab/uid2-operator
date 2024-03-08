@@ -37,6 +37,7 @@
   "allow_legacy_api": false,
   "failure_shutdown_wait_hours": 120,
   "sharing_token_expiry_seconds": 2592000,
+  "max_sharing_lifetime_seconds": 2592010,
   "validate_service_links": false,
   "advertising_token_v4_percentage": 0
 }

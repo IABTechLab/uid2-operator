@@ -151,6 +151,7 @@ public class UIDOperatorVerticleTest {
         config.put("key_sharing_endpoint_provide_site_domain_names", true);
 
         config.put(Const.Config.AllowClockSkewSecondsProp, 3600);
+        config.put(Const.Config.MaxBidstreamLifetimeSecondsProp, identityExpiresAfter.toSeconds() + 10);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -4260,7 +4261,7 @@ public class UIDOperatorVerticleTest {
                 assertFalse(body.containsKey("max_bidstream_lifetime_seconds"));
                 break;
             case BIDSTREAM:
-                assertNotNull(body.getInteger("max_bidstream_lifetime_seconds"));
+                assertEquals(config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp), body.getInteger("max_bidstream_lifetime_seconds"));
 
                 // Check that /key/sharing header fields are not present.
                 assertFalse(body.containsKey("caller_site_id"));

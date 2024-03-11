@@ -5,7 +5,7 @@ on:
     inputs:
       release_type:
         type: choice
-        description: 'The type of release'
+        description: The type of release
         options:
         - Major
         - Minor
@@ -15,6 +15,11 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
+      vulnerability_severity:
+        description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised. Must be one of ['CRITICAL', 'CRITICAL,HIGH' or 'CRITICAL,HIGH,MEDIUM'] (without space in between).
+        type: string
+        default: 'CRITICAL,HIGH'
+
   workflow_call:
     inputs:
       release_type:
@@ -25,12 +30,16 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
-      
+      vulnerability_severity:
+        description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised. Must be one of ['CRITICAL', 'CRITICAL,HIGH' or 'CRITICAL,HIGH,MEDIUM'] (without space in between).
+        type: string
+        default: 'CRITICAL,HIGH'
+
     outputs:
       image_tag:
-        description: The tag used to describe the image in docker
+        description: The tag used to describe the image in Docker
         value: ${{ jobs.buildImage.outputs.image_tag }}
-      
+
 env:
   REGISTRY: ghcr.io
   MAVEN_PROFILE: azure
@@ -48,13 +57,14 @@ jobs:
       security-events: write
       packages: write
       id-token: write
+      pull-requests: write
     outputs:
       jar_version: ${{ steps.version.outputs.new_version }}
       image_tag: ${{ steps.updatePom.outputs.image_tag }}
     steps:
       - name: Check branch and release type
         id: checkRelease
-        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2
         with:
           release_type: ${{ inputs.release_type }}
 
@@ -65,10 +75,10 @@ jobs:
         shell: bash
         env: 
             GITHUB_CONTEXT: ${{ toJson(github) }}
-            IS_RELEASE: ${{ steps.checkRelease.outputs.IS_RELEASE }}
+            IS_RELEASE: ${{ steps.checkRelease.outputs.is_release }}
   
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -89,7 +99,7 @@ jobs:
           fetch-depth: 0
 
       - name: Restore timestamps
-        uses: thetradedesk/git-restore-mtime-action@v1.2
+        uses: thetradedesk/git-restore-mtime-action@v1.3
 
       - name: Set version number
         id: version
@@ -117,23 +127,19 @@ jobs:
           cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
 
       - name: Commit pom.xml and version.json
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE != 'true' }} 
-        uses: EndBug/add-and-commit@v9
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release != 'true' }} 
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
         with:
           add: 'pom.xml version.json'
-          author_name: Release Workflow
-          author_email: unifiedid-admin+release@thetradedesk.com
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
 
       - name: Commit pom.xml, version.json and set tag
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }} 
-        uses: EndBug/add-and-commit@v9
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }} 
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
         with:
           add: 'pom.xml version.json'
-          author_name: Release Workflow
-          author_email: unifiedid-admin+release@thetradedesk.com
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-          tag: v${{ steps.version.outputs.new_version }}
+          tag: v${{ steps.version.outputs.new_version }} 
 
       - name: Log in to the Docker container registry
         uses: docker/login-action@v3
@@ -174,7 +180,7 @@ jobs:
           hide-progress: true
 
       - name: Upload Trivy scan report to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -185,7 +191,7 @@ jobs:
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
-          severity: 'CRITICAL'
+          severity: ${{ inputs.vulnerability_severity }}
           hide-progress: true
 
       - name: Push to Docker
@@ -208,21 +214,21 @@ jobs:
           bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 
       - name: Archive deployment artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: azure-cc-deployment-files
           path: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}
 
       - name: Generate release archive
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
         run: |
           zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
 
       - name: Build Changelog
         id: github_release
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
-        uses: mikepenz/release-changelog-builder-action@v3
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
+        uses: mikepenz/release-changelog-builder-action@v4
         with:
           configurationJson: |
             {
@@ -233,7 +239,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           name: ${{ steps.version.outputs.new_version }}
@@ -241,7 +247,7 @@ jobs:
           draft: true
           files: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
-  
+
   e2e:
     name: E2E
     uses: ./.github/workflows/run-e2e-tests-on-operator.yaml

@@ -36,5 +36,6 @@
   "optout_partition_interval": 86400,
   "client_side_token_generate": true,
   "client_side_token_generate_domain_name_check_enabled": true,
-  "key_sharing_endpoint_provide_site_domain_names": true
+  "key_sharing_endpoint_provide_site_domain_names": true,
+  "client_side_token_generate_log_invalid_http_origins": true
 }

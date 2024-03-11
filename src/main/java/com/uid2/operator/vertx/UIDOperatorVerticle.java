@@ -102,6 +102,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
+    private final boolean clientSideTokenGenerateLogInvalidHttpOrigin;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
@@ -109,6 +110,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int allowClockSkewSeconds;
     protected int maxSharingLifetimeSeconds;
     protected boolean keySharingEndpointProvideSiteDomainNames;
+    protected Map<Integer, Set<String>> siteIdToInvalidOrigins = new HashMap<>();
+    protected Instant lastInvalidOriginProcessTime = Instant.now();
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -146,6 +149,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
+        this.clientSideTokenGenerateLogInvalidHttpOrigin = config.getBoolean("client_side_token_generate_log_invalid_http_origins", false);
         final Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         this.maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
         if (this.maxBidstreamLifetimeSeconds < identityTokenExpiresAfterSeconds) {
@@ -321,6 +325,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
             if (!allowedDomain) {
+                if (clientSideTokenGenerateLogInvalidHttpOrigin) {
+                    handleInvalidHttpOriginError(clientSideKeypair.getSiteId(), origin);
+                }
                 SendClientErrorResponseAndRecordStats(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin, siteProvider);
                 return;
             }
@@ -1824,6 +1831,43 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void sendJsonResponse(RoutingContext rc, JsonArray json) {
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
+    }
+
+    private void handleInvalidHttpOriginError(int siteId, String origin) {
+        Set<String> uniqueInvalidOrigins = siteIdToInvalidOrigins.computeIfAbsent(siteId, k -> new HashSet<>());
+        uniqueInvalidOrigins.add(origin);
+
+        if (Duration.between(lastInvalidOriginProcessTime, Instant.now()).compareTo(Duration.ofMinutes(60)) >= 0) {
+            lastInvalidOriginProcessTime = Instant.now();
+            LOGGER.error(generateInvalidHttpOriginMessage(siteIdToInvalidOrigins));
+            siteIdToInvalidOrigins.clear();
+        }
+    }
+
+    private String generateInvalidHttpOriginMessage(Map<Integer, Set<String>> siteIdToInvalidOrigins) {
+        StringBuilder invalidHttpOriginMessage = new StringBuilder();
+        invalidHttpOriginMessage.append("InvalidHttpOrigin: ");
+        boolean mapHasFirstElement = false;
+        for (Map.Entry<Integer, Set<String>> entry : siteIdToInvalidOrigins.entrySet()) {
+            if(mapHasFirstElement) {
+                invalidHttpOriginMessage.append(" | ");
+            }
+            mapHasFirstElement = true;
+            int siteId = entry.getKey();
+            Set<String> origins = entry.getValue();
+            String siteName = getSiteName(siteProvider, siteId);
+            String site = "site " + siteName + " (" + siteId + "): ";
+            invalidHttpOriginMessage.append(site);
+            boolean setHasFirstElement = false;
+            for (String origin : origins) {
+                if(setHasFirstElement) {
+                    invalidHttpOriginMessage.append(", ");
+                }
+                setHasFirstElement = true;
+                invalidHttpOriginMessage.append(origin);
+            }
+        }
+        return invalidHttpOriginMessage.toString();
     }
 
     public enum UserConsentStatus {

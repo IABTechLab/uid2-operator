@@ -5,7 +5,7 @@ on:
     inputs:
       release_type:
         type: choice
-        description: 'The type of release'
+        description: The type of release
         options:
         - Major
         - Minor
@@ -15,6 +15,10 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
+      vulnerability_severity:
+        description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised. Must be one of ['CRITICAL', 'CRITICAL,HIGH' or 'CRITICAL,HIGH,MEDIUM'] (without space in between).
+        type: string
+        default: 'CRITICAL,HIGH'
 
   workflow_call:
     inputs:
@@ -26,21 +30,26 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
+      vulnerability_severity:
+        description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised. Must be one of ['CRITICAL', 'CRITICAL,HIGH' or 'CRITICAL,HIGH,MEDIUM'] (without space in between).
+        type: string
+        default: 'CRITICAL,HIGH'
 
     outputs:
       image_tag:
-        description: The tag used to describe the image in docker
+        description: The tag used to describe the image in Docker
         value: ${{ jobs.Image.outputs.image_tag }}
 
 jobs:
   image:
     name: Image
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-docker-versioned.yaml@v2
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-java-to-docker-versioned.yaml@v2
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ inputs.version_number_input }}
       cloud_provider: 'default'
       force_release: 'no' # Do not create a release for the component builds, will be created by the parent
+      vulnerability_severity: ${{ inputs.vulnerability_severity }}
     secrets: inherit
 
   e2e:
@@ -65,7 +74,7 @@ jobs:
           echo $IMAGE > image-details/image.json
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: image-details
           path: image-details/

@@ -594,6 +594,26 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void addSites(JsonObject resp, List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
         final List<Site> sites = getSitesWithDomainNames(keys, keysetMap);
         if (sites != null) {
+            /*
+            The end result will look something like this:
+
+            "site_data": [
+                    {
+                        "id": 101,
+                        "domain_names": [
+                            "101.co.uk",
+                            "101.com"
+                        ]
+                    },
+                    {
+                        "id": 102,
+                        "domain_names": [
+                            "102.co.uk",
+                            "102.com"
+                        ]
+                    }
+                ]
+            */
             final List<JsonObject> sitesJson = sites.stream()
                     .map(UIDOperatorVerticle::toJson)
                     .collect(Collectors.toList());

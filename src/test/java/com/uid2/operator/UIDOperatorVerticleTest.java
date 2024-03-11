@@ -4018,7 +4018,7 @@ public class UIDOperatorVerticleTest {
 
             final JsonObject body = respJson.getJsonObject("body");
 
-            checkSharingResponseHeaderFields(endpoint, body, clientSiteId);
+            checkKeyDownloadResponseHeaderFields(endpoint, body, clientSiteId);
 
             checkEncryptionKeys(respJson, endpoint, clientSiteId, expectedKeys);
 
@@ -4317,14 +4317,14 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", respJson.getString("status"));
             final JsonObject body = respJson.getJsonObject("body");
 
-            checkSharingResponseHeaderFields(endpoint, body, clientSiteId);
+            checkKeyDownloadResponseHeaderFields(endpoint, body, clientSiteId);
 
             checkEncryptionKeys(respJson, endpoint, clientSiteId, expectedKeys.toArray(new KeysetKey[0]));
             testContext.completeNow();
         });
     }
 
-    private void checkSharingResponseHeaderFields(KeyDownloadEndpoint endpoint, JsonObject body, int clientSiteId) {
+    private void checkKeyDownloadResponseHeaderFields(KeyDownloadEndpoint endpoint, JsonObject body, int clientSiteId) {
         assertEquals(this.getIdentityScope().toString(), body.getString("identity_scope"));
         assertEquals(config.getInteger(Const.Config.AllowClockSkewSecondsProp), body.getInteger("allow_clock_skew_seconds"));
 

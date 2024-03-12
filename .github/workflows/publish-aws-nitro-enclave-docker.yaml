@@ -127,8 +127,37 @@ jobs:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
 
-      - uses: actions/upload-artifact@v3
+      - name: Archive deployment artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: aws-nitro-deployment-files
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
           if-no-files-found: error
+
+      - name: Generate release archive
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
+        run: |
+          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+
+      - name: Build changelog
+        id: github_release
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}\n## Installation\n```\ndocker pull ${{ steps.meta.outputs.tags }}\n```\n\n## Image reference to deploy: \n```\n${{ steps.updatePom.outputs.image_tag }}\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
+              "pr_template": " - #{{TITLE}} - ( PR: ##{{NUMBER}} )"
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ steps.version.outputs.new_version }}
+          body: ${{ steps.github_release.outputs.changelog }}
+          draft: true
+          files: |
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip

@@ -327,10 +327,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         //app is allowed proceed to handle this CSTG request 
                     }
                 }
-                else {
+                else if (request.getAppName() == null) {
                      SendClientErrorResponseAndRecordStats(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin, siteProvider);
                      return;    
                 }
+                // if !cstgDoAppNameCheck and request.getAppName() has an app name then we will let it pass  
             }
         }
 

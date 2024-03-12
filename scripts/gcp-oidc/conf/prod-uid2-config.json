@@ -11,6 +11,5 @@
   "core_attest_url": "https://core.uidapi.com/attest",
   "optout_api_uri": "https://optout.uidapi.com/optout/replicate",
   "optout_s3_folder": "optout-v2/",
-  "identity_token_expires_after_seconds": 259200,
-  "max_bidstream_lifetime_seconds": 259210
+  "identity_token_expires_after_seconds": 259200
 }

@@ -12,6 +12,7 @@ on:
           - gcp
           - azure
           - aws
+
       identity_scope:
         description: The identity scope [UID2, EUID]
         required: true
@@ -19,6 +20,7 @@ on:
         options:
           - UID2
           - EUID
+
       image_version:
         description: The image versions (for gcp/azure, set appropriate operator image)
         type: string
@@ -29,6 +31,7 @@ on:
           "optout": "latest",
           "e2e": "latest" 
         }'
+
       branch:
         description: The branches for config
         type: string
@@ -38,6 +41,7 @@ on:
           "optout": "main",
           "admin": "main" 
         }'
+
       aws:
         description: The arguments for AWS private operator
         type: string
@@ -85,7 +89,7 @@ on:
 jobs:
   e2e-test:
     name: E2E Test
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@gdm-UID2-2377-aws-euid
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v2
     with:
       operator_type: ${{ inputs.operator_type }}
       operator_image_version: ${{ fromJson(inputs.image_version).operator }}

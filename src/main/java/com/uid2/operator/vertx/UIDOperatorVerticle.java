@@ -72,6 +72,11 @@ import static com.uid2.operator.service.ResponseUtil.*;
 public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
+    /**
+     * There is currently an issue with v2 tokens (and possibly also other ad token versions) where the token lifetime
+     * is slightly longer than it should be. When validating token lifetimes, we add a small buffer to account for this.
+     */
+    public static final Duration TOKEN_LIFETIME_TOLERANCE = Duration.ofSeconds(10);
     private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
     private static final String REQUEST = "request";
@@ -586,7 +591,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void addBidstreamHeaderFields(JsonObject resp) {
-        resp.put("max_bidstream_lifetime_seconds", maxBidstreamLifetimeSeconds);
+        resp.put("max_bidstream_lifetime_seconds", maxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
         addIdentityScopeField(resp);
         addAllowClockSkewSecondsField(resp);
     }
@@ -639,7 +644,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
 
         if (clientKey.hasRole(Role.SHARER)) {
-            resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds);
+            resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
         }
 
         addIdentityScopeField(resp);

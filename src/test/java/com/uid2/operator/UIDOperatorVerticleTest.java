@@ -70,6 +70,7 @@ import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
 import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.OPT_OUT_CHECK_CUTOFF_DATE;
+import static com.uid2.operator.vertx.UIDOperatorVerticle.TOKEN_LIFETIME_TOLERANCE;
 import static com.uid2.shared.Const.Data.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -4090,7 +4091,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(4, respJson.getJsonObject("body").getInteger("default_keyset_id"));
 
             assertEquals(config.getInteger(Const.Config.SharingTokenExpiryProp), Integer.parseInt(respJson.getJsonObject("body").getString("token_expiry_seconds")));
-            assertEquals(expectedMaxSharingLifetimeSeconds, respJson.getJsonObject("body").getInteger("max_sharing_lifetime_seconds"));
+            assertEquals(expectedMaxSharingLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds(), respJson.getJsonObject("body").getLong("max_sharing_lifetime_seconds"));
             assertEquals(getIdentityScope().toString(), respJson.getJsonObject("body").getString("identity_scope"));
             assertNotNull(respJson.getJsonObject("body").getInteger("allow_clock_skew_seconds"));
 
@@ -4340,7 +4341,7 @@ public class UIDOperatorVerticleTest {
                 assertFalse(body.containsKey("max_bidstream_lifetime_seconds"));
                 break;
             case BIDSTREAM:
-                assertEquals(config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp), body.getInteger("max_bidstream_lifetime_seconds"));
+                assertEquals(config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp) + TOKEN_LIFETIME_TOLERANCE.toSeconds(), body.getLong("max_bidstream_lifetime_seconds"));
 
                 // Check that /key/sharing header fields are not present.
                 assertFalse(body.containsKey("caller_site_id"));

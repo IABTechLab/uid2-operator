@@ -384,60 +384,53 @@ public class UIDOperatorVerticleTest {
 
     private void checkEncryptionKeysResponse(JsonObject response, KeysetKey... expectedKeys) {
         assertEquals("success", response.getString("status"));
-        final JsonArray responseKeys = response.getJsonArray("body");
-        assertNotNull(responseKeys);
-        assertEquals(expectedKeys.length, responseKeys.size());
-        for (int i = 0; i < expectedKeys.length; ++i) {
-            KeysetKey expectedKey = expectedKeys[i];
-            Keyset keyset = keysetProvider.getSnapshot().getKeyset(expectedKey.getKeysetId());
 
-            JsonObject actualKey = responseKeys.getJsonObject(i);
-            assertEquals(expectedKey.getId(), actualKey.getInteger("id"));
-            assertArrayEquals(expectedKey.getKeyBytes(), actualKey.getBinary("secret"));
-            assertEquals(expectedKey.getCreated().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("created")));
-            assertEquals(expectedKey.getActivates().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("activates")));
-            assertEquals(expectedKey.getExpires().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("expires")));
-            assertEquals(keyset.getSiteId(), actualKey.getInteger("site_id"));
+        final JsonArray expected = new JsonArray();
+        for (KeysetKey key : expectedKeys) {
+            final JsonObject expectedKey = new JsonObject();
+            expectedKey.put("id", key.getId());
+            expectedKey.put("secret", Base64.getEncoder().encodeToString(key.getKeyBytes()));
+            expectedKey.put("created", key.getCreated().getEpochSecond());
+            expectedKey.put("activates", key.getActivates().getEpochSecond());
+            expectedKey.put("expires", key.getExpires().getEpochSecond());
+            expectedKey.put("site_id", keysetProvider.getSnapshot().getKeyset(key.getKeysetId()).getSiteId());
+            expected.add(expectedKey);
         }
+
+        assertEquals(expected, response.getJsonArray("body"));
     }
 
     private void checkEncryptionKeys(JsonObject response, KeyDownloadEndpoint endpoint, int callersSiteId, KeysetKey... expectedKeys) {
         assertEquals("success", response.getString("status"));
-        final JsonArray responseKeys = response.getJsonObject("body").getJsonArray("keys");
-        assertNotNull(responseKeys);
-        assertEquals(expectedKeys.length, responseKeys.size());
-        for (int i = 0; i < expectedKeys.length; ++i) {
-            KeysetKey expectedKey = expectedKeys[i];
-            JsonObject actualKey = responseKeys.getJsonObject(i);
-            assertEquals(expectedKey.getId(), actualKey.getInteger("id"));
-            assertArrayEquals(expectedKey.getKeyBytes(), actualKey.getBinary("secret"));
-            assertEquals(expectedKey.getCreated().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("created")));
-            assertEquals(expectedKey.getActivates().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("activates")));
-            assertEquals(expectedKey.getExpires().truncatedTo(ChronoUnit.SECONDS), Instant.ofEpochSecond(actualKey.getLong("expires")));
 
-            Keyset expectedKeyset = this.keysetProvider.getSnapshot().getKeyset(expectedKey.getKeysetId());
+        final JsonArray expected = new JsonArray();
+        for (KeysetKey key : expectedKeys) {
+            final Keyset expectedKeyset = this.keysetProvider.getSnapshot().getKeyset(key.getKeysetId());
             assertNotNull(expectedKeyset);
             assertTrue(expectedKeyset.isEnabled());
 
-            final var actualKeysetId = actualKey.getInteger("keyset_id");
+            final JsonObject expectedKey = new JsonObject();
+            expectedKey.put("id", key.getId());
+            expectedKey.put("secret", Base64.getEncoder().encodeToString(key.getKeyBytes()));
+            expectedKey.put("created", key.getCreated().getEpochSecond());
+            expectedKey.put("activates", key.getActivates().getEpochSecond());
+            expectedKey.put("expires", key.getExpires().getEpochSecond());
 
-            switch (endpoint) {
-                case SHARING:
-                    assertTrue(actualKeysetId == null || actualKeysetId > 0); //SDKs currently have an assumption that keyset ids are positive; that will be fixed.
-
-                    if (expectedKeyset.getSiteId() == callersSiteId) {
-                        assertEquals(expectedKey.getKeysetId(), actualKeysetId);
-                    } else if (expectedKeyset.getSiteId() == MasterKeySiteId) {
-                        assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, actualKeysetId);
-                    } else {
-                        assertNull(actualKeysetId); //we only send keyset ids if the caller is allowed to encrypt using that keyset (so only the caller's keysets and the master keyset)
-                    }
-                    break;
-                case BIDSTREAM:
-                    assertNull(actualKeysetId);
-                    break;
+            if (endpoint == KeyDownloadEndpoint.SHARING) {
+                // We only send keyset ids if the caller is allowed to encrypt using that keyset (so only the caller's keysets and the master keyset)
+                if (expectedKeyset.getSiteId() == callersSiteId) {
+                    // SDKs currently have an assumption that keyset ids are positive; that will be fixed.
+                    assertTrue(key.getKeysetId() > 0);
+                    expectedKey.put("keyset_id", key.getKeysetId());
+                } else if (expectedKeyset.getSiteId() == MasterKeySiteId) {
+                    expectedKey.put("keyset_id", UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS);
+                }
             }
+
+            expected.add(expectedKey);
         }
+
+        assertEquals(expected, response.getJsonObject("body").getJsonArray("keys"));
     }
 
     private enum KeyDownloadEndpoint {
@@ -4358,32 +4351,29 @@ public class UIDOperatorVerticleTest {
     }
 
     private void checkKeyDownloadResponseHeaderFields(KeyDownloadEndpoint endpoint, JsonObject body, int clientSiteId) {
-        assertEquals(this.getIdentityScope().toString(), body.getString("identity_scope"));
-        assertEquals(config.getInteger(Const.Config.AllowClockSkewSecondsProp), body.getInteger("allow_clock_skew_seconds"));
+        final JsonObject bodyHeaders = body.copy();
+        bodyHeaders.remove("site_data");
+        bodyHeaders.remove("keys");
+
+        final JsonObject expected = new JsonObject()
+                .put("identity_scope", this.getIdentityScope().toString())
+                .put("allow_clock_skew_seconds", config.getInteger(Const.Config.AllowClockSkewSecondsProp));
 
         switch (endpoint) {
             case SHARING:
-                assertEquals(clientSiteId, body.getInteger("caller_site_id"));
-                assertEquals(UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS, body.getInteger("master_keyset_id"));
-                assertEquals(4, body.getInteger("default_keyset_id"));
+                expected.put("caller_site_id", clientSiteId);
+                expected.put("master_keyset_id", UIDOperatorVerticle.MASTER_KEYSET_ID_FOR_SDKS);
+                expected.put("default_keyset_id", 4);
                 // NOTE: this is intentionally a string, not an integer. See comment in UIDOperatorVerticle.
-                assertEquals(config.getInteger(Const.Config.SharingTokenExpiryProp), Integer.parseInt(body.getString("token_expiry_seconds")));
-
-                // Check that /key/bidstream fields are not present.
-                assertFalse(body.containsKey("max_bidstream_lifetime_seconds"));
+                expected.put("token_expiry_seconds", config.getInteger(Const.Config.SharingTokenExpiryProp).toString());
                 break;
             case BIDSTREAM:
                 final int expectedMaxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
-                assertEquals(expectedMaxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds(), body.getLong("max_bidstream_lifetime_seconds"));
-
-                // Check that /key/sharing header fields are not present.
-                assertFalse(body.containsKey("caller_site_id"));
-                assertFalse(body.containsKey("default_keyset_id"));
-                assertFalse(body.containsKey("master_keyset_id"));
-                assertFalse(body.containsKey("max_sharing_lifetime_seconds"));
-                assertFalse(body.containsKey("token_expiry_seconds"));
+                expected.put("max_bidstream_lifetime_seconds", expectedMaxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
                 break;
         }
+
+        assertEquals(expected, bodyHeaders);
     }
 
     @Test

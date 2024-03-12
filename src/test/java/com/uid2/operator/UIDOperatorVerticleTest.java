@@ -110,7 +110,7 @@ public class UIDOperatorVerticleTest {
 
     private SimpleMeterRegistry registry;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
-    private JsonObject config;
+    private final JsonObject config = new JsonObject();
 
     @BeforeEach
     public void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
@@ -119,8 +119,6 @@ public class UIDOperatorVerticleTest {
         when(clock.instant()).thenAnswer(i -> now);
         when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class), any(Role.class))).thenReturn(true);
 
-
-        config = new JsonObject();
         setupConfig(config);
         if(testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
@@ -157,7 +155,6 @@ public class UIDOperatorVerticleTest {
         config.put("client_side_token_generate_log_invalid_http_origins", true);
 
         config.put(Const.Config.AllowClockSkewSecondsProp, 3600);
-        config.put(Const.Config.MaxBidstreamLifetimeSecondsProp, identityExpiresAfter.toSeconds() + 10);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -3957,6 +3954,37 @@ public class UIDOperatorVerticleTest {
         }
     }
 
+    @Nested
+    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+    public class keyBidstreamCustomMaxBidstreamLifetime {
+        // The @BeforeAll annotation will let setupConfig run before the outer class's @BeforeEach, allowing us to
+        // customise the verticle config before it is deployed.
+        @BeforeAll
+        public void setupConfig() {
+            UIDOperatorVerticleTest.this.config.put(Const.Config.MaxBidstreamLifetimeSecondsProp, 9999);
+        }
+
+        @Test
+        public void keyBidstreamReturnsCustomMaxBidstreamLifetimeHeader(Vertx vertx, VertxTestContext testContext) {
+            final String apiVersion = "v2";
+            final KeyDownloadEndpoint endpoint = KeyDownloadEndpoint.BIDSTREAM;
+
+            final int clientSiteId = 101;
+            fakeAuth(clientSiteId, Role.ID_READER);
+
+            // Required, sets up mock keys.
+            new MultipleKeysetsTests();
+
+            send(apiVersion, vertx, apiVersion + endpoint.getPath(), true, null, null, 200, respJson -> {
+                assertEquals("success", respJson.getString("status"));
+
+                checkKeyDownloadResponseHeaderFields(endpoint, respJson.getJsonObject("body"), clientSiteId);
+
+                testContext.completeNow();
+            });
+        }
+    }
+
     @ParameterizedTest
     @CsvSource({
             "true, SHARING",
@@ -4343,7 +4371,8 @@ public class UIDOperatorVerticleTest {
                 assertFalse(body.containsKey("max_bidstream_lifetime_seconds"));
                 break;
             case BIDSTREAM:
-                assertEquals(config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp) + TOKEN_LIFETIME_TOLERANCE.toSeconds(), body.getLong("max_bidstream_lifetime_seconds"));
+                final int expectedMaxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+                assertEquals(expectedMaxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds(), body.getLong("max_bidstream_lifetime_seconds"));
 
                 // Check that /key/sharing header fields are not present.
                 assertFalse(body.containsKey("caller_site_id"));

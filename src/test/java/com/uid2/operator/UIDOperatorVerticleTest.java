@@ -3992,6 +3992,8 @@ public class UIDOperatorVerticleTest {
             "true, BIDSTREAM",
             "false, BIDSTREAM",
     })
+        // Test the /key/sharing and /key/bidstream endpoints when called with the ID_READER role.
+        //
         // Tests:
         //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
         //   ID_READER has access to a keyset with a missing allowed_sites              - access through sharing
@@ -3999,7 +4001,7 @@ public class UIDOperatorVerticleTest {
         //   ID_READER has no access to a keyset that is disabled                       - direct reject
         //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharingKeysets_IDREADER(boolean provideSiteDomainNames, KeyDownloadEndpoint endpoint, Vertx vertx, VertxTestContext testContext) {
+    void keyDownloadEndpointKeysets_IDREADER(boolean provideSiteDomainNames, KeyDownloadEndpoint endpoint, Vertx vertx, VertxTestContext testContext) {
 
         if (!provideSiteDomainNames) {
             this.uidOperatorVerticle.setKeySharingEndpointProvideSiteDomainNames(false);

@@ -14,20 +14,18 @@ echo "Starting vsock proxy..."
 # -- load env vars via proxy
 echo "Loading env vars via proxy..."
 
+USER_DATA=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data)
 if [ "${IDENTITY_SCOPE}" = "UID2" ]; then
-  USER_DATA=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data)
   UID2_CONFIG_SECRET_KEY=$([[ "$(echo "${USER_DATA}" | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
-  CORE_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
-  OPTOUT_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
 elif [ "${IDENTITY_SCOPE}" = "EUID" ]; then
-  USER_DATA=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data)
   UID2_CONFIG_SECRET_KEY=$([[ "$(echo "${USER_DATA}" | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
-  CORE_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
-  OPTOUT_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
 else
   echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"
   exit 1
 fi
+CORE_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
+OPTOUT_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
+
 echo "UID2_CONFIG_SECRET_KEY=${UID2_CONFIG_SECRET_KEY}"
 echo "CORE_BASE_URL=${CORE_BASE_URL}"
 echo "OPTOUT_BASE_URL=${OPTOUT_BASE_URL}"

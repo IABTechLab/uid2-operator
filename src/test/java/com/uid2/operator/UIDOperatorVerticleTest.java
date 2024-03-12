@@ -4202,7 +4202,7 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    private static List<Arguments> keySharingRotatingKeysets_IDREADER_source() {
+    private static List<Arguments> keyDownloadEndpointRotatingKeysets_IDREADER_source() {
         final String[] testRuns = {"KeysetAccess", "AddKeyset", "AddKey", "RotateKey", "DisableKey", "DisableKeyset"};
 
         final List<Arguments> arguments = new ArrayList<>();
@@ -4215,7 +4215,9 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @MethodSource("keySharingRotatingKeysets_IDREADER_source")
+    @MethodSource("keyDownloadEndpointRotatingKeysets_IDREADER_source")
+        // Test the /key/sharing and /key/bidstream endpoints when called with the ID_READER role.
+        //
         // "KeysetAccess"
         //   ID_READER has access to a keyset that has the same site_id as ID_READER's  - direct access
         //   ID_READER has access to a keyset with a missing allowed_sites              - access through sharing
@@ -4223,7 +4225,7 @@ public class UIDOperatorVerticleTest {
         //   ID_READER has no access to a keyset that is disabled                       - direct reject
         //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keySharingRotatingKeysets_IDREADER(String testRun, KeyDownloadEndpoint endpoint, Vertx vertx, VertxTestContext testContext) {
+    void keyDownloadEndpointRotatingKeysets_IDREADER(String testRun, KeyDownloadEndpoint endpoint, Vertx vertx, VertxTestContext testContext) {
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.ID_READER);

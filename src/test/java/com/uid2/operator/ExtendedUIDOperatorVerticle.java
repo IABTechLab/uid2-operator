@@ -4,13 +4,15 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.SecureLinkValidatorService;
-import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.store.*;
 import io.vertx.core.json.JsonObject;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.util.Map;
+import java.util.Set;
 
 //An extended UIDOperatorVerticle to expose classes for testing purposes
 public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
@@ -36,4 +38,15 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
         this.keySharingEndpointProvideSiteDomainNames = enable;
     }
 
+    public void setMaxSharingLifetimeSeconds(int maxSharingLifetimeSeconds) {
+        this.maxSharingLifetimeSeconds = maxSharingLifetimeSeconds;
+    }
+
+    public void setLastInvalidOriginProcessTime(Instant lastInvalidOriginProcessTime) {
+        this.lastInvalidOriginProcessTime = lastInvalidOriginProcessTime;
+    }
+
+    public void setSiteIdToInvalidOrigins(Map<Integer, Set<String>> siteIdToInvalidOrigins) {
+        this.siteIdToInvalidOrigins = siteIdToInvalidOrigins;
+    }
 }

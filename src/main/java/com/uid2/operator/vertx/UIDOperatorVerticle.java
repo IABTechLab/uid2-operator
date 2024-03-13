@@ -68,11 +68,15 @@ import java.util.stream.Collectors;
 
 import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.ResponseUtil.*;
-import static com.uid2.shared.middleware.AuthMiddleware.API_CLIENT_PROP;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
+    /**
+     * There is currently an issue with v2 tokens (and possibly also other ad token versions) where the token lifetime
+     * is slightly longer than it should be. When validating token lifetimes, we add a small buffer to account for this.
+     */
+    public static final Duration TOKEN_LIFETIME_TOLERANCE = Duration.ofSeconds(10);
     private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
     private static final String REQUEST = "request";
@@ -103,10 +107,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final KeyManager keyManager;
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
+    private final boolean clientSideTokenGenerateLogInvalidHttpOrigin;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
 
+    private final int maxBidstreamLifetimeSeconds;
+    private final int allowClockSkewSeconds;
+    protected int maxSharingLifetimeSeconds;
     protected boolean keySharingEndpointProvideSiteDomainNames;
+    protected Map<Integer, Set<String>> siteIdToInvalidOrigins = new HashMap<>();
+    protected Instant lastInvalidOriginProcessTime = Instant.now();
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -144,6 +154,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
+        this.clientSideTokenGenerateLogInvalidHttpOrigin = config.getBoolean("client_side_token_generate_log_invalid_http_origins", false);
+        final Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
+        this.maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
+        if (this.maxBidstreamLifetimeSeconds < identityTokenExpiresAfterSeconds) {
+            LOGGER.error("Max bidstream lifetime seconds ({} seconds) is less than identity token lifetime ({} seconds)", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds);
+            throw new RuntimeException("Max bidstream lifetime seconds is less than identity token lifetime seconds");
+        }
+        this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
+        this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
     }
 
     @Override
@@ -249,6 +268,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         v2Router.post("/key/sharing").handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
+        v2Router.post("/key/bidstream").handler(bodyHandler).handler(auth.handleV1(
+                rc -> v2PayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
         v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
 
@@ -309,6 +330,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
             if (!allowedDomain) {
+                if (clientSideTokenGenerateLogInvalidHttpOrigin) {
+                    handleInvalidHttpOriginError(clientSideKeypair.getSiteId(), origin);
+                }
                 SendClientErrorResponseAndRecordStats(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin, siteProvider);
                 return;
             }
@@ -508,101 +532,161 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public void handleKeysSharing(RoutingContext rc) {
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
-            final JsonArray keys = new JsonArray();
-            final JsonArray sites = new JsonArray();
-            final Set<Integer> accessibleSites = new HashSet<>();
 
             KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
             List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
             Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
-            KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
-            // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
-            Keyset defaultKeyset = keyManagerSnapshot.getDefaultKeyset();
-
-            MissingAclMode mode = MissingAclMode.DENY_ALL;
-            // This will break if another Type is added to this map
-            IRoleAuthorizable<Role> roleAuthorize = (IRoleAuthorizable<Role>) rc.data().get(API_CLIENT_PROP);
-            if (roleAuthorize.hasRole(Role.ID_READER)) {
-                mode = MissingAclMode.ALLOW_ALL;
-            }
 
             final JsonObject resp = new JsonObject();
-            resp.put("caller_site_id", clientKey.getSiteId());
-            resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
-            if (defaultKeyset != null) {
-                resp.put("default_keyset_id", defaultKeyset.getKeysetId());
-            } else if (roleAuthorize.hasRole(Role.SHARER)) {
-                LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d. Caller will not be able to encrypt tokens..", clientKey.getSiteId()));
-            }
-            resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
+            addSharingHeaderFields(resp, keyManagerSnapshot, clientKey);
 
-            // include 'keyset_id' field, if:
-            //   (a) a key belongs to caller's enabled site
-            //   (b) a key belongs to master_keyset
-            // otherwise, when a key is accessible by caller, the key can be used for decryption only. skip 'keyset_id' field.
-            for (KeysetKey key: keysetKeyStore) {
-                JsonObject keyObj = new JsonObject();
+            final List<KeysetKey> accessibleKeys = getAccessibleKeys(keysetKeyStore, keyManagerSnapshot, clientKey);
+
+            final JsonArray keys = new JsonArray();
+            for (KeysetKey key : accessibleKeys) {
+                JsonObject keyObj = toJson(key);
                 Keyset keyset = keysetMap.get(key.getKeysetId());
 
-                if (keyset == null || !keyset.isEnabled()) {
-                    continue;
-                } else if (clientKey.getSiteId() == keyset.getSiteId()) {
+                // Include keyset ID if:
+                // - The key belongs to the caller's site, or
+                // - The key belongs to the master keyset.
+                // Otherwise, the key can be used for decryption only so we don't include the keyset ID.
+                if (clientKey.getSiteId() == keyset.getSiteId()) {
                     keyObj.put("keyset_id", key.getKeysetId());
                 } else if (key.getKeysetId() == Data.MasterKeysetId) {
                     keyObj.put("keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
-                } else if (!keysetSnapshot.canClientAccessKey(clientKey, key, mode)) {
-                    continue;
                 }
-                keyObj.put("id", key.getId());
-                keyObj.put("created", key.getCreated().getEpochSecond());
-                keyObj.put("activates", key.getActivates().getEpochSecond());
-                keyObj.put("expires", key.getExpires().getEpochSecond());
-                keyObj.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
                 keys.add(keyObj);
-                accessibleSites.add(keyset.getSiteId());
             }
             resp.put("keys", keys);
-            //without cstg enabled, operator won't have site data and siteProvider could be null
-            //and adding keySharingEndpointProvideSiteDomainNames in case something goes wrong
-            //and we can still enable cstg feature but turn off site domain name download in
-            // key/sharing endpoint
-            if(keySharingEndpointProvideSiteDomainNames && clientSideTokenGenerate) {
-                for (Integer siteId : accessibleSites.stream().sorted().collect(Collectors.toList())) {
-                    Site s = siteProvider.getSite(siteId);
-                    if(s == null || s.getDomainNames().isEmpty()) {
-                        continue;
-                    }
-                    JsonObject siteObj = new JsonObject();
-                    siteObj.put("id", siteId);
-                    siteObj.put("domain_names", s.getDomainNames().stream().sorted().collect(Collectors.toList()));
-                    sites.add(siteObj);
-                }
-                /*
-                The end result will look something like this:
-                "site_data": [
-                        {
-                            "id": 101,
-                            "domain_names": [
-                                "101.co.uk",
-                                "101.com"
-                            ]
-                        },
-                        {
-                            "id": 102,
-                            "domain_names": [
-                                "102.co.uk",
-                                "102.com"
-                            ]
-                        }
-                    ]
-                 */
-                resp.put("site_data", sites);
-            }
+
+            addSites(resp, accessibleKeys, keysetMap);
+
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             LOGGER.error("handleKeysSharing", e);
             rc.fail(500);
         }
+    }
+
+    public void handleKeysBidstream(RoutingContext rc) {
+        final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
+
+        final KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
+        final List<KeysetKey> keysetKeyStore = keyManagerSnapshot.getKeysetKeys();
+        final Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
+
+        final List<KeysetKey> accessibleKeys = getAccessibleKeys(keysetKeyStore, keyManagerSnapshot, clientKey);
+
+        final List<JsonObject> keysJson = accessibleKeys.stream()
+                .map(UIDOperatorVerticle::toJson)
+                .collect(Collectors.toList());
+
+        final JsonObject resp = new JsonObject();
+        addBidstreamHeaderFields(resp);
+        resp.put("keys", keysJson);
+        addSites(resp, accessibleKeys, keysetMap);
+
+        ResponseUtil.SuccessV2(rc, resp);
+    }
+
+    private void addBidstreamHeaderFields(JsonObject resp) {
+        resp.put("max_bidstream_lifetime_seconds", maxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
+        addIdentityScopeField(resp);
+        addAllowClockSkewSecondsField(resp);
+    }
+
+    private void addSites(JsonObject resp, List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
+        final List<Site> sites = getSitesWithDomainNames(keys, keysetMap);
+        if (sites != null) {
+            /*
+            The end result will look something like this:
+
+            "site_data": [
+                    {
+                        "id": 101,
+                        "domain_names": [
+                            "101.co.uk",
+                            "101.com"
+                        ]
+                    },
+                    {
+                        "id": 102,
+                        "domain_names": [
+                            "102.co.uk",
+                            "102.com"
+                        ]
+                    }
+                ]
+            */
+            final List<JsonObject> sitesJson = sites.stream()
+                    .map(UIDOperatorVerticle::toJson)
+                    .collect(Collectors.toList());
+            resp.put("site_data", sitesJson);
+        }
+    }
+
+    private void addSharingHeaderFields(JsonObject resp, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey) {
+        resp.put("caller_site_id", clientKey.getSiteId());
+        resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
+
+        // defaultKeysetId allows calling sdk.Encrypt(rawUid) without specifying the keysetId
+        final Keyset defaultKeyset = keyManagerSnapshot.getDefaultKeyset();
+        if (defaultKeyset != null) {
+            resp.put("default_keyset_id", defaultKeyset.getKeysetId());
+        } else if (clientKey.hasRole(Role.SHARER)) {
+            LOGGER.warn(String.format("Cannot get a default keyset with SITE ID %d. Caller will not be able to encrypt tokens..", clientKey.getSiteId()));
+        }
+
+        // this is written out as a String, i.e. in the JSON response of key/sharing endpoint, it would show:
+        // "token_expiry_seconds" : "2592000"
+        // it should be an integer instead, but we can't change it until we confirm that the oldest version of each of our SDKs support this
+        resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
+
+        if (clientKey.hasRole(Role.SHARER)) {
+            resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
+        }
+
+        addIdentityScopeField(resp);
+        addAllowClockSkewSecondsField(resp);
+    }
+
+    private void addIdentityScopeField(JsonObject resp) {
+        resp.put("identity_scope", this.identityScope.name());
+    }
+
+    private void addAllowClockSkewSecondsField(JsonObject resp) {
+        resp.put("allow_clock_skew_seconds", allowClockSkewSeconds);
+    }
+
+    private List<Site> getSitesWithDomainNames(List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
+        //without cstg enabled, operator won't have site data and siteProvider could be null
+        //and adding keySharingEndpointProvideSiteDomainNames in case something goes wrong
+        //and we can still enable cstg feature but turn off site domain name download in
+        // key/sharing endpoint
+        if (!keySharingEndpointProvideSiteDomainNames || !clientSideTokenGenerate) {
+            return null;
+        }
+
+        return keys.stream()
+                .mapToInt(key -> keysetMap.get(key.getKeysetId()).getSiteId())
+                .sorted()
+                .distinct()
+                .mapToObj(siteProvider::getSite)
+                .filter(Objects::nonNull)
+                .filter(site -> !site.getDomainNames().isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Converts the specified site to a JSON object.
+     * Includes the following fields: id, domain_names.
+     */
+    private static JsonObject toJson(Site site) {
+        JsonObject siteObj = new JsonObject();
+        siteObj.put("id", site.getId());
+        siteObj.put("domain_names", site.getDomainNames().stream().sorted().collect(Collectors.toList()));
+        return siteObj;
     }
 
     private void handleHealthCheck(RoutingContext rc) {
@@ -1711,32 +1795,48 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return json;
     }
 
-    private JsonArray getAccessibleKeysAsJson(List<KeysetKey> keys, ClientKey clientKey) {
-        MissingAclMode mode = MissingAclMode.DENY_ALL;
-        if (clientKey.getRoles().contains(Role.ID_READER)) {
-            mode = MissingAclMode.ALLOW_ALL;
-        }
+    private static MissingAclMode getMissingAclMode(ClientKey clientKey) {
+        return clientKey.hasRole(Role.ID_READER) ? MissingAclMode.ALLOW_ALL : MissingAclMode.DENY_ALL;
+    }
 
+    /**
+     * Returns the keyset keys that can be accessed by the site belonging to the specified client key.
+     * Keyset keys belonging to the master keyset can be accessed by any site.
+     */
+    private static List<KeysetKey> getAccessibleKeys(List<KeysetKey> keys, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey) {
+        final MissingAclMode mode = getMissingAclMode(clientKey);
+        final KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
+
+        return keys.stream()
+                .filter(key -> key.getKeysetId() == Data.MasterKeysetId || keysetSnapshot.canClientAccessKey(clientKey, key, mode))
+                .collect(Collectors.toList());
+    }
+
+    private JsonArray getAccessibleKeysAsJson(List<KeysetKey> keys, ClientKey clientKey) {
         KeyManagerSnapshot keyManagerSnapshot = this.keyManager.getKeyManagerSnapshot(clientKey.getSiteId());
         Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
-        KeysetSnapshot keysetSnapshot = keyManagerSnapshot.getKeysetSnapshot();
 
         final JsonArray a = new JsonArray();
-        for (KeysetKey k : keys) {
-            if (!keysetSnapshot.canClientAccessKey(clientKey, k, mode)) {
-                continue;
-            }
-
-            final JsonObject o = new JsonObject();
-            o.put("id", k.getId());
-            o.put("created", k.getCreated().getEpochSecond());
-            o.put("activates", k.getActivates().getEpochSecond());
-            o.put("expires", k.getExpires().getEpochSecond());
-            o.put("secret", EncodingUtils.toBase64String(k.getKeyBytes()));
+        for (KeysetKey k : getAccessibleKeys(keys, keyManagerSnapshot, clientKey)) {
+            final JsonObject o = toJson(k);
             o.put("site_id", keysetMap.get(k.getKeysetId()).getSiteId());
             a.add(o);
         }
         return a;
+    }
+
+    /**
+     * Converts the specified keyset key to a JSON object.
+     * Includes the following fields: id, created, activates, expires, and secret.
+     */
+    private static JsonObject toJson(KeysetKey key) {
+        final JsonObject json = new JsonObject();
+        json.put("id", key.getId());
+        json.put("created", key.getCreated().getEpochSecond());
+        json.put("activates", key.getActivates().getEpochSecond());
+        json.put("expires", key.getExpires().getEpochSecond());
+        json.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
+        return json;
     }
 
     private JsonObject toJson(IdentityTokens t) {
@@ -1756,6 +1856,43 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void sendJsonResponse(RoutingContext rc, JsonArray json) {
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
+    }
+
+    private void handleInvalidHttpOriginError(int siteId, String origin) {
+        Set<String> uniqueInvalidOrigins = siteIdToInvalidOrigins.computeIfAbsent(siteId, k -> new HashSet<>());
+        uniqueInvalidOrigins.add(origin);
+
+        if (Duration.between(lastInvalidOriginProcessTime, Instant.now()).compareTo(Duration.ofMinutes(60)) >= 0) {
+            lastInvalidOriginProcessTime = Instant.now();
+            LOGGER.error(generateInvalidHttpOriginMessage(siteIdToInvalidOrigins));
+            siteIdToInvalidOrigins.clear();
+        }
+    }
+
+    private String generateInvalidHttpOriginMessage(Map<Integer, Set<String>> siteIdToInvalidOrigins) {
+        StringBuilder invalidHttpOriginMessage = new StringBuilder();
+        invalidHttpOriginMessage.append("InvalidHttpOrigin: ");
+        boolean mapHasFirstElement = false;
+        for (Map.Entry<Integer, Set<String>> entry : siteIdToInvalidOrigins.entrySet()) {
+            if(mapHasFirstElement) {
+                invalidHttpOriginMessage.append(" | ");
+            }
+            mapHasFirstElement = true;
+            int siteId = entry.getKey();
+            Set<String> origins = entry.getValue();
+            String siteName = getSiteName(siteProvider, siteId);
+            String site = "site " + siteName + " (" + siteId + "): ";
+            invalidHttpOriginMessage.append(site);
+            boolean setHasFirstElement = false;
+            for (String origin : origins) {
+                if(setHasFirstElement) {
+                    invalidHttpOriginMessage.append(", ");
+                }
+                setHasFirstElement = true;
+                invalidHttpOriginMessage.append(origin);
+            }
+        }
+        return invalidHttpOriginMessage.toString();
     }
 
     public enum UserConsentStatus {

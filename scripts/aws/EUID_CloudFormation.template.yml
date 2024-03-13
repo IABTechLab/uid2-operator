@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: EUID 2.0 CloudFormation template
+Description: EUID CloudFormation template
 Parameters:
   APIToken:
     Description: EUID API Token

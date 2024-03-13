@@ -12,7 +12,6 @@ on:
           - gcp
           - azure
           - aws
-
       identity_scope:
         description: The identity scope [UID2, EUID]
         required: true
@@ -20,28 +19,34 @@ on:
         options:
           - UID2
           - EUID
-
-      image_version:
-        description: The image versions (for gcp/azure, set appropriate operator image)
+      operator_image_version:
+        description: 'Image: Operator image version (for gcp/azure, set appropriate image)'
         type: string
-        required: true
-        default: '{
-          "operator": "latest",
-          "core": "latest",
-          "optout": "latest",
-          "e2e": "latest" 
-        }'
-
-      branch:
-        description: The branches for config
+        default: latest
+      core_image_version:
+        description: 'Image: Core image version'
         type: string
-        required: true
-        default: '{
-          "core": "main",
-          "optout": "main",
-          "admin": "main" 
-        }'
-
+        default: latest
+      optout_image_version:
+        description: 'Image: Optout image version'
+        type: string
+        default: latest
+      e2e_image_version:
+        description: 'Image: E2E image version'
+        type: string
+        default: latest
+      core_branch:
+        description: 'Config: Core branch for config'
+        type: string
+        default: main
+      optout_branch:
+        description: 'Config: Optout branch for config'
+        type: string
+        default: main
+      admin_branch:
+        description: 'Config: Admin branch for config'
+        type: string
+        default: main
       aws:
         description: The arguments for AWS private operator
         type: string
@@ -61,22 +66,34 @@ on:
         description: The identity scope [UID2, EUID]
         type: string
         default: UID2
-      image_version:
-        description: The image versions (for gcp/azure, set appropriate operator image)
+      operator_image_version:
+        description: 'Image: Operator image version (for gcp/azure, set appropriate image)'
         type: string
-        default: '{
-          "operator": "latest",
-          "core": "latest",
-          "optout": "latest" 
-        }'
-      branch:
-        description: The branches for config
+        default: latest
+      core_image_version:
+        description: 'Image: Core image version'
         type: string
-        default: '{
-          "core": "main",
-          "optout": "main",
-          "admin": "main" 
-        }'
+        default: latest
+      optout_image_version:
+        description: 'Image: Optout image version'
+        type: string
+        default: latest
+      e2e_image_version:
+        description: 'Image: E2E image version'
+        type: string
+        default: latest
+      core_branch:
+        description: 'Config: Core branch for config'
+        type: string
+        default: main
+      optout_branch:
+        description: 'Config: Optout branch for config'
+        type: string
+        default: main
+      admin_branch:
+        description: 'Config: Admin branch for config'
+        type: string
+        default: main
       aws:
         description: The arguments for AWS private operator
         type: string
@@ -92,14 +109,14 @@ jobs:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v2
     with:
       operator_type: ${{ inputs.operator_type }}
-      operator_image_version: ${{ fromJson(inputs.image_version).operator }}
-      core_image_version: ${{ fromJson(inputs.image_version).core }}
-      optout_image_version: ${{ fromJson(inputs.image_version).optout }}
-      e2e_image_version: ${{ fromJson(inputs.image_version).e2e }}
+      operator_image_version: ${{ inputs.operator_image_version }}
+      core_image_version: ${{ inputs.core_image_version }}
+      optout_image_version: ${{ inputs.optout_image_version }}
+      e2e_image_version: ${{ inputs.e2e_image_version }}
       operator_branch: ${{ github.ref }}
-      core_branch: ${{ fromJson(inputs.branch).core }}
-      optout_branch: ${{ fromJson(inputs.branch).optout }}
-      admin_branch: ${{ fromJson(inputs.branch).admin }}
+      core_branch: ${{ inputs.core_branch }}
+      optout_branch: ${{ inputs.optout_branch }}
+      admin_branch: ${{ inputs.admin_branch }}
       uid2_e2e_identity_scope: ${{ inputs.identity_scope }}
       gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
       gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}

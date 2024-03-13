@@ -1,85 +1,107 @@
-name: Run operator E2E tests
-run-name: ${{ format('Run {0} operator E2E tests', inputs.operator_type) }} by @${{ github.actor }}
+name: Run Operator E2E Tests
+run-name: ${{ format('Run Operator E2E Tests - {0} {1}', inputs.operator_type, inputs.identity_scope) }} by @${{ github.actor }}
 on:
   workflow_dispatch:
     inputs:
       operator_type:
+        description: The operator type [public, gcp, azure, aws]
+        required: true
         type: choice
-        description: The type of operator [either public or gcp or azure]
         options:
-        - public
-        - gcp
-        - azure
+          - public
+          - gcp
+          - azure
+          - aws
+      identity_scope:
+        description: The identity scope [UID2, EUID]
+        required: true
+        type: choice
+        options:
+          - UID2
+          - EUID
       operator_image_version:
-        description: The pipeline will run the E2E test with this operator image version
+        description: 'Image: Operator image version (for gcp/azure, set appropriate image)'
         type: string
         default: latest
       core_image_version:
-        description: The pipeline will run the E2E test with this core image version
+        description: 'Image: Core image version'
         type: string
         default: latest
       optout_image_version:
-        description: The pipeline will run the E2E test with this optout image version
+        description: 'Image: Optout image version'
         type: string
         default: latest
       e2e_image_version:
-        description: The pipeline will run the E2E test with this e2e image version
+        description: 'Image: E2E image version'
         type: string
         default: latest
       core_branch:
-        description: 'Core: use this branch for Core config to test with'
+        description: 'Config: Core branch for config'
         type: string
         default: main
       optout_branch:
-        description: 'Optout: use this branch for Optout config to test with'
+        description: 'Config: Optout branch for config'
         type: string
         default: main
       admin_branch:
-        description: 'Admin: use this branch for Admin config to test with'
+        description: 'Config: Admin branch for config'
         type: string
         default: main
-      operator_branch:
-        description: 'Operator: use this branch for Operator config to test with'
+      aws:
+        description: The arguments for AWS private operator
         type: string
-        default: main
+        default: '{
+          "region": "us-east-1",
+          "ami": "ami-xxxxx",
+          "pcr0": "xxxxx" 
+        }'
+
   workflow_call:
     inputs:
       operator_type:
-        description: The type of operator [either public or gcp or azure]
+        description: The operator type [public, gcp, azure, aws]
         type: string
-        default: 'public'
+        default: public
+      identity_scope:
+        description: The identity scope [UID2, EUID]
+        type: string
+        default: UID2
       operator_image_version:
-        description: The pipeline will run the E2E test with this operator image version
+        description: 'Image: Operator image version (for gcp/azure, set appropriate image)'
         type: string
         default: latest
       core_image_version:
-        description: The pipeline will run the E2E test with this core image version
+        description: 'Image: Core image version'
         type: string
         default: latest
       optout_image_version:
-        description: The pipeline will run the E2E test with this optout image version
+        description: 'Image: Optout image version'
         type: string
         default: latest
       e2e_image_version:
-        description: The pipeline will run the E2E test with this e2e image version
+        description: 'Image: E2E image version'
         type: string
         default: latest
       core_branch:
-        description: 'Core: use this branch for Core config to test with'
+        description: 'Config: Core branch for config'
         type: string
         default: main
       optout_branch:
-        description: 'Optout: use this branch for Optout config to test with'
+        description: 'Config: Optout branch for config'
         type: string
         default: main
       admin_branch:
-        description: 'Admin: use this branch for Admin config to test with'
+        description: 'Config: Admin branch for config'
         type: string
         default: main
-      operator_branch:
-        description: 'Operator: use this branch for Operator config to test with'
+      aws:
+        description: The arguments for AWS private operator
         type: string
-        default: main
+        default: '{
+          "region": "us-east-1",
+          "ami": "ami-xxxxx",
+          "pcr0": "xxxxx" 
+        }'
 
 jobs:
   e2e-test:
@@ -91,11 +113,15 @@ jobs:
       core_image_version: ${{ inputs.core_image_version }}
       optout_image_version: ${{ inputs.optout_image_version }}
       e2e_image_version: ${{ inputs.e2e_image_version }}
+      operator_branch: ${{ github.ref }}
       core_branch: ${{ inputs.core_branch }}
       optout_branch: ${{ inputs.optout_branch }}
       admin_branch: ${{ inputs.admin_branch }}
-      operator_branch: ${{ github.ref }}
+      uid2_e2e_identity_scope: ${{ inputs.identity_scope }}
       gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
       gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       gcp_project: ${{ vars.GCP_PROJECT }}
+      aws_region: ${{ fromJson(inputs.aws).region }}
+      aws_ami: ${{ fromJson(inputs.aws).ami }}
+      aws_pcr0: ${{ fromJson(inputs.aws).pcr0 }}
     secrets: inherit

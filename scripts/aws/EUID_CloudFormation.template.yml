@@ -21,7 +21,7 @@ Parameters:
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
   InstanceType:
-    Description: EC2 instance type, Minimum 4 Vcpu needed.
+    Description: EC2 instance type. Minimum 4 vCPUs needed.
     Type: String
     Default: m5.2xlarge
     AllowedValues:
@@ -38,15 +38,15 @@ Parameters:
     Default: 15
   VpcId:
     Type: String
-    Description: VpcId of your existing Virtual Private Cloud (VPC)
+    Description: VPC ID of your existing Virtual Private Cloud (VPC)
     Default: ''
-    ConstraintDescription: must be the VPC Id of an existing Virtual Private Cloud.
+    ConstraintDescription: must be the VPC ID of an existing Virtual Private Cloud.
   VpcSubnet1:
-    Description: AZ1 SubnetId from existing VPC, if using existing VPC
+    Description: AZ1 Subnet ID from existing VPC, if using existing VPC
     Type: String
     Default: ''
   VpcSubnet2:
-    Description: AZ2 SubnetId from existing VPC, if using existing VPC
+    Description: AZ2 Subnet ID from existing VPC, if using existing VPC
     Type: String
     Default: ''
   SSHKeyName:
@@ -83,7 +83,7 @@ Metadata:
       DeployToEnvironment:
         default: EUID environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
-        default: Instance Type for EC2. Minimum 4 Vcpu needed. M5, M5a, M5n Instance types are tested. Choose 2xlarge or 4xlarge.
+        default: Instance Type for EC2. Minimum 4 vCPUs needed. M5, M5a, M5n Instance types are tested. Choose 2xlarge or 4xlarge.
       SSHKeyName:
         default: Key Name for SSH to EC2 (required)
       RootVolumeSize:
@@ -91,11 +91,11 @@ Metadata:
       TrustNetworkCidr:
         default: Trusted Network CIDR (required)
       VpcId:
-        default: If choose to use Existing VPC, enter existing VPC Id (required in case of existing VPC)
+        default: If using an existing VPC, enter existing VPC ID (required in case of existing VPC)
       VpcSubnet:
-        default: If choose to use Existing VPC, enter existing Subnet Id (required in case of existing VPC)
+        default: If using an existing VPC, enter existing Subnet ID (required in case of existing VPC)
       CustomizeEnclaceResource:
-        default: Enclave resouce configuration auto calculated or manual
+        default: Enclave resource configuration auto calculated or manual
       EnclavememoryinMB:
         default: If choose to false for CustomizeEnclaceResource, enter memory for Enclave in MB
       EnclaveCPUCount:
@@ -117,7 +117,7 @@ Mappings:
 Resources:
   KMSKey:
     Type: AWS::KMS::Key
-    Properties: 
+    Properties:
       Description: Key for Secret Encryption
       EnableKeyRotation: true
       KeyPolicy:
@@ -141,12 +141,12 @@ Resources:
             Resource: '*'
   SSMKEYAlias:
     Type: AWS::KMS::Alias
-    Properties: 
+    Properties:
       AliasName: !Sub 'alias/euid-secret-${AWS::StackName}'
       TargetKeyId: !Ref KMSKey
   TokenSecret:
     Type: AWS::SecretsManager::Secret
-    Properties: 
+    Properties:
       Description: EUID Token
       KmsKeyId: !GetAtt KMSKey.Arn
       Name: !Sub 'euid-config-stack-${AWS::StackName}'
@@ -183,7 +183,7 @@ Resources:
               - Effect: Allow
                 Action: 'secretsmanager:GetSecretValue'
                 Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:euid-config-stack-${AWS::StackName}*'
-      ManagedPolicyArns: 
+      ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
   WorkerInstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
@@ -200,43 +200,43 @@ Resources:
           FromPort: '22'
           ToPort: '22'
           CidrIp: !Ref TrustNetworkCidr
-          Description: "Allow SSH"
+          Description: "Allow Inbound SSH"
         - IpProtocol: tcp
           FromPort: '80'
           ToPort: '80'
           CidrIp: !Ref TrustNetworkCidr
-          Description: "Allow HTTP"
+          Description: "Allow Inbound HTTP"
         - IpProtocol: tcp
           FromPort: '9080'
           ToPort: '9080'
           CidrIp: !Ref TrustNetworkCidr
           Description: "Prometheus metrics"
       SecurityGroupEgress:
-        - IpProtocol: 'tcp'
-          FromPort: 443
-          ToPort: 443
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
           CidrIp: 0.0.0.0/0
-          Description: "Allow Outbound"
+          Description: "Allow Outbound HTTPS"
       VpcId: !Ref VpcId
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
         BlockDeviceMappings:
-        - DeviceName: /dev/xvda
-          Ebs:
-            Encrypted: true
-            VolumeSize: !Ref RootVolumeSize
-            VolumeType: gp3
+          - DeviceName: /dev/xvda
+            Ebs:
+              Encrypted: true
+              VolumeSize: !Ref RootVolumeSize
+              VolumeType: gp3
         IamInstanceProfile:
           Name: !Ref WorkerInstanceProfile
         ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
         InstanceType: !Ref InstanceType
-        EnclaveOptions: 
+        EnclaveOptions:
           Enabled: true
         KeyName: !Ref SSHKeyName
         SecurityGroupIds:
-          - !Ref SecurityGroup 
+          - !Ref SecurityGroup
         UserData: !Base64
           Fn::Sub: |
             #!/bin/bash -ex
@@ -254,18 +254,18 @@ Resources:
         LaunchTemplateId: !Ref LaunchTemplate
         Version: !GetAtt LaunchTemplate.LatestVersionNumber
       MetricsCollection:
-      - Granularity: 1Minute
-        Metrics:
-        - GroupTotalInstances
+        - Granularity: 1Minute
+          Metrics:
+            - GroupTotalInstances
       MaxSize: 1
       MinSize: 1
-      VPCZoneIdentifier: 
+      VPCZoneIdentifier:
         - !Ref VpcSubnet1
         - !Ref VpcSubnet2
       Tags:
-      - Key: Name
-        Value: 'EUID Instance'
-        PropagateAtLaunch: true
+        - Key: Name
+          Value: 'EUID Instance'
+          PropagateAtLaunch: true
     CreationPolicy:
       ResourceSignal:
         Count: 1

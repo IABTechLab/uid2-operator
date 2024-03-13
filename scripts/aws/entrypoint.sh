@@ -73,17 +73,6 @@ get_config_value() {
   jq -r ".\"$1\"" ${FINAL_CONFIG}
 }
 
-# for number/boolean
-# https://jqlang.github.io/jq/manual/
-# --argjson foo 123 will bind $foo to 123.
-TMP_FINAL_CONFIG="/tmp/final-config.tmp"
-function jq_inplace_update_json() {
-    local file=$1
-    local field=$2
-    local value=$3
-    jq --argjson v "${value}" ".${field} = \$v" "${file}" > "${TMP_FINAL_CONFIG}" && mv "${TMP_FINAL_CONFIG}" "${file}"
-}
-
 # -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
 # -- using hardcoded domains is fine because they should not be changed frequently
 if [ -n "${CORE_BASE_URL}" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then

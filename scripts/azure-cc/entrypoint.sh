@@ -58,6 +58,6 @@ java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
     -Djava.security.egd=file:/dev/./urandom \
     -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
-    -Dlogback.configurationFile=${LOGBACK_CONF} \
+    -Dlogback.configurationFile=/app/conf/logback.xml \
     -Dvertx-config-path=${FINAL_CONFIG} \
     -jar ${JAR_NAME}-${JAR_VERSION}.jar

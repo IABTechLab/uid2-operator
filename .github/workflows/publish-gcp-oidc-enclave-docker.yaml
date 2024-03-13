@@ -291,5 +291,4 @@ jobs:
     with:
       operator_type: gcp
       operator_image_version: ${{ needs.buildImage.outputs.image_tag }}
-      operator_branch: ${{ github.ref }}
     secrets: inherit

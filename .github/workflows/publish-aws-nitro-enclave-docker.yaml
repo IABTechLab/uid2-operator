@@ -124,7 +124,7 @@ jobs:
       - name: Archive deployment artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aws-nitro-deployment-files
+          name: uid2-nitro-deployment-files
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           if-no-files-found: error
   
@@ -137,7 +137,7 @@ jobs:
       - name: Archive deployment artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aws-nitro-deployment-files
+          name: euid-nitro-deployment-files
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           if-no-files-found: error
 

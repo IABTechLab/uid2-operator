@@ -119,19 +119,26 @@ jobs:
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
         with:
           identity_scope: uid2
-          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
-
-      - name: Build EUID AWS EIF
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
-        with:
-          identity_scope: euid
-          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
+          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
 
       - name: Archive deployment artifacts
         uses: actions/upload-artifact@v4
         with:
           name: aws-nitro-deployment-files
-          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
+          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+          if-no-files-found: error
+  
+      - name: Build EUID AWS EIF
+        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+        with:
+          identity_scope: euid
+          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
+
+      - name: Archive deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-nitro-deployment-files
+          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           if-no-files-found: error
 
       - name: Generate release archive

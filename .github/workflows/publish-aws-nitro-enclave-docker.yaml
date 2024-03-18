@@ -122,9 +122,10 @@ jobs:
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
 
       - name: Archive deployment artifacts
+        if: ${{ inputs.version_number_input != '' || steps.checkRelease.outputs.is_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: uid2-nitro-deployment-files
+          name: uid2-nitro-deployment-files-${{ steps.version.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           if-no-files-found: error
   
@@ -135,16 +136,18 @@ jobs:
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
 
       - name: Archive deployment artifacts
+        if: ${{ inputs.version_number_input != '' || steps.checkRelease.outputs.is_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: euid-nitro-deployment-files
+          name: euid-nitro-deployment-files-${{ steps.version.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           if-no-files-found: error
 
-      - name: Generate release archive
+      - name: Generate release archive files
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
         run: |
-          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
+          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
 
       - name: Build changelog
         id: github_release
@@ -153,7 +156,7 @@ jobs:
         with:
           configurationJson: |
             {
-              "template": "#{{CHANGELOG}}\n## Installation\n```\ndocker pull ${{ steps.meta.outputs.tags }}\n```\n\n## Image reference to deploy: \n```\n${{ steps.updatePom.outputs.image_tag }}\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
+              "template": "#{{CHANGELOG}}\n## Installation\n```\ndocker pull ${{ steps.version.outputs.tags }}\n```\n\n## Image reference to deploy: \n```\n${{ steps.updatePom.outputs.image_tag }}\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
               "pr_template": " - #{{TITLE}} - ( PR: ##{{NUMBER}} )"
             }
         env:
@@ -167,4 +170,6 @@ jobs:
           body: ${{ steps.github_release.outputs.changelog }}
           draft: true
           files: |
-            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
+

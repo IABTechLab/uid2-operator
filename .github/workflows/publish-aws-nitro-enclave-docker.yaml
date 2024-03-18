@@ -59,7 +59,7 @@ jobs:
         shell: bash
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
-          IS_RELEASE: ${{ steps.checkRelease.outputs.IS_RELEASE }}
+          IS_RELEASE: ${{ steps.checkRelease.outputs.is_release }}
 
       - name: Checkout full history on Main
         uses: actions/checkout@v4
@@ -77,7 +77,7 @@ jobs:
           fetch-depth: 0
 
       - name: Restore timestamps
-        uses: thetradedesk/git-restore-mtime-action@v1.2
+        uses: thetradedesk/git-restore-mtime-action@v1.3
 
       - name: Set version number
         id: version
@@ -97,23 +97,19 @@ jobs:
           echo "image_tag=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}" >> $GITHUB_OUTPUT
 
       - name: Commit pom.xml and version.json
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE != 'true' }}
-        uses: EndBug/add-and-commit@v9
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release != 'true' }} 
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
         with:
           add: 'pom.xml version.json'
-          author_name: Release Workflow
-          author_email: unifiedid-admin+release@thetradedesk.com
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
 
       - name: Commit pom.xml, version.json and set tag
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.IS_RELEASE == 'true' }}
-        uses: EndBug/add-and-commit@v9
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }} 
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
         with:
           add: 'pom.xml version.json'
-          author_name: Release Workflow
-          author_email: unifiedid-admin+release@thetradedesk.com
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-          tag: v${{ steps.version.outputs.new_version }}
+          tag: v${{ steps.version.outputs.new_version }} 
 
       - name: Build UID2 AWS EIF
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
@@ -156,7 +152,7 @@ jobs:
         with:
           configurationJson: |
             {
-              "template": "#{{CHANGELOG}}\n## Installation\n```\ndocker pull ${{ steps.version.outputs.tags }}\n```\n\n## Image reference to deploy: \n```\n${{ steps.updatePom.outputs.image_tag }}\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
+              "template": "#{{CHANGELOG}}\n## Installation\n```\See [AWS Marketplace](https://unifiedid.com/docs/guides/operator-guide-aws-marketplace) for details\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
               "pr_template": " - #{{TITLE}} - ( PR: ##{{NUMBER}} )"
             }
         env:

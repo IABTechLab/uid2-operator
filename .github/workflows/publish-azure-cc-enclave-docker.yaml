@@ -85,14 +85,14 @@ jobs:
 
       - name: Checkout full history on Main
         uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input == ''}}
+        if: ${{ inputs.version_number_input == '' }}
         with:
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
 
       - name: Checkout full history at tag v${{ inputs.version_number_input }}
         uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input != ''}}
+        if: ${{ inputs.version_number_input != '' }}
         with:
           ref: v${{ inputs.version_number_input }}
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
@@ -240,7 +240,7 @@ jobs:
 
       - name: Create release
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ steps.version.outputs.new_version }}
           body: ${{ steps.github_release.outputs.changelog }}

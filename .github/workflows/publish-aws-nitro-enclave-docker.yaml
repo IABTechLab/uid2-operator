@@ -112,7 +112,8 @@ jobs:
           tag: v${{ steps.version.outputs.new_version }} 
 
       - name: Build UID2 AWS EIF
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+        id: build_uid2_eif
+        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@tjm-UID2-2982-update-output-manifests
         with:
           identity_scope: uid2
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
@@ -125,7 +126,8 @@ jobs:
           if-no-files-found: error
   
       - name: Build EUID AWS EIF
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+        id: build_euid_eif
+        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@tjm-UID2-2982-update-output-manifests
         with:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
@@ -144,6 +146,10 @@ jobs:
           ls -l ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
           zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
+          touch ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/uid2-enclave-id.txt
+          echo ${{ steps.build_uid2_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/uid2-enclave-id.txt
+          touch ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/euid-enclave-id.txt
+          echo ${{ steps.build_euid_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/euid-enclave-id.txt
 
       - name: Build changelog
         id: github_release
@@ -160,7 +166,7 @@ jobs:
 
       - name: Create release
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ steps.version.outputs.new_version }}
           body: ${{ steps.github_release.outputs.changelog }}
@@ -168,4 +174,6 @@ jobs:
           files: |
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/uid2-enclave-id.txt
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/euid-enclave-id.txt
 

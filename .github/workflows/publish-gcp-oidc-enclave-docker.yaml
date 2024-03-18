@@ -276,7 +276,7 @@ jobs:
 
       - name: Create release
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ steps.version.outputs.new_version }}
           body: ${{ steps.github_release.outputs.changelog }}

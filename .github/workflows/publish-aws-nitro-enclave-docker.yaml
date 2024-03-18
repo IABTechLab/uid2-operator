@@ -117,8 +117,7 @@ jobs:
           identity_scope: uid2
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
 
-      - name: Archive deployment artifacts
-        if: ${{ inputs.version_number_input != '' || steps.checkRelease.outputs.is_release != 'true' }}
+      - name: Save UID2 eif artifact
         uses: actions/upload-artifact@v4
         with:
           name: uid2-nitro-deployment-files-${{ steps.version.outputs.new_version }}
@@ -131,8 +130,7 @@ jobs:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
 
-      - name: Archive deployment artifacts
-        if: ${{ inputs.version_number_input != '' || steps.checkRelease.outputs.is_release != 'true' }}
+      - name: Save EUID eif artifact
         uses: actions/upload-artifact@v4
         with:
           name: euid-nitro-deployment-files-${{ steps.version.outputs.new_version }}

@@ -142,6 +142,8 @@ jobs:
       - name: Generate release archive files
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
         run: |
+          ls -l ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+          ls -l ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
           zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
 

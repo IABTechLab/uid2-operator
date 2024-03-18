@@ -47,7 +47,7 @@ runs:
     - name: Prepare artifacts
       shell: bash
       run: |
-        ARTIFACTS_OUTPUT_DIR="${{ inputs.artifacts_base_output_dir }}/${{ inputs.identity_scope }}"
+        ARTIFACTS_OUTPUT_DIR="${{ inputs.artifacts_base_output_dir }}"
 
         mkdir -p ${ARTIFACTS_OUTPUT_DIR}
 

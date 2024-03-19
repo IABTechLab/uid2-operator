@@ -5,6 +5,7 @@ set -x
 # - IMAGE: uid2-operator image
 # - OUTPUT_DIR: output directory to store the artifacts
 # - MANIFEST_DIR: output directory to store the manifest for the enclave Id
+# - VERSION_NUMBER: the version number of the build
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 INPUT_DIR=${SCRIPT_DIR}
@@ -75,7 +76,7 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-POLICY_DIGEST_FILE=azure-cc-operator-digest.txt
+POLICY_DIGEST_FILE=azure-cc-operator-digest-$VERSION_NUMBER.txt
 az confcom acipolicygen --approve-wildcards --template-file ${OUTPUT_DIR}/operator.json > ${MANIFEST_DIR}/${POLICY_DIGEST_FILE}
 if [[ $? -ne 0 ]]; then
   echo "Failed to generate operator template file"

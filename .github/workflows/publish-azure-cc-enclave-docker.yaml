@@ -212,6 +212,7 @@ jobs:
           IMAGE: ${{ steps.meta.outputs.tags }}
           OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
           MANIFEST_DIR: ${{ env.MANIFEST_OUTPUT_DIR }}
+          VERSION_NUMBER: ${{ steps.version.outputs.new_version }}
         run: |
           bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 
@@ -256,7 +257,7 @@ jobs:
           draft: true
           files: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
-            ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest.txt
+            ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ steps.meta.outputs.version }}.txt
 
   e2e:
     name: E2E

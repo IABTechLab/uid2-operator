@@ -136,9 +136,9 @@ jobs:
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
           touch ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/uid2-enclave-id.txt
-          echo ${{ steps.build_uid2_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/uid2-enclave-id.txt
+          echo ${{ steps.build_uid2_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/uid2-enclave-id-${{ steps.version.outputs.new_version }}.txt
           touch ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/euid-enclave-id.txt
-          echo ${{ steps.build_euid_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/euid-enclave-id.txt
+          echo ${{ steps.build_euid_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/euid-enclave-id-${{ steps.version.outputs.new_version }}.txt
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@v4
@@ -178,6 +178,6 @@ jobs:
           files: |
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/uid2-enclave-id.txt
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/euid-enclave-id.txt
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/uid2-enclave-id-${{ steps.version.outputs.new_version }}.txt
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/euid-enclave-id-${{ steps.version.outputs.new_version }}.txt
 

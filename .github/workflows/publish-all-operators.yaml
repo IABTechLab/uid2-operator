@@ -111,44 +111,35 @@ jobs:
     runs-on: ubuntu-latest
     needs: [start, buildPublic, buildGCP, buildAzure, buildAWS]
     steps:
-      - name: Download public artifacts
+      - name: Download public manifest
         uses: actions/download-artifact@v4
         with:
-          name: image-details
-          path: ./artifacts/public_operator
+          pattern: image-*
+          path: ./manifests/public_operator
 
-      - name: Download GCP artifacts
+      - name: Download GCP manifest
         uses: actions/download-artifact@v4
         with:
-          name: gcp-oidc-deployment-files
-          path: ./artifacts/gcp_oidc_operator
+          pattern: enclave_id*
+          path: ./manifests/gcp_oidc_operator
 
-      - name: Download Azure artifacts
+      - name: Download Azure manifest
         uses: actions/download-artifact@v4
         with:
-          name: azure-cc-deployment-files
-          path: ./artifacts/azure_cc_operator
+          pattern: azure-cc-operator-digest*
+          path: ./manifests/azure_cc_operator
 
-      - name: Download AWS artifacts
+      - name: Download AWS manifest
         uses: actions/download-artifact@v4
         with:
-          name: aws-nitro-deployment-files
-          path: ./artifacts/aws_nitro_operator
-
-      - name: Delete staging artifacts
-        uses: geekyeggo/delete-artifact@v4
-        with: 
-          name: |
-            image-details
-            gcp-oidc-deployment-files
-            azure-cc-deployment-files
-            aws-nitro-deployment-files
+          pattern: '*-enclave-id*'
+          path: ./manifests/aws_nitro_operator
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: uid2-operator-release-${{ needs.start.outputs.new_version }}
-          path: ./artifacts/
+          name: uid2-operator-release-${{ needs.start.outputs.new_version }}-manifests
+          path: ./manifests/
 
   release:
     name: Create Release

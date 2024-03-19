@@ -5,6 +5,7 @@ set -x
 # - IMAGE: uid2-operator image
 # - IMAGE_DIGEST: uid2-operator image digest
 # - OUTPUT_DIR: output directory to store the artifacts
+# - MANIFEST_DIR: output directory to store the manifest for the enclave Id
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 INPUT_DIR=${SCRIPT_DIR}/terraform
@@ -52,14 +53,14 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Enclave ID file
-echo -n "V1,false,$IMAGE_DIGEST" | openssl dgst -sha256 -binary | openssl base64 > ${OUTPUT_DIR}/enclave_id.txt
+echo -n "V1,false,$IMAGE_DIGEST" | openssl dgst -sha256 -binary | openssl base64 > ${MANIFEST_DIR}/enclave_id.txt
 if [[ $? -ne 0 ]]; then
   echo "Failed to generate non-debug enclave ID file"
   exit 1
 fi
 
 # Enclave ID file for debug
-echo -n "V1,true,$IMAGE_DIGEST" | openssl dgst -sha256 -binary | openssl base64 > ${OUTPUT_DIR}/enclave_id_debug.txt
+echo -n "V1,true,$IMAGE_DIGEST" | openssl dgst -sha256 -binary | openssl base64 > ${MANIFEST_DIR}/enclave_id_debug.txt
 if [[ $? -ne 0 ]]; then
   echo "Failed to generate debug enclave ID file"
   exit 1

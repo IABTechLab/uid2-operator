@@ -47,6 +47,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_CONTEXT_PATH: scripts/azure-cc
   ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
+  MANIFEST_OUTPUT_DIR: ${{ github.workspace }}/manifest
 
 jobs:
   buildImage:
@@ -210,14 +211,22 @@ jobs:
         env:
           IMAGE: ${{ steps.meta.outputs.tags }}
           OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          MANIFEST_DIR: ${{ env.MANIFEST_OUTPUT_DIR }}
         run: |
           bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 
-      - name: Archive deployment artifacts
+      - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
           name: azure-cc-deployment-files
           path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          if-no-files-found: error
+
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: azure-cc-enclave-id
+          path: ${{ env.MANIFEST_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Generate release archive
@@ -247,6 +256,7 @@ jobs:
           draft: true
           files: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
+            ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest.txt
 
   e2e:
     name: E2E

@@ -90,7 +90,7 @@ jobs:
           cd ./e2e && bash ./start_docker.sh
 
       - name: Azure Login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 

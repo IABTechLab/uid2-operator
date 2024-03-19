@@ -9,6 +9,11 @@ inputs:
     description: The base output directory for the AMI artifacts
     required: true
 
+outputs:
+  enclave_id:
+    description: The enclave id for this EIF.
+    value: ${{ steps.prepare_artifacts.outputs.enclave_id }}
+    
 runs:
   using: "composite"
 
@@ -45,6 +50,7 @@ runs:
         make -f Makefile.nitro ${{ inputs.identity_scope }}operator.eif
 
     - name: Prepare artifacts
+      id: prepare_artifacts
       shell: bash
       run: |
         ARTIFACTS_OUTPUT_DIR="${{ inputs.artifacts_base_output_dir }}"
@@ -63,7 +69,10 @@ runs:
         docker cp amazonlinux:/sockd                                    ${ARTIFACTS_OUTPUT_DIR}/
         docker cp amazonlinux:/vsockpx                                  ${ARTIFACTS_OUTPUT_DIR}/
         docker cp amazonlinux:/${{ inputs.identity_scope }}operator.eif ${ARTIFACTS_OUTPUT_DIR}/uid2operator.eif
+
+        docker cp amazonlinux:/pcr0.txt                                 ${{ steps.buildFolder.outputs.BUILD_FOLDER }}
         docker cp amazonlinux:/pcr0.txt                                 ${ARTIFACTS_OUTPUT_DIR}/
+        echo "enclave_id=$(cat ${{ steps.buildFolder.outputs.BUILD_FOLDER}}/pcr0.txt)" >> $GITHUB_OUTPUT
 
     - name: Cleanup
       shell: bash

@@ -47,6 +47,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_CONTEXT_PATH: scripts/azure-cc
   ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
+  MANIFEST_OUTPUT_DIR: ${{ github.workspace }}/manifest
 
 jobs:
   buildImage:
@@ -85,14 +86,14 @@ jobs:
 
       - name: Checkout full history on Main
         uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input == ''}}
+        if: ${{ inputs.version_number_input == '' }}
         with:
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
 
       - name: Checkout full history at tag v${{ inputs.version_number_input }}
         uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input != ''}}
+        if: ${{ inputs.version_number_input != '' }}
         with:
           ref: v${{ inputs.version_number_input }}
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
@@ -210,14 +211,23 @@ jobs:
         env:
           IMAGE: ${{ steps.meta.outputs.tags }}
           OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          MANIFEST_DIR: ${{ env.MANIFEST_OUTPUT_DIR }}
+          VERSION_NUMBER: ${{ steps.version.outputs.new_version }}
         run: |
           bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 
-      - name: Archive deployment artifacts
+      - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
           name: azure-cc-deployment-files
           path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          if-no-files-found: error
+
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: azure-cc-enclave-id
+          path: ${{ env.MANIFEST_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Generate release archive
@@ -240,13 +250,14 @@ jobs:
 
       - name: Create release
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ steps.version.outputs.new_version }}
           body: ${{ steps.github_release.outputs.changelog }}
           draft: true
           files: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
+            ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ steps.meta.outputs.version }}.txt
 
   e2e:
     name: E2E

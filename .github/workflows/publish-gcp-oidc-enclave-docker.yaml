@@ -48,6 +48,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_CONTEXT_PATH: scripts/gcp-oidc
   ARTIFACTS_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
+  MANIFEST_OUTPUT_DIR: ${{ github.workspace }}/manifests
 
 jobs:
   buildImage:
@@ -246,14 +247,23 @@ jobs:
           IMAGE: ${{ steps.meta-gcp.outputs.tags }}
           IMAGE_DIGEST: ${{ steps.push-to-docker.outputs.digest }}
           OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          MANIFEST_DIR: ${{ env.MANIFEST_OUTPUT_DIR}}
+          VERSION_NUMBER: ${{ steps.version.outputs.new_version }}
         run: |
           bash ./scripts/gcp-oidc/generate-deployment-artifacts.sh
 
-      - name: Archive deployment artifacts
+      - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gcp-oidc-deployment-files
+          name: gcp-oidc-deployment-files-${{ steps.meta.outputs.version }}
           path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          if-no-files-found: error
+
+      - name: Upload manifest artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcp-oidc-enclave-ids-${{ steps.meta.outputs.version }}
+          path: ${{ env.MANIFEST_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Generate release archive
@@ -276,13 +286,15 @@ jobs:
 
       - name: Create release
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ steps.version.outputs.new_version }}
           body: ${{ steps.github_release.outputs.changelog }}
           draft: true
           files: |
             ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
+            ${{ env.MANIFEST_OUTPUT_DIR }}/enclave_id_${{ steps.meta.outputs.version }}.txt
+            ${{ env.MANIFEST_OUTPUT_DIR }}/enclave_id_debug_${{ steps.meta.outputs.version }}.txt
 
   e2e:
     name: E2E

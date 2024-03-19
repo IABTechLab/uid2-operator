@@ -135,9 +135,7 @@ jobs:
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
-          touch ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/uid2-enclave-id.txt
           echo ${{ steps.build_uid2_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/uid2-enclave-id-${{ steps.version.outputs.new_version }}.txt
-          touch ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/euid-enclave-id.txt
           echo ${{ steps.build_euid_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/euid-enclave-id-${{ steps.version.outputs.new_version }}.txt
 
       - name: Save Manifests as build artifacts

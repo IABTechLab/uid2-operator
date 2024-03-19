@@ -31,6 +31,12 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
+mkdir -p ${MANIFEST_DIR}
+if [[ $? -ne 0 ]]; then
+  echo "Failed to create ${MANIFEST_DIR}"
+  exit 1
+fi
+
 # Input files
 INPUT_FILES=(
   main.tf outputs.tf variables.tf terraform.tfvars

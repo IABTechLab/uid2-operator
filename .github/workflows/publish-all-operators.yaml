@@ -175,7 +175,7 @@ jobs:
           zip -j ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}/*
           zip -j ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/azure-cc-deployment-files-${{ needs.start.outputs.new_version }}/*
           zip -j ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}/*
-          (cd manifests && zip -r ../uid2-operator-release-${{ needs.start.outputs.new_version }}-manifests.zip .)
+          (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
       - name: Create draft release
         uses: softprops/action-gh-release@v2
@@ -188,5 +188,4 @@ jobs:
               ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
-              ./uid2-operator-release-${{ needs.start.outputs.new_version }}-manifests.zip
-
+              ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip

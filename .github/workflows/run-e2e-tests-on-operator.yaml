@@ -53,8 +53,7 @@ on:
         default: '{
           "region": "us-east-1",
           "ami": "ami-xxxxx",
-          "pcr0": "xxxxx" 
-        }'
+          "pcr0": "xxxxx" }'
 
   workflow_call:
     inputs:
@@ -100,8 +99,7 @@ on:
         default: '{
           "region": "us-east-1",
           "ami": "ami-xxxxx",
-          "pcr0": "xxxxx" 
-        }'
+          "pcr0": "xxxxx" }'
 
 jobs:
   e2e-test:

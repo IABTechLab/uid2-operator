@@ -7,10 +7,10 @@ on:
         type: choice
         description: The type of release
         options:
-        - Major
-        - Minor
-        - Patch
         - Snapshot
+        - Patch
+        - Minor
+        - Major
       version_number_input:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string

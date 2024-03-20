@@ -60,14 +60,14 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Enclave ID file
-echo -n "V1,false,$IMAGE_DIGEST" | openssl dgst -sha256 -binary | openssl base64 > ${MANIFEST_DIR}/enclave_id_$VERSION_NUMBER.txt
+echo -n "V1,false,$IMAGE_DIGEST" | openssl dgst -sha256 -binary | openssl base64 > ${MANIFEST_DIR}/gcp-oidc-enclave-id-$VERSION_NUMBER.txt
 if [[ $? -ne 0 ]]; then
   echo "Failed to generate non-debug enclave ID file"
   exit 1
 fi
 
 # Enclave ID file for debug
-echo -n "V1,true,$IMAGE_DIGEST" | openssl dgst -sha256 -binary | openssl base64 > ${MANIFEST_DIR}/enclave_id_debug_$VERSION_NUMBER.txt
+echo -n "V1,true,$IMAGE_DIGEST" | openssl dgst -sha256 -binary | openssl base64 > ${MANIFEST_DIR}/gcp-oidc-enclave-id-debug-$VERSION_NUMBER.txt
 if [[ $? -ne 0 ]]; then
   echo "Failed to generate debug enclave ID file"
   exit 1

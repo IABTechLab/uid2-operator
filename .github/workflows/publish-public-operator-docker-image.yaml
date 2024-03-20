@@ -7,10 +7,10 @@ on:
         type: choice
         description: The type of release
         options:
-        - Major
-        - Minor
-        - Patch
         - Snapshot
+        - Patch
+        - Minor
+        - Major
       version_number_input:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
@@ -41,9 +41,23 @@ on:
         value: ${{ jobs.Image.outputs.image_tag }}
 
 jobs:
+  check_major:
+    name: Check if major release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve Major release
+        if: inputs.release_type == 'Major'
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: thomasm-ttd,atarassov-ttd,cody-constine-ttd
+          minimum-approvals: 1
+          issue-title: Creating Major version of UID2-Operator
+
   image:
     name: Image
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-java-to-docker-versioned.yaml@v2
+    needs: check_major
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ inputs.version_number_input }}
@@ -70,10 +84,10 @@ jobs:
           mkdir -p image-details
           IMAGE_TAG=${{ needs.image.outputs.image_tag }}
           IMAGE=$(jq -n --arg img "$IMAGE_TAG" '{image_tag: $img}')
-          echo $IMAGE > image-details/image_$IMAGE_TAG.json
+          echo $IMAGE > image-details/public-image-$IMAGE_TAG.json
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: image_${{ needs.image.outputs.image_tag }}
+          name: public-image-${{ needs.image.outputs.image_tag }}
           path: image-details/

@@ -35,6 +35,12 @@ jobs:
     name: Build Image
     runs-on: ubuntu-latest
     steps:
+      - name: Check branch and release type
+        id: checkRelease
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2
+        with:
+          release_type: ${{ inputs.release_type }}
+
       - name: Approve Major release
         if: inputs.release_type == 'Major'
         uses: trstringer/manual-approval@v1
@@ -43,12 +49,6 @@ jobs:
           approvers: thomasm-ttd,atarassov-ttd,cody-constine-ttd
           minimum-approvals: 1
           issue-title: Creating Major version of UID2-Operator
-
-      - name: Check branch and release type
-        id: checkRelease
-        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2
-        with:
-          release_type: ${{ inputs.release_type }}
 
       - name: Free up space - delete preinstalled tools
         run: |

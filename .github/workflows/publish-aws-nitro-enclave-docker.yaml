@@ -35,6 +35,15 @@ jobs:
     name: Build Image
     runs-on: ubuntu-latest
     steps:
+      - name: Approve Major release
+        if: inputs.release_type == 'Major'
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: thomasm-ttd,atarassov-ttd,cody-constine-ttd
+          minimum-approvals: 1
+          issue-title: Creating Major version of UID2-Operator
+
       - name: Check branch and release type
         id: checkRelease
         uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2

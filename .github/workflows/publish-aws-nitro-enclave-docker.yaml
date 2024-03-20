@@ -79,7 +79,7 @@ jobs:
           type: ${{ inputs.release_type }}
           version_number: ${{ inputs.version_number_input }}
           branch_name: ${{ github.ref }}
-
+      
       - name: Update pom.xml
         id: updatePom
         run: |
@@ -114,7 +114,7 @@ jobs:
       - name: Save UID2 eif artifact
         uses: actions/upload-artifact@v4
         with:
-          name: uid2-nitro-deployment-files-${{ steps.version.outputs.new_version }}
+          name: aws-uid2-deployment-files-${{ steps.version.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           if-no-files-found: error
   
@@ -128,15 +128,15 @@ jobs:
       - name: Save EUID eif artifact
         uses: actions/upload-artifact@v4
         with:
-          name: euid-nitro-deployment-files-${{ steps.version.outputs.new_version }}
+          name: aws-euid-deployment-files-${{ steps.version.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           if-no-files-found: error
 
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
-          echo ${{ steps.build_uid2_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/uid2-enclave-id-${{ steps.version.outputs.new_version }}.txt
-          echo ${{ steps.build_euid_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/euid-enclave-id-${{ steps.version.outputs.new_version }}.txt
+          echo ${{ steps.build_uid2_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ steps.version.outputs.new_version }}.txt
+          echo ${{ steps.build_euid_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ steps.version.outputs.new_version }}.txt
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@v4
@@ -148,10 +148,8 @@ jobs:
       - name: Generate release archive files
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
         run: |
-          ls -l ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
-          ls -l ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
-          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
-          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
+          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
+          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
 
       - name: Build changelog
         id: github_release
@@ -174,8 +172,8 @@ jobs:
           body: ${{ steps.github_release.outputs.changelog }}
           draft: true
           files: |
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid-nitro-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/uid2-enclave-id-${{ steps.version.outputs.new_version }}.txt
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/euid-enclave-id-${{ steps.version.outputs.new_version }}.txt
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ steps.version.outputs.new_version }}.txt
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ steps.version.outputs.new_version }}.txt
 

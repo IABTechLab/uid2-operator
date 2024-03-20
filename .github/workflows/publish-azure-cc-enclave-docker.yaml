@@ -219,14 +219,14 @@ jobs:
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: azure-cc-deployment-files
+          name: azure-cc-deployment-files-${{ steps.version.outputs.new_version }}
           path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Upload manifest
         uses: actions/upload-artifact@v4
         with:
-          name: azure-cc-enclave-id
+          name: azure-cc-enclave-id-${{ steps.version.outputs.new_version }}
           path: ${{ env.MANIFEST_OUTPUT_DIR }}
           if-no-files-found: error
 
@@ -256,8 +256,8 @@ jobs:
           body: ${{ steps.github_release.outputs.changelog }}
           draft: true
           files: |
-            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
-            ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ steps.meta.outputs.version }}.txt
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
+            ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ steps.version.outputs.new_version }}.txt
 
   e2e:
     name: E2E

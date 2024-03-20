@@ -255,21 +255,21 @@ jobs:
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gcp-oidc-deployment-files-${{ steps.meta.outputs.version }}
+          name: gcp-oidc-deployment-files-${{ steps.version.outputs.new_version }}
           path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Upload manifest artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gcp-oidc-enclave-ids-${{ steps.meta.outputs.version }}
+          name: gcp-oidc-enclave-ids-${{ steps.version.outputs.new_version }}
           path: ${{ env.MANIFEST_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Generate release archive
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
         run: |
-            zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+            zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/gcp-oidc-deployment-files-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
 
       - name: Build changelog
         id: github_release
@@ -292,9 +292,9 @@ jobs:
           body: ${{ steps.github_release.outputs.changelog }}
           draft: true
           files: |
-            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip
-            ${{ env.MANIFEST_OUTPUT_DIR }}/enclave_id_${{ steps.meta.outputs.version }}.txt
-            ${{ env.MANIFEST_OUTPUT_DIR }}/enclave_id_debug_${{ steps.meta.outputs.version }}.txt
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/gcp-oidc-deployment-files-${{ steps.version.outputs.new_version }}.zip
+            ${{ env.MANIFEST_OUTPUT_DIR }}/gcp-oidc-enclave-id-${{ steps.version.outputs.new_version }}.txt
+            ${{ env.MANIFEST_OUTPUT_DIR }}/gcp-oidc-enclave-id-debug-${{ steps.version.outputs.new_version }}.txt
 
   e2e:
     name: E2E

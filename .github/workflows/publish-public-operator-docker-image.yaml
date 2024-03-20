@@ -70,10 +70,10 @@ jobs:
           mkdir -p image-details
           IMAGE_TAG=${{ needs.image.outputs.image_tag }}
           IMAGE=$(jq -n --arg img "$IMAGE_TAG" '{image_tag: $img}')
-          echo $IMAGE > image-details/image_$IMAGE_TAG.json
+          echo $IMAGE > image-details/public-image-$IMAGE_TAG.json
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: image_${{ needs.image.outputs.image_tag }}
+          name: public-image-${{ needs.image.outputs.image_tag }}
           path: image-details/

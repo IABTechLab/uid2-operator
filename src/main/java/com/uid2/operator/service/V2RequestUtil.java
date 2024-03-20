@@ -55,6 +55,7 @@ public class V2RequestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
+    // clock is passed in to test V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES in unit tests
     public static V2Request parseRequest(String bodyString, ClientKey ck, IClock clock) {
         if (bodyString == null) {
             return new V2Request("Invalid body: Body is missing.");

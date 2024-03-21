@@ -3,5 +3,5 @@ on: [pull_request, workflow_dispatch]
 
 jobs:
   check_dependency:
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-check-stable-dependency.yaml@main
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-check-stable-dependency.yaml@v2
     secrets: inherit

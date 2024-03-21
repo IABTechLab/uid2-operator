@@ -3,9 +3,12 @@ on:
   workflow_dispatch:
     inputs:
       failure_severity:
-        description: Must be one of ['CRITICAL', 'CRITICAL,HIGH' or 'CRITICAL,HIGH,MEDIUM'] (without space in between).
-        required: false
-        default: 'CRITICAL,HIGH'
+        description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised.
+        type: choice
+        options:
+        - CRITICAL,HIGH
+        - CRITICAL,HIGH,MEDIUM
+        - CRITICAL (DO NOT use if JIRA ticket not raised)
       fail_on_error:
         description: If true, will fail the build if vulnerabilities are found
         required: true
@@ -18,14 +21,14 @@ jobs:
   build-publish-docker-default:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@v2
     with: 
-      failure_severity: ${{ inputs.failure_severity || 'HIGH'}}
+      failure_severity: ${{ inputs.failure_severity || 'CRITICAL,HIGH' }}
       fail_on_error: ${{ inputs.fail_on_error || true }}
       cloud_provider: 'default'
     secrets: inherit
   build-publish-docker-aws:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@v2
     with: 
-      failure_severity: ${{ inputs.failure_severity || 'HIGH'}}
+      failure_severity: ${{ inputs.failure_severity || 'CRITICAL,HIGH' }}
       fail_on_error: ${{ inputs.fail_on_error || true }}
       cloud_provider: 'aws'
     secrets: inherit
@@ -33,7 +36,7 @@ jobs:
   build-publish-docker-gcp:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@v2
     with: 
-      failure_severity: ${{ inputs.failure_severity || 'HIGH'}}
+      failure_severity: ${{ inputs.failure_severity || 'CRITICAL,HIGH' }}
       fail_on_error: ${{ inputs.fail_on_error || true }}
       cloud_provider: 'gcp'
     secrets: inherit

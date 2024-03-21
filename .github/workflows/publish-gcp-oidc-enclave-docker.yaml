@@ -115,7 +115,7 @@ jobs:
 
       - name: Set version number
         id: version
-        uses: IABTechLab/uid2-shared-actions/actions/version_number@main
+        uses: IABTechLab/uid2-shared-actions/actions/version_number@v2
         with:
           type: ${{ inputs.release_type }}
           version_number: ${{ inputs.version_number_input }}

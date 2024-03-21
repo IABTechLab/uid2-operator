@@ -16,14 +16,14 @@ on:
 
 jobs:
   build-publish-docker-default:
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@v2
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@main
     with: 
       failure_severity: ${{ inputs.failure_severity || 'HIGH'}}
       fail_on_error: ${{ inputs.fail_on_error || true }}
       cloud_provider: 'default'
     secrets: inherit
   build-publish-docker-aws:
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@v2
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@main
     with: 
       failure_severity: ${{ inputs.failure_severity || 'HIGH'}}
       fail_on_error: ${{ inputs.fail_on_error || true }}
@@ -31,7 +31,7 @@ jobs:
     secrets: inherit
     needs: [build-publish-docker-default]
   build-publish-docker-gcp:
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@v2
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@main
     with: 
       failure_severity: ${{ inputs.failure_severity || 'HIGH'}}
       fail_on_error: ${{ inputs.fail_on_error || true }}

@@ -49,6 +49,11 @@ runs:
       run: |
         make -f Makefile.nitro ${{ inputs.identity_scope }}operator.eif
 
+    - name: Display structure of downloaded files
+      shell: bash
+      run: |
+        ls -R ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
+
     - name: Prepare artifacts
       id: prepare_artifacts
       shell: bash

@@ -126,6 +126,7 @@ jobs:
         uses: actions/checkout@v4
         if: ${{ inputs.version_number_input == '' }}
         with:
+          ref: kcc-UID2-2996-parallelize-eif-build
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
 
@@ -140,9 +141,13 @@ jobs:
       - name: Restore timestamps
         uses: thetradedesk/git-restore-mtime-action@v1.3
 
+      - name: Free up space - delete preinstalled tools
+        run: |
+          rm -rf /opt/hostedtoolcache
+
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@kcc-UID2-2996-parallelize-eif-build
         with:
           identity_scope: uid2
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
@@ -165,6 +170,7 @@ jobs:
         uses: actions/checkout@v4
         if: ${{ inputs.version_number_input == '' }}
         with:
+          ref: kcc-UID2-2996-parallelize-eif-build
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
 
@@ -179,9 +185,13 @@ jobs:
       - name: Restore timestamps
         uses: thetradedesk/git-restore-mtime-action@v1.3
 
+      - name: Free up space - delete preinstalled tools
+        run: |
+          rm -rf /opt/hostedtoolcache
+      
       - name: Build EUID AWS EIF
         id: build_euid_eif
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@kcc-UID2-2996-parallelize-eif-build
         with:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid

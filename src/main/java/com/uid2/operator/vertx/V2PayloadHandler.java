@@ -6,6 +6,7 @@ import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.ResponseUtil;
 import com.uid2.operator.service.V2RequestUtil;
+import com.uid2.shared.InstantClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.encryption.AesGcm;
@@ -48,7 +49,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
             ResponseUtil.ClientError(rc, request.errorMessage);
             return;
@@ -66,7 +67,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
             ResponseUtil.ClientError(rc, request.errorMessage);
             return;
@@ -84,7 +85,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc));
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
             SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider);
             return;

@@ -49,6 +49,13 @@ runs:
       run: |
         make -f Makefile.nitro ${{ inputs.identity_scope }}operator.eif
 
+    - name: Display structure of downloaded files
+      shell: bash
+      run: |
+        echo ${{ needs.buildUID2EIF.outputs.uid2_enclave_id }}
+        echo ${{ needs.buildEUIDEIF.outputs.euid_enclave_id }}
+        ls -R ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
+
     - name: Prepare artifacts
       id: prepare_artifacts
       shell: bash

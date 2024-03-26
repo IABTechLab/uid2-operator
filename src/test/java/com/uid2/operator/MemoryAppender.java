@@ -31,10 +31,10 @@ public class MemoryAppender  extends ListAppender<ILoggingEvent> {
                 .collect(Collectors.toList());
     }
 
-    public void print() {
-        for (ILoggingEvent x : this.list) {
-            System.out.println(x.toString());
-        }
+    public List<ILoggingEvent> checkNoThrowableLogged() {
+        return this.list.stream()
+                .filter(event -> event.getThrowableProxy() == null)
+                .collect(Collectors.toList());
     }
 
     public List<ILoggingEvent> search(String string, Level level) {

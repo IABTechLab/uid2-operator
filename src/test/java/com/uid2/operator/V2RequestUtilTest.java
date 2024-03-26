@@ -116,5 +116,6 @@ public class V2RequestUtilTest {
         assertEquals("Invalid payload in body: Data is not valid json string.", res.errorMessage);
         assertThat(memoryAppender.countEventsForLogger(LOGGER_NAME)).isEqualTo(1);
         assertThat(memoryAppender.search("[ERROR] Invalid payload in body: Data is not valid json string.").size()).isEqualTo(1);
+        assertThat(memoryAppender.checkNoThrowableLogged().size()).isEqualTo(1);
     }
 }

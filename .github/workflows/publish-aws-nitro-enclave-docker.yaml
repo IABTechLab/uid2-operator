@@ -126,6 +126,7 @@ jobs:
         uses: actions/checkout@v4
         if: ${{ inputs.version_number_input == '' }}
         with:
+          ref: kcc-UID2-2996-parallelize-eif-build
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
 
@@ -165,6 +166,7 @@ jobs:
         uses: actions/checkout@v4
         if: ${{ inputs.version_number_input == '' }}
         with:
+          ref: kcc-UID2-2996-parallelize-eif-build
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
 

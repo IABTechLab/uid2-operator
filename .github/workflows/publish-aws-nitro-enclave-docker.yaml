@@ -122,6 +122,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: start
     steps:
+      - name: Check branch and release type
+        id: checkRelease
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2
+        with:
+          release_type: ${{ inputs.release_type }}
+
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@kcc-UID2-2996-parallelize-eif-build
@@ -143,6 +149,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: start
     steps:
+      - name: Check branch and release type
+        id: checkRelease
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2
+        with:
+          release_type: ${{ inputs.release_type }}
+
       - name: Build EUID AWS EIF
         id: build_euid_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@kcc-UID2-2996-parallelize-eif-build
@@ -164,6 +176,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [start, buildUID2EIF, buildEUIDEIF]
     steps:
+      - name: Check branch and release type
+        id: checkRelease
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2.2.2
+        with:
+          release_type: ${{ inputs.release_type }}
+
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests

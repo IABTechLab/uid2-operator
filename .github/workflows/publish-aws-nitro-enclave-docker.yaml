@@ -140,6 +140,10 @@ jobs:
       - name: Restore timestamps
         uses: thetradedesk/git-restore-mtime-action@v1.3
 
+      - name: Free up space - delete preinstalled tools
+        run: |
+          rm -rf /opt/hostedtoolcache
+
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
@@ -179,6 +183,10 @@ jobs:
       - name: Restore timestamps
         uses: thetradedesk/git-restore-mtime-action@v1.3
 
+      - name: Free up space - delete preinstalled tools
+        run: |
+          rm -rf /opt/hostedtoolcache
+      
       - name: Build EUID AWS EIF
         id: build_euid_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
@@ -209,12 +217,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
-      
-      - name: Display structure of downloaded files
-        run: |
-          echo ${{ needs.buildUID2EIF.outputs.uid2_enclave_id }}
-          echo ${{ needs.buildEUIDEIF.outputs.euid_enclave_id }}
-          ls -R ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
       
       - name: Save Enclave Ids
         run: |

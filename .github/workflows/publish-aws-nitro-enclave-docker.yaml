@@ -200,24 +200,20 @@ jobs:
     runs-on: ubuntu-latest
     needs: [start, buildUID2EIF, buildEUIDEIF]
     steps:
-      - name: Checkout full history on Main
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input == '' }}
+      - name: Download UID2 artifacts
+        uses: actions/download-artifact@v4
         with:
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
+          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
 
-      - name: Checkout full history at tag v${{ inputs.version_number_input }}
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input != '' }}
+      - name: Download EUID artifacts
+        uses: actions/download-artifact@v4
         with:
-          ref: v${{ inputs.version_number_input }}
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Restore timestamps
-        uses: thetradedesk/git-restore-mtime-action@v1.3
-
+          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
+      
+      - name: Display structure of downloaded files
+        run: |
+          ls -R ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}
+      
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests

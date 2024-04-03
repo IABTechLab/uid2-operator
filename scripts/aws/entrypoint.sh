@@ -11,6 +11,10 @@ ifconfig lo 127.0.0.1
 echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
 
+# -- setup syslog-ng
+echo "Starting syslog-ng..."
+/usr/sbin/syslog-ng -F
+
 # -- load env vars via proxy
 echo "Loading env vars via proxy..."
 
@@ -96,6 +100,8 @@ echo "Setting up Loki..."
 [[ "$(get_config_value 'loki_enabled')" == "true" ]] \
   && SETUP_LOKI_LINE="-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory -Dlogback.configurationFile=./conf/logback.loki.xml" \
   || SETUP_LOKI_LINE=""
+
+echo "Final loki config:${SETUP_LOKI_LINE}"
 
 HOSTNAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/local-hostname)
 echo "HOSTNAME=${HOSTNAME}"

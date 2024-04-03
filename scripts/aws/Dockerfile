@@ -15,7 +15,7 @@ ENV ENCLAVE_ENVIRONMENT="aws-nitro"
 ENV UID2_CONFIG_SECRET_KEY="uid2-operator-config-key"
 
 RUN apt update -y \
-    && apt install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip \
+    && apt install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip syslog-ng \
     && rm -rf /var/lib/apt/lists/*
 RUN pip3 install boto3==1.16.9
 
@@ -33,6 +33,7 @@ COPY ./conf/integ-uid2-config.json /app/conf/
 COPY ./conf/prod-euid-config.json  /app/conf/
 COPY ./conf/integ-euid-config.json /app/conf/
 COPY ./conf/*.xml                  /app/conf/
+COPY ./syslog-ng/syslog-ng-client.conf /etc/syslog-ng/syslog-ng.conf
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh
 

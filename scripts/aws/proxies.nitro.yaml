@@ -24,3 +24,8 @@ loki:
   service: direct
   listen: tcp://0.0.0.0:3100
   connect: vsock://3:3100
+
+syslogng:
+  service: direct
+  listen: tcp://0.0.0.0:2010
+  connect: vsock://3:2010

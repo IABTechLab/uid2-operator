@@ -211,11 +211,13 @@ jobs:
       - name: Download UID2 artifacts
         uses: actions/download-artifact@v4
         with:
+          name: aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
 
       - name: Download EUID artifacts
         uses: actions/download-artifact@v4
         with:
+          name: aws-euid-deployment-files-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
       
       - name: Save Enclave Ids

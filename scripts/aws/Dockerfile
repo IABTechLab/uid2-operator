@@ -33,7 +33,7 @@ COPY ./conf/integ-uid2-config.json /app/conf/
 COPY ./conf/prod-euid-config.json  /app/conf/
 COPY ./conf/integ-euid-config.json /app/conf/
 COPY ./conf/*.xml                  /app/conf/
-COPY ./syslog-ng/syslog-ng-client.conf /etc/syslog-ng/syslog-ng.conf
+COPY ./syslog-ng-client.conf       /etc/syslog-ng/syslog-ng.conf
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh
 

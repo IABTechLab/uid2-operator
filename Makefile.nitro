@@ -13,11 +13,11 @@ all: build_eif
 
 build_eif: uid2operator.eif euidoperator.eif
 
-uid2operator.eif: build_artifacts build_configs build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/load_config.py build/make_config.py
+uid2operator.eif: build_artifacts build_configs build/proxies.nitro.yaml build/syslog-ng-client.conf build/entrypoint.sh build/vsockpx build/Dockerfile build/load_config.py build/make_config.py
 	cd build; docker build -t uid2operator . --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`; docker save -o ./uid2operator.tar uid2operator; docker cp ./uid2operator.tar amazonlinux:/uid2operator.tar
 	docker exec amazonlinux bash aws_nitro_eif.sh uid2operator
 
-euidoperator.eif: build_artifacts build_configs build/proxies.nitro.yaml build/entrypoint.sh build/vsockpx build/Dockerfile build/load_config.py build/make_config.py
+euidoperator.eif: build_artifacts build_configs build/proxies.nitro.yaml build/syslog-ng-client.conf build/entrypoint.sh build/vsockpx build/Dockerfile build/load_config.py build/make_config.py
 	cd build; docker build -t euidoperator . --build-arg IDENTITY_SCOPE='EUID' --build-arg JAR_VERSION=`cat package.version` --build-arg IMAGE_VERSION=`cat package.version`-`git show --format="%h" --no-patch`; docker save -o ./euidoperator.tar euidoperator; docker cp ./euidoperator.tar amazonlinux:/euidoperator.tar
 	docker exec amazonlinux bash aws_nitro_eif.sh euidoperator
 
@@ -62,6 +62,9 @@ build/Dockerfile: build_artifacts ./scripts/aws/Dockerfile
 
 build/proxies.nitro.yaml: build_artifacts ./scripts/aws/proxies.nitro.yaml
 	cp ./scripts/aws/proxies.nitro.yaml ./build/
+
+build/syslog-ng-client.conf: build_artifacts ./scripts/aws/syslog-ng/syslog-ng-client.conf
+	cp ./scripts/aws/syslog-ng/syslog-ng-client.conf ./build/
 
 build/entrypoint.sh: build_artifacts
 	cp ./scripts/aws/entrypoint.sh ./build/

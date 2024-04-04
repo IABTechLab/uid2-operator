@@ -13,7 +13,7 @@ echo "Starting vsock proxy..."
 
 # -- setup syslog-ng
 echo "Starting syslog-ng..."
-/usr/sbin/syslog-ng -F
+/usr/sbin/syslog-ng --verbose
 
 # -- load env vars via proxy
 echo "Loading env vars via proxy..."

@@ -101,7 +101,7 @@ function run_enclave() {
 
 function run_syslog_ng() {
     echo "starting syslog-ng..."
-    /usr/sbin/syslog-ng -F
+    /usr/sbin/syslog-ng --verbose
 }
 
 terminate_old_enclave

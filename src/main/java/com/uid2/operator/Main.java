@@ -50,6 +50,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
@@ -163,6 +164,17 @@ public class Main {
             if (this.validateServiceLinks) {
                 this.serviceProvider.loadContent();
                 this.serviceLinkProvider.loadContent();
+            }
+
+            try {
+                getKeyManager().getMasterKey();
+            } catch (KeyManager.NoActiveKeyException e) {
+                LOGGER.error("No active master key found", e);
+                System.exit(1);
+            }
+            if(saltProvider.getSnapshot(Instant.now()).getExpires().isBefore(Instant.now())) {
+                LOGGER.error("All salts are expired");
+                System.exit(1);
             }
         }
         metrics = new OperatorMetrics(getKeyManager(), saltProvider);

@@ -163,6 +163,8 @@ public class UIDOperatorService implements IUIDOperatorService {
             } else {
                 return RefreshResponse.Optout;
             }
+        } catch (KeyManager.NoActiveKeyException e) {
+            return RefreshResponse.NoActiveKey;
         } catch (Exception ex) {
             return RefreshResponse.Invalid;
         }

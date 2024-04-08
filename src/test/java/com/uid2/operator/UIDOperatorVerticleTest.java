@@ -516,7 +516,14 @@ public class UIDOperatorVerticleTest {
     }
 
     protected void setupKeys() {
-        final Instant expiryTime = now.plus(25, ChronoUnit.HOURS); //Some tests move the clock forward to test token expiry, so ensure these keys expire after that time.
+        setupKeys(false);
+    }
+
+    protected void setupKeys(boolean expired) {
+        Instant expiryTime = now.plus(25, ChronoUnit.HOURS); //Some tests move the clock forward to test token expiry, so ensure these keys expire after that time.
+        if(expired) {
+            expiryTime = now.minus(25, ChronoUnit.HOURS); //Some tests move the clock forward to test token expiry, so ensure these keys expire after that time.
+        }
         KeysetKey masterKey = new KeysetKey(101, makeAesKey("masterKey"), now.minusSeconds(7), now, expiryTime, MasterKeysetId);
         KeysetKey refreshKey = new KeysetKey(102, makeAesKey("refreshKey"), now.minusSeconds(7), now, expiryTime, RefreshKeysetId);
         KeysetKey publisherKey = new KeysetKey(103, makeAesKey("publisherKey"), now.minusSeconds(7), now, expiryTime, FallbackPublisherKeysetId);
@@ -1348,6 +1355,37 @@ public class UIDOperatorVerticleTest {
         });
     }
 
+    @Test
+    void tokenGenerateThenRefreshNoActiveKey(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, newClientCreationDateTime, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", "test@email.com");
+        v2Payload.put("optout_check", 1);
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 200,
+                genRespJson -> {
+                    assertEquals("success", genRespJson.getString("status"));
+                    JsonObject bodyJson = genRespJson.getJsonObject("body");
+                    assertNotNull(bodyJson);
+
+                    String genRefreshToken = bodyJson.getString("refresh_token");
+
+                    setupKeys(true);
+                    sendTokenRefresh("v2", vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 500, refreshRespJson ->
+                    {
+                        assertFalse(refreshRespJson.containsKey("body"));
+                        assertEquals("No active encryption key available", refreshRespJson.getString("message"));
+                        testContext.completeNow();
+                    });
+                });
+    }
+
+
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateThenValidateWithEmail_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
@@ -1513,6 +1551,26 @@ public class UIDOperatorVerticleTest {
 
                     verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
 
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void tokenGenerateNoActiveKey(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, newClientCreationDateTime, Role.GENERATOR);
+        setupSalts();
+        setupKeys(true);
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", "test@email.com");
+        v2Payload.put("optout_check", 1);
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 500,
+                json -> {
+                    assertFalse(json.containsKey("body"));
+                    assertEquals("No active encryption key available", json.getString("message"));
                     testContext.completeNow();
                 });
     }
@@ -3753,6 +3811,25 @@ public class UIDOperatorVerticleTest {
 
                     verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
 
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void cstgNoActiveKey(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend("cstg.co.uk");
+        setupKeys(true);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), true);
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "http://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                500,
+                testContext,
+                respJson -> {
+                    assertFalse(respJson.containsKey("body"));
+                    assertEquals("No active encryption key available", respJson.getString("message"));
                     testContext.completeNow();
                 });
     }

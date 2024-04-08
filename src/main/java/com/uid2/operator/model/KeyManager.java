@@ -5,12 +5,14 @@ import com.uid2.shared.Const;
 import com.uid2.shared.auth.Keyset;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.store.IKeysetKeyStore;
+import com.uid2.shared.store.KeysetKeyStoreSnapshot;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,7 +40,7 @@ public class KeyManager {
         KeysetKey key = getActiveKeyBySiteId(siteId, asOf);
         if (key == null) key = getActiveKeyBySiteId(fallbackSiteId, asOf);
         if (key == null) {
-            throw new IllegalArgumentException(String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId));
+            throw new NoActiveKeyException(String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId));
         }
         return key;
     }
@@ -103,10 +105,11 @@ public class KeyManager {
     public KeysetKey getMasterKey() {
         return getMasterKey(Instant.now());
     }
+    KeysetKeyStoreSnapshot keysetKeyStoreSnapshot = new KeysetKeyStoreSnapshot(new HashMap<>(), new HashMap<>());
     public KeysetKey getMasterKey(Instant asOf) {
         KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.MasterKeysetId, asOf);
         if (key == null) {
-            throw new RuntimeException(String.format("Cannot get a master key with keyset ID %d.", Const.Data.MasterKeysetId));
+            throw new NoActiveKeyException(String.format("Cannot get a master key with keyset ID %d.", Const.Data.MasterKeysetId));
         }
         return key;
     }
@@ -118,8 +121,14 @@ public class KeyManager {
     public KeysetKey getRefreshKey(Instant asOf) {
         KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.RefreshKeysetId, asOf);
         if (key == null) {
-            throw new RuntimeException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
+            throw new NoActiveKeyException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
         }
         return key;
+    }
+
+    public class NoActiveKeyException extends RuntimeException {
+        NoActiveKeyException(String message) {
+            super(message);
+        }
     }
 }

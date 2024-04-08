@@ -110,6 +110,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final boolean clientSideTokenGenerateLogInvalidHttpOrigin;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
+    private final Handler<Boolean> saltRetrievalResponseHandler;
 
     private final int maxBidstreamLifetimeSeconds;
     private final int allowClockSkewSeconds;
@@ -128,7 +129,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IOptOutStore optOutStore,
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue,
-                               SecureLinkValidatorService secureLinkValidatorService) {
+                               SecureLinkValidatorService secureLinkValidatorService,
+                               Handler<Boolean> saltRetrievalResponseHandler) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -163,6 +165,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
         this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
+        this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
     }
 
     @Override
@@ -174,7 +177,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.saltProvider,
                 this.encoder,
                 this.clock,
-                this.identityScope
+                this.identityScope,
+                this.saltRetrievalResponseHandler
         );
 
         final Router router = createRoutesSetup();

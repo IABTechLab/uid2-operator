@@ -6,6 +6,7 @@ import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.InputUtil;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
+import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
@@ -27,6 +28,7 @@ import org.mockito.MockitoAnnotations;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
@@ -37,6 +39,7 @@ public class UIDOperatorServiceTest {
     private AutoCloseable mocks;
     @Mock private IOptOutStore optOutStore;
     @Mock private Clock clock;
+    @Mock private OperatorShutdownHandler shutdownHandler;
     EncryptedTokenEncoder tokenEncoder;
     UIDOperatorService uid2Service;
     UIDOperatorService euidService;
@@ -79,13 +82,16 @@ public class UIDOperatorServiceTest {
         uid2Config.put("advertising_token_v3", false); // prod is using v2 token version for now
         uid2Config.put("identity_v3", false);
 
+        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Clock.systemUTC());
+
         uid2Service = new UIDOperatorService(
                 uid2Config,
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
                 this.clock,
-                IdentityScope.UID2
+                IdentityScope.UID2,
+                this.shutdownHandler::handleSaltRetrievalResponse
         );
 
         final JsonObject euidConfig = new JsonObject();
@@ -96,13 +102,16 @@ public class UIDOperatorServiceTest {
         euidConfig.put("advertising_token_v3", true);
         euidConfig.put("identity_v3", true);
 
+        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Clock.systemUTC());
+
         euidService = new UIDOperatorService(
                 euidConfig,
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
                 this.clock,
-                IdentityScope.EUID
+                IdentityScope.EUID,
+                this.shutdownHandler::handleSaltRetrievalResponse
         );
     }
 

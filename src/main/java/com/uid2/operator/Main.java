@@ -102,9 +102,9 @@ public class Main {
 
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
-            this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Clock.systemUTC());
+            this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Clock.systemUTC());
 
-            var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleResponse);
+            var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);
             UidCoreClient coreClient = clients.getKey();
             UidOptOutClient optOutClient = clients.getValue();
             fsStores = coreClient;
@@ -251,7 +251,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider));
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
             return verticle;
         };
 

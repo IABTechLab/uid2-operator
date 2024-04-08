@@ -2,6 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
 import com.uid2.operator.util.PrivacyBits;
+import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;
@@ -51,13 +52,16 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final TokenVersion refreshTokenVersion;
     private final boolean identityV3Enabled;
 
+    private final Handler<Boolean> saltRetrievalResponseHandler;
+
     public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope) {
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = identityScope;
+        this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
 
         this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
                 InputUtil.normalizeEmail(OptOutIdentityForEmail).getIdentityInput(), Instant.now());
@@ -207,8 +211,10 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private ISaltProvider.ISaltSnapshot getSaltProviderSnapshot(Instant asOf) {
         ISaltProvider.ISaltSnapshot snapshot = this.saltProvider.getSnapshot(asOf);
-        if(snapshot == null) {
-            LOGGER.error("SaltProvider returned NULL on getSnapshot for instant {}", asOf);
+        if(snapshot.getExpires().isBefore(Instant.now())) {
+            saltRetrievalResponseHandler.handle(true);
+        } else {
+            saltRetrievalResponseHandler.handle(false);
         }
         return snapshot;
     }

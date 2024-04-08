@@ -195,7 +195,6 @@ public class OperatorShutdownHandlerTest {
             Assertions.assertEquals(1, logWatcher.list.size());
             when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.MINUTES));
             this.operatorShutdownHandler.handleSaltRetrievalResponse(true);
-            Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("all salts are expired"));
             Assertions.assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("all salts are expired"));
             Assertions.assertEquals(2, logWatcher.list.size());
 

@@ -28,10 +28,22 @@
         <facility>SYSLOG</facility>
         <suffixPattern>[%level] [%level] [%logger] [%thread] %msg %ex</suffixPattern>
     </appender>
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>/var/log/uid2operator.log</file>
+        <append>true</append>
+        <!-- set immediateFlush to false for much higher logging throughput -->
+        <immediateFlush>true</immediateFlush>
+        <!-- encoders are assigned the type
+         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+        <encoder>
+            <pattern>%-4relative [%thread] %-5level %logger{35} -%kvp- %msg%n</pattern>
+        </encoder>
+    </appender>
 
     <root level="INFO">
         <appender-ref ref="SYSLOG" />
         <appender-ref ref="STDOUT" />
         <appender-ref ref="LOKI" />
+        <appender-ref ref="FILE" />
     </root>
 </configuration>

@@ -22,9 +22,16 @@
             </layout>
         </encoder>
     </appender>
+    <appender name="SYSLOG" class="ch.qos.logback.classic.net.SyslogAppender">
+        <syslogHost>127.0.0.1</syslogHost>
+        <port>2010</port>
+        <facility>SYSLOG</facility>
+        <suffixPattern>[%level] [%level] [%logger] [%thread] %msg %ex</suffixPattern>
+    </appender>
 
     <root level="INFO">
-        <appender-ref ref="LOKI" />
+        <appender-ref ref="SYSLOG" />
         <appender-ref ref="STDOUT" />
+        <appender-ref ref="LOKI" />
     </root>
 </configuration>

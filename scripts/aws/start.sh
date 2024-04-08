@@ -104,6 +104,7 @@ function run_syslog_ng() {
     /usr/sbin/syslog-ng --verbose
 }
 
+run_syslog_ng
 terminate_old_enclave
 config_aws
 read_allocation
@@ -111,7 +112,6 @@ read_allocation
 setup_vsockproxy
 setup_aws_proxy
 setup_dante
-run_syslog_ng
 run_enclave
 
 echo "Done!"

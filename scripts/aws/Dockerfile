@@ -35,7 +35,7 @@ COPY ./conf/integ-euid-config.json /app/conf/
 COPY ./conf/*.xml                  /app/conf/
 COPY ./syslog-ng-client.conf       /etc/syslog-ng/syslog-ng.conf
 
-EXPOSE 2010
+EXPOSE 2011
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh
 

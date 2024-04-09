@@ -2,7 +2,7 @@
 
 socks5h-proxy:
   service: direct
-  listen: vsock://-1:3305
+  listen: vsock://42:3305
   connect: tcp://127.0.0.1:3306
 
 operator-service:
@@ -17,10 +17,10 @@ operator-prometheus:
 
 loki:
   service: direct
-  listen: vsock://-1:3100
+  listen: vsock://42:3100
   connect: tcp://127.0.0.1:3100
 
 syslogng:
   service: direct
-  listen: vsock://-1:2011
+  listen: vsock://42:2011
   connect: tcp://127.0.0.1:2011

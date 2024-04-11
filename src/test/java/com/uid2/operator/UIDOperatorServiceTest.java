@@ -39,7 +39,6 @@ public class UIDOperatorServiceTest {
     private AutoCloseable mocks;
     @Mock private IOptOutStore optOutStore;
     @Mock private Clock clock;
-    @Mock private OperatorShutdownHandler shutdownHandler;
     EncryptedTokenEncoder tokenEncoder;
     UIDOperatorService uid2Service;
     UIDOperatorService euidService;
@@ -82,8 +81,6 @@ public class UIDOperatorServiceTest {
         uid2Config.put("advertising_token_v3", false); // prod is using v2 token version for now
         uid2Config.put("identity_v3", false);
 
-        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Clock.systemUTC());
-
         uid2Service = new UIDOperatorService(
                 uid2Config,
                 optOutStore,
@@ -91,7 +88,7 @@ public class UIDOperatorServiceTest {
                 tokenEncoder,
                 this.clock,
                 IdentityScope.UID2,
-                this.shutdownHandler::handleSaltRetrievalResponse
+                new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Clock.systemUTC())::handleSaltRetrievalResponse
         );
 
         final JsonObject euidConfig = new JsonObject();
@@ -102,8 +99,6 @@ public class UIDOperatorServiceTest {
         euidConfig.put("advertising_token_v3", true);
         euidConfig.put("identity_v3", true);
 
-        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Clock.systemUTC());
-
         euidService = new UIDOperatorService(
                 euidConfig,
                 optOutStore,
@@ -111,7 +106,7 @@ public class UIDOperatorServiceTest {
                 tokenEncoder,
                 this.clock,
                 IdentityScope.EUID,
-                this.shutdownHandler::handleSaltRetrievalResponse
+                new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Clock.systemUTC())::handleSaltRetrievalResponse
         );
     }
 

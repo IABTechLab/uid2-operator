@@ -719,7 +719,6 @@ public class UIDOperatorServiceTest {
                 inputVal.toUserIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
-
         final MappedIdentity mappedIdentity;
         reset(shutdownHandler);
         if(scope == IdentityScope.EUID) {

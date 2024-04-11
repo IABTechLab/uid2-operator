@@ -372,7 +372,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        final byte[] aad = new JsonArray(List.of(request.getTimestamp())).toBuffer().getBytes();
+        byte[] aad;
+        if(request.getAppName() == null) {
+           aad = new JsonArray(List.of(request.getTimestamp())).toBuffer().getBytes();
+        }
+        else {
+            // we required app name to be part of Authenticated encryption with associated data (AEAD) if it's a CSTG call from mobile app
+            aad = new JsonArray(List.of(request.getTimestamp(), request.getAppName())).toBuffer().getBytes();
+        }
+
 
         final byte[] requestPayloadBytes;
         try {

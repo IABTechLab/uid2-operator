@@ -103,7 +103,7 @@ public class Main {
 
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
-            this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Clock.systemUTC());
+            this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC());
 
             var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);
             UidCoreClient coreClient = clients.getKey();
@@ -172,7 +172,7 @@ public class Main {
                 LOGGER.error("No active master key found", e);
                 System.exit(1);
             }
-            if(saltProvider.getSnapshot(Instant.now()).getExpires().isBefore(Instant.now())) {
+            if (saltProvider.getSnapshot(Instant.now()).getExpires().isBefore(Instant.now())) {
                 LOGGER.error("All salts are expired");
                 System.exit(1);
             }

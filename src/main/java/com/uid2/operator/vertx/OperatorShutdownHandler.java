@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class OperatorShutdownHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorShutdownHandler.class);
+    private static final int SALT_FAILURE_LOG_INTERVAL_MINUTES = 10;
     private final Duration attestShutdownWaitTime;
     private final Duration saltShutdownWaitTime;
     private final AtomicReference<Instant> attestFailureStartTime = new AtomicReference<>(null);
@@ -42,7 +43,7 @@ public class OperatorShutdownHandler {
 
     public void logSaltFailureAtInterval() {
         Instant t = lastSaltFailureLogTime.get();
-        if(t == null || clock.instant().isAfter(t.plus(10, ChronoUnit.MINUTES))) {
+        if(t == null || clock.instant().isAfter(t.plus(SALT_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
             LOGGER.error("all salts are expired");
             lastSaltFailureLogTime.set(Instant.now());
         }

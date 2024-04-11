@@ -5,14 +5,12 @@ import com.uid2.shared.Const;
 import com.uid2.shared.auth.Keyset;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.store.IKeysetKeyStore;
-import com.uid2.shared.store.KeysetKeyStoreSnapshot;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -105,7 +103,7 @@ public class KeyManager {
     public KeysetKey getMasterKey() {
         return getMasterKey(Instant.now());
     }
-    KeysetKeyStoreSnapshot keysetKeyStoreSnapshot = new KeysetKeyStoreSnapshot(new HashMap<>(), new HashMap<>());
+
     public KeysetKey getMasterKey(Instant asOf) {
         KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.MasterKeysetId, asOf);
         if (key == null) {
@@ -126,8 +124,8 @@ public class KeyManager {
         return key;
     }
 
-    public class NoActiveKeyException extends RuntimeException {
-        NoActiveKeyException(String message) {
+    public static class NoActiveKeyException extends RuntimeException {
+        public NoActiveKeyException(String message) {
             super(message);
         }
     }

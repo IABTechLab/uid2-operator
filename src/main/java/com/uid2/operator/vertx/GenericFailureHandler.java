@@ -1,6 +1,5 @@
 package com.uid2.operator.vertx;
 
-import com.uid2.operator.model.KeyManager;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpClosedException;
 import io.vertx.core.http.HttpServerResponse;

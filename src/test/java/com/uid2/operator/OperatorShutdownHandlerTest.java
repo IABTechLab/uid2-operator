@@ -140,14 +140,15 @@ public class OperatorShutdownHandlerTest {
             Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("all salts are expired"));
 
             when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(60));
-            try {
+            Assertions.assertThrows(RuntimeException.class, () -> {
                 this.operatorShutdownHandler.handleSaltRetrievalResponse(true);
-            } catch (RuntimeException e) {
-                Assertions.assertAll("Expired Salts Log Messages",
-                        () -> Assertions.assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("all salts are expired")),
-                        () -> Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("salts have been in expired state for too long. shutting down operator")));
-                testContext.completeNow();
-            }
+            });
+            Assertions.assertAll("Expired Salts Log Messages",
+                    () -> Assertions.assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("all salts are expired")),
+                    () -> Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("salts have been in expired state for too long. shutting down operator")),
+                    () -> Assertions.assertEquals(3, logWatcher.list.size()));
+
+            testContext.completeNow();
         } finally {
             System.setSecurityManager(origSecurityManager);
         }
@@ -173,6 +174,8 @@ public class OperatorShutdownHandlerTest {
             assertDoesNotThrow(() -> {
                 this.operatorShutdownHandler.handleSaltRetrievalResponse(false);
             });
+            Assertions.assertEquals(2, logWatcher.list.size());
+
             testContext.completeNow();
         } finally {
             System.setSecurityManager(origSecurityManager);
@@ -191,7 +194,6 @@ public class OperatorShutdownHandlerTest {
 
             this.operatorShutdownHandler.handleSaltRetrievalResponse(true);
             Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("all salts are expired"));
-            Assertions.assertEquals(1, logWatcher.list.size());
             when(clock.instant()).thenAnswer(i -> Instant.now().plus(9, ChronoUnit.MINUTES));
             this.operatorShutdownHandler.handleSaltRetrievalResponse(true);
             Assertions.assertEquals(1, logWatcher.list.size());

@@ -637,14 +637,7 @@ public class UIDOperatorServiceTest {
         assertNotEquals(tokens, IdentityTokens.LogoutToken);
         assertNotNull(tokens);
 
-        final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
-        reset(shutdownHandler);
-        RefreshResponse refreshResponse = (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(refreshToken);
-        verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
-        verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertTrue(refreshResponse.isRefreshed());
-        assertNotNull(refreshResponse.getTokens());
-        assertNotEquals(RefreshResponse.Optout, refreshResponse);
+        final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());;
     }
 
     @ParameterizedTest

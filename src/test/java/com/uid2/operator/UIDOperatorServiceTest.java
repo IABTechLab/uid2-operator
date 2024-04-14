@@ -636,8 +636,6 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotEquals(tokens, IdentityTokens.LogoutToken);
         assertNotNull(tokens);
-
-        final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());;
     }
 
     @ParameterizedTest

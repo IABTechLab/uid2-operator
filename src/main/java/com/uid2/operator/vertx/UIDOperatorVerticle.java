@@ -528,6 +528,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private String getSharingTokenExpirySeconds() {
         return config.getString(Const.Config.SharingTokenExpiryProp);
     }
+    private int maxIdentityBucketsResponseEntries() {
+        return config.getInteger(Const.Config.MaxIdentityBucketsResponseEntries, 1048576);
+    }
 
     public void handleKeysSharing(RoutingContext rc) {
         try {
@@ -1119,6 +1122,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
+            if (modified.size() > maxIdentityBucketsResponseEntries()) {
+               ResponseUtil.ClientError(rc, "provided since_timestamp produced large response. please provide a more recent since_timestamp or remap all with /identity/map");
+               return;
+            }
             final JsonArray resp = new JsonArray();
             if (modified != null) {
                 for (SaltEntry e : modified) {

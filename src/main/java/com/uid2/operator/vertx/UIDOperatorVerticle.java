@@ -528,8 +528,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private String getSharingTokenExpirySeconds() {
         return config.getString(Const.Config.SharingTokenExpiryProp);
     }
-    private int maxIdentityBucketsResponseEntries() {
+    private int getMaxIdentityBucketsResponseEntries() {
         return config.getInteger(Const.Config.MaxIdentityBucketsResponseEntries, 1048576);
+    }
+    private int getIdentityBucketsResponseChunkSize() {
+        return config.getInteger(Const.Config.IdentityBucketsResponseChunkSize, 1048576);
     }
 
     public void handleKeysSharing(RoutingContext rc) {
@@ -1135,25 +1138,23 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
-//            final JsonArray resp = new JsonArray();
-            HttpServerResponse response = rc.response();
             if (modified != null) {
-                if (modified.size() > maxIdentityBucketsResponseEntries()) {
+                HttpServerResponse response = rc.response();
+                if (modified.size() > getMaxIdentityBucketsResponseEntries()) {
                     ResponseUtil.ClientError(rc, "provided since_timestamp produced large response. please provide a more recent since_timestamp or remap all with /identity/map");
                     return;
                 }
-                LOGGER.info("processing " + String.valueOf(modified.size()));
-                response.setChunked(true);
+                int chunkSize = getIdentityBucketsResponseChunkSize();
+                response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
                 response.write("[");
-                for(int i =0; i < modified.size(); i+=30000) {
-                    String saltEntries = makeSaltEntriesString(modified, i, Math.min(i + 30000, modified.size()));
-                    if(i + 30000 >= modified.size()) {
+                for(int i =0; i < modified.size(); i+=chunkSize) {
+                    String saltEntries = makeSaltEntriesString(modified, i, Math.min(i + chunkSize, modified.size()));
+                    if(i + chunkSize >= modified.size()) {
                         saltEntries = saltEntries.substring(0, saltEntries.length() -1);
                     }
                     response.write(saltEntries);
                 }
                 response.end("]");
-//                ResponseUtil.SuccessV2(rc, resp);
             }
         } else {
             ResponseUtil.ClientError(rc, "missing parameter since_timestamp");

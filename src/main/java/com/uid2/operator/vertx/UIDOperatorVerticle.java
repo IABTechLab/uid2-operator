@@ -1108,6 +1108,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private String makeSaltEntriesString(List<SaltEntry> entries, int startIndex, int endIndexExclusive) {
+        StringBuilder s = new StringBuilder();
+        for(int i = startIndex; i < endIndexExclusive; i++) {
+            SaltEntry e = entries.get(i);
+            s.append("{\"bucket_id\":\"")
+                    .append(e.getHashedId())
+                    .append("\",\"last_updated\":\"")
+                    .append(APIDateTimeFormatter.format(Instant.ofEpochMilli(e.getLastUpdated())))
+                    .append("\"},");
+        }
+        return s.toString();
+    }
+
     private void handleBucketsV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final String qp = req.getString("since_timestamp");
@@ -1122,21 +1135,25 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
-            if (modified.size() > maxIdentityBucketsResponseEntries()) {
-               ResponseUtil.ClientError(rc, "provided since_timestamp produced large response. please provide a more recent since_timestamp or remap all with /identity/map");
-               return;
-            }
-            final JsonArray resp = new JsonArray();
+//            final JsonArray resp = new JsonArray();
+            HttpServerResponse response = rc.response();
             if (modified != null) {
-                for (SaltEntry e : modified) {
-                    final JsonObject o = new JsonObject();
-                    o.put("bucket_id", e.getHashedId());
-                    Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
-
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
-                    resp.add(o);
+                if (modified.size() > maxIdentityBucketsResponseEntries()) {
+                    ResponseUtil.ClientError(rc, "provided since_timestamp produced large response. please provide a more recent since_timestamp or remap all with /identity/map");
+                    return;
                 }
-                ResponseUtil.SuccessV2(rc, resp);
+                LOGGER.info("processing " + String.valueOf(modified.size()));
+                response.setChunked(true);
+                response.write("[");
+                for(int i =0; i < modified.size(); i+=30000) {
+                    String saltEntries = makeSaltEntriesString(modified, i, Math.min(i + 30000, modified.size()));
+                    if(i + 30000 >= modified.size()) {
+                        saltEntries = saltEntries.substring(0, saltEntries.length() -1);
+                    }
+                    response.write(saltEntries);
+                }
+                response.end("]");
+//                ResponseUtil.SuccessV2(rc, resp);
             }
         } else {
             ResponseUtil.ClientError(rc, "missing parameter since_timestamp");

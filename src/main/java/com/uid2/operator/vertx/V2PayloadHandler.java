@@ -173,9 +173,11 @@ public class V2PayloadHandler {
         if (rc.response().getStatusCode() != 200) {
             return;
         }
-        JsonObject respJson = (JsonObject) rc.data().get("response");
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-            .end(respJson.encode());
+        if(!rc.response().ended()) {
+            JsonObject respJson = (JsonObject) rc.data().get("response");
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                    .end(respJson.encode());
+        }
     }
 
     private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {

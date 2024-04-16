@@ -107,7 +107,8 @@ public class V2PayloadHandler {
             }
 
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             LOGGER.error("Failed to generate token", ex);
             ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
@@ -129,7 +130,8 @@ public class V2PayloadHandler {
                 return;
             }
             rc.data().put("request", request.payload);
-        } else {
+        }
+        else {
             rc.data().put("request", bodyString);
         }
 
@@ -153,11 +155,13 @@ public class V2PayloadHandler {
                     respJson.encode().getBytes(StandardCharsets.UTF_8),
                     request.encryptionKey);
                 rc.response().end(Utils.toBase64String(encryptedResp));
-            } else {
+            }
+            else {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                     .end(respJson.encode());
             }
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             LOGGER.error("Failed to refresh token", ex);
             ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }

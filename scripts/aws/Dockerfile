@@ -18,7 +18,7 @@ RUN apt update -y \
     && apt install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip \
     && curl https://ose-repo.syslog-ng.com/apt/syslog-ng-ose-pub.asc | apt-key add - \
     && echo "deb https://ose-repo.syslog-ng.com/apt/ stable debian-bullseye" | tee -a /etc/apt/sources.list.d/syslog-ng-ose.list \
-    && apt-update -y \
+    && apt update -y \
     && apt install -y syslog-ng-core=4.6.0-1 \
     && rm -rf /var/lib/apt/lists/*
 RUN pip3 install boto3==1.16.9

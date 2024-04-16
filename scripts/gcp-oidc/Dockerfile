@@ -2,6 +2,7 @@
 FROM eclipse-temurin@sha256:564eb67091b2cda82952299b4be52bf1b039289234b52f46057fe1286c173b71
 
 LABEL "tee.launch_policy.allow_env_override"="API_TOKEN_SECRET_NAME,DEPLOYMENT_ENVIRONMENT,CORE_BASE_URL,OPTOUT_BASE_URL"
+LABEL "tee.launch_policy.log_redirect"="always"
 
 # Install Packages
 RUN apk update && apk add jq

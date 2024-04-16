@@ -150,12 +150,12 @@ public class V2PayloadHandler {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
                 // Encrypt whole payload using key shared with client.
                 byte[] encryptedResp = AesGcm.encrypt(
-                        respJson.encode().getBytes(StandardCharsets.UTF_8),
-                        request.encryptionKey);
+                    respJson.encode().getBytes(StandardCharsets.UTF_8),
+                    request.encryptionKey);
                 rc.response().end(Utils.toBase64String(encryptedResp));
             } else {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                        .end(respJson.encode());
+                    .end(respJson.encode());
             }
         } catch (Exception ex) {
             LOGGER.error("Failed to refresh token", ex);

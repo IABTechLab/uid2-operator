@@ -108,7 +108,7 @@ public class V2PayloadHandler {
 
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
         }
-        catch (Exception ex) {
+        catch (Exception ex){
             LOGGER.error("Failed to generate token", ex);
             ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
@@ -161,7 +161,7 @@ public class V2PayloadHandler {
                     .end(respJson.encode());
             }
         }
-        catch (Exception ex) {
+        catch (Exception ex){
             LOGGER.error("Failed to refresh token", ex);
             ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }

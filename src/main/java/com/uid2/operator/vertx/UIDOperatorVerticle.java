@@ -1096,17 +1096,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
-            final JsonArray resp = new JsonArray();
             if (modified != null) {
-                for (SaltEntry e : modified) {
-                    final JsonObject o = new JsonObject();
-                    o.put("bucket_id", e.getHashedId());
-                    Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
-
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
-                    resp.add(o);
+                if (modified.size() > getMaxIdentityBucketsResponseEntries()) {
+                    ResponseUtil.ClientError(rc, "provided since_timestamp produced large response. please provide a more recent since_timestamp or remap all with /identity/map");
+                    return;
                 }
-                ResponseUtil.Success(rc, resp);
+                transmitModifiedBucketsInChunks(rc, modified);
             }
         } else {
             ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
@@ -1125,10 +1120,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         return s.toString();
     }
-
-    private static final String cipherScheme = "AES/GCM/NoPadding";
-    public static final int GCM_AUTHTAG_LENGTH = 16;
-    public static final int GCM_IV_LENGTH = 12;
 
     private void handleBucketsV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
@@ -1150,7 +1141,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     return;
                 }
                 try {
-                    transmitModifiedBucketsInChunks(rc, modified);
+                    transmitModifiedBucketsInChunksEncrypted(rc, modified);
                 } catch (InvalidKeyException | InvalidAlgorithmParameterException | NoSuchAlgorithmException |
                          NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
                     ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
@@ -1161,10 +1152,34 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void transmitModifiedBucketsInChunks(RoutingContext rc, List<SaltEntry> modified) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    private void transmitModifiedBucketsInChunks(RoutingContext rc, List<SaltEntry> modified) {
+
+        HttpServerResponse response = rc.response();
+        int chunkSize = getIdentityBucketsResponseChunkSize();
+
+        response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        response.write("{\"body\":[");
+
+        for(int i =0; i < modified.size(); i+=chunkSize) {
+            String saltEntries = makeSaltEntriesString(modified, i, Math.min(i + chunkSize, modified.size()));
+            if(i + chunkSize >= modified.size()) {
+                saltEntries = saltEntries.substring(0, saltEntries.length() -1);
+                saltEntries += "], \"status\":\"success\"}";
+                response.write(saltEntries);
+            } else {
+                response.write(saltEntries);
+            }
+        }
+        rc.response().end();
+    }
+
+    private void transmitModifiedBucketsInChunksEncrypted(RoutingContext rc, List<SaltEntry> modified) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         HttpServerResponse response = rc.response();
 
+        final String cipherScheme = "AES/GCM/NoPadding";
+        final int GCM_AUTHTAG_LENGTH = 16;
+        final int GCM_IV_LENGTH = 12;
         final SecretKey k = new SecretKeySpec(request.encryptionKey, "AES");
         final Cipher c = Cipher.getInstance(cipherScheme);
         final byte[] ivBytes = Random.getBytes(GCM_IV_LENGTH);
@@ -1179,8 +1194,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         b.appendBytes(request.nonce);
         b.appendBytes("{\"body\":[".getBytes());
         b = Buffer.buffer(ivBytes).appendBytes(c.update(b.getBytes()));
+
         for(int i =0; i < modified.size(); i+=chunkSize) {
+
             String saltEntries = makeSaltEntriesString(modified, i, Math.min(i + chunkSize, modified.size()));
+
             if(i + chunkSize >= modified.size()) {
                 saltEntries = saltEntries.substring(0, saltEntries.length() -1);
                 saltEntries += "], \"status\":\"success\"}";
@@ -1188,20 +1206,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             } else {
                 b.appendBytes(c.update(saltEntries.getBytes()));
             }
+
             if (b.length() % 3 == 0 || b.length() < 3 || (i+chunkSize >= modified.size())) {
                 response.write(Utils.toBase64String(b.getBytes()));
                 b = Buffer.buffer();
             } else if ((b.length()-1) % 3 == 0) {
-                byte[] start = Arrays.copyOfRange(b.getBytes(), 0, b.length()-1);
-                byte[] end = Arrays.copyOfRange(b.getBytes(), b.length()-1, b.length());
-                response.write(Utils.toBase64String(start));
-                b = Buffer.buffer(end);
+                response.write(Utils.toBase64String(Arrays.copyOfRange(b.getBytes(), 0, b.length()-1)));
+                b = Buffer.buffer(Arrays.copyOfRange(b.getBytes(), b.length()-1, b.length()));
             } else {
-                byte[] start = Arrays.copyOfRange(b.getBytes(), 0, b.length()-2);
-                byte[] end = Arrays.copyOfRange(b.getBytes(), b.length()-2, b.length());
-                response.write(Utils.toBase64String(start));
-                b = Buffer.buffer(end);
+                response.write(Utils.toBase64String(Arrays.copyOfRange(b.getBytes(), 0, b.length()-2)));
+                b = Buffer.buffer(Arrays.copyOfRange(b.getBytes(), b.length()-2, b.length()));
             }
+
         }
         rc.response().end();
     }

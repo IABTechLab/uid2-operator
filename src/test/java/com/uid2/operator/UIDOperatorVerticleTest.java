@@ -822,8 +822,8 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {1, 11, 15, 20, 30, 35, 50})
-    void identityBucketsChunked(int numModifiedSalts, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1,1", "v2,1", "v1,11", "v2,11", "v1,15", "v2,15", "v1,20","v2,20", "v1,30", "v2,30", "v1,35", "v2,35", "v1,50", "v2,50"})
+    void identityBucketsChunked(String apiVersion, int numModifiedSalts, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
         List<SaltEntry> modifiedSalts = new ArrayList<>();
@@ -835,7 +835,7 @@ public class UIDOperatorVerticleTest {
         JsonObject req = new JsonObject();
         req.put("since_timestamp", "2023-04-08T13:00:00");
 
-        send("v2", vertx, "v2" + "/identity/buckets", false, null, req, 200, respJson -> {
+        send(apiVersion, vertx, apiVersion + "/identity/buckets", true, "since_timestamp=" +urlEncode("2023-04-08T13:00:00"), req, 200, respJson -> {
             assertTrue(respJson.containsKey("body"));
             assertFalse(respJson.containsKey("client_error"));
             validateIdentityBuckets(respJson.getJsonArray("body"), modifiedSalts);
@@ -843,8 +843,9 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void identityBucketsLimit(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void identityBucketsLimit(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
         List<SaltEntry> modifiedSalts = new ArrayList<>();
@@ -856,7 +857,7 @@ public class UIDOperatorVerticleTest {
         JsonObject req = new JsonObject();
         req.put("since_timestamp", "2023-04-08T13:00:00");
 
-        send("v2", vertx, "v2" + "/identity/buckets", false, null, req, 400, respJson -> {
+        send(apiVersion, vertx, apiVersion + "/identity/buckets", true, "since_timestamp=" + urlEncode("2023-04-08T13:00:00"), req, 400, respJson -> {
             assertFalse(respJson.containsKey("body"));
             assertEquals("client_error", respJson.getString("status"));
             assertEquals("provided since_timestamp produced large response. please provide a more recent since_timestamp or remap all with /identity/map", respJson.getString("message"));

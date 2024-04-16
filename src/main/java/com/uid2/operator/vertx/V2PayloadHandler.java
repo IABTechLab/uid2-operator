@@ -175,7 +175,7 @@ public class V2PayloadHandler {
         }
         JsonObject respJson = (JsonObject) rc.data().get("response");
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                .end(respJson.encode());
+            .end(respJson.encode());
 
     }
 

@@ -16,9 +16,11 @@ import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Const.Data;
+import com.uid2.shared.InstantClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.*;
 import com.uid2.shared.encryption.AesGcm;
+import com.uid2.shared.encryption.Random;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
@@ -1124,6 +1126,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return s.toString();
     }
 
+    private static final String cipherScheme = "AES/GCM/NoPadding";
+    public static final int GCM_AUTHTAG_LENGTH = 16;
+    public static final int GCM_IV_LENGTH = 12;
+
     private void handleBucketsV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final String qp = req.getString("since_timestamp");
@@ -1139,26 +1145,65 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
             if (modified != null) {
-                HttpServerResponse response = rc.response();
                 if (modified.size() > getMaxIdentityBucketsResponseEntries()) {
                     ResponseUtil.ClientError(rc, "provided since_timestamp produced large response. please provide a more recent since_timestamp or remap all with /identity/map");
                     return;
                 }
-                int chunkSize = getIdentityBucketsResponseChunkSize();
-                response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-                response.write("[");
-                for(int i =0; i < modified.size(); i+=chunkSize) {
-                    String saltEntries = makeSaltEntriesString(modified, i, Math.min(i + chunkSize, modified.size()));
-                    if(i + chunkSize >= modified.size()) {
-                        saltEntries = saltEntries.substring(0, saltEntries.length() -1);
-                    }
-                    response.write(saltEntries);
+                try {
+                    transmitModifiedBucketsInChunks(rc, modified);
+                } catch (InvalidKeyException | InvalidAlgorithmParameterException | NoSuchAlgorithmException |
+                         NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
+                    ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
                 }
-                response.end("]");
             }
         } else {
             ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
         }
+    }
+
+    private void transmitModifiedBucketsInChunks(RoutingContext rc, List<SaltEntry> modified) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        HttpServerResponse response = rc.response();
+
+        final SecretKey k = new SecretKeySpec(request.encryptionKey, "AES");
+        final Cipher c = Cipher.getInstance(cipherScheme);
+        final byte[] ivBytes = Random.getBytes(GCM_IV_LENGTH);
+        GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_AUTHTAG_LENGTH * 8, ivBytes);
+        c.init(Cipher.ENCRYPT_MODE, k, gcmParameterSpec);
+
+        int chunkSize = getIdentityBucketsResponseChunkSize();
+        response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+
+        Buffer b = Buffer.buffer();
+        b.appendLong(EncodingUtils.NowUTCMillis().toEpochMilli());
+        b.appendBytes(request.nonce);
+        b.appendBytes("{\"body\":[".getBytes());
+        b = Buffer.buffer(ivBytes).appendBytes(c.update(b.getBytes()));
+        for(int i =0; i < modified.size(); i+=chunkSize) {
+            String saltEntries = makeSaltEntriesString(modified, i, Math.min(i + chunkSize, modified.size()));
+            if(i + chunkSize >= modified.size()) {
+                saltEntries = saltEntries.substring(0, saltEntries.length() -1);
+                saltEntries += "], \"status\":\"success\"}";
+                b.appendBytes(c.doFinal(saltEntries.getBytes()));
+            } else {
+                b.appendBytes(c.update(saltEntries.getBytes()));
+            }
+            if (b.length() % 3 == 0 || b.length() < 3 || (i+chunkSize >= modified.size())) {
+                response.write(Utils.toBase64String(b.getBytes()));
+                b = Buffer.buffer();
+            } else if ((b.length()-1) % 3 == 0) {
+                byte[] start = Arrays.copyOfRange(b.getBytes(), 0, b.length()-1);
+                byte[] end = Arrays.copyOfRange(b.getBytes(), b.length()-1, b.length());
+                response.write(Utils.toBase64String(start));
+                b = Buffer.buffer(end);
+            } else {
+                byte[] start = Arrays.copyOfRange(b.getBytes(), 0, b.length()-2);
+                byte[] end = Arrays.copyOfRange(b.getBytes(), b.length()-2, b.length());
+                response.write(Utils.toBase64String(start));
+                b = Buffer.buffer(end);
+            }
+        }
+        rc.response().end();
     }
 
     private void handleIdentityMapV1(RoutingContext rc) {

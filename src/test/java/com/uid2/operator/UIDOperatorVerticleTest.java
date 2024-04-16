@@ -61,6 +61,8 @@ import java.security.*;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -215,6 +217,7 @@ public class UIDOperatorVerticleTest {
                     byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, ck.getSecretBytes());
                     assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
 
+                    System.out.println(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
                     JsonObject respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
 
                     handler.handle(respJson);
@@ -803,6 +806,62 @@ public class UIDOperatorVerticleTest {
     }
     RefreshToken decodeRefreshToken(EncryptedTokenEncoder encoder, String refreshTokenString) {
         return decodeRefreshToken(encoder, refreshTokenString, IdentityType.Email);
+    }
+
+    private void validateIdentityBuckets(JsonArray expectedList, List<SaltEntry> actualList) {
+        final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+
+        assertEquals(expectedList.size(), actualList.size());
+        for(int i = 0; i < expectedList.size(); i++) {
+            JsonObject expected = expectedList.getJsonObject(i);
+            SaltEntry actual = actualList.get(i);
+            assertAll("Salt Entry Matches",
+                    () -> assertEquals(expected.getString("bucket_id"), actual.getHashedId()),
+                    () -> assertEquals(expected.getString("last_updated"), APIDateTimeFormatter.format(Instant.ofEpochMilli(actual.getLastUpdated()))));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 11, 15, 20, 30, 35, 50})
+    void identityBucketsChunked(int numModifiedSalts, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
+        List<SaltEntry> modifiedSalts = new ArrayList<>();
+        for(int i = 0; i < numModifiedSalts; i++) {
+            modifiedSalts.add(new SaltEntry(i, "someId" + i, i, "someSalt"));
+        }
+        when(saltProviderSnapshot.getModifiedSince(any())).thenReturn(modifiedSalts);
+
+        JsonObject req = new JsonObject();
+        req.put("since_timestamp", "2023-04-08T13:00:00");
+
+        send("v2", vertx, "v2" + "/identity/buckets", false, null, req, 200, respJson -> {
+            assertTrue(respJson.containsKey("body"));
+            assertFalse(respJson.containsKey("client_error"));
+            validateIdentityBuckets(respJson.getJsonArray("body"), modifiedSalts);
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityBucketsLimit(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
+        List<SaltEntry> modifiedSalts = new ArrayList<>();
+        for(int i = 0; i < 51; i++) {
+            modifiedSalts.add(new SaltEntry(i, "someId" + i, i, "someSalt"));
+        }
+        when(saltProviderSnapshot.getModifiedSince(any())).thenReturn(modifiedSalts);
+
+        JsonObject req = new JsonObject();
+        req.put("since_timestamp", "2023-04-08T13:00:00");
+
+        send("v2", vertx, "v2" + "/identity/buckets", false, null, req, 400, respJson -> {
+            assertFalse(respJson.containsKey("body"));
+            assertEquals("client_error", respJson.getString("status"));
+            assertEquals("provided since_timestamp produced large response. please provide a more recent since_timestamp or remap all with /identity/map", respJson.getString("message"));
+            testContext.completeNow();
+        });
     }
 
     @ParameterizedTest

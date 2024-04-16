@@ -107,8 +107,7 @@ public class V2PayloadHandler {
             }
 
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
-        }
-        catch (Exception ex){
+        } catch (Exception ex) {
             LOGGER.error("Failed to generate token", ex);
             ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
@@ -130,8 +129,7 @@ public class V2PayloadHandler {
                 return;
             }
             rc.data().put("request", request.payload);
-        }
-        else {
+        } else {
             rc.data().put("request", bodyString);
         }
 
@@ -152,16 +150,14 @@ public class V2PayloadHandler {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
                 // Encrypt whole payload using key shared with client.
                 byte[] encryptedResp = AesGcm.encrypt(
-                    respJson.encode().getBytes(StandardCharsets.UTF_8),
-                    request.encryptionKey);
+                        respJson.encode().getBytes(StandardCharsets.UTF_8),
+                        request.encryptionKey);
                 rc.response().end(Utils.toBase64String(encryptedResp));
-            }
-            else {
+            } else {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                    .end(respJson.encode());
+                        .end(respJson.encode());
             }
-        }
-        catch (Exception ex){
+        } catch (Exception ex) {
             LOGGER.error("Failed to refresh token", ex);
             ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
@@ -170,17 +166,19 @@ public class V2PayloadHandler {
     private void passThrough(RoutingContext rc, Handler<RoutingContext> apiHandler) {
         rc.data().put("request", rc.body().asJsonObject());
         apiHandler.handle(rc);
-        if (rc.response().getStatusCode() != 200) {
+        if (rc.response().getStatusCode() != 200 || rc.response().ended()) {
             return;
         }
-        if(!rc.response().ended()) {
-            JsonObject respJson = (JsonObject) rc.data().get("response");
-            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                    .end(respJson.encode());
-        }
+        JsonObject respJson = (JsonObject) rc.data().get("response");
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                .end(respJson.encode());
+
     }
 
     private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
+        if (rc.response().ended()) {
+            return;
+        }
         Buffer buffer = Buffer.buffer();
         buffer.appendLong(EncodingUtils.NowUTCMillis().toEpochMilli());
         buffer.appendBytes(nonce);

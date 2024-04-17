@@ -20,11 +20,6 @@ aws-service-proxy:
   listen: tcp://127.0.0.1:443
   connect: vsock://3:3308
 
-loki:
-  service: direct
-  listen: tcp://127.0.0.1:3100
-  connect: vsock://3:3100
-
 syslogng:
   service: direct
   listen: tcp://127.0.0.1:2011

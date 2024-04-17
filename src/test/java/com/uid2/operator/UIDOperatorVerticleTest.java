@@ -808,27 +808,29 @@ public class UIDOperatorVerticleTest {
         return decodeRefreshToken(encoder, refreshTokenString, IdentityType.Email);
     }
 
-    private void validateIdentityBuckets(JsonArray expectedList, List<SaltEntry> actualList) {
+    private void validateIdentityBuckets(List<SaltEntry> expectedList, JsonArray actualList) {
         final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
 
         assertEquals(expectedList.size(), actualList.size());
-        for(int i = 0; i < expectedList.size(); i++) {
-            JsonObject expected = expectedList.getJsonObject(i);
-            SaltEntry actual = actualList.get(i);
+        for(int i = 0; i < actualList.size(); i++) {
+            JsonObject actual = actualList.getJsonObject(i);
+            SaltEntry expected = expectedList.get(i);
             assertAll("Salt Entry Matches",
-                    () -> assertEquals(expected.getString("bucket_id"), actual.getHashedId()),
-                    () -> assertEquals(expected.getString("last_updated"), APIDateTimeFormatter.format(Instant.ofEpochMilli(actual.getLastUpdated()))));
+                    () -> assertEquals(expected.getHashedId(), actual.getString("bucket_id")),
+                    () -> assertEquals(APIDateTimeFormatter.format(Instant.ofEpochMilli(expected.getLastUpdated())), actual.getString("last_updated")));
         }
     }
 
     @ParameterizedTest
-    @CsvSource({"v1,1", "v2,1", "v1,11", "v2,11", "v1,15", "v2,15", "v1,20","v2,20", "v1,30", "v2,30", "v1,35", "v2,35", "v1,50", "v2,50"})
+    @CsvSource({"v1,1", "v2,1", "v1,11", "v2,11", "v1,15", "v2,15", "v1,20","v2,20", "v1,30", "v2,30", "v1,35", "v2,35", "v1,45", "v2,45", "v1,50", "v2,50"})
     void identityBucketsChunked(String apiVersion, int numModifiedSalts, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
         List<SaltEntry> modifiedSalts = new ArrayList<>();
+        List<SaltEntry> actualSalts = new ArrayList<>();
         for(int i = 0; i < numModifiedSalts; i++) {
             modifiedSalts.add(new SaltEntry(i, "someId" + i, i, "someSalt"));
+            actualSalts.add(new SaltEntry(i, "someId" + i, i, "someSalt"));
         }
         when(saltProviderSnapshot.getModifiedSince(any())).thenReturn(modifiedSalts);
 
@@ -838,7 +840,7 @@ public class UIDOperatorVerticleTest {
         send(apiVersion, vertx, apiVersion + "/identity/buckets", true, "since_timestamp=" +urlEncode("2023-04-08T13:00:00"), req, 200, respJson -> {
             assertTrue(respJson.containsKey("body"));
             assertFalse(respJson.containsKey("client_error"));
-            validateIdentityBuckets(respJson.getJsonArray("body"), modifiedSalts);
+            validateIdentityBuckets(actualSalts, respJson.getJsonArray("body"));
             testContext.completeNow();
         });
     }

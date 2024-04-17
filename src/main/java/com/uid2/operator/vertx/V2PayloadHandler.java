@@ -170,7 +170,7 @@ public class V2PayloadHandler {
     private void passThrough(RoutingContext rc, Handler<RoutingContext> apiHandler) {
         rc.data().put("request", rc.body().asJsonObject());
         apiHandler.handle(rc);
-        if (rc.response().getStatusCode() != 200 || rc.response().ended()) {
+        if (rc.response().getStatusCode() != 200 || rc.response().ended() || rc.request().path().contains("/identity/buckets")) {
             return;
         }
         JsonObject respJson = (JsonObject) rc.data().get("response");
@@ -180,7 +180,7 @@ public class V2PayloadHandler {
     }
 
     private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
-        if (rc.response().ended()) {
+        if (rc.response().ended() || rc.request().path().contains("/identity/buckets")) {
             return;
         }
         Buffer buffer = Buffer.buffer();

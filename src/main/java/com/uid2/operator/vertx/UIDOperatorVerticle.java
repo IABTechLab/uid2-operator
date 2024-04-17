@@ -1177,49 +1177,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         HttpServerResponse response = rc.response();
 
-        final String cipherScheme = "AES/GCM/NoPadding";
-        final int GCM_AUTHTAG_LENGTH = 16;
-        final int GCM_IV_LENGTH = 12;
-        final SecretKey k = new SecretKeySpec(request.encryptionKey, "AES");
-        final Cipher c = Cipher.getInstance(cipherScheme);
-        final byte[] ivBytes = Random.getBytes(GCM_IV_LENGTH);
-        GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_AUTHTAG_LENGTH * 8, ivBytes);
-        c.init(Cipher.ENCRYPT_MODE, k, gcmParameterSpec);
+        ModifiedBucketReadStream readStream = new ModifiedBucketReadStream(this.vertx.getOrCreateContext(), modified, this.config.getInteger(Const.Config.IdentityBucketsResponseChunkSize));
+        ModifiedBucketEncryptStream encryptStream = new ModifiedBucketEncryptStream(this.vertx.getOrCreateContext(), request.encryptionKey, request.nonce);
+        ModifiedBucketEncodeStream encodeStream = new ModifiedBucketEncodeStream(this.vertx.getOrCreateContext());
+//        Buffer b = Buffer.buffer();
+//        encryptStream.endHandler((ar) -> {response.end(Utils.toBase64String(b.getBytes()));});
+//        encryptStream.handler((buf) -> b.appendBytes(buf.getBytes()) );
+        response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
+        readStream.pipe().endOnSuccess(true).to(encryptStream);
+        encryptStream.pipe().endOnSuccess(true).to(encodeStream);
+//        encryptStream.endHandler((ar) -> {response.end();});
+        encodeStream.pipe().endOnSuccess(true).to(response);
 
-        int chunkSize = getIdentityBucketsResponseChunkSize();
-        response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
 
-        Buffer b = Buffer.buffer();
-        b.appendLong(EncodingUtils.NowUTCMillis().toEpochMilli());
-        b.appendBytes(request.nonce);
-        b.appendBytes("{\"body\":[".getBytes());
-        b = Buffer.buffer(ivBytes).appendBytes(c.update(b.getBytes()));
-
-        for(int i =0; i < modified.size(); i+=chunkSize) {
-
-            String saltEntries = makeSaltEntriesString(modified, i, Math.min(i + chunkSize, modified.size()));
-
-            if(i + chunkSize >= modified.size()) {
-                saltEntries = saltEntries.substring(0, saltEntries.length() -1);
-                saltEntries += "], \"status\":\"success\"}";
-                b.appendBytes(c.doFinal(saltEntries.getBytes()));
-            } else {
-                b.appendBytes(c.update(saltEntries.getBytes()));
-            }
-
-            if (b.length() % 3 == 0 || b.length() < 3 || (i+chunkSize >= modified.size())) {
-                response.write(Utils.toBase64String(b.getBytes()));
-                b = Buffer.buffer();
-            } else if ((b.length()-1) % 3 == 0) {
-                response.write(Utils.toBase64String(Arrays.copyOfRange(b.getBytes(), 0, b.length()-1)));
-                b = Buffer.buffer(Arrays.copyOfRange(b.getBytes(), b.length()-1, b.length()));
-            } else {
-                response.write(Utils.toBase64String(Arrays.copyOfRange(b.getBytes(), 0, b.length()-2)));
-                b = Buffer.buffer(Arrays.copyOfRange(b.getBytes(), b.length()-2, b.length()));
-            }
-
-        }
-        rc.response().end();
     }
 
     private void handleIdentityMapV1(RoutingContext rc) {

@@ -22,7 +22,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
 
-public class ModifiedBucketEncryptStream implements IModifiedBucketEncryptStream {
+public class ModifiedBucketEncryptStream implements IModifiedBucketReadWriteStream {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModifiedBucketEncryptStream.class);
 
     private final Context context;
@@ -60,7 +60,7 @@ public class ModifiedBucketEncryptStream implements IModifiedBucketEncryptStream
     }
 
     @Override
-    public synchronized IModifiedBucketEncryptStream exceptionHandler(Handler<Throwable> handler) {
+    public synchronized IModifiedBucketReadWriteStream exceptionHandler(Handler<Throwable> handler) {
         this.exceptionHandler = handler;
         return this;
     }

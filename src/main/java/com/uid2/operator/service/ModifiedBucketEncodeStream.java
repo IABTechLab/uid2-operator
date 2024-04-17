@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 
 
-public class ModifiedBucketEncodeStream implements IModifiedBucketEncryptStream {
+public class ModifiedBucketEncodeStream implements IModifiedBucketReadWriteStream {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModifiedBucketEncodeStream.class);
 
     private final Context context;
@@ -39,7 +39,7 @@ public class ModifiedBucketEncodeStream implements IModifiedBucketEncryptStream 
     }
 
     @Override
-    public synchronized IModifiedBucketEncryptStream exceptionHandler(Handler<Throwable> handler) {
+    public synchronized IModifiedBucketReadWriteStream exceptionHandler(Handler<Throwable> handler) {
         this.exceptionHandler = handler;
         return this;
     }

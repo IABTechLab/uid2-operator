@@ -8,8 +8,8 @@ import io.vertx.core.streams.Pipe;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 
-public interface IModifiedBucketEncryptStream extends ReadStream<Buffer>, WriteStream<Buffer> {
-    IModifiedBucketEncryptStream exceptionHandler(Handler<Throwable> handler);
+public interface IModifiedBucketReadWriteStream extends ReadStream<Buffer>, WriteStream<Buffer> {
+    IModifiedBucketReadWriteStream exceptionHandler(Handler<Throwable> handler);
 
     Future<Void> write(Buffer buffer);
 

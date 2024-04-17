@@ -1108,19 +1108,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private String makeSaltEntriesString(List<SaltEntry> entries, int startIndex, int endIndexExclusive) {
-        StringBuilder s = new StringBuilder();
-        for(int i = startIndex; i < endIndexExclusive; i++) {
-            SaltEntry e = entries.get(i);
-            s.append("{\"bucket_id\":\"")
-                    .append(e.getHashedId())
-                    .append("\",\"last_updated\":\"")
-                    .append(APIDateTimeFormatter.format(Instant.ofEpochMilli(e.getLastUpdated())))
-                    .append("\"},");
-        }
-        return s.toString();
-    }
-
     private void handleBucketsV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final String qp = req.getString("since_timestamp");
@@ -1153,42 +1140,26 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void transmitModifiedBucketsInChunks(RoutingContext rc, List<SaltEntry> modified) {
-
         HttpServerResponse response = rc.response();
-        int chunkSize = getIdentityBucketsResponseChunkSize();
+
+        ModifiedBucketReadStream readStream = new ModifiedBucketReadStream(this.vertx.getOrCreateContext(), modified, getIdentityBucketsResponseChunkSize());
 
         response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-        response.write("{\"body\":[");
-
-        for(int i =0; i < modified.size(); i+=chunkSize) {
-            String saltEntries = makeSaltEntriesString(modified, i, Math.min(i + chunkSize, modified.size()));
-            if(i + chunkSize >= modified.size()) {
-                saltEntries = saltEntries.substring(0, saltEntries.length() -1);
-                saltEntries += "], \"status\":\"success\"}";
-                response.write(saltEntries);
-            } else {
-                response.write(saltEntries);
-            }
-        }
-        rc.response().end();
+        readStream.pipe().endOnSuccess(true).to(response);
     }
 
     private void transmitModifiedBucketsInChunksEncrypted(RoutingContext rc, List<SaltEntry> modified) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         HttpServerResponse response = rc.response();
 
-        ModifiedBucketReadStream readStream = new ModifiedBucketReadStream(this.vertx.getOrCreateContext(), modified, this.config.getInteger(Const.Config.IdentityBucketsResponseChunkSize));
+        ModifiedBucketReadStream readStream = new ModifiedBucketReadStream(this.vertx.getOrCreateContext(), modified, getIdentityBucketsResponseChunkSize());
         ModifiedBucketEncryptStream encryptStream = new ModifiedBucketEncryptStream(this.vertx.getOrCreateContext(), request.encryptionKey, request.nonce);
         ModifiedBucketEncodeStream encodeStream = new ModifiedBucketEncodeStream(this.vertx.getOrCreateContext());
-//        Buffer b = Buffer.buffer();
-//        encryptStream.endHandler((ar) -> {response.end(Utils.toBase64String(b.getBytes()));});
-//        encryptStream.handler((buf) -> b.appendBytes(buf.getBytes()) );
+
         response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
         readStream.pipe().endOnSuccess(true).to(encryptStream);
         encryptStream.pipe().endOnSuccess(true).to(encodeStream);
-//        encryptStream.endHandler((ar) -> {response.end();});
         encodeStream.pipe().endOnSuccess(true).to(response);
-
 
     }
 

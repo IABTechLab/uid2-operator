@@ -197,12 +197,10 @@ public class ModifiedBucketEncryptStream implements IModifiedBucketEncryptStream
             synchronized (this) {
                 if (!incomingStreamEnded) {
                     chunk.appendBytes(c.update(data.getBytes()));
-                    LOGGER.info(data.toString());
                     data = Buffer.buffer();
                 } else {
                     chunk.appendBytes(c.doFinal(data.getBytes()));
                     data = Buffer.buffer();
-                    LOGGER.info(data.toString());
                     outgoingStreamEnded = true;
                 }
                 return chunk;

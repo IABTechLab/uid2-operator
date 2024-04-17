@@ -1,4 +1,4 @@
-FROM openjdk:11.0-jre-slim-bullseye
+FROM openjdk:11.0.16-jre-slim-bullseye
 
 WORKDIR /app
 
@@ -38,8 +38,6 @@ COPY ./conf/prod-euid-config.json  /app/conf/
 COPY ./conf/integ-euid-config.json /app/conf/
 COPY ./conf/*.xml                  /app/conf/
 COPY ./syslog-ng-client.conf       /etc/syslog-ng/syslog-ng.conf
-
-EXPOSE 2011
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh
 

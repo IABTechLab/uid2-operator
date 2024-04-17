@@ -24,8 +24,3 @@ syslogng:
   service: direct
   listen: vsock://42:2011
   connect: tcp://127.0.0.1:2011
-
-syslogngudp:
-  service: direct
-  listen: vsock://42:2011
-  connect: udp://127.0.0.1:2010

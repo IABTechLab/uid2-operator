@@ -99,12 +99,6 @@ function run_enclave() {
     nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator
 }
 
-function run_syslog_ng() {
-    echo "starting syslog-ng..."
-    /usr/sbin/syslog-ng --verbose
-}
-
-run_syslog_ng
 terminate_old_enclave
 config_aws
 read_allocation

@@ -42,6 +42,7 @@ import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
+import org.apache.commons.collections4.CollectionUtils;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -155,6 +156,7 @@ public class UIDOperatorVerticleTest {
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         config.put("key_sharing_endpoint_provide_site_domain_names", true);
+        config.put("key_sharing_endpoint_provide_app_names", true);
         config.put("client_side_token_generate_log_invalid_http_origins", true);
 
         config.put(Const.Config.AllowClockSkewSecondsProp, 3600);
@@ -4313,13 +4315,23 @@ public class UIDOperatorVerticleTest {
         });
     }
 
+    private static Site defaultMockSite(int siteId, boolean includeDomainNames, boolean includeAppNames) {
+        Site site = new Site(siteId, "site" + siteId, true);
+        if (includeDomainNames) {
+            site.setDomainNames(Set.of(siteId + ".com", siteId + ".co.uk"));
+        }
+        if (includeAppNames) {
+            site.setAppNames(Set.of(siteId + ".com.UID2.operator", siteId + "bundle123", "12345789"));
+        }
+        return site;
+    }
+
     //set some default domain names for all possible sites for each unit test first
-    private void setupSiteDomainNameMock(int... siteIds) {
+    private void setupSiteDomainAndAppNameMock(boolean includeDomainNames, boolean includeAppNames, int... siteIds) {
 
         Map<Integer, Site> sites = new HashMap<>();
         for(int siteId : siteIds) {
-            Site site = new Site(siteId, "site"+siteId, true, new HashSet<>(Arrays.asList(siteId+".com", siteId+".co.uk")));
-            sites.put(site.getId(), site);
+            sites.put(siteId, defaultMockSite(siteId, includeDomainNames, includeAppNames));
         }
 
         when(siteProvider.getAllSites()).thenReturn(new HashSet<>(sites.values()));
@@ -4329,25 +4341,45 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    public HashMap<Integer, List<String>> setupExpectation(int... siteIds)
+    private void setupMockSites(Map<Integer, Site> sites) {
+        when(siteProvider.getAllSites()).thenReturn(new HashSet<>(sites.values()));
+        when(siteProvider.getSite(anyInt())).thenAnswer(invocation -> {
+            int siteId = invocation.getArgument(0);
+            return sites.get(siteId);
+        });
+    }
+
+    static Map<Integer, Site> setupExpectation(boolean includeDomainNames, boolean includeAppNames, int... siteIds)
     {
-        HashMap<Integer, List<String>> expectedSites = new HashMap();
+        Map<Integer, Site> expectedSites = new HashMap<>();
         for (int siteId : siteIds)
         {
-            List<String> siteDomains = Arrays.asList(siteId+".co.uk", siteId+".com");
-            expectedSites.put(siteId, siteDomains);
+            expectedSites.put(siteId, defaultMockSite(siteId, includeDomainNames, includeAppNames));
         }
         return expectedSites;
     }
 
-    public void verifyExpectedSiteDetail(HashMap<Integer, List<String>> expectedSites, JsonArray actualResult) {
+
+    public void verifyExpectedSiteDetail(Map<Integer, Site> expectedSites, JsonArray actualResult) {
 
         assertEquals(actualResult.size(), expectedSites.size());
         for(int i = 0; i < actualResult.size(); i++) {
 
             JsonObject siteDetail = actualResult.getJsonObject(i);
             int siteId = siteDetail.getInteger("id");
-            assertTrue(expectedSites.get(siteId).containsAll((Collection<String>) siteDetail.getMap().get("domain_names")));
+            List<String> actualDomainList = (List<String>) siteDetail.getMap().get("domain_names");
+            Site expectedSite = expectedSites.get(siteId);
+            int size = 0;
+            if (!CollectionUtils.isEmpty(expectedSite.getDomainNames())) {
+                assertTrue(actualDomainList.containsAll(expectedSite.getDomainNames()));
+                size += expectedSite.getDomainNames().size();
+            }
+
+            if (!CollectionUtils.isEmpty(expectedSite.getAppNames())) {
+                assertTrue(actualDomainList.containsAll(expectedSite.getAppNames()));
+                size += expectedSite.getAppNames().size();
+            }
+            assertEquals(actualDomainList.size(), size);
         }
     }
 
@@ -4382,13 +4414,40 @@ public class UIDOperatorVerticleTest {
         }
     }
 
+
+    private static Stream<Arguments> testKeyDownloadEndpointKeysetsData_IDREADER() {
+        int[] expectedSiteIds = new int [] {101, 102};
+        int[] allMockedSiteIds = new int [] {101, 102, 103, 105};
+        Map<Integer, Site> expectedSitesDomainsOnly = setupExpectation(true, false, expectedSiteIds);
+        Map<Integer, Site> mockSitesWithDomainsOnly = setupExpectation(true, false, allMockedSiteIds);
+
+        Map<Integer, Site> expectedSitesWithBoth = setupExpectation(true, true, expectedSiteIds);
+        Map<Integer, Site> mockSitesWithBoth = setupExpectation(true, true, allMockedSiteIds);
+
+        Map<Integer, Site> expectedSitesWithAppNamesOnly = setupExpectation(false, true, expectedSiteIds);
+        Map<Integer, Site> mockSitesWithAppNamesOnly = setupExpectation(false, true, allMockedSiteIds);
+        Map<Integer, Site> emptySites = new HashMap<>();
+        return Stream.of(
+                // Both domains and app names should be present in response
+            Arguments.of("true", "true", KeyDownloadEndpoint.SHARING, mockSitesWithBoth, expectedSitesWithBoth),
+            Arguments.of("true", "true", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithBoth, expectedSitesWithBoth),
+
+            // only domains should be present in response
+            Arguments.of("true", "false", KeyDownloadEndpoint.SHARING, mockSitesWithDomainsOnly, expectedSitesDomainsOnly),
+            Arguments.of("true", "false", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithDomainsOnly, expectedSitesDomainsOnly),
+
+            // only app names should be present in response
+            Arguments.of("true", "true", KeyDownloadEndpoint.SHARING, mockSitesWithAppNamesOnly, expectedSitesWithAppNamesOnly),
+            Arguments.of("true", "true", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithAppNamesOnly, expectedSitesWithAppNamesOnly),
+
+            // None
+            Arguments.of("false", "false", KeyDownloadEndpoint.SHARING, emptySites, emptySites),
+            Arguments.of("false", "false", KeyDownloadEndpoint.BIDSTREAM, emptySites, emptySites)
+        );
+    }
+
     @ParameterizedTest
-    @CsvSource({
-            "true, SHARING",
-            "false, SHARING",
-            "true, BIDSTREAM",
-            "false, BIDSTREAM",
-    })
+    @MethodSource("testKeyDownloadEndpointKeysetsData_IDREADER")
         // Test the /key/sharing and /key/bidstream endpoints when called with the ID_READER role.
         //
         // Tests:
@@ -4398,10 +4457,15 @@ public class UIDOperatorVerticleTest {
         //   ID_READER has no access to a keyset that is disabled                       - direct reject
         //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keyDownloadEndpointKeysets_IDREADER(boolean provideSiteDomainNames, KeyDownloadEndpoint endpoint, Vertx vertx, VertxTestContext testContext) {
+    void keyDownloadEndpointKeysets_IDREADER(boolean provideSiteDomainNames, boolean provideAppNames, KeyDownloadEndpoint endpoint,
+                                             Map<Integer, Site> mockSites, Map<Integer, Site> expectedSites,
+                                             Vertx vertx, VertxTestContext testContext) {
 
         if (!provideSiteDomainNames) {
             this.uidOperatorVerticle.setKeySharingEndpointProvideSiteDomainNames(false);
+        }
+        if (!provideAppNames) {
+            this.uidOperatorVerticle.setKeySharingEndpointProvideAppNames(false);
         }
         String apiVersion = "v2";
         int clientSiteId = 101;
@@ -4435,7 +4499,7 @@ public class UIDOperatorVerticleTest {
                 createKey(1024, now.minusSeconds(5), now.minusSeconds(2), 9)
         };
 
-        setupSiteDomainNameMock(101, 102, 103, 105);
+        setupMockSites(mockSites);
         //site 104 domain name list will be returned but we will set a blank list for it
         doReturn(new Site(104, "site104", true, new HashSet<>())).when(siteProvider).getSite(104);
 
@@ -4450,8 +4514,8 @@ public class UIDOperatorVerticleTest {
 
             checkEncryptionKeys(respJson, endpoint, clientSiteId, expectedKeys);
 
-            if(provideSiteDomainNames) {
-                HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 102);
+            if(provideSiteDomainNames || provideAppNames) {
+
                 // site 104 has empty domain name list intentionally previously so while site 104 should be included in
                 // this /key/sharing response, it won't appear in this domain name list
                 verifyExpectedSiteDetail(expectedSites, body.getJsonArray("site_data"));
@@ -4488,7 +4552,7 @@ public class UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.SHARER);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
         //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
-        setupSiteDomainNameMock(101, 102, 103, 104, 105);
+        setupSiteDomainAndAppNameMock(true, false, 101, 102, 103, 104, 105);
         //Keys from these keysets are not expected: keyset6 (disabled keyset), keyset7 (sharing with ID_READERs but not SHARERs), keyset8 (not sharing with 101), keyset10 (not sharing with anyone)
         KeysetKey[] expectedKeys = {
                 createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
@@ -4524,7 +4588,7 @@ public class UIDOperatorVerticleTest {
 
             checkEncryptionKeys(respJson, KeyDownloadEndpoint.SHARING, clientSiteId, expectedKeys);
 
-            HashMap<Integer, List<String>> expectedSites = setupExpectation(101, 104);
+            Map<Integer, Site> expectedSites = setupExpectation(true, false, 101, 104);
             verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
 
             testContext.completeNow();
@@ -4545,7 +4609,7 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(102, "site key".getBytes(), now, now, now.plusSeconds(10), 10),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
-        setupSiteDomainNameMock(101, 102, 103, 104, 105);
+        setupSiteDomainAndAppNameMock(true, false, 101, 102, 103, 104, 105);
         Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
             System.out.println(respJson);
@@ -4578,7 +4642,7 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(4, "key4".getBytes(), now, now, now.plusSeconds(10), 7),
         };
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
-        setupSiteDomainNameMock(10, 11, 12, 13);
+        setupSiteDomainAndAppNameMock(true, false, 10, 11, 12, 13);
         switch (testRun) {
             case "NoKeyset":
                 siteId = 8;
@@ -4620,7 +4684,7 @@ public class UIDOperatorVerticleTest {
                 case "SharedKey":
                     assertEquals(6, respJson.getJsonObject("body").getInteger("default_keyset_id"));
                     //key 4 returned which has keyset id 7 which in turns has site id 13
-                    HashMap<Integer, List<String>> expectedSites = setupExpectation(13);
+                    Map<Integer, Site> expectedSites = setupExpectation(true, false,13);
                     verifyExpectedSiteDetail(expectedSites, siteData);
                     break;
             }

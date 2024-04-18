@@ -50,6 +50,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +63,7 @@ import java.security.*;
 import java.security.spec.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.util.*; 
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -753,9 +754,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .filter(Objects::nonNull)
                 .filter(site -> {
                     if (keySharingEndpointProvideAppNames) {
-                        return !(site.getDomainNames().isEmpty() && site.getAppNames().isEmpty());
+                        return !(CollectionUtils.isEmpty(site.getDomainNames()) && CollectionUtils.isEmpty(site.getAppNames()));
                     } else {
-                        return !site.getDomainNames().isEmpty();
+                        return !CollectionUtils.isEmpty(site.getDomainNames());
                     }
                 })
                 .collect(Collectors.toList());
@@ -769,11 +770,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         JsonObject siteObj = new JsonObject();
         siteObj.put("id", site.getId());
         Set<String> domainOrAppNames = new HashSet<>();
-        if (!site.getDomainNames().isEmpty()) {
+        if (!CollectionUtils.isEmpty(site.getDomainNames())) {
             domainOrAppNames.addAll(site.getDomainNames());
         }
         if (keySharingEndpointProvideAppNames) {
-            if (!site.getAppNames().isEmpty()) {
+            if (!CollectionUtils.isEmpty(site.getAppNames())) {
                 domainOrAppNames.addAll(site.getAppNames());
             }
         }

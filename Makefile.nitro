@@ -37,7 +37,7 @@ build/make_config.py: ./scripts/aws/make_config.py
 
 .PHONY: build_configs
 
-build_configs: build/conf/default-config.json build/conf/prod-uid2-config.json build/conf/integ-uid2-config.json build/conf/prod-euid-config.json build/conf/integ-euid-config.json build/conf/logback.loki.xml
+build_configs: build/conf/default-config.json build/conf/prod-uid2-config.json build/conf/integ-uid2-config.json build/conf/prod-euid-config.json build/conf/integ-euid-config.json build/conf/logback.xml
 
 build/conf/default-config.json: build_artifacts ./scripts/aws/conf/default-config.json
 	cp ./scripts/aws/conf/default-config.json ./build/conf/
@@ -54,8 +54,8 @@ build/conf/integ-uid2-config.json: build_artifacts ./scripts/aws/conf/integ-uid2
 build/conf/integ-euid-config.json: build_artifacts ./scripts/aws/conf/integ-euid-config.json
 	cp ./scripts/aws/conf/integ-euid-config.json ./build/conf/
 
-build/conf/logback.loki.xml: build_artifacts ./scripts/aws/conf/logback.loki.xml
-	cp ./scripts/aws/conf/logback.loki.xml ./build/conf/
+build/conf/logback.xml: build_artifacts ./scripts/aws/conf/logback.xml
+	cp ./scripts/aws/conf/logback.xml ./build/conf/
 
 build/Dockerfile: build_artifacts ./scripts/aws/Dockerfile
 	cp ./scripts/aws/Dockerfile ./build/

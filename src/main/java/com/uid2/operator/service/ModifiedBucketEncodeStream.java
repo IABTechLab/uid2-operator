@@ -143,7 +143,7 @@ public class ModifiedBucketEncodeStream implements IModifiedBucketReadWriteStrea
         return this;
     }
 
-    private void read() {
+    private synchronized void read() {
         if (this.readInProgress) {
             if (!incomingStreamEnded || !outgoingStreamEnded) {
                 this.context.runOnContext(v -> this.read());
@@ -163,12 +163,10 @@ public class ModifiedBucketEncodeStream implements IModifiedBucketReadWriteStrea
             if (data.length() == 0) {
                 return chunk;
             }
-
             synchronized (this) {
                 if (data.length() % 3 == 0 || incomingStreamEnded) {
                     chunk = Utils.toBase64String(data.getBytes());
                     data = Buffer.buffer();
-                    outgoingStreamEnded = true;
                 } else if ((data.length() - 1) % 3 == 0) {
                     chunk = Utils.toBase64String(Arrays.copyOfRange(data.getBytes(), 0, data.length() - 1));
                     data = Buffer.buffer(Arrays.copyOfRange(data.getBytes(), data.length() - 1, data.length()));
@@ -176,8 +174,12 @@ public class ModifiedBucketEncodeStream implements IModifiedBucketReadWriteStrea
                     chunk = Utils.toBase64String(Arrays.copyOfRange(data.getBytes(), 0, data.length() - 2));
                     data = Buffer.buffer(Arrays.copyOfRange(data.getBytes(), data.length() - 2, data.length()));
                 }
-                return chunk;
+
+                if(incomingStreamEnded) {
+                    outgoingStreamEnded = true;
+                }
             }
+            return chunk;
         }, asyncResult -> {
             this.dataHandler.handle(Buffer.buffer(asyncResult.result()));
             this.readInProgress = false;

@@ -80,6 +80,10 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(VertxExtension.class)
 public class UIDOperatorVerticleTest {
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticleTest.class);
+
+
     private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
     private static final Instant legacyClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).minus(1, ChronoUnit.SECONDS);
     private static final Instant newClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).plus(1, ChronoUnit.SECONDS);
@@ -214,6 +218,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals(expectedHttpCode, ar.result().statusCode());
 
                 if (ar.result().statusCode() == 200) {
+                    LOGGER.info(ar.result().bodyAsString());
                     byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, ck.getSecretBytes());
                     assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
 

@@ -166,7 +166,7 @@ public class ModifiedBucketEncryptStream implements IModifiedBucketReadWriteStre
 
     private void read() {
         if (this.readInProgress) {
-            if ((!incomingStreamEnded || !outgoingStreamEnded)) {
+            if (!incomingStreamEnded || !outgoingStreamEnded) {
                 this.context.runOnContext(v -> this.read());
             }
             return;

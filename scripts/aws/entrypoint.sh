@@ -109,6 +109,6 @@ java \
   -Djava.library.path=/app/lib \
   -Dvertx-config-path="${FINAL_CONFIG}" \
   -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
-  -Dlogback.configurationFile=./conf/logback.xml" \
+  -Dlogback.configurationFile=./conf/logback.xml \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
   -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar > /home/start.txt 2>&1

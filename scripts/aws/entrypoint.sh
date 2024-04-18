@@ -118,4 +118,4 @@ java \
   -Dvertx-config-path="${FINAL_CONFIG}" \
   ${SETUP_LOKI_LINE} \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
-  -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar
+  -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar > /home/start.txt 2>&1

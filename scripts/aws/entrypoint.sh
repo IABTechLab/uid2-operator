@@ -95,14 +95,6 @@ fi
 
 cat "${FINAL_CONFIG}"
 
-# -- setup loki
-echo "Setting up Loki..."
-[[ "$(get_config_value 'loki_enabled')" == "true" ]] \
-  && SETUP_LOKI_LINE="-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory -Dlogback.configurationFile=./conf/logback.loki.xml" \
-  || SETUP_LOKI_LINE=""
-
-echo "Final loki config:${SETUP_LOKI_LINE}"
-
 HOSTNAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/local-hostname)
 echo "HOSTNAME=${HOSTNAME}"
 
@@ -116,6 +108,7 @@ java \
   -Djava.security.egd=file:/dev/./urandom \
   -Djava.library.path=/app/lib \
   -Dvertx-config-path="${FINAL_CONFIG}" \
-  ${SETUP_LOKI_LINE} \
+  -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
+  -Dlogback.configurationFile=./conf/logback.xml" \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
   -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar > /home/start.txt 2>&1

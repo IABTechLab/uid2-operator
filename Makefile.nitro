@@ -66,6 +66,12 @@ build/proxies.nitro.yaml: build_artifacts ./scripts/aws/proxies.nitro.yaml
 build/syslog-ng-client.conf: build_artifacts ./scripts/aws/syslog-ng/syslog-ng-client.conf
 	cp ./scripts/aws/syslog-ng/syslog-ng-client.conf ./build/
 
+build/syslog-ng-core_4.6.0-1_amd64.deb: build_artifacts ./scripts/aws/syslog-ng/client/syslog-ng-core_4.6.0-1_amd64.deb
+	cp ./scripts/aws/syslog-ng/client/syslog-ng-core_4.6.0-1_amd64.deb ./build/
+
+build/syslog-ng-ose-pub.asc: build_artifacts ./scripts/aws/syslog-ng/client/syslog-ng-ose-pub.asc
+	cp ./scripts/aws/syslog-ng/client/syslog-ng-ose-pub.asc ./build/
+
 build/entrypoint.sh: build_artifacts
 	cp ./scripts/aws/entrypoint.sh ./build/
 

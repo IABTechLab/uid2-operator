@@ -116,7 +116,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int maxBidstreamLifetimeSeconds;
     private final int allowClockSkewSeconds;
     protected int maxSharingLifetimeSeconds;
-    protected boolean keySharingEndpointProvideSiteDomainNames;
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
     protected boolean keySharingEndpointProvideAppNames;
     protected Instant lastInvalidOriginProcessTime = Instant.now();
@@ -155,7 +154,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
-        this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
         this.keySharingEndpointProvideAppNames = config.getBoolean("key_sharing_endpoint_provide_app_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
@@ -739,10 +737,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private List<Site> getSitesWithDomainAndAppNames(List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
         //without cstg enabled, operator won't have site data and siteProvider could be null
-        //and adding keySharingEndpointProvideSiteDomainNames in case something goes wrong
-        //and we can still enable cstg feature but turn off site domain name download in
-        // key/sharing endpoint
-        if (!keySharingEndpointProvideSiteDomainNames || !clientSideTokenGenerate) {
+        if (!clientSideTokenGenerate) {
             return null;
         }
 
@@ -753,10 +748,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .mapToObj(siteProvider::getSite)
                 .filter(Objects::nonNull)
                 .filter(site -> {
-                    if (keySharingEndpointProvideAppNames) {
-                        return !(CollectionUtils.isEmpty(site.getDomainNames()) && CollectionUtils.isEmpty(site.getAppNames()));
+                    if (!(CollectionUtils.isEmpty(site.getDomainNames()))) {
+                        return true;
                     } else {
-                        return !CollectionUtils.isEmpty(site.getDomainNames());
+                        return keySharingEndpointProvideAppNames && !(CollectionUtils.isEmpty(site.getAppNames()));
                     }
                 })
                 .collect(Collectors.toList());
@@ -766,21 +761,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
      * Converts the specified site to a JSON object.
      * Includes the following fields: id, domain_names.
      */
-    private static JsonObject toJson(Site site, boolean keySharingEndpointProvideAppNames) {
+    private static JsonObject toJson(Site site, boolean includeAppNames) {
         JsonObject siteObj = new JsonObject();
         siteObj.put("id", site.getId());
         Set<String> domainOrAppNames = new HashSet<>();
         if (!CollectionUtils.isEmpty(site.getDomainNames())) {
             domainOrAppNames.addAll(site.getDomainNames());
         }
-        if (keySharingEndpointProvideAppNames) {
+        if (includeAppNames) {
             if (!CollectionUtils.isEmpty(site.getAppNames())) {
                 domainOrAppNames.addAll(site.getAppNames());
             }
         }
-
         siteObj.put("domain_names", domainOrAppNames.stream().sorted().collect(Collectors.toList()));
-
         return siteObj;
     }
 

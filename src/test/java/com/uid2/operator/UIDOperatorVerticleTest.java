@@ -155,7 +155,6 @@ public class UIDOperatorVerticleTest {
         config.put("advertising_token_v4_percentage", getTokenVersion() == TokenVersion.V4 ? 100 : 0);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
-        config.put("key_sharing_endpoint_provide_site_domain_names", true);
         config.put("key_sharing_endpoint_provide_app_names", true);
         config.put("client_side_token_generate_log_invalid_http_origins", true);
 
@@ -4429,20 +4428,20 @@ public class UIDOperatorVerticleTest {
         Map<Integer, Site> emptySites = new HashMap<>();
         return Stream.of(
                 // Both domains and app names should be present in response
-            Arguments.of("true", "true", KeyDownloadEndpoint.SHARING, mockSitesWithBoth, expectedSitesWithBoth),
-            Arguments.of("true", "true", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithBoth, expectedSitesWithBoth),
+            Arguments.of("true", KeyDownloadEndpoint.SHARING, mockSitesWithBoth, expectedSitesWithBoth),
+            Arguments.of("true", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithBoth, expectedSitesWithBoth),
 
             // only domains should be present in response
-            Arguments.of("true", "false", KeyDownloadEndpoint.SHARING, mockSitesWithDomainsOnly, expectedSitesDomainsOnly),
-            Arguments.of("true", "false", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithDomainsOnly, expectedSitesDomainsOnly),
+            Arguments.of("false", KeyDownloadEndpoint.SHARING, mockSitesWithDomainsOnly, expectedSitesDomainsOnly),
+            Arguments.of("false", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithDomainsOnly, expectedSitesDomainsOnly),
 
             // only app names should be present in response
-            Arguments.of("true", "true", KeyDownloadEndpoint.SHARING, mockSitesWithAppNamesOnly, expectedSitesWithAppNamesOnly),
-            Arguments.of("true", "true", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithAppNamesOnly, expectedSitesWithAppNamesOnly),
+            Arguments.of("true", KeyDownloadEndpoint.SHARING, mockSitesWithAppNamesOnly, expectedSitesWithAppNamesOnly),
+            Arguments.of("true", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithAppNamesOnly, expectedSitesWithAppNamesOnly),
 
             // None
-            Arguments.of("false", "false", KeyDownloadEndpoint.SHARING, emptySites, emptySites),
-            Arguments.of("false", "false", KeyDownloadEndpoint.BIDSTREAM, emptySites, emptySites)
+            Arguments.of("false", KeyDownloadEndpoint.SHARING, emptySites, emptySites),
+            Arguments.of("false", KeyDownloadEndpoint.BIDSTREAM, emptySites, emptySites)
         );
     }
 
@@ -4457,13 +4456,9 @@ public class UIDOperatorVerticleTest {
         //   ID_READER has no access to a keyset that is disabled                       - direct reject
         //   ID_READER has no access to a keyset with an empty allowed_sites            - reject by sharing
         //   ID_READER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
-    void keyDownloadEndpointKeysets_IDREADER(boolean provideSiteDomainNames, boolean provideAppNames, KeyDownloadEndpoint endpoint,
+    void keyDownloadEndpointKeysets_IDREADER(boolean provideAppNames, KeyDownloadEndpoint endpoint,
                                              Map<Integer, Site> mockSites, Map<Integer, Site> expectedSites,
                                              Vertx vertx, VertxTestContext testContext) {
-
-        if (!provideSiteDomainNames) {
-            this.uidOperatorVerticle.setKeySharingEndpointProvideSiteDomainNames(false);
-        }
         if (!provideAppNames) {
             this.uidOperatorVerticle.setKeySharingEndpointProvideAppNames(false);
         }
@@ -4514,16 +4509,9 @@ public class UIDOperatorVerticleTest {
 
             checkEncryptionKeys(respJson, endpoint, clientSiteId, expectedKeys);
 
-            if(provideSiteDomainNames || provideAppNames) {
-
-                // site 104 has empty domain name list intentionally previously so while site 104 should be included in
-                // this /key/sharing response, it won't appear in this domain name list
-                verifyExpectedSiteDetail(expectedSites, body.getJsonArray("site_data"));
-            }
-            else {
-                //otherwise we shouldn't even have a 'sites' field
-                assertNull(body.getJsonArray("site_data"));
-            }
+            // site 104 has empty domain name list intentionally previously so while site 104 should be included in
+            // this /key/sharing response, it won't appear in this domain name list
+            verifyExpectedSiteDetail(expectedSites, body.getJsonArray("site_data"));
             testContext.completeNow();
         });
     }

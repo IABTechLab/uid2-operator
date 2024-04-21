@@ -29,7 +29,6 @@ public class ModifiedBucketReadStream implements ReadStream<Buffer> {
 
     private Handler<Buffer> dataHandler;
     private Handler<Void> endHandler;
-    private Handler<Throwable> exceptionHandler;
 
     private boolean readInProgress;
     private boolean wroteStart = false;
@@ -60,7 +59,6 @@ public class ModifiedBucketReadStream implements ReadStream<Buffer> {
 
     @Override
     public synchronized ReadStream<Buffer> exceptionHandler(Handler<Throwable> handler) {
-        this.exceptionHandler = handler;
         return this;
     }
 
@@ -142,20 +140,5 @@ public class ModifiedBucketReadStream implements ReadStream<Buffer> {
         } else if (streamEnded && endHandler != null) {
             endHandler.handle(null);
         }
-    }
-
-    @Override
-    public Pipe<Buffer> pipe() {
-        return ReadStream.super.pipe();
-    }
-
-    @Override
-    public Future<Void> pipeTo(WriteStream<Buffer> dst) {
-        return ReadStream.super.pipeTo(dst);
-    }
-
-    @Override
-    public void pipeTo(WriteStream<Buffer> dst, Handler<AsyncResult<Void>> handler) {
-        ReadStream.super.pipeTo(dst, handler);
     }
 }

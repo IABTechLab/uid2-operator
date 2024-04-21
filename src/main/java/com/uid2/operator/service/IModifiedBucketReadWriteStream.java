@@ -47,4 +47,28 @@ public interface IModifiedBucketReadWriteStream extends ReadStream<Buffer>, Writ
     default void pipeTo(WriteStream<Buffer> dst, Handler<AsyncResult<Void>> handler) {
         ReadStream.super.pipeTo(dst, handler);
     }
+
+    default void succeededAsyncResult(Handler<AsyncResult<Void>> handler) {
+        handler.handle(new AsyncResult<>() {
+            @Override
+            public Void result() {
+                return null;
+            }
+
+            @Override
+            public Throwable cause() {
+                return null;
+            }
+
+            @Override
+            public boolean succeeded() {
+                return true;
+            }
+
+            @Override
+            public boolean failed() {
+                return false;
+            }
+        });
+    }
 }

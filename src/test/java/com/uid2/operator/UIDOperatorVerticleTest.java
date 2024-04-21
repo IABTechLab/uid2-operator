@@ -65,6 +65,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -162,8 +163,8 @@ public class UIDOperatorVerticleTest {
 
         config.put(Const.Config.AllowClockSkewSecondsProp, 3600);
 
-        config.put(Const.Config.IdentityBucketsResponseChunkSize, 15);
-        config.put(Const.Config.MaxIdentityBucketsResponseEntries, 50);
+        config.put(Const.Config.IdentityBucketsResponseChunkSize, 100);
+        config.put(Const.Config.MaxIdentityBucketsResponseEntries, 500000);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -827,8 +828,8 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"v1,1", "v2,1", "v1,11", "v2,11", "v1,15", "v2,15", "v1,20","v2,20", "v1,30", "v2,30", "v1,35", "v2,35", "v1,45", "v2,45", "v1,50", "v2,50"})
-    void identityBucketsChunked(String apiVersion, int numModifiedSalts, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1,1", "v2,1", "v1,11", "v2,11", "v1,15", "v2,15", "v1,20","v2,20", "v1,30", "v2,30", "v1,35", "v2,35", "v1,45", "v2,45", "v1,50", "v2,50", "v1,10001", "v2,10001", "v1,255000", "v2,255000", "v1,500000", "v2,500000"})
+    void identityBucketsChunked(String apiVersion, int numModifiedSalts, Vertx vertx, VertxTestContext testContext) throws InterruptedException {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
         List<SaltEntry> modifiedSalts = new ArrayList<>();

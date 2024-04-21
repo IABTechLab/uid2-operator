@@ -20,10 +20,9 @@ public class ModifiedBucketEncodeStream implements IModifiedBucketReadWriteStrea
 
     private final Context context;
 
-    private Handler<Throwable> exceptionHandler;
     private Handler<Void> endHandler;
     private Handler<Buffer> dataHandler;
-    private Handler<Void> drainHandler;
+    private Handler<Void> drainHandler; // used by pipe
 
     private boolean readInProgress;
     private boolean incomingStreamEnded = false;
@@ -40,7 +39,6 @@ public class ModifiedBucketEncodeStream implements IModifiedBucketReadWriteStrea
 
     @Override
     public synchronized IModifiedBucketReadWriteStream exceptionHandler(Handler<Throwable> handler) {
-        this.exceptionHandler = handler;
         return this;
     }
 
@@ -58,30 +56,6 @@ public class ModifiedBucketEncodeStream implements IModifiedBucketReadWriteStrea
             data.appendBuffer(buffer);
         }
         succeededAsyncResult(handler);
-    }
-
-    private void succeededAsyncResult(Handler<AsyncResult<Void>> handler) {
-        handler.handle(new AsyncResult<>() {
-            @Override
-            public Void result() {
-                return null;
-            }
-
-            @Override
-            public Throwable cause() {
-                return null;
-            }
-
-            @Override
-            public boolean succeeded() {
-                return true;
-            }
-
-            @Override
-            public boolean failed() {
-                return false;
-            }
-        });
     }
 
     @Override

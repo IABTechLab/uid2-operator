@@ -1159,7 +1159,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
         readStream.pipe().endOnSuccess(true).to(encryptStream);
         encryptStream.pipe().endOnSuccess(true).to(encodeStream);
-        encodeStream.pipe().endOnSuccess(true).to(response);
+        encodeStream.pipe().to(response);
 
     }
 

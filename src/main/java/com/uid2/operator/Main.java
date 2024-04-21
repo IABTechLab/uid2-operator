@@ -173,7 +173,7 @@ public class Main {
                 System.exit(1);
             }
             if (saltProvider.getSnapshot(Instant.now()).getExpires().isBefore(Instant.now())) {
-                LOGGER.error("All salts are expired");
+                LOGGER.error("all salts are expired");
                 System.exit(1);
             }
         }

@@ -47,6 +47,6 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
     }
 
     public void setSiteIdToInvalidOrigins(Map<Integer, Set<String>> siteIdToInvalidOrigins) {
-        this.siteIdToInvalidOrigins = siteIdToInvalidOrigins;
+        this.siteIdToInvalidOriginsAndAppNames = siteIdToInvalidOrigins;
     }
 }

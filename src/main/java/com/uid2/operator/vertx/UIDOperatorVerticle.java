@@ -115,7 +115,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int allowClockSkewSeconds;
     protected int maxSharingLifetimeSeconds;
     protected boolean keySharingEndpointProvideSiteDomainNames;
-    protected Map<Integer, Set<String>> siteIdToInvalidOrigins = new HashMap<>();
+    protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
     protected Instant lastInvalidOriginProcessTime = Instant.now();
 
     public UIDOperatorVerticle(JsonObject config,
@@ -299,6 +299,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private Set<String> getAppNames(ClientSideKeypair keypair) {
+        final Site site = siteProvider.getSite(keypair.getSiteId());
+        if (site == null) {
+            return Collections.emptySet();
+        }
+        return site.getAppNames();
+    }
+
     private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body;
         try {
@@ -324,18 +332,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        if (cstgDoDomainNameCheck) {
-            final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(clientSideKeypair);
-            String origin = rc.request().getHeader("origin");
-
-            boolean allowedDomain = DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames);
-            if (!allowedDomain) {
-                if (clientSideTokenGenerateLogInvalidHttpOrigin) {
-                    handleInvalidHttpOriginError(clientSideKeypair.getSiteId(), origin);
-                }
-                SendClientErrorResponseAndRecordStats(ResponseStatus.InvalidHttpOrigin, 403, rc, "unexpected http origin", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin, siteProvider);
-                return;
-            }
+        if (!hasValidOriginOrAppName(rc, request, clientSideKeypair)) {
+            return;
         }
 
         if (request.getPayload() == null || request.getIv() == null || request.getPublicKey() == null) {
@@ -375,14 +373,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        final byte[] aad = new JsonArray(List.of(request.getTimestamp())).toBuffer().getBytes();
+        final JsonArray aad = JsonArray.of(request.getTimestamp());
+        if (request.getAppName() != null) {
+            aad.add(request.getAppName());
+        }
 
         final byte[] requestPayloadBytes;
         try {
             final byte[] encryptedPayloadBytes = Base64.getDecoder().decode(request.getPayload());
             final byte[] ivAndCiphertext = Arrays.copyOf(ivBytes, 12 + encryptedPayloadBytes.length);
             System.arraycopy(encryptedPayloadBytes, 0, ivAndCiphertext, 12, encryptedPayloadBytes.length);
-            requestPayloadBytes = decrypt(ivAndCiphertext, 0, sharedSecret, aad);
+            requestPayloadBytes = decrypt(ivAndCiphertext, 0, sharedSecret, aad.toBuffer().getBytes());
         } catch (Exception e) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "payload decryption failed", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider);
             return;
@@ -463,6 +464,69 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
         recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, responseStatus, siteProvider, identityTokens.getAdvertisingTokenVersion());
+    }
+
+    private boolean hasValidOriginOrAppName(RoutingContext rc, CstgRequest request, ClientSideKeypair keypair) {
+        final OriginOrAppNameValidationResult validationResult = validateOriginOrAppName(rc, request, keypair);
+        if (validationResult.isSuccess) {
+            return true;
+        }
+
+        if (clientSideTokenGenerateLogInvalidHttpOrigin) {
+            logInvalidOriginOrAppName(keypair.getSiteId(), validationResult.originOrAppName);
+        }
+        SendClientErrorResponseAndRecordStats(validationResult.errorStatus, 403, rc, validationResult.message, keypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, validationResult.responseStatus, siteProvider);
+        return false;
+    }
+
+    private OriginOrAppNameValidationResult validateOriginOrAppName(RoutingContext rc, CstgRequest request, ClientSideKeypair keypair) {
+        if (!cstgDoDomainNameCheck) {
+            return OriginOrAppNameValidationResult.SUCCESS;
+        }
+
+        final String appName = request.getAppName();
+        if (appName != null) {
+            return getAppNames(keypair).stream().anyMatch(appName::equalsIgnoreCase)
+                    ? OriginOrAppNameValidationResult.SUCCESS
+                    : OriginOrAppNameValidationResult.invalidAppName(appName);
+        }
+
+        final String origin = rc.request().getHeader("origin");
+        final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(keypair);
+
+        return origin != null && DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames)
+                ? OriginOrAppNameValidationResult.SUCCESS
+                : OriginOrAppNameValidationResult.invalidHttpOrigin(origin);
+    }
+
+    private static class OriginOrAppNameValidationResult {
+        private final boolean isSuccess;
+
+        private final String errorStatus;
+
+        private final String message;
+
+        private final TokenResponseStatsCollector.ResponseStatus responseStatus;
+
+        private final String originOrAppName;
+
+        public static final OriginOrAppNameValidationResult SUCCESS = new OriginOrAppNameValidationResult(true, null, null, null, null);
+
+        public static OriginOrAppNameValidationResult invalidAppName(String appName) {
+            return new OriginOrAppNameValidationResult(false, ResponseStatus.InvalidAppName, "unexpected app name", TokenResponseStatsCollector.ResponseStatus.InvalidAppName, appName);
+        }
+
+        public static OriginOrAppNameValidationResult invalidHttpOrigin(String origin) {
+            return new OriginOrAppNameValidationResult(false, ResponseStatus.InvalidHttpOrigin, "unexpected http origin", TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin, origin);
+        }
+
+        private OriginOrAppNameValidationResult(boolean isSuccess, String errorStatus, String message, TokenResponseStatsCollector.ResponseStatus responseStatus, String originOrAppName) {
+            this.isSuccess = isSuccess;
+            this.errorStatus = errorStatus;
+            this.message = message;
+            this.responseStatus = responseStatus;
+            this.originOrAppName = originOrAppName;
+        }
     }
 
     private IdentityTokens generateOptedOutIdentityTokens(PrivacyBits privacyBits, InputUtil.InputVal input, ClientSideKeypair clientSideKeypair) {
@@ -1858,14 +1922,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .end(json.encode());
     }
 
-    private void handleInvalidHttpOriginError(int siteId, String origin) {
-        Set<String> uniqueInvalidOrigins = siteIdToInvalidOrigins.computeIfAbsent(siteId, k -> new HashSet<>());
-        uniqueInvalidOrigins.add(origin);
+    private void logInvalidOriginOrAppName(int siteId, String originOrAppName) {
+        siteIdToInvalidOriginsAndAppNames.computeIfAbsent(siteId, k -> new HashSet<>())
+                .add(originOrAppName);
 
         if (Duration.between(lastInvalidOriginProcessTime, Instant.now()).compareTo(Duration.ofMinutes(60)) >= 0) {
             lastInvalidOriginProcessTime = Instant.now();
-            LOGGER.error(generateInvalidHttpOriginMessage(siteIdToInvalidOrigins));
-            siteIdToInvalidOrigins.clear();
+            // Leaving the format of the log message unchanged for now, but logging invalid app names.
+            LOGGER.error(generateInvalidHttpOriginMessage(siteIdToInvalidOriginsAndAppNames));
+            siteIdToInvalidOriginsAndAppNames.clear();
         }
     }
 

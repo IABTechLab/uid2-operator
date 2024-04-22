@@ -4361,7 +4361,7 @@ public class UIDOperatorVerticleTest {
 
     public void verifyExpectedSiteDetail(Map<Integer, Site> expectedSites, JsonArray actualResult) {
 
-        assertEquals(actualResult.size(), expectedSites.size());
+        assertEquals(expectedSites.size(), actualResult.size());
         for(int i = 0; i < actualResult.size(); i++) {
 
             JsonObject siteDetail = actualResult.getJsonObject(i);
@@ -4378,7 +4378,7 @@ public class UIDOperatorVerticleTest {
                 assertTrue(actualDomainList.containsAll(expectedSite.getAppNames()));
                 size += expectedSite.getAppNames().size();
             }
-            assertEquals(actualDomainList.size(), size);
+            assertEquals(size, actualDomainList.size());
         }
     }
 

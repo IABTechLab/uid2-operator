@@ -1934,29 +1934,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private String generateInvalidOriginAndAppNameMessage(Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames) {
-        StringBuilder invalidHttpOriginMessage = new StringBuilder();
-        invalidHttpOriginMessage.append("InvalidHttpOriginAndAppName: ");
-        boolean mapHasFirstElement = false;
+        List<String> logEntries = new ArrayList<>();
         for (Map.Entry<Integer, Set<String>> entry : siteIdToInvalidOriginsAndAppNames.entrySet()) {
-            if(mapHasFirstElement) {
-                invalidHttpOriginMessage.append(" | ");
-            }
-            mapHasFirstElement = true;
             int siteId = entry.getKey();
             Set<String> origins = entry.getValue();
             String siteName = getSiteName(siteProvider, siteId);
-            String site = "site " + siteName + " (" + siteId + "): ";
-            invalidHttpOriginMessage.append(site);
-            boolean setHasFirstElement = false;
-            for (String origin : origins) {
-                if(setHasFirstElement) {
-                    invalidHttpOriginMessage.append(", ");
-                }
-                setHasFirstElement = true;
-                invalidHttpOriginMessage.append(origin);
-            }
+            logEntries.add("site " + siteName + " (" + siteId + "): " + String.join(", ", origins));
         }
-        return invalidHttpOriginMessage.toString();
+        return "InvalidHttpOriginAndAppName: " +
+                String.join(" | ", logEntries);
     }
 
     public enum UserConsentStatus {

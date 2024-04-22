@@ -25,7 +25,7 @@
     "id": 127,
     "name": "App Name Test Site",
     "enabled": true,
-    "app_names" : ["com.uid2.operator", "id13456789"],
+    "app_names" : ["com.UID2.operator.TEST", "13456789"],
     "domain_names" : ["example.com", "unifiedid.com"]
   }
 ]

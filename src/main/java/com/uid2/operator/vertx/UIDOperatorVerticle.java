@@ -671,7 +671,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void addSites(JsonObject resp, List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
-        final List<Site> sites = getSitesWithDomainAndAppNames(keys, keysetMap);
+        final List<Site> sites = getSitesWithDomainOrAppNames(keys, keysetMap);
         if (sites != null) {
             /*
             The end result will look something like this:
@@ -690,7 +690,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                             "101.co.uk",
                             "101.com",
                             "com.uid2.operator",
-                            "id123456789"
+                            "123456789"
                         ]
                     }
                 ]
@@ -735,7 +735,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         resp.put("allow_clock_skew_seconds", allowClockSkewSeconds);
     }
 
-    private List<Site> getSitesWithDomainAndAppNames(List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
+    private List<Site> getSitesWithDomainOrAppNames(List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
         //without cstg enabled, operator won't have site data and siteProvider could be null
         if (!clientSideTokenGenerate) {
             return null;
@@ -748,10 +748,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .mapToObj(siteProvider::getSite)
                 .filter(Objects::nonNull)
                 .filter(site -> {
-                    if (!(CollectionUtils.isEmpty(site.getDomainNames()))) {
+                    if (CollectionUtils.isNotEmpty(site.getDomainNames())) {
                         return true;
                     } else {
-                        return keySharingEndpointProvideAppNames && !(CollectionUtils.isEmpty(site.getAppNames()));
+                        return keySharingEndpointProvideAppNames && CollectionUtils.isNotEmpty(site.getAppNames());
                     }
                 })
                 .collect(Collectors.toList());
@@ -765,13 +765,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         JsonObject siteObj = new JsonObject();
         siteObj.put("id", site.getId());
         Set<String> domainOrAppNames = new HashSet<>();
-        if (!CollectionUtils.isEmpty(site.getDomainNames())) {
+        if (CollectionUtils.isNotEmpty(site.getDomainNames())) {
             domainOrAppNames.addAll(site.getDomainNames());
         }
-        if (includeAppNames) {
-            if (!CollectionUtils.isEmpty(site.getAppNames())) {
-                domainOrAppNames.addAll(site.getAppNames());
-            }
+        if (includeAppNames && CollectionUtils.isNotEmpty(site.getAppNames())) {
+            domainOrAppNames.addAll(site.getAppNames());
         }
         siteObj.put("domain_names", domainOrAppNames.stream().sorted().collect(Collectors.toList()));
         return siteObj;

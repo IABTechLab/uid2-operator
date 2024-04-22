@@ -1,4 +1,4 @@
-FROM openjdk:11.0-jre-slim-bullseye
+FROM openjdk:11.0.16-jre-slim-bullseye
 
 WORKDIR /app
 
@@ -14,9 +14,15 @@ ENV IDENTITY_SCOPE=${IDENTITY_SCOPE}
 ENV ENCLAVE_ENVIRONMENT="aws-nitro"
 ENV UID2_CONFIG_SECRET_KEY="uid2-operator-config-key"
 
+COPY ./syslog-ng-core_4.6.0-1_amd64.deb /app/dep/
+COPY ./syslog-ng-ose-pub.asc /app/dep/
+
 RUN apt update -y \
-    && apt install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+    && apt install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 \
+    && apt-key add /app/dep/syslog-ng-ose-pub.asc \
+    && apt-get install /app/dep/syslog-ng-core_4.6.0-1_amd64.deb \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-key del 6694369F 
 RUN pip3 install boto3==1.16.9
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
@@ -33,7 +39,9 @@ COPY ./conf/integ-uid2-config.json /app/conf/
 COPY ./conf/prod-euid-config.json  /app/conf/
 COPY ./conf/integ-euid-config.json /app/conf/
 COPY ./conf/*.xml                  /app/conf/
+COPY ./syslog-ng-client.conf       /etc/syslog-ng/syslog-ng.conf
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh
+
 
 CMD ["/app/entrypoint.sh"]

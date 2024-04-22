@@ -2809,7 +2809,7 @@ public class UIDOperatorVerticleTest {
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
-                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOrigin: site test (123): http://gototest.com"));
+                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOriginAndAppName: site test (123): http://gototest.com"));
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
@@ -2833,7 +2833,7 @@ public class UIDOperatorVerticleTest {
         siteIdToInvalidOrigins.put(clientSideTokenGenerateSiteId, new HashSet<>(Arrays.asList("http://localhost1.com", "http://localhost2.com")));
         siteIdToInvalidOrigins.put(124, new HashSet<>(Arrays.asList("http://xyz1.com", "http://xyz2.com")));
 
-        this.uidOperatorVerticle.setSiteIdToInvalidOrigins(siteIdToInvalidOrigins);
+        this.uidOperatorVerticle.setSiteIdToInvalidOriginsAndAppNames(siteIdToInvalidOrigins);
 
         setupCstgBackend();
         when(siteProvider.getSite(124)).thenReturn(new Site(124, "test2", true, new HashSet<>()));
@@ -2850,7 +2850,7 @@ public class UIDOperatorVerticleTest {
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
-                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOrigin: site test (123): http://localhost1.com, http://gototest.com, http://localhost2.com | site test2 (124): http://xyz1.com, http://xyz2.com"));
+                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOriginAndAppName: site test (123): http://localhost1.com, http://gototest.com, http://localhost2.com | site test2 (124): http://xyz1.com, http://xyz2.com"));
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,

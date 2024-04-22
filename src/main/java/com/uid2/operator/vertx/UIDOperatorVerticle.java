@@ -1928,17 +1928,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         if (Duration.between(lastInvalidOriginProcessTime, Instant.now()).compareTo(Duration.ofMinutes(60)) >= 0) {
             lastInvalidOriginProcessTime = Instant.now();
-            // Leaving the format of the log message unchanged for now, but logging invalid app names.
-            LOGGER.error(generateInvalidHttpOriginMessage(siteIdToInvalidOriginsAndAppNames));
+            LOGGER.error(generateInvalidOriginAndAppNameMessage(siteIdToInvalidOriginsAndAppNames));
             siteIdToInvalidOriginsAndAppNames.clear();
         }
     }
 
-    private String generateInvalidHttpOriginMessage(Map<Integer, Set<String>> siteIdToInvalidOrigins) {
+    private String generateInvalidOriginAndAppNameMessage(Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames) {
         StringBuilder invalidHttpOriginMessage = new StringBuilder();
-        invalidHttpOriginMessage.append("InvalidHttpOrigin: ");
+        invalidHttpOriginMessage.append("InvalidHttpOriginAndAppName: ");
         boolean mapHasFirstElement = false;
-        for (Map.Entry<Integer, Set<String>> entry : siteIdToInvalidOrigins.entrySet()) {
+        for (Map.Entry<Integer, Set<String>> entry : siteIdToInvalidOriginsAndAppNames.entrySet()) {
             if(mapHasFirstElement) {
                 invalidHttpOriginMessage.append(" | ");
             }

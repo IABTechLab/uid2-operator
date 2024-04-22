@@ -4353,7 +4353,9 @@ public class UIDOperatorVerticleTest {
         Map<Integer, Site> expectedSites = new HashMap<>();
         for (int siteId : siteIds)
         {
-            expectedSites.put(siteId, defaultMockSite(siteId, includeDomainNames, includeAppNames));
+            if (includeDomainNames || includeAppNames) {
+                expectedSites.put(siteId, defaultMockSite(siteId, includeDomainNames, includeAppNames));
+            }
         }
         return expectedSites;
     }
@@ -4519,12 +4521,18 @@ public class UIDOperatorVerticleTest {
     @Test
     void keySharingKeysets_SHARER_CustomMaxSharingLifetimeSeconds(Vertx vertx, VertxTestContext testContext) {
         this.uidOperatorVerticle.setMaxSharingLifetimeSeconds(999999);
-        keySharingKeysets_SHARER(vertx, testContext, 999999);
+        keySharingKeysets_SHARER(true, true, vertx, testContext, 999999);
     }
     
-    @Test
-    void keySharingKeysets_SHARER_defaultMaxSharingLifetimeSeconds(Vertx vertx, VertxTestContext testContext) {
-        keySharingKeysets_SHARER(vertx, testContext, this.config.getInteger(Const.Config.SharingTokenExpiryProp));
+    @ParameterizedTest
+    @CsvSource({
+            "true, true",
+            "true, false",
+            "false, false",
+            "true, false"
+    })
+    void keySharingKeysets_SHARER_defaultMaxSharingLifetimeSeconds(boolean provideSiteDomainNames, boolean provideAppNames, Vertx vertx, VertxTestContext testContext) {
+        keySharingKeysets_SHARER(provideSiteDomainNames, provideAppNames, vertx, testContext, this.config.getInteger(Const.Config.SharingTokenExpiryProp));
     }
 
     // Tests:
@@ -4534,13 +4542,16 @@ public class UIDOperatorVerticleTest {
     //   SHARER has no access to a keyset with a missing allowed_sites           - reject by sharing
     //   SHARER has no access to a keyset with an empty allowed_sites            - reject by sharing
     //   SHARER has no access to a keyset with an allowed_sites for other sites  - reject by sharing    
-    void keySharingKeysets_SHARER(Vertx vertx, VertxTestContext testContext, int expectedMaxSharingLifetimeSeconds) {
+    void keySharingKeysets_SHARER(boolean provideSiteDomainNames, boolean provideAppNames, Vertx vertx, VertxTestContext testContext, int expectedMaxSharingLifetimeSeconds) {
+        if (!provideAppNames) {
+            this.uidOperatorVerticle.setKeySharingEndpointProvideAppNames(false);
+        }
         String apiVersion = "v2";
         int clientSiteId = 101;
         fakeAuth(clientSiteId, Role.SHARER);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
         //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate against expectedKeys
-        setupSiteDomainAndAppNameMock(true, false, 101, 102, 103, 104, 105);
+        setupSiteDomainAndAppNameMock(provideSiteDomainNames, provideAppNames, 101, 102, 103, 104, 105);
         //Keys from these keysets are not expected: keyset6 (disabled keyset), keyset7 (sharing with ID_READERs but not SHARERs), keyset8 (not sharing with 101), keyset10 (not sharing with anyone)
         KeysetKey[] expectedKeys = {
                 createKey(1001, now.minusSeconds(5), now.plusSeconds(3600), MasterKeysetId),
@@ -4576,7 +4587,7 @@ public class UIDOperatorVerticleTest {
 
             checkEncryptionKeys(respJson, KeyDownloadEndpoint.SHARING, clientSiteId, expectedKeys);
 
-            Map<Integer, Site> expectedSites = setupExpectation(true, false, 101, 104);
+            Map<Integer, Site> expectedSites = setupExpectation(provideSiteDomainNames, provideAppNames, 101, 104);
             verifyExpectedSiteDetail(expectedSites, respJson.getJsonObject("body").getJsonArray("site_data"));
 
             testContext.completeNow();

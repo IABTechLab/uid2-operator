@@ -4371,15 +4371,10 @@ public class UIDOperatorVerticleTest {
             List<String> actualDomainList = (List<String>) siteDetail.getMap().get("domain_names");
             Site expectedSite = expectedSites.get(siteId);
             int size = 0;
-            if (!CollectionUtils.isEmpty(expectedSite.getDomainNames())) {
-                assertTrue(actualDomainList.containsAll(expectedSite.getDomainNames()));
-                size += expectedSite.getDomainNames().size();
-            }
-
-            if (!CollectionUtils.isEmpty(expectedSite.getAppNames())) {
-                assertTrue(actualDomainList.containsAll(expectedSite.getAppNames()));
-                size += expectedSite.getAppNames().size();
-            }
+            assertTrue(actualDomainList.containsAll(expectedSite.getDomainNames()));
+            size += expectedSite.getDomainNames().size();
+            assertTrue(actualDomainList.containsAll(expectedSite.getAppNames()));
+            size += expectedSite.getAppNames().size();
             assertEquals(size, actualDomainList.size());
         }
     }

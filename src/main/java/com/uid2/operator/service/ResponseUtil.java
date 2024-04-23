@@ -175,5 +175,6 @@ public class ResponseUtil {
         public static final String UnknownError = "unknown";
         public static final String InsufficientUserConsent = "insufficient_user_consent";
         public static final String InvalidHttpOrigin = "invalid_http_origin";
+        public static final String InvalidAppName = "invalid_app_name";
     }
 }

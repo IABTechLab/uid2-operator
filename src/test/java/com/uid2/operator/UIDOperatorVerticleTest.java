@@ -2665,7 +2665,9 @@ public class UIDOperatorVerticleTest {
     private void postCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
         WebClient client = WebClient.create(vertx);
         HttpRequest<Buffer> req = client.postAbs(getUrlForEndpoint(endpoint));
-        req.putHeader("origin", httpOriginHeader);
+        if (httpOriginHeader != null) {
+            req.putHeader("origin", httpOriginHeader);
+        }
         req.sendJsonObject(body, handler);
     }
 
@@ -2684,14 +2686,19 @@ public class UIDOperatorVerticleTest {
         })));
     }
 
-    private void setupCstgBackend(String... domainNames)
+    private void setupCstgBackend(String... domainNames) {
+        setupCstgBackend(List.of(domainNames), Collections.emptyList());
+    }
+
+    private void setupCstgBackend(List<String> domainNames, List<String> appNames)
     {
         setupSalts();
         setupKeys();
         ClientSideKeypair keypair = new ClientSideKeypair(clientSideTokenGenerateSubscriptionId, clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, clientSideTokenGenerateSiteId, "", Instant.now(), false, "");
         when(clientSideKeypairProvider.getSnapshot()).thenReturn(clientSideKeypairSnapshot);
         when(clientSideKeypairSnapshot.getKeypair(clientSideTokenGenerateSubscriptionId)).thenReturn(keypair);
-        when(siteProvider.getSite(clientSideTokenGenerateSiteId)).thenReturn(new Site(clientSideTokenGenerateSiteId, "test", true, new HashSet<>(List.of(domainNames))));
+        final Site site = new Site(clientSideTokenGenerateSiteId, "test", true, Collections.emptySet(), new HashSet<>(domainNames), new HashSet<>(appNames));
+        when(siteProvider.getSite(clientSideTokenGenerateSiteId)).thenReturn(site);
     }
 
     //if no identity is provided will get an error
@@ -2749,6 +2756,37 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
+            "''", // An empty quoted value results in the empty string.
+            "com.123",
+            "com.",
+    })
+    void cstgAppNameCheckFails(String appName, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend(Collections.emptyList(), List.of("com.123.Game.App.android"));
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), false, appName);
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                null,
+                data.getItem1(),
+                data.getItem2(),
+                403,
+                testContext,
+                respJson -> {
+                    final JsonObject expectedResponse = new JsonObject()
+                            .put("message", "unexpected app name")
+                            .put("status", "invalid_app_name");
+
+                    assertEquals(expectedResponse, respJson);
+
+                    assertTokenStatusMetrics(
+                            clientSideTokenGenerateSiteId,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.InvalidAppName);
+                    testContext.completeNow();
+                });
+    }
+
+    @ParameterizedTest
+    @CsvSource({
             "true,http://gototest.com",
             "false,http://gototest.com",
     })
@@ -2771,11 +2809,34 @@ public class UIDOperatorVerticleTest {
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
-                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOrigin: site test (123): http://gototest.com"));
+                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOriginAndAppName: site test (123): http://gototest.com"));
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin);
+                    testContext.completeNow();
+                });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "badAppName" })
+    void cstgLogsInvalidAppName(String appName, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
+        this.uidOperatorVerticle.setLastInvalidOriginProcessTime(Instant.now().minusSeconds(3600));
+
+        setupCstgBackend();
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), false, appName);
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                null,
+                data.getItem1(),
+                data.getItem2(),
+                403,
+                testContext,
+                respJson -> {
+                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOriginAndAppName: site test (123): " + appName));
                     testContext.completeNow();
                 });
     }
@@ -2795,7 +2856,7 @@ public class UIDOperatorVerticleTest {
         siteIdToInvalidOrigins.put(clientSideTokenGenerateSiteId, new HashSet<>(Arrays.asList("http://localhost1.com", "http://localhost2.com")));
         siteIdToInvalidOrigins.put(124, new HashSet<>(Arrays.asList("http://xyz1.com", "http://xyz2.com")));
 
-        this.uidOperatorVerticle.setSiteIdToInvalidOrigins(siteIdToInvalidOrigins);
+        this.uidOperatorVerticle.setSiteIdToInvalidOriginsAndAppNames(siteIdToInvalidOrigins);
 
         setupCstgBackend();
         when(siteProvider.getSite(124)).thenReturn(new Site(124, "test2", true, new HashSet<>()));
@@ -2812,7 +2873,7 @@ public class UIDOperatorVerticleTest {
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
-                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOrigin: site test (123): http://localhost1.com, http://gototest.com, http://localhost2.com | site test2 (124): http://xyz1.com, http://xyz2.com"));
+                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOriginAndAppName: site test (123): http://localhost1.com, http://gototest.com, http://localhost2.com | site test2 (124): http://xyz1.com, http://xyz2.com"));
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
@@ -2836,6 +2897,33 @@ public class UIDOperatorVerticleTest {
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
+                data.getItem1(),
+                data.getItem2(),
+                200,
+                testContext,
+                respJson -> {
+                    assertEquals("success", respJson.getString("status"));
+
+                    JsonObject refreshBody = respJson.getJsonObject("body");
+                    assertNotNull(refreshBody);
+                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+                    validateAndGetToken(encoder, refreshBody, IdentityType.Email); //to validate token version is correct
+                    testContext.completeNow();
+                });
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "com.123.Game.App.android",
+            "com.123.game.app.android",
+            "123456789",
+    })
+    void cstgAppNameCheckPasses(String appName, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend(Collections.emptyList(), List.of("com.123.Game.App.android", "123456789"));
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), false, appName);
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                null,
                 data.getItem1(),
                 data.getItem2(),
                 200,
@@ -3272,7 +3360,7 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithPayload(JsonObject identityPayload, long timestamp) throws NoSuchAlgorithmException, InvalidKeyException {
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithPayload(JsonObject identityPayload, long timestamp, String appName) throws NoSuchAlgorithmException, InvalidKeyException {
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
         final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
@@ -3280,8 +3368,11 @@ public class UIDOperatorVerticleTest {
         final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
 
         final byte[] iv = Random.getBytes(12);
-        final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
-        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad);
+        final JsonArray aad = JsonArray.of(timestamp);
+        if (appName != null) {
+            aad.add(appName);
+        }
+        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad.toBuffer().getBytes());
         final String payload = EncodingUtils.toBase64String(payloadBytes);
 
         JsonObject requestJson = new JsonObject();
@@ -3291,10 +3382,18 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
+        if (appName != null) {
+            requestJson.put("app_name", appName);
+        }
+
         return new Tuple.Tuple2<>(requestJson, secretKey);
     }
 
     private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId, long timestamp, boolean setOptoutCheckFlagInRequest) throws NoSuchAlgorithmException, InvalidKeyException {
+        return createClientSideTokenGenerateRequest(identityType, rawId, timestamp, setOptoutCheckFlagInRequest, null);
+    }
+
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId, long timestamp, boolean setOptoutCheckFlagInRequest, String appName) throws NoSuchAlgorithmException, InvalidKeyException {
 
         JsonObject identity = new JsonObject();
 
@@ -3312,12 +3411,12 @@ public class UIDOperatorVerticleTest {
             identity.put("optout_check", 1);
         }
 
-        return createClientSideTokenGenerateRequestWithPayload(identity, timestamp);
+        return createClientSideTokenGenerateRequestWithPayload(identity, timestamp, appName);
     }
 
     private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequestWithNoPayload(long timestamp) throws NoSuchAlgorithmException, InvalidKeyException {
         JsonObject identity = new JsonObject();
-        return createClientSideTokenGenerateRequestWithPayload(identity, timestamp);
+        return createClientSideTokenGenerateRequestWithPayload(identity, timestamp, null);
     }
 
 

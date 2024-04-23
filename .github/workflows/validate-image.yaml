@@ -41,3 +41,11 @@ jobs:
       cloud_provider: 'gcp'
     secrets: inherit
     needs: [build-publish-docker-aws]
+  build-publish-docker-azure:
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@v2
+    with: 
+      failure_severity: ${{ inputs.failure_severity || 'CRITICAL,HIGH' }}
+      fail_on_error: ${{ inputs.fail_on_error || true }}
+      cloud_provider: 'azure'
+    secrets: inherit
+    needs: [build-publish-docker-gcp]

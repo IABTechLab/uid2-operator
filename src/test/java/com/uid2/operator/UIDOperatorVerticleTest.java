@@ -2819,6 +2819,29 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = { "badAppName" })
+    void cstgLogsInvalidAppName(String appName, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
+        this.uidOperatorVerticle.setLastInvalidOriginProcessTime(Instant.now().minusSeconds(3600));
+
+        setupCstgBackend();
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), false, appName);
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                null,
+                data.getItem1(),
+                data.getItem2(),
+                403,
+                testContext,
+                respJson -> {
+                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOriginAndAppName: site test (123): " + appName));
+                    testContext.completeNow();
+                });
+    }
+
+    @ParameterizedTest
     @CsvSource({
             "true,http://gototest.com",
             "false,http://gototest.com",

@@ -7,6 +7,7 @@ import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.store.*;
+import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 
 import java.time.Clock;
@@ -26,8 +27,9 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        IOptOutStore optOutStore,
                                        Clock clock,
                                        IStatsCollectorQueue statsCollectorQueue,
-                                       SecureLinkValidatorService secureLinkValidationService) {
-        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService);
+                                       SecureLinkValidatorService secureLinkValidationService,
+                                       Handler<Boolean> saltRetrievalResponseHandler) {
+        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler);
     }
 
     public IUIDOperatorService getIdService() {

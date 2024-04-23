@@ -37,7 +37,8 @@ public class TokenResponseStatsCollector {
         BadJsonPayload, // can't even deserialise the JSON payload 
         PayloadHasNoBody,
         /* End of CSTG-related Status */
-        Unknown
+        Unknown,
+        NoActiveKey
     }
 
     public static void record(ISiteStore siteStore, Integer siteId, Endpoint endpoint, TokenVersion advertisingTokenVersion, ResponseStatus responseStatus) {

@@ -110,6 +110,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final boolean clientSideTokenGenerateLogInvalidHttpOrigin;
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
+    private final Handler<Boolean> saltRetrievalResponseHandler;
 
     private final int maxBidstreamLifetimeSeconds;
     private final int allowClockSkewSeconds;
@@ -128,7 +129,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IOptOutStore optOutStore,
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue,
-                               SecureLinkValidatorService secureLinkValidatorService) {
+                               SecureLinkValidatorService secureLinkValidatorService,
+                               Handler<Boolean> saltRetrievalResponseHandler) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -163,6 +165,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
         this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
+        this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
     }
 
     @Override
@@ -174,7 +177,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.saltProvider,
                 this.encoder,
                 this.clock,
-                this.identityScope
+                this.identityScope,
+                this.saltRetrievalResponseHandler
         );
 
         final Router router = createRoutesSetup();
@@ -433,12 +437,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             privacyBits.setClientSideTokenGenerateOptoutResponse();
         }
 
-        IdentityTokens identityTokens = this.idService.generateIdentity(
-                new IdentityRequest(
-                        new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
-                        input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
-                        OptoutCheckPolicy.RespectOptOut));
-
+        IdentityTokens identityTokens;
+        try {
+            identityTokens = this.idService.generateIdentity(
+                    new IdentityRequest(
+                            new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
+                            input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
+                            OptoutCheckPolicy.RespectOptOut));
+        } catch (KeyManager.NoActiveKeyException e){
+            SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, e);
+            return;
+        }
         JsonObject response;
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
@@ -829,6 +838,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
                 } else if (r.isExpired()) {
                     ResponseUtil.Warning(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                } else if (r.noActiveKey()) {
+                    SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, new KeyManager.NoActiveKeyException("No active encryption key available"));
                 } else {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
@@ -970,7 +981,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                 OptoutCheckPolicy.respectOptOut()));
 
                 if (t.isEmptyToken()) {
-                    if(optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
+                    if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
                         final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
                                 ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
                                 : InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone);
@@ -996,6 +1007,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion());
                 }
             }
+        } catch (KeyManager.NoActiveKeyException e) {
+            SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, e);
         } catch (ClientInputValidationException cie) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "request body contains invalid argument(s)", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider);
         } catch (Exception e) {

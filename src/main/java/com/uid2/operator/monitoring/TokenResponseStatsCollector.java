@@ -31,6 +31,7 @@ public class TokenResponseStatsCollector {
         BadPublicKey,
         BadSubscriptionId,
         InvalidHttpOrigin,
+        InvalidAppName,
         BadIV,
         BadPayload, //the actual cstg payload in the JSON request 
         BadJsonPayload, // can't even deserialise the JSON payload 

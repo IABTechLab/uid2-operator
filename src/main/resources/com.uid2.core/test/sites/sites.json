@@ -3,7 +3,8 @@
     "id": 123,
     "name": "MegaTest Site",
     "enabled": true,
-    "domain_names" : ["localhost", "uidapi.com"]
+    "domain_names" : ["localhost", "uidapi.com"],
+    "app_names": ["com.123.Game.App.android", "123456789", "com.123.Game.App.ios", "com.uid2.devapp"]
   },
   {
     "id": 124,

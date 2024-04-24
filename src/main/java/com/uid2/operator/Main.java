@@ -95,6 +95,7 @@ public class Main {
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
+        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC());
 
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
 
@@ -102,7 +103,6 @@ public class Main {
         var operatorKey = operatorKeyRetriever.retrieve();
 
         DownloadCloudStorage fsStores;
-        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC());
         if (coreAttestUrl != null) {
 
             var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);

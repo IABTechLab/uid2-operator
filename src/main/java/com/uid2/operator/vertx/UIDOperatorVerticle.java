@@ -16,9 +16,11 @@ import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Const.Data;
+import com.uid2.shared.InstantClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.*;
 import com.uid2.shared.encryption.AesGcm;
+import com.uid2.shared.encryption.Random;
 import com.uid2.shared.health.HealthComponent;
 import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.middleware.AuthMiddleware;
@@ -601,6 +603,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private String getSharingTokenExpirySeconds() {
         return config.getString(Const.Config.SharingTokenExpiryProp);
     }
+    private int getMaxIdentityBucketsResponseEntries() {
+        return config.getInteger(Const.Config.MaxIdentityBucketsResponseEntries, 1048576);
+    }
+    private int getIdentityBucketsResponseChunkSize() {
+        return config.getInteger(Const.Config.IdentityBucketsResponseChunkSize, 1048576);
+    }
 
     public void handleKeysSharing(RoutingContext rc) {
         try {
@@ -1165,17 +1173,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
-            final JsonArray resp = new JsonArray();
             if (modified != null) {
-                for (SaltEntry e : modified) {
-                    final JsonObject o = new JsonObject();
-                    o.put("bucket_id", e.getHashedId());
-                    Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
-
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
-                    resp.add(o);
+                if (modified.size() > getMaxIdentityBucketsResponseEntries()) {
+                    ResponseUtil.ClientError(rc, "provided since_timestamp produced large response. please provide a more recent since_timestamp or remap all with /identity/map");
+                    return;
                 }
-                ResponseUtil.Success(rc, resp);
+                transmitModifiedBucketsInChunks(rc, modified);
             }
         } else {
             ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
@@ -1196,21 +1199,45 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
-            final JsonArray resp = new JsonArray();
             if (modified != null) {
-                for (SaltEntry e : modified) {
-                    final JsonObject o = new JsonObject();
-                    o.put("bucket_id", e.getHashedId());
-                    Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
-
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
-                    resp.add(o);
+                if (modified.size() > getMaxIdentityBucketsResponseEntries()) {
+                    ResponseUtil.ClientError(rc, "provided since_timestamp produced large response. please provide a more recent since_timestamp or remap all with /identity/map");
+                    return;
                 }
-                ResponseUtil.SuccessV2(rc, resp);
+                try {
+                    transmitModifiedBucketsInChunksEncrypted(rc, modified);
+                } catch (InvalidKeyException | InvalidAlgorithmParameterException | NoSuchAlgorithmException |
+                         NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
+                    ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
+                }
             }
         } else {
             ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
         }
+    }
+
+    private void transmitModifiedBucketsInChunks(RoutingContext rc, List<SaltEntry> modified) {
+        HttpServerResponse response = rc.response();
+
+        ModifiedBucketReadStream readStream = new ModifiedBucketReadStream(this.vertx.getOrCreateContext(), modified, getIdentityBucketsResponseChunkSize());
+
+        response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        readStream.pipe().endOnSuccess(true).to(response);
+    }
+
+    private void transmitModifiedBucketsInChunksEncrypted(RoutingContext rc, List<SaltEntry> modified) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        HttpServerResponse response = rc.response();
+
+        ModifiedBucketReadStream readStream = new ModifiedBucketReadStream(this.vertx.getOrCreateContext(), modified, getIdentityBucketsResponseChunkSize());
+        ModifiedBucketEncryptStream encryptStream = new ModifiedBucketEncryptStream(this.vertx.getOrCreateContext(), request.encryptionKey, request.nonce);
+        ModifiedBucketEncodeStream encodeStream = new ModifiedBucketEncodeStream(this.vertx.getOrCreateContext());
+
+        response.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
+        readStream.pipe().endOnSuccess(true).to(encryptStream);
+        encryptStream.pipe().endOnSuccess(true).to(encodeStream);
+        encodeStream.pipe().to(response);
+
     }
 
     private void handleIdentityMapV1(RoutingContext rc) {

@@ -764,11 +764,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static JsonObject toJson(Site site, boolean includeAppNames) {
         JsonObject siteObj = new JsonObject();
         siteObj.put("id", site.getId());
-        Set<String> domainOrAppNames = new HashSet<>();
-        if (CollectionUtils.isNotEmpty(site.getDomainNames())) {
-            domainOrAppNames.addAll(site.getDomainNames());
-        }
-        if (includeAppNames && CollectionUtils.isNotEmpty(site.getAppNames())) {
+        Set<String> domainOrAppNames = new HashSet<>(site.getDomainNames());
+
+        if (includeAppNames) {
             domainOrAppNames.addAll(site.getAppNames());
         }
         siteObj.put("domain_names", domainOrAppNames.stream().sorted().collect(Collectors.toList()));

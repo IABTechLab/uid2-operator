@@ -29,14 +29,15 @@ runs:
       id: get_eif_for_run
       uses:  actions/download-artifact@v4
       with:
-        name: aws-euid-deployment-files-5.28.157-alpha-118-SNAPSHOT
         run-id: ${{ inputs.operator_run_number }}
         merge-multiple: true
         path: ./uid2-operator-ami/artifacts
 
     - name: Show AWS Identity
       shell: bash
+      working-directory: uid2-operator-ami
       run: |
+        ls -l
         aws sts get-caller-identity
 
     - name: Get version number

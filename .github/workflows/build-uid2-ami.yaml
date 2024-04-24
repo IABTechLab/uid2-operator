@@ -32,7 +32,7 @@ jobs:
 
       - name: Build UID2 Operator AMI
         id: buildAMI
-        uses: .github/actions/build_ami
+        uses: ./.github/actions/build_ami
         with:
           identity_scope: euid
           operator_run_number: ${{ inputs.operator_run_number }}

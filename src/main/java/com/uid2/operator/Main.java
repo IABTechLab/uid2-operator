@@ -102,8 +102,8 @@ public class Main {
         var operatorKey = operatorKeyRetriever.retrieve();
 
         DownloadCloudStorage fsStores;
+        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC());
         if (coreAttestUrl != null) {
-            this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC());
 
             var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);
             UidCoreClient coreClient = clients.getKey();

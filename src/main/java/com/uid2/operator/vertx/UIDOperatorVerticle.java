@@ -50,6 +50,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.StaticHandler;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,8 +116,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int maxBidstreamLifetimeSeconds;
     private final int allowClockSkewSeconds;
     protected int maxSharingLifetimeSeconds;
-    protected boolean keySharingEndpointProvideSiteDomainNames;
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
+    protected boolean keySharingEndpointProvideAppNames;
     protected Instant lastInvalidOriginProcessTime = Instant.now();
 
     public UIDOperatorVerticle(JsonObject config,
@@ -153,7 +154,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
-        this.keySharingEndpointProvideSiteDomainNames = config.getBoolean("key_sharing_endpoint_provide_site_domain_names", false);
+        this.keySharingEndpointProvideAppNames = config.getBoolean("key_sharing_endpoint_provide_app_names", false);
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
         this.clientSideTokenGenerateLogInvalidHttpOrigin = config.getBoolean("client_side_token_generate_log_invalid_http_origins", false);
@@ -670,7 +671,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void addSites(JsonObject resp, List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
-        final List<Site> sites = getSitesWithDomainNames(keys, keysetMap);
+        final List<Site> sites = getSitesWithDomainOrAppNames(keys, keysetMap);
         if (sites != null) {
             /*
             The end result will look something like this:
@@ -686,14 +687,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     {
                         "id": 102,
                         "domain_names": [
-                            "102.co.uk",
-                            "102.com"
+                            "101.co.uk",
+                            "101.com",
+                            "com.uid2.operator",
+                            "123456789"
                         ]
                     }
                 ]
             */
             final List<JsonObject> sitesJson = sites.stream()
-                    .map(UIDOperatorVerticle::toJson)
+                    .map(site -> UIDOperatorVerticle.toJson(site, keySharingEndpointProvideAppNames))
                     .collect(Collectors.toList());
             resp.put("site_data", sitesJson);
         }
@@ -732,12 +735,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         resp.put("allow_clock_skew_seconds", allowClockSkewSeconds);
     }
 
-    private List<Site> getSitesWithDomainNames(List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
+    private List<Site> getSitesWithDomainOrAppNames(List<KeysetKey> keys, Map<Integer, Keyset> keysetMap) {
         //without cstg enabled, operator won't have site data and siteProvider could be null
-        //and adding keySharingEndpointProvideSiteDomainNames in case something goes wrong
-        //and we can still enable cstg feature but turn off site domain name download in
-        // key/sharing endpoint
-        if (!keySharingEndpointProvideSiteDomainNames || !clientSideTokenGenerate) {
+        if (!clientSideTokenGenerate) {
             return null;
         }
 
@@ -747,7 +747,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .distinct()
                 .mapToObj(siteProvider::getSite)
                 .filter(Objects::nonNull)
-                .filter(site -> !site.getDomainNames().isEmpty())
+                .filter(site -> {
+                    if (CollectionUtils.isNotEmpty(site.getDomainNames())) {
+                        return true;
+                    } else {
+                        return keySharingEndpointProvideAppNames && CollectionUtils.isNotEmpty(site.getAppNames());
+                    }
+                })
                 .collect(Collectors.toList());
     }
 
@@ -755,10 +761,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
      * Converts the specified site to a JSON object.
      * Includes the following fields: id, domain_names.
      */
-    private static JsonObject toJson(Site site) {
+    private static JsonObject toJson(Site site, boolean includeAppNames) {
         JsonObject siteObj = new JsonObject();
         siteObj.put("id", site.getId());
-        siteObj.put("domain_names", site.getDomainNames().stream().sorted().collect(Collectors.toList()));
+        Set<String> domainOrAppNames = new HashSet<>(site.getDomainNames());
+
+        if (includeAppNames) {
+            domainOrAppNames.addAll(site.getAppNames());
+        }
+        siteObj.put("domain_names", domainOrAppNames.stream().sorted().collect(Collectors.toList()));
         return siteObj;
     }
 

@@ -34,6 +34,6 @@ jobs:
         id: buildAMI
         uses: .github/actions/build_ami
         with:
-          identity_scope: uid2
+          identity_scope: euid
           operator_run_number: ${{ inputs.operator_run_number }}
       

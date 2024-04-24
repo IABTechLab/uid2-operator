@@ -1,0 +1,121 @@
+name: Build AMI
+description: Builds the AMI for AWS private operators
+
+inputs:
+  identity_scope:
+    description: The identity scope [uid2, euid]
+    required: true
+  operator_run_number:
+    description: The Operator run number for artifacts
+
+outputs:
+  version_number:
+    description: The version number set in IABTechLab/uid2-operator pom.xml.
+    value: ${{ steps.versionNumber.outputs.version_number }}
+
+runs:
+  using: "composite"
+
+  steps:
+    - name: Show Context
+      shell: bash
+      run: |
+        printenv
+        echo "$GITHUB_CONTEXT"
+      env: 
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+
+    - name: Get EIF for Run ${{ inputs.operator_run_number }}
+      id: get_eif_for_run
+      uses:  actions/download-artifact@v4
+      with:
+        name: 'aws-${{ inputs.identity_scope }}-deployment-files-.*'
+        run-id: ${{ inputs.operator_run_number }}
+        merge_multiple: true
+        path: ./uid2-operator-ami/artifacts
+
+    - name: Show AWS Identity
+      shell: bash
+      run: |
+        aws sts get-caller-identity
+
+    - name: Get version number
+      id: versionNumber
+      shell: bash
+      working-directory: uid2-operator-ami
+      run: |
+        VERSION_NUMBER=$(cat ./artifacts/version_number.txt)
+        echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+        echo $VERSION_NUMBER
+
+    - name: Create AMI
+      shell: bash
+      working-directory: uid2-operator-ami
+      run: |
+        TIMESTAMP=$(date +%s)
+        echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_OUTPUT
+        packer init .
+        packer build \
+          -var "version=${{ steps.versionNumber.outputs.VERSION_NUMBER }}" \
+          -var "timestamp=$TIMESTAMP" \
+          -var-file="${{ inputs.identity_scope }}.pkrvars.hcl" \
+          .
+
+    - name: Extract AMI ID
+      id: extractAmiId
+      shell: bash
+      working-directory: uid2-operator-ami
+      run: |
+        AMI_ID=$(jq -r '.builds[-1].artifact_id' manifest.json | cut -d ":" -f2)
+        echo "AMI_ID=$AMI_ID" >> $GITHUB_OUTPUT
+        echo $AMI_ID
+
+    - name: Persist UID2 enclave and AMI IDs
+      if: ${{ inputs.identity_scope == 'uid2' }}
+      shell: bash
+      working-directory: uid2-operator-ami
+      run: |
+        touch uid2_AMI_measurement.txt
+        echo "Enclave ID: $(cat ./artifacts/pcr0.txt)" >> uid2_AMI_measurement.txt
+        echo "AMI ID: " ${{ steps.extractAmiId.outputs.AMI_ID }} >> uid2_AMI_measurement.txt
+        echo "uid2_AMI_measurement.txt Contents:"
+        cat uid2_AMI_measurement.txt
+
+    - name: Copy AMI to us-east-1
+      id: euidCopyAmi
+      if: ${{ inputs.identity_scope == 'euid' }}
+      shell: bash
+      working-directory: uid2-operator-ami
+      run: |
+        US_EAST_AMI_ID=$(aws ec2 copy-image --region us-east-1 --source-region eu-central-1 --source-image-id ${{ steps.extractAmiId.outputs.AMI_ID }} --name euid-operator-${{ steps.versionNumber.outputs.VERSION_NUMBER }}-${{ steps.createAMI.outputs.TIMESTAMP }} --output text)
+        echo "US_EAST_1_AMI_ID=$US_EAST_AMI_ID" >> $GITHUB_OUTPUT
+        echo $US_EAST_AMI_ID
+
+    - name: Persist EUID enclave and AMI IDs
+      if: ${{ inputs.identity_scope == 'euid' }}
+      shell: bash
+      working-directory: uid2-operator-ami
+      run: |
+        touch euid_AMI_measurement.txt
+        echo "Enclave ID: $(cat ./artifacts/pcr0.txt)" >> euid_AMI_measurement.txt
+        echo "eu-central-1 AMI ID:" ${{ steps.extractAmiId.outputs.AMI_ID }} >> euid_AMI_measurement.txt
+        echo "us-east-1 AMI ID:" ${{ steps.euidCopyAmi.outputs.US_EAST_1_AMI_ID }} >> euid_AMI_measurement.txt
+        echo "euid_AMI_measurement.txt contents"
+        cat euid_AMI_measurement.txt
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      if: ${{ inputs.save_ami == 'true' }}
+      with:
+        name: ${{ inputs.identity_scope }}_AMI_measurement
+        path: uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt
+
+    - name: Post-cleanup
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        echo "Cleaning up previous run"
+        sudo rm -rf * || true
+        docker stop $(docker ps -aq) || true
+        docker rm $(docker ps -aq) || true
+        docker rmi $(docker images -q) || true

@@ -29,7 +29,7 @@ runs:
       id: get_eif_for_run
       uses:  actions/download-artifact@v4
       with:
-        name: 'aws-${{ inputs.identity_scope }}-deployment-files-*'
+        name: aws-${{ inputs.identity_scope }}-deployment-files-*
         run-id: ${{ inputs.operator_run_number }}
         merge-multiple: true
         path: ./uid2-operator-ami/artifacts

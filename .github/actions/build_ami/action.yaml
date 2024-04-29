@@ -67,6 +67,10 @@ runs:
         VERSION_NUMBER=$(cat ./artifacts/version_number.txt)
         echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
         echo $VERSION_NUMBER
+    
+    - name: Setup Packer
+      id: setup-packer
+      uses: hashicorp/setup-packer@main
 
     - name: Create AMI
       shell: bash

@@ -39,6 +39,7 @@ runs:
     - name: Move download
       shell: bash
       run: |
+        mkdir ./scripts/aws/uid2-operator-ami/artifacts
         DWN=$(find ./download/artifacts -name 'aws-${{ inputs.identity_scope }}-deployment-files*' -type d)
         echo $DWN
         mv $DWN/* ./scripts/aws/uid2-operator-ami/artifacts

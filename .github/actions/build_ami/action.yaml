@@ -36,11 +36,21 @@ runs:
         pattern: aws-${{ inputs.identity_scope }}-deployment-files-*
         path: ./uid2-operator-ami/artifacts
 
-    - name: Show AWS Identity
+    - name: Show download
       shell: bash
       working-directory: uid2-operator-ami
       run: |
         ls -l
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: us-east-2
+        role-to-assume: arn:aws:iam::072245134533:role/github-runner-operator-runner
+
+    - name: Show AWS Identity
+      shell: bash
+      run: |
         aws sts get-caller-identity
 
     - name: Get version number

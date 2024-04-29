@@ -39,4 +39,5 @@ jobs:
         with:
           identity_scope: euid
           operator_run_number: ${{ inputs.operator_run_number }}
-      
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        

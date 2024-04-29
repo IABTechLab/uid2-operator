@@ -30,7 +30,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: us-east-1
+          aws-region: us-east-2
           role-to-assume: arn:aws:iam::072245134533:role/github-runner-operator-runner
 
       - name: Build UID2 Operator AMI

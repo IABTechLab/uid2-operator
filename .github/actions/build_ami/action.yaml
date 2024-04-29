@@ -33,7 +33,7 @@ runs:
       with:
         github-token: ${{ inputs.github-token }}
         run-id: ${{ inputs.operator_run_number }}
-        merge-multiple: true
+        pattern: aws-${{ inputs.identity_scope }}-deployment-files-*
         path: ./uid2-operator-ami/artifacts
 
     - name: Show AWS Identity

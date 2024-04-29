@@ -34,19 +34,20 @@ runs:
         github-token: ${{ inputs.github-token }}
         run-id: ${{ inputs.operator_run_number }}
         pattern: aws-${{ inputs.identity_scope }}-deployment-files-*
-        path: ./uid2-operator-ami/artifacts
+        path: ./download/artifacts
 
-    - name: Show download
+    - name: Move download
       shell: bash
-      working-directory: uid2-operator-ami
       run: |
         ls -l
+        mv ./download/artifacts ./scripts/aws/uid2-operator-ami/artifacts
+        ls -l ./scripts/aws/uid2-operator-ami
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-region: us-east-2
-        role-to-assume: arn:aws:iam::072245134533:role/github-runner-operator-runner
+        role-to-assume: arn:aws:iam::475720075663:role/github-runner-operator-runner
 
     - name: Show AWS Identity
       shell: bash
@@ -56,7 +57,7 @@ runs:
     - name: Get version number
       id: versionNumber
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: scripts/aws/uid2-operator-ami
       run: |
         VERSION_NUMBER=$(cat ./artifacts/version_number.txt)
         echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
@@ -64,7 +65,7 @@ runs:
 
     - name: Create AMI
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: scripts/aws/uid2-operator-ami
       run: |
         TIMESTAMP=$(date +%s)
         echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_OUTPUT
@@ -78,7 +79,7 @@ runs:
     - name: Extract AMI ID
       id: extractAmiId
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: scripts/aws/uid2-operator-ami
       run: |
         AMI_ID=$(jq -r '.builds[-1].artifact_id' manifest.json | cut -d ":" -f2)
         echo "AMI_ID=$AMI_ID" >> $GITHUB_OUTPUT
@@ -87,7 +88,7 @@ runs:
     - name: Persist UID2 enclave and AMI IDs
       if: ${{ inputs.identity_scope == 'uid2' }}
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: scripts/aws/uid2-operator-ami
       run: |
         touch uid2_AMI_measurement.txt
         echo "Enclave ID: $(cat ./artifacts/pcr0.txt)" >> uid2_AMI_measurement.txt
@@ -99,7 +100,7 @@ runs:
       id: euidCopyAmi
       if: ${{ inputs.identity_scope == 'euid' }}
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: scripts/aws/uid2-operator-ami
       run: |
         US_EAST_AMI_ID=$(aws ec2 copy-image --region us-east-1 --source-region eu-central-1 --source-image-id ${{ steps.extractAmiId.outputs.AMI_ID }} --name euid-operator-${{ steps.versionNumber.outputs.VERSION_NUMBER }}-${{ steps.createAMI.outputs.TIMESTAMP }} --output text)
         echo "US_EAST_1_AMI_ID=$US_EAST_AMI_ID" >> $GITHUB_OUTPUT
@@ -108,7 +109,7 @@ runs:
     - name: Persist EUID enclave and AMI IDs
       if: ${{ inputs.identity_scope == 'euid' }}
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: scripts/aws/uid2-operator-ami
       run: |
         touch euid_AMI_measurement.txt
         echo "Enclave ID: $(cat ./artifacts/pcr0.txt)" >> euid_AMI_measurement.txt
@@ -122,14 +123,14 @@ runs:
       if: ${{ inputs.save_ami == 'true' }}
       with:
         name: ${{ inputs.identity_scope }}_AMI_measurement
-        path: uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt
+        path: scripts/aws/uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt
 
-    - name: Post-cleanup
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "Cleaning up previous run"
-        sudo rm -rf * || true
-        docker stop $(docker ps -aq) || true
-        docker rm $(docker ps -aq) || true
-        docker rmi $(docker images -q) || true
+    # - name: Post-cleanup
+    #   shell: bash
+    #   working-directory: ${{ github.workspace }}
+    #   run: |
+    #     echo "Cleaning up previous run"
+    #     sudo rm -rf * || true
+    #     docker stop $(docker ps -aq) || true
+    #     docker rm $(docker ps -aq) || true
+    #     docker rmi $(docker images -q) || true

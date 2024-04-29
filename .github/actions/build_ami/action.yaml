@@ -7,6 +7,8 @@ inputs:
     required: true
   operator_run_number:
     description: The Operator run number for artifacts
+  github-token:
+    description: The GITHUB token
 
 outputs:
   version_number:
@@ -29,7 +31,7 @@ runs:
       id: get_eif_for_run
       uses:  actions/download-artifact@v4
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ inputs.github-token }}
         run-id: ${{ inputs.operator_run_number }}
         merge-multiple: true
         path: ./uid2-operator-ami/artifacts

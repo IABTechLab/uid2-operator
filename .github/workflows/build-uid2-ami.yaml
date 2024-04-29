@@ -11,6 +11,8 @@ jobs:
   buildUID2:
     name: UID2 Operator AMI
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     outputs:
       version_number: ${{ steps.buildAMI.outputs.version_number }}
     steps:
@@ -26,12 +28,6 @@ jobs:
       #     docker stop $(docker ps -aq) || true
       #     docker rm $(docker ps -aq) || true
       #     docker rmi $(docker images -q) || true
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-region: us-east-2
-          role-to-assume: arn:aws:iam::072245134533:role/github-runner-operator-runner
 
       - name: Build UID2 Operator AMI
         id: buildAMI

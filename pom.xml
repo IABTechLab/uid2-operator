@@ -217,7 +217,7 @@
             <dependencies>
                 <dependency>
                     <groupId>com.uid2</groupId>
-                    <artifactId>attestation-azure</artifactId>
+                    <artifactId>uid2-attestation-azure</artifactId>
                     <version>${enclave-azure.version}</version>
                 </dependency>
             </dependencies>

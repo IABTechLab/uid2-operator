@@ -20,7 +20,7 @@
         <micrometer.version>1.1.0</micrometer.version>
         <enclave-api.version>2.0.0-f968aec0e3</enclave-api.version>
         <enclave-aws.version>2.0.0-f7c174410e</enclave-aws.version>
-        <enclave-azure.version>2.0.5-alpha-16-SNAPSHOT</enclave-azure.version>
+        <enclave-azure.version>2.0.6-alpha-17-SNAPSHOT</enclave-azure.version>
         <enclave-gcp.version>2.0.0-21f950573a</enclave-gcp.version>
         <uid2-shared.version>7.9.0</uid2-shared.version>
         <image.version>${project.version}</image.version>

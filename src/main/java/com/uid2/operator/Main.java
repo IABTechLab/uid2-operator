@@ -389,7 +389,7 @@ public class Main {
         final int portOffset = Utils.getPortOffset();
         VertxPrometheusOptions prometheusOptions = new VertxPrometheusOptions()
             .setStartEmbeddedServer(true)
-            .setEmbeddedServerOptions(new HttpServerOptions().setPort(Const.Port.PrometheusPortForOperator + portOffset))
+            .setEmbeddedServerOptions(new HttpServerOptions().setPort(Const.Port.PrometheusPortForOperator + portOffset).addEnabledSecureTransportProtocol("TLSv1.3"))
             .setEnabled(true);
 
         MicrometerMetricsOptions metricOptions = new MicrometerMetricsOptions()

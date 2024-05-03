@@ -366,7 +366,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
             // initially 1 partition
             this.partitions = new OptOutPartition[1];
-            this.partitions[0] = this.heap.toPartition(true);
+            // First partition intentionally null.
+            // Calling toPartition on an empty heap causes an assertion failure.
 
             // initially no indexed files
             this.indexedFiles = Collections.emptySet();
@@ -395,6 +396,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         public long size() {
             return Arrays.stream(this.partitions)
+                .filter(Objects::nonNull)
                 .mapToLong(OptOutPartition::size)
                 .sum();
         }
@@ -418,6 +420,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             }
 
             for (OptOutPartition s : this.partitions) {
+                if (s == null) continue;
                 long ts = s.getOptOutTimestamp(hashBytes);
                 if (ts != -1) return ts;
             }
@@ -557,7 +560,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
             // create a copy array, and replace the 1st entry
             OptOutPartition[] newPartitions = Arrays.copyOf(this.partitions, this.partitions.length);
-            newPartitions[0] = this.heap.toPartition(true);
+            // Calling toPartition on an empty heap causes an assertion failure.
+            newPartitions[0] = this.heap.isEmpty() ? null : this.heap.toPartition(true);
 
             OptOutStoreSnapshot.bloomFilterSize.set(this.bloomFilter.size());
             return new OptOutStoreSnapshot(this, this.bloomFilter, this.heap, newPartitions, iuc);
@@ -579,7 +583,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             }
 
             // produce a in-mem sorted partition for entries in heap
-            newPartitions[0] = newHeap.toPartition(true);
+            // Calling toPartition on an empty heap causes an assertion failure.
+            newPartitions[0] = newHeap.isEmpty() ? null : newHeap.toPartition(true);
 
             // the order of partition files needs to be sorted in time descending order
             int snapIndex = 1;
@@ -661,6 +666,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         private BloomFilter newBloomFilter(OptOutPartition[] newPartitions) {
             long newSize = Arrays.stream(newPartitions)
+                .filter(Objects::nonNull)
                 .mapToLong(OptOutPartition::size)
                 .sum();
 

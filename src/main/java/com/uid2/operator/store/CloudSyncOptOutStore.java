@@ -364,9 +364,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             int heapCapacity = jsonConfig.getInteger(Const.Config.OptOutHeapDefaultCapacityProp);
             this.heap = new OptOutHeap(heapCapacity);
 
-            // initially 1 partition
-            this.partitions = new OptOutPartition[1];
-            this.partitions[0] = this.heap.toPartition(true);
+            // initially 0 partitions
+            this.partitions = new OptOutPartition[0];
 
             // initially no indexed files
             this.indexedFiles = Collections.emptySet();
@@ -556,7 +555,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             }
 
             // create a copy array, and replace the 1st entry
-            OptOutPartition[] newPartitions = Arrays.copyOf(this.partitions, this.partitions.length);
+            OptOutPartition[] newPartitions = this.partitions.length == 0 ? new OptOutPartition[1] : Arrays.copyOf(this.partitions, this.partitions.length);
             newPartitions[0] = this.heap.toPartition(true);
 
             OptOutStoreSnapshot.bloomFilterSize.set(this.bloomFilter.size());
@@ -567,8 +566,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             int newSnaps = iuc.getLoadedPartitions().size();
             if (newSnaps == 0) return this;
 
-            int totalSnaps = this.partitions.length + newSnaps;
-            OptOutPartition[] newPartitions = new OptOutPartition[totalSnaps];
+            List<OptOutPartition> newPartitions = new ArrayList<>();
 
             // reset and rebuild heap, with recent files after every partition load
             // OptOutHeap newHeap = new OptOutHeap(this.heap.capacity());
@@ -579,10 +577,9 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             }
 
             // produce a in-mem sorted partition for entries in heap
-            newPartitions[0] = newHeap.toPartition(true);
+            newPartitions.add(newHeap.toPartition(true));
 
             // the order of partition files needs to be sorted in time descending order
-            int snapIndex = 1;
             Collection<String> sortedPartitionFiles = iuc.loadedPartitions.keySet();
             if (sortedPartitionFiles.size() > 1) {
                 sortedPartitionFiles = sortedPartitionFiles.stream()
@@ -592,24 +589,24 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             for (String key : sortedPartitionFiles) {
                 byte[] data = iuc.loadedPartitions.get(key);
                 assert data.length != 0;
-                newPartitions[snapIndex++] = new OptOutPartition(data);
+                newPartitions.add(new OptOutPartition(data));
             }
 
             // copy the old partition files, starting from index 1
-            for (int i = snapIndex; i < totalSnaps; ++i) {
-                newPartitions[i] = this.partitions[1 + i - snapIndex];
+            if (this.partitions.length > 0) {
+                newPartitions.addAll(Arrays.asList(this.partitions).subList(1, this.partitions.length));
             }
 
             // create a new bloomfilter, since adding new partition can retire old ones
             BloomFilter newBf = this.newBloomFilter(newPartitions);
-            for (int i = 0; i < newPartitions.length; ++i) {
-                if (newPartitions[i] == null) continue;
-                newPartitions[i].set(newBf);
+            for (OptOutPartition partition : newPartitions) {
+                if (partition == null) continue;
+                partition.set(newBf);
             }
 
             OptOutStoreSnapshot.bloomFilterSize.set(newBf.size());
             OptOutStoreSnapshot.bloomFilterMax.set(newBf.capacity());
-            return new OptOutStoreSnapshot(this, newBf, newHeap, newPartitions, iuc);
+            return new OptOutStoreSnapshot(this, newBf, newHeap, newPartitions.toArray(new OptOutPartition[0]), iuc);
         }
 
         // used for finding files to feed to index
@@ -659,10 +656,10 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             }
         }
 
-        private BloomFilter newBloomFilter(OptOutPartition[] newPartitions) {
-            long newSize = Arrays.stream(newPartitions)
-                .mapToLong(OptOutPartition::size)
-                .sum();
+        private BloomFilter newBloomFilter(Collection<OptOutPartition> newPartitions) {
+            long newSize = newPartitions.stream()
+                    .mapToLong(OptOutPartition::size)
+                    .sum();
 
             BloomFilter bf = this.bloomFilter;
             if (bf.capacity() < newSize || bf.load() > 0.1) {

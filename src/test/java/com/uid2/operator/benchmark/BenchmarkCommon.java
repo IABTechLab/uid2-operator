@@ -181,7 +181,7 @@ public class BenchmarkCommon {
         private CloudSyncOptOutStore.OptOutStoreSnapshot snapshot;
 
         public StaticOptOutStore(ICloudStorage storage, JsonObject jsonConfig, Collection<String> partitions) throws CloudStorageException, IOException {
-            snapshot = new CloudSyncOptOutStore.OptOutStoreSnapshot(storage, jsonConfig);
+            snapshot = new CloudSyncOptOutStore.OptOutStoreSnapshot(storage, jsonConfig, Clock.systemUTC());
             snapshot = snapshot.updateIndex(partitions);
             System.out.println(snapshot.size());
         }

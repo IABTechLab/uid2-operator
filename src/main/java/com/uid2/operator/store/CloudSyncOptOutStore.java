@@ -35,6 +35,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -326,6 +327,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         private static final AtomicLong bloomFilterSize = new AtomicLong(0);
         private static final AtomicLong bloomFilterMax = new AtomicLong(0);
         private static final AtomicLong totalEntries = new AtomicLong(0);
+        private static final BiFunction<Long, Long, Long> OPT_OUT_TIMESTAMP_MERGE_STRATEGY = Long::min;
 
         private final DownloadCloudStorage fsLocal;
 
@@ -335,6 +337,12 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         // a bloom filter to help optimizing the non-existing case for optout entry lookup
         private final BloomFilter bloomFilter;
+
+
+        /**
+         * A map from advertising IDs to optout timestamps.
+         */
+        private final Map<String, Long> adIdToOptOutTimestamp;
 
         // array of optout partitions
         private final OptOutPartition[] partitions;
@@ -364,6 +372,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             int heapCapacity = jsonConfig.getInteger(Const.Config.OptOutHeapDefaultCapacityProp);
             this.heap = new OptOutHeap(heapCapacity);
 
+            this.adIdToOptOutTimestamp = Collections.emptyMap();
+
             // initially 0 partitions
             this.partitions = new OptOutPartition[0];
 
@@ -388,6 +398,14 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             newIndexedFiles.addAll(iuc.loadedPartitions.keySet());
             this.indexedFiles = Collections.unmodifiableSet(newIndexedFiles);
 
+            HashMap<String, Long> newOptOutTimestamps = new HashMap<>();
+            for (OptOutPartition partition : this.partitions) {
+                partition.forEach(entry -> {
+                    newOptOutTimestamps.merge(entry.advertisingIdToB64(), entry.timestamp, OPT_OUT_TIMESTAMP_MERGE_STRATEGY);
+                });
+            }
+            this.adIdToOptOutTimestamp = Collections.unmodifiableMap(newOptOutTimestamps);
+
             // update total entries
             totalEntries.set(size());
         }
@@ -402,6 +420,10 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         public boolean isHealthy(Instant now) {
             // index is healthy if it is updated within 3 * logRotationInterval
             return lastUpdatedTimestamp.get().plusSeconds(fileUtils.lookbackGracePeriod()).isAfter(now);
+        }
+
+        public long getAdIdOptOutTimestamp(String advertisingId) {
+            return this.adIdToOptOutTimestamp.getOrDefault(advertisingId, -1L);
         }
 
         // method provided for OptOutService to call

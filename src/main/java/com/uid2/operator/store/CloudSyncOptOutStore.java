@@ -8,6 +8,7 @@ import com.uid2.operator.model.UserIdentity;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.shared.Utils;
 import com.uid2.shared.cloud.CloudStorageException;
+import com.uid2.shared.cloud.DownloadCloudStorage;
 import com.uid2.shared.cloud.ICloudStorage;
 import com.uid2.shared.cloud.MemCachedStorage;
 import com.uid2.shared.optout.*;
@@ -325,7 +326,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         private static final AtomicLong bloomFilterMax = new AtomicLong(0);
         private static final AtomicLong totalEntries = new AtomicLong(0);
 
-        private final ICloudStorage fsLocal;
+        private final DownloadCloudStorage fsLocal;
 
         // holds a heap data structure for unsorted optout entries
         // a new optout log will be produced at a regular interval (5mins), which will be loaded to heap
@@ -344,7 +345,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         private final FileUtils fileUtils;
 
-        public OptOutStoreSnapshot(ICloudStorage fsLocal, JsonObject jsonConfig) {
+        public OptOutStoreSnapshot(DownloadCloudStorage fsLocal, JsonObject jsonConfig) {
             this.fsLocal = fsLocal;
             this.fileUtils = new FileUtils(jsonConfig);
 

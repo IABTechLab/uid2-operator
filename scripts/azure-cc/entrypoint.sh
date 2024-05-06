@@ -5,6 +5,7 @@
 function wait_for_sidecar() {
   url="http://169.254.169.254/ping"
   delay=1
+  max_retries=15
 
   while true; do
     if wget -q --spider --tries=1 --timeout 5 "$url" > /dev/null; then
@@ -14,6 +15,10 @@ function wait_for_sidecar() {
       echo "side car not started. Retrying in $delay seconds..."
       sleep $delay
       delay=$((delay + 1))
+      if [ $delay -gt $max_retries ]; then
+        echo "side car failed to start"
+        break
+      fi
     fi
   done
 }

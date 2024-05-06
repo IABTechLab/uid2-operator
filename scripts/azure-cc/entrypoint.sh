@@ -2,6 +2,22 @@
 #
 # This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
+function wait_for_sidecar() {
+  url="http://169.254.169.254/ping"
+  delay=1
+
+  while true; do
+    if curl -s --connect-timeout 5 "$url" > /dev/null; then
+      echo "side car started"
+      break
+    else
+      echo "side car not started. Retrying in $delay seconds..."
+      sleep $delay
+      delay=$((delay + 1))
+    fi
+  done
+}
+
 TMP_FINAL_CONFIG="/tmp/final-config.tmp"
 
 if [ -z "${VAULT_NAME}" ]; then
@@ -51,6 +67,9 @@ if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONME
 fi
 
 cat $FINAL_CONFIG
+
+# delay the start of the operator until the side car has started correctly
+wait_for_sidecar
 
 # -- start operator
 echo "-- starting java application"

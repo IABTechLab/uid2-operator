@@ -7,7 +7,7 @@ function wait_for_sidecar() {
   delay=1
 
   while true; do
-    if curl -s --connect-timeout 5 "$url" > /dev/null; then
+    if wget -q --spider --tries=1 --timeout 5 "$url" > /dev/null; then
       echo "side car started"
       break
     else

@@ -14,11 +14,11 @@ function wait_for_sidecar() {
     else
       echo "side car not started. Retrying in $delay seconds..."
       sleep $delay
-      delay=$((delay + 1))
       if [ $delay -gt $max_retries ]; then
         echo "side car failed to start"
         break
       fi
+      delay=$((delay + 1))
     fi
   done
 }

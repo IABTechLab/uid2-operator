@@ -389,8 +389,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         public long size() {
             return Arrays.stream(this.partitions)
-                .<Long>map(p -> (long)p.size())
-                .reduce(0L, (a, b) -> a + b);
+                .mapToLong(OptOutPartition::size)
+                .sum();
         }
 
         // method provided for OptOutService to assess health
@@ -655,8 +655,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         private BloomFilter newBloomFilter(OptOutPartition[] newPartitions) {
             long newSize = Arrays.stream(newPartitions)
-                .<Long>map(p -> (long)p.size())
-                .reduce(0L, (a, b) -> a + b);
+                .mapToLong(OptOutPartition::size)
+                .sum();
 
             BloomFilter bf = this.bloomFilter;
             if (bf.capacity() < newSize || bf.load() > 0.1) {

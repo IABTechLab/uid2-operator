@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -49,7 +50,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     private final String remoteApiPath;
     private final String remoteApiBearerToken;
 
-    public CloudSyncOptOutStore(Vertx vertx, ICloudStorage fsLocal, JsonObject jsonConfig, String operatorKey) throws MalformedURLException {
+    public CloudSyncOptOutStore(Vertx vertx, ICloudStorage fsLocal, JsonObject jsonConfig, String operatorKey, Clock clock) throws MalformedURLException {
         this.fsLocal = fsLocal;
         this.webClient = WebClient.create(vertx);
 
@@ -67,7 +68,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             this.remoteApiBearerToken = null;
         }
 
-        this.snapshot.set(new OptOutStoreSnapshot(fsLocal, jsonConfig));
+        this.snapshot.set(new OptOutStoreSnapshot(fsLocal, jsonConfig, clock));
     }
 
     @Override
@@ -345,7 +346,10 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         private final FileUtils fileUtils;
 
-        public OptOutStoreSnapshot(DownloadCloudStorage fsLocal, JsonObject jsonConfig) {
+        private final Clock clock;
+
+        public OptOutStoreSnapshot(DownloadCloudStorage fsLocal, JsonObject jsonConfig, Clock clock) {
+            this.clock = clock;
             this.fsLocal = fsLocal;
             this.fileUtils = new FileUtils(jsonConfig);
 
@@ -370,6 +374,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         public OptOutStoreSnapshot(OptOutStoreSnapshot last, BloomFilter bf, OptOutHeap heap,
                                    OptOutPartition[] newPartitions, IndexUpdateContext iuc) {
+            this.clock = last.clock;
             this.fsLocal = last.fsLocal;
             this.fileUtils = last.fileUtils;
             this.iteration = last.iteration + 1;
@@ -422,7 +427,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         }
 
         public OptOutStoreSnapshot updateIndex(Collection<String> cachedPath) throws IOException, CloudStorageException {
-            IndexUpdateMessage ium = this.getIndexUpdateMessage(Instant.now(), cachedPath);
+            IndexUpdateMessage ium = this.getIndexUpdateMessage(clock.instant(), cachedPath);
             return this.updateIndex(ium);
         }
 

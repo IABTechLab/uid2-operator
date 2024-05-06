@@ -140,7 +140,7 @@ public class Main {
         this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
-        this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey);
+        this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
 
         if (this.validateServiceLinks) {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);

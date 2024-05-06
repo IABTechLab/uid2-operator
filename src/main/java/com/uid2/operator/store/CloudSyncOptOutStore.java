@@ -365,7 +365,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             this.partitions[0] = this.heap.toPartition(true);
 
             // initially no indexed files
-            this.indexedFiles = Collections.unmodifiableSet(new HashSet<>());
+            this.indexedFiles = Collections.emptySet();
         }
 
         public OptOutStoreSnapshot(OptOutStoreSnapshot last, BloomFilter bf, OptOutHeap heap,

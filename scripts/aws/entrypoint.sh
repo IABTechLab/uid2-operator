@@ -15,6 +15,10 @@ echo "Starting vsock proxy..."
 echo "Starting syslog-ng..."
 /usr/sbin/syslog-ng --verbose
 
+# -- setup logrotate
+echo "Starting logrotate..."
+logrotate -f /etc/logrotate.conf
+
 # -- load env vars via proxy
 echo "Loading env vars via proxy..."
 

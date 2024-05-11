@@ -64,6 +64,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.Temporal;
+import java.time.temporal.TemporalUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -2113,6 +2115,56 @@ public class UIDOperatorVerticleTest {
         }
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 413, json -> testContext.completeNow());
+    }
+
+    private static Stream<Arguments> optOutStatusRequestData() {
+        List<String> rawUIDS = Arrays.asList("RUQbFozFwnmPVjDx8VMkk9vJoNXUJImKnz2h9RfzzM24",
+            "qAmIGxqLk_RhOtm4f1nLlqYewqSma8fgvjEXYnQ3Jr0K",
+            "r3wW2uvJkwmeFcbUwSeM6BIpGF8tX38wtPfVc4wYyo71",
+            "e6SA-JVAXnvk8F1MUtzsMOyWuy5Xqe15rLAgqzSGiAbz");
+        Map<String, Long> optedOutIdsCase1 = new HashMap<>();
+
+        optedOutIdsCase1.put(rawUIDS.get(0), Instant.now().minus(1, ChronoUnit.DAYS).getEpochSecond());
+        optedOutIdsCase1.put(rawUIDS.get(1), Instant.now().minus(2, ChronoUnit.DAYS).getEpochSecond());
+        optedOutIdsCase1.put(rawUIDS.get(2), -1L);
+        optedOutIdsCase1.put(rawUIDS.get(3), -1L);
+
+        Map<String, Long> optedOutIdsCase2 = new HashMap<>();
+        optedOutIdsCase2.put(rawUIDS.get(2), -1L);
+        optedOutIdsCase2.put(rawUIDS.get(3), -1L);
+        return Stream.of(
+            Arguments.arguments(optedOutIdsCase1, 2),
+            Arguments.arguments(optedOutIdsCase2, 0)
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("optOutStatusRequestData")
+    void optOutStatusRequest(Map<String, Long> optedOutIds, int optedOutCount, Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(126, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonArray rawUIDs = new JsonArray();
+        for (String rawUID2 : optedOutIds.keySet()) {
+            when(this.optOutStore.getLatestEntryByAdId(rawUID2)).thenReturn(optedOutIds.get(rawUID2));
+            rawUIDs.add(rawUID2);
+        }
+        JsonObject requestJson = new JsonObject();
+        requestJson.put("advertising_ids", rawUIDs);
+        // TODO test client error and unauthorized
+
+        send("v2", vertx, "v2/optout/status", false, null, requestJson, 200, respJson -> {
+            assertEquals("success", respJson.getString("status"));
+            JsonArray optOutJsonArray = respJson.getJsonObject("body").getJsonArray("opted_out");
+            assertEquals(optedOutCount, optOutJsonArray.size());
+            for (int i = 0; i < optOutJsonArray.size(); ++i) {
+                JsonObject optOutObject = optOutJsonArray.getJsonObject(i);
+                assertEquals(optedOutIds.get(optOutObject.getString("advertising_id")),
+                        optOutObject.getLong("opted_out_since"));
+            }
+            testContext.completeNow();
+        });
     }
 
     @Test

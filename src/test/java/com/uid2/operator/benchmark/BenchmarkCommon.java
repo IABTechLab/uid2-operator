@@ -197,6 +197,11 @@ public class BenchmarkCommon {
         public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
             // noop
         }
+
+        @Override
+        public long getLatestEntryByAdId(String adId) {
+            return -1;
+        }
     }
 
 }

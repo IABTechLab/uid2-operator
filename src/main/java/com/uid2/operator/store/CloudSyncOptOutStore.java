@@ -80,6 +80,11 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
+    public long getLatestEntryByAdId(String adId) {
+        return this.snapshot.get().getAdIdOptOutTimestamp(adId);
+    }
+
+    @Override
     public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
         if (remoteApiHost == null) {
             handler.handle(Future.failedFuture("remote api not set"));

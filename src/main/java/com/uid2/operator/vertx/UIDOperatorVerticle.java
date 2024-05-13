@@ -356,11 +356,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         if(clientSideKeypair.isDisabled()) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.Unauthorized, 401, rc, "Unauthorized",
-                        clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unauthorized, siteProvider, platformType);
+                        null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.UNAUTHORIZED, siteProvider);
             return;
         }
 
-        if (!hasValidOriginOrAppName(rc, request, clientSideKeypair, platformType)) {
+        if (!hasValidOriginOrAppName(rc, request, clientSideKeypair)) {
             return;
         }
 

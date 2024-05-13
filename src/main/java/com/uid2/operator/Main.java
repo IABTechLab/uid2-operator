@@ -120,7 +120,7 @@ public class Main {
             fsStores = new EmbeddedResourceStorage(Main.class);
             LOGGER.info("Salt/Key/Client stores - Using EmbeddedResourceStorage");
 
-            this.fsOptOut = configureMockOptOutStore();
+            this.fsOptOut = new EmbeddedResourceStorage(Main.class);
         } else {
             String coreBucket = this.config.getString(Const.Config.CoreS3BucketProp);
             fsStores = CloudUtils.createStorage(coreBucket, config);

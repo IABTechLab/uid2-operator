@@ -28,7 +28,7 @@
   "optout_s3_folder": "/com.uid2.core/test/optout/optout-v2",
   "optout_bloom_filter_size": 8192,
   "optout_delta_rotate_interval": 300,
-  "optout_delta_backtrack_in_days": 1,
+  "optout_delta_backtrack_in_days": 0,
   "optout_heap_default_capacity": 8192,
   "optout_max_partitions": 30,
   "optout_partition_interval": 86400,

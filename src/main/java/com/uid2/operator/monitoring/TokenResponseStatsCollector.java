@@ -39,7 +39,7 @@ public class TokenResponseStatsCollector {
         /* End of CSTG-related Status */
         Unknown,
         NoActiveKey,
-        Unauthorized
+        UNAUTHORIZED
     }
 
     public enum PlatformType {

@@ -42,7 +42,6 @@ import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.apache.commons.collections4.CollectionUtils;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -3090,6 +3089,55 @@ public class UIDOperatorVerticleTest {
                 testContext,
                 respJson -> {
                     Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOriginAndAppName: site test (123): " + appName));
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void catalogsDisabledAsUnauthorized(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
+        this.uidOperatorVerticle.setLastInvalidOriginProcessTime(Instant.now().minusSeconds(3600));
+
+        setupCstgBackend();
+        String subscriptionID = "PpRrE5YY84";
+        ClientSideKeypair keypairDisabled = new ClientSideKeypair(subscriptionID, clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, clientSideTokenGenerateSiteId, "", Instant.now(), true, "");
+        when(clientSideKeypairProvider.getSnapshot()).thenReturn(clientSideKeypairSnapshot);
+        when(clientSideKeypairSnapshot.getKeypair(subscriptionID)).thenReturn(keypairDisabled);
+
+        final KeyFactory kf = KeyFactory.getInstance("EC");
+        final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
+        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey(clientSideTokenGeneratePrivateKey, kf);
+        final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
+
+        final byte[] iv = Random.getBytes(12);
+        final long timestamp = Instant.now().toEpochMilli();
+        final JsonArray aad = JsonArray.of(timestamp);
+        String rawId = "random@unifiedid.com";
+
+        JsonObject identityPayload = new JsonObject();
+        identityPayload.put("email_hash", getSha256(rawId));
+        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad.toBuffer().getBytes());
+        final String payload = EncodingUtils.toBase64String(payloadBytes);
+
+        JsonObject requestJson = new JsonObject();
+        requestJson.put("payload", payload);
+        requestJson.put("iv", EncodingUtils.toBase64String(iv));
+        requestJson.put("public_key", serverPublicKey.toString());
+        requestJson.put("timestamp", timestamp);
+        requestJson.put("subscription_id", subscriptionID);
+
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), false, null);
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                null,
+                requestJson,
+                secretKey,
+                401,
+                testContext,
+                respJson -> {
+                    assertEquals("Unauthorized", respJson.getString("message"));
                     testContext.completeNow();
                 });
     }

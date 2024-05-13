@@ -38,7 +38,8 @@ public class TokenResponseStatsCollector {
         PayloadHasNoBody,
         /* End of CSTG-related Status */
         Unknown,
-        NoActiveKey
+        NoActiveKey,
+        UNAUTHORIZED
     }
 
     public static void record(ISiteStore siteStore, Integer siteId, Endpoint endpoint, TokenVersion advertisingTokenVersion, ResponseStatus responseStatus) {

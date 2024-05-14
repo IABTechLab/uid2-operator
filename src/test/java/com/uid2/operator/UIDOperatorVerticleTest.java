@@ -161,6 +161,7 @@ public class UIDOperatorVerticleTest {
         config.put("client_side_token_generate_log_invalid_http_origins", true);
 
         config.put(Const.Config.AllowClockSkewSecondsProp, 3600);
+        config.put(Const.Config.OptOutStatusApiEnabled, true);
     }
 
     private static byte[] makeAesKey(String prefix) {

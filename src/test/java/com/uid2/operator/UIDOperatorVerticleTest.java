@@ -42,7 +42,6 @@ import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.apache.commons.collections4.CollectionUtils;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -64,8 +63,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.Temporal;
-import java.time.temporal.TemporalUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -2153,7 +2150,6 @@ public class UIDOperatorVerticleTest {
         }
         JsonObject requestJson = new JsonObject();
         requestJson.put("advertising_ids", rawUIDs);
-        // TODO test client error and unauthorized
 
         send("v2", vertx, "v2/optout/status", false, null, requestJson, 200, respJson -> {
             assertEquals("success", respJson.getString("status"));
@@ -2164,6 +2160,53 @@ public class UIDOperatorVerticleTest {
                 assertEquals(optedOutIds.get(optOutObject.getString("advertising_id")),
                         optOutObject.getLong("opted_out_since"));
             }
+            testContext.completeNow();
+        });
+    }
+
+    private static Stream<Arguments> optOutStatusValidationErrorData() {
+        // Test case 1
+        int requestLimit = 1000;
+        JsonArray rawUIDs = new JsonArray();
+
+        for (int i = 0; i <= requestLimit; ++i) {
+            byte[] rawUid2Bytes = Random.getBytes(32);
+            rawUIDs.add(Utils.toBase64String(rawUid2Bytes));
+        }
+
+        JsonObject requestJson1 = new JsonObject();
+        requestJson1.put("advertising_ids", rawUIDs);
+        // Test case 2
+        JsonObject requestJson2 = new JsonObject();
+        requestJson2.put("advertising", rawUIDs);
+        return Stream.of(
+                Arguments.arguments(requestJson1, "Request payload is too large"),
+                Arguments.arguments(requestJson2, "Required Parameter Missing: advertising_ids")
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("optOutStatusValidationErrorData")
+    void optOutStatusValidationError(JsonObject requestJson, String errorMsg, Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(126, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        send("v2", vertx, "v2/optout/status", false, null, requestJson, 400, respJson -> {
+            assertEquals(com.uid2.shared.Const.ResponseStatus.ClientError, respJson.getString("status"));
+            assertEquals(errorMsg, respJson.getString("message"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void optOutStatusUnauthorized(Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(126, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        send("v2", vertx, "v2/optout/status", false, null, new JsonObject(), 401, respJson -> {
+            assertEquals(com.uid2.shared.Const.ResponseStatus.Unauthorized, respJson.getString("status"));
             testContext.completeNow();
         });
     }

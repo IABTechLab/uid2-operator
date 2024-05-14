@@ -146,6 +146,7 @@ class OptOutStoreSnapshotTest {
 
         private JsonObject make1mOptOutEntryConfig() {
             final JsonObject config = new JsonObject();
+            config.put(Const.Config.OptOutStatusApiEnabled, true);
             config.put(Const.Config.OptOutBloomFilterSizeProp, 100000); // 1:10 bloomfilter
             config.put(Const.Config.OptOutHeapDefaultCapacityProp, 1000000); // 1MM record
             config.put("optout_delta_rotate_interval", 86400);

@@ -123,6 +123,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     protected boolean keySharingEndpointProvideAppNames;
     protected Instant lastInvalidOriginProcessTime = Instant.now();
 
+    private final int optOutStatusMaxRequestSize;
+    private final boolean optOutStatusApiEnabled;
+
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
@@ -170,6 +173,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
         this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
+        this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, false);
+        this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 1000);
     }
 
     @Override
@@ -280,10 +285,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
         v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
-        v2Router.post("/optout/status").handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleOptoutStatus),
-                Role.MAPPER, Role.SHARER, Role.ID_READER));
-
+        if (this.optOutStatusApiEnabled) {
+            v2Router.post("/optout/status").handler(bodyHandler).handler(auth.handleV1(
+                    rc -> v2PayloadHandler.handle(rc, this::handleOptoutStatus),
+                    Role.MAPPER, Role.SHARER, Role.ID_READER));
+        }
 
         if (this.clientSideTokenGenerate)
             v2Router.post("/token/client-generate").handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
@@ -1692,6 +1698,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonArray rawUidsJsonArray = requestObj.getJsonArray("advertising_ids");
         if (rawUidsJsonArray == null) {
             ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Required Parameter Missing: advertising_ids");
+            return null;
+        }
+        if (rawUidsJsonArray.size() > optOutStatusMaxRequestSize) {
+            ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Request payload is too large");
             return null;
         }
         List<String> rawUID2sInputList = new ArrayList<>(rawUidsJsonArray.size());

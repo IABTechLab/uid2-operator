@@ -3108,7 +3108,7 @@ public class UIDOperatorVerticleTest {
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
         final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
-        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey(clientSideTokenGeneratePrivateKey, kf);
+        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
         final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
 
         final byte[] iv = Random.getBytes(12);

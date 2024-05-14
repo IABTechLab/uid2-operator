@@ -220,8 +220,7 @@ public class Main {
 
     private ICloudStorage configureMockOptOutStore() {
         // map cloud_mock path to the same directory that local optout produces
-//        Path cloudMockPath = Paths.get("/opt/uid2/optout/cloud_mock");
-        Path cloudMockPath = Paths.get(this.config.getString("optout_data_dir"));
+        Path cloudMockPath = Paths.get("/opt/uid2/optout/cloud_mock");
         Utils.ensureDirectoryExists(cloudMockPath);
         LOGGER.info("Using LocalStorageMock for optout: " + cloudMockPath.toString());
         return new LocalStorageMock(cloudMockPath.toString());

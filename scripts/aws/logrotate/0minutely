@@ -1,0 +1,5 @@
+# Run the minutely jobs
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+* * * * * root run-parts /etc/cron.minutely

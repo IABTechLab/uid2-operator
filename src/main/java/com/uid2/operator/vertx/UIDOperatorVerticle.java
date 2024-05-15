@@ -1171,6 +1171,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             try {
                 LocalDateTime ld = LocalDateTime.parse(qp.get(0), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
                 sinceTimestamp = ld.toInstant(ZoneOffset.UTC);
+                LOGGER.info(String.format("identity bucket endpoint is called with since_timestamp %s and site id $s", ld, AuthMiddleware.getAuthClient(rc).getSiteId()));
             } catch (Exception e) {
                 ResponseUtil.ClientError(rc, "invalid date, must conform to ISO 8601");
                 return;
@@ -1202,6 +1203,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             try {
                 LocalDateTime ld = LocalDateTime.parse(qp, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
                 sinceTimestamp = ld.toInstant(ZoneOffset.UTC);
+                LOGGER.info(String.format("identity bucket endpoint is called with since_timestamp %s and site id $s", ld, AuthMiddleware.getAuthClient(rc).getSiteId()));
             } catch (Exception e) {
                 ResponseUtil.ClientError(rc, "invalid date, must conform to ISO 8601");
                 return;

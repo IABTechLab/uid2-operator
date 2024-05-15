@@ -70,7 +70,6 @@ runs:
         cp ./scripts/aws/syslog-ng/server/syslog-ng-4.6.0-1.el7.x86_64.rpm                                        ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/logrotate/operator-logrotate.conf                                                        ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/logrotate/logrotate                                                                      ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/logrotate/crontab                                                                        ${ARTIFACTS_OUTPUT_DIR}/
 
         docker cp amazonlinux:/sockd                                    ${ARTIFACTS_OUTPUT_DIR}/
         docker cp amazonlinux:/vsockpx                                  ${ARTIFACTS_OUTPUT_DIR}/

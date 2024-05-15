@@ -95,6 +95,8 @@ public class UIDOperatorVerticleTest {
     private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-L-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
     private static final int clientSideTokenGenerateSiteId = 123;
 
+    private static final int optOutStatusMaxRequestSize = 1000;
+
     private AutoCloseable mocks;
     @Mock private ISiteStore siteProvider;
     @Mock private IClientKeyProvider clientKeyProvider;
@@ -159,6 +161,7 @@ public class UIDOperatorVerticleTest {
 
         config.put(Const.Config.AllowClockSkewSecondsProp, 3600);
         config.put(Const.Config.OptOutStatusApiEnabled, true);
+        config.put(Const.Config.OptOutStatusMaxRequestSize, optOutStatusMaxRequestSize);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -2168,10 +2171,9 @@ public class UIDOperatorVerticleTest {
 
     private static Stream<Arguments> optOutStatusValidationErrorData() {
         // Test case 1
-        int requestLimit = 1000;
         JsonArray rawUIDs = new JsonArray();
 
-        for (int i = 0; i <= requestLimit; ++i) {
+        for (int i = 0; i <= optOutStatusMaxRequestSize; ++i) {
             byte[] rawUid2Bytes = Random.getBytes(32);
             rawUIDs.add(Utils.toBase64String(rawUid2Bytes));
         }

@@ -199,7 +199,7 @@ public class BenchmarkCommon {
         }
 
         @Override
-        public long getLatestEntryByAdId(String adId) {
+        public long getOptOutTimestampByAdId(String adId) {
             return -1;
         }
     }

@@ -80,7 +80,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
-    public long getLatestEntryByAdId(String adId) {
+    public long getOptOutTimestampByAdId(String adId) {
         return this.snapshot.get().getAdIdOptOutTimestamp(adId);
     }
 

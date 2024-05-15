@@ -2131,21 +2131,23 @@ public class UIDOperatorVerticleTest {
         optedOutIdsCase2.put(rawUIDS.get(2), -1L);
         optedOutIdsCase2.put(rawUIDS.get(3), -1L);
         return Stream.of(
-            Arguments.arguments(optedOutIdsCase1, 2),
-            Arguments.arguments(optedOutIdsCase2, 0)
+            Arguments.arguments(optedOutIdsCase1, 2, Role.MAPPER),
+            Arguments.arguments(optedOutIdsCase1, 2, Role.ID_READER),
+            Arguments.arguments(optedOutIdsCase1, 2, Role.SHARER),
+            Arguments.arguments(optedOutIdsCase2, 0, Role.MAPPER)
         );
     }
 
     @ParameterizedTest
     @MethodSource("optOutStatusRequestData")
-    void optOutStatusRequest(Map<String, Long> optedOutIds, int optedOutCount, Vertx vertx, VertxTestContext testContext) {
-        fakeAuth(126, Role.MAPPER);
+    void optOutStatusRequest(Map<String, Long> optedOutIds, int optedOutCount, Role role, Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(126, role);
         setupSalts();
         setupKeys();
 
         JsonArray rawUIDs = new JsonArray();
         for (String rawUID2 : optedOutIds.keySet()) {
-            when(this.optOutStore.getLatestEntryByAdId(rawUID2)).thenReturn(optedOutIds.get(rawUID2));
+            when(this.optOutStore.getOptOutTimestampByAdId(rawUID2)).thenReturn(optedOutIds.get(rawUID2));
             rawUIDs.add(rawUID2);
         }
         JsonObject requestJson = new JsonObject();

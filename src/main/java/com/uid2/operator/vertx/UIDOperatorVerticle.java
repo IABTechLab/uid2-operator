@@ -1721,7 +1721,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonArray optedOutJsonArray = new JsonArray();
             for (String rawUId : rawUID2sInput) {
                 // Call opt out service to get timestamp of opted out identities
-                long timestamp = optOutStore.getLatestEntryByAdId(rawUId);
+                long timestamp = optOutStore.getOptOutTimestampByAdId(rawUId);
                 if (timestamp != -1) {
                     JsonObject optOutJsonObj = new JsonObject();
                     optOutJsonObj.put("advertising_id", rawUId);

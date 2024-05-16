@@ -42,7 +42,6 @@ import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.apache.commons.collections4.CollectionUtils;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -95,6 +94,8 @@ public class UIDOperatorVerticleTest {
     private static final String clientSideTokenGeneratePublicKey = "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
     private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-L-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
     private static final int clientSideTokenGenerateSiteId = 123;
+
+    private static final int optOutStatusMaxRequestSize = 1000;
 
     private AutoCloseable mocks;
     @Mock private ISiteStore siteProvider;
@@ -159,6 +160,8 @@ public class UIDOperatorVerticleTest {
         config.put("client_side_token_generate_log_invalid_http_origins", true);
 
         config.put(Const.Config.AllowClockSkewSecondsProp, 3600);
+        config.put(Const.Config.OptOutStatusApiEnabled, true);
+        config.put(Const.Config.OptOutStatusMaxRequestSize, optOutStatusMaxRequestSize);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -2113,6 +2116,103 @@ public class UIDOperatorVerticleTest {
         }
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 413, json -> testContext.completeNow());
+    }
+
+    private static Stream<Arguments> optOutStatusRequestData() {
+        List<String> rawUIDS = Arrays.asList("RUQbFozFwnmPVjDx8VMkk9vJoNXUJImKnz2h9RfzzM24",
+            "qAmIGxqLk_RhOtm4f1nLlqYewqSma8fgvjEXYnQ3Jr0K",
+            "r3wW2uvJkwmeFcbUwSeM6BIpGF8tX38wtPfVc4wYyo71",
+            "e6SA-JVAXnvk8F1MUtzsMOyWuy5Xqe15rLAgqzSGiAbz");
+        Map<String, Long> optedOutIdsCase1 = new HashMap<>();
+
+        optedOutIdsCase1.put(rawUIDS.get(0), Instant.now().minus(1, ChronoUnit.DAYS).getEpochSecond());
+        optedOutIdsCase1.put(rawUIDS.get(1), Instant.now().minus(2, ChronoUnit.DAYS).getEpochSecond());
+        optedOutIdsCase1.put(rawUIDS.get(2), -1L);
+        optedOutIdsCase1.put(rawUIDS.get(3), -1L);
+
+        Map<String, Long> optedOutIdsCase2 = new HashMap<>();
+        optedOutIdsCase2.put(rawUIDS.get(2), -1L);
+        optedOutIdsCase2.put(rawUIDS.get(3), -1L);
+        return Stream.of(
+            Arguments.arguments(optedOutIdsCase1, 2, Role.MAPPER),
+            Arguments.arguments(optedOutIdsCase1, 2, Role.ID_READER),
+            Arguments.arguments(optedOutIdsCase1, 2, Role.SHARER),
+            Arguments.arguments(optedOutIdsCase2, 0, Role.MAPPER)
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("optOutStatusRequestData")
+    void optOutStatusRequest(Map<String, Long> optedOutIds, int optedOutCount, Role role, Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(126, role);
+        setupSalts();
+        setupKeys();
+
+        JsonArray rawUIDs = new JsonArray();
+        for (String rawUID2 : optedOutIds.keySet()) {
+            when(this.optOutStore.getOptOutTimestampByAdId(rawUID2)).thenReturn(optedOutIds.get(rawUID2));
+            rawUIDs.add(rawUID2);
+        }
+        JsonObject requestJson = new JsonObject();
+        requestJson.put("advertising_ids", rawUIDs);
+
+        send("v2", vertx, "v2/optout/status", false, null, requestJson, 200, respJson -> {
+            assertEquals("success", respJson.getString("status"));
+            JsonArray optOutJsonArray = respJson.getJsonObject("body").getJsonArray("opted_out");
+            assertEquals(optedOutCount, optOutJsonArray.size());
+            for (int i = 0; i < optOutJsonArray.size(); ++i) {
+                JsonObject optOutObject = optOutJsonArray.getJsonObject(i);
+                assertEquals(optedOutIds.get(optOutObject.getString("advertising_id")),
+                        optOutObject.getLong("opted_out_since"));
+            }
+            testContext.completeNow();
+        });
+    }
+
+    private static Stream<Arguments> optOutStatusValidationErrorData() {
+        // Test case 1
+        JsonArray rawUIDs = new JsonArray();
+
+        for (int i = 0; i <= optOutStatusMaxRequestSize; ++i) {
+            byte[] rawUid2Bytes = Random.getBytes(32);
+            rawUIDs.add(Utils.toBase64String(rawUid2Bytes));
+        }
+
+        JsonObject requestJson1 = new JsonObject();
+        requestJson1.put("advertising_ids", rawUIDs);
+        // Test case 2
+        JsonObject requestJson2 = new JsonObject();
+        requestJson2.put("advertising", rawUIDs);
+        return Stream.of(
+                Arguments.arguments(requestJson1, "Request payload is too large"),
+                Arguments.arguments(requestJson2, "Required Parameter Missing: advertising_ids")
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("optOutStatusValidationErrorData")
+    void optOutStatusValidationError(JsonObject requestJson, String errorMsg, Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(126, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        send("v2", vertx, "v2/optout/status", false, null, requestJson, 400, respJson -> {
+            assertEquals(com.uid2.shared.Const.ResponseStatus.ClientError, respJson.getString("status"));
+            assertEquals(errorMsg, respJson.getString("message"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void optOutStatusUnauthorized(Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(126, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        send("v2", vertx, "v2/optout/status", false, null, new JsonObject(), 401, respJson -> {
+            assertEquals(com.uid2.shared.Const.ResponseStatus.Unauthorized, respJson.getString("status"));
+            testContext.completeNow();
+        });
     }
 
     @Test

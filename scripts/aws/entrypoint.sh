@@ -18,7 +18,9 @@ echo "Starting syslog-ng..."
 # -- load env vars via proxy
 echo "Loading env vars via proxy..."
 
-TOKEN=$(curl -x socks5h://127.0.0.1:3305 -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+curl -x socks5h://127.0.0.1:3305 http://www.google.com
+
+TOKEN=$(curl -x socks5h://127.0.0.1:3305 -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -X PUT "http://169.254.169.254/latest/api/token")
 
 USER_DATA=$(curl -s -x socks5h://127.0.0.1:3305 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/user-data)
 #if [ "${IDENTITY_SCOPE}" = "UID2" ]; then

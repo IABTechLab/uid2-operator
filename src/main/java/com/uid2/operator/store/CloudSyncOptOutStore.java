@@ -12,9 +12,8 @@ import com.uid2.shared.cloud.DownloadCloudStorage;
 import com.uid2.shared.cloud.ICloudStorage;
 import com.uid2.shared.cloud.MemCachedStorage;
 import com.uid2.shared.optout.*;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Gauge;
-import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.*;
+import io.micrometer.core.instrument.Timer;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -33,11 +32,13 @@ import java.net.URL;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
 public class CloudSyncOptOutStore implements IOptOutStore {
@@ -297,33 +298,58 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     public static class OptOutStoreSnapshot {
         private static final Logger LOGGER = LoggerFactory.getLogger(OptOutStoreSnapshot.class);
 
-        private static final Gauge gaugeEntriesIndexed = Gauge
-            .builder("uid2.optout.entries_indexed", () -> OptOutStoreSnapshot.totalEntries.get())
+        private static final String METRIC_NAME_PREFIX = "uid2.optout.";
+
+        // Metrics for processing deltas and partitions.
+        private static final String OPT_OUT_PROCESSING_METRIC_NAME = METRIC_NAME_PREFIX + "processing";
+
+        private static final Timer DELTA_PROCESSING = Metrics.timer(OPT_OUT_PROCESSING_METRIC_NAME, "file_type", "deltas");
+
+        private static final Timer PARTITION_PROCESSING = Metrics.timer(OPT_OUT_PROCESSING_METRIC_NAME, "file_type", "partitions");
+
+        // Metrics for querying optout timestamp by advertising ID.
+        private static final Timer GET_AD_ID_OPT_OUT_TIMESTAMP = Metrics.timer(METRIC_NAME_PREFIX + "get_ad_id_optout_timestamp");
+
+        private static final Gauge AD_ID_COUNT = Gauge.builder(METRIC_NAME_PREFIX + "ad_id_count", () -> OptOutStoreSnapshot.adIdCount.get())
+                .register(Metrics.globalRegistry);
+
+        // Metrics for querying optout timestamp by first-level hash.
+        private static final String GET_OPT_OUT_TIMESTAMP_METRIC_NAME = METRIC_NAME_PREFIX + "get_optout_timestamp";
+
+        private static final Timer GET_OPT_OUT_TIMESTAMP_FALSE_POSITIVE = Metrics.timer(GET_OPT_OUT_TIMESTAMP_METRIC_NAME, "bloom_filter", "false_positive");
+
+        private static final Timer GET_OPT_OUT_TIMESTAMP_TRUE_POSITIVE = Metrics.timer(GET_OPT_OUT_TIMESTAMP_METRIC_NAME, "bloom_filter", "true_positive");
+
+        private static final Timer GET_OPT_OUT_TIMESTAMP_TRUE_NEGATIVE = Metrics.timer(GET_OPT_OUT_TIMESTAMP_METRIC_NAME, "bloom_filter", "true_negative");
+
+        private static final Gauge GAUGE_ENTRIES_INDEXED = Gauge
+            .builder(METRIC_NAME_PREFIX + "entries_indexed", () -> OptOutStoreSnapshot.totalEntries.get())
             .description("gauge for how many optout entries are indexed")
             .register(Metrics.globalRegistry);
 
-        private static final Counter counterDeltasIndexed = Counter
-            .builder("uid2.optout.deltas_indexed")
+        private static final Counter COUNTER_DELTAS_INDEXED = Counter
+            .builder(METRIC_NAME_PREFIX + "deltas_indexed")
             .description("counter for how many optout delta files are indexed")
             .register(Metrics.globalRegistry);
 
-        private static final Counter counterPartitionsIndexed = Counter
-            .builder("uid2.optout.partitions_indexed")
+        private static final Counter COUNTER_PARTITIONS_INDEXED = Counter
+            .builder(METRIC_NAME_PREFIX + "partitions_indexed")
             .description("counter for how many optout parition files are indexed")
             .register(Metrics.globalRegistry);
 
-        private static final Counter counterIndexUpdated = Counter
-            .builder("uid2.optout.index_updated")
+        private static final Counter COUNTER_INDEX_UPDATED = Counter
+            .builder(METRIC_NAME_PREFIX + "index_updated")
             .description("counter for how many times index is updated")
             .register(Metrics.globalRegistry);
 
-        private static final Gauge gaugeBloomfilterSize = Gauge
-            .builder("uid2.optout.bloomfilter_size", () -> OptOutStoreSnapshot.bloomFilterSize.get())
+        // Metrics for the Bloom filter.
+        private static final Gauge GAUGE_BLOOMFILTER_SIZE = Gauge
+            .builder(METRIC_NAME_PREFIX + "bloomfilter_size", () -> OptOutStoreSnapshot.bloomFilterSize.get())
             .description("gauge for number of entries cached in bloomfilter")
             .register(Metrics.globalRegistry);
 
-        private static final Gauge gaugeBloomfilterMax = Gauge
-            .builder("uid2.optout.bloomfilter_max", () -> OptOutStoreSnapshot.bloomFilterMax.get())
+        private static final Gauge GAUGE_BLOOMFILTER_MAX = Gauge
+            .builder(METRIC_NAME_PREFIX + "bloomfilter_max", () -> OptOutStoreSnapshot.bloomFilterMax.get())
             .description("gauge for max entries can be cached in bloomfilter")
             .register(Metrics.globalRegistry);
 
@@ -332,6 +358,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         private static final AtomicLong bloomFilterSize = new AtomicLong(0);
         private static final AtomicLong bloomFilterMax = new AtomicLong(0);
         private static final AtomicLong totalEntries = new AtomicLong(0);
+        private static final AtomicInteger adIdCount = new AtomicInteger(0);
         private static final BiFunction<Long, Long, Long> OPT_OUT_TIMESTAMP_MERGE_STRATEGY = Long::min;
 
         private final DownloadCloudStorage fsLocal;
@@ -425,6 +452,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
             // update total entries
             totalEntries.set(size());
+            adIdCount.set(this.adIdToOptOutTimestamp.size());
         }
 
         public long size() {
@@ -441,7 +469,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         }
 
         public long getAdIdOptOutTimestamp(String advertisingId) {
-            return this.adIdToOptOutTimestamp.getOrDefault(advertisingId, -1L);
+            LongSupplier supplier = () -> this.adIdToOptOutTimestamp.getOrDefault(advertisingId, -1L);
+            return GET_AD_ID_OPT_OUT_TIMESTAMP.record(supplier);
         }
 
         // method provided for OptOutService to call
@@ -451,18 +480,27 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             // ones hash is a special case, we will always return -1 for ones hash (0xff...ff)
             if (Arrays.equals(hashBytes, OptOutUtils.onesHashBytes)) return -1;
 
+            Timer.Sample sample = Timer.start();
+
             if (!this.bloomFilter.likelyContains(hashBytes)) {
-                // bloom filter says no, which would be final
+                // Bloom filter says no, which would be final.
+                sample.stop(GET_OPT_OUT_TIMESTAMP_TRUE_NEGATIVE);
                 return -1;
             }
 
             for (OptOutPartition s : this.partitions) {
                 if (s == null) continue;
                 long ts = s.getOptOutTimestamp(hashBytes);
-                if (ts != -1) return ts;
+                if (ts != -1) {
+                    // "True positive": The Bloom filter said we likely have the optout record, and we do.
+                    sample.stop(GET_OPT_OUT_TIMESTAMP_TRUE_POSITIVE);
+                    return ts;
+                }
             }
 
             // not found any where, return not found
+            // "False positive": The Bloom filter said we likely have the optout record, and we don't.
+            sample.stop(GET_OPT_OUT_TIMESTAMP_FALSE_POSITIVE);
             return -1;
         }
 
@@ -572,13 +610,17 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                 IndexUpdateMessage result = iuc.result();
                 this.updateIndexTimestamp(result.lastTimestamp());
 
-                this.counterPartitionsIndexed.increment(numPartitions);
-                this.counterDeltasIndexed.increment(result.getDeltasToAdd().size());
-                this.counterIndexUpdated.increment();
+                COUNTER_PARTITIONS_INDEXED.increment(numPartitions);
+                COUNTER_DELTAS_INDEXED.increment(result.getDeltasToAdd().size());
+                COUNTER_INDEX_UPDATED.increment();
             }
         }
 
         private OptOutStoreSnapshot processDeltas(IndexUpdateContext iuc) {
+            return DELTA_PROCESSING.record(() -> processDeltasImpl(iuc));
+        }
+
+        private OptOutStoreSnapshot processDeltasImpl(IndexUpdateContext iuc) {
             Collection<byte[]> loadedData = iuc.getLoadedDeltas();
             if (loadedData.size() == 0) return this;
 
@@ -605,6 +647,10 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         }
 
         private OptOutStoreSnapshot processPartitions(IndexUpdateContext iuc) {
+            return PARTITION_PROCESSING.record(() -> processPartitionsImpl(iuc));
+        }
+
+        private OptOutStoreSnapshot processPartitionsImpl(IndexUpdateContext iuc) {
             int newSnaps = iuc.getLoadedPartitions().size();
             if (newSnaps == 0) return this;
 

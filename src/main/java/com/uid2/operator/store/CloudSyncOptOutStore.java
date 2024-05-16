@@ -80,6 +80,11 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
+    public long getOptOutTimestampByAdId(String adId) {
+        return this.snapshot.get().getAdIdOptOutTimestamp(adId);
+    }
+
+    @Override
     public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
         if (remoteApiHost == null) {
             handler.handle(Future.failedFuture("remote api not set"));
@@ -344,6 +349,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
          */
         private final Map<String, Long> adIdToOptOutTimestamp;
 
+        private final boolean optoutStatusApiEnabled;
+
         // array of optout partitions
         private final OptOutPartition[] partitions;
 
@@ -373,6 +380,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             this.heap = new OptOutHeap(heapCapacity);
 
             this.adIdToOptOutTimestamp = Collections.emptyMap();
+            this.optoutStatusApiEnabled = jsonConfig.getBoolean(Const.Config.OptOutStatusApiEnabled, false);
 
             // initially 1 partition
             this.partitions = new OptOutPartition[1];
@@ -384,7 +392,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         }
 
         public OptOutStoreSnapshot(OptOutStoreSnapshot last, BloomFilter bf, OptOutHeap heap,
-                                   OptOutPartition[] newPartitions, IndexUpdateContext iuc) {
+                                   OptOutPartition[] newPartitions, IndexUpdateContext iuc,
+                                   boolean optoutStatusApiEnabled) {
             this.clock = last.clock;
             this.fsLocal = last.fsLocal;
             this.fileUtils = last.fileUtils;
@@ -400,14 +409,19 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             newIndexedFiles.addAll(iuc.loadedPartitions.keySet());
             this.indexedFiles = Collections.unmodifiableSet(newIndexedFiles);
 
-            HashMap<String, Long> newOptOutTimestamps = new HashMap<>();
-            for (OptOutPartition partition : this.partitions) {
-                if (partition == null) continue;
-                partition.forEach(entry -> {
-                    newOptOutTimestamps.merge(entry.advertisingIdToB64(), entry.timestamp, OPT_OUT_TIMESTAMP_MERGE_STRATEGY);
-                });
+            this.optoutStatusApiEnabled = optoutStatusApiEnabled;
+            if (this.optoutStatusApiEnabled) {
+                HashMap<String, Long> newOptOutTimestamps = new HashMap<>();
+                for (OptOutPartition partition : this.partitions) {
+                    if (partition == null) continue;
+                    partition.forEach(entry -> {
+                        newOptOutTimestamps.merge(entry.advertisingIdToB64(), entry.timestamp, OPT_OUT_TIMESTAMP_MERGE_STRATEGY);
+                    });
+                }
+                this.adIdToOptOutTimestamp = Collections.unmodifiableMap(newOptOutTimestamps);
+            } else {
+                this.adIdToOptOutTimestamp = Collections.emptyMap();
             }
-            this.adIdToOptOutTimestamp = Collections.unmodifiableMap(newOptOutTimestamps);
 
             // update total entries
             totalEntries.set(size());
@@ -587,7 +601,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             newPartitions[0] = this.heap.isEmpty() ? null : this.heap.toPartition(true);
 
             OptOutStoreSnapshot.bloomFilterSize.set(this.bloomFilter.size());
-            return new OptOutStoreSnapshot(this, this.bloomFilter, this.heap, newPartitions, iuc);
+            return new OptOutStoreSnapshot(this, this.bloomFilter, this.heap, newPartitions, iuc, this.optoutStatusApiEnabled);
         }
 
         private OptOutStoreSnapshot processPartitions(IndexUpdateContext iuc) {
@@ -637,7 +651,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
             OptOutStoreSnapshot.bloomFilterSize.set(newBf.size());
             OptOutStoreSnapshot.bloomFilterMax.set(newBf.capacity());
-            return new OptOutStoreSnapshot(this, newBf, newHeap, newPartitions, iuc);
+            return new OptOutStoreSnapshot(this, newBf, newHeap, newPartitions, iuc, this.optoutStatusApiEnabled);
         }
 
         // used for finding files to feed to index

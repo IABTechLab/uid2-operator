@@ -101,6 +101,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<Tuple.Tuple3<String, OptoutCheckPolicy, String>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
+
+    private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
     private final IdentityScope identityScope;
     private final V2PayloadHandler v2PayloadHandler;
     private final boolean phoneSupport;
@@ -120,6 +122,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
     protected boolean keySharingEndpointProvideAppNames;
     protected Instant lastInvalidOriginProcessTime = Instant.now();
+
+    private final int optOutStatusMaxRequestSize;
+    private final boolean optOutStatusApiEnabled;
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -168,6 +173,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
         this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
+        this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, false);
+        this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
     }
 
     @Override
@@ -278,7 +285,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
         v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
-
+        if (this.optOutStatusApiEnabled) {
+            v2Router.post("/optout/status").handler(bodyHandler).handler(auth.handleV1(
+                    rc -> v2PayloadHandler.handle(rc, this::handleOptoutStatus),
+                    Role.MAPPER, Role.SHARER, Role.ID_READER));
+        }
 
         if (this.clientSideTokenGenerate)
             v2Router.post("/token/client-generate").handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
@@ -1676,6 +1687,74 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (invalidCount > 0) counterTuple.getItem1().increment(invalidCount);
             if (optOutCount > 0) counterTuple.getItem2().increment(optOutCount);
         }
+    }
+
+    private List<String> parseOptoutStatusRequestPayload(RoutingContext rc) {
+        final JsonObject requestObj = (JsonObject) rc.data().get("request");
+        if (requestObj == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Invalid request body");
+            return null;
+        }
+        final JsonArray rawUidsJsonArray = requestObj.getJsonArray("advertising_ids");
+        if (rawUidsJsonArray == null) {
+            ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Required Parameter Missing: advertising_ids");
+            return null;
+        }
+        if (rawUidsJsonArray.size() > optOutStatusMaxRequestSize) {
+            ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Request payload is too large");
+            return null;
+        }
+        List<String> rawUID2sInputList = new ArrayList<>(rawUidsJsonArray.size());
+        for (int i = 0; i < rawUidsJsonArray.size(); ++i) {
+            rawUID2sInputList.add(rawUidsJsonArray.getString(i));
+        }
+        return rawUID2sInputList;
+    }
+
+    private void handleOptoutStatus(RoutingContext rc) {
+        try {
+            // Parse request to get list of raw UID2 strings
+            List<String> rawUID2sInput = parseOptoutStatusRequestPayload(rc);
+            if (rawUID2sInput == null) {
+                return;
+            }
+            final JsonArray optedOutJsonArray = new JsonArray();
+            for (String rawUId : rawUID2sInput) {
+                // Call opt out service to get timestamp of opted out identities
+                long timestamp = optOutStore.getOptOutTimestampByAdId(rawUId);
+                if (timestamp != -1) {
+                    JsonObject optOutJsonObj = new JsonObject();
+                    optOutJsonObj.put("advertising_id", rawUId);
+                    optOutJsonObj.put("opted_out_since", timestamp);
+                    optedOutJsonArray.add(optOutJsonObj);
+                }
+            }
+            // Create response and return
+            final JsonObject bodyJsonObj = new JsonObject();
+            bodyJsonObj.put("opted_out", optedOutJsonArray);
+            ResponseUtil.SuccessV2(rc, bodyJsonObj);
+            recordOptOutStatusEndpointStats(rc, rawUID2sInput.size(), optedOutJsonArray.size());
+        } catch (Exception e) {
+            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc,
+                    "Unknown error while getting optout status", e);
+        }
+    }
+
+    private void recordOptOutStatusEndpointStats(RoutingContext rc, int inputCount, int optOutCount) {
+        String apiContact = getApiContact(rc);
+        DistributionSummary inputDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
+                .builder("uid2.operator.optout.status.input_size")
+                .description("number of UIDs received in request")
+                .tags("api_contact", apiContact)
+                .register(Metrics.globalRegistry));
+        inputDistSummary.record(inputCount);
+
+        DistributionSummary optOutDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
+                .builder("uid2.operator.optout.status.optout_size")
+                .description("number of UIDs that have opted out")
+                .tags("api_contact", apiContact)
+                .register(Metrics.globalRegistry));
+        optOutDistSummary.record(optOutCount);
     }
 
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {

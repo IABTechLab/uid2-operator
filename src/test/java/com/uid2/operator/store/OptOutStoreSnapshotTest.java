@@ -31,7 +31,7 @@ class OptOutStoreSnapshotTest {
         @Test
         void emptySnapshotReturnsNegativeOne() {
             DownloadCloudStorage fsStore = mock(DownloadCloudStorage.class);
-            JsonObject config = make1mOptOutEntryConfig();
+            JsonObject config = make1mOptOutEntryConfig(true);
             CloudSyncOptOutStore.OptOutStoreSnapshot snapshot = new CloudSyncOptOutStore.OptOutStoreSnapshot(fsStore, config, Clock.systemUTC());
             assertEquals(-1L, snapshot.getAdIdOptOutTimestamp(OptOutEntry.newRandom().advertisingIdToB64()));
         }
@@ -63,7 +63,7 @@ class OptOutStoreSnapshotTest {
 
             Set<String> paths = new HashSet<>(fsStore.list(OptOutUtils.prefixDeltaFile));
 
-            JsonObject config = make1mOptOutEntryConfig();
+            JsonObject config = make1mOptOutEntryConfig(true);
 
             // Act
             CloudSyncOptOutStore.OptOutStoreSnapshot snapshot = new CloudSyncOptOutStore.OptOutStoreSnapshot(fsStore, config, clock)
@@ -102,7 +102,7 @@ class OptOutStoreSnapshotTest {
 
             Set<String> paths = new HashSet<>(fsStore.list(OptOutUtils.prefixPartitionFile));
 
-            JsonObject config = make1mOptOutEntryConfig();
+            JsonObject config = make1mOptOutEntryConfig(true);
 
             // Act
             CloudSyncOptOutStore.OptOutStoreSnapshot snapshot = new CloudSyncOptOutStore.OptOutStoreSnapshot(fsStore, config, clock)
@@ -111,6 +111,28 @@ class OptOutStoreSnapshotTest {
             // Assert
             for (OptOutEntry entry : entries) {
                 assertEquals(entry.timestamp, snapshot.getAdIdOptOutTimestamp(entry.advertisingIdToB64()));
+            }
+        }
+
+        @Test
+        void optoutStatusApiDisabled()  throws CloudStorageException, IOException {
+            int entriesPerPartitionFileCount = 10;
+            MemCachedStorage fsStore = new MemCachedStorage();
+
+            Clock clock = Clock.fixed(Instant.parse("2024-05-06T10:15:30.00Z"), ZoneOffset.UTC);
+            List<OptOutEntry> entries = createPartition(entriesPerPartitionFileCount, clock.instant(), fsStore);
+
+            Set<String> paths = new HashSet<>(fsStore.list(OptOutUtils.prefixPartitionFile));
+
+            JsonObject config = make1mOptOutEntryConfig(false);
+
+            // Act
+            CloudSyncOptOutStore.OptOutStoreSnapshot snapshot = new CloudSyncOptOutStore.OptOutStoreSnapshot(fsStore, config, clock)
+                    .updateIndex(paths);
+
+            // Assert
+            for (OptOutEntry entry : entries) {
+                assertEquals(-1L, snapshot.getAdIdOptOutTimestamp(entry.advertisingIdToB64()));
             }
         }
 
@@ -144,8 +166,9 @@ class OptOutStoreSnapshotTest {
             return bytes;
         }
 
-        private JsonObject make1mOptOutEntryConfig() {
+        private JsonObject make1mOptOutEntryConfig(boolean optOutStatusApiEnabled) {
             final JsonObject config = new JsonObject();
+            config.put(Const.Config.OptOutStatusApiEnabled, optOutStatusApiEnabled);
             config.put(Const.Config.OptOutBloomFilterSizeProp, 100000); // 1:10 bloomfilter
             config.put(Const.Config.OptOutHeapDefaultCapacityProp, 1000000); // 1MM record
             config.put("optout_delta_rotate_interval", 86400);

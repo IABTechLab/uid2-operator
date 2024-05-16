@@ -12,7 +12,7 @@ prometheus-server:
 
 socks5h-proxy:
   service: direct
-  listen: tcp://127.0.0.1:3305
+  listen: tcp://0.0.0.0:3305
   connect: vsock://3:3305
 
 aws-service-proxy:
@@ -22,5 +22,5 @@ aws-service-proxy:
 
 syslogng:
   service: direct
-  listen: tcp://127.0.0.1:2011
+  listen: tcp://0.0.0.0:2011
   connect: vsock://3:2011

@@ -18,7 +18,7 @@ echo "Starting syslog-ng..."
 # -- load env vars via proxy
 echo "Loading env vars via proxy..."
 
-curl -x socks5h://127.0.0.1:3305 http://www.google.com
+curl -x socks5h://127.0.0.1:3305 https://www.google.com
 
 TOKEN=$(curl -x socks5h://127.0.0.1:3305 -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -X PUT "http://169.254.169.254/latest/api/token")
 

@@ -9,7 +9,7 @@ ifconfig lo 127.0.0.1
 
 # -- start vsock proxy
 echo "Starting vsock proxy..."
-/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
+/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 0
 
 # -- setup syslog-ng
 echo "Starting syslog-ng..."
@@ -18,7 +18,10 @@ echo "Starting syslog-ng..."
 # -- load env vars via proxy
 echo "Loading env vars via proxy..."
 
-curl -x socks5h://127.0.0.1:3305 https://www.google.com
+curl -m 10 -x socks5h://127.0.0.1:3305 http://www.google.com
+curl -m 10 -x socks5h://127.0.0.1:3404 http://www.google.com
+curl -m 10 -x socks5h://127.0.0.1:3405 http://www.google.com
+curl -m 10 -x socks5h://127.0.0.1:3406 http://www.google.com
 
 TOKEN=$(curl -x socks5h://127.0.0.1:3305 -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -X PUT "http://169.254.169.254/latest/api/token")
 

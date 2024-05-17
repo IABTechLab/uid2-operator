@@ -15,6 +15,21 @@ socks5h-proxy:
   listen: tcp://0.0.0.0:3305
   connect: vsock://3:3305
 
+socks5h-proxy-4:
+  service: direct
+  listen: tcp://0.0.0.0:3404
+  connect: vsock://4:3404
+
+socks5h-proxy-5:
+  service: direct
+  listen: tcp://0.0.0.0:3405
+  connect: vsock://5:3405
+
+socks5h-proxy-6:
+  service: direct
+  listen: tcp://0.0.0.0:3406
+  connect: vsock://6:3406
+
 aws-service-proxy:
   service: direct
   listen: tcp://127.0.0.1:443

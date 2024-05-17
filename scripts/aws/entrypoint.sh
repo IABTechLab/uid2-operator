@@ -1,7 +1,7 @@
 #!/bin/bash -eufx
 
-set -o pipefail
-ulimit -n 65536
+#set -o pipefail
+#ulimit -n 65536
 
 # -- setup loopback device
 echo "Setting up loopback device..."
@@ -18,10 +18,10 @@ echo "Starting syslog-ng..."
 # -- load env vars via proxy
 echo "Loading env vars via proxy..."
 
-curl -m 10 -x socks5h://127.0.0.1:3305 http://www.google.com
-curl -m 10 -x socks5h://127.0.0.1:3404 http://www.google.com
-curl -m 10 -x socks5h://127.0.0.1:3405 http://www.google.com
-curl -m 10 -x socks5h://127.0.0.1:3406 http://www.google.com
+curl -m 10 -x socks5h://127.0.0.1:3305 http://www.google.com || true
+curl -m 10 -x socks5h://127.0.0.1:3404 http://www.google.com || true
+curl -m 10 -x socks5h://127.0.0.1:3405 http://www.google.com || true
+curl -m 10 -x socks5h://127.0.0.1:3406 http://www.google.com || true
 
 TOKEN=$(curl -x socks5h://127.0.0.1:3305 -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -X PUT "http://169.254.169.254/latest/api/token")
 

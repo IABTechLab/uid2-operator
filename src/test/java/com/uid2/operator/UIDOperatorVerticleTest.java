@@ -3094,7 +3094,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void catalogsDisabledAsUnauthorized(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgDisabledAsUnauthorized(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
@@ -3110,20 +3110,12 @@ public class UIDOperatorVerticleTest {
         final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
         final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
         final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
-
-        final byte[] iv = Random.getBytes(12);
         final long timestamp = Instant.now().toEpochMilli();
-        final JsonArray aad = JsonArray.of(timestamp);
-        String rawId = "random@unifiedid.com";
 
-        JsonObject identityPayload = new JsonObject();
-        identityPayload.put("email_hash", getSha256(rawId));
-        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad.toBuffer().getBytes());
-        final String payload = EncodingUtils.toBase64String(payloadBytes);
 
         JsonObject requestJson = new JsonObject();
-        requestJson.put("payload", payload);
-        requestJson.put("iv", EncodingUtils.toBase64String(iv));
+        requestJson.put("payload", "");
+        requestJson.put("iv", "");
         requestJson.put("public_key", serverPublicKey.toString());
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", subscriptionID);
@@ -3138,6 +3130,10 @@ public class UIDOperatorVerticleTest {
                 testContext,
                 respJson -> {
                     assertEquals("Unauthorized", respJson.getString("message"));
+                    assertTokenStatusMetrics(
+                            clientSideTokenGenerateSiteId,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.Unauthorized);
                     testContext.completeNow();
                 });
     }

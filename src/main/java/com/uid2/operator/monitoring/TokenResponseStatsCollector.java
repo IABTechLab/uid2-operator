@@ -39,7 +39,7 @@ public class TokenResponseStatsCollector {
         /* End of CSTG-related Status */
         Unknown,
         NoActiveKey,
-        UNAUTHORIZED
+        Unauthorized
     }
 
     public static void record(ISiteStore siteStore, Integer siteId, Endpoint endpoint, TokenVersion advertisingTokenVersion, ResponseStatus responseStatus) {

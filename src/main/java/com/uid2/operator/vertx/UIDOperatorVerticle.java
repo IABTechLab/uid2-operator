@@ -348,6 +348,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
+        if(clientSideKeypair.isDisabled()) {
+            SendClientErrorResponseAndRecordStats(ResponseStatus.Unauthorized, 401, rc, "Unauthorized",
+                        clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unauthorized, siteProvider);
+            return;
+        }
+
         if (!hasValidOriginOrAppName(rc, request, clientSideKeypair)) {
             return;
         }

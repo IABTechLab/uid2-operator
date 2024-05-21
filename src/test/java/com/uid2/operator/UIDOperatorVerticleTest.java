@@ -3194,6 +3194,51 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
+    @Test
+    void cstgDisabledAsUnauthorized(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
+        this.uidOperatorVerticle.setLastInvalidOriginProcessTime(Instant.now().minusSeconds(3600));
+
+        setupCstgBackend();
+        String subscriptionID = "PpRrE5YY84";
+        ClientSideKeypair keypairDisabled = new ClientSideKeypair(subscriptionID, clientSideTokenGeneratePublicKey, clientSideTokenGeneratePrivateKey, clientSideTokenGenerateSiteId, "", Instant.now(), true, "");
+        when(clientSideKeypairProvider.getSnapshot()).thenReturn(clientSideKeypairSnapshot);
+        when(clientSideKeypairSnapshot.getKeypair(subscriptionID)).thenReturn(keypairDisabled);
+
+        final KeyFactory kf = KeyFactory.getInstance("EC");
+        final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
+        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
+        final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
+        final long timestamp = Instant.now().toEpochMilli();
+
+
+        JsonObject requestJson = new JsonObject();
+        requestJson.put("payload", "");
+        requestJson.put("iv", "");
+        requestJson.put("public_key", serverPublicKey.toString());
+        requestJson.put("timestamp", timestamp);
+        requestJson.put("subscription_id", subscriptionID);
+
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), false, null);
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                null,
+                requestJson,
+                secretKey,
+                401,
+                testContext,
+                respJson -> {
+                    assertEquals("Unauthorized", respJson.getString("message"));
+                    assertTokenStatusMetrics(
+                            clientSideTokenGenerateSiteId,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.Unauthorized);
+                    testContext.completeNow();
+                });
+    }
+
     @ParameterizedTest
     @CsvSource({
             "true,http://gototest.com",

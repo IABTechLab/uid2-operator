@@ -1,0 +1,29 @@
+name: Build UID2 and EUID AMIs
+run-name: Build UID2 and EUID AMIs for Operator Release ${{ inputs.operator_release }} by @${{ github.actor }}
+on:
+  workflow_dispatch:
+    inputs:
+      operator_run_number:
+        description: The Operator run number. Ignored if Release Number specified.
+        type: string
+
+jobs:
+  buildUID2:
+    name: UID2 Operator AMI
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    outputs:
+      version_number: ${{ steps.buildAMI.outputs.version_number }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build UID2 Operator AMI
+        id: buildAMI
+        uses: ./.github/actions/build_ami
+        with:
+          identity_scope: euid
+          operator_run_number: ${{ inputs.operator_run_number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        

@@ -42,11 +42,17 @@ public class TokenResponseStatsCollector {
         Unauthorized
     }
 
-    public static void record(ISiteStore siteStore, Integer siteId, Endpoint endpoint, TokenVersion advertisingTokenVersion, ResponseStatus responseStatus) {
-        recordInternal(siteStore, siteId, endpoint, responseStatus, advertisingTokenVersion, endpoint == Endpoint.ClientSideTokenGenerateV2);
+    public enum PlatformType {
+        Unknown,
+        Mobile,
+        Web
     }
 
-    private static void recordInternal(ISiteStore siteStore, Integer siteId, Endpoint endpoint, ResponseStatus responseStatus, TokenVersion advertisingTokenVersion, boolean isCstg) {
+    public static void record(ISiteStore siteStore, Integer siteId, Endpoint endpoint, TokenVersion advertisingTokenVersion, ResponseStatus responseStatus, PlatformType platformType) {
+        recordInternal(siteStore, siteId, endpoint, responseStatus, advertisingTokenVersion, endpoint == Endpoint.ClientSideTokenGenerateV2, platformType);
+    }
+
+    private static void recordInternal(ISiteStore siteStore, Integer siteId, Endpoint endpoint, ResponseStatus responseStatus, TokenVersion advertisingTokenVersion, boolean isCstg, PlatformType platformType) {
         if (siteId == null) return;
 
         var builder = Counter
@@ -57,7 +63,8 @@ public class TokenResponseStatsCollector {
                             "token_endpoint", String.valueOf(endpoint),
                             "token_response_status", String.valueOf(responseStatus),
                             "advertising_token_version", String.valueOf(advertisingTokenVersion),
-                            "cstg", isCstg ? "true" : "false");
+                            "cstg", isCstg ? "true" : "false",
+                            "platformType", String.valueOf(platformType));
 
         builder.register(Metrics.globalRegistry).increment();
     }
@@ -65,14 +72,14 @@ public class TokenResponseStatsCollector {
     public static void recordRefresh(ISiteStore siteStore, Integer siteId, Endpoint endpoint, RefreshResponse refreshResponse) {
         if (!refreshResponse.isRefreshed()) {
             if (refreshResponse.isOptOut() || refreshResponse.isDeprecated()) {
-                recordInternal(siteStore, siteId, endpoint, ResponseStatus.OptOut, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg());
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.OptOut, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), PlatformType.Unknown);
             } else if (refreshResponse.isInvalidToken()) {
-                recordInternal(siteStore, siteId, endpoint, ResponseStatus.InvalidToken, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg());
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.InvalidToken, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), PlatformType.Unknown);
             } else if (refreshResponse.isExpired()) {
-                recordInternal(siteStore, siteId, endpoint, ResponseStatus.ExpiredToken, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg());
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.ExpiredToken, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), PlatformType.Unknown);
             }
         } else {
-            recordInternal(siteStore, siteId, endpoint, ResponseStatus.Success, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg());
+            recordInternal(siteStore, siteId, endpoint, ResponseStatus.Success, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), PlatformType.Unknown);
         }
     }
 }

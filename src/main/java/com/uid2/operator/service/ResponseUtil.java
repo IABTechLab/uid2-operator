@@ -152,7 +152,7 @@ public class ResponseUtil {
     }
 
     private static void logWarning(String status, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
-        String warnMessage = "Warning response to http request. " + JsonObject.of(
+        JsonObject warnMessageJsonObject = JsonObject.of(
                 "errorStatus", status,
                 "contact", contextReader.getContact(),
                 "siteId", contextReader.getSiteId(),
@@ -160,7 +160,18 @@ public class ResponseUtil {
                 "statusCode", statusCode,
                 "clientAddress", clientAddress,
                 "message", message
-        ).encode();
+        );
+        final String referer = contextReader.getReferer();
+        final String origin = contextReader.getOrigin();
+        if (statusCode >= 400 && statusCode < 500) {
+            if (referer != null) {
+                warnMessageJsonObject.put("referer", referer);
+            }
+            if (origin != null) {
+                warnMessageJsonObject.put("origin", origin);
+            }
+        }
+        String warnMessage = "Warning response to http request. " + warnMessageJsonObject.encode();
         LOGGER.warn(warnMessage);
     }
 

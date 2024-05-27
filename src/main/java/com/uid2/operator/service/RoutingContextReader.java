@@ -13,6 +13,10 @@ public class RoutingContextReader {
         this.context = context;
     }
 
+    public String getOrigin() { return this.context.request().getHeader("origin"); }
+
+    public String getReferer() { return this.context.request().getHeader("referer"); }
+
     public Integer getSiteId() {
         final Integer siteId = context.get(Const.RoutingContextData.SiteId);
         if (siteId != null) {

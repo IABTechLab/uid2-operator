@@ -32,13 +32,14 @@ public class ClientVersionCapturingHandler implements Handler<RoutingContext> {
     }
     @Override
     public void handle(RoutingContext context) {
-        if (context.request().headers().contains(Const.Http.ClientVersionHeader)) {
-            final String clientVersion = context.request().headers().get(Const.Http.ClientVersionHeader);
-            if (clientVersion != null) {
-                final Counter counter = _clientVersionCounters.get(clientVersion);
-                if (counter != null) {
-                    counter.increment();
-                }
+        String clientVersion = context.request().headers().get(Const.Http.ClientVersionHeader);
+        if (clientVersion == null) {
+            clientVersion =  !context.queryParam("client").isEmpty() ? context.queryParam("client").get(0) : null;
+        }
+        if (clientVersion != null) {
+            final Counter counter = _clientVersionCounters.get(clientVersion);
+            if (counter != null) {
+                counter.increment();
             }
         }
         context.next();

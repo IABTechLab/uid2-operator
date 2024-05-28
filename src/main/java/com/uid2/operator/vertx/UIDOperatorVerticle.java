@@ -1,5 +1,8 @@
 package com.uid2.operator.vertx;
 
+import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
@@ -58,6 +61,7 @@ import org.slf4j.LoggerFactory;
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.*;
 import java.security.spec.*;
@@ -1225,19 +1229,32 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.ClientError(rc, "invalid date, must conform to ISO 8601");
                 return;
             }
-            final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
-            final JsonArray resp = new JsonArray();
-            if (modified != null) {
-                for (SaltEntry e : modified) {
-                    final JsonObject o = new JsonObject();
-                    o.put("bucket_id", e.getHashedId());
-                    Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
-
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
-                    resp.add(o);
+            try {
+                final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
+                final ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                final JsonFactory jfactory = new JsonFactory();
+                final JsonGenerator jGenerator = jfactory.createGenerator(stream, JsonEncoding.UTF8);
+                if (modified != null) {
+                    jGenerator.writeStartObject();
+                    jGenerator.writeStringField("status", ResponseStatus.Success);
+                    jGenerator.writeFieldName("body");
+                    jGenerator.writeStartArray();
+                    for (SaltEntry e : modified) {
+                        jGenerator.writeStartObject();
+                        jGenerator.writeStringField("bucket_id", e.getHashedId());
+                        Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
+                        jGenerator.writeStringField("last_updated", APIDateTimeFormatter.format(lastUpdated));
+                        jGenerator.writeEndObject();
+                    }
+                    jGenerator.writeEndArray();
+                    jGenerator.writeEndObject();
+                    jGenerator.close();
+                    rc.data().put("response", new JsonObject(new String(stream.toByteArray(), "UTF-8")));
                 }
-                ResponseUtil.SuccessV2(rc, resp);
+            } catch (Exception e) {
+                ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown error while getting identity buckets", e);
             }
+
         } else {
             ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
         }

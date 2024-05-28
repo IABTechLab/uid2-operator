@@ -5011,10 +5011,7 @@ public class UIDOperatorVerticleTest {
             "uid2-sdk-0.0.1b", "uid2-sdk-1.0.0", "uid2-sdk-2.0.0"})
     void clientVersionHeader(String clientVersion, Vertx vertx, VertxTestContext testContext) {
         WebClient client = WebClient.create(vertx);
-        ClientKey ck = clientKeyProvider.getClientKey("");
         HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint"));
-        if (ck != null)
-            req.putHeader("Authorization", "Bearer " + clientKey);
         req.putHeader("X-UID2-Client-Version", clientVersion);
         req.send(ar -> {
             assertEquals(404, ar.result().statusCode());
@@ -5032,10 +5029,7 @@ public class UIDOperatorVerticleTest {
             "uid2-sdk-0.0.1b", "uid2-sdk-1.0.0", "uid2-sdk-2.0.0"})
     void clientVersionQueryParameter(String clientVersion, Vertx vertx, VertxTestContext testContext) {
         WebClient client = WebClient.create(vertx);
-        ClientKey ck = clientKeyProvider.getClientKey("");
         HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint?client=" + clientVersion));
-        if (ck != null)
-            req.putHeader("Authorization", "Bearer " + clientKey);
         req.send(ar -> {
             assertEquals(404, ar.result().statusCode());
             final double actual = Metrics.globalRegistry

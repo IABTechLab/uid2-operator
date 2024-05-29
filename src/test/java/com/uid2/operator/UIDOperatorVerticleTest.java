@@ -5052,7 +5052,7 @@ public class UIDOperatorVerticleTest {
         req.send(ar -> {
             assertEquals(404, ar.result().statusCode());
             assertThrows(MeterNotFoundException.class, () -> {
-                Counter counter = Metrics.globalRegistry
+                Metrics.globalRegistry
                         .get("uid2.client_sdk_versions")
                         .tag("client_version", clientVersion)
                         .counter();
@@ -5069,7 +5069,7 @@ public class UIDOperatorVerticleTest {
         req.send(ar -> {
             assertEquals(404, ar.result().statusCode());
             assertThrows(MeterNotFoundException.class, () -> {
-                Counter counter = Metrics.globalRegistry
+                Metrics.globalRegistry
                         .get("uid2.client_sdk_versions")
                         .tag("client_version", clientVersion)
                         .counter();

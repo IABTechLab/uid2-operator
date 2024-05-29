@@ -27,7 +27,9 @@ import com.uid2.shared.secret.KeyHashResult;
 import com.uid2.shared.secret.KeyHasher;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -5037,6 +5039,40 @@ public class UIDOperatorVerticleTest {
                     .tag("client_version", clientVersion)
                     .counter().count();
             assertEquals(1, actual);
+            testContext.completeNow();
+        });
+    }
+
+    @Test // note that this test will be removed when we switch to logging versions
+    void clientVersionHeaderNotFound(Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        String clientVersion = "invalid-sdk";
+        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint?client=" + clientVersion));
+        req.send(ar -> {
+            assertEquals(404, ar.result().statusCode());
+            assertThrows(MeterNotFoundException.class, () -> {
+                Counter counter = Metrics.globalRegistry
+                        .get("uid2.client_sdk_versions")
+                        .tag("client_version", clientVersion)
+                        .counter();
+            });
+            testContext.completeNow();
+        });
+    }
+
+    @Test // note that this test will be removed when we switch to logging versions
+    void clientVersionQueryParameterNotFound(Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        String clientVersion = "invalid-sdk";
+        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint?client=" + clientVersion));
+        req.send(ar -> {
+            assertEquals(404, ar.result().statusCode());
+            assertThrows(MeterNotFoundException.class, () -> {
+                Counter counter = Metrics.globalRegistry
+                        .get("uid2.client_sdk_versions")
+                        .tag("client_version", clientVersion)
+                        .counter();
+            });
             testContext.completeNow();
         });
     }

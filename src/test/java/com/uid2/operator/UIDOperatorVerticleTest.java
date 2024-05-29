@@ -5046,8 +5046,9 @@ public class UIDOperatorVerticleTest {
     @Test // note that this test will be removed when we switch to logging versions
     void clientVersionHeaderNotFound(Vertx vertx, VertxTestContext testContext) {
         WebClient client = WebClient.create(vertx);
+        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint"));
         String clientVersion = "invalid-sdk";
-        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint?client=" + clientVersion));
+        req.putHeader("X-UID2-Client-Version", clientVersion);
         req.send(ar -> {
             assertEquals(404, ar.result().statusCode());
             assertThrows(MeterNotFoundException.class, () -> {

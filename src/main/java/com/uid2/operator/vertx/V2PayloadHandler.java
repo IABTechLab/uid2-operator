@@ -87,7 +87,7 @@ public class V2PayloadHandler {
 
         V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
-            SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Unknown);
+            SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
             return;
         }
         rc.data().put("request", request.payload);
@@ -126,7 +126,7 @@ public class V2PayloadHandler {
         if (bodyString != null && bodyString.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
             request = V2RequestUtil.parseRefreshRequest(bodyString, this.keyManager);
             if (!request.isValid()) {
-                SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Unknown);
+                SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
                 return;
             }
             rc.data().put("request", request.payload);

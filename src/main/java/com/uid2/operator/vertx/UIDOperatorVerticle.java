@@ -125,6 +125,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int optOutStatusMaxRequestSize;
     private final boolean optOutStatusApiEnabled;
 
+    //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
+    //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
+    private final Set<String> SUPPORTED_IN_APP = new HashSet<>(Arrays.asList("Android", "ios", "tvos"));
+
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
@@ -327,7 +331,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonObject body;
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
         try {
-            platformType = getPlatformType(rc);
             body = rc.body().asJsonObject();
         } catch (DecodeException ex) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "json payload is not valid",
@@ -342,6 +345,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         final CstgRequest request = body.mapTo(CstgRequest.class);
+        platformType = request.getAppName() != null ? TokenResponseStatsCollector.PlatformType.InApp : getPlatformType(rc);
 
         final ClientSideKeypair clientSideKeypair = this.clientSideKeypairProvider.getSnapshot().getKeypair(request.getSubscriptionId());
         if (clientSideKeypair == null) {
@@ -1795,7 +1799,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     public static String getSiteName(ISiteStore siteStore, Integer siteId) {
-        if (siteId == null) return "X-UID2-Client-Version";
+        if (siteId == null) return "unknown";
         if (siteStore == null) return "unknown"; //this is expected if CSTG is not enabled, eg for private operators
 
         final Site site = siteStore.getSite(siteId);
@@ -1803,8 +1807,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private TokenResponseStatsCollector.PlatformType getPlatformType(RoutingContext rc) {
-        final String clientVersion = rc.request().getHeader("X-UID2-Client-Version");
-        if (clientVersion != null && (clientVersion.contains("Android") || clientVersion.contains("ios") || clientVersion.contains("tvos"))) {
+        final String clientVersionHeader = rc.request().getHeader("X-UID2-Client-Version");
+        if (clientVersionHeader != null && (SUPPORTED_IN_APP.stream().anyMatch(clientVersionHeader::contains))) {
             return TokenResponseStatsCollector.PlatformType.InApp;
         }
 

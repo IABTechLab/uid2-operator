@@ -93,6 +93,11 @@ public class UIDOperatorVerticleTest {
     private static final String clientSideTokenGenerateSubscriptionId = "4WvryDGbR5";
     private static final String clientSideTokenGeneratePublicKey = "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
     private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-L-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
+    private static final String clientVersionHeader = "X-UID2-Client-Version";
+    private static final String originHeader = "origin";
+    private static final String androidClientVersionHeaderValue = "Android-1.2.3";
+    private static final String iosClientVersionHeaderValue = "ios-1.2.3";
+    private static final String tvosClientVersionHeaderValue = "tvos-1.2.3";
     private static final int clientSideTokenGenerateSiteId = 123;
 
     private static final int optOutStatusMaxRequestSize = 1000;
@@ -252,6 +257,10 @@ public class UIDOperatorVerticleTest {
     }
 
     private void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode, String referer, Handler<JsonObject> handler, boolean additionalParams) {
+        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, referer, handler, additionalParams, null, null);
+    }
+
+    private void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode, String referer, Handler<JsonObject> handler, boolean additionalParams, String headerName, String headerValue) {
         if (apiVersion.equals("v2")) {
             ClientKey ck = (ClientKey) clientKeyProvider.get("");
 
@@ -278,21 +287,30 @@ public class UIDOperatorVerticleTest {
                 } else {
                     handler.handle(tryParseResponse(ar.result()));
                 }
-            });
+            }, headerName, headerValue);
         } else {
             get(vertx, apiVersion + "/token/generate" + (v1GetParam != null ? "?" + v1GetParam : ""), ar -> {
                 assertTrue(ar.succeeded());
                 assertEquals(expectedHttpCode, ar.result().statusCode());
                 handler.handle(tryParseResponse(ar.result()));
-            });
+            }, headerName, headerValue);
         }
     }
 
     private void sendTokenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext, String refreshToken, String v2RefreshDecryptSecret, int expectedHttpCode,
                                   Handler<JsonObject> handler) {
+        sendTokenRefresh(apiVersion, vertx, null, null, testContext, refreshToken, v2RefreshDecryptSecret, expectedHttpCode, handler);
+    }
+
+    private void sendTokenRefresh(String apiVersion, Vertx vertx, String headerName, String headerValue, VertxTestContext testContext, String refreshToken, String v2RefreshDecryptSecret, int expectedHttpCode,
+                                  Handler<JsonObject> handler) {
         if (apiVersion.equals("v2")) {
             WebClient client = WebClient.create(vertx);
-            client.postAbs(getUrlForEndpoint("v2/token/refresh"))
+            HttpRequest<Buffer> refreshHttpRequest = client.postAbs(getUrlForEndpoint("v2/token/refresh"));
+            if (headerName != null) {
+                refreshHttpRequest.putHeader(headerName, headerValue);
+            }
+            refreshHttpRequest
                     .putHeader("content-type", "text/plain")
                     .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), testContext.succeeding(response -> testContext.verify(() -> {
                         assertEquals(expectedHttpCode, response.statusCode());
@@ -314,7 +332,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals(expectedHttpCode, response.statusCode());
                 JsonObject json = response.bodyAsJsonObject();
                 handler.handle(json);
-            })));
+            })), headerName, headerValue);
         }
     }
 
@@ -354,6 +372,19 @@ public class UIDOperatorVerticleTest {
         req.send(handler);
     }
 
+    private void get(Vertx vertx, String endpoint, Handler<AsyncResult<HttpResponse<Buffer>>> handler, String headerName, String headerValue) {
+        WebClient client = WebClient.create(vertx);
+        ClientKey ck = clientKeyProvider.getClientKey("");
+        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint(endpoint));
+        if (ck != null) {
+            req.putHeader("Authorization", "Bearer " + clientKey);
+        }
+        if (headerName != null) {
+            req.putHeader(headerName, headerValue);
+        }
+        req.send(handler);
+    }
+
     private void post(Vertx vertx, String endpoint, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
         WebClient client = WebClient.create(vertx);
         ClientKey ck = clientKeyProvider.getClientKey("");
@@ -364,6 +395,9 @@ public class UIDOperatorVerticleTest {
     }
 
     private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, String referer, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
+        postV2(ck, vertx, endpoint, body, nonce, referer, handler, null, null);
+    }
+    private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, String referer, Handler<AsyncResult<HttpResponse<Buffer>>> handler, String headerName, String headerValue) {
         WebClient client = WebClient.create(vertx);
 
         Buffer b = Buffer.buffer();
@@ -383,6 +417,10 @@ public class UIDOperatorVerticleTest {
         HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
                 .putHeader("Authorization", "Bearer " + apiKey)
                 .putHeader("content-type", "text/plain");
+        if (headerName != null) {
+            request.putHeader(headerName, headerValue);
+        }
+
         if (referer != null) {
             request.putHeader("Referer", referer);
         }
@@ -557,11 +595,14 @@ public class UIDOperatorVerticleTest {
     }
 
     private void generateTokens(String apiVersion, Vertx vertx, String inputType, String input, Handler<JsonObject> handler) {
+        generateTokens(apiVersion, vertx, inputType, input,  handler, null, null);
+    }
+
+    private void generateTokens(String apiVersion, Vertx vertx, String inputType, String input, Handler<JsonObject> handler, String headerName, String headerValue) {
         String v1Param = inputType + "=" + urlEncode(input);
         JsonObject v2Payload = new JsonObject();
         v2Payload.put(inputType, input);
-
-        sendTokenGenerate(apiVersion, vertx, v1Param, v2Payload, 200, handler);
+        sendTokenGenerate(apiVersion, vertx, v1Param, v2Payload, 200, null, handler, true, headerName, headerValue);
     }
 
     private static void assertEqualsClose(Instant expected, Instant actual, int withinSeconds) {
@@ -1148,9 +1189,9 @@ public class UIDOperatorVerticleTest {
                             201,
                             TokenResponseStatsCollector.Endpoint.GenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.Success,
-                            TokenResponseStatsCollector.PlatformType.Unknown);
+                            TokenResponseStatsCollector.PlatformType.Other);
 
-                    sendTokenRefresh("v2", vertx, testContext, body.getString("refresh_token"), body.getString("refresh_response_key"), 200, refreshRespJson ->
+                    sendTokenRefresh("v2", vertx, clientVersionHeader, tvosClientVersionHeaderValue, testContext, body.getString("refresh_token"), body.getString("refresh_response_key"), 200, refreshRespJson ->
                     {
                         assertEquals("optout", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -1159,7 +1200,7 @@ public class UIDOperatorVerticleTest {
                                 201,
                                 TokenResponseStatsCollector.Endpoint.RefreshV2,
                                 TokenResponseStatsCollector.ResponseStatus.OptOut,
-                                TokenResponseStatsCollector.PlatformType.Unknown);
+                                TokenResponseStatsCollector.PlatformType.InApp);
                         testContext.completeNow();
                     });
                 });
@@ -1265,7 +1306,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(apiVersion, vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            sendTokenRefresh(apiVersion,  vertx, clientVersionHeader, iosClientVersionHeaderValue, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
             {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -1293,16 +1334,16 @@ public class UIDOperatorVerticleTest {
                         clientSiteId,
                         apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.GenerateV1 : TokenResponseStatsCollector.Endpoint.GenerateV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
-                        TokenResponseStatsCollector.PlatformType.Unknown);
+                        TokenResponseStatsCollector.PlatformType.InApp);
                 assertTokenStatusMetrics(
                         clientSiteId,
                         apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
-                        TokenResponseStatsCollector.PlatformType.Unknown);
+                        TokenResponseStatsCollector.PlatformType.InApp);
 
                 testContext.completeNow();
             });
-        });
+        }, clientVersionHeader, iosClientVersionHeaderValue);
     }
 
     @ParameterizedTest
@@ -1324,7 +1365,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(apiVersion, vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            sendTokenRefresh(apiVersion, vertx, clientVersionHeader, androidClientVersionHeaderValue, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
             {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -1352,18 +1393,18 @@ public class UIDOperatorVerticleTest {
                         clientSiteId,
                         apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.GenerateV1 : TokenResponseStatsCollector.Endpoint.GenerateV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
-                        TokenResponseStatsCollector.PlatformType.Unknown);
+                        TokenResponseStatsCollector.PlatformType.InApp);
                 assertTokenStatusMetrics(
                         clientSiteId,
                         apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
-                        TokenResponseStatsCollector.PlatformType.Unknown);
+                        TokenResponseStatsCollector.PlatformType.InApp);
 
                 verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
 
                 testContext.completeNow();
             });
-        });
+        }, clientVersionHeader, androidClientVersionHeaderValue);
     }
 
     @Test
@@ -1387,7 +1428,7 @@ public class UIDOperatorVerticleTest {
                     String genRefreshToken = bodyJson.getString("refresh_token");
 
                     setupKeys(true);
-                    sendTokenRefresh("v2", vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 500, refreshRespJson ->
+                    sendTokenRefresh("v2", vertx, clientVersionHeader, androidClientVersionHeaderValue, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 500, refreshRespJson ->
                     {
                         assertFalse(refreshRespJson.containsKey("body"));
                         assertEquals("No active encryption key available", refreshRespJson.getString("message"));
@@ -1591,13 +1632,13 @@ public class UIDOperatorVerticleTest {
     void tokenRefreshNoToken(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
-        sendTokenRefresh(apiVersion, vertx, testContext, "", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, null, null, testContext, "", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
                     apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
                     TokenResponseStatsCollector.ResponseStatus.InvalidToken,
-                    TokenResponseStatsCollector.PlatformType.Unknown);
+                    TokenResponseStatsCollector.PlatformType.Other);
             testContext.completeNow();
         });
     }
@@ -1608,13 +1649,13 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
 
-        sendTokenRefresh(apiVersion, vertx, testContext, "abcd", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, originHeader, "example.com", testContext, "abcd", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
                     apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
                     TokenResponseStatsCollector.ResponseStatus.InvalidToken,
-                    TokenResponseStatsCollector.PlatformType.Unknown);
+                    TokenResponseStatsCollector.PlatformType.HasOriginHeader);
             testContext.completeNow();
         });
     }
@@ -1622,7 +1663,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
     void tokenRefreshInvalidTokenUnauthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
-        sendTokenRefresh(apiVersion, vertx, testContext, "abcd", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, null, null, testContext, "abcd", "", 400, json -> {
             assertEquals("error", json.getString("status"));
             testContext.completeNow();
         });
@@ -1743,7 +1784,7 @@ public class UIDOperatorVerticleTest {
                         clientSiteId,
                         apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
                         TokenResponseStatsCollector.ResponseStatus.OptOut,
-                        TokenResponseStatsCollector.PlatformType.Unknown);
+                        TokenResponseStatsCollector.PlatformType.Other);
                 testContext.completeNow();
             });
         });
@@ -2610,7 +2651,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals(200, response.statusCode());
                 JsonObject json = response.bodyAsJsonObject();
                 assertEquals("optout", json.getString("status"));
-                assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.OptOut, TokenResponseStatsCollector.PlatformType.Unknown);
+                assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.OptOut, TokenResponseStatsCollector.PlatformType.Other);
 
                 testContext.completeNow();
             })));
@@ -2902,7 +2943,7 @@ public class UIDOperatorVerticleTest {
             try {
                 Assertions.assertEquals(ResponseUtil.ResponseStatus.OptOut, json.getString("status"));
                 Assertions.assertNull(json.getJsonObject("body"));
-                assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, TokenResponseStatsCollector.PlatformType.Unknown);
+                assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, TokenResponseStatsCollector.PlatformType.Other);
                 testContext.completeNow();
             } catch (Exception e) {
                 testContext.failNow(e);
@@ -3029,7 +3070,7 @@ public class UIDOperatorVerticleTest {
         WebClient client = WebClient.create(vertx);
         HttpRequest<Buffer> req = client.postAbs(getUrlForEndpoint(endpoint));
         if (httpOriginHeader != null) {
-            req.putHeader("origin", httpOriginHeader);
+            req.putHeader(originHeader, httpOriginHeader);
         }
         req.sendJsonObject(body, handler);
     }
@@ -3084,7 +3125,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.MissingParams,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -3114,7 +3155,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -3146,7 +3187,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.InvalidAppName,
-                            TokenResponseStatsCollector.PlatformType.Mobile);
+                            TokenResponseStatsCollector.PlatformType.InApp);
                     testContext.completeNow();
                 });
     }
@@ -3180,7 +3221,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -3204,6 +3245,11 @@ public class UIDOperatorVerticleTest {
                 testContext,
                 respJson -> {
                     Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOriginAndAppName: site test (123): " + appName));
+                    assertTokenStatusMetrics(
+                            clientSideTokenGenerateSiteId,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.InvalidAppName,
+                            TokenResponseStatsCollector.PlatformType.InApp);
                     testContext.completeNow();
                 });
     }
@@ -3249,7 +3295,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.Unauthorized,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.Other);
                     testContext.completeNow();
                 });
     }
@@ -3291,7 +3337,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.InvalidHttpOrigin,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -3349,6 +3395,11 @@ public class UIDOperatorVerticleTest {
                     assertNotNull(refreshBody);
                     var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
                     validateAndGetToken(encoder, refreshBody, IdentityType.Email); //to validate token version is correct
+                    assertTokenStatusMetrics(
+                            clientSideTokenGenerateSiteId,
+                            TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.Success,
+                            TokenResponseStatsCollector.PlatformType.InApp);
                     testContext.completeNow();
                 });
     }
@@ -3375,7 +3426,7 @@ public class UIDOperatorVerticleTest {
 
         WebClient client = WebClient.create(vertx);
         client.postAbs(getUrlForEndpoint("v2/token/client-generate"))
-            .putHeader("origin", "https://cstg.co.uk")
+            .putHeader(originHeader, "https://cstg.co.uk")
             .putHeader("Content-Type", "application/json")
             .sendBuffer(Buffer.buffer("not a valid json payload"), result -> testContext.verify(() -> {
                 assertEquals(400, result.result().statusCode());
@@ -3468,7 +3519,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadPublicKey,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -3555,7 +3606,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadIV,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -3601,7 +3652,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadIV,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -3644,7 +3695,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadPayload,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -3685,7 +3736,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadPayload,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -3730,7 +3781,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadPayload,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -3776,7 +3827,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.BadPayload,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
                     testContext.completeNow();
                 });
     }
@@ -4000,7 +4051,7 @@ public class UIDOperatorVerticleTest {
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
                             TokenResponseStatsCollector.ResponseStatus.Success,
-                            TokenResponseStatsCollector.PlatformType.Web);
+                            TokenResponseStatsCollector.PlatformType.HasOriginHeader);
 
                     String genRefreshToken = genBody.getString("refresh_token");
                     //test a subsequent refresh from this cstg call and see if it still works
@@ -4044,7 +4095,7 @@ public class UIDOperatorVerticleTest {
                                 clientSideTokenGenerateSiteId,
                                 TokenResponseStatsCollector.Endpoint.RefreshV2,
                                 TokenResponseStatsCollector.ResponseStatus.Success,
-                                TokenResponseStatsCollector.PlatformType.Unknown);
+                                TokenResponseStatsCollector.PlatformType.Other);
 
                         testContext.completeNow();
                     });

@@ -128,6 +128,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
     private final static List<String> SUPPORTED_IN_APP = Arrays.asList("Android", "ios", "tvos");
+    private final static String ORIGIN_HEADER = "Origin";
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -524,7 +525,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     : OriginOrAppNameValidationResult.invalidAppName(appName);
         }
 
-        final String origin = rc.request().getHeader("origin");
+        final String origin = rc.request().getHeader(ORIGIN_HEADER);
         final Set<String> domainNames = getDomainNameListForClientSideTokenGenerate(keypair);
 
         return origin != null && DomainNameCheckUtil.isDomainNameAllowed(origin, domainNames)
@@ -848,7 +849,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
             } else {
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains("Origin"));
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
             }
 
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, r, platformType);
@@ -882,7 +883,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
             } else {
                 ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains("Origin"));
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, r, platformType);
         } catch (Exception e) {
@@ -1102,7 +1103,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             siteId = rc.get(Const.RoutingContextData.SiteId);
             if (r.isRefreshed()) {
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains("Origin"));
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, r, TokenResponseStatsCollector.PlatformType.Other);
         } catch (Exception e) {
@@ -1816,7 +1817,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         }
 
-        final String origin = rc.request().getHeader("origin");
+        final String origin = rc.request().getHeader(ORIGIN_HEADER);
 
         return origin != null ? TokenResponseStatsCollector.PlatformType.HasOriginHeader : TokenResponseStatsCollector.PlatformType.Other;
     }

@@ -44,7 +44,7 @@ public class TokenResponseStatsCollector {
 
     public enum PlatformType {
         InApp, // Request has the "X-UID2-Client-Version" header, which contains "Android", "ios" or "tvos", typically originating from Android, iOS, or tvOS (Apple TV).
-        HasOriginHeader, // Request has the "origin" header, originating from the web.
+        HasOriginHeader, // Request has the "Origin" header, originating from the web.
         Other // Everything else, such as requests originating from the server side.
     }
 

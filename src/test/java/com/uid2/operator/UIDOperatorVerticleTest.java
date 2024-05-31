@@ -94,7 +94,7 @@ public class UIDOperatorVerticleTest {
     private static final String clientSideTokenGeneratePublicKey = "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
     private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-L-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
     private static final String clientVersionHeader = "X-UID2-Client-Version";
-    private static final String originHeader = "origin";
+    private static final String originHeader = "Origin";
     private static final String androidClientVersionHeaderValue = "Android-1.2.3";
     private static final String iosClientVersionHeaderValue = "ios-1.2.3";
     private static final String tvosClientVersionHeaderValue = "tvos-1.2.3";

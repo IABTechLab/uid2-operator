@@ -70,9 +70,9 @@ import java.util.stream.Stream;
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
 import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
-import static com.uid2.operator.vertx.UIDOperatorVerticle.OPT_OUT_CHECK_CUTOFF_DATE;
-import static com.uid2.operator.vertx.UIDOperatorVerticle.TOKEN_LIFETIME_TOLERANCE;
+import static com.uid2.operator.vertx.UIDOperatorVerticle.*;
 import static com.uid2.shared.Const.Data.*;
+import static com.uid2.shared.Const.Http.ClientVersionHeader;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -93,8 +93,6 @@ public class UIDOperatorVerticleTest {
     private static final String clientSideTokenGenerateSubscriptionId = "4WvryDGbR5";
     private static final String clientSideTokenGeneratePublicKey = "UID2-X-L-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsziOqRXZ7II0uJusaMxxCxlxgj8el/MUYLFMtWfB71Q3G1juyrAnzyqruNiPPnIuTETfFOridglP9UQNlwzNQg==";
     private static final String clientSideTokenGeneratePrivateKey = "UID2-Y-L-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCBop1Dw/IwDcstgicr/3tDoyR3OIpgAWgw8mD6oTO+1ug==";
-    private static final String clientVersionHeader = "X-UID2-Client-Version";
-    private static final String originHeader = "Origin";
     private static final String androidClientVersionHeaderValue = "Android-1.2.3";
     private static final String iosClientVersionHeaderValue = "ios-1.2.3";
     private static final String tvosClientVersionHeaderValue = "tvos-1.2.3";
@@ -1191,7 +1189,7 @@ public class UIDOperatorVerticleTest {
                             TokenResponseStatsCollector.ResponseStatus.Success,
                             TokenResponseStatsCollector.PlatformType.Other);
 
-                    sendTokenRefresh("v2", vertx, clientVersionHeader, tvosClientVersionHeaderValue, testContext, body.getString("refresh_token"), body.getString("refresh_response_key"), 200, refreshRespJson ->
+                    sendTokenRefresh("v2", vertx, ClientVersionHeader, tvosClientVersionHeaderValue, testContext, body.getString("refresh_token"), body.getString("refresh_response_key"), 200, refreshRespJson ->
                     {
                         assertEquals("optout", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -1306,7 +1304,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(apiVersion,  vertx, clientVersionHeader, iosClientVersionHeaderValue, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            sendTokenRefresh(apiVersion,  vertx, ClientVersionHeader, iosClientVersionHeaderValue, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
             {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -1343,7 +1341,7 @@ public class UIDOperatorVerticleTest {
 
                 testContext.completeNow();
             });
-        }, clientVersionHeader, iosClientVersionHeaderValue);
+        }, ClientVersionHeader, iosClientVersionHeaderValue);
     }
 
     @ParameterizedTest
@@ -1365,7 +1363,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(apiVersion, vertx, clientVersionHeader, androidClientVersionHeaderValue, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
+            sendTokenRefresh(apiVersion, vertx, ClientVersionHeader, androidClientVersionHeaderValue, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
             {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -1404,7 +1402,7 @@ public class UIDOperatorVerticleTest {
 
                 testContext.completeNow();
             });
-        }, clientVersionHeader, androidClientVersionHeaderValue);
+        }, ClientVersionHeader, androidClientVersionHeaderValue);
     }
 
     @Test
@@ -1428,7 +1426,7 @@ public class UIDOperatorVerticleTest {
                     String genRefreshToken = bodyJson.getString("refresh_token");
 
                     setupKeys(true);
-                    sendTokenRefresh("v2", vertx, clientVersionHeader, androidClientVersionHeaderValue, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 500, refreshRespJson ->
+                    sendTokenRefresh("v2", vertx, ClientVersionHeader, androidClientVersionHeaderValue, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 500, refreshRespJson ->
                     {
                         assertFalse(refreshRespJson.containsKey("body"));
                         assertEquals("No active encryption key available", refreshRespJson.getString("message"));
@@ -1649,7 +1647,7 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
 
-        sendTokenRefresh(apiVersion, vertx, originHeader, "example.com", testContext, "abcd", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, ORIGIN_HEADER, "example.com", testContext, "abcd", "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
@@ -3070,7 +3068,7 @@ public class UIDOperatorVerticleTest {
         WebClient client = WebClient.create(vertx);
         HttpRequest<Buffer> req = client.postAbs(getUrlForEndpoint(endpoint));
         if (httpOriginHeader != null) {
-            req.putHeader(originHeader, httpOriginHeader);
+            req.putHeader(ORIGIN_HEADER, httpOriginHeader);
         }
         req.sendJsonObject(body, handler);
     }
@@ -3426,7 +3424,7 @@ public class UIDOperatorVerticleTest {
 
         WebClient client = WebClient.create(vertx);
         client.postAbs(getUrlForEndpoint("v2/token/client-generate"))
-            .putHeader(originHeader, "https://cstg.co.uk")
+            .putHeader(ORIGIN_HEADER, "https://cstg.co.uk")
             .putHeader("Content-Type", "application/json")
             .sendBuffer(Buffer.buffer("not a valid json payload"), result -> testContext.verify(() -> {
                 assertEquals(400, result.result().statusCode());

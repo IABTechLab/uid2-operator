@@ -127,7 +127,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
-    private final Set<String> SUPPORTED_IN_APP = new HashSet<>(Arrays.asList("Android", "ios", "tvos"));
+    private final static List<String> SUPPORTED_IN_APP = Arrays.asList("Android", "ios", "tvos");
 
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
@@ -1807,9 +1807,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private TokenResponseStatsCollector.PlatformType getPlatformType(RoutingContext rc) {
-        final String clientVersionHeader = rc.request().getHeader("X-UID2-Client-Version");
-        if (clientVersionHeader != null && (SUPPORTED_IN_APP.stream().anyMatch(clientVersionHeader::contains))) {
-            return TokenResponseStatsCollector.PlatformType.InApp;
+        final String clientVersionHeader = rc.request().getHeader(Const.Http.ClientVersionHeader);
+        if (clientVersionHeader != null) {
+            for (String supportedVersion : SUPPORTED_IN_APP) {
+                if (clientVersionHeader.contains(supportedVersion)) {
+                    return TokenResponseStatsCollector.PlatformType.InApp;
+                }
+            }
         }
 
         final String origin = rc.request().getHeader("origin");

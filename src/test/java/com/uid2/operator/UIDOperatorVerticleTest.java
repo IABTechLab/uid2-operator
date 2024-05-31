@@ -27,7 +27,9 @@ import com.uid2.shared.secret.KeyHashResult;
 import com.uid2.shared.secret.KeyHasher;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -5002,6 +5004,76 @@ public class UIDOperatorVerticleTest {
         send("v2", vertx, "v2" + "/identity/map", false, null, req, 401, json -> {
             assertEquals("unauthorized", json.getString("status"));
             assertEquals("Invalid link_id", json.getString("message"));
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest // note that this test will be removed when we switch to logging versions
+    @ValueSource(strings = {"euid-sdk-1.0.0", "openid-sdk-1.0", "uid2-esp-0.0.1a", "uid2-sdk-0.0.1a",
+            "uid2-sdk-0.0.1b", "uid2-sdk-1.0.0", "uid2-sdk-2.0.0"})
+    void clientVersionHeader(String clientVersion, Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint"));
+        req.putHeader("X-UID2-Client-Version", clientVersion);
+        req.send(ar -> {
+            assertEquals(404, ar.result().statusCode());
+            final double actual = Metrics.globalRegistry
+                    .get("uid2.client_sdk_versions")
+                    .tag("client_version", clientVersion)
+                    .counter().count();
+            assertEquals(1, actual);
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest // note that this test will be removed when we switch to logging versions
+    @ValueSource(strings = {"euid-sdk-1.0.0", "openid-sdk-1.0", "uid2-esp-0.0.1a", "uid2-sdk-0.0.1a",
+            "uid2-sdk-0.0.1b", "uid2-sdk-1.0.0", "uid2-sdk-2.0.0"})
+    void clientVersionQueryParameter(String clientVersion, Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint?client=" + clientVersion));
+        req.send(ar -> {
+            assertEquals(404, ar.result().statusCode());
+            final double actual = Metrics.globalRegistry
+                    .get("uid2.client_sdk_versions")
+                    .tag("client_version", clientVersion)
+                    .counter().count();
+            assertEquals(1, actual);
+            testContext.completeNow();
+        });
+    }
+
+    @Test // note that this test will be removed when we switch to logging versions
+    void clientVersionHeaderNotFound(Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint"));
+        String clientVersion = "invalid-sdk";
+        req.putHeader("X-UID2-Client-Version", clientVersion);
+        req.send(ar -> {
+            assertEquals(404, ar.result().statusCode());
+            assertThrows(MeterNotFoundException.class, () -> {
+                Metrics.globalRegistry
+                        .get("uid2.client_sdk_versions")
+                        .tag("client_version", clientVersion)
+                        .counter();
+            });
+            testContext.completeNow();
+        });
+    }
+
+    @Test // note that this test will be removed when we switch to logging versions
+    void clientVersionQueryParameterNotFound(Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        String clientVersion = "invalid-sdk";
+        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint?client=" + clientVersion));
+        req.send(ar -> {
+            assertEquals(404, ar.result().statusCode());
+            assertThrows(MeterNotFoundException.class, () -> {
+                Metrics.globalRegistry
+                        .get("uid2.client_sdk_versions")
+                        .tag("client_version", clientVersion)
+                        .counter();
+            });
             testContext.completeNow();
         });
     }

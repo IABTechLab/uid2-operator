@@ -68,21 +68,21 @@ public class ResponseUtil {
         Warning(ResponseStatus.ClientError, 400, rc, message);
     }
 
-    public static void SendClientErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider)
+    public static void SendClientErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, TokenResponseStatsCollector.PlatformType platformType)
     {
         Warning(errorStatus, statusCode, rc, message);
-        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null);
+        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null, platformType);
     }
 
-    public static void SendServerErrorResponseAndRecordStats(RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, Exception exception)
+    public static void SendServerErrorResponseAndRecordStats(RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, Exception exception, TokenResponseStatsCollector.PlatformType platformType)
     {
         Error(ResponseStatus.UnknownError, 500, rc, message, exception);
         rc.fail(500);
-        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null);
+        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null, platformType);
     }
 
-    public static void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, TokenVersion advertisingTokenVersion) {
-        TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, advertisingTokenVersion, responseStatus);
+    public static void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, TokenVersion advertisingTokenVersion, TokenResponseStatsCollector.PlatformType platformType) {
+        TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, advertisingTokenVersion, responseStatus, platformType);
     }
 
     public static JsonObject Response(String status, String message) {

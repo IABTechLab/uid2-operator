@@ -1,5 +1,6 @@
 package com.uid2.operator.service;
 
+import ch.qos.logback.core.subst.Token;
 import com.uid2.operator.model.*;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
@@ -313,8 +314,10 @@ public class UIDOperatorService implements IUIDOperatorService {
             int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
             pseudoRandomNumber = (hash % 100) + 1; //1 to 100
         }
-        var tokenVersion = TokenVersion.V4;;
-        if (!siteIdsUsingV4Tokens.contains(publisherIdentity.siteId)) {
+        TokenVersion tokenVersion;
+        if (siteIdsUsingV4Tokens.contains(publisherIdentity.siteId)) {
+            tokenVersion = TokenVersion.V4;
+        } else {
             tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         }
         return new AdvertisingToken(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);

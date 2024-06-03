@@ -38,5 +38,6 @@
   "failure_shutdown_wait_hours": 120,
   "sharing_token_expiry_seconds": 2592000,
   "validate_service_links": false,
-  "advertising_token_v4_percentage": 0
+  "advertising_token_v4_percentage": 0,
+  "site_ids_using_v4_tokens": ""
 }

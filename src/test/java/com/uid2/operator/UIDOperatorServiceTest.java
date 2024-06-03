@@ -99,7 +99,6 @@ public class UIDOperatorServiceTest {
         euidConfig.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         euidConfig.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         euidConfig.put("advertising_token_v4_percentage", 0);
-        euidConfig.put("site_ids_using_v4_tokens", "");
         euidConfig.put("advertising_token_v3", true);
         euidConfig.put("identity_v3", true);
 

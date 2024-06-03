@@ -1,6 +1,5 @@
 package com.uid2.operator.service;
 
-import ch.qos.logback.core.subst.Token;
 import com.uid2.operator.model.*;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.vertx.OperatorShutdownHandler;

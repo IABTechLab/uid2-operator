@@ -80,6 +80,7 @@ public class UIDOperatorServiceTest {
         uid2Config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         uid2Config.put("advertising_token_v4_percentage", 0);
+        uid2Config.put("site_ids_using_v4_tokens", "127,128");
         uid2Config.put("advertising_token_v3", false); // prod is using v2 token version for now
         uid2Config.put("identity_v3", false);
 
@@ -98,6 +99,7 @@ public class UIDOperatorServiceTest {
         euidConfig.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         euidConfig.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         euidConfig.put("advertising_token_v4_percentage", 0);
+        euidConfig.put("site_ids_using_v4_tokens", "");
         euidConfig.put("advertising_token_v3", true);
         euidConfig.put("identity_v3", true);
 
@@ -133,8 +135,8 @@ public class UIDOperatorServiceTest {
         );
     }
 
-    private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString, IdentityScope scope, IdentityType type) {
-        TokenVersion tokenVersion = (scope == IdentityScope.UID2) ? uid2Service.getAdvertisingTokenVersionForTests() : euidService.getAdvertisingTokenVersionForTests();
+    private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString, IdentityScope scope, IdentityType type, int siteId) {
+        TokenVersion tokenVersion = (scope == IdentityScope.UID2) ? uid2Service.getAdvertisingTokenVersionForTests(siteId) : euidService.getAdvertisingTokenVersionForTests(siteId);
         UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, tokenVersion, scope, type);
         return tokenEncoder.decodeAdvertisingToken(advertisingTokenString);
     }
@@ -151,7 +153,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(tokens);
 
-        AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.UID2, IdentityType.Email);
+        AdvertisingToken advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.UID2, IdentityType.Email, identityRequest.publisherIdentity.siteId);
         assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken.expiresAt);
         assertEquals(identityRequest.publisherIdentity.siteId, advertisingToken.publisherIdentity.siteId);
         assertEquals(identityRequest.userIdentity.identityScope, advertisingToken.userIdentity.identityScope);
@@ -176,7 +178,64 @@ public class UIDOperatorServiceTest {
         assertEquals(RefreshResponse.Status.Refreshed, refreshResponse.getStatus());
         assertNotNull(refreshResponse.getTokens());
 
-        AdvertisingToken advertisingToken2 = validateAndGetToken(tokenEncoder, refreshResponse.getTokens().getAdvertisingToken(), IdentityScope.UID2, IdentityType.Email);
+        AdvertisingToken advertisingToken2 = validateAndGetToken(tokenEncoder, refreshResponse.getTokens().getAdvertisingToken(), IdentityScope.UID2, IdentityType.Email, identityRequest.publisherIdentity.siteId);
+        assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken2.expiresAt);
+        assertEquals(advertisingToken.publisherIdentity.siteId, advertisingToken2.publisherIdentity.siteId);
+        assertEquals(advertisingToken.userIdentity.identityScope, advertisingToken2.userIdentity.identityScope);
+        assertEquals(advertisingToken.userIdentity.identityType, advertisingToken2.userIdentity.identityType);
+        assertEquals(advertisingToken.userIdentity.establishedAt, advertisingToken2.userIdentity.establishedAt);
+        assertArrayEquals(advertisingToken.userIdentity.id, advertisingToken2.userIdentity.id);
+
+        RefreshToken refreshToken2 = tokenEncoder.decodeRefreshToken(refreshResponse.getTokens().getRefreshToken());
+        assertEquals(this.now, refreshToken2.createdAt);
+        assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), refreshToken2.expiresAt);
+        assertEquals(refreshToken.publisherIdentity.siteId, refreshToken2.publisherIdentity.siteId);
+        assertEquals(refreshToken.userIdentity.identityScope, refreshToken2.userIdentity.identityScope);
+        assertEquals(refreshToken.userIdentity.identityType, refreshToken2.userIdentity.identityType);
+        assertEquals(refreshToken.userIdentity.establishedAt, refreshToken2.userIdentity.establishedAt);
+        assertArrayEquals(refreshToken.userIdentity.id, refreshToken2.userIdentity.id);
+    }
+
+    @Test
+    public void testGenerateAndRefreshForSiteIdUsingV4Token() {
+        final IdentityRequest identityRequest = new IdentityRequest(
+                new PublisherIdentity(127, 124, 125),
+                createUserIdentity("test-email-hash", IdentityScope.UID2, IdentityType.Email),
+                OptoutCheckPolicy.DoNotRespect
+        );
+        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
+        verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
+        verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
+        assertNotNull(tokens);
+
+        UIDOperatorVerticleTest.validateAdvertisingToken(tokens.getAdvertisingToken(), TokenVersion.V4, IdentityScope.UID2, IdentityType.Email);
+        AdvertisingToken advertisingToken = tokenEncoder.decodeAdvertisingToken(tokens.getAdvertisingToken());
+        assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken.expiresAt);
+        assertEquals(identityRequest.publisherIdentity.siteId, advertisingToken.publisherIdentity.siteId);
+        assertEquals(identityRequest.userIdentity.identityScope, advertisingToken.userIdentity.identityScope);
+        assertEquals(identityRequest.userIdentity.identityType, advertisingToken.userIdentity.identityType);
+        assertEquals(identityRequest.userIdentity.establishedAt, advertisingToken.userIdentity.establishedAt);
+
+        RefreshToken refreshToken = tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
+        assertEquals(this.now, refreshToken.createdAt);
+        assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), refreshToken.expiresAt);
+        assertEquals(identityRequest.publisherIdentity.siteId, refreshToken.publisherIdentity.siteId);
+        assertEquals(identityRequest.userIdentity.identityScope, refreshToken.userIdentity.identityScope);
+        assertEquals(identityRequest.userIdentity.identityType, refreshToken.userIdentity.identityType);
+        assertEquals(identityRequest.userIdentity.establishedAt, refreshToken.userIdentity.establishedAt);
+
+        setNow(Instant.now().plusSeconds(200));
+
+        reset(shutdownHandler);
+        final RefreshResponse refreshResponse = uid2Service.refreshIdentity(refreshToken);
+        verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
+        verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
+        assertNotNull(refreshResponse);
+        assertEquals(RefreshResponse.Status.Refreshed, refreshResponse.getStatus());
+        assertNotNull(refreshResponse.getTokens());
+
+        UIDOperatorVerticleTest.validateAdvertisingToken(refreshResponse.getTokens().getAdvertisingToken(), TokenVersion.V4, IdentityScope.UID2, IdentityType.Email);
+        AdvertisingToken advertisingToken2 = tokenEncoder.decodeAdvertisingToken(refreshResponse.getTokens().getAdvertisingToken());
         assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken2.expiresAt);
         assertEquals(advertisingToken.publisherIdentity.siteId, advertisingToken2.publisherIdentity.siteId);
         assertEquals(advertisingToken.userIdentity.identityScope, advertisingToken2.userIdentity.identityScope);
@@ -262,7 +321,7 @@ public class UIDOperatorServiceTest {
             tokens = uid2Service.generateIdentity(identityRequestForceGenerate);
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.UID2, userIdentity.identityType);
+            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.UID2, userIdentity.identityType, identityRequestRespectOptOut.publisherIdentity.siteId);
             reset(shutdownHandler);
             tokensAfterOptOut = uid2Service.generateIdentity(identityRequestRespectOptOut);
 
@@ -270,7 +329,7 @@ public class UIDOperatorServiceTest {
             tokens = euidService.generateIdentity(identityRequestForceGenerate);
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.EUID, userIdentity.identityType);
+            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.EUID, userIdentity.identityType, identityRequestRespectOptOut.publisherIdentity.siteId);
             reset(shutdownHandler);
             tokensAfterOptOut = euidService.generateIdentity(identityRequestRespectOptOut);
         }
@@ -569,7 +628,7 @@ public class UIDOperatorServiceTest {
         else {
             tokens = uid2Service.generateIdentity(identityRequest);
         }
-        advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), scope, identityRequest.userIdentity.identityType);
+        advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), scope, identityRequest.userIdentity.identityType, identityRequest.publisherIdentity.siteId);
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(tokens);
@@ -691,11 +750,11 @@ public class UIDOperatorServiceTest {
         reset(shutdownHandler);
         if(scope == IdentityScope.EUID) {
             tokens = euidService.generateIdentity(identityRequest);
-            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.EUID, identityRequest.userIdentity.identityType);
+            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.EUID, identityRequest.userIdentity.identityType, identityRequest.publisherIdentity.siteId);
         }
         else {
             tokens = uid2Service.generateIdentity(identityRequest);
-            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.UID2, identityRequest.userIdentity.identityType);
+            advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.UID2, identityRequest.userIdentity.identityType, identityRequest.publisherIdentity.siteId);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(false);

@@ -49,6 +49,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final OperatorIdentity operatorIdentity;
     private final TokenVersion tokenVersionToUseIfNotV4;
     private final int advertisingTokenV4Percentage;
+    private final Set<Integer> siteIdsUsingV4Tokens;
     private final TokenVersion refreshTokenVersion;
     private final boolean identityV3Enabled;
 
@@ -93,6 +94,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
 
         this.advertisingTokenV4Percentage = config.getInteger("advertising_token_v4_percentage", 0); //0 indicates token v4 will not be used
+        this.siteIdsUsingV4Tokens = getSiteIdsUsingV4Tokens(config.getString("site_ids_using_v4_tokens", ""));
         this.tokenVersionToUseIfNotV4 = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
 
         this.refreshTokenVersion = TokenVersion.V3;
@@ -311,9 +313,28 @@ public class UIDOperatorService implements IUIDOperatorService {
             int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
             pseudoRandomNumber = (hash % 100) + 1; //1 to 100
         }
-
-        var tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
+        var tokenVersion = TokenVersion.V4;;
+        if (!siteIdsUsingV4Tokens.contains(publisherIdentity.siteId)) {
+            tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
+        }
         return new AdvertisingToken(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
+    }
+
+    private Set<Integer> getSiteIdsUsingV4Tokens(String siteIdsUsingV4TokensInString) {
+        String[] siteIdsV4TokensList = siteIdsUsingV4TokensInString.split(",");
+
+        Set<Integer> siteIdsV4TokensSet = new HashSet<>();
+        try {
+            for (String siteId : siteIdsV4TokensList) {
+                String siteIdTrimmed = siteId.trim();
+                if (!siteIdTrimmed.isEmpty()) {
+                    siteIdsV4TokensSet.add(Integer.parseInt(siteIdTrimmed));
+                }
+            }
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(String.format("Invalid integer format found in site_ids_using_v4_tokens:  %s", siteIdsUsingV4TokensInString));
+        }
+        return siteIdsV4TokensSet;
     }
 
     static protected class GlobalOptoutResult {
@@ -350,8 +371,11 @@ public class UIDOperatorService implements IUIDOperatorService {
         return new GlobalOptoutResult(result);
     }
 
-    public TokenVersion getAdvertisingTokenVersionForTests() {
+    public TokenVersion getAdvertisingTokenVersionForTests(int siteId) {
         assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
+        if (this.siteIdsUsingV4Tokens.contains(siteId)) {
+            return TokenVersion.V4;
+        }
         return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
     }
 

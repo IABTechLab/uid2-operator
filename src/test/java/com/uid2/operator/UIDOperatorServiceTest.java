@@ -140,6 +140,12 @@ public class UIDOperatorServiceTest {
         return tokenEncoder.decodeAdvertisingToken(advertisingTokenString);
     }
 
+    private void assertIdentityScopeIdentityTypeAndEstablishedAt(UserIdentity expctedUserIdentity, UserIdentity actualUserIdentity) {
+        assertEquals(expctedUserIdentity.identityScope, actualUserIdentity.identityScope);
+        assertEquals(expctedUserIdentity.identityType, actualUserIdentity.identityType);
+        assertEquals(expctedUserIdentity.establishedAt, actualUserIdentity.establishedAt);
+    }
+
     @ParameterizedTest
     @CsvSource({"123, V2","127, V4","128, V4"}) //site id 127 and 128 is for testing "site_ids_using_v4_tokens"
     public void testGenerateAndRefresh(int siteId, TokenVersion tokenVersion) {
@@ -156,17 +162,13 @@ public class UIDOperatorServiceTest {
         UIDOperatorVerticleTest.validateAdvertisingToken(tokens.getAdvertisingToken(), tokenVersion, IdentityScope.UID2, IdentityType.Email);
         AdvertisingToken advertisingToken = tokenEncoder.decodeAdvertisingToken(tokens.getAdvertisingToken());assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken.expiresAt);
         assertEquals(identityRequest.publisherIdentity.siteId, advertisingToken.publisherIdentity.siteId);
-        assertEquals(identityRequest.userIdentity.identityScope, advertisingToken.userIdentity.identityScope);
-        assertEquals(identityRequest.userIdentity.identityType, advertisingToken.userIdentity.identityType);
-        assertEquals(identityRequest.userIdentity.establishedAt, advertisingToken.userIdentity.establishedAt);
+        assertIdentityScopeIdentityTypeAndEstablishedAt(identityRequest.userIdentity, advertisingToken.userIdentity);
 
         RefreshToken refreshToken = tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
         assertEquals(this.now, refreshToken.createdAt);
         assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), refreshToken.expiresAt);
         assertEquals(identityRequest.publisherIdentity.siteId, refreshToken.publisherIdentity.siteId);
-        assertEquals(identityRequest.userIdentity.identityScope, refreshToken.userIdentity.identityScope);
-        assertEquals(identityRequest.userIdentity.identityType, refreshToken.userIdentity.identityType);
-        assertEquals(identityRequest.userIdentity.establishedAt, refreshToken.userIdentity.establishedAt);
+        assertIdentityScopeIdentityTypeAndEstablishedAt(identityRequest.userIdentity, refreshToken.userIdentity);
 
         setNow(Instant.now().plusSeconds(200));
 
@@ -182,18 +184,14 @@ public class UIDOperatorServiceTest {
         AdvertisingToken advertisingToken2 = tokenEncoder.decodeAdvertisingToken(refreshResponse.getTokens().getAdvertisingToken());
         assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken2.expiresAt);
         assertEquals(advertisingToken.publisherIdentity.siteId, advertisingToken2.publisherIdentity.siteId);
-        assertEquals(advertisingToken.userIdentity.identityScope, advertisingToken2.userIdentity.identityScope);
-        assertEquals(advertisingToken.userIdentity.identityType, advertisingToken2.userIdentity.identityType);
-        assertEquals(advertisingToken.userIdentity.establishedAt, advertisingToken2.userIdentity.establishedAt);
+        assertIdentityScopeIdentityTypeAndEstablishedAt(advertisingToken.userIdentity, advertisingToken2.userIdentity);
         assertArrayEquals(advertisingToken.userIdentity.id, advertisingToken2.userIdentity.id);
 
         RefreshToken refreshToken2 = tokenEncoder.decodeRefreshToken(refreshResponse.getTokens().getRefreshToken());
         assertEquals(this.now, refreshToken2.createdAt);
         assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), refreshToken2.expiresAt);
         assertEquals(refreshToken.publisherIdentity.siteId, refreshToken2.publisherIdentity.siteId);
-        assertEquals(refreshToken.userIdentity.identityScope, refreshToken2.userIdentity.identityScope);
-        assertEquals(refreshToken.userIdentity.identityType, refreshToken2.userIdentity.identityType);
-        assertEquals(refreshToken.userIdentity.establishedAt, refreshToken2.userIdentity.establishedAt);
+        assertIdentityScopeIdentityTypeAndEstablishedAt(refreshToken.userIdentity, refreshToken2.userIdentity);
         assertArrayEquals(refreshToken.userIdentity.id, refreshToken2.userIdentity.id);
     }
 

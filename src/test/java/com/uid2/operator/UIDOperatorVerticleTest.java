@@ -2214,8 +2214,10 @@ public class UIDOperatorVerticleTest {
             assertEquals(optedOutCount, optOutJsonArray.size());
             for (int i = 0; i < optOutJsonArray.size(); ++i) {
                 JsonObject optOutObject = optOutJsonArray.getJsonObject(i);
-                assertEquals(optedOutIds.get(optOutObject.getString("advertising_id")),
-                        optOutObject.getLong("opted_out_since"));
+                String advertisingId = optOutObject.getString("advertising_id");
+                assertTrue(optedOutIds.containsKey(advertisingId));
+                long expectedTimestamp = Instant.ofEpochSecond(optedOutIds.get(advertisingId)).toEpochMilli();
+                assertEquals(expectedTimestamp, optOutObject.getLong("opted_out_since"));
             }
             testContext.completeNow();
         });

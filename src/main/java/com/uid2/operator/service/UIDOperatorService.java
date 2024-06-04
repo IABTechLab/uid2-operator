@@ -23,6 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.uid2.operator.IdentityConst.*;
+import static com.uid2.operator.service.TokenUtils.getSiteIdsUsingV4Tokens;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
@@ -306,37 +307,20 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
-        int pseudoRandomNumber = 1;
-        final var rawUid = userIdentity.id;
-        if (rawUid.length > 2)
-        {
-            int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
-            pseudoRandomNumber = (hash % 100) + 1; //1 to 100
-        }
         TokenVersion tokenVersion;
         if (siteIdsUsingV4Tokens.contains(publisherIdentity.siteId)) {
             tokenVersion = TokenVersion.V4;
         } else {
+            int pseudoRandomNumber = 1;
+            final var rawUid = userIdentity.id;
+            if (rawUid.length > 2)
+            {
+                int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
+                pseudoRandomNumber = (hash % 100) + 1; //1 to 100
+            }
             tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         }
         return new AdvertisingToken(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
-    }
-
-    private Set<Integer> getSiteIdsUsingV4Tokens(String siteIdsUsingV4TokensInString) {
-        String[] siteIdsV4TokensList = siteIdsUsingV4TokensInString.split(",");
-
-        Set<Integer> siteIdsV4TokensSet = new HashSet<>();
-        try {
-            for (String siteId : siteIdsV4TokensList) {
-                String siteIdTrimmed = siteId.trim();
-                if (!siteIdTrimmed.isEmpty()) {
-                    siteIdsV4TokensSet.add(Integer.parseInt(siteIdTrimmed));
-                }
-            }
-        } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException(String.format("Invalid integer format found in site_ids_using_v4_tokens:  %s", siteIdsUsingV4TokensInString));
-        }
-        return siteIdsV4TokensSet;
     }
 
     static protected class GlobalOptoutResult {

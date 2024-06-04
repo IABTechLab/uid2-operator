@@ -64,7 +64,7 @@ public class TokenResponseStatsCollector {
                             "token_response_status", String.valueOf(responseStatus),
                             "advertising_token_version", String.valueOf(advertisingTokenVersion),
                             "cstg", isCstg ? "true" : "false",
-                            "platformType", String.valueOf(platformType));
+                            "platform_type", String.valueOf(platformType));
 
         builder.register(Metrics.globalRegistry).increment();
     }

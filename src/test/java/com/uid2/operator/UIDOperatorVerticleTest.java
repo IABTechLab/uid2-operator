@@ -618,7 +618,7 @@ public class UIDOperatorVerticleTest {
                 .tag("token_endpoint", String.valueOf(endpoint))
                 .tag("token_response_status", String.valueOf(responseStatus))
                 .tag("advertising_token_version", responseStatus == TokenResponseStatsCollector.ResponseStatus.Success ? String.valueOf(getTokenVersion()) : "null")
-                .tag("platformType", String.valueOf(platformType))
+                .tag("platform_type", String.valueOf(platformType))
                 .counter().count();
         assertEquals(1, actual);
     }

@@ -159,6 +159,7 @@ public class UIDOperatorVerticleTest {
         config.put("identity_scope", getIdentityScope().toString());
         config.put("advertising_token_v3", getTokenVersion() == TokenVersion.V3);
         config.put("advertising_token_v4_percentage", getTokenVersion() == TokenVersion.V4 ? 100 : 0);
+        config.put("site_ids_using_v4_tokens", "");
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         config.put("key_sharing_endpoint_provide_app_names", true);
@@ -617,7 +618,7 @@ public class UIDOperatorVerticleTest {
                 .tag("token_endpoint", String.valueOf(endpoint))
                 .tag("token_response_status", String.valueOf(responseStatus))
                 .tag("advertising_token_version", responseStatus == TokenResponseStatsCollector.ResponseStatus.Success ? String.valueOf(getTokenVersion()) : "null")
-                .tag("platformType", String.valueOf(platformType))
+                .tag("platform_type", String.valueOf(platformType))
                 .counter().count();
         assertEquals(1, actual);
     }

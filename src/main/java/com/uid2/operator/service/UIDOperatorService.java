@@ -23,6 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.uid2.operator.IdentityConst.*;
+import static com.uid2.operator.service.TokenUtils.getSiteIdsUsingV4Tokens;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
@@ -49,6 +50,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final OperatorIdentity operatorIdentity;
     private final TokenVersion tokenVersionToUseIfNotV4;
     private final int advertisingTokenV4Percentage;
+    private final Set<Integer> siteIdsUsingV4Tokens;
     private final TokenVersion refreshTokenVersion;
     private final boolean identityV3Enabled;
 
@@ -93,6 +95,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
 
         this.advertisingTokenV4Percentage = config.getInteger("advertising_token_v4_percentage", 0); //0 indicates token v4 will not be used
+        this.siteIdsUsingV4Tokens = getSiteIdsUsingV4Tokens(config.getString("site_ids_using_v4_tokens", ""));
         this.tokenVersionToUseIfNotV4 = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
 
         this.refreshTokenVersion = TokenVersion.V3;
@@ -304,15 +307,19 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
-        int pseudoRandomNumber = 1;
-        final var rawUid = userIdentity.id;
-        if (rawUid.length > 2)
-        {
-            int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
-            pseudoRandomNumber = (hash % 100) + 1; //1 to 100
+        TokenVersion tokenVersion;
+        if (siteIdsUsingV4Tokens.contains(publisherIdentity.siteId)) {
+            tokenVersion = TokenVersion.V4;
+        } else {
+            int pseudoRandomNumber = 1;
+            final var rawUid = userIdentity.id;
+            if (rawUid.length > 2)
+            {
+                int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
+                pseudoRandomNumber = (hash % 100) + 1; //1 to 100
+            }
+            tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         }
-
-        var tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         return new AdvertisingToken(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
     }
 
@@ -350,8 +357,11 @@ public class UIDOperatorService implements IUIDOperatorService {
         return new GlobalOptoutResult(result);
     }
 
-    public TokenVersion getAdvertisingTokenVersionForTests() {
+    public TokenVersion getAdvertisingTokenVersionForTests(int siteId) {
         assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
+        if (this.siteIdsUsingV4Tokens.contains(siteId)) {
+            return TokenVersion.V4;
+        }
         return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
     }
 

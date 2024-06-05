@@ -1746,7 +1746,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 if (timestamp != -1) {
                     JsonObject optOutJsonObj = new JsonObject();
                     optOutJsonObj.put("advertising_id", rawUId);
-                    optOutJsonObj.put("opted_out_since", timestamp);
+                    optOutJsonObj.put("opted_out_since", Instant.ofEpochSecond(timestamp).toEpochMilli());
                     optedOutJsonArray.add(optOutJsonObj);
                 }
             }

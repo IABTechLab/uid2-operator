@@ -9,12 +9,13 @@ import com.uid2.shared.encryption.Uid2Base64UrlCoder;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.TokenVersion;
 import io.vertx.core.buffer.Buffer;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Metrics;
 
 import java.time.Instant;
 import java.util.Base64;
 
 public class EncryptedTokenEncoder implements ITokenEncoder {
-
     private final KeyManager keyManager;
 
     public EncryptedTokenEncoder(KeyManager keyManager) {
@@ -264,8 +265,18 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         switch (t.version) {
             case V2:
+                var v2Builder = Counter
+                        .builder("uid2_refresh_token_v2_served_count")
+                        .description("Counter for the amount of refresh token v2 served").tags(
+                                "timestamp", String.valueOf(asOf));
+                v2Builder.register(Metrics.globalRegistry).increment();
                 return encodeV2(t, serviceKey);
             case V3:
+                var v3Builder = Counter
+                        .builder("uid2_refresh_token_v3_served_count")
+                        .description("Counter for the amount of refresh token v3 served").tags(
+                                "timestamp", String.valueOf(asOf));
+                v3Builder.register(Metrics.globalRegistry).increment();
                 return encodeV3(t, serviceKey);
             default:
                 throw new ClientInputValidationException("RefreshToken version " + t.version + " not supported");

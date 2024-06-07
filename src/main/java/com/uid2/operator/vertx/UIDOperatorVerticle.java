@@ -1778,13 +1778,25 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         optOutDistSummary.record(optOutCount);
     }
 
+    public TokenVersion getRefreshTokenVersion(String s) {
+        if (s != null && !s.isEmpty()) {
+            final byte[] bytes = EncodingUtils.fromBase64(s);
+            final Buffer b = Buffer.buffer(bytes);
+            if (b.getByte(1) == TokenVersion.V3.rawVersion) {
+                return TokenVersion.V3;
+            } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
+                return TokenVersion.V2;
+            }
+        }
+        return null;
+    }
+
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
         final RefreshToken refreshToken;
         try {
             if (AuthMiddleware.isAuthenticated(rc)) {
                 rc.put(Const.RoutingContextData.SiteId, AuthMiddleware.getAuthClient(ClientKey.class, rc).getSiteId());
             }
-
             refreshToken = this.encoder.decodeRefreshToken(tokenStr);
         } catch (ClientInputValidationException cie) {
             return RefreshResponse.Invalid;
@@ -1794,6 +1806,20 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         if (!AuthMiddleware.isAuthenticated(rc)) {
             rc.put(Const.RoutingContextData.SiteId, refreshToken.publisherIdentity.siteId);
+        }
+        TokenVersion tokenVersion = this.getRefreshTokenVersion(tokenStr);
+        if (tokenVersion == TokenVersion.V2) {
+            var v2Builder = Counter
+                    .builder("uid2_refresh_token_v2_received_count")
+                    .description("Counter for the amount of refresh token v2 received").tags(
+                            "site_id", String.valueOf(AuthMiddleware.getAuthClient(rc).getSiteId()));
+            v2Builder.register(Metrics.globalRegistry).increment();
+        } else if (tokenVersion == TokenVersion.V3) {
+            var v3Builder = Counter
+                    .builder("uid2_refresh_token_v3_received_count")
+                    .description("Counter for the amount of refresh token v3 received").tags(
+                            "site_id", String.valueOf(AuthMiddleware.getAuthClient(rc).getSiteId()));
+            v3Builder.register(Metrics.globalRegistry).increment();
         }
 
         return this.idService.refreshIdentity(refreshToken);

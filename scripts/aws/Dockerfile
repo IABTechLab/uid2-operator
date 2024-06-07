@@ -29,7 +29,7 @@ RUN apt update -y \
     && apt-get install /app/dep/syslog-ng-core_4.6.0-1_amd64.deb \
     && rm -rf /var/lib/apt/lists/* \
     && apt-key del 6694369F 
-RUN pip3 install boto3==1.16.9
+RUN pip3 install boto3
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
 COPY ./static             /app/static

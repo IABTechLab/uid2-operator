@@ -9,7 +9,7 @@ ifconfig lo 127.0.0.1
 
 # -- start vsock proxy
 echo "Starting vsock proxy..."
-/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
+/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 0
 
 # -- setup syslog-ng
 echo "Starting syslog-ng..."

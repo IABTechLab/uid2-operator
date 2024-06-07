@@ -70,6 +70,10 @@ function update_allocation() {
 }
 
 function setup_vsockproxy() {
+    if [[ "$1" == "debug" ]]; then
+        VSOCK_LOG_LEVEL=0
+    fi
+    
     VSOCK_PROXY=${VSOCK_PROXY:-/usr/bin/vsockpx}
     VSOCK_CONFIG=${VSOCK_CONFIG:-/etc/uid2operator/proxy.yaml}
     VSOCK_THREADS=${VSOCK_THREADS:-$(( $(nproc) * 2 )) }
@@ -99,6 +103,11 @@ function run_enclave() {
     nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator
 }
 
+function run_enclave_debug() {
+    echo "starting enclave..."
+    nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator --debug-mode --attach-console
+}
+
 terminate_old_enclave
 config_aws
 read_allocation
@@ -106,6 +115,10 @@ read_allocation
 setup_vsockproxy
 setup_aws_proxy
 setup_dante
-run_enclave
+if [[ "$1" == "debug" ]]; then
+    run_enclave_debug
+else
+    run_enclave
+fi
 
 echo "Done!"

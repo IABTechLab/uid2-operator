@@ -53,7 +53,6 @@ jobs:
       - name: Free up space - delete preinstalled tools
         run: |
           sudo rm -rf /opt/hostedtoolcache
-          sudo rm -rf /usr/share/dotnet
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
       - name: Show Context

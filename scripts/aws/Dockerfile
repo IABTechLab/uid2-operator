@@ -1,4 +1,5 @@
-FROM openjdk:11.0.16-jre-slim-bullseye
+# FROM openjdk:11.0.16-jre-slim-bullseye
+FROM debian:bullseye-20240513-slim
 
 WORKDIR /app
 
@@ -7,6 +8,7 @@ ARG JAR_VERSION=1.0.0
 ARG IMAGE_VERSION=1.0.0.unknownhash
 ARG IDENTITY_SCOPE=UID2
 
+ENV DEBIAN_FRONTEND=noninteractive
 ENV JAR_NAME=${JAR_NAME}
 ENV JAR_VERSION=${JAR_VERSION}
 ENV IMAGE_VERSION=${IMAGE_VERSION}
@@ -17,8 +19,12 @@ ENV UID2_CONFIG_SECRET_KEY="uid2-operator-config-key"
 COPY ./syslog-ng-core_4.6.0-1_amd64.deb /app/dep/
 COPY ./syslog-ng-ose-pub.asc /app/dep/
 
+RUN mkdir -p /usr/share/man/man1 /usr/share/man/man2
+
 RUN apt update -y \
     && apt install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends openjdk-11-jre \
     && apt-key add /app/dep/syslog-ng-ose-pub.asc \
     && apt-get install /app/dep/syslog-ng-core_4.6.0-1_amd64.deb \
     && rm -rf /var/lib/apt/lists/* \

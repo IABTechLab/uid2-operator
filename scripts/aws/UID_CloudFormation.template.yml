@@ -149,7 +149,7 @@ Mappings:
 Resources:
   KMSKey:
     Type: AWS::KMS::Key
-    Properties: 
+    Properties:
       Description: Key for Secret Encryption
       EnableKeyRotation: true
       KeyPolicy:
@@ -173,12 +173,12 @@ Resources:
             Resource: '*'
   SSMKEYAlias:
     Type: AWS::KMS::Alias
-    Properties: 
+    Properties:
       AliasName: !Sub 'alias/uid-secret-${AWS::StackName}'
       TargetKeyId: !Ref KMSKey
   TokenSecret:
     Type: AWS::SecretsManager::Secret
-    Properties: 
+    Properties:
       Description: UID2 Token
       KmsKeyId: !GetAtt KMSKey.Arn
       Name: !Sub 'uid2-config-stack-${AWS::StackName}'
@@ -215,7 +215,7 @@ Resources:
               - Effect: Allow
                 Action: 'secretsmanager:GetSecretValue'
                 Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:uid2-config-stack-${AWS::StackName}*'
-      ManagedPolicyArns: 
+      ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
   WorkerInstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
@@ -269,11 +269,11 @@ Resources:
           Name: !Ref WorkerInstanceProfile
         ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
         InstanceType: !Ref InstanceType
-        EnclaveOptions: 
+        EnclaveOptions:
           Enabled: true
         KeyName: !Ref SSHKeyName
         SecurityGroupIds:
-          - !Ref SecurityGroup 
+          - !Ref SecurityGroup
         UserData: !Base64
           Fn::Sub: |
             #!/bin/bash -ex
@@ -291,12 +291,12 @@ Resources:
         LaunchTemplateId: !Ref LaunchTemplate
         Version: !GetAtt LaunchTemplate.LatestVersionNumber
       MetricsCollection:
-      - Granularity: 1Minute
-        Metrics:
-        - GroupTotalInstances
+        - Granularity: 1Minute
+          Metrics:
+            - GroupTotalInstances
       MaxSize: 1
       MinSize: 1
-      VPCZoneIdentifier: 
+      VPCZoneIdentifier:
         - !Ref VpcSubnet1
         - !Ref VpcSubnet2
       Tags:

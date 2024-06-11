@@ -31,6 +31,10 @@ Parameters:
       - m5a.4xlarge
       - m5n.2xlarge
       - m5n.4xlarge
+      - m6i.2xlarge
+      - m6i.4xlarge
+      - r6i.2xlarge
+      - r6i.4xlarge
     ConstraintDescription: must be a valid EC2 instance type.
   RootVolumeSize:
     Description: Instance root volume size
@@ -83,7 +87,7 @@ Metadata:
       DeployToEnvironment:
         default: EUID environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
-        default: Instance Type for EC2. Minimum 4 vCPUs needed. M5, M5a, M5n Instance types are tested. Choose 2xlarge or 4xlarge.
+        default: Instance Type for EC2. Minimum 4 vCPUs needed. M5, M5a, M5n, M6i and R6i Instance types are tested. Choose 2xlarge or 4xlarge.
       SSHKeyName:
         default: Key Name for SSH to EC2 (required)
       RootVolumeSize:
@@ -217,6 +221,11 @@ Resources:
           ToPort: '443'
           CidrIp: 0.0.0.0/0
           Description: "Allow Outbound HTTPS"
+        - IpProtocol: udp
+          FromPort: '53'
+          ToPort: '53'
+          CidrIp: 0.0.0.0/0
+          Description: "Allow Outbound DNS"
       VpcId: !Ref VpcId
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate

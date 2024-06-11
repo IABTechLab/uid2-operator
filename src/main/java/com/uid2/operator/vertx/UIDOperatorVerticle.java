@@ -114,7 +114,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
     private final Handler<Boolean> saltRetrievalResponseHandler;
-
     private final int maxBidstreamLifetimeSeconds;
     private final int allowClockSkewSeconds;
     protected int maxSharingLifetimeSeconds;
@@ -1791,6 +1790,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return null;
     }
 
+    private void recordRefreshTokenVersionCount(String siteId, TokenVersion tokenVersion) {
+        Counter.builder("uid2_refresh_token_received_count")
+                .description(String.format("Counter for the amount of refresh token %s received", tokenVersion.toString().toLowerCase()))
+                .tags("site_id", siteId)
+                .tags("refresh_token_version", tokenVersion.toString().toLowerCase())
+                .register(Metrics.globalRegistry).increment();
+
+    }
+
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
         final RefreshToken refreshToken;
         try {
@@ -1807,20 +1815,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (!AuthMiddleware.isAuthenticated(rc)) {
             rc.put(Const.RoutingContextData.SiteId, refreshToken.publisherIdentity.siteId);
         }
-        TokenVersion tokenVersion = this.getRefreshTokenVersion(tokenStr);
-        if (tokenVersion == TokenVersion.V2) {
-            var v2Builder = Counter
-                    .builder("uid2_refresh_token_v2_received_count")
-                    .description("Counter for the amount of refresh token v2 received").tags(
-                            "site_id", String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)));
-            v2Builder.register(Metrics.globalRegistry).increment();
-        } else if (tokenVersion == TokenVersion.V3) {
-            var v3Builder = Counter
-                    .builder("uid2_refresh_token_v3_received_count")
-                    .description("Counter for the amount of refresh token v3 received").tags(
-                            "site_id", String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)));
-            v3Builder.register(Metrics.globalRegistry).increment();
-        }
+        recordRefreshTokenVersionCount(String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)), this.getRefreshTokenVersion(tokenStr));
 
         return this.idService.refreshIdentity(refreshToken);
     }

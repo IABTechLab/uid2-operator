@@ -260,23 +260,23 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         );
     }
 
+    private void recordRefreshTokenVersionCount(String siteId, TokenVersion tokenVersion) {
+        Counter.builder("uid2_refresh_token_served_count")
+                .description(String.format("Counter for the amount of refresh token %s served", tokenVersion.toString().toLowerCase()))
+                .tags("site_id", String.valueOf(siteId))
+                .tags("refresh_token_version", tokenVersion.toString().toLowerCase())
+                .register(Metrics.globalRegistry).increment();
+    }
+
     public byte[] encode(RefreshToken t, Instant asOf) {
         final KeysetKey serviceKey = this.keyManager.getRefreshKey(asOf);
 
         switch (t.version) {
             case V2:
-                var v2Builder = Counter
-                        .builder("uid2_refresh_token_v2_served_count")
-                        .description("Counter for the amount of refresh token v2 served").tags(
-                                "timestamp", String.valueOf(asOf));
-                v2Builder.register(Metrics.globalRegistry).increment();
+                recordRefreshTokenVersionCount(String.valueOf(t.publisherIdentity.siteId), TokenVersion.V2);
                 return encodeV2(t, serviceKey);
             case V3:
-                var v3Builder = Counter
-                        .builder("uid2_refresh_token_v3_served_count")
-                        .description("Counter for the amount of refresh token v3 served").tags(
-                                "timestamp", String.valueOf(asOf));
-                v3Builder.register(Metrics.globalRegistry).increment();
+                recordRefreshTokenVersionCount(String.valueOf(t.publisherIdentity.siteId), TokenVersion.V3);
                 return encodeV3(t, serviceKey);
             default:
                 throw new ClientInputValidationException("RefreshToken version " + t.version + " not supported");

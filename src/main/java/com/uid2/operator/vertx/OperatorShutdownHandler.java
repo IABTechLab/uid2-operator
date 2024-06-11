@@ -1,5 +1,6 @@
 package com.uid2.operator.vertx;
 
+import com.uid2.operator.service.ShutdownService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
@@ -19,11 +20,13 @@ public class OperatorShutdownHandler {
     private final AtomicReference<Instant> saltFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> lastSaltFailureLogTime = new AtomicReference<>(null);
     private final Clock clock;
+    private final ShutdownService shutdownService;
 
-    public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime, Clock clock) {
+    public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
         this.attestShutdownWaitTime = attestShutdownWaitTime;
         this.saltShutdownWaitTime = saltShutdownWaitTime;
         this.clock = clock;
+        this.shutdownService = shutdownService;
     }
 
     public void handleSaltRetrievalResponse(Boolean expired) {
@@ -36,7 +39,7 @@ public class OperatorShutdownHandler {
                 saltFailureStartTime.set(clock.instant());
             } else if(Duration.between(t, clock.instant()).compareTo(this.saltShutdownWaitTime) > 0) {
                 LOGGER.error("salts have been in expired state for too long. shutting down operator");
-                System.exit(1);
+                this.shutdownService.Shutdown(1);
             }
         }
     }
@@ -52,7 +55,7 @@ public class OperatorShutdownHandler {
     public void handleAttestResponse(Pair<Integer, String> response) {
         if (response.left() == 401) {
             LOGGER.error("core attestation failed with 401, shutting down operator, core response: " + response.right());
-            System.exit(1);
+            this.shutdownService.Shutdown(1);
         }
         if (response.left() == 200) {
             attestFailureStartTime.set(null);
@@ -62,7 +65,7 @@ public class OperatorShutdownHandler {
                 attestFailureStartTime.set(clock.instant());
             } else if (Duration.between(t, clock.instant()).compareTo(this.attestShutdownWaitTime) > 0) {
                 LOGGER.error("core attestation has been in failed state for too long. shutting down operator");
-                System.exit(1);
+                this.shutdownService.Shutdown(1);
             }
         }
     }

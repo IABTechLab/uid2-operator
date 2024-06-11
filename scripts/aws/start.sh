@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [[ "$1" == "debug" ]]; then
+    set -x
+fi
+
 echo "$HOSTNAME" > /etc/uid2operator/HOSTNAME
 EIF_PATH=${EIF_PATH:-/opt/uid2operator/uid2operator.eif}
 IDENTITY_SCOPE=${IDENTITY_SCOPE:-$(cat /opt/uid2operator/identity_scope.txt)}
@@ -73,7 +77,7 @@ function setup_vsockproxy() {
     if [[ "$1" == "debug" ]]; then
         VSOCK_LOG_LEVEL=0
     fi
-    
+
     VSOCK_PROXY=${VSOCK_PROXY:-/usr/bin/vsockpx}
     VSOCK_CONFIG=${VSOCK_CONFIG:-/etc/uid2operator/proxy.yaml}
     VSOCK_THREADS=${VSOCK_THREADS:-$(( $(nproc) * 2 )) }

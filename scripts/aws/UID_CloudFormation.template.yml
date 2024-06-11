@@ -31,6 +31,10 @@ Parameters:
       - m5a.4xlarge
       - m5n.2xlarge
       - m5n.4xlarge
+      - m6i.2xlarge
+      - m6i.4xlarge
+      - r6i.2xlarge
+      - r6i.4xlarge
     ConstraintDescription: must be a valid EC2 instance type.
   RootVolumeSize:
     Description: Instance root volume size
@@ -83,7 +87,7 @@ Metadata:
       DeployToEnvironment:
         default: UID2 environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
-        default: Instance Type for EC2. Minimum 4 vCPUs needed. M5, M5a, M5n Instance types are tested. Choose 2xlarge or 4xlarge.
+        default: Instance Type for EC2. Minimum 4 vCPUs needed. M5, M5a, M5n, M6i and R6i Instance types are tested. Choose 2xlarge or 4xlarge.
       SSHKeyName:
         default: Key Name for SSH to EC2 (required)
       RootVolumeSize:
@@ -145,7 +149,7 @@ Mappings:
 Resources:
   KMSKey:
     Type: AWS::KMS::Key
-    Properties: 
+    Properties:
       Description: Key for Secret Encryption
       EnableKeyRotation: true
       KeyPolicy:
@@ -169,12 +173,12 @@ Resources:
             Resource: '*'
   SSMKEYAlias:
     Type: AWS::KMS::Alias
-    Properties: 
+    Properties:
       AliasName: !Sub 'alias/uid-secret-${AWS::StackName}'
       TargetKeyId: !Ref KMSKey
   TokenSecret:
     Type: AWS::SecretsManager::Secret
-    Properties: 
+    Properties:
       Description: UID2 Token
       KmsKeyId: !GetAtt KMSKey.Arn
       Name: !Sub 'uid2-config-stack-${AWS::StackName}'
@@ -211,7 +215,7 @@ Resources:
               - Effect: Allow
                 Action: 'secretsmanager:GetSecretValue'
                 Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:uid2-config-stack-${AWS::StackName}*'
-      ManagedPolicyArns: 
+      ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
   WorkerInstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
@@ -245,6 +249,11 @@ Resources:
           ToPort: '443'
           CidrIp: 0.0.0.0/0
           Description: "Allow Outbound HTTPS"
+        - IpProtocol: udp
+          FromPort: '53'
+          ToPort: '53'
+          CidrIp: 0.0.0.0/0
+          Description: "Allow Outbound DNS"
       VpcId: !Ref VpcId
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -260,11 +269,11 @@ Resources:
           Name: !Ref WorkerInstanceProfile
         ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
         InstanceType: !Ref InstanceType
-        EnclaveOptions: 
+        EnclaveOptions:
           Enabled: true
         KeyName: !Ref SSHKeyName
         SecurityGroupIds:
-          - !Ref SecurityGroup 
+          - !Ref SecurityGroup
         UserData: !Base64
           Fn::Sub: |
             #!/bin/bash -ex
@@ -282,12 +291,12 @@ Resources:
         LaunchTemplateId: !Ref LaunchTemplate
         Version: !GetAtt LaunchTemplate.LatestVersionNumber
       MetricsCollection:
-      - Granularity: 1Minute
-        Metrics:
-        - GroupTotalInstances
+        - Granularity: 1Minute
+          Metrics:
+            - GroupTotalInstances
       MaxSize: 1
       MinSize: 1
-      VPCZoneIdentifier: 
+      VPCZoneIdentifier:
         - !Ref VpcSubnet1
         - !Ref VpcSubnet2
       Tags:

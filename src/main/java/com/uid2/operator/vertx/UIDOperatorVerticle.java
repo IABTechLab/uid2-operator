@@ -114,7 +114,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
     private final Handler<Boolean> saltRetrievalResponseHandler;
-
     private final int maxBidstreamLifetimeSeconds;
     private final int allowClockSkewSeconds;
     protected int maxSharingLifetimeSeconds;
@@ -1778,13 +1777,34 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         optOutDistSummary.record(optOutCount);
     }
 
+    public TokenVersion getRefreshTokenVersion(String s) {
+        if (s != null && !s.isEmpty()) {
+            final byte[] bytes = EncodingUtils.fromBase64(s);
+            final Buffer b = Buffer.buffer(bytes);
+            if (b.getByte(1) == TokenVersion.V3.rawVersion) {
+                return TokenVersion.V3;
+            } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
+                return TokenVersion.V2;
+            }
+        }
+        return null;
+    }
+
+    private void recordRefreshTokenVersionCount(String siteId, TokenVersion tokenVersion) {
+        Counter.builder("uid2_refresh_token_received_count")
+                .description(String.format("Counter for the amount of refresh token %s received", tokenVersion.toString().toLowerCase()))
+                .tags("site_id", siteId)
+                .tags("refresh_token_version", tokenVersion.toString().toLowerCase())
+                .register(Metrics.globalRegistry).increment();
+
+    }
+
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
         final RefreshToken refreshToken;
         try {
             if (AuthMiddleware.isAuthenticated(rc)) {
                 rc.put(Const.RoutingContextData.SiteId, AuthMiddleware.getAuthClient(ClientKey.class, rc).getSiteId());
             }
-
             refreshToken = this.encoder.decodeRefreshToken(tokenStr);
         } catch (ClientInputValidationException cie) {
             return RefreshResponse.Invalid;
@@ -1795,6 +1815,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (!AuthMiddleware.isAuthenticated(rc)) {
             rc.put(Const.RoutingContextData.SiteId, refreshToken.publisherIdentity.siteId);
         }
+        recordRefreshTokenVersionCount(String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)), this.getRefreshTokenVersion(tokenStr));
 
         return this.idService.refreshIdentity(refreshToken);
     }

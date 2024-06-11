@@ -1745,6 +1745,8 @@ public class UIDOperatorVerticleTest {
 
             sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 400, refreshRespJson -> {
                 assertEquals("expired_token", refreshRespJson.getString("status"));
+                assertNotNull(Metrics.globalRegistry
+                        .get("uid2_refresh_token_received_count").counter());
                 testContext.completeNow();
             });
         });
@@ -1763,6 +1765,8 @@ public class UIDOperatorVerticleTest {
 
             sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, "", 400, refreshRespJson -> {
                 assertEquals("error", refreshRespJson.getString("status"));
+                assertNotNull(Metrics.globalRegistry
+                        .get("uid2_refresh_token_received_count").counter());
                 testContext.completeNow();
             });
         });

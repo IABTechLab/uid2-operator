@@ -2,7 +2,6 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
 import com.uid2.operator.util.PrivacyBits;
-import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.ISaltProvider;

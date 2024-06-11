@@ -1812,13 +1812,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             var v2Builder = Counter
                     .builder("uid2_refresh_token_v2_received_count")
                     .description("Counter for the amount of refresh token v2 received").tags(
-                            "site_id", String.valueOf(AuthMiddleware.getAuthClient(rc).getSiteId()));
+                            "site_id", String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)));
             v2Builder.register(Metrics.globalRegistry).increment();
         } else if (tokenVersion == TokenVersion.V3) {
             var v3Builder = Counter
                     .builder("uid2_refresh_token_v3_received_count")
                     .description("Counter for the amount of refresh token v3 received").tags(
-                            "site_id", String.valueOf(AuthMiddleware.getAuthClient(rc).getSiteId()));
+                            "site_id", String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)));
             v3Builder.register(Metrics.globalRegistry).increment();
         }
 

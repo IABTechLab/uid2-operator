@@ -31,12 +31,6 @@ public class TokenEncodingTest {
 
     private SimpleMeterRegistry registry;
 
-    @BeforeEach
-    private void setupMetrics() {
-        this.registry = new SimpleMeterRegistry();
-        Metrics.globalRegistry.add(registry);
-    }
-
     public TokenEncodingTest() throws Exception {
         RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
             new EmbeddedResourceStorage(Main.class),

@@ -87,7 +87,7 @@ runs:
     - name: Get version number
       id: versionNumber
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: ./scripts/aws/uid2-operator-ami
       run: |
         VERSION_NUMBER=$(cat ./artifacts/version_number.txt)
         echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
@@ -95,7 +95,7 @@ runs:
 
     - name: Create AMI
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: ./scripts/aws/uid2-operator-ami
       run: |
         TIMESTAMP=$(date +%s)
         echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_OUTPUT
@@ -110,7 +110,7 @@ runs:
     - name: Extract AMI ID
       id: extractAmiId
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: ./scripts/aws/uid2-operator-ami
       run: |
         AMI_ID=$(jq -r '.builds[-1].artifact_id' manifest.json | cut -d ":" -f2)
         echo "AMI_ID=$AMI_ID" >> $GITHUB_OUTPUT
@@ -119,7 +119,7 @@ runs:
     - name: Persist UID2 enclave and AMI IDs
       if: ${{ inputs.identity_scope == 'uid2' }}
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: ./scripts/aws/uid2-operator-ami
       run: |
         touch uid2_AMI_measurement.txt
         echo "Enclave ID: $(cat ./artifacts/pcr0.txt)" >> uid2_AMI_measurement.txt
@@ -131,7 +131,7 @@ runs:
       id: euidCopyAmi
       if: ${{ inputs.identity_scope == 'euid' }}
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: ./scripts/aws/uid2-operator-ami
       run: |
         US_EAST_AMI_ID=$(aws ec2 copy-image --region us-east-1 --source-region eu-central-1 --source-image-id ${{ steps.extractAmiId.outputs.AMI_ID }} --name euid-operator-${{ steps.versionNumber.outputs.VERSION_NUMBER }}-${{ steps.createAMI.outputs.TIMESTAMP }} --output text)
         echo "US_EAST_1_AMI_ID=$US_EAST_AMI_ID" >> $GITHUB_OUTPUT
@@ -140,7 +140,7 @@ runs:
     - name: Persist EUID enclave and AMI IDs
       if: ${{ inputs.identity_scope == 'euid' }}
       shell: bash
-      working-directory: uid2-operator-ami
+      working-directory: ./scripts/aws/uid2-operator-ami
       run: |
         touch euid_AMI_measurement.txt
         echo "Enclave ID: $(cat ./artifacts/pcr0.txt)" >> euid_AMI_measurement.txt

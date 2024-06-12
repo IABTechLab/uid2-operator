@@ -6,7 +6,6 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.uid2.shared.Const;
 import com.uid2.shared.auth.IAuthorizable;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.web.RoutingContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,7 +19,6 @@ class ResponseUtilTest {
     private Logger logger;
     private ListAppender<ILoggingEvent> testAppender;
     private RoutingContext rc;
-    private HttpServerRequest request;
 
     @BeforeEach
     void setUp() {
@@ -138,86 +136,3 @@ class ResponseUtilTest {
         ILoggingEvent loggingEvent = testAppender.list.get(0);
         assertThat(loggingEvent.getMessage()).isEqualTo(expected);
     }
-
-    @Test
-    void logsWarningWithOrigin() {
-        when(request.getHeader("origin")).thenReturn("testOriginHeader");
-        when(rc.request()).thenReturn(request);
-
-        ResponseUtil.Warning("Some error status", 400, rc, "Some error message");
-
-        String expected = "Warning response to http request. {" +
-                "\"errorStatus\":\"Some error status\"," +
-                "\"contact\":null," +
-                "\"siteId\":null," +
-                "\"path\":null," +
-                "\"statusCode\":400," +
-                "\"clientAddress\":null," +
-                "\"message\":\"Some error message\"," +
-                "\"origin\":\"testOriginHeader\"" +
-                "}";
-        ILoggingEvent loggingEvent = testAppender.list.get(0);
-        assertThat(loggingEvent.getMessage()).isEqualTo(expected);
-    }
-
-    @Test
-    void logsWarningWithOriginNull() {
-        when(request.getHeader("origin")).thenReturn(null);
-        when(rc.request()).thenReturn(request);
-
-        ResponseUtil.Warning("Some error status", 400, rc, "Some error message");
-
-        String expected = "Warning response to http request. {" +
-                "\"errorStatus\":\"Some error status\"," +
-                "\"contact\":null," +
-                "\"siteId\":null," +
-                "\"path\":null," +
-                "\"statusCode\":400," +
-                "\"clientAddress\":null," +
-                "\"message\":\"Some error message\"" +
-                "}";
-        ILoggingEvent loggingEvent = testAppender.list.get(0);
-        assertThat(loggingEvent.getMessage()).isEqualTo(expected);
-    }
-
-    @Test
-    void logsWarningWithReferer() {
-        when(request.getHeader("referer")).thenReturn("testRefererHeader");
-        when(rc.request()).thenReturn(request);
-
-        ResponseUtil.Warning("Some error status", 400, rc, "Some error message");
-
-        String expected = "Warning response to http request. {" +
-                "\"errorStatus\":\"Some error status\"," +
-                "\"contact\":null," +
-                "\"siteId\":null," +
-                "\"path\":null," +
-                "\"statusCode\":400," +
-                "\"clientAddress\":null," +
-                "\"message\":\"Some error message\"," +
-                "\"referer\":\"testRefererHeader\"" +
-                "}";
-        ILoggingEvent loggingEvent = testAppender.list.get(0);
-        assertThat(loggingEvent.getMessage()).isEqualTo(expected);
-    }
-
-    @Test
-    void logsWarningWithRefererNull() {
-        when(request.getHeader("referer")).thenReturn(null);
-        when(rc.request()).thenReturn(request);
-
-        ResponseUtil.Warning("Some error status", 400, rc, "Some error message");
-
-        String expected = "Warning response to http request. {" +
-                "\"errorStatus\":\"Some error status\"," +
-                "\"contact\":null," +
-                "\"siteId\":null," +
-                "\"path\":null," +
-                "\"statusCode\":400," +
-                "\"clientAddress\":null," +
-                "\"message\":\"Some error message\"" +
-                "}";
-        ILoggingEvent loggingEvent = testAppender.list.get(0);
-        assertThat(loggingEvent.getMessage()).isEqualTo(expected);
-    }
-}

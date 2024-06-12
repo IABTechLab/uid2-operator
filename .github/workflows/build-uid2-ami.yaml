@@ -19,6 +19,10 @@ on:
         required: false
         default: false
 
+env:
+  REPO_OWNER: IABTechLab
+  REPO_NAME: uid2-operator
+
 jobs:
   buildUID2:
     name: UID2 Operator AMI

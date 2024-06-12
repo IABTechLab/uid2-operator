@@ -1,0 +1,84 @@
+name: Download Release Artifact
+description: Downloads an artifact from a release
+
+inputs:
+  github_token:
+    description: The GITHUB_TOKEN to use for the target repo
+    required: false
+  repo_owner:
+    description: The owner of the target repo
+    required: true
+  repo_name:
+    description: The name of the target repo
+    required: true
+  release_name:
+    description: The release name that contains the aritfact
+    required: true
+  artifact_name:
+    description: The name of the artifact. Can be a partial name
+    required: true
+  folder:
+    description: The folder to download the artifact to and then unpack
+    required: true
+
+runs:
+  using: "composite"
+
+  steps:
+    - name: Get Artifact Ids
+      id: get_asset_id
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github_token }}
+        result-encoding: string
+        script: |
+          let allReleases = await github.rest.repos.listReleases({
+            owner: '${{ inputs.repo_owner }}',
+            repo: '${{ inputs.repo_name }}'
+          })
+
+          assetUrl = ""
+          let matchedReleases = allReleases.data.filter((release) => {
+            return release.name == "${{ inputs.release_name }}"
+          })
+          if (matchedReleases.length == 0) {
+            core.setFailed('Unable to find release: ' + '${{ inputs.release_name }}' );
+          } else {
+            let matchedRelease = matchedReleases[0];
+            let releaseId = matchedRelease.id;
+            console.log('Release Id:' + releaseId);
+
+            let assets = matchedRelease.assets.filter((asset) => {
+              return asset.name.includes('${{ inputs.artifact_name }}')
+            });
+            if (assets.length == 0) {
+              core.setFailed('Unable to find asset in release');
+            } else {
+              let asset = assets[0];
+              console.log('Asset:');
+              console.log(asset);
+              assetUrl = asset.url
+            }
+
+            return assetUrl
+          }
+
+    - name: Download Assets
+      shell: bash
+      run: |
+        echo 'Asset URL: ${{ steps.get_asset_id.outputs.result }}'
+
+        mkdir -p ./${{ inputs.folder }}
+        DOWNLOAD_PATH_OLD="https://api.github.com/repos/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/releases/assets/${{ steps.get_asset_id.outputs.result }}"
+        DOWNLOAD_PATH=${{ steps.get_asset_id.outputs.result }}
+        echo $DOWNLOAD_PATH
+        curl -L -H "Accept: application/octet-stream" \
+          -H "Authorization: Bearer ${{ inputs.github_token }}" \
+          -o "./${{ inputs.folder }}/${{ inputs.artifact_name }}.zip" \
+          $DOWNLOAD_PATH 
+  
+    - name: Unzip artifacts
+      shell: bash
+      run: |
+          unzip -o -d './${{ inputs.folder }}' './${{ inputs.folder }}/${{ inputs.artifact_name }}.zip'
+          rm './${{ inputs.folder }}/${{ inputs.artifact_name }}.zip'

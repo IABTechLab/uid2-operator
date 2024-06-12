@@ -3,37 +3,48 @@ run-name: Build UID2 and EUID AMIs for Operator Release ${{ inputs.operator_rele
 on:
   workflow_dispatch:
     inputs:
+      operator_release:
+        description: The Operator Release number that built the EIF files to use
+        type: string
       operator_run_number:
         description: The Operator run number. Ignored if Release Number specified.
         type: string
+      operator_branch:
+        description: The branch of Operator to use. 
+        type: string
+        default: main
+      save_ami:
+        description: Save the AMIs as a build artifact.
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   buildUID2:
     name: UID2 Operator AMI
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
+    runs-on: [self-hosted, linux, aws]
     outputs:
       version_number: ${{ steps.buildAMI.outputs.version_number }}
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      # - name: Pre-cleanup
-      #   shell: bash
-      #   working-directory: ${{ github.workspace }}
-      #   run: |
-      #     echo "Cleaning up previous run"
-      #     sudo rm -rf * || true
-      #     docker stop $(docker ps -aq) || true
-      #     docker rm $(docker ps -aq) || true
-      #     docker rmi $(docker images -q) || true
+      - name: Pre-cleanup
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "Cleaning up previous run"
+          sudo rm -rf * || true
+          docker stop $(docker ps -aq) || true
+          docker rm $(docker ps -aq) || true
+          docker rmi $(docker images -q) || true
 
       - name: Build UID2 Operator AMI
         id: buildAMI
-        uses: ./.github/actions/build_ami
+        uses: ./.github/actions/build_ami@kcc-UID2-3366-build-ami-in-operator-repo
         with:
-          identity_scope: euid
+          identity_scope: uid2
+          eif_repo_owner: ${{ env.REPO_OWNER }}
+          eif_repo_name: ${{ env.REPO_NAME }}
+          eif_repo_token: ${{ secrets.TEST_PAT }}
+          operator_release: ${{ inputs.operator_release }}
           operator_run_number: ${{ inputs.operator_run_number }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-        
+          operator_branch: ${{ inputs.operator_branch }}
+          save_ami: ${{ inputs.save_ami }}

@@ -57,3 +57,68 @@ jobs:
           operator_run_number: ${{ inputs.operator_run_number }}
           operator_branch: ${{ inputs.operator_branch }}
           save_ami: ${{ inputs.save_ami }}
+  
+  buildEUID:
+      name: EUID Operator AMI
+      runs-on: ubuntu-latest
+      permissions:
+        id-token: write
+      outputs:
+        version_number: ${{ steps.buildAMI.outputs.version_number }}
+      steps:
+        - name: Checkout repo
+          uses: actions/checkout@v4
+
+        - name: Pre-cleanup
+          shell: bash
+          working-directory: ${{ github.workspace }}
+          run: |
+            echo "Cleaning up previous run"
+            sudo rm -rf * || true
+            docker stop $(docker ps -aq) || true
+            docker rm $(docker ps -aq) || true
+            docker rmi $(docker images -q) || true
+
+        - name: Build EUID Operator AMI
+          id: buildAMI
+          uses: IABTechLab/uid2-operator/.github/actions/build_ami@kcc-UID2-3366-build-ami-in-operator-repo
+          with:
+            identity_scope: euid
+            eif_repo_owner: ${{ env.REPO_OWNER }}
+            eif_repo_name: ${{ env.REPO_NAME }}
+            github_token: ${{ github.token }}
+            operator_release: ${{ inputs.operator_release }}
+            operator_run_number: ${{ inputs.operator_run_number }}
+            operator_branch: ${{ inputs.operator_branch }}
+            save_ami: ${{ inputs.save_ami }}
+    
+  collectAllArtifacts:
+    name: Collect All Artifacts
+    if: ${{ inputs.save_ami }}
+    runs-on: ubuntu-latest
+    needs: [buildUID2, buildEUID]
+    steps:
+      - name: Download UID2 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: UID2_AMI_measurement
+          path: ./artifacts
+
+      - name: Download EUID artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: EUID_AMI_measurement
+          path: ./artifacts
+
+      - name: Delete staging artifacts
+        uses: geekyeggo/delete-artifact@v5
+        with: 
+          name: |
+            UID2_AMI_measurement
+            EUID_AMI_measurement
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: uid2-operator-release-${{ needs.buildUID2.outputs.version_number }}-aws
+          path: ./artifacts/

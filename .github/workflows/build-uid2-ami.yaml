@@ -48,7 +48,7 @@ jobs:
           identity_scope: uid2
           eif_repo_owner: ${{ env.REPO_OWNER }}
           eif_repo_name: ${{ env.REPO_NAME }}
-          eif_repo_token: ${{ secrets.TEST_PAT }}
+          github_token: ${{ github.token }}
           operator_release: ${{ inputs.operator_release }}
           operator_run_number: ${{ inputs.operator_run_number }}
           operator_branch: ${{ inputs.operator_branch }}

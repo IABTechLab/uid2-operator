@@ -5,7 +5,7 @@ inputs:
   identity_scope:
     description: The identity scope [uid2, euid]
     required: true
-  eif_repo_token:
+  github_token:
     description: The GITHUB token to use to get the EIF
     required: true
   eif_repo_owner:
@@ -51,7 +51,7 @@ runs:
       uses: IABTechLab/uid2-operator/.github/actions/download_release_artifact@kcc-UID2-3366-build-ami-in-operator-repo
       if: ${{ inputs.operator_release != '' }}
       with:
-        github_token: ${{ inputs.eif_repo_token }}
+        github_token: ${{ inputs.github_token }}
         repo_owner: ${{ inputs.eif_repo_owner }}
         repo_name: ${{ inputs.eif_repo_name }}
         release_name: ${{ inputs.operator_release }}
@@ -63,7 +63,7 @@ runs:
       uses: dawidd6/action-download-artifact@v3
       if: ${{ inputs.operator_release == '' }}
       with:
-        github_token: ${{ github.token }}
+        github_token: ${{ inputs.github_token }}
         repo: IABTechLab/uid2-operator
         name: 'aws-${{ inputs.identity_scope }}-deployment-files-.*'
         name_is_regexp: true

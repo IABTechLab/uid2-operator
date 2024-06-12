@@ -48,7 +48,7 @@ runs:
       uses: actions/checkout@v4
 
     - name: Get EIF for Release ${{ inputs.operator_release }}
-      uses: .github/actions/download_release_artifact@kcc-UID2-3366-build-ami-in-operator-repo
+      uses: IABTechLab/uid2-operator/.github/actions/download_release_artifact@kcc-UID2-3366-build-ami-in-operator-repo
       if: ${{ inputs.operator_release != '' }}
       with:
         github_token: ${{ inputs.eif_repo_token }}

@@ -16,7 +16,7 @@ source "amazon-ebs" "linux" {
 
   # instance parameters
   ami_name           = local.ami_name
-  ami_ou_arns        = var.ami_ou_arns
+  ami_ou_arns       = var.ami_ou_arns
   instance_type      = var.instance_type
   region             = var.region
   subnet_id          = var.subnet_id

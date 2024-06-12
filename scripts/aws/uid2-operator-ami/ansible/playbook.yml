@@ -161,6 +161,19 @@
       dest: /etc/syslog-ng/syslog-ng.conf
       remote_src: yes
 
+  - name: logrotate config
+    ansible.builtin.copy:
+      src: /tmp/artifacts/operator-logrotate.conf
+      dest: /etc/logrotate.d/operator-logrotate.conf
+      remote_src: yes
+
+  - name: Run logrotate under cron.d
+    ansible.builtin.copy:
+      src: /tmp/artifacts/logrotate
+      dest: /etc/cron.d/logrotate
+      mode: 0644
+      remote_src: yes
+
   - name: Ensure rsyslog is disabled at boot
     ansible.builtin.systemd:
       name: rsyslog

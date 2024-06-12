@@ -48,7 +48,7 @@ variable "ssh_interface" {
 
 variable "iam_instance_profile" {
   description = "IAM instance profile to attach to AMI instance for SSM"
-  default     = "service.packer.target"
+  default     = "aws-operator-self-hosted-runner.target"
 }
 
 variable "version" {

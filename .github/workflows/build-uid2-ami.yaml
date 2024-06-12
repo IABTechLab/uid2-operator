@@ -22,10 +22,15 @@ on:
 jobs:
   buildUID2:
     name: UID2 Operator AMI
-    runs-on: [self-hosted, linux, aws]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     outputs:
       version_number: ${{ steps.buildAMI.outputs.version_number }}
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Pre-cleanup
         shell: bash
         working-directory: ${{ github.workspace }}

@@ -1,4 +1,4 @@
-FROM debian:bullseye
+FROM ubuntu:24.04
 
 ENV enclave_platform="aws-nitro"
 

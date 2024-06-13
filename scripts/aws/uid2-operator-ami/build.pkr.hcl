@@ -8,7 +8,7 @@ build {
 
   provisioner "ansible" {
     playbook_file = "./ansible/playbook.yml"
-    extra_arguments = [ "--scp-extra-args", "'-O'" ]
+    extra_arguments = [ "--scp-extra-args", "'-O'", "--version", "9.6.1" ]
   }
 
   post-processor "manifest" {

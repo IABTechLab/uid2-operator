@@ -80,11 +80,19 @@ runs:
         unzip -o -d ./scripts/aws/uid2-operator-ami/artifacts $FILE.zip
         rm $FILE.zip
 
-    - name: Configure AWS credentials
+    - name: Configure UID2 AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
+      if: ${{ inputs.identity_scope == 'uid2' }}
       with:
         aws-region: us-east-2
         role-to-assume: arn:aws:iam::475720075663:role/github-runner-operator-runner
+
+    - name: Configure EUID AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      if: ${{ inputs.identity_scope == 'euid' }}
+      with:
+        aws-region: eu-central-1
+        role-to-assume: arn:aws:iam::618285103646:role/github-runner-operator-runner
 
     - name: Show AWS Identity
       shell: bash

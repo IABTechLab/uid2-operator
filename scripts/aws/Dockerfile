@@ -20,6 +20,7 @@ COPY ./syslog-ng-ose-pub.asc /app/dep/
 
 RUN apt-get update -y \
     && apt-get install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 \
+    && apt-get autoremove \
     && apt-key add /app/dep/syslog-ng-ose-pub.asc \
     && apt-get install /app/dep/syslog-ng-core_4.6.0-1_amd64.deb \
     && rm -rf /var/lib/apt/lists/* \

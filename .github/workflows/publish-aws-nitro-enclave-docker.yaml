@@ -130,7 +130,7 @@ jobs:
       - name: Show disk usage
         shell: bash
         run:
-          df
+          du -h /
 
       - name: Build EUID AWS EIF
         id: build_euid_eif

@@ -1,10 +1,10 @@
-FROM debian:bullseye
+FROM alpine:3.20
 
 ENV enclave_platform="aws-nitro"
 
 # install build-essential, openjdk, maven, git
 RUN apt-get update -y \
-    && apt-get install -y curl -y build-essential pkg-config libssl-dev cmake openjdk-21 maven git \
+    && apt-get install -y curl -y build-essential pkg-config libssl-dev cmake openjdk-21-jdk maven git \
     && rm -rf /var/lib/apt/lists/*
 
 # install rust

@@ -1,4 +1,5 @@
-FROM openjdk:21-slim-bullseye
+# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.3_9-jre-alpine/images/sha256-3c40389d278c7129d9032c5f3ce68fb150c2869b5e107ea801b150a2ae653253?context=explore
+FROM eclipse-temurin@sha256:3c40389d278c7129d9032c5f3ce68fb150c2869b5e107ea801b150a2ae653253
 
 WORKDIR /app
 

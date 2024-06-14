@@ -1,4 +1,4 @@
-FROM alpine:3.20
+FROM ubuntu:24.04
 
 ENV enclave_platform="aws-nitro"
 

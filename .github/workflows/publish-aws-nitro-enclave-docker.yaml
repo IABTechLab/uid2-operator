@@ -126,7 +126,12 @@ jobs:
           name: aws-uid2-deployment-files-${{ steps.version.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           if-no-files-found: error
-  
+
+      - name: Show disk usage
+        shell: bash
+        run:
+          df
+
       - name: Build EUID AWS EIF
         id: build_euid_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main

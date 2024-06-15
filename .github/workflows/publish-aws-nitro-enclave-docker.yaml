@@ -111,12 +111,7 @@ jobs:
         with:
           add: 'pom.xml version.json'
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-          tag: v${{ steps.version.outputs.new_version }} 
-
-      - name: Show disk usage before build
-        shell: bash
-        run:
-          du -h /
+          tag: v${{ steps.version.outputs.new_version }}
 
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
@@ -132,10 +127,10 @@ jobs:
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           if-no-files-found: error
 
-      - name: Show disk usage
-        shell: bash
-        run:
-          du -h /
+#      - name: Show disk usage
+#        shell: bash
+#        run:
+#          du -h /
 
       - name: Build EUID AWS EIF
         id: build_euid_eif

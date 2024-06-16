@@ -453,6 +453,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             input = InputUtil.normalizePhoneHash(phoneHash);
         }
 
+        if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            return;
+        }
+
         PrivacyBits privacyBits = new PrivacyBits();
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();

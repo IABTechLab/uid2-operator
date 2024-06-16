@@ -4162,6 +4162,56 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
+    @Test
+    void cstgInvalidEmailHashInput(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend("cstg.co.uk");
+        setupKeys(true);
+        String email = "random@unifiedid.com";
+
+        JsonObject identity = new JsonObject();
+        identity.put("email_hash", getSha256(email) + getSha256(email));
+        identity.put("optout_check", 1);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithPayload(identity, Instant.now().toEpochMilli(), null);
+
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "http://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                400,
+                testContext,
+                respJson -> {
+                    assertFalse(respJson.containsKey("body"));
+                    assertEquals("Invalid Identifier", respJson.getString("message"));
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void cstgInvalidPhoneHashInput(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend("cstg.co.uk");
+        setupKeys(true);
+        String phone = "1234567890";
+
+        JsonObject identity = new JsonObject();
+        identity.put("phone_hash", getSha256(phone) + getSha256(phone));
+        identity.put("optout_check", 1);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithPayload(identity, Instant.now().toEpochMilli(), null);
+
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "http://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                400,
+                testContext,
+                respJson -> {
+                    assertFalse(respJson.containsKey("body"));
+                    assertEquals("Invalid Identifier", respJson.getString("message"));
+                    testContext.completeNow();
+                });
+    }
+
     private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity,
                                                     boolean expectClientSideTokenGenerateOptoutResponse) {
         assertAreClientSideGeneratedTokens(advertisingToken,

@@ -26,6 +26,18 @@ inputs:
     description: Save the AMIs as a build artifact.
     required: false
     default: "false"
+  uid2_aws_role:
+    description: The AWS role to assume for UID2
+    required: true
+  uid2_aws_region:
+    description: The UID2 AWS region to upload AMI to
+    required: true
+  euid_aws_role:
+    description: The AWS role to assume for EUID
+    required: true
+  euid_aws_region:
+    description: The EUID AWS region to upload AMI to
+    required: true
 
 outputs:
   version_number:
@@ -84,15 +96,15 @@ runs:
       uses: aws-actions/configure-aws-credentials@v4
       if: ${{ inputs.identity_scope == 'uid2' }}
       with:
-        aws-region: us-east-2
-        role-to-assume: arn:aws:iam::475720075663:role/github-runner-operator-runner
+        aws-region: ${{ inputs.uid2_aws_region }}
+        role-to-assume: ${{ inputs.uid2_aws_role }}
 
     - name: Configure EUID AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       if: ${{ inputs.identity_scope == 'euid' }}
       with:
-        aws-region: eu-central-1
-        role-to-assume: arn:aws:iam::618285103646:role/github-runner-operator-runner
+        aws-region: ${{ inputs.euid_aws_region }}
+        role-to-assume: ${{ inputs.euid_aws_role }}
 
     - name: Show AWS Identity
       shell: bash

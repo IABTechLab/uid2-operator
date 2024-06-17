@@ -189,13 +189,3 @@ runs:
       with:
         name: ${{ inputs.identity_scope }}_AMI_measurement
         path: ./scripts/aws/uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt
-
-    - name: Post-cleanup
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: |
-        echo "Cleaning up previous run"
-        sudo rm -rf * || true
-        docker stop $(docker ps -aq) || true
-        docker rm $(docker ps -aq) || true
-        docker rmi $(docker images -q) || true

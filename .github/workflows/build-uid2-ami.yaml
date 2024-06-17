@@ -17,7 +17,7 @@ on:
         description: Save the AMIs as a build artifact.
         type: boolean
         required: false
-        default: false
+        default: true
 
 env:
   REPO_OWNER: IABTechLab

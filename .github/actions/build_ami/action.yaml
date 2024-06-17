@@ -78,16 +78,7 @@ runs:
         repository: IABTechLab/uid2-operator
         pattern: 'aws-${{ inputs.identity_scope }}-deployment-files-*'
         run-id: ${{ inputs.operator_run_number }}
-        path: ./download/artifacts
-
-    - name: Unzip artifacts
-      if: ${{ inputs.operator_release == '' }}
-      shell: bash
-      run: |
-        ARTIFACTS='${{ steps.get_eif_for_run.outputs.artifacts }}'
-        FILE=$(echo $ARTIFACTS | jq -r '.[0].name')
-        unzip -o -d ./scripts/aws/uid2-operator-ami/artifacts $FILE.zip
-        rm $FILE.zip
+        path: ./scripts/aws/uid2-operator-ami/artifacts
 
     - name: Configure UID2 AWS credentials
       uses: aws-actions/configure-aws-credentials@v4

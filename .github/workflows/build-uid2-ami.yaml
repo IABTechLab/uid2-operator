@@ -113,21 +113,21 @@ jobs:
       - name: Download UID2 artifacts
         uses: actions/download-artifact@v4
         with:
-          name: UID2_AMI_measurement
+          name: uid2_AMI_measurement
           path: ./artifacts
 
       - name: Download EUID artifacts
         uses: actions/download-artifact@v4
         with:
-          name: EUID_AMI_measurement
+          name: euid_AMI_measurement
           path: ./artifacts
 
       - name: Delete staging artifacts
         uses: geekyeggo/delete-artifact@v5
         with: 
           name: |
-            UID2_AMI_measurement
-            EUID_AMI_measurement
+            uid2_AMI_measurement
+            euid_AMI_measurement
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

@@ -134,7 +134,7 @@ jobs:
 
       - name: Build EUID AWS EIF
         id: build_euid_eif
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@ian-UID2-3362-upgrade-java-21
         with:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid

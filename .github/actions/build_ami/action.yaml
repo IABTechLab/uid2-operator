@@ -24,8 +24,7 @@ inputs:
     description: The Operator run number for artifacts. Ignored if Operator Release is given
   save_ami:
     description: Save the AMIs as a build artifact.
-    required: false
-    default: "false"
+    default: true
   uid2_aws_role:
     description: The AWS role to assume for UID2
     required: true
@@ -159,6 +158,7 @@ runs:
         echo "AMI ID: " ${{ steps.extractAmiId.outputs.AMI_ID }} >> uid2_AMI_measurement.txt
         echo "uid2_AMI_measurement.txt Contents:"
         cat uid2_AMI_measurement.txt
+        ls -al
 
     - name: Copy AMI to us-east-1
       id: euidCopyAmi
@@ -181,13 +181,14 @@ runs:
         echo "us-east-1 AMI ID:" ${{ steps.euidCopyAmi.outputs.US_EAST_1_AMI_ID }} >> euid_AMI_measurement.txt
         echo "euid_AMI_measurement.txt contents"
         cat euid_AMI_measurement.txt
+        ls -al
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       if: ${{ inputs.save_ami == 'true' }}
       with:
         name: ${{ inputs.identity_scope }}_AMI_measurement
-        path: uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt
+        path: ./scripts/aws/uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt
 
     - name: Post-cleanup
       shell: bash

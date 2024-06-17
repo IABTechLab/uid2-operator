@@ -1,0 +1,191 @@
+name: Build AMI
+description: Builds the AMI for AWS private operators
+
+inputs:
+  identity_scope:
+    description: The identity scope [uid2, euid]
+    required: true
+  github_token:
+    description: The GITHUB token to use to get the EIF
+    required: true
+  eif_repo_owner:
+    description: The owner of the EIF repo
+    required: true
+  eif_repo_name:
+    description: The name of the EIF repo
+    required: true
+  operator_release:
+    description: The operator release that has the EIF to use
+    default: ''
+  operator_branch:
+    description: The Operator Branch to build from
+    default: main
+  operator_run_number:
+    description: The Operator run number for artifacts. Ignored if Operator Release is given
+  save_ami:
+    description: Save the AMIs as a build artifact.
+    default: true
+  uid2_aws_role:
+    description: The AWS role to assume for UID2
+    required: true
+  uid2_aws_region:
+    description: The UID2 AWS region to upload AMI to
+    required: true
+  euid_aws_role:
+    description: The AWS role to assume for EUID
+    required: true
+  euid_aws_region:
+    description: The EUID AWS region to upload AMI to
+    required: true
+
+outputs:
+  version_number:
+    description: The version number set in IABTechLab/uid2-operator pom.xml.
+    value: ${{ steps.versionNumber.outputs.version_number }}
+
+runs:
+  using: "composite"
+
+  steps:
+    - name: Show Context
+      shell: bash
+      run: |
+        printenv
+        echo "$GITHUB_CONTEXT"
+      env: 
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+
+    - name: Checkout full history
+      uses: actions/checkout@v4
+
+    - name: Get EIF for Release ${{ inputs.operator_release }}
+      uses: IABTechLab/uid2-operator/.github/actions/download_release_artifact@main
+      if: ${{ inputs.operator_release != '' }}
+      with:
+        github_token: ${{ inputs.github_token }}
+        repo_owner: ${{ inputs.eif_repo_owner }}
+        repo_name: ${{ inputs.eif_repo_name }}
+        release_name: ${{ inputs.operator_release }}
+        artifact_name: aws-${{ inputs.identity_scope }}-deployment-files
+        folder: ./scripts/aws/uid2-operator-ami/artifacts
+
+    - name: Get EIF for Run ${{ inputs.operator_run_number }}
+      id: get_eif_for_run
+      uses: actions/download-artifact@v4
+      if: ${{ inputs.operator_release == '' }}
+      with:
+        github_token: ${{ inputs.github_token }}
+        repo: IABTechLab/uid2-operator
+        name: 'aws-${{ inputs.identity_scope }}-deployment-files-.*'
+        name_is_regexp: true
+        run_id: ${{ inputs.operator_run_number }}
+        skip_unpack: true
+        path: ./download/artifacts
+
+    - name: Unzip artifacts
+      if: ${{ inputs.operator_release == '' }}
+      shell: bash
+      run: |
+        ARTIFACTS='${{ steps.get_eif_for_run.outputs.artifacts }}'
+        FILE=$(echo $ARTIFACTS | jq -r '.[0].name')
+        unzip -o -d ./scripts/aws/uid2-operator-ami/artifacts $FILE.zip
+        rm $FILE.zip
+
+    - name: Configure UID2 AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      if: ${{ inputs.identity_scope == 'uid2' }}
+      with:
+        aws-region: ${{ inputs.uid2_aws_region }}
+        role-to-assume: ${{ inputs.uid2_aws_role }}
+
+    - name: Configure EUID AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      if: ${{ inputs.identity_scope == 'euid' }}
+      with:
+        aws-region: ${{ inputs.euid_aws_region }}
+        role-to-assume: ${{ inputs.euid_aws_role }}
+
+    - name: Show AWS Identity
+      shell: bash
+      run: |
+        aws sts get-caller-identity
+
+    - name: Get version number
+      id: versionNumber
+      shell: bash
+      working-directory: ./scripts/aws/uid2-operator-ami
+      run: |
+        ls -al
+        VERSION_NUMBER=$(cat ./artifacts/version_number.txt)
+        echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+        echo $VERSION_NUMBER
+
+    - name: Setup Packer
+      id: setup-packer
+      uses: hashicorp/setup-packer@main
+
+    - name: Create AMI
+      shell: bash
+      working-directory: ./scripts/aws/uid2-operator-ami
+      run: |
+        ls -al
+        TIMESTAMP=$(date +%s)
+        echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_OUTPUT
+        packer init .
+        packer build \
+          -var "version=${{ steps.versionNumber.outputs.VERSION_NUMBER }}" \
+          -var "timestamp=$TIMESTAMP" \
+          -var-file="${{ inputs.identity_scope }}.pkrvars.hcl" \
+          -debug \
+          .
+
+    - name: Extract AMI ID
+      id: extractAmiId
+      shell: bash
+      working-directory: ./scripts/aws/uid2-operator-ami
+      run: |
+        AMI_ID=$(jq -r '.builds[-1].artifact_id' manifest.json | cut -d ":" -f2)
+        echo "AMI_ID=$AMI_ID" >> $GITHUB_OUTPUT
+        echo $AMI_ID
+
+    - name: Persist UID2 enclave and AMI IDs
+      if: ${{ inputs.identity_scope == 'uid2' }}
+      shell: bash
+      working-directory: ./scripts/aws/uid2-operator-ami
+      run: |
+        touch uid2_AMI_measurement.txt
+        echo "Enclave ID: $(cat ./artifacts/pcr0.txt)" >> uid2_AMI_measurement.txt
+        echo "AMI ID: " ${{ steps.extractAmiId.outputs.AMI_ID }} >> uid2_AMI_measurement.txt
+        echo "uid2_AMI_measurement.txt Contents:"
+        cat uid2_AMI_measurement.txt
+        ls -al
+
+    - name: Copy AMI to us-east-1
+      id: euidCopyAmi
+      if: ${{ inputs.identity_scope == 'euid' }}
+      shell: bash
+      working-directory: ./scripts/aws/uid2-operator-ami
+      run: |
+        US_EAST_AMI_ID=$(aws ec2 copy-image --region us-east-1 --source-region eu-central-1 --source-image-id ${{ steps.extractAmiId.outputs.AMI_ID }} --name euid-operator-${{ steps.versionNumber.outputs.VERSION_NUMBER }}-${{ steps.createAMI.outputs.TIMESTAMP }} --output text)
+        echo "US_EAST_1_AMI_ID=$US_EAST_AMI_ID" >> $GITHUB_OUTPUT
+        echo $US_EAST_AMI_ID
+
+    - name: Persist EUID enclave and AMI IDs
+      if: ${{ inputs.identity_scope == 'euid' }}
+      shell: bash
+      working-directory: ./scripts/aws/uid2-operator-ami
+      run: |
+        touch euid_AMI_measurement.txt
+        echo "Enclave ID: $(cat ./artifacts/pcr0.txt)" >> euid_AMI_measurement.txt
+        echo "eu-central-1 AMI ID:" ${{ steps.extractAmiId.outputs.AMI_ID }} >> euid_AMI_measurement.txt
+        echo "us-east-1 AMI ID:" ${{ steps.euidCopyAmi.outputs.US_EAST_1_AMI_ID }} >> euid_AMI_measurement.txt
+        echo "euid_AMI_measurement.txt contents"
+        cat euid_AMI_measurement.txt
+        ls -al
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      if: ${{ inputs.save_ami == 'true' }}
+      with:
+        name: ${{ inputs.identity_scope }}_AMI_measurement
+        path: ./scripts/aws/uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt

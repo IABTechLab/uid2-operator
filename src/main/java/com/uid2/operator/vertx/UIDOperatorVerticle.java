@@ -453,7 +453,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             input = InputUtil.normalizePhoneHash(phoneHash);
         }
 
-        if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+        if (checkTokenInput(input, rc)) {
             return;
         }
 
@@ -897,7 +897,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenValidateV1(RoutingContext rc) {
         try {
             final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
-            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            if (checkTokenInput(input, rc)) {
                 return;
             }
             if ((Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Email)
@@ -928,7 +928,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonObject req = (JsonObject) rc.data().get("request");
 
             final InputUtil.InputVal input = getTokenInputV2(req);
-            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            if (checkTokenInput(input, rc)) {
                 return;
             }
             if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()))
@@ -960,7 +960,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
             platformType = getPlatformType(rc);
-            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            if (checkTokenInput(input, rc)) {
                 return;
             } else {
                 final IdentityTokens t = this.idService.generateIdentity(
@@ -987,7 +987,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             platformType = getPlatformType(rc);
 
             final InputUtil.InputVal input = this.getTokenInputV2(req);
-            if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+            if (checkTokenInput(input, rc)) {
                 return;
             } else {
                 final String apiContact = getApiContact(rc);
@@ -1262,7 +1262,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV1(RoutingContext rc) {
         final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-        if (this.phoneSupport ? !checkTokenInputV1(input, rc) : !checkTokenInput(input, rc)) {
+        if (checkTokenInput(input, rc)) {
             return;
         }
         try {
@@ -1393,24 +1393,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private boolean checkTokenInput(InputUtil.InputVal input, RoutingContext rc) {
         if (input == null) {
-            ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
-            return false;
+            String message = this.phoneSupport ? "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified" : "Required Parameter Missing: exactly one of email or email_hash must be specified";
+            ResponseUtil.ClientError(rc, message);
+            return true;
         } else if (!input.isValid()) {
             ResponseUtil.ClientError(rc, "Invalid Identifier");
-            return false;
+            return true;
         }
-        return true;
-    }
-
-    private boolean checkTokenInputV1(InputUtil.InputVal input, RoutingContext rc) {
-        if (input == null) {
-            ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified");
-            return false;
-        } else if (!input.isValid()) {
-            ResponseUtil.ClientError(rc, "Invalid Identifier");
-            return false;
-        }
-        return true;
+        return false;
     }
 
     private InputUtil.InputVal[] getIdentityBulkInput(RoutingContext rc) {

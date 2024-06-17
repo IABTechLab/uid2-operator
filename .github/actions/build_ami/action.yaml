@@ -79,6 +79,7 @@ runs:
         pattern: 'aws-${{ inputs.identity_scope }}-deployment-files-*'
         run-id: ${{ inputs.operator_run_number }}
         path: ./download/artifacts
+        merge-multiple: true
 
     - name: Unzip artifacts
       if: ${{ inputs.operator_release == '' }}

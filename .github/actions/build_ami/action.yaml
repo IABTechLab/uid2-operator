@@ -78,7 +78,7 @@ runs:
         repo: IABTechLab/uid2-operator
         name: 'aws-${{ inputs.identity_scope }}-deployment-files-.*'
         name_is_regexp: true
-        run_id: ${{ inputs.operator_run_number }}
+        run-id: ${{ inputs.operator_run_number }}
         skip_unpack: true
         path: ./download/artifacts
 

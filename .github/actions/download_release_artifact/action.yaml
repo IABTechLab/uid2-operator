@@ -69,7 +69,6 @@ runs:
         echo 'Asset URL: ${{ steps.get_asset_id.outputs.result }}'
 
         mkdir -p ./${{ inputs.folder }}
-        DOWNLOAD_PATH_OLD="https://api.github.com/repos/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}/releases/assets/${{ steps.get_asset_id.outputs.result }}"
         DOWNLOAD_PATH=${{ steps.get_asset_id.outputs.result }}
         echo $DOWNLOAD_PATH
         curl -L -H "Accept: application/octet-stream" \

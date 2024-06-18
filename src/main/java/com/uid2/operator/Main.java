@@ -8,6 +8,7 @@ import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.service.SecureLinkValidatorService;
+import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.store.CloudSyncOptOutStore;
 import com.uid2.operator.store.OptOutCloudStorage;
@@ -95,7 +96,7 @@ public class Main {
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
-        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC());
+        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC(), new ShutdownService());
 
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
 

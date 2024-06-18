@@ -1,10 +1,10 @@
-FROM debian:bullseye
+FROM ubuntu:22.04
 
 ENV enclave_platform="aws-nitro"
 
 # install build-essential, openjdk, maven, git
 RUN apt-get update -y \
-    && apt-get install -y curl -y build-essential pkg-config libssl-dev cmake openjdk-11-jdk maven git \
+    && apt-get install -y curl -y build-essential pkg-config libssl-dev cmake openjdk-21-jdk maven git \
     && rm -rf /var/lib/apt/lists/*
 
 # install rust

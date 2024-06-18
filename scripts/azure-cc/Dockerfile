@@ -1,5 +1,5 @@
-# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/11.0.22_7-jre-alpine/images/sha256-d7a82981336958683f147f17396fe2219cb1072a5853e8a8ef16d07f0535343a?context=explore
-FROM eclipse-temurin@sha256:564eb67091b2cda82952299b4be52bf1b039289234b52f46057fe1286c173b71
+# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.3_9-jre-alpine/images/sha256-3c40389d278c7129d9032c5f3ce68fb150c2869b5e107ea801b150a2ae653253?context=explore
+FROM eclipse-temurin@sha256:3c40389d278c7129d9032c5f3ce68fb150c2869b5e107ea801b150a2ae653253
 
 # Install Packages
 RUN apk update && apk add jq

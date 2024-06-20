@@ -4162,6 +4162,34 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "email_hash,random@unifiedid.com",
+            "phone_hash,1234567890",
+    })
+    void cstgInvalidInput(String identityType, String rawUID, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        setupCstgBackend("cstg.co.uk");
+        setupKeys(true);
+
+        JsonObject identity = new JsonObject();
+        identity.put(identityType, getSha256(rawUID) + getSha256(rawUID));
+        identity.put("optout_check", 1);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithPayload(identity, Instant.now().toEpochMilli(), null);
+
+        sendCstg(vertx,
+                "v2/token/client-generate",
+                "http://cstg.co.uk",
+                data.getItem1(),
+                data.getItem2(),
+                400,
+                testContext,
+                respJson -> {
+                    assertFalse(respJson.containsKey("body"));
+                    assertEquals("Invalid Identifier", respJson.getString("message"));
+                    testContext.completeNow();
+                });
+    }
+
     private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity,
                                                     boolean expectClientSideTokenGenerateOptoutResponse) {
         assertAreClientSideGeneratedTokens(advertisingToken,

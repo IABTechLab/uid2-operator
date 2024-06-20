@@ -13,11 +13,13 @@
       update_cache: yes
       name: '*'
       state: latest
+      use_backend: dnf4
   
   - name: Install Netcat
     ansible.builtin.yum:
       name: nmap-ncat
       state: latest
+      use_backend: dnf4
 
   - name: Create etc/uid2operator directory
     ansible.builtin.file:
@@ -140,11 +142,13 @@
     ansible.builtin.yum:
       name: ivykis-0.36.2-2.el7
       state: present
+      use_backend: dnf4
 
   - name: Install libnet
     ansible.builtin.yum:
       name: libnet-1.1.6-7.amzn2.0.2
       state: present
+      use_backend: dnf4
 
   - name: Register Public key
     ansible.builtin.command: rpmkeys --import /opt/uid2operator/syslog-ng-pubkey.gpg

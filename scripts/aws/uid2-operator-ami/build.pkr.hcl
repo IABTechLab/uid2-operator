@@ -15,7 +15,7 @@ build {
   provisioner "ansible" {
     playbook_file = "./ansible/playbook.yml"
     extra_arguments = [ "--scp-extra-args", "'-O'" ]
-    skip_version_check = false
+    skip_version_check = true
   }
 
   post-processor "manifest" {

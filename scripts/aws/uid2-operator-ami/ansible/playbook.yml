@@ -115,10 +115,17 @@
       dest: /etc/systemd/system/uid2operator.service
       remote_src: yes
 
-  - name: Ensure nitro-cli is installed to the latest version
-    ansible.builtin.command: amazon-linux-extras install aws-nitro-enclaves-cli
+  - name: Install AWS Nitro Enclaves CLI
+    ansible.builtin.dnf:
+      name: aws-nitro-enclaves-cli
+      state: latest
+  
+  - name: Install AWS Nitro Enclaves Devel CLI
+    ansible.builtin.dnf:
+      name: aws-nitro-enclaves-cli-devel
+      state: latest
 
-  - name: Ensure nitro enclave allocator is enabled at boot
+  - name: Enable the Nitro Enclave allocator service at boot
     ansible.builtin.systemd:
       name: nitro-enclaves-allocator.service
       enabled: yes

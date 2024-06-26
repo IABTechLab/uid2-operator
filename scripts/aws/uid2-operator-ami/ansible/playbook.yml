@@ -140,24 +140,17 @@
   #   ansible.builtin.systemd:
   #     name: nitro-enclaves-allocator.service
   #     state: restarted
-  - name: Install ivykis
+
+  - name: Define cutdown version of syslog-ng
+    ansible.builtin.copy:
+      src: /tmp/artifacts/syslog-ng-amazon23.repo
+      dest: /etc/yum.repos.d/
+      remote_src: yes
+
+  - name: Install syslog-ng
     ansible.builtin.dnf:
-      name: ivykis-0.36.2-2.el7
-      state: present
-
-  - name: Install libnet
-    ansible.builtin.dnf:
-      name: libnet-1.1.6-7.amzn2.0.2
-      state: present
-
-  - name: Register Public key
-    ansible.builtin.command: rpmkeys --import /opt/uid2operator/syslog-ng-pubkey.gpg
-
-  - name: Install package
-    ansible.builtin.command: rpm -U /opt/uid2operator/syslog-ng-4.6.0-1.el7.x86_64.rpm
-
-  - name: unregister Public key
-    ansible.builtin.command: rpm -e gpg-pubkey-c57846f4-65a8cf14
+      name: syslog-ng
+      state: latest
 
   - name: syslog-ng config
     ansible.builtin.copy:

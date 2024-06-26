@@ -3,9 +3,8 @@ source "amazon-ebs" "linux" {
   # source parameters
   source_ami_filter {
     filters = {
-      name                = "amzn2-ami-hvm-*-x86_64-ebs"
+      name                = "al2023-ami-2023*-x86_64"
       root-device-type    = "ebs"
-      virtualization-type = "hvm"
     }
     most_recent = true
     owners      = ["amazon"]

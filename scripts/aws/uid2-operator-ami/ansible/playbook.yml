@@ -9,13 +9,13 @@
 
   tasks:
   - name: Update all base packages
-    ansible.builtin.yum:
+    ansible.builtin.dnf:
       update_cache: yes
       name: '*'
       state: latest
   
   - name: Install Netcat
-    ansible.builtin.yum:
+    ansible.builtin.dnf:
       name: nmap-ncat
       state: latest
 
@@ -144,12 +144,12 @@
     ansible.builtin.command: amazon-linux-extras install epel
 
   - name: Install ivykis
-    ansible.builtin.yum:
+    ansible.builtin.dnf:
       name: ivykis-0.36.2-2.el7
       state: present
 
   - name: Install libnet
-    ansible.builtin.yum:
+    ansible.builtin.dnf:
       name: libnet-1.1.6-7.amzn2.0.2
       state: present
 

@@ -140,9 +140,6 @@
   #   ansible.builtin.systemd:
   #     name: nitro-enclaves-allocator.service
   #     state: restarted
-  - name: Install EPEL
-    ansible.builtin.command: amazon-linux-extras install epel
-
   - name: Install ivykis
     ansible.builtin.dnf:
       name: ivykis-0.36.2-2.el7

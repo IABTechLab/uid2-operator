@@ -168,7 +168,7 @@
     ansible.builtin.file:
       path: /etc/cron.d
       state: directory
-      mode: 0644
+      mode: 0755
 
   - name: Run logrotate under cron.d
     ansible.builtin.copy:

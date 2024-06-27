@@ -177,12 +177,6 @@
       mode: 0644
       remote_src: yes
 
-  - name: Ensure rsyslog is disabled at boot
-    ansible.builtin.systemd:
-      name: rsyslog
-      state: stopped
-      enabled: false
-
   - name: Ensure syslog-ng is enabled at boot
     ansible.builtin.systemd:
       name: syslog-ng

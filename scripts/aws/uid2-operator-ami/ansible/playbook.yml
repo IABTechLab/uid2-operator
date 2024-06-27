@@ -163,6 +163,12 @@
       src: /tmp/artifacts/operator-logrotate.conf
       dest: /etc/logrotate.d/operator-logrotate.conf
       remote_src: yes
+  
+  - name: Ensure /etc/cron.d/ folder exist
+    ansible.builtin.file:
+      path: /etc/cron.d
+      state: directory
+      mode: 0644
 
   - name: Run logrotate under cron.d
     ansible.builtin.copy:

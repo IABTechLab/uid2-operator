@@ -68,6 +68,7 @@ runs:
         cp ./scripts/aws/syslog-ng/syslog-ng-server.conf                                                          ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/syslog-ng/server/syslog-ng-pubkey.gpg                                                    ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/syslog-ng/server/syslog-ng-4.6.0-1.el7.x86_64.rpm                                        ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/syslog-ng-amazon23.repo                                                        ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/logrotate/operator-logrotate.conf                                                        ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/logrotate/logrotate                                                                      ${ARTIFACTS_OUTPUT_DIR}/
 

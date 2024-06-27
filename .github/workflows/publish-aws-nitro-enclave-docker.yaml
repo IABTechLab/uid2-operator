@@ -69,7 +69,6 @@ jobs:
         with:
           # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
           fetch-depth: 0
-          ref: kcc-UID2-3331-update-ami-from-AL2-to-AL2023
 
       - name: Checkout full history at tag v${{ inputs.version_number_input }}
         uses: actions/checkout@v4

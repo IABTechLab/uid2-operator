@@ -177,6 +177,13 @@
       mode: 0644
       remote_src: yes
 
+  - name: Run logrotate under cron.daily
+    ansible.builtin.copy:
+      src: /tmp/artifacts/logrotateDaily
+      dest: /etc/cron.daily/logrotate
+      mode: 0700
+      remote_src: yes
+
   - name: Ensure syslog-ng is enabled at boot
     ansible.builtin.systemd:
       name: syslog-ng

@@ -113,6 +113,11 @@ jobs:
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }} 
 
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+      
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@kcc-UID2-3331-update-ami-from-AL2-to-AL2023
@@ -126,6 +131,13 @@ jobs:
           name: aws-uid2-deployment-files-${{ steps.version.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           if-no-files-found: error
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          ls ./build/target/ -al
+          df -h
+          ls ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2 -al
   
       - name: Build EUID AWS EIF
         id: build_euid_eif

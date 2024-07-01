@@ -53,6 +53,7 @@ jobs:
       - name: Free up space - delete preinstalled tools
         run: |
           rm -rf /opt/hostedtoolcache
+          rm -rf "$AGENT_TOOLSDIRECTORY"
 
       - name: Show Context
         run: |
@@ -117,42 +118,6 @@ jobs:
         shell: bash
         run: |
           df -h
-    outputs:
-      new_version: ${{ steps.version.outputs.new_version }}
-      is_release: ${{ steps.checkRelease.outputs.is_release }}
-      github_changelog: ${{ steps.github_release.outputs.changelog }}
-
-  buildUID2EIF:
-    name: Build UID2 EIF
-    runs-on: ubuntu-latest
-    needs: start
-    steps:
-      - name: Checkout full history on Main
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input == '' }}
-        with:
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Checkout full history at tag v${{ inputs.version_number_input }}
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input != '' }}
-        with:
-          ref: v${{ inputs.version_number_input }}
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Restore timestamps
-        uses: thetradedesk/git-restore-mtime-action@v1.3
-
-      - name: Free up space - delete preinstalled tools
-        run: |
-          rm -rf /opt/hostedtoolcache
-
-      - name: Check disk usage
-        shell: bash
-        run: |
-          df -h
 
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
@@ -211,7 +176,7 @@ jobs:
         shell: bash
         run: |
           df -h
-      
+
       - name: Build EUID AWS EIF
         id: build_euid_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@kcc-UID2-3331-update-ami-from-AL2-to-AL2023

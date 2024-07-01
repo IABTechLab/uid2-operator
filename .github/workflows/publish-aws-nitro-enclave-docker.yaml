@@ -126,6 +126,15 @@ jobs:
           name: aws-uid2-deployment-files-${{ steps.version.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           if-no-files-found: error
+
+      - name: Cleanup
+        shell: bash
+        run: |
+          ls -alR
+          df -h
+          rm ./build/target/uid2-operator-${{ steps.version.outputs.new_version }}.*
+          ls -alR
+          df -h
   
       - name: Build EUID AWS EIF
         id: build_euid_eif

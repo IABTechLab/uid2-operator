@@ -21,7 +21,7 @@ runs:
     - name: Run amazonlinux Docker image
       shell: bash
       run: |
-        docker build -t amazonlinux -f ./scripts/aws/pipeline/amazonlinux.Dockerfile .
+        docker build -t amazonlinux -f ./scripts/aws/pipeline/amazonlinux.Dockerfile --quiet .
         docker run -d --privileged --name amazonlinux amazonlinux:latest
 
     - name: Create build folder

@@ -21,7 +21,7 @@ runs:
     - name: Run amazonlinux Docker image
       shell: bash
       run: |
-        docker build -t amazonlinux -f ./scripts/aws/pipeline/amazonlinux.Dockerfile --quiet .
+        docker build -t amazonlinux -f ./scripts/aws/pipeline/amazonlinux.Dockerfile .
         docker run -d --privileged --name amazonlinux amazonlinux:latest
 
     - name: Create build folder
@@ -86,4 +86,3 @@ runs:
       run: |
         docker stop $(docker ps -a -q)
         docker system prune -f
-        df -h

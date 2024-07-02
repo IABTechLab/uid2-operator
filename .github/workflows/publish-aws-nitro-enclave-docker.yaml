@@ -119,31 +119,29 @@ jobs:
         run: |
           df -h
       
-      - name: Build UID2 AWS EIF
-        id: build_uid2_eif
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@kcc-UID2-3331-update-ami-from-AL2-to-AL2023
-        with:
-          identity_scope: uid2
-          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+      # - name: Build UID2 AWS EIF
+      #   id: build_uid2_eif
+      #   uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@kcc-UID2-3331-update-ami-from-AL2-to-AL2023
+      #   with:
+      #     identity_scope: uid2
+      #     artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
 
       - name: Check disk usage
         shell: bash
         run: |
           df -h
 
-      - name: Save UID2 eif artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aws-uid2-deployment-files-${{ steps.version.outputs.new_version }}
-          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
-          if-no-files-found: error
+      # - name: Save UID2 eif artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: aws-uid2-deployment-files-${{ steps.version.outputs.new_version }}
+      #     path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+      #     if-no-files-found: error
 
-      - name: Check disk usage
-        shell: bash
-        run: |
-          ls ./build/target/ -al
-          df -h
-          ls ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2 -al
+      # - name: Check disk usage
+      #   shell: bash
+      #   run: |
+      #     df -h
   
       - name: Build EUID AWS EIF
         id: build_euid_eif
@@ -152,12 +150,22 @@ jobs:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
 
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
       - name: Save EUID eif artifact
         uses: actions/upload-artifact@v4
         with:
           name: aws-euid-deployment-files-${{ steps.version.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           if-no-files-found: error
+      
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
 
       - name: Save Enclave Ids
         run: |

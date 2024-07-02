@@ -18,9 +18,9 @@ COPY ./syslog-ng-core_4.6.0-1_amd64.deb /app/dep/
 COPY ./syslog-ng-ose-pub.asc /app/dep/
 
 RUN apt update -y \
-    && apt install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 \
-    && apt-key add /app/dep/syslog-ng-ose-pub.asc \
-    && apt-get install /app/dep/syslog-ng-core_4.6.0-1_amd64.deb \
+    && apt -q install -y pkg-config libssl-dev net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 \
+    && apt-key -q add /app/dep/syslog-ng-ose-pub.asc \
+    && apt-get -q install /app/dep/syslog-ng-core_4.6.0-1_amd64.deb \
     && rm -rf /var/lib/apt/lists/* \
     && apt-key del 6694369F 
 RUN pip3 install boto3==1.16.9

@@ -29,6 +29,11 @@
       path: /opt/uid2operator
       state: directory
 
+  - name: Install libxcrypt-compat
+    ansible.builtin.dnf:
+      name: libxcrypt-compat
+      state: latest
+
   - name: vsock-proxy config
     ansible.builtin.copy:
       src: /tmp/artifacts/proxies.host.yaml

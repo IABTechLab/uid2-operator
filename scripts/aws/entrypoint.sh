@@ -42,10 +42,10 @@ echo "127.0.0.1 secretsmanager.${AWS_REGION_NAME}.amazonaws.com" >> /etc/hosts
 IAM_ROLE=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/iam/security-credentials/ --header "X-aws-ec2-metadata-token: $TOKEN")
 echo "IAM_ROLE=${IAM_ROLE}"
 
-CREDS_ENDPOINT="http://169.254.169.254/latest/meta-data/iam/security-credentials/${IAM_ROLE} --header "X-aws-ec2-metadata-token: $TOKEN""
-export AWS_ACCESS_KEY_ID=$(curl -s -x socks5h://127.0.0.1:3305 "${CREDS_ENDPOINT}" | jq -r ".AccessKeyId")
-export AWS_SECRET_KEY=$(curl -s -x socks5h://127.0.0.1:3305 "${CREDS_ENDPOINT}" | jq -r ".SecretAccessKey")
-export AWS_SESSION_TOKEN=$(curl -s -x socks5h://127.0.0.1:3305 "${CREDS_ENDPOINT}" | jq -r ".Token")
+SECURITY_CREDS=$(curl -s -x socks5h://127.0.0.1:3305 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${IAM_ROLE}" --header "X-aws-ec2-metadata-token: $TOKEN")
+export AWS_ACCESS_KEY_ID=$(echo $SECURITY_CREDS | jq -r ".AccessKeyId")
+export AWS_SECRET_KEY=$(echo $SECURITY_CREDS | jq -r ".SecretAccessKey")
+export AWS_SESSION_TOKEN=$(echo $SECURITY_CREDS | jq -r ".Token")
 
 # -- load configs via proxy
 echo "Loading config overrides..."

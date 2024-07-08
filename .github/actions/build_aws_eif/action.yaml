@@ -84,5 +84,5 @@ runs:
     - name: Cleanup
       shell: bash
       run: |
-        docker stop $(docker ps -a -q)
-        docker system prune -f
+        docker rm -vf $(docker ps -aq)
+        docker rmi -f $(docker images -aq)

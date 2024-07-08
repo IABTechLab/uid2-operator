@@ -173,10 +173,6 @@ jobs:
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           if-no-files-found: error
 
-      - name: Check disk usage
-        shell: bash
-        run: |
-          df -h
     outputs:
       uid2_enclave_id: ${{ steps.build_uid2_eif.outputs.enclave_id }}
 
@@ -206,11 +202,6 @@ jobs:
       - name: Free up space - delete preinstalled tools
         run: |
           rm -rf /opt/hostedtoolcache
-
-      - name: Check disk usage
-        shell: bash
-        run: |
-          df -h
 
       - name: Build EUID AWS EIF
         id: build_euid_eif

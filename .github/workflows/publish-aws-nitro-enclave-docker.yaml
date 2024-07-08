@@ -31,8 +31,8 @@ env:
   ARTIFACTS_BASE_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
 
 jobs:
-  buildImage:
-    name: Build Image
+  start:
+    name: Start Building AWS Image
     runs-on: ubuntu-latest
     steps:
       - name: Check branch and release type
@@ -113,6 +113,47 @@ jobs:
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }}
 
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      is_release: ${{ steps.checkRelease.outputs.is_release }}
+      github_changelog: ${{ steps.github_release.outputs.changelog }}
+
+  buildUID2EIF:
+    name: Build UID2 EIF
+    runs-on: ubuntu-latest
+    needs: start
+    steps:
+      - name: Checkout full history on Main
+        uses: actions/checkout@v4
+        if: ${{ inputs.version_number_input == '' }}
+        with:
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Checkout full history at tag v${{ inputs.version_number_input }}
+        uses: actions/checkout@v4
+        if: ${{ inputs.version_number_input != '' }}
+        with:
+          ref: v${{ inputs.version_number_input }}
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Restore timestamps
+        uses: thetradedesk/git-restore-mtime-action@v1.3
+
+      - name: Free up space - delete preinstalled tools
+        run: |
+          rm -rf /opt/hostedtoolcache
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@ian-UID2-3362-upgrade-java-21
@@ -120,12 +161,56 @@ jobs:
           identity_scope: uid2
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
 
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
       - name: Save UID2 eif artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aws-uid2-deployment-files-${{ steps.version.outputs.new_version }}
+          name: aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           if-no-files-found: error
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+    outputs:
+      uid2_enclave_id: ${{ steps.build_uid2_eif.outputs.enclave_id }}
+
+  buildEUIDEIF:
+    name: Build EUID EIF
+    runs-on: ubuntu-latest
+    needs: start
+    steps:
+      - name: Checkout full history on Main
+        uses: actions/checkout@v4
+        if: ${{ inputs.version_number_input == '' }}
+        with:
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Checkout full history at tag v${{ inputs.version_number_input }}
+        uses: actions/checkout@v4
+        if: ${{ inputs.version_number_input != '' }}
+        with:
+          ref: v${{ inputs.version_number_input }}
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Restore timestamps
+        uses: thetradedesk/git-restore-mtime-action@v1.3
+
+      - name: Free up space - delete preinstalled tools
+        run: |
+          rm -rf /opt/hostedtoolcache
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
 
       - name: Build EUID AWS EIF
         id: build_euid_eif
@@ -134,35 +219,67 @@ jobs:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
 
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
       - name: Save EUID eif artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aws-euid-deployment-files-${{ steps.version.outputs.new_version }}
+          name: aws-euid-deployment-files-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           if-no-files-found: error
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+    outputs:
+      euid_enclave_id: ${{ steps.build_euid_eif.outputs.enclave_id }}
+
+  cleanup:
+    name: Cleanup Building AWS Image
+    runs-on: ubuntu-latest
+    needs: [start, buildUID2EIF, buildEUIDEIF]
+    steps:
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
+      - name: Download UID2 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+
+      - name: Download EUID artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
 
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
-          echo ${{ steps.build_uid2_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ steps.version.outputs.new_version }}.txt
-          echo ${{ steps.build_euid_eif.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ steps.version.outputs.new_version }}.txt
+          echo ${{ needs.buildUID2EIF.outputs.uid2_enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
+          echo ${{ needs.buildEUIDEIF.outputs.euid_enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aws-enclave-ids-${{ steps.version.outputs.new_version }}
+          name: aws-enclave-ids-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
           if-no-files-found: error
 
       - name: Generate release archive files
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
+        if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
         run: |
-          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
-          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
+          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
+          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
 
       - name: Build changelog
         id: github_release
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
+        if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
         uses: mikepenz/release-changelog-builder-action@v4
         with:
           configurationJson: |
@@ -174,15 +291,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create release
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
+        if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ steps.version.outputs.new_version }}
-          body: ${{ steps.github_release.outputs.changelog }}
+          name: ${{ needs.start.outputs.new_version }}
+          body: ${{ needs.start.outputs.github_changelog }}
           draft: true
           files: |
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ steps.version.outputs.new_version }}.zip
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ steps.version.outputs.new_version }}.txt
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ steps.version.outputs.new_version }}.txt
-
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt

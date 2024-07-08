@@ -71,15 +71,22 @@ runs:
 
     - name: Get EIF for Run ${{ inputs.operator_run_number }}
       id: get_eif_for_run
-      uses: actions/download-artifact@v4
+      uses: dawidd6/action-download-artifact@v6
       if: ${{ inputs.operator_release == '' }}
       with:
-        github-token: ${{ inputs.github_token }}
-        repository: IABTechLab/uid2-operator
-        pattern: 'aws-${{ inputs.identity_scope }}-deployment-files-*'
-        run-id: ${{ inputs.operator_run_number }}
-        path: ./scripts/aws/uid2-operator-ami/artifacts
-        merge-multiple: true
+        name: 'aws-${{ inputs.identity_scope }}-deployment-files-.*'
+        name_is_regexp: true
+        run_id: ${{ inputs.operator_run_number }}
+        skip_unpack: true
+
+    - name: Unzip artifacts
+      if: ${{ inputs.operator_release == '' }}
+      shell: bash
+      run: |
+        ARTIFACTS='${{ steps.get_eif_for_run.outputs.artifacts }}'
+        FILE=$(echo $ARTIFACTS | jq -r '.[0].name')
+        unzip -o -d ./scripts/aws/uid2-operator-ami/artifacts $FILE.zip
+        rm $FILE.zip
 
     - name: Configure UID2 AWS credentials
       uses: aws-actions/configure-aws-credentials@v4

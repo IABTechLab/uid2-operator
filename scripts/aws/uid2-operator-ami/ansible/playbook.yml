@@ -9,13 +9,13 @@
 
   tasks:
   - name: Update all base packages
-    ansible.builtin.yum:
+    ansible.builtin.dnf:
       update_cache: yes
       name: '*'
       state: latest
   
   - name: Install Netcat
-    ansible.builtin.yum:
+    ansible.builtin.dnf:
       name: nmap-ncat
       state: latest
 
@@ -28,6 +28,11 @@
     ansible.builtin.file:
       path: /opt/uid2operator
       state: directory
+
+  - name: Install libxcrypt-compat
+    ansible.builtin.dnf:
+      name: libxcrypt-compat
+      state: latest
 
   - name: vsock-proxy config
     ansible.builtin.copy:
@@ -115,10 +120,17 @@
       dest: /etc/systemd/system/uid2operator.service
       remote_src: yes
 
-  - name: Ensure nitro-cli is installed to the latest version
-    ansible.builtin.command: amazon-linux-extras install aws-nitro-enclaves-cli
+  - name: Install AWS Nitro Enclaves CLI
+    ansible.builtin.dnf:
+      name: aws-nitro-enclaves-cli
+      state: latest
+  
+  - name: Install AWS Nitro Enclaves Devel CLI
+    ansible.builtin.dnf:
+      name: aws-nitro-enclaves-cli-devel
+      state: latest
 
-  - name: Ensure nitro enclave allocator is enabled at boot
+  - name: Enable the Nitro Enclave allocator service at boot
     ansible.builtin.systemd:
       name: nitro-enclaves-allocator.service
       enabled: yes
@@ -133,27 +145,17 @@
   #   ansible.builtin.systemd:
   #     name: nitro-enclaves-allocator.service
   #     state: restarted
-  - name: Install EPEL
-    ansible.builtin.command: amazon-linux-extras install epel
 
-  - name: Install ivykis
-    ansible.builtin.yum:
-      name: ivykis-0.36.2-2.el7
-      state: present
+  - name: Define cutdown version of syslog-ng
+    ansible.builtin.copy:
+      src: /tmp/artifacts/syslog-ng-amazon23.repo
+      dest: /etc/yum.repos.d/
+      remote_src: yes
 
-  - name: Install libnet
-    ansible.builtin.yum:
-      name: libnet-1.1.6-7.amzn2.0.2
-      state: present
-
-  - name: Register Public key
-    ansible.builtin.command: rpmkeys --import /opt/uid2operator/syslog-ng-pubkey.gpg
-
-  - name: Install package
-    ansible.builtin.command: rpm -U /opt/uid2operator/syslog-ng-4.6.0-1.el7.x86_64.rpm
-
-  - name: unregister Public key
-    ansible.builtin.command: rpm -e gpg-pubkey-c57846f4-65a8cf14
+  - name: Install syslog-ng
+    ansible.builtin.dnf:
+      name: syslog-ng
+      state: latest
 
   - name: syslog-ng config
     ansible.builtin.copy:
@@ -166,6 +168,12 @@
       src: /tmp/artifacts/operator-logrotate.conf
       dest: /etc/logrotate.d/operator-logrotate.conf
       remote_src: yes
+  
+  - name: Ensure /etc/cron.d/ folder exist
+    ansible.builtin.file:
+      path: /etc/cron.d
+      state: directory
+      mode: 0755
 
   - name: Run logrotate under cron.d
     ansible.builtin.copy:
@@ -174,11 +182,12 @@
       mode: 0644
       remote_src: yes
 
-  - name: Ensure rsyslog is disabled at boot
-    ansible.builtin.systemd:
-      name: rsyslog
-      state: stopped
-      enabled: false
+  - name: Run logrotate under cron.daily
+    ansible.builtin.copy:
+      src: /tmp/artifacts/logrotateDaily
+      dest: /etc/cron.daily/logrotate
+      mode: 0700
+      remote_src: yes
 
   - name: Ensure syslog-ng is enabled at boot
     ansible.builtin.systemd:

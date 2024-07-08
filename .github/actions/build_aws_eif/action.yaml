@@ -49,11 +49,10 @@ runs:
       run: |
         make -f Makefile.nitro ${{ inputs.identity_scope }}operator.eif
 
-    - name: Cleanup
+    - name: Free up space
       shell: bash
       run: |
-        docker rm -vf $(docker ps -a | grep -v "amazonlinux" | awk 'NR>1 {print $1}')
-        docker rmi -f $(docker images -aq)
+        docker image prune -a
 
     - name: Prepare artifacts
       id: prepare_artifacts
@@ -86,3 +85,9 @@ runs:
         docker cp amazonlinux:/pcr0.txt                                 ${{ steps.buildFolder.outputs.BUILD_FOLDER }}
         docker cp amazonlinux:/pcr0.txt                                 ${ARTIFACTS_OUTPUT_DIR}/
         echo "enclave_id=$(cat ${{ steps.buildFolder.outputs.BUILD_FOLDER}}/pcr0.txt)" >> $GITHUB_OUTPUT
+
+    - name: Cleanup
+      shell: bash
+      run: |
+        docker rm -vf $(docker ps -a | grep -v "amazonlinux" | awk 'NR>1 {print $1}')
+        docker rmi -f $(docker images -aq)

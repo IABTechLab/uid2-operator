@@ -52,7 +52,7 @@ runs:
     - name: Cleanup
       shell: bash
       run: |
-        docker rm -vf $(docker ps -aq)
+        docker rm -vf $(docker ps -a | grep -v "amazonlinux" | awk 'NR>1 {print $1}')
         docker rmi -f $(docker images -aq)
 
     - name: Prepare artifacts

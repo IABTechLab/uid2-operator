@@ -52,7 +52,7 @@ runs:
     - name: Free up space
       shell: bash
       run: |
-        yes | docker system prune -a
+        echo yes | docker system prune -a
 
     - name: Prepare artifacts
       id: prepare_artifacts

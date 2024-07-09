@@ -113,6 +113,11 @@ jobs:
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }}
 
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
     outputs:
       new_version: ${{ steps.version.outputs.new_version }}
       is_release: ${{ steps.checkRelease.outputs.is_release }}
@@ -152,12 +157,22 @@ jobs:
           identity_scope: uid2
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
 
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
       - name: Save UID2 eif artifact
         uses: actions/upload-artifact@v4
         with:
           name: aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           if-no-files-found: error
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
 
     outputs:
       uid2_enclave_id: ${{ steps.build_uid2_eif.outputs.enclave_id }}
@@ -189,6 +204,11 @@ jobs:
         run: |
           rm -rf /opt/hostedtoolcache
 
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
       - name: Build EUID AWS EIF
         id: build_euid_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@ian-UID2-3362-upgrade-java-21
@@ -196,12 +216,22 @@ jobs:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
 
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
       - name: Save EUID eif artifact
         uses: actions/upload-artifact@v4
         with:
           name: aws-euid-deployment-files-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           if-no-files-found: error
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
 
     outputs:
       euid_enclave_id: ${{ steps.build_euid_eif.outputs.enclave_id }}
@@ -211,6 +241,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [start, buildUID2EIF, buildEUIDEIF]
     steps:
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h  
+
       - name: Download UID2 artifacts
         uses: actions/download-artifact@v4
         with:

@@ -98,6 +98,7 @@ public class OperatorShutdownHandlerTest {
         assertDoesNotThrow(() -> {
             this.operatorShutdownHandler.handleAttestResponse(Pair.of(500, ""));
         });
+        verify(shutdownService, never()).Shutdown(anyInt());
         testContext.completeNow();
     }
 
@@ -114,8 +115,8 @@ public class OperatorShutdownHandlerTest {
         Assertions.assertThrows(RuntimeException.class, () -> {
             this.operatorShutdownHandler.handleSaltRetrievalResponse(true);
         });
-        verify(shutdownService).Shutdown(1);
         Assertions.assertAll("Expired Salts Log Messages",
+                () -> verify(shutdownService).Shutdown(1),
                 () -> Assertions.assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("all salts are expired")),
                 () -> Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("salts have been in expired state for too long. shutting down operator")),
                 () -> Assertions.assertEquals(3, logWatcher.list.size()));
@@ -140,6 +141,7 @@ public class OperatorShutdownHandlerTest {
             this.operatorShutdownHandler.handleSaltRetrievalResponse(false);
         });
         Assertions.assertEquals(2, logWatcher.list.size());
+        verify(shutdownService, never()).Shutdown(anyInt());
 
         testContext.completeNow();
     }

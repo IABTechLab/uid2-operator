@@ -66,6 +66,7 @@ jobs:
       version_number_input: ${{ inputs.version_number_input }}
       force_release: 'no' # Do not create a release for the component builds, will be created by the parent
       vulnerability_severity: ${{ inputs.vulnerability_severity }}
+      java_version: 21
     secrets: inherit
 
   e2e:

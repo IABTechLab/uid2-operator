@@ -49,6 +49,11 @@ runs:
       run: |
         make -f Makefile.nitro ${{ inputs.identity_scope }}operator.eif
 
+    - name: Free up space
+      shell: bash
+      run: |
+        echo y | docker system prune -a
+
     - name: Prepare artifacts
       id: prepare_artifacts
       shell: bash
@@ -84,5 +89,5 @@ runs:
     - name: Cleanup
       shell: bash
       run: |
-        docker stop $(docker ps -a -q)
-        docker system prune -f
+        docker rm -vf $(docker ps -a -q)
+        docker rmi -f $(docker images -aq)

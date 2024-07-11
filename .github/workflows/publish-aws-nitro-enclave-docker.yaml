@@ -111,12 +111,13 @@ jobs:
         with:
           add: 'pom.xml version.json'
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-          tag: v${{ steps.version.outputs.new_version }} 
+          tag: v${{ steps.version.outputs.new_version }}
 
       - name: Check disk usage
         shell: bash
         run: |
           df -h
+
     outputs:
       new_version: ${{ steps.version.outputs.new_version }}
       is_release: ${{ steps.checkRelease.outputs.is_release }}
@@ -177,6 +178,7 @@ jobs:
         shell: bash
         run: |
           df -h
+
     outputs:
       uid2_enclave_id: ${{ steps.build_uid2_eif.outputs.enclave_id }}
 
@@ -211,7 +213,7 @@ jobs:
         shell: bash
         run: |
           df -h
-      
+
       - name: Build EUID AWS EIF
         id: build_euid_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
@@ -235,6 +237,7 @@ jobs:
         shell: bash
         run: |
           df -h
+
     outputs:
       euid_enclave_id: ${{ steps.build_euid_eif.outputs.enclave_id }}
 
@@ -246,7 +249,7 @@ jobs:
       - name: Check disk usage
         shell: bash
         run: |
-          df -h
+          df -h  
 
       - name: Download UID2 artifacts
         uses: actions/download-artifact@v4
@@ -257,7 +260,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
-      
+
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests

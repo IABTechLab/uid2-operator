@@ -6,24 +6,27 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.37.29-alpha-201-SNAPSHOT</version>
+    <version>5.37.36-alpha-226-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <vertx.version>4.5.3</vertx.version>
         <vertx-maven-plugin.version>1.0.22</vertx-maven-plugin.version>
-        <junit-jupiter.version>5.7.2</junit-jupiter.version>
-        <junit-vintage.version>5.7.2</junit-vintage.version>
+        <junit-jupiter.version>5.10.1</junit-jupiter.version>
+        <junit-vintage.version>5.10.1</junit-vintage.version>
         <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
         <vertx.verticle>com.uid2.operator.vertx.UIDOperatorVerticle</vertx.verticle>
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
-        <micrometer.version>1.1.0</micrometer.version>
+        <micrometer.version>1.12.2</micrometer.version>
         <enclave-api.version>2.0.0-f968aec0e3</enclave-api.version>
         <enclave-aws.version>2.0.0-f7c174410e</enclave-aws.version>
         <enclave-azure.version>2.0.4-ef52553c57</enclave-azure.version>
         <enclave-gcp.version>2.0.0-21f950573a</enclave-gcp.version>
         <uid2-shared.version>7.9.0</uid2-shared.version>
         <image.version>${project.version}</image.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <java.version>21</java.version>
     </properties>
 
 
@@ -118,14 +121,14 @@
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-inline</artifactId>
-            <version>3.7.7</version>
+            <artifactId>mockito-core</artifactId>
+            <version>5.10.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.23.1</version>
+            <version>3.25.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -203,6 +206,11 @@
             <version>4.3.2</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+            <version>0.8.12</version>
+        </dependency>
     </dependencies>
 
     <profiles>
@@ -248,7 +256,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.8</version>
+                <version>0.8.12</version>
                 <executions>
                     <execution>
                         <goals>
@@ -260,10 +268,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>3.12.1</version>
                 <configuration>
-                    <source>11</source>
-                    <target>11</target>
+                    <source>21</source>
+                    <target>21</target>
+                    <release>21</release>
                 </configuration>
             </plugin>
             <plugin>

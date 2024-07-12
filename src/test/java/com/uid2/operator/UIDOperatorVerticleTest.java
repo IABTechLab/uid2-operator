@@ -1645,12 +1645,12 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void tokenRefreshInvalidTokenAuthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1,asdf", "v2,asdf", "v1,invalidBase64%%%%", "v2,invalidBase64%%%%"})
+    void tokenRefreshInvalidTokenAuthenticated(String apiVersion, String token, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
 
-        sendTokenRefresh(apiVersion, vertx, ORIGIN_HEADER, "example.com", testContext, "abcd", "", 400, json -> {
+        sendTokenRefresh(apiVersion, vertx, ORIGIN_HEADER, "example.com", testContext, token, "", 400, json -> {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,

@@ -8,6 +8,9 @@ inputs:
   artifacts_base_output_dir:
     description: The base output directory for the AMI artifacts
     required: true
+  amazonlinux_dockerfile:
+    description: The Docker file to use to build the EIF
+    default: amazonlinux.Dockerfile
 
 outputs:
   enclave_id:
@@ -21,7 +24,7 @@ runs:
     - name: Run amazonlinux Docker image
       shell: bash
       run: |
-        docker build -t amazonlinux -f ./scripts/aws/pipeline/amazonlinux.Dockerfile .
+        docker build -t amazonlinux -f ./scripts/aws/pipeline/${{ amazonlinux_dockerfile }} .
         docker run -d --privileged --name amazonlinux amazonlinux:latest
 
     - name: Create build folder

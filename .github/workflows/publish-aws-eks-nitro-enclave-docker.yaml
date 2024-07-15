@@ -210,7 +210,7 @@ jobs:
         id: push-to-docker
         uses: docker/build-push-action@v5
         with:
-          context: ${{ env.DOCKER_CONTEXT_PATH }}
+          context: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

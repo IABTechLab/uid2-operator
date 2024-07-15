@@ -27,7 +27,7 @@ COPY ./conf/*.xml /app/conf/
 COPY ./config-server/app.py /app/app.py
 COPY ./config-server/requirements.txt /app/requirements.txt
 
-RUN pip install -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
 

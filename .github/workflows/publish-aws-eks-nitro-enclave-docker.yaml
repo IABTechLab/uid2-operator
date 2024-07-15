@@ -173,6 +173,7 @@ jobs:
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           cp -r ./scripts/aws/eks ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           ls -l ./scripts/aws/eks
+          ls -l ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
 
       - name: Check disk usage
         shell: bash

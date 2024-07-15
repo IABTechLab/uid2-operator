@@ -134,15 +134,15 @@ jobs:
     steps:
       - name: Build Docker Image for EKS Pod
         id: build_docker_image
-        uses: ./.github/actions/build_eks_docker_image
+        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@tjm-UID2-3706-eks-eif-build
         with:
           identity_scope: uid2
-          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+          artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           version_number_input: ${{ inputs.version_number_input }}
           image_tag: ${{ needs.start.outputs.image_tag }}
           new_version: ${{ needs.start.outputs.new_version }}
     outputs:
-      uid2_enclave_id: ${{ steps.build_docker_image.outputs.enclave_id }}
+      enclave_id: ${{ steps.build_docker_image.outputs.enclave_id }}
 
   buildEUIDEIF:
     name: Build EUID EIF for EKS
@@ -151,15 +151,15 @@ jobs:
     steps:
       - name: Build Docker Image for EKS Pod
         id: build_docker_image
-        uses: ./.github/actions/build_eks_docker_image
+        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@tjm-UID2-3706-eks-eif-build
         with:
           identity_scope: euid
-          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
+          artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           version_number_input: ${{ inputs.version_number_input }}
           image_tag: ${{ needs.start.outputs.image_tag }}
           new_version: ${{ needs.start.outputs.new_version }}
     outputs:
-      uid2_enclave_id: ${{ steps.build_docker_image.outputs.enclave_id }}
+      enclave_id: ${{ steps.build_docker_image.outputs.enclave_id }}
 
   cleanup:
     name: Cleanup Building AWS Image
@@ -174,8 +174,8 @@ jobs:
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
-          echo ${{ needs.buildUID2EIF.outputs.uid2_enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
-          echo ${{ needs.buildEUIDEIF.outputs.euid_enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt
+          echo ${{ needs.buildUID2EIF.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
+          echo ${{ needs.buildEUIDEIF.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@v4

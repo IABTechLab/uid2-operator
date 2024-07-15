@@ -170,6 +170,7 @@ jobs:
       - name: Copy docker files
         id: copy_docker_files
         run: |
+          mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           cp -r ./scripts/aws/eks ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           ls -l ./scripts/aws/eks
 

@@ -1,0 +1,356 @@
+name: Publish EKS Operator
+run-name: ${{ format('Publish {0} EKS Operator', inputs.release_type) }}
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        type: choice
+        description: The type of release
+        options:
+        - Snapshot
+        - Patch
+        - Minor
+        - Major
+      version_number_input:
+        description: If set, the version number will not be incremented and the given number will be used.
+        type: string
+        default: ''
+  workflow_call:
+    inputs:
+      release_type:
+        description: The type of version number to return. Must be one of [Snapshot, Patch, Minor or Major]
+        required: true
+        type: string
+      version_number_input:
+        description: If set, the version number will not be incremented and the given number will be used.
+        type: string
+        default: ''
+
+env:
+  REGISTRY: ghcr.io
+  ENCLAVE_PROTOCOL: aws-nitro
+  DOCKER_CONTEXT_PATH: scripts/aws/eks
+  ARTIFACTS_BASE_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  start:
+    name: Update Operator Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch and release type
+        id: checkRelease
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2
+        with:
+          release_type: ${{ inputs.release_type }}
+
+      - name: Approve Major release
+        if: inputs.release_type == 'Major'
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: thomasm-ttd,atarassov-ttd,cody-constine-ttd
+          minimum-approvals: 1
+          issue-title: Creating Major version of UID2-Operator
+
+      - name: Free up space - delete preinstalled tools
+        run: |
+          rm -rf /opt/hostedtoolcache
+
+      - name: Show Context
+        run: |
+          printenv
+          echo "$GITHUB_CONTEXT"
+        shell: bash
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+          IS_RELEASE: ${{ steps.checkRelease.outputs.is_release }}
+
+      - name: Checkout full history on Main
+        uses: actions/checkout@v4
+        if: ${{ inputs.version_number_input == '' }}
+        with:
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Checkout full history at tag v${{ inputs.version_number_input }}
+        uses: actions/checkout@v4
+        if: ${{ inputs.version_number_input != '' }}
+        with:
+          ref: v${{ inputs.version_number_input }}
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Restore timestamps
+        uses: thetradedesk/git-restore-mtime-action@v1.3
+
+      - name: Set version number
+        id: version
+        uses: IABTechLab/uid2-shared-actions/actions/version_number@v2
+        with:
+          type: ${{ inputs.release_type }}
+          version_number: ${{ inputs.version_number_input }}
+          branch_name: ${{ github.ref }}
+      
+      - name: Update pom.xml
+        id: updatePom
+        run: |
+          current_version=$(grep -o '<version>.*</version>' pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/')
+          new_version=${{ steps.version.outputs.new_version }} 
+          sed -i "0,/$current_version/s/$current_version/$new_version/" pom.xml
+          echo "Version number updated from $current_version to $new_version"
+          echo "image_tag=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}" >> $GITHUB_OUTPUT
+
+      - name: Commit pom.xml and version.json
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release != 'true' }} 
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
+        with:
+          add: 'pom.xml version.json'
+          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+
+      - name: Commit pom.xml, version.json and set tag
+        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }} 
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
+        with:
+          add: 'pom.xml version.json'
+          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+          tag: v${{ steps.version.outputs.new_version }}
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      is_release: ${{ steps.checkRelease.outputs.is_release }}
+      image_tag: ${{ steps.updatePom.outputs.image_tag }}
+
+  buildUID2EIF:
+    name: Build UID2 EIF for EKS
+    runs-on: ubuntu-latest
+    needs: start
+    steps:
+      - name: Checkout full history on Main
+        uses: actions/checkout@v4
+        if: ${{ inputs.version_number_input == '' }}
+        with:
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Checkout full history at tag v${{ inputs.version_number_input }}
+        uses: actions/checkout@v4
+        if: ${{ inputs.version_number_input != '' }}
+        with:
+          ref: v${{ inputs.version_number_input }}
+          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+          fetch-depth: 0
+
+      - name: Restore timestamps
+        uses: thetradedesk/git-restore-mtime-action@v1.3
+
+      - name: Free up space - delete preinstalled tools
+        run: |
+          rm -rf /opt/hostedtoolcache
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
+      - name: Build UID2 AWS EIF for EKS
+        id: build_uid2_eif
+        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@tjm-UID2-3706-eks-eif-build
+        with:
+          identity_scope: uid2
+          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+          amazonlinux_dockerfile: amazonlinux2023.Dockerfile
+
+      - name: Copy docker files
+        id: copy_docker_files
+        run: |
+          cp -r ./scripts/aws/eks ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
+      - name: Log in to the Docker container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ needs.start.outputs.image_tag }}
+
+      - name: Build and export to Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            JAR_VERSION=${{ needs.start.outputs.new_version }}
+            IMAGE_VERSION=${{ needs.start.outputs.new_version }}
+            BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
+
+      - name: Push to Docker
+        id: push-to-docker
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.DOCKER_CONTEXT_PATH }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            JAR_VERSION=${{ needs.start.outputs.new_version }}
+            IMAGE_VERSION=${{ needs.start.outputs.new_version }}
+
+        
+
+      #- name: Save UID2 eif artifact
+      #  uses: actions/upload-artifact@v4
+      #  with:
+      #    name: aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}
+      #    path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+      #    if-no-files-found: error
+
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h
+
+    outputs:
+      uid2_enclave_id: ${{ steps.build_uid2_eif.outputs.enclave_id }}
+
+#  buildEUIDEIF:
+#    name: Build EUID EIF
+#    runs-on: ubuntu-latest
+#    needs: start
+#    steps:
+#      - name: Checkout full history on Main
+#        uses: actions/checkout@v4
+#        if: ${{ inputs.version_number_input == '' }}
+#        with:
+#          fetch-depth: 0
+#
+#      - name: Checkout full history at tag v${{ inputs.version_number_input }}
+#        uses: actions/checkout@v4
+#        if: ${{ inputs.version_number_input != '' }}
+#        with:
+#          ref: v${{ inputs.version_number_input }}
+#          fetch-depth: 0
+#
+#      - name: Restore timestamps
+#        uses: thetradedesk/git-restore-mtime-action@v1.3
+#
+#      - name: Free up space - delete preinstalled tools
+#        run: |
+#          rm -rf /opt/hostedtoolcache
+#
+#      - name: Check disk usage
+#        shell: bash
+#        run: |
+#          df -h
+#
+#      - name: Build EUID AWS EIF
+#        id: build_euid_eif
+#        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@tjm-UID2-3706-eks-eif-build
+#        with:
+#          identity_scope: euid
+#          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
+#          amazonlinux_dockerfile: amazonlinux2023.Dockerfile
+#
+#      - name: Check disk usage
+#        shell: bash
+#        run: |
+#          df -h
+#
+#      - name: Save EUID eif artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: aws-euid-deployment-files-${{ needs.start.outputs.new_version }}
+#          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
+#          if-no-files-found: error
+#
+#      - name: Check disk usage
+#        shell: bash
+#        run: |
+#          df -h
+#
+#    outputs:
+#      euid_enclave_id: ${{ steps.build_euid_eif.outputs.enclave_id }}
+
+  cleanup:
+    name: Cleanup Building AWS Image
+    runs-on: ubuntu-latest
+    needs: [start, buildUID2EIF] #, buildEUIDEIF]
+    steps:
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h  
+
+      - name: Download UID2 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+
+      #- name: Download EUID artifacts
+      #  uses: actions/download-artifact@v4
+      #  with:
+      #    path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
+
+      - name: Save Enclave Ids
+        run: |
+          mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
+          echo ${{ needs.buildUID2EIF.outputs.uid2_enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
+          # echo ${{ needs.buildEUIDEIF.outputs.euid_enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt
+
+      - name: Save Manifests as build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-enclave-ids-${{ needs.start.outputs.new_version }}
+          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
+          if-no-files-found: error
+
+      - name: Generate release archive files
+        if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
+        run: |
+          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
+          # zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
+
+      - name: Build changelog
+        id: github_release
+        if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}\n## Installation\n```\See [AWS Marketplace](https://unifiedid.com/docs/guides/operator-guide-aws-marketplace) for details\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
+              "pr_template": " - #{{TITLE}} - ( PR: ##{{NUMBER}} )"
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release
+        if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ needs.start.outputs.new_version }}
+          body: ${{ needs.start.outputs.github_changelog }}
+          draft: true
+          files: |
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt

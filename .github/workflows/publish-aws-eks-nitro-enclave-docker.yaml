@@ -6,6 +6,7 @@ on:
       release_type:
         type: choice
         description: The type of release
+        default: Snapshot
         options:
         - Snapshot
         - Patch
@@ -25,7 +26,6 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
-  push:
 
 env:
   REGISTRY: ghcr.io

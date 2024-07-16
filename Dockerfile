@@ -24,8 +24,11 @@ COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-static.tar.gz /app/static.tar.gz
 COPY ./conf/default-config.json /app/conf/
 COPY ./conf/*.xml /app/conf/
-COPY ./config-server/app.py /app/app.py
-COPY ./config-server/requirements.txt /app/requirements.txt
+COPY ./config-server/app.py /app
+COPY ./config-server/requirements.txt /app
+
+# Debugging: List files in /app directory
+RUN ls -l /app
 
 RUN pip3 install -r requirements.txt
 

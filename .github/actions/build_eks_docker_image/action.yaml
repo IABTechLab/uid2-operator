@@ -17,6 +17,8 @@ inputs:
   new_version:
     description: The new version number after potentially updating the POM
     required: true
+  github_token:
+    description: The GitHub token used to login to Docker
 
 outputs:
   enclave_id:
@@ -81,7 +83,7 @@ runs:
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ inputs.github_token }}
 
     - name: Extract metadata (tags, labels) for Docker
       id: meta

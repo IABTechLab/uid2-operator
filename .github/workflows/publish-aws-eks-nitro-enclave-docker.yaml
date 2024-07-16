@@ -100,7 +100,7 @@ jobs:
           new_version=${{ steps.version.outputs.new_version }} 
           sed -i "0,/$current_version/s/$current_version/$new_version/" pom.xml
           echo "Version number updated from $current_version to $new_version"
-          echo "image_tag=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}" >> $GITHUB_OUTPUT
+          echo "image_tag=${{ steps.version.outputs.new_version }}-eks-nitro" >> $GITHUB_OUTPUT
 
       - name: Commit pom.xml and version.json
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release != 'true' }} 
@@ -130,6 +130,10 @@ jobs:
   buildUID2EIF:
     name: Build UID2 EIF for EKS
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
     needs: start
     steps:
       - name: Build Docker Image for EKS Pod
@@ -148,6 +152,10 @@ jobs:
   buildEUIDEIF:
     name: Build EUID EIF for EKS
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
     needs: start
     steps:
       - name: Build Docker Image for EKS Pod

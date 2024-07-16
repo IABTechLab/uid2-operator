@@ -72,6 +72,7 @@ runs:
       id: copy_docker_files
       run: |
         mkdir -p ${{ inputs.artifacts_output_dir }}
+        cp -r ./scripts/aws/config-server/* ${{ inputs.artifacts_output_dir }}
         cp -r ./scripts/aws/eks/pod/* ${{ inputs.artifacts_output_dir }}
         ls -l ${{ inputs.artifacts_output_dir }}
 

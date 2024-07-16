@@ -18,9 +18,9 @@ ENV REGION=us-east-2
 ENV LOKI_HOSTNAME=loki
 ENV LOGBACK_CONF=${LOGBACK_CONF:-./conf/logback.xml}
 
-COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
-COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app
-COPY ./target/${JAR_NAME}-${JAR_VERSION}-static.tar.gz /app/static.tar.gz
+# COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
+# COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app
+# COPY ./target/${JAR_NAME}-${JAR_VERSION}-static.tar.gz /app/static.tar.gz
 COPY ./conf/default-config.json /app/conf/
 COPY ./conf/*.xml /app/conf/
 COPY ./config-server/app.py /app
@@ -29,7 +29,8 @@ COPY ./config-server/requirements.txt /app
 # Debugging: List files in /app directory
 RUN ls -l /app
 
-RUN pip3 install -r requirements.txt
+RUN python3 -m venv config-server
+RUN config-server/bin/pip3 install -r requirements.txt
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
 

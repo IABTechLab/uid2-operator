@@ -145,7 +145,7 @@ jobs:
           version_number_input: ${{ inputs.version_number_input }}
           image_tag: ${{ needs.start.outputs.image_tag }}
           new_version: ${{ needs.start.outputs.new_version }}
-          github_token: $${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
       enclave_id: ${{ steps.build_docker_image.outputs.enclave_id }}
 
@@ -167,7 +167,7 @@ jobs:
           version_number_input: ${{ inputs.version_number_input }}
           image_tag: ${{ needs.start.outputs.image_tag }}
           new_version: ${{ needs.start.outputs.new_version }}
-          github_token: $${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
       enclave_id: ${{ steps.build_docker_image.outputs.enclave_id }}
 

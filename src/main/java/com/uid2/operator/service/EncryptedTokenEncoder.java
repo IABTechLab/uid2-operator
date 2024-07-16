@@ -75,7 +75,12 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     @Override
     public RefreshToken decodeRefreshToken(String s) {
         if (s != null && !s.isEmpty()) {
-            final byte[] bytes = EncodingUtils.fromBase64(s);
+            final byte[] bytes;
+            try {
+                bytes = EncodingUtils.fromBase64(s);
+            } catch (IllegalArgumentException e) {
+                throw new ClientInputValidationException("Invalid refresh token");
+            }
             final Buffer b = Buffer.buffer(bytes);
             if (b.getByte(1) == TokenVersion.V3.rawVersion) {
                 return decodeRefreshTokenV3(b, bytes);

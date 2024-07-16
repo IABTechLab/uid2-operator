@@ -407,7 +407,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             this.heap = new OptOutHeap(heapCapacity);
 
             this.adIdToOptOutTimestamp = Collections.emptyMap();
-            this.optoutStatusApiEnabled = jsonConfig.getBoolean(Const.Config.OptOutStatusApiEnabled, false);
+            this.optoutStatusApiEnabled = jsonConfig.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
 
             // initially 1 partition
             this.partitions = new OptOutPartition[1];

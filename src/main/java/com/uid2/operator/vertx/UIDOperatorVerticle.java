@@ -176,7 +176,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
         this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
-        this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, false);
+        this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
     }
 

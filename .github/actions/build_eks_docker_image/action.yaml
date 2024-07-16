@@ -64,14 +64,15 @@ runs:
       with:
         identity_scope: ${{ inputs.identity_scope }}
         artifacts_base_output_dir: ${{ inputs.artifacts_output_dir }}
-        amazonlinux_dockerfile: amazonlinux2023.Dockerfile
+        amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux2023.Dockerfile
+        makefile: Makefile.eks
 
-    - name: Copy docker files
+    - name: Copy docker files for the Operator Pod
       shell: bash
       id: copy_docker_files
       run: |
         mkdir -p ${{ inputs.artifacts_output_dir }}
-        cp -r ./scripts/aws/eks/* ${{ inputs.artifacts_output_dir }}
+        cp -r ./scripts/aws/eks/pod/* ${{ inputs.artifacts_output_dir }}
         ls -l ${{ inputs.artifacts_output_dir }}
 
     - name: Check disk usage

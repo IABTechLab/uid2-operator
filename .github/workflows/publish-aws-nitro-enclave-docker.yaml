@@ -161,7 +161,8 @@ jobs:
         with:
           identity_scope: uid2
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
-          amazonlinux_dockerfile: amazonlinux.Dockerfile
+          amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux.Dockerfile
+          makefile: Makefile.nitro
 
       - name: Check disk usage
         shell: bash
@@ -221,7 +222,8 @@ jobs:
         with:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
-          amazonlinux_dockerfile: amazonlinux.Dockerfile
+          amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux.Dockerfile
+          makefile: Makefile.nitro
 
       - name: Check disk usage
         shell: bash

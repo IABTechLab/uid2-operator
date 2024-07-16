@@ -63,7 +63,7 @@ runs:
       uses: ./.github/actions/build_aws_eif
       with:
         identity_scope: ${{ inputs.identity_scope }}
-        artifacts_output_dir: ${{ inputs.artifacts_output_dir }}
+        artifacts_base_output_dir: ${{ inputs.artifacts_output_dir }}
         amazonlinux_dockerfile: amazonlinux2023.Dockerfile
 
     - name: Copy docker files

@@ -19,6 +19,7 @@ inputs:
     required: true
   github_token:
     description: The GitHub token used to login to Docker
+    required: true
 
 outputs:
   enclave_id:

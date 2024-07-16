@@ -29,7 +29,8 @@ COPY ./config-server/requirements.txt /app
 # Debugging: List files in /app directory
 RUN ls -l /app
 
-RUN pip3 install -r requirements.txt
+RUN python3 -m venv config-server
+RUN config-server/bin/pip3 install -r requirements.txt
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
 

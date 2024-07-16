@@ -23,6 +23,6 @@ RUN chmod +x /home/vsockpx && chmod +x /home/entrypoint.sh
 COPY ./app.py /home/config-server/
 COPY ./requirements.txt /home/config-server/
 RUN python3 -m venv config-server
-RUN config-server/bin/pip3 install -r requirements.txt
+RUN config-server/bin/pip3 install -r /home/config-server/requirements.txt
 
 CMD ["/home/entrypoint.sh"]

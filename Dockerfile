@@ -5,9 +5,8 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 5000
 
-# Install Python
-RUN apk update && \
-    apk add --no-cache python3 py3-pip
+RUN apk add --no-cache python3 py3-pip \
+&& ln -sf python3 /usr/bin/python
 
 ARG JAR_NAME=uid2-operator
 ARG JAR_VERSION=1.0.0-SNAPSHOT

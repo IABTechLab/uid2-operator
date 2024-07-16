@@ -6,7 +6,8 @@ RUN yum install aws-nitro-enclaves-cli-devel jq -y
 RUN dnf install aws-nitro-enclaves-cli -y
 # RUN yum install -y libxcrypt-compat
 
-RUN yum install -y python3
+RUN dnf install python3.11 -y
+RUN dnf install python3.11-pip -y
 
 COPY ./sockd /home/
 COPY ./sockd.conf /etc/

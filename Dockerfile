@@ -5,7 +5,7 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 27015
 
-RUN apk add --no-cache python3 py3-pip \
+RUN apk add --no-cache python3 py3-pip curl \
 && ln -sf python3 /usr/bin/python
 
 ARG JAR_NAME=uid2-operator

@@ -5,9 +5,11 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 5000
 
-# Install Python
-RUN apk update && \
-    apk add --no-cache python3 py3-pip
+# Install python/pip
+ENV PYTHONUNBUFFERED=1
+RUN apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python
+RUN python3 -m ensurepip
+RUN pip3 install --no-cache --upgrade pip setuptools
 
 ARG JAR_NAME=uid2-operator
 ARG JAR_VERSION=1.0.0-SNAPSHOT

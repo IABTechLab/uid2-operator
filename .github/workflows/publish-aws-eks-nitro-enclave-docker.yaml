@@ -137,7 +137,7 @@ jobs:
     steps:
       - name: Build Docker Image for EKS Pod
         id: build_docker_image
-        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@tjm-UID2-3706-eks-eif-build
+        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@kcc-UID2-3702-config-server
         with:
           identity_scope: uid2
           artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
@@ -159,7 +159,7 @@ jobs:
     steps:
       - name: Build Docker Image for EKS Pod
         id: build_docker_image
-        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@tjm-UID2-3706-eks-eif-build
+        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@kcc-UID2-3702-config-server
         with:
           identity_scope: euid
           artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid

@@ -1,0 +1,125 @@
+name: Build AWS EKS Docker Image
+description: Builds the docker images to use as a EKS Pod. Includes building the EIF
+
+inputs:
+  version_number_input:
+    description: If set, the version number will not be incremented and the given number will be used.
+    default: ''
+  identity_scope:
+    description: The identity scope [uid2, euid]
+    required: true
+  artifacts_output_dir:
+    description: The output directory for the artifacts
+    required: true
+  image_tag:
+    description: The Tag to give the docker image
+    required: true
+  new_version:
+    description: The new version number after potentially updating the POM
+    required: true
+  github_token:
+    description: The GitHub token used to login to Docker
+    required: true
+
+outputs:
+  enclave_id:
+    description: The enclave id for this EIF.
+    value: ${{ steps.build_aws_eif.outputs.enclave_id }}
+    
+runs:
+  using: "composite"
+
+  steps:
+    - name: Checkout full history on Main
+      uses: actions/checkout@v4
+      if: ${{ inputs.version_number_input == '' }}
+      with:
+        # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+        fetch-depth: 0
+
+    - name: Checkout full history at tag v${{ inputs.version_number_input }}
+      uses: actions/checkout@v4
+      if: ${{ inputs.version_number_input != '' }}
+      with:
+        ref: v${{ inputs.version_number_input }}
+        # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+        fetch-depth: 0
+
+    - name: Restore timestamps
+      uses: thetradedesk/git-restore-mtime-action@v1.3
+
+    - name: Free up space - delete preinstalled tools
+      shell: bash
+      run: |
+        rm -rf /opt/hostedtoolcache
+
+    - name: Check disk usage
+      shell: bash
+      run: |
+        df -h
+
+    - name: Build AWS EIF for EKS
+      id: build_aws_eif
+      uses: ./.github/actions/build_aws_eif
+      with:
+        identity_scope: ${{ inputs.identity_scope }}
+        artifacts_base_output_dir: ${{ inputs.artifacts_output_dir }}
+        amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux2023.Dockerfile
+        makefile: Makefile.eks
+
+    - name: Copy docker files for the Operator Pod
+      shell: bash
+      id: copy_docker_files
+      run: |
+        mkdir -p ${{ inputs.artifacts_output_dir }}
+        cp -r ./scripts/aws/eks/pod/* ${{ inputs.artifacts_output_dir }}
+        ls -l ${{ inputs.artifacts_output_dir }}
+
+    - name: Check disk usage
+      shell: bash
+      run: |
+        df -h
+
+    - name: Log in to the Docker container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ inputs.github_token }}
+
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-eks-${{ inputs.identity_scope }}
+        tags: |
+          type=raw,value=${{ inputs.image_tag }}
+
+    - name: Build and export to Docker
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ inputs.artifacts_output_dir }}
+        load: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          JAR_VERSION=${{ inputs.new_version }}
+          IMAGE_VERSION=${{ inputs.new_version }}
+          BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
+
+    - name: Push to Docker
+      id: push-to-docker
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ inputs.artifacts_output_dir }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          JAR_VERSION=${{ inputs.new_version }}
+          IMAGE_VERSION=${{ inputs.new_version }}
+
+    - name: Check disk usage
+      shell: bash
+      run: |
+        df -h

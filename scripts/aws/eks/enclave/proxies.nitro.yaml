@@ -1,0 +1,26 @@
+---
+
+uid-operator-in:
+  service: direct
+  listen: vsock://-1:8080
+  connect: tcp://127.0.0.1:8080
+
+prometheus-server:
+  service: direct
+  listen: vsock://-1:9080
+  connect: tcp://127.0.0.1:9080
+
+socks5h-proxy:
+  service: direct
+  listen: tcp://127.0.0.1:3305
+  connect: vsock://3:3305
+
+aws-service-proxy:
+  service: direct
+  listen: tcp://127.0.0.1:443
+  connect: vsock://3:3308
+
+syslogng:
+  service: direct
+  listen: tcp://127.0.0.1:2011
+  connect: vsock://3:2011

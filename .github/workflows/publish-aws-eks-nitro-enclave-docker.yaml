@@ -1,11 +1,12 @@
-name: Publish AWS Nitro Operator
-run-name: ${{ format('Publish {0} AWS Nitro Operator', inputs.release_type) }}
+name: Publish EKS Operator
+run-name: ${{ format('Publish {0} EKS Operator', inputs.release_type) }}
 on:
   workflow_dispatch:
     inputs:
       release_type:
         type: choice
         description: The type of release
+        default: Snapshot
         options:
         - Snapshot
         - Patch
@@ -27,12 +28,14 @@ on:
         default: ''
 
 env:
+  REGISTRY: ghcr.io
   ENCLAVE_PROTOCOL: aws-nitro
   ARTIFACTS_BASE_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   start:
-    name: Start Building AWS Image
+    name: Update Operator Version
     runs-on: ubuntu-latest
     steps:
       - name: Check branch and release type
@@ -96,7 +99,7 @@ jobs:
           new_version=${{ steps.version.outputs.new_version }} 
           sed -i "0,/$current_version/s/$current_version/$new_version/" pom.xml
           echo "Version number updated from $current_version to $new_version"
-          echo "image_tag=${{ steps.version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}" >> $GITHUB_OUTPUT
+          echo "image_tag=${{ steps.version.outputs.new_version }}-eks-nitro" >> $GITHUB_OUTPUT
 
       - name: Commit pom.xml and version.json
         if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release != 'true' }} 
@@ -121,129 +124,51 @@ jobs:
     outputs:
       new_version: ${{ steps.version.outputs.new_version }}
       is_release: ${{ steps.checkRelease.outputs.is_release }}
-      github_changelog: ${{ steps.github_release.outputs.changelog }}
+      image_tag: ${{ steps.updatePom.outputs.image_tag }}
 
   buildUID2EIF:
-    name: Build UID2 EIF
+    name: Build UID2 EIF for EKS
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
     needs: start
     steps:
-      - name: Checkout full history on Main
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input == '' }}
-        with:
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Checkout full history at tag v${{ inputs.version_number_input }}
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input != '' }}
-        with:
-          ref: v${{ inputs.version_number_input }}
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Restore timestamps
-        uses: thetradedesk/git-restore-mtime-action@v1.3
-
-      - name: Free up space - delete preinstalled tools
-        run: |
-          rm -rf /opt/hostedtoolcache
-
-      - name: Check disk usage
-        shell: bash
-        run: |
-          df -h
-
-      - name: Build UID2 AWS EIF
-        id: build_uid2_eif
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+      - name: Build Docker Image for EKS Pod
+        id: build_docker_image
+        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@tjm-UID2-3706-eks-eif-build
         with:
           identity_scope: uid2
-          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
-          amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux.Dockerfile
-          makefile: Makefile.nitro
-
-      - name: Check disk usage
-        shell: bash
-        run: |
-          df -h
-
-      - name: Save UID2 eif artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}
-          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
-          if-no-files-found: error
-
-      - name: Check disk usage
-        shell: bash
-        run: |
-          df -h
-
+          artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+          version_number_input: ${{ inputs.version_number_input }}
+          image_tag: ${{ needs.start.outputs.image_tag }}
+          new_version: ${{ needs.start.outputs.new_version }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
-      uid2_enclave_id: ${{ steps.build_uid2_eif.outputs.enclave_id }}
+      enclave_id: ${{ steps.build_docker_image.outputs.enclave_id }}
 
   buildEUIDEIF:
-    name: Build EUID EIF
+    name: Build EUID EIF for EKS
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
     needs: start
     steps:
-      - name: Checkout full history on Main
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input == '' }}
-        with:
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Checkout full history at tag v${{ inputs.version_number_input }}
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input != '' }}
-        with:
-          ref: v${{ inputs.version_number_input }}
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Restore timestamps
-        uses: thetradedesk/git-restore-mtime-action@v1.3
-
-      - name: Free up space - delete preinstalled tools
-        run: |
-          rm -rf /opt/hostedtoolcache
-
-      - name: Check disk usage
-        shell: bash
-        run: |
-          df -h
-
-      - name: Build EUID AWS EIF
-        id: build_euid_eif
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+      - name: Build Docker Image for EKS Pod
+        id: build_docker_image
+        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@tjm-UID2-3706-eks-eif-build
         with:
           identity_scope: euid
-          artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
-          amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux.Dockerfile
-          makefile: Makefile.nitro
-
-      - name: Check disk usage
-        shell: bash
-        run: |
-          df -h
-
-      - name: Save EUID eif artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aws-euid-deployment-files-${{ needs.start.outputs.new_version }}
-          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
-          if-no-files-found: error
-
-      - name: Check disk usage
-        shell: bash
-        run: |
-          df -h
-
+          artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
+          version_number_input: ${{ inputs.version_number_input }}
+          image_tag: ${{ needs.start.outputs.image_tag }}
+          new_version: ${{ needs.start.outputs.new_version }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
-      euid_enclave_id: ${{ steps.build_euid_eif.outputs.enclave_id }}
+      enclave_id: ${{ steps.build_docker_image.outputs.enclave_id }}
 
   cleanup:
     name: Cleanup Building AWS Image
@@ -255,26 +180,16 @@ jobs:
         run: |
           df -h  
 
-      - name: Download UID2 artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
-
-      - name: Download EUID artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
-
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
-          echo ${{ needs.buildUID2EIF.outputs.uid2_enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
-          echo ${{ needs.buildEUIDEIF.outputs.euid_enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt
+          echo ${{ needs.buildUID2EIF.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
+          echo ${{ needs.buildEUIDEIF.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aws-enclave-ids-${{ needs.start.outputs.new_version }}
+          name: aws-eks-enclave-ids-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
           if-no-files-found: error
 
@@ -282,7 +197,7 @@ jobs:
         if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
         run: |
           zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
-          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
+          # zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
 
       - name: Build changelog
         id: github_release

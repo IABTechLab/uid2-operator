@@ -8,6 +8,12 @@ inputs:
   artifacts_base_output_dir:
     description: The base output directory for the AMI artifacts
     required: true
+  amazonlinux_dockerfile:
+    description: The Docker file to use to build the EIF
+    default: amazonlinux.Dockerfile
+  makefile:
+    description: The make file to use
+    default: Makefile.nitro
 
 outputs:
   enclave_id:
@@ -21,7 +27,7 @@ runs:
     - name: Run amazonlinux Docker image
       shell: bash
       run: |
-        docker build -t amazonlinux -f ./scripts/aws/pipeline/amazonlinux.Dockerfile .
+        docker build -t amazonlinux -f ${{ inputs.amazonlinux_dockerfile }} .
         docker run -d --privileged --name amazonlinux amazonlinux:latest
 
     - name: Create build folder
@@ -47,7 +53,7 @@ runs:
     - name: Build EIF
       shell: bash
       run: |
-        make -f Makefile.nitro ${{ inputs.identity_scope }}operator.eif
+        make -f ${{ inputs.makefile }} ${{ inputs.identity_scope }}operator.eif
 
     - name: Free up space
       shell: bash

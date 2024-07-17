@@ -5,11 +5,18 @@ MEMORY_MB=24576
 CPU_COUNT=6
 
 function terminate_old_enclave() {
+    echo "terminate_old_enclave"
     ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
-    [ "$ENCLAVE_ID" != "null" ] && nitro-cli terminate-enclave --enclave-id ${ENCLAVE_ID}
+    if [ "$ENCLAVE_ID" != "null" ]; then
+        nitro-cli terminate-enclave --enclave-id ${ENCLAVE_ID}
+        echo "Terminated enclave with ID ${ENCLAVE_ID}"
+    else
+        echo "No running enclaves to terminate."
+    fi
 }
 
 function setup_vsockproxy() {
+    echo "setup_vsockproxy"
     VSOCK_PROXY=${VSOCK_PROXY:-/home/vsockpx}
     VSOCK_CONFIG=${VSOCK_CONFIG:-/home/proxies.host.yaml}
     VSOCK_THREADS=${VSOCK_THREADS:-$(( $(nproc) * 2 )) }
@@ -20,11 +27,13 @@ function setup_vsockproxy() {
 }
 
 function setup_dante() {
+    echo "setup_dante"
     ulimit -n 1024
     /home/sockd -D
 }
 
 function run_config_server() {
+    echo "run_config_server"
     config-server/bin/flask run --host 127.0.0.1 --port 27015
 }
 

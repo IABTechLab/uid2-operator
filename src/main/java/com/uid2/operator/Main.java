@@ -9,6 +9,7 @@ import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.service.ShutdownService;
+import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.store.CloudSyncOptOutStore;
 import com.uid2.operator.store.OptOutCloudStorage;
@@ -363,7 +364,7 @@ public class Main {
 
     private Future<String> createAndDeployStatsCollector() {
         Promise<String> promise = Promise.promise();
-        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000);
+        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50));
         vertx.deployVerticle(statsCollectorVerticle, promise);
         _statsCollectorQueue = statsCollectorVerticle;
         return promise.future();
@@ -425,7 +426,8 @@ public class Main {
                 .meterFilter(new PrometheusRenameFilter())
                 .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), actualPath -> {
                     try {
-                        return HttpUtils.normalizePath(actualPath).split("\\?")[0];
+                        String normalized = HttpUtils.normalizePath(actualPath).split("\\?")[0];
+                        return Endpoints.pathSet().contains(normalized) ? normalized : "/unknown";
                     } catch (IllegalArgumentException e) {
                         return actualPath;
                     }

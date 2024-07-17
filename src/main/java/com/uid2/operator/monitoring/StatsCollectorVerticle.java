@@ -3,6 +3,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.StatsCollectorMessageItem;
+import com.uid2.operator.vertx.Endpoints;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.AbstractVerticle;
@@ -24,6 +25,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     private HashMap<String, EndpointStat> pathMap;
 
     private static final int MAX_AVAILABLE = 1000;
+    private final int maxInvalidPaths;
 
     private final Duration jsonProcessingInterval;
     private Instant lastJsonProcessTime;
@@ -39,13 +41,14 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     private final ObjectMapper mapper;
     private final Counter queueFullCounter;
 
-    public StatsCollectorVerticle(long jsonIntervalMS) {
+    public StatsCollectorVerticle(long jsonIntervalMS, int maxInvalidPaths) {
         pathMap = new HashMap<>();
 
         _statsCollectorCount = new AtomicInteger();
         _runningSerializer = false;
 
         jsonProcessingInterval = Duration.ofMillis(jsonIntervalMS);
+        this.maxInvalidPaths = maxInvalidPaths;
 
         logCycleSkipperCounter = Counter
                 .builder("uid2.api_usage_log_cycle_skipped")
@@ -113,7 +116,11 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
 
         EndpointStat endpointStat = new EndpointStat(endpoint, siteId, apiVersion, domain);
 
-        pathMap.merge(path, endpointStat, this::mergeEndpoint);
+        Set<String> endpoints = Endpoints.pathSet();
+        if(endpoints.contains(path) || pathMap.containsKey(path) || (pathMap.size() < this.maxInvalidPaths + endpoints.size() && messageItem.getApiContact() != null)) {
+            pathMap.merge(path, endpointStat, this::mergeEndpoint);
+        }
+
 
         _statsCollectorCount.decrementAndGet();
 
@@ -123,6 +130,9 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
                 logCycleSkipperCounter.increment();
             } else {
                 _runningSerializer = true;
+                if(pathMap.size() == this.maxInvalidPaths + endpoints.size()) {
+                    LOGGER.error("max invalid paths reached; a large number of invalid paths have been requested from authenticated participants");
+                }
                 Object[] stats = pathMap.values().toArray();
                 this.jsonSerializerExecutor.<Void>executeBlocking(
                         promise -> promise.complete(this.serializeToLogs(stats)),

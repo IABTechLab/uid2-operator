@@ -5,6 +5,8 @@ EXPOSE 27015
 RUN yum install aws-nitro-enclaves-cli-devel jq -y
 RUN dnf install aws-nitro-enclaves-cli -y
 # RUN yum install -y libxcrypt-compat
+RUN dnf -y install amazon-ec2-net-utils
+RUN dnf -y install iproute
 
 RUN dnf install python3.11 -y
 RUN dnf install python3.11-pip -y

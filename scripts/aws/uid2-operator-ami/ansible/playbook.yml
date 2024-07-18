@@ -1,9 +1,9 @@
 ---
-- name: Test Ansible playbook
+- name: Ansible playbook to build AMI
   hosts: all
   connection: ssh
-  gather_facts: yes
-  become: yes
+  gather_facts: true
+  become: true
   become_user: root
   become_method: sudo
 

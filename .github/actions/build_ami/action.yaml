@@ -130,7 +130,6 @@ runs:
           -var "version=${{ steps.versionNumber.outputs.VERSION_NUMBER }}" \
           -var "timestamp=$TIMESTAMP" \
           -var-file="${{ inputs.identity_scope }}.pkrvars.hcl" \
-          -debug \
           .
 
     - name: Extract AMI ID

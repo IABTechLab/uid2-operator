@@ -2,6 +2,9 @@ FROM amazonlinux:2023
 
 EXPOSE 27015
 
+RUN adduser -D ec2-user
+USER ec2-user
+
 RUN yum install aws-nitro-enclaves-cli-devel jq -y
 RUN dnf install aws-nitro-enclaves-cli -y
 # RUN yum install -y libxcrypt-compat

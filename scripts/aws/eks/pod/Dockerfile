@@ -28,4 +28,5 @@ COPY ./requirements.txt /home/config-server/
 RUN python3 -m venv config-server
 RUN config-server/bin/pip3 install -r /home/config-server/requirements.txt
 
+USER ec2-user
 CMD ["/home/entrypoint.sh"]

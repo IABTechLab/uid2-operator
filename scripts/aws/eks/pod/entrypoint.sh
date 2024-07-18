@@ -17,8 +17,7 @@ function terminate_old_enclave() {
 
 function debug() {
     ip link show
-    networkctl
-    ls /run/systemd/network
+    ifconfig
 }
 
 function setup_vsockproxy() {

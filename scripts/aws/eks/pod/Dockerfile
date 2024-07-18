@@ -10,7 +10,7 @@ RUN dnf install python3.11 -y
 RUN dnf install python3.11-pip -y
 
 COPY ./sockd /home/
-COPY ./sockd.conf /etc/sockd.conf
+COPY ./sockd_eks.conf /etc/sockd.conf
 COPY ./vsockpx /home
 
 COPY ./entrypoint.sh /home/

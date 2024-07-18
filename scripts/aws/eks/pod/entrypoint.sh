@@ -15,6 +15,10 @@ function terminate_old_enclave() {
     fi
 }
 
+function debug() {
+    ls /run/systemd/network
+}
+
 function setup_vsockproxy() {
     echo "setup_vsockproxy"
     VSOCK_PROXY=${VSOCK_PROXY:-/home/vsockpx}
@@ -43,6 +47,7 @@ function run_enclave() {
 }
 
 terminate_old_enclave
+debug
 setup_vsockproxy
 setup_dante
 run_config_server

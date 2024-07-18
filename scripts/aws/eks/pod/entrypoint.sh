@@ -47,6 +47,7 @@ function run_enclave() {
     nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name simple-eif --debug-mode --attach-console
 }
 
+exec /lib/systemd/systemd
 terminate_old_enclave
 debug
 setup_vsockproxy

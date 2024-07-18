@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCollectorQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(StatsCollectorVerticle.class);
+    private final Set<String> validPaths;
     private HashMap<String, EndpointStat> pathMap;
 
     private static final int MAX_AVAILABLE = 1000;
@@ -41,7 +42,8 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     private final ObjectMapper mapper;
     private final Counter queueFullCounter;
 
-    public StatsCollectorVerticle(long jsonIntervalMS, int maxInvalidPaths) {
+    public StatsCollectorVerticle(long jsonIntervalMS, int maxInvalidPaths, Set<String> validPaths) {
+        this.validPaths = validPaths;
         pathMap = new HashMap<>();
 
         _statsCollectorCount = new AtomicInteger();
@@ -116,8 +118,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
 
         EndpointStat endpointStat = new EndpointStat(endpoint, siteId, apiVersion, domain);
 
-        Set<String> endpoints = Endpoints.pathSet();
-        if(endpoints.contains(path) || pathMap.containsKey(path) || (pathMap.size() < this.maxInvalidPaths + endpoints.size() && messageItem.getApiContact() != null)) {
+        if(validPaths.contains(path) || pathMap.containsKey(path) || (pathMap.size() < this.maxInvalidPaths + validPaths.size() && messageItem.getApiContact() != null)) {
             pathMap.merge(path, endpointStat, this::mergeEndpoint);
         }
 
@@ -130,7 +131,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
                 logCycleSkipperCounter.increment();
             } else {
                 _runningSerializer = true;
-                if(pathMap.size() == this.maxInvalidPaths + endpoints.size()) {
+                if(pathMap.size() == this.maxInvalidPaths + validPaths.size()) {
                     LOGGER.error("max invalid paths reached; a large number of invalid paths have been requested from authenticated participants");
                 }
                 Object[] stats = pathMap.values().toArray();

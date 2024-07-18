@@ -26,8 +26,8 @@ public class StatsCollectorVerticleTest {
     private StatsCollectorVerticle verticle;
 
     @BeforeEach
-    void deployVerticle(Vertx vertx, VertxTestContext testContext) throws Throwable {
-        verticle = new StatsCollectorVerticle(1000, MAX_INVALID_PATHS);
+    void deployVerticle(Vertx vertx, VertxTestContext testContext) {
+        verticle = new StatsCollectorVerticle(1000, MAX_INVALID_PATHS, Endpoints.pathSet());
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
     }
 

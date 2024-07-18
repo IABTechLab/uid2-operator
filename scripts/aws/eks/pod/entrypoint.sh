@@ -16,6 +16,7 @@ function terminate_old_enclave() {
 }
 
 function debug() {
+    ip link show
     ls /run/systemd/network
 }
 

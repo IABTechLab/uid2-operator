@@ -7,6 +7,7 @@ RUN dnf update -y
 RUN dnf -y groupinstall "Development Tools"
 RUN dnf -y install systemd vim-common wget git tar libstdc++-static.x86_64 cmake cmake3 aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel
 RUN dnf -y install amazon-ec2-net-utils
+RUN dnf -y install iproute
 
 RUN systemctl enable docker
 

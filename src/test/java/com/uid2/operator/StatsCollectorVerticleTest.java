@@ -27,7 +27,7 @@ public class StatsCollectorVerticleTest {
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext) {
-        verticle = new StatsCollectorVerticle(1000, MAX_INVALID_PATHS, Endpoints.pathSet());
+        verticle = new StatsCollectorVerticle(1000, MAX_INVALID_PATHS);
         vertx.deployVerticle(verticle, testContext.succeeding(id -> testContext.completeNow()));
     }
 
@@ -92,17 +92,12 @@ public class StatsCollectorVerticleTest {
     }
 
     @Test
-    void invalidPathsFiltering(Vertx vertx, VertxTestContext testContext) throws InterruptedException, JsonProcessingException {
+    void allValidPathsAllowed(Vertx vertx, VertxTestContext testContext) throws InterruptedException, JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         Set<String> validEndpoints = Endpoints.pathSet();
 
         for(String endpoint : validEndpoints) {
             StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(endpoint, "https://test.com", "test", 1);
-            vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
-        }
-
-        for(int i = 0; i < MAX_INVALID_PATHS + 5; i++) {
-            StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem("/bad" + i, "https://test.com", "test", 1);
             vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
         }
 
@@ -122,11 +117,27 @@ public class StatsCollectorVerticleTest {
             Assertions.assertTrue(results.contains(expected));
         }
 
-        for(int i = 0; i < MAX_INVALID_PATHS; i++) {
+        testContext.completeNow();
+    }
+
+    @Test
+    void invalidPathsLimit(Vertx vertx, VertxTestContext testContext) throws InterruptedException, JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+
+        for(int i = 0; i < MAX_INVALID_PATHS + Endpoints.pathSet().size() + 5; i++) {
+            StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem("/bad" + i, "https://test.com", "test", 1);
+            vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
+        }
+
+        testContext.awaitCompletion(2000, TimeUnit.MILLISECONDS);
+        String results = verticle.getEndpointStats();
+
+        // MAX_INVALID_PATHS is not the hard limit. The maximum paths that can be recorded, including valid ones, is MAX_INVALID_PATHS + validPaths.size * 2
+        for(int i = 0; i < MAX_INVALID_PATHS + Endpoints.pathSet().size(); i++) {
             String expected = "{\"endpoint\":\"bad" + i + "\",\"siteId\":1,\"apiVersion\":\"v0\",\"domainList\":[{\"domain\":\"test.com\",\"count\":1,\"apiContact\":\"test\"}]}";
             Assertions.assertTrue(results.contains(expected));
         }
-        for(int i = MAX_INVALID_PATHS; i < MAX_INVALID_PATHS + 5; i++) {
+        for(int i = MAX_INVALID_PATHS + Endpoints.pathSet().size(); i < MAX_INVALID_PATHS + 5; i++) {
             String expected = "{\"endpoint\":\"bad" + i + "\",\"siteId\":1,\"apiVersion\":\"v0\",\"domainList\":[{\"domain\":\"test.com\",\"count\":1,\"apiContact\":\"test\"}]}";
             Assertions.assertFalse(results.contains(expected));
         }
@@ -139,9 +150,9 @@ public class StatsCollectorVerticleTest {
         vertx.eventBus().send(Const.Config.StatsCollectorEventBus, mapper.writeValueAsString(messageItem));
 
         testContext.awaitCompletion(1000, TimeUnit.MILLISECONDS);
-
         Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("max invalid paths reached; a large number of invalid paths have been requested from authenticated participants"));
 
         testContext.completeNow();
     }
+
 }

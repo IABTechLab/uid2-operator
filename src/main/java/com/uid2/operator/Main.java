@@ -63,7 +63,6 @@ public class Main {
 
     private final JsonObject config;
     private final Vertx vertx;
-    private final Set<String> validPaths;
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
@@ -181,9 +180,6 @@ public class Main {
             }
         }
         metrics = new OperatorMetrics(getKeyManager(), saltProvider);
-
-        UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse, true);
-        this.validPaths = verticle.getVerticleRoutes();
     }
 
     private KeyManager getKeyManager() {
@@ -268,7 +264,6 @@ public class Main {
     }
 
     private void run() throws Exception {
-        setupMetrics(this.validPaths);
 
         Supplier<Verticle> operatorVerticleSupplier = () -> {
             UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
@@ -370,7 +365,7 @@ public class Main {
 
     private Future<String> createAndDeployStatsCollector() {
         Promise<String> promise = Promise.promise();
-        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50), this.validPaths);
+        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50));
         vertx.deployVerticle(statsCollectorVerticle, promise);
         _statsCollectorQueue = statsCollectorVerticle;
         return promise.future();
@@ -405,7 +400,7 @@ public class Main {
             .setLabels(EnumSet.of(Label.HTTP_METHOD, Label.HTTP_CODE, Label.HTTP_PATH))
             .setJvmMetricsEnabled(true)
             .setEnabled(true);
-        BackendRegistries.setupBackend(metricOptions);
+        setupMetrics(metricOptions);
 
         final int threadBlockedCheckInterval = Utils.isProductionEnvironment()
             ? 60 * 1000
@@ -418,7 +413,9 @@ public class Main {
         return Vertx.vertx(vertxOptions);
     }
 
-    private static void setupMetrics(Set<String> validPaths) {
+    private static void setupMetrics(MicrometerMetricsOptions metricOptions) {
+        BackendRegistries.setupBackend(metricOptions);
+
         MeterRegistry backendRegistry = BackendRegistries.getDefaultNow();
         if (backendRegistry instanceof PrometheusMeterRegistry) {
             // prometheus specific configuration
@@ -431,7 +428,7 @@ public class Main {
                 .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), actualPath -> {
                     try {
                         String normalized = HttpUtils.normalizePath(actualPath).split("\\?")[0];
-                        return validPaths.contains(normalized) ? normalized : "/unknown";
+                        return Endpoints.pathSet().contains(normalized) ? normalized : "/unknown";
                     } catch (IllegalArgumentException e) {
                         return actualPath;
                     }

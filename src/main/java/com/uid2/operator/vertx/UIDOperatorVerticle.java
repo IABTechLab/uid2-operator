@@ -131,8 +131,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final static List<String> SUPPORTED_IN_APP = Arrays.asList("Android", "ios", "tvos");
     public final static String ORIGIN_HEADER = "Origin";
 
-    private final Set<String> validPaths;
-
     public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
@@ -145,22 +143,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IStatsCollectorQueue statsCollectorQueue,
                                SecureLinkValidatorService secureLinkValidatorService,
                                Handler<Boolean> saltRetrievalResponseHandler) {
-        this(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, saltRetrievalResponseHandler, false);
-    }
-
-    public UIDOperatorVerticle(JsonObject config,
-                               boolean clientSideTokenGenerate,
-                               ISiteStore siteProvider,
-                               IClientKeyProvider clientKeyProvider,
-                               IClientSideKeypairStore clientSideKeypairProvider,
-                               KeyManager keyManager,
-                               ISaltProvider saltProvider,
-                               IOptOutStore optOutStore,
-                               Clock clock,
-                               IStatsCollectorQueue statsCollectorQueue,
-                               SecureLinkValidatorService secureLinkValidatorService,
-                               Handler<Boolean> saltRetrievalResponseHandler,
-                               boolean setHealthy) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -170,11 +152,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         this.config = config;
         this.clientSideTokenGenerate = clientSideTokenGenerate;
-        if(setHealthy) {
-            this.healthComponent.setHealthStatus(true);
-        } else {
-            this.healthComponent.setHealthStatus(false, "not started");
-        }
+        this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
         this.encoder = new EncryptedTokenEncoder(keyManager);
         this.siteProvider = siteProvider;
@@ -202,11 +180,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, false);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
-        try {
-            this.validPaths = createRoutesSetup().getRoutes().stream().map(Route::getPath).collect(Collectors.toSet());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override
@@ -2131,9 +2104,5 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         SUFFICIENT,
         INSUFFICIENT,
         INVALID,
-    }
-
-    public Set<String> getVerticleRoutes() {
-        return this.validPaths;
     }
 }

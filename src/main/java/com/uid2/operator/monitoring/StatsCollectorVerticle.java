@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCollectorQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(StatsCollectorVerticle.class);
-    private final Set<String> validPaths;
     private HashMap<String, EndpointStat> pathMap;
 
     private static final int MAX_AVAILABLE = 1000;
@@ -42,8 +41,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     private final ObjectMapper mapper;
     private final Counter queueFullCounter;
 
-    public StatsCollectorVerticle(long jsonIntervalMS, int maxInvalidPaths, Set<String> validPaths) {
-        this.validPaths = validPaths;
+    public StatsCollectorVerticle(long jsonIntervalMS, int maxInvalidPaths) {
         pathMap = new HashMap<>();
 
         _statsCollectorCount = new AtomicInteger();
@@ -118,6 +116,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
 
         EndpointStat endpointStat = new EndpointStat(endpoint, siteId, apiVersion, domain);
 
+        Set<String> validPaths = Endpoints.pathSet();
         if(validPaths.contains(path) || pathMap.containsKey(path) || (pathMap.size() < this.maxInvalidPaths + validPaths.size() && messageItem.getApiContact() != null)) {
             pathMap.merge(path, endpointStat, this::mergeEndpoint);
         }

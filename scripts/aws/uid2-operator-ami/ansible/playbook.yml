@@ -1,9 +1,9 @@
 ---
-- name: Test Ansible playbook
+- name: Ansible playbook to build AMI
   hosts: all
   connection: ssh
-  gather_facts: yes
-  become: yes
+  gather_facts: true
+  become: true
   become_user: root
   become_method: sudo
 
@@ -97,16 +97,31 @@
       dest: /usr/bin/sockd
       remote_src: yes
 
+  - name: Copy Ivykis package
+    ansible.builtin.copy:
+      src: /tmp/artifacts/ivykis-0.43-1.amzn2023.x86_64.rpm
+      dest: /opt/uid2operator/ivykis-0.43-1.amzn2023.x86_64.rpm
+      remote_src: yes
+  - name: Copy Libnet package
+    ansible.builtin.copy:
+      src: /tmp/artifacts/libnet-1.2-2.amzn2023.0.2.x86_64.rpm
+      dest: /opt/uid2operator/libnet-1.2-2.amzn2023.0.2.x86_64.rpm
+      remote_src: yes
   - name: Copy Syslog package
     ansible.builtin.copy:
-      src: /tmp/artifacts/syslog-ng-4.6.0-1.el7.x86_64.rpm
-      dest: /opt/uid2operator/syslog-ng-4.6.0-1.el7.x86_64.rpm
+      src: /tmp/artifacts/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
+      dest: /opt/uid2operator/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
+      remote_src: yes
+  - name: Copy Syslog Logrotate package
+    ansible.builtin.copy:
+      src: /tmp/artifacts/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
+      dest: /opt/uid2operator/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
       remote_src: yes
 
   - name: Copy Syslog public key
     ansible.builtin.copy:
-      src: /tmp/artifacts/syslog-ng-pubkey.gpg
-      dest: /opt/uid2operator/syslog-ng-pubkey.gpg
+      src: /tmp/artifacts/pubkey.gpg
+      dest: /opt/uid2operator/pubkey.gpg
       remote_src: yes
 
   - name: Make sockd executable
@@ -125,11 +140,6 @@
       name: aws-nitro-enclaves-cli
       state: latest
   
-  - name: Install AWS Nitro Enclaves Devel CLI
-    ansible.builtin.dnf:
-      name: aws-nitro-enclaves-cli-devel
-      state: latest
-
   - name: Enable the Nitro Enclave allocator service at boot
     ansible.builtin.systemd:
       name: nitro-enclaves-allocator.service
@@ -141,21 +151,20 @@
   - name: Update nitro enclave memory allocation
     ansible.builtin.command: 'sed -r "s/^(\s*memory_mib\s*:\s*).*/\124576/" -i /etc/nitro_enclaves/allocator.yaml'
 
-  # - name: Apply Nitro Enclave allocator change
-  #   ansible.builtin.systemd:
-  #     name: nitro-enclaves-allocator.service
-  #     state: restarted
+  - name: Register Public key
+    ansible.builtin.command: rpmkeys --import /opt/uid2operator/pubkey.gpg
 
-  - name: Define cutdown version of syslog-ng
-    ansible.builtin.copy:
-      src: /tmp/artifacts/syslog-ng-amazon23.repo
-      dest: /etc/yum.repos.d/
-      remote_src: yes
+  - name: Install package
+    ansible.builtin.command: rpm -U /opt/uid2operator/ivykis-0.43-1.amzn2023.x86_64.rpm
+  - name: Install package
+    ansible.builtin.command: rpm -U /opt/uid2operator/libnet-1.2-2.amzn2023.0.2.x86_64.rpm
+  - name: Install package
+    ansible.builtin.command: rpm -U /opt/uid2operator/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
+  - name: Install package
+    ansible.builtin.command: rpm -U /opt/uid2operator/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
 
-  - name: Install syslog-ng
-    ansible.builtin.dnf:
-      name: syslog-ng
-      state: latest
+  - name: unregister Public key
+    ansible.builtin.command: rpm -e gpg-pubkey-2c519859-6630e289
 
   - name: syslog-ng config
     ansible.builtin.copy:

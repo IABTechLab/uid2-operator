@@ -9,10 +9,6 @@ on:
       operator_run_number:
         description: The Operator run number. Ignored if Release Number specified.
         type: string
-      operator_branch:
-        description: The branch of Operator to use. 
-        type: string
-        default: main
       save_ami:
         description: Save the AMIs as a build artifact.
         type: boolean
@@ -49,7 +45,6 @@ jobs:
           github_token: ${{ github.token }}
           operator_release: ${{ inputs.operator_release }}
           operator_run_number: ${{ inputs.operator_run_number }}
-          operator_branch: ${{ inputs.operator_branch }}
           save_ami: ${{ inputs.save_ami }}
           uid2_aws_role: ${{ env.UID2_AWS_ROLE }}
           uid2_aws_region: ${{ env.UID2_AWS_REGION }}
@@ -87,7 +82,6 @@ jobs:
             github_token: ${{ github.token }}
             operator_release: ${{ inputs.operator_release }}
             operator_run_number: ${{ inputs.operator_run_number }}
-            operator_branch: ${{ inputs.operator_branch }}
             save_ami: ${{ inputs.save_ami }}
             uid2_aws_role: ${{ env.UID2_AWS_ROLE }}
             uid2_aws_region: ${{ env.UID2_AWS_REGION }}

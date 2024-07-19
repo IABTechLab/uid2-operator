@@ -77,9 +77,11 @@ runs:
         cp ./scripts/aws/uid2operator.service                                                                     ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/pipeline/$(cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt)_VERSION ${ARTIFACTS_OUTPUT_DIR}/VERSION
         cp ./scripts/aws/syslog-ng/syslog-ng-server.conf                                                          ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/syslog-ng/server/syslog-ng-pubkey.gpg                                                    ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/syslog-ng/server/syslog-ng-4.6.0-1.el7.x86_64.rpm                                        ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/syslog-ng/server/syslog-ng-amazon23.repo                                                 ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/ivykis-0.43-1.amzn2023.x86_64.rpm                               ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/libnet-1.2-2.amzn2023.0.2.x86_64.rpm                            ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/pubkey.gpg                                                      ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm              ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm    ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/logrotate/operator-logrotate.conf                                                        ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/logrotate/logrotate                                                                      ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/logrotate/logrotateDaily                                                                 ${ARTIFACTS_OUTPUT_DIR}/

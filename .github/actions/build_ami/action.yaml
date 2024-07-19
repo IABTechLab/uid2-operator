@@ -17,14 +17,11 @@ inputs:
   operator_release:
     description: The operator release that has the EIF to use
     default: ''
-  operator_branch:
-    description: The Operator Branch to build from
-    default: main
   operator_run_number:
     description: The Operator run number for artifacts. Ignored if Operator Release is given
   save_ami:
     description: Save the AMIs as a build artifact.
-    default: true
+    default: "true"
   uid2_aws_role:
     description: The AWS role to assume for UID2
     required: true
@@ -133,7 +130,6 @@ runs:
           -var "version=${{ steps.versionNumber.outputs.VERSION_NUMBER }}" \
           -var "timestamp=$TIMESTAMP" \
           -var-file="${{ inputs.identity_scope }}.pkrvars.hcl" \
-          -debug \
           .
 
     - name: Extract AMI ID

@@ -278,12 +278,6 @@ jobs:
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
           if-no-files-found: error
 
-      - name: Generate release archive files
-        if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
-        run: |
-          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
-          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
-
       - name: Build changelog
         id: github_release
         if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}

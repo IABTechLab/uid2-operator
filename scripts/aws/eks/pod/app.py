@@ -5,7 +5,7 @@ app = Flask(__name__)
 @app.route('/getConfig', methods=['GET'])
 def get_config():
     try:
-        with open('/etc/secret/secret-value', 'r') as secret_file:
+        with open('/etc/secret/secret-value/app', 'r') as secret_file:
             secret_value = secret_file.read().strip()
         return secret_value
     except Exception as e:

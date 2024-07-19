@@ -4,8 +4,12 @@ app = Flask(__name__)
 
 @app.route('/getConfig', methods=['GET'])
 def get_config():
-    # TODO: Figure out how to get kube secrets from k8 in python
-    return "kat-test"
+    try:
+        with open('/etc/secret/secret-value/app', 'r') as secret_file:
+            secret_value = secret_file.read().strip()
+        return secret_value
+    except Exception as e:
+        return str(e), 500
 
 if __name__ == '__main__':
     app.run(processes=8)

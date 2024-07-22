@@ -34,7 +34,6 @@ runs:
       uses: actions/checkout@v4
       if: ${{ inputs.version_number_input == '' }}
       with:
-        ref: kcc-UID2-3702-config-server
         # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
         fetch-depth: 0
 

@@ -1,6 +1,5 @@
 FROM amazonlinux:2023
 
-RUN dnf install aws-nitro-enclaves-cli-devel jq -y
 RUN dnf install aws-nitro-enclaves-cli -y
 # RUN yum install -y libxcrypt-compat
 RUN dnf -y install iproute

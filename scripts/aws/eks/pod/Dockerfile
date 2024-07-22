@@ -1,7 +1,5 @@
 FROM amazonlinux:2023
 
-EXPOSE 27015
-
 RUN dnf install aws-nitro-enclaves-cli-devel jq -y
 RUN dnf install aws-nitro-enclaves-cli -y
 # RUN yum install -y libxcrypt-compat

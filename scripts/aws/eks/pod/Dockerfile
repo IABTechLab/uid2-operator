@@ -6,6 +6,8 @@ RUN dnf install aws-nitro-enclaves-cli-devel jq -y
 RUN dnf install aws-nitro-enclaves-cli -y
 # RUN yum install -y libxcrypt-compat
 RUN dnf -y install iproute
+RUN dnf -y install net-tools
+
 
 RUN dnf install python3.11 -y
 RUN dnf install python3.11-pip -y

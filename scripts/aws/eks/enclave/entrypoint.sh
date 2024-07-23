@@ -53,7 +53,7 @@ get_config_value() {
 
 # -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
 # -- using hardcoded domains is fine because they should not be changed frequently
-if [ -n "${CORE_BASE_URL}" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
+if [ -n "${CORE_BASE_URL}" ] && [ "${CORE_BASE_URL}" != "null" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${OPTOUT_BASE_URL}" != "null" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
     echo "Replacing core and optout URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}..."
 
     sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"

@@ -45,6 +45,7 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.AllowForwardHeaders;
+import io.vertx.ext.web.Route;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -69,6 +70,7 @@ import java.util.stream.Collectors;
 
 import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.ResponseUtil.*;
+import static com.uid2.operator.vertx.Endpoints.*;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
@@ -236,28 +238,28 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         setupV2Routes(router, bodyHandler);
 
         // Static and health check
-        router.get("/ops/healthcheck").handler(this::handleHealthCheck);
+        router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
 
         if (this.config.getBoolean(Const.Config.AllowLegacyAPIProp, true)) {
             // V1 APIs
-            router.get("/v1/token/generate").handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
-            router.get("/v1/token/validate").handler(this::handleTokenValidateV1);
-            router.get("/v1/token/refresh").handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1));
-            router.get("/v1/identity/buckets").handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
-            router.get("/v1/identity/map").handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
-            router.post("/v1/identity/map").handler(bodyHandler).handler(auth.handle(this::handleIdentityMapBatchV1, Role.MAPPER));
-            router.get("/v1/key/latest").handler(auth.handle(this::handleKeysRequestV1, Role.ID_READER));
+            router.get(V1_TOKEN_GENERATE.toString()).handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
+            router.get(V1_TOKEN_VALIDATE.toString()).handler(this::handleTokenValidateV1);
+            router.get(V1_TOKEN_REFRESH.toString()).handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1));
+            router.get(V1_IDENTITY_BUCKETS.toString()).handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
+            router.get(V1_IDENTITY_MAP.toString()).handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
+            router.post(V1_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handle(this::handleIdentityMapBatchV1, Role.MAPPER));
+            router.get(V1_KEY_LATEST.toString()).handler(auth.handle(this::handleKeysRequestV1, Role.ID_READER));
 
             // Deprecated APIs
-            router.get("/key/latest").handler(auth.handle(this::handleKeysRequest, Role.ID_READER));
-            router.get("/token/generate").handler(auth.handle(this::handleTokenGenerate, Role.GENERATOR));
-            router.get("/token/refresh").handler(this::handleTokenRefresh);
-            router.get("/token/validate").handler(this::handleValidate);
-            router.get("/identity/map").handler(auth.handle(this::handleIdentityMap, Role.MAPPER));
-            router.post("/identity/map").handler(bodyHandler).handler(auth.handle(this::handleIdentityMapBatch, Role.MAPPER));
+            router.get(V0_KEY_LATEST.toString()).handler(auth.handle(this::handleKeysRequest, Role.ID_READER));
+            router.get(V0_TOKEN_GENERATE.toString()).handler(auth.handle(this::handleTokenGenerate, Role.GENERATOR));
+            router.get(V0_TOKEN_REFRESH.toString()).handler(this::handleTokenRefresh);
+            router.get(V0_TOKEN_VALIDATE.toString()).handler(this::handleValidate);
+            router.get(V0_IDENTITY_MAP.toString()).handler(auth.handle(this::handleIdentityMap, Role.MAPPER));
+            router.post(V0_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handle(this::handleIdentityMapBatch, Role.MAPPER));
 
             // Internal service APIs
-            router.get("/token/logout").handler(auth.handle(this::handleLogoutAsync, Role.OPTOUT));
+            router.get(V0_TOKEN_LOGOUT.toString()).handler(auth.handle(this::handleLogoutAsync, Role.OPTOUT));
 
             // only uncomment to do local testing
             //router.get("/internal/optout/get").handler(auth.loopbackOnly(this::handleOptOutGet));
@@ -268,36 +270,34 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void setupV2Routes(Router mainRouter, BodyHandler bodyHandler) {
-        final Router v2Router = Router.router(vertx);
 
-        v2Router.post("/token/generate").handler(bodyHandler).handler(auth.handleV1(
+        mainRouter.post(V2_TOKEN_GENERATE.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
-        v2Router.post("/token/refresh").handler(bodyHandler).handler(auth.handleWithOptionalAuth(
+        mainRouter.post(V2_TOKEN_REFRESH.toString()).handler(bodyHandler).handler(auth.handleWithOptionalAuth(
                 rc -> v2PayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
-        v2Router.post("/token/validate").handler(bodyHandler).handler(auth.handleV1(
+        mainRouter.post(V2_TOKEN_VALIDATE.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
-        v2Router.post("/identity/buckets").handler(bodyHandler).handler(auth.handleV1(
+        mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
-        v2Router.post("/identity/map").handler(bodyHandler).handler(auth.handleV1(
+        mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
-        v2Router.post("/key/latest").handler(bodyHandler).handler(auth.handleV1(
+        mainRouter.post(V2_KEY_LATEST.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
-        v2Router.post("/key/sharing").handler(bodyHandler).handler(auth.handleV1(
+        mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
-        v2Router.post("/key/bidstream").handler(bodyHandler).handler(auth.handleV1(
+        mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
-        v2Router.post("/token/logout").handler(bodyHandler).handler(auth.handleV1(
+        mainRouter.post(V2_TOKEN_LOGOUT.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
         if (this.optOutStatusApiEnabled) {
-            v2Router.post("/optout/status").handler(bodyHandler).handler(auth.handleV1(
+            mainRouter.post(V2_OPTOUT_STATUS.toString()).handler(bodyHandler).handler(auth.handleV1(
                     rc -> v2PayloadHandler.handle(rc, this::handleOptoutStatus),
                     Role.MAPPER, Role.SHARER, Role.ID_READER));
         }
 
         if (this.clientSideTokenGenerate)
-            v2Router.post("/token/client-generate").handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
+            mainRouter.post(V2_TOKEN_CLIENTGENERATE.toString()).handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
-        mainRouter.route("/v2/*").subRouter(v2Router);
     }
 
 

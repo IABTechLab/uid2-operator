@@ -1,7 +1,40 @@
-FROM amazonlinux:2023
+######## full image ########
+FROM amazonlinux:2023 as full_image
 
-RUN dnf install aws-nitro-enclaves-cli -y
-# RUN yum install -y libxcrypt-compat
+RUN yum install -y aws-nitro-enclaves-cli && \
+    yum install aws-nitro-enclaves-cli-devel jq -y
+
+WORKDIR /ne-deps
+
+# Copy only the required binaries to /ne-deps folder.
+#
+RUN BINS="\
+    /usr/bin/nitro-cli \
+    /usr/bin/nitro-enclaves-allocator \
+    /usr/bin/jq \
+    " && \
+    for bin in $BINS; do \
+        { echo "$bin"; ldd "$bin" | grep -Eo "/.*lib.*/[^ ]+"; } | \
+            while read path; do \
+                mkdir -p ".$(dirname $path)"; \
+                cp -fL "$path" ".$path"; \
+            done \
+    done
+
+# Prepare other required files and folders for the final image.
+#
+RUN \
+    mkdir -p /ne-deps/etc/nitro_enclaves && \
+    mkdir -p /ne-deps/run/nitro_enclaves && \
+    mkdir -p /ne-deps/var/log/nitro_enclaves && \
+    cp -rf /usr/share/nitro_enclaves/ /ne-deps/usr/share/ && \
+    cp -f /etc/nitro_enclaves/allocator.yaml /ne-deps/etc/nitro_enclaves/allocator.yaml
+
+######## smaller image ########
+FROM amazonlinux:2023 as image
+
+COPY --from=full_image /ne-deps /
+
 RUN dnf -y install iproute
 RUN dnf -y install net-tools
 
@@ -18,7 +51,6 @@ COPY ./uid2operator.eif /home/
 COPY ./proxies.host.yaml /home/proxies.host.yaml
 
 RUN chmod +x /home/vsockpx && chmod +x /home/entrypoint.sh
-# RUN yum install net-tools -y
 
 COPY ./app.py /home/config-server/
 COPY ./requirements.txt /home/config-server/

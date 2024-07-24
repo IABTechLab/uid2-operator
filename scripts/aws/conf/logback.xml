@@ -2,7 +2,6 @@
     <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" />
 
     <appender name="stash" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <destination>127.0.0.1:2011</destination>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <jsonGeneratorDecorator class="net.logstash.logback.mask.MaskingJsonGeneratorDecorator">
                 <defaultMask>REDACTED - S3</defaultMask>

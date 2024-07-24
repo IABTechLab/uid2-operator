@@ -40,7 +40,7 @@ function setup_dante() {
 function run_config_server() {
     echo "run_config_server"
     cd /home/config-server/
-    /config-server/bin/flask run --host 127.0.0.1 --port 27015 &
+    /config-server/bin/flask run --host 127.0.0.1 --port 27015
 }
 
 function run_enclave() {

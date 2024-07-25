@@ -227,7 +227,7 @@ jobs:
           MANIFEST_DIR: ${{ env.MANIFEST_OUTPUT_DIR }}
           VERSION_NUMBER: ${{ steps.version.outputs.new_version }}
         with:
-          azcliversion: 2.60.0
+          azcliversion: 2.62.0
           inlineScript: |
             bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 

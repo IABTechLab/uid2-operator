@@ -63,7 +63,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Required by az confcom
-# sudo usermod -aG docker ${USER}
+sudo usermod -aG docker ${USER}
 if [[ $? -ne 0 ]]; then
   echo "Failed to add current user to docker group"
   exit 1

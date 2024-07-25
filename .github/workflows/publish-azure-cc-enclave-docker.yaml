@@ -220,15 +220,12 @@ jobs:
             IMAGE_VERSION=${{ steps.version.outputs.new_version }}
 
       - name: Generate Azure deployment artifacts
-        uses: azure/cli@v2
         env:
           IMAGE: ${{ steps.meta.outputs.tags }}
           OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
           MANIFEST_DIR: ${{ env.MANIFEST_OUTPUT_DIR }}
           VERSION_NUMBER: ${{ steps.version.outputs.new_version }}
-        with:
-          azcliversion: 2.62.0
-          inlineScript: |
+        run: |
             bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 
       - name: Upload deployment artifacts

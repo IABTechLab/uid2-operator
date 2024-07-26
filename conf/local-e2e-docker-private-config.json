@@ -11,6 +11,7 @@
   "keysets_metadata_path": "http://core:8088/key/keyset/refresh",
   "keyset_keys_metadata_path": "http://core:8088/key/keyset-keys/refresh",
   "salts_metadata_path": "http://core:8088/salt/refresh",
+  "s3_keys_metadata_path": "https://core:8088/s3encryption_keys/retrieve",
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,

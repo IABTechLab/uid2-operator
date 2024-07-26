@@ -56,6 +56,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
+
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {
@@ -80,6 +81,7 @@ public class Main {
     private IStatsCollectorQueue _statsCollectorQueue;
     private RotatingServiceStore serviceProvider;
     private RotatingServiceLinkStore serviceLinkProvider;
+    private RotatingS3KeyProvider s3KeyProvider;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -143,6 +145,8 @@ public class Main {
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
+        String s3KeyMdPath = this.config.getString(Const.Config.S3keysMetadataPathProp);
+        this.s3KeyProvider = new RotatingS3KeyProvider(fsStores, new GlobalScope(new CloudPath(s3KeyMdPath)));
 
         if (this.validateServiceLinks) {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);

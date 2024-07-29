@@ -1,5 +1,5 @@
 #!/bin/bash -eufx
-CID=16
+CID=42
 EIF_PATH=/home/uid2operator.eif
 MEMORY_MB=24576
 CPU_COUNT=6
@@ -42,6 +42,8 @@ function setup_dante() {
 
 function start_syslog() {
     /usr/sbin/syslog-ng --no-caps
+}
+
 function run_config_server() {
     echo "run_config_server"
     cd /home/config-server/
@@ -57,14 +59,10 @@ echo "starting ..."
 terminate_old_enclave
 echo "terminated old enclaves"
 
-#setup_vsockproxy
-#setup_dante
-#run_enclave
 echo "starting syslog-ng"
 start_syslog
 echo "started syslog-ng"
 
-sleep infinity
 debug
 setup_vsockproxy
 setup_dante

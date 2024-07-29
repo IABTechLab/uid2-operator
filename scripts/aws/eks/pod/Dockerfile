@@ -1,14 +1,9 @@
 FROM amazonlinux:2023
-RUN dnf check-update && dnf update && dnf install nmap-ncat libxcrypt-compat python3 aws-nitro-enclaves-cli logrotate -y
+RUN dnf check-update && dnf update && dnf install nmap-ncat libxcrypt-compat python3 aws-nitro-enclaves-cli logrotate iproute net-tools python3.11 python3.11-pip -y
 
-#COPY ./sockd /home/
-#COPY ./sockd.conf /etc/
-#COPY ./vsockpx /home
-
-#COPY ./uid2operator.eif /home/
-#COPY ./proxies.host.yaml /home/proxies.host.yaml
-
-#RUN chmod +x /home/vsockpx && chmod +x /home/entrypoint.sh
+COPY ./sockd /home/
+COPY ./sockd_eks.conf /etc/sockd.conf
+COPY ./vsockpx /home
 COPY ./server_al_2023/*.* /home/syslog-ng/
 
 # Install syslog-ng
@@ -21,22 +16,11 @@ RUN rpmkeys --import /home/syslog-ng/pubkey.gpg && \
 
 COPY ./server_al_2023/syslog-ng-server.conf /etc/syslog-ng/syslog-ng.conf
 
-RUN dnf install aws-nitro-enclaves-cli -y
-# RUN yum install -y libxcrypt-compat
-RUN dnf -y install iproute
-RUN dnf -y install net-tools
-
-
-RUN dnf install python3.11 -y
-RUN dnf install python3.11-pip -y
-
-COPY ./sockd /home/
-COPY ./sockd_eks.conf /etc/sockd.conf
-COPY ./vsockpx /home
-
 COPY ./entrypoint.sh /home/
-RUN chmod +x /home/entrypoint.sh
-# RUN yum install net-tools -y
+COPY ./uid2operator.eif /home/
+COPY ./proxies.host.yaml /home/proxies.host.yaml
+
+RUN chmod +x /home/vsockpx && chmod +x /home/entrypoint.sh
 
 COPY ./app.py /home/config-server/
 COPY ./requirements.txt /home/config-server/

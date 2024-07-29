@@ -69,6 +69,8 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
+systemctl | grep running
+
 # Generate operator template
 sed -i "s#IMAGE_PLACEHOLDER#${IMAGE}#g" ${OUTPUT_DIR}/operator.json && \
   sed -i "s#IMAGE_VERSION_PLACEHOLDER#${IMAGE_VERSION}#g" ${OUTPUT_DIR}/operator.json

@@ -73,7 +73,7 @@ build/syslog-ng-ose-pub.asc: build_artifacts ./scripts/aws/syslog-ng/client/sysl
 	cp ./scripts/aws/syslog-ng/client/syslog-ng-ose-pub.asc ./build/
 
 build/entrypoint.sh: build_artifacts
-	cp ./scripts/aws/entrypoint.sh ./build/
+	cp ./scripts/aws/eks/enclave/entrypoint.sh ./build/
 
 ##################################################################################################################################################################
 

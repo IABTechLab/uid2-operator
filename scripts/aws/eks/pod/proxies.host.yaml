@@ -8,12 +8,12 @@ socks5h-proxy:
 operator-service:
   service: direct
   listen: tcp://0.0.0.0:80
-  connect: vsock://42:8080
+  connect: vsock://16:8080
 
 operator-prometheus:
   service: direct
   listen: tcp://0.0.0.0:9080
-  connect: vsock://42:9080
+  connect: vsock://16:9080
 
 syslogng:
   service: direct

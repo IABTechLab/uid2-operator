@@ -21,8 +21,29 @@ RUN rpmkeys --import /home/syslog-ng/pubkey.gpg && \
 
 COPY ./server_al_2023/syslog-ng-server.conf /etc/syslog-ng/syslog-ng.conf
 
+RUN dnf install aws-nitro-enclaves-cli -y
+# RUN yum install -y libxcrypt-compat
+RUN dnf -y install iproute
+RUN dnf -y install net-tools
+
+
+RUN dnf install python3.11 -y
+RUN dnf install python3.11-pip -y
+
+COPY ./sockd /home/
+COPY ./sockd_eks.conf /etc/sockd.conf
+COPY ./vsockpx /home
+
 COPY ./entrypoint.sh /home/
 RUN chmod +x /home/entrypoint.sh
 # RUN yum install net-tools -y
+
+COPY ./app.py /home/config-server/
+COPY ./requirements.txt /home/config-server/
+RUN python3 -m venv config-server
+RUN config-server/bin/pip3 install -r /home/config-server/requirements.txt
+
+RUN dnf -y install shadow-utils
+RUN useradd ec2-user
 
 CMD ["/home/entrypoint.sh"]

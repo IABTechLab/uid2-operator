@@ -9,9 +9,6 @@ function terminate_old_enclave() {
     ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
     if [ "$ENCLAVE_ID" != "null" ]; then
         nitro-cli terminate-enclave --enclave-id ${ENCLAVE_ID}
-    else
-        echo "No running enclaves"
-    fi
         echo "Terminated enclave with ID ${ENCLAVE_ID}"
     else
         echo "No running enclaves to terminate."

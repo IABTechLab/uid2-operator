@@ -225,21 +225,13 @@ jobs:
       
       - name: install azure-cli 2.61.0
         run: |
-          sudo apt-get update
-          sudo apt-get install apt-transport-https ca-certificates curl gnupg lsb-release
-          sudo mkdir -p /etc/apt/keyrings
-          curl -sLS https://packages.microsoft.com/keys/microsoft.asc |
-              sudo gpg --no-tty --dearmor -o /etc/apt/keyrings/microsoft.gpg
-          sudo chmod go+r /etc/apt/keyrings/microsoft.gpg
-          AZ_DIST=$(lsb_release -cs)
-          echo "Types: deb
-          URIs: https://packages.microsoft.com/repos/azure-cli/
-          Suites: ${AZ_DIST}
-          Components: main
-          Architectures: $(dpkg --print-architecture)
-          Signed-by: /etc/apt/keyrings/microsoft.gpg" | sudo tee /etc/apt/sources.list.d/azure-cli.sources
+          sudo apt-get install ca-certificates curl apt-transport-https lsb-release gnupg -y
+          curl -sL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null
+          AZ_REPO=$(lsb_release -cs)
+          echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
           AZ_VER=2.61.0
-          sudo apt-get update && sudo apt-get install azure-cli=${AZ_VER}-1~${AZ_DIST}
+          sudo apt-get update
+          sudo apt-get install azure-cli=${AZ_VER}-1~${AZ_DIST}
       
       - name: check azure-cli version
         run: |

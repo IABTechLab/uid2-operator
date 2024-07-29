@@ -1,5 +1,5 @@
 #!/bin/bash -eufx
-CID=42
+CID=16
 EIF_PATH=/home/uid2operator.eif
 MEMORY_MB=24576
 CPU_COUNT=6

@@ -145,6 +145,21 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue,
                                SecureLinkValidatorService secureLinkValidatorService,
+                               Handler<Boolean> saltRetrievalResponseHandler) {
+        this(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, saltRetrievalResponseHandler, null);
+
+    }
+    public UIDOperatorVerticle(JsonObject config,
+                               boolean clientSideTokenGenerate,
+                               ISiteStore siteProvider,
+                               IClientKeyProvider clientKeyProvider,
+                               IClientSideKeypairStore clientSideKeypairProvider,
+                               KeyManager keyManager,
+                               ISaltProvider saltProvider,
+                               IOptOutStore optOutStore,
+                               Clock clock,
+                               IStatsCollectorQueue statsCollectorQueue,
+                               SecureLinkValidatorService secureLinkValidatorService,
                                Handler<Boolean> saltRetrievalResponseHandler,
                                RotatingS3KeyProvider s3KeyProvider) {
         this.keyManager = keyManager;

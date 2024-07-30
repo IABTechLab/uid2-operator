@@ -28,6 +28,7 @@ import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
 import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.reader.RotatingS3KeyProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -126,6 +127,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int optOutStatusMaxRequestSize;
     private final boolean optOutStatusApiEnabled;
 
+    private final RotatingS3KeyProvider s3KeyProvider;
+
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
     private final static List<String> SUPPORTED_IN_APP = Arrays.asList("Android", "ios", "tvos");
@@ -142,7 +145,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue,
                                SecureLinkValidatorService secureLinkValidatorService,
-                               Handler<Boolean> saltRetrievalResponseHandler) {
+                               Handler<Boolean> saltRetrievalResponseHandler,
+                               RotatingS3KeyProvider s3KeyProvider) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -180,6 +184,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
+        this.s3KeyProvider = s3KeyProvider;
     }
 
     @Override

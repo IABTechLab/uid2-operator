@@ -166,6 +166,7 @@ public class Main {
             this.saltProvider.loadContent();
             this.keysetProvider.loadContent();
             this.keysetKeyStore.loadContent();
+            this.s3KeyProvider.loadContent();
 
             if (this.validateServiceLinks) {
                 this.serviceProvider.loadContent();
@@ -333,6 +334,7 @@ public class Main {
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("s3encryption_keys", s3KeyProvider, "s3keys_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {

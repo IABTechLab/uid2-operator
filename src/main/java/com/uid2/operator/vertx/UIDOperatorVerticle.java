@@ -56,7 +56,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -127,7 +126,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int optOutStatusMaxRequestSize;
     private final boolean optOutStatusApiEnabled;
 
-    private final RotatingS3KeyProvider s3KeyProvider;
 
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
@@ -146,22 +144,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IStatsCollectorQueue statsCollectorQueue,
                                SecureLinkValidatorService secureLinkValidatorService,
                                Handler<Boolean> saltRetrievalResponseHandler) {
-        this(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, saltRetrievalResponseHandler, null);
-
-    }
-    public UIDOperatorVerticle(JsonObject config,
-                               boolean clientSideTokenGenerate,
-                               ISiteStore siteProvider,
-                               IClientKeyProvider clientKeyProvider,
-                               IClientSideKeypairStore clientSideKeypairProvider,
-                               KeyManager keyManager,
-                               ISaltProvider saltProvider,
-                               IOptOutStore optOutStore,
-                               Clock clock,
-                               IStatsCollectorQueue statsCollectorQueue,
-                               SecureLinkValidatorService secureLinkValidatorService,
-                               Handler<Boolean> saltRetrievalResponseHandler,
-                               RotatingS3KeyProvider s3KeyProvider) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -199,7 +181,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
-        this.s3KeyProvider = s3KeyProvider;
     }
 
     @Override

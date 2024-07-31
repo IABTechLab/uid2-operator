@@ -28,7 +28,6 @@ import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
 import com.uid2.shared.store.ISaltProvider;
-import com.uid2.shared.store.reader.RotatingS3KeyProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -56,6 +55,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;

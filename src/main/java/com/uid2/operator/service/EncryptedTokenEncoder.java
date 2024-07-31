@@ -100,6 +100,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         final KeysetKey key = this.keyManager.getKey(keyId);
 
+        if (key == null) {
+            throw new ClientInputValidationException("Failed to fetch key with id: " + keyId);
+        }
+
         final byte[] decryptedPayload = AesCbc.decrypt(b.slice(29, b.length()).getBytes(), key);
 
         final Buffer b2 = Buffer.buffer(decryptedPayload);
@@ -110,7 +114,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         try {
             identity = EncodingUtils.fromBase64(b2.slice(8, 8 + length).getBytes());
         } catch (Exception e) {
-            throw new RuntimeException("Failed to decode refreshTokenV2: Identity segment is not valid base64.", e);
+            throw new ClientInputValidationException("Failed to decode refreshTokenV2: Identity segment is not valid base64.", e);
         }
 
         final int privacyBits = b2.getInt(8 + length);

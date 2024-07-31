@@ -1801,6 +1801,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             refreshToken = this.encoder.decodeRefreshToken(tokenStr);
         } catch (ClientInputValidationException cie) {
+            LOGGER.warn("Failed to decode refresh token for site ID: " + rc.data().get(Const.RoutingContextData.SiteId), cie);
             return RefreshResponse.Invalid;
         }
         if (refreshToken == null) {

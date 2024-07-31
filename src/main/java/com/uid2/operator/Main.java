@@ -56,7 +56,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
-
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {

@@ -90,7 +90,7 @@ runs:
       id: copy_config_server
       run: |
         mkdir -p ./scripts/aws/uid2-operator-ami/artifacts/config-server
-        cp -r ./scripts/aws/config-server/* ./scripts/aws/uid2-operator-ami/artifacts
+        cp -r ./scripts/aws/config-server ./scripts/aws/uid2-operator-ami/artifacts/
         ls -l ./scripts/aws/uid2-operator-ami/artifacts/config-server
 
     - name: Configure UID2 AWS credentials

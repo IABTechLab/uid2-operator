@@ -135,8 +135,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         final PrivacyBits privacyBits = PrivacyBits.fromInt(token.userIdentity.privacyBits);
         final boolean isCstg = privacyBits.isClientSideTokenGenerated();
-        final boolean hasCstgOptOutCheckFlag = privacyBits.isClientSideTokenGenerateOptoutResponseOn();
-        final boolean shouldCstgOptedOutUserReturnOptOutToken = !shouldCstgOptedOutUserReturnOptOutResponse(identityScope, hasCstgOptOutCheckFlag);
+        final boolean shouldCstgOptedOutUserReturnOptOutToken = !shouldCstgOptedOutUserReturnOptOutResponse(identityScope);
 
         try {
             final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.userIdentity, true);
@@ -364,11 +363,9 @@ public class UIDOperatorService implements IUIDOperatorService {
         return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
     }
 
-    public static boolean shouldCstgOptedOutUserReturnOptOutResponse(IdentityScope identityScope,
-                                                                     boolean cstgRequestHasOptoutCheckFlag) {
-        if (identityScope == IdentityScope.EUID) {
-            return true;
-        }
-        return cstgRequestHasOptoutCheckFlag;
+    public static boolean shouldCstgOptedOutUserReturnOptOutResponse(IdentityScope identityScope) {
+
+        //UID2-2904 both UID2/EUID should return optout response  
+        return true;
     }
 }

@@ -95,6 +95,12 @@ function setup_aws_proxy() {
     nohup vsock-proxy 3308 secretsmanager.$AWS_REGION_NAME.amazonaws.com 443 &
 }
 
+function run_config_server() {
+    echo "run_config_server"
+    cd /opt/uid2operator/config-server
+    /config-server/bin/flask run --host 127.0.0.1 --port 27015 &
+}
+
 function run_enclave() {
     echo "starting enclave..."
     nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator
@@ -107,6 +113,7 @@ read_allocation
 setup_vsockproxy
 setup_aws_proxy
 setup_dante
+run_config_server
 run_enclave
 
 echo "Done!"

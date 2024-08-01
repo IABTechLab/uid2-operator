@@ -62,6 +62,7 @@
     ansible.builtin.copy:
       src: /tmp/artifacts/config-server
       dest: /opt/uid2operator/
+      remote_src: yes
 
   - name: Create virtualenv
     pip:

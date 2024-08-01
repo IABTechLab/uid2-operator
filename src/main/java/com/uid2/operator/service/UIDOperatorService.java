@@ -135,7 +135,6 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         final PrivacyBits privacyBits = PrivacyBits.fromInt(token.userIdentity.privacyBits);
         final boolean isCstg = privacyBits.isClientSideTokenGenerated();
-        final boolean shouldCstgOptedOutUserReturnOptOutToken = !shouldCstgOptedOutUserReturnOptOutResponse(identityScope);
 
         try {
             final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.userIdentity, true);
@@ -147,20 +146,6 @@ public class UIDOperatorService implements IUIDOperatorService {
                 IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
 
                 return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
-            } else if (isCstg && shouldCstgOptedOutUserReturnOptOutToken) {
-
-                // The user has opted out after the userIdentity was established.
-                privacyBits.setClientSideTokenGenerateOptout();
-
-                final UserIdentity cstgOptOutIdentity = getClientSideTokenGenerateOptOutInputVal(token.userIdentity.identityType)
-                        .toUserIdentity(identityScope, privacyBits.getAsInt(), now);
-
-                final IdentityTokens identityTokens = generateIdentity(
-                        new IdentityRequest(
-                                new PublisherIdentity(token.publisherIdentity.siteId, 0, 0),
-                                cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
-
-                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, true);
             } else {
                 return RefreshResponse.Optout;
             }
@@ -361,11 +346,5 @@ public class UIDOperatorService implements IUIDOperatorService {
             return TokenVersion.V4;
         }
         return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
-    }
-
-    public static boolean shouldCstgOptedOutUserReturnOptOutResponse(IdentityScope identityScope) {
-
-        //UID2-2904 both UID2/EUID should return optout response  
-        return true;
     }
 }

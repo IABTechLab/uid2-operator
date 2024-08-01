@@ -474,16 +474,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
         if (identityTokens.isEmptyToken()) {
-            if (UIDOperatorService.shouldCstgOptedOutUserReturnOptOutResponse(identityScope)) {
-                response = ResponseUtil.SuccessNoBodyV2("optout");
-                responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
-            }
-            else {
-                privacyBits.setClientSideTokenGenerateOptout();
-                //user opted out we will generate an optout token with the opted out user identity
-                identityTokens = generateOptedOutIdentityTokens(privacyBits, input, clientSideKeypair);
-                response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
-            }
+            response = ResponseUtil.SuccessNoBodyV2("optout");
+            responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
         }
         else { //user not opted out and already generated valid identity token
             response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));

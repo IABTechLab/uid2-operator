@@ -64,6 +64,11 @@
       dest: /opt/uid2operator/
       remote_src: yes
 
+  - name: Install virtualenv
+    ansible.builtin.pip:
+      name: virtualenv
+      executable: pip3
+
   - name: Create virtualenv
     ansible.builtin.pip:
       virtualenv: /opt/uid2operator/config-server

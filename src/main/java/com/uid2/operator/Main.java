@@ -36,6 +36,9 @@ import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
+import io.vertx.config.ConfigRetriever;
+import io.vertx.config.ConfigRetrieverOptions;
+import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.impl.HttpUtils;
@@ -61,7 +64,7 @@ import static io.micrometer.core.instrument.Metrics.globalRegistry;
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
-    private final JsonObject config;
+    private JsonObject config;
     private final Vertx vertx;
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
@@ -201,10 +204,24 @@ public class Main {
             System.out.format("Running PRODUCTION mode, config: %s\n", Const.Config.OVERRIDE_CONFIG_PATH);
         }
 
+        // call Core for Config, and the
+
         Vertx vertx = createVertx();
-        VertxUtils.createConfigRetriever(vertx).getConfig(ar -> {
+        ConfigRetrieverOptions configRetrieverOptions = VertxUtils.createConfigRetrieverOptions(vertx);
+        ConfigStoreOptions coreConfig = new ConfigStoreOptions()
+                .setType("core")
+                .setConfig(new JsonObject().put("core_api_token", "UID2-O-L-123-Xt/ght.6tODU8mmodEtI3J67LW3vcX50LOsQR4oqMMFk=").put("core_attest_url", "http://127.0.0.1:8088/attest"));
+        configRetrieverOptions.addStore(coreConfig);
+
+        ConfigRetriever configRetriever = ConfigRetriever.create(vertx, configRetrieverOptions);
+
+        configRetriever.listen(change -> {
+            vertx.eventBus().publish("new-config", change.getNewConfiguration());
+        });
+
+        configRetriever.getConfig(ar -> {
             if (ar.failed()) {
-                LOGGER.error("Unable to read config: " + ar.cause().getMessage(), ar.cause());
+                LOGGER.error("Unable to read config: {}", ar.cause().getMessage(), ar.cause());
                 return;
             }
 
@@ -212,7 +229,7 @@ public class Main {
                 Main app = new Main(vertx, ar.result());
                 app.run();
             } catch (Exception e) {
-                LOGGER.error("Error: " + e.getMessage(), e);
+                LOGGER.error("Error: {}", e.getMessage(), e);
                 ((LoggerContext)org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
                 vertx.close();
                 System.exit(1);
@@ -283,6 +300,16 @@ public class Main {
             else compositePromise.complete();
         });
 
+        vertx.eventBus().consumer("new-config", message -> {
+            LOGGER.info("Reloading config");
+            if (message.body() instanceof  JsonObject){
+                this.config = (JsonObject) message.body();
+
+            } else {
+            LOGGER.error("Invalid config received");
+            }
+        });
+
         compositePromise.future()
             .compose(v -> {
                 metrics.setup();
@@ -296,7 +323,10 @@ public class Main {
                 LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
                 vertx.close();
                 System.exit(1);
-            });
+            })
+                .onComplete(s -> {
+
+                });
     }
 
     private Future<Void> createStoreVerticles() throws Exception {

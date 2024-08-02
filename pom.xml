@@ -22,7 +22,7 @@
         <enclave-aws.version>2.0.0-f7c174410e</enclave-aws.version>
         <enclave-azure.version>2.0.4-ef52553c57</enclave-azure.version>
         <enclave-gcp.version>2.0.0-21f950573a</enclave-gcp.version>
-        <uid2-shared.version>7.16.10-alpha-129-SNAPSHOT</uid2-shared.version>
+        <uid2-shared.version> 7.16.9-alpha-130-SNAPSHOT</uid2-shared.version>
         <image.version>${project.version}</image.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>

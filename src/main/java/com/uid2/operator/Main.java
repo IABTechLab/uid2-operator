@@ -133,20 +133,20 @@ public class Main {
             this.fsOptOut = configureCloudOptOutStore();
         }
 
+        String s3KeyMdPath = this.config.getString(Const.Config.S3keysMetadataPathProp);
+        this.s3KeyProvider = new RotatingS3KeyOperatorProvider(fsStores, new GlobalScope(new CloudPath(s3KeyMdPath)));
         String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
         String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
         this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
         this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
         String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
-        this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)));
+        this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)),s3KeyProvider);
         String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
-        this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
+        this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)),s3KeyProvider);
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
-        String s3KeyMdPath = this.config.getString(Const.Config.S3keysMetadataPathProp);
-        this.s3KeyProvider = new RotatingS3KeyOperatorProvider(fsStores, new GlobalScope(new CloudPath(s3KeyMdPath)));
 
         if (this.validateServiceLinks) {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);

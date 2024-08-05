@@ -156,26 +156,6 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
     }
 
-    private static InputUtil.InputVal getClientSideTokenGenerateOptOutInputVal(IdentityType identityType) {
-        switch (identityType) {
-            case Email:
-                return InputUtil.InputVal.validEmail(
-                        OptOutTokenIdentityForEmail,
-                        OptOutTokenIdentityForEmail);
-            case Phone:
-                return InputUtil.InputVal.validPhone(
-                        OptOutTokenIdentityForPhone,
-                        OptOutTokenIdentityForPhone);
-            default:
-                // Assert will fire when this code path is hit by a test.
-                assert false: "Invalid identity type " + identityType;
-                // Provide a fallback value instead of throwing an exception.
-                return InputUtil.InputVal.validEmail(
-                        OptOutTokenIdentityForEmail,
-                        OptOutTokenIdentityForEmail);
-        }
-    }
-
     @Override
     public MappedIdentity mapIdentity(MapRequest request) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.userIdentity, request.asOf);

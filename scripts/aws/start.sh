@@ -94,7 +94,7 @@ function setup_dante() {
 }
 
 function run_config_server() {
-    mkdir /etc/secret/secret-value
+    mkdir -p /etc/secret/secret-value
     SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString')
     echo ${SECRET_JSON}
     echo ${SECRET_JSON} > /etc/secret/secret-value/config

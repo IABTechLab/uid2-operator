@@ -94,6 +94,7 @@ function setup_dante() {
 }
 
 function run_config_server() {
+    touch /etc/secret/secret-value/config
     SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString')
     echo ${SECRET_JSON} > /etc/secret/secret-value/config
     $(jq '.core_base_url = "${CORE_BASE_URL}"' /etc/secret/secret-value/config) > /etc/secret/secret-value/config
@@ -114,7 +115,6 @@ config_aws
 read_allocation
 # update_allocation
 setup_vsockproxy
-setup_aws_proxy
 setup_dante
 run_config_server
 run_enclave

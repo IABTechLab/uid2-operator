@@ -50,7 +50,8 @@
     "allowed_sites": [
       2,
       3,
-      4
+      4,
+      999
     ],
     "created": 1617149276,
     "default": true,
@@ -63,7 +64,8 @@
     "allowed_sites": [
       2,
       3,
-      4
+      4,
+      999
     ],
     "created": 1617149276,
     "default": false,

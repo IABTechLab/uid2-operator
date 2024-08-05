@@ -6,7 +6,9 @@ public class PrivacyBits {
     private static final int BIT_LEGACY = 0;
     private static final int BIT_CSTG = 1;
     private static final int BIT_CSTG_OPTOUT = 2;
-
+    //DO NOT REUSE THIS BIT. DEPRECATED from UID2-2904 work
+    private static final int BIT_CSTG_OPTOUT_RESPONSE_DEPRECATED = 3;
+    
     private int bits = 0;
 
     public static PrivacyBits fromInt(int privacyBits) { return new PrivacyBits(privacyBits); }

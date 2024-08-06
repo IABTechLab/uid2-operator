@@ -139,7 +139,7 @@ public class Main {
         String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
         this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
-        this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
+        this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)),s3KeyProvider);
         String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
         this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)),s3KeyProvider);
         String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);

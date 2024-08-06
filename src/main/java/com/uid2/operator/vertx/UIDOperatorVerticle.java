@@ -552,19 +552,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private IdentityTokens generateOptedOutIdentityTokens(PrivacyBits privacyBits, InputUtil.InputVal input, ClientSideKeypair clientSideKeypair) {
-        UserIdentity cstgOptOutIdentity;
-        if (input.getIdentityType() == IdentityType.Email) {
-            cstgOptOutIdentity = InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
-        } else {
-            cstgOptOutIdentity = InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
-        }
-        return this.idService.generateIdentity(
-                new IdentityRequest(
-                        new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
-                        cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
-    }
-
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         SecretKey key = new SecretKeySpec(secretBytes, "AES");
         GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, encryptedBytes, offset, 12);

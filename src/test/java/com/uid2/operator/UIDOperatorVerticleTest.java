@@ -3936,16 +3936,17 @@ public class UIDOperatorVerticleTest {
     }
 
     // tests for opted out user should lead to generating ad tokens with optout success response
-    // tests for opted in user should lead to generating ad tokens that never match the default optout identity
+    // tests for non-opted out user should generate the UID2 identity and the generated refresh token can be
+    // refreshed again
     // tests for all email/phone combos
     @ParameterizedTest
     @CsvSource({
-            "true,abc@abc.com,Email,optout@unifiedid.com",
-            "true,+61400000000,Phone,+00000000001",
-            "false,abc@abc.com,Email,optout@unifiedid.com",
-            "false,+61400000000,Phone,+00000000001",
+            "true,abc@abc.com,Email",
+            "true,+61400000000,Phone",
+            "false,abc@abc.com,Email",
+            "false,+61400000000,Phone",
     })
-    void cstgOptedOutTest(boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
+    void cstgSuccessForBothOptedAndNonOptedOutTest(boolean optOutExpected, String id, IdentityType identityType,
                           Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
 
@@ -3991,24 +3992,7 @@ public class UIDOperatorVerticleTest {
                     assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_from")), 10);
 
-                    String advertisingTokenString = genBody.getString("advertising_token");
-
-                    InputUtil.InputVal input;
-                    if(identityType == IdentityType.Email) {
-                        input = InputUtil.InputVal.validEmail(expectedOptedOutIdentity, expectedOptedOutIdentity);
-                    }
-                    else if(identityType == IdentityType.Phone) {
-                        input = InputUtil.InputVal.validPhone(expectedOptedOutIdentity, expectedOptedOutIdentity);
-                    }
-                    else { //should never happen
-                        input = null;
-                        assertFalse(true);
-                    }
-
-                    final Instant now = Instant.now();
-                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(advertisingTokenString, input.toUserIdentity(getIdentityScope(), 0, now), now);
-
-                    assertEquals(optOutExpected, matchedOptedOutIdentity);
+                    assertFalse(optOutExpected);
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
@@ -4021,11 +4005,13 @@ public class UIDOperatorVerticleTest {
                     {
 
                         if (optOutExpected) {
-                            fail("Getting a successful optout response for an opted out user with optout check is impossible as the original CSTG request should already gave an optout response and no refresh token should be returned to reach here!");
+                            fail("Getting a successful optout response for an opted out user is impossible as the " +
+                                    "original CSTG request should already gave an optout response and no refresh " +
+                                    "token should be returned to make token refresh call and reach here!");
                             return;
                         }
 
-                        assert(!optOutExpected);
+                        assertFalse(optOutExpected);
 
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
@@ -4142,17 +4128,6 @@ public class UIDOperatorVerticleTest {
                 false);
     }
 
-    private void assertAreClientSideGeneratedOptOutTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType) {
-        final String identity = getClientSideGeneratedTokenOptOutIdentity(identityType);
-
-        assertAreClientSideGeneratedTokens(advertisingToken,
-                refreshToken,
-                siteId,
-                identityType,
-                identity,
-                true);
-    }
-
     private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity, boolean expectedOptOut) {
         final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits);
         final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits);
@@ -4177,16 +4152,6 @@ public class UIDOperatorVerticleTest {
                 () -> assertArrayEquals(advertisingId, advertisingToken.userIdentity.id, "Advertising token ID is incorrect"),
                 () -> assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id, "Refresh token ID is incorrect")
         );
-    }
-
-    private static String getClientSideGeneratedTokenOptOutIdentity(IdentityType identityType) {
-        switch (identityType) {
-            case Email:
-                return OptOutTokenIdentityForEmail;
-            case Phone:
-                return OptOutTokenIdentityForPhone;
-        }
-        throw new ClientInputValidationException("Invalid identity type " + identityType);
     }
 
     /********************************************************

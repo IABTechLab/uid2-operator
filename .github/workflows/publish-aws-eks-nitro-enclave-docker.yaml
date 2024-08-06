@@ -34,99 +34,14 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  start:
-    name: Update Operator Version
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check branch and release type
-        id: checkRelease
-        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2
-        with:
-          release_type: ${{ inputs.release_type }}
+  buildEIFs:
+    name: Build UID2 and EUID EIFs
+    uses: IABTechLab/uid2-operator/.github/workflows/publish-aws-nitro-enclave-docker.yaml@ian-UID2-3822-config-server-share-eif
+    with:
+      release_type: ${{ inputs.release_type }}
+      version_number_input: ${{ inputs.version_number_input }}
 
-      - name: Approve Major release
-        if: inputs.release_type == 'Major'
-        uses: trstringer/manual-approval@v1
-        with:
-          secret: ${{ github.token }}
-          approvers: thomasm-ttd,atarassov-ttd,cody-constine-ttd
-          minimum-approvals: 1
-          issue-title: Creating Major version of UID2-Operator
-
-      - name: Free up space - delete preinstalled tools
-        run: |
-          rm -rf /opt/hostedtoolcache
-
-      - name: Show Context
-        run: |
-          printenv
-          echo "$GITHUB_CONTEXT"
-        shell: bash
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-          IS_RELEASE: ${{ steps.checkRelease.outputs.is_release }}
-
-      - name: Checkout full history on Main
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input == '' }}
-        with:
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Checkout full history at tag v${{ inputs.version_number_input }}
-        uses: actions/checkout@v4
-        if: ${{ inputs.version_number_input != '' }}
-        with:
-          ref: v${{ inputs.version_number_input }}
-          # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-          fetch-depth: 0
-
-      - name: Restore timestamps
-        uses: thetradedesk/git-restore-mtime-action@v1.3
-
-      - name: Set version number
-        id: version
-        uses: IABTechLab/uid2-shared-actions/actions/version_number@v2
-        with:
-          type: ${{ inputs.release_type }}
-          version_number: ${{ inputs.version_number_input }}
-          branch_name: ${{ github.ref }}
-      
-      - name: Update pom.xml
-        id: updatePom
-        run: |
-          current_version=$(grep -o '<version>.*</version>' pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/')
-          new_version=${{ steps.version.outputs.new_version }} 
-          sed -i "0,/$current_version/s/$current_version/$new_version/" pom.xml
-          echo "Version number updated from $current_version to $new_version"
-          echo "image_tag=${{ steps.version.outputs.new_version }}-eks-nitro" >> $GITHUB_OUTPUT
-
-      - name: Commit pom.xml and version.json
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release != 'true' }} 
-        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
-        with:
-          add: 'pom.xml version.json'
-          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-
-      - name: Commit pom.xml, version.json and set tag
-        if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }} 
-        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
-        with:
-          add: 'pom.xml version.json'
-          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
-          tag: v${{ steps.version.outputs.new_version }}
-
-      - name: Check disk usage
-        shell: bash
-        run: |
-          df -h
-
-    outputs:
-      new_version: ${{ steps.version.outputs.new_version }}
-      is_release: ${{ steps.checkRelease.outputs.is_release }}
-      image_tag: ${{ steps.updatePom.outputs.image_tag }}
-
-  buildUID2EIF:
+  buildUID2Docker:
     name: Build UID2 EIF for EKS
     runs-on: ubuntu-latest
     permissions:

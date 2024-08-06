@@ -13,7 +13,7 @@ inputs:
     default: amazonlinux.Dockerfile
   makefile:
     description: The make file to use
-    default: Makefile.nitro
+    default: Makefile.eif
 
 outputs:
   enclave_id:

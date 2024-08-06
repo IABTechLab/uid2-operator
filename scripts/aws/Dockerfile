@@ -31,7 +31,6 @@ COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NA
 COPY ./static             /app/static
 COPY ./libjnsm.so         /app/lib/
 COPY ./vsockpx            /app/
-COPY ./load_config.py     /app/
 COPY ./make_config.py     /app/
 COPY ./entrypoint.sh      /app/
 COPY ./proxies.nitro.yaml /app/

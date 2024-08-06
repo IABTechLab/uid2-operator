@@ -162,7 +162,7 @@ jobs:
           identity_scope: uid2
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux2023.Dockerfile
-          makefile: Makefile.eks
+          makefile: Makefile.eif
 
       - name: Check disk usage
         shell: bash
@@ -223,7 +223,7 @@ jobs:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux2023.Dockerfile
-          makefile: Makefile.eks
+          makefile: Makefile.eif
 
       - name: Check disk usage
         shell: bash

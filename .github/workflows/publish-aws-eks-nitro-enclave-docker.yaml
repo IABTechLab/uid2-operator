@@ -42,13 +42,13 @@ jobs:
       version_number_input: ${{ inputs.version_number_input }}
 
   buildUID2Docker:
-    name: Build UID2 EIF for EKS
+    name: Build UID2 Docker for EKS
     runs-on: ubuntu-latest
     permissions:
       contents: write
       security-events: write
       packages: write
-    needs: start
+    needs: buildEIFs
     steps:
       - name: Build Docker Image for EKS Pod
         id: build_docker_image

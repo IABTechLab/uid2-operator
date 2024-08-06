@@ -57,10 +57,10 @@ build/conf/integ-euid-config.json: build_artifacts ./scripts/aws/conf/integ-euid
 build/conf/logback.xml: build_artifacts ./scripts/aws/conf/logback.xml
 	cp ./scripts/aws/conf/logback.xml ./build/conf/
 
-build/Dockerfile: build_artifacts ./scripts/aws/eks/enclave/Dockerfile
+build/Dockerfile: build_artifacts ./scripts/aws/Dockerfile
 	cp ./scripts/aws/Dockerfile ./build/
 
-build/proxies.nitro.yaml: build_artifacts ./scripts/aws/eks/enclave/proxies.nitro.yaml
+build/proxies.nitro.yaml: build_artifacts ./scripts/aws/proxies.nitro.yaml
 	cp ./scripts/aws/proxies.nitro.yaml ./build/
 
 build/syslog-ng-client.conf: build_artifacts ./scripts/aws/syslog-ng/syslog-ng-client.conf

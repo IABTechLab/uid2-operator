@@ -98,8 +98,8 @@ function run_config_server() {
     SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString')
     echo ${SECRET_JSON}
     echo ${SECRET_JSON} > /etc/secret/secret-value/config
-    echo $(jq '.core_base_url = '"$CORE_BASE_URL" /etc/secret/secret-value/config) > /etc/secret/secret-value/config
-    echo $(jq '.optout_base_url = '"$OPTOUT_BASE_URL" /etc/secret/secret-value/config) > /etc/secret/secret-value/config
+    echo $(jq ".core_base_url = \"$CORE_BASE_URL\"" /etc/secret/secret-value/config) > /etc/secret/secret-value/config
+    echo $(jq ".optout_base_url = \"$OPTOUT_BASE_URL\"" /etc/secret/secret-value/config) > /etc/secret/secret-value/config
     cat /etc/secret/secret-value/config
     echo "run_config_server"
     cd /opt/uid2operator/config-server

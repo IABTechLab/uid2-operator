@@ -47,6 +47,19 @@ function run_config_server() {
     /config-server/bin/flask run --host 127.0.0.1 --port 27015 &
 }
 
+function wait_for_config() {
+    while true; do
+        RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:27015/getConfig)
+        if ["$RESPONSE" -eq 200]; then
+            echo "Config server running"
+            break;
+        else
+            echo "Config server still starting..."
+        fi
+        sleep 5
+    done
+}
+
 function run_enclave() {
     echo "starting enclave..."
     nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator
@@ -64,6 +77,7 @@ debug
 setup_vsockproxy
 setup_dante
 run_config_server
+wait_for_config
 run_enclave
 
 sleep infinity

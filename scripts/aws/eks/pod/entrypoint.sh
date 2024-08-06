@@ -66,4 +66,4 @@ setup_dante
 run_config_server
 run_enclave
 
-sleep infinite
+sleep infinity

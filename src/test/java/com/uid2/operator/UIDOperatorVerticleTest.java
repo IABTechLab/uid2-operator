@@ -3992,7 +3992,6 @@ public class UIDOperatorVerticleTest {
                     assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_from")), 10);
 
-                    assertFalse(optOutExpected);
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
@@ -4003,16 +4002,6 @@ public class UIDOperatorVerticleTest {
                     //test a subsequent refresh from this cstg call and see if it still works
                     sendTokenRefresh("v2", vertx, testContext, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson ->
                     {
-
-                        if (optOutExpected) {
-                            fail("Getting a successful optout response for an opted out user is impossible as the " +
-                                    "original CSTG request should already gave an optout response and no refresh " +
-                                    "token should be returned to make token refresh call and reach here!");
-                            return;
-                        }
-
-                        assertFalse(optOutExpected);
-
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                         assertNotNull(refreshBody);

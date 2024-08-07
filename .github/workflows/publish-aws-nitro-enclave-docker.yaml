@@ -167,7 +167,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ needs.start.outputs.new_version }}
-          body: ${{ needs.start.outputs.github_changelog }}
+          body: ${{ steps.github_release.outputs.github_changelog }}
           draft: true
           files: |
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip

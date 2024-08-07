@@ -6,6 +6,7 @@ IDENTITY_SCOPE=${IDENTITY_SCOPE:-$(cat /opt/uid2operator/identity_scope.txt)}
 CID=${CID:-42}
 TOKEN=$(curl --request PUT "http://169.254.169.254/latest/api/token" --header "X-aws-ec2-metadata-token-ttl-seconds: 3600")
 USER_DATA=$(curl -s http://169.254.169.254/latest/user-data --header "X-aws-ec2-metadata-token: $TOKEN")
+AWS_REGION_NAME=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document/ --header "X-aws-ec2-metadata-token: $TOKEN" | jq -r '.region')
 if [ "$IDENTITY_SCOPE" = 'UID2' ]; then
   UID2_CONFIG_SECRET_KEY=$([[ "$(echo "${USER_DATA}" | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
 elif [ "$IDENTITY_SCOPE" = 'EUID' ]; then
@@ -20,8 +21,6 @@ OPTOUT_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep OPTOUT_BASE_URL=)" =~ ^export
 echo "UID2_CONFIG_SECRET_KEY=${UID2_CONFIG_SECRET_KEY}"
 echo "CORE_BASE_URL=${CORE_BASE_URL}"
 echo "OPTOUT_BASE_URL=${OPTOUT_BASE_URL}"
-
-AWS_REGION_NAME=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document/ --header "X-aws-ec2-metadata-token: $TOKEN" | jq -r '.region')
 echo "AWS_REGION_NAME=${AWS_REGION_NAME}"
 
 function terminate_old_enclave() {

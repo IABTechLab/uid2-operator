@@ -78,21 +78,18 @@ function update_config() {
     fi
 
     shopt -s nocasematch
-    USER_CUSTOMIZED=$($IDENTITY_SERVICE_CONFIG | jq -r '.customize_enclave')
+    USER_CUSTOMIZED=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.customize_enclave')
 
     if [ "$USER_CUSTOMIZED" = "true" ]; then
         echo "Applying user customized CPU/Mem allocation..."
-        CPU_COUNT=${CPU_COUNT:-$($IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count')}
-        MEMORY_MB=${MEMORY_MB:-$($IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb')}
-    else
-        echo "Applying default CPU/Mem allocation..."
-        CPU_COUNT=6
-        MEMORY_MB=24576
+        CPU_COUNT=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count')
+        MEMORY_MB=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb')
     fi
+    shopt -u nocasematch
 }
 
 function run_enclave() {
-    echo "starting enclave..."
+    echo "starting enclave... --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID"
     nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator
 }
 
@@ -109,6 +106,7 @@ setup_vsockproxy
 setup_dante
 run_config_server
 wait_for_config
+update_config
 run_enclave
 
 sleep infinity

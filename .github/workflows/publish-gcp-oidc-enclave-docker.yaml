@@ -73,6 +73,7 @@ jobs:
         with:
           release_type: ${{ inputs.release_type }}
           version_number_input: ${{ inputs.version_number_input }}
+          image_tag_suffix: ${{ env.ENCLAVE_PROTOCOL }}
 
       - name: Set up JDK
         uses: actions/setup-java@v4

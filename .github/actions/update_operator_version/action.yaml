@@ -10,7 +10,6 @@ inputs:
     default: ''
   image_tag_suffix:
     description: Suffix to apply to the docker image tag
-    default: ${{ env.ENCLAVE_PROTOCOL }}
 
 
 outputs:

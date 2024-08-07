@@ -10,9 +10,15 @@ inputs:
     default: ''
 
 outputs:
-  new_version: ${{ steps.version.outputs.new_version }}
-  is_release: ${{ steps.checkRelease.outputs.is_release }}
-  image_tag: ${{ steps.updatePom.outputs.image_tag }}
+  new_version:
+    description: Updated operator version
+    value: ${{ steps.version.outputs.new_version }}
+  is_release:
+    description: Whether to create a release
+    value: ${{ steps.checkRelease.outputs.is_release }}
+  image_tag:
+    description: The tag to use for the docker image for eks
+    value: ${{ steps.updatePom.outputs.image_tag }}
 
 runs:
   using: "composite"

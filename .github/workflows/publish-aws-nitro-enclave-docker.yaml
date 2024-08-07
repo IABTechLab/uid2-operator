@@ -37,7 +37,7 @@ jobs:
     steps:
       - name: Update Operator Version
         id: update_version
-        uses: IABTechLab/uid2-operator/actions/update_operator_version@ian-UID2-3822-config-server-share-eif
+        uses: IABTechLab/uid2-operator/.github/actions/update_operator_version@ian-UID2-3822-config-server-share-eif
         with:
           release_type: ${{ inputs.release_type }}
 

@@ -74,6 +74,8 @@ runs:
         mkdir -p ${{ inputs.artifacts_output_dir }}
         cp -r ./scripts/aws/config-server/* ${{ inputs.artifacts_output_dir }}
         cp -r ./scripts/aws/eks/pod/* ${{ inputs.artifacts_output_dir }}
+        cp -r ./scripts/aws/syslog-ng/server_al_2023/* ${{ inputs.artifacts_output_dir }}/server_al_2023
+        cp ./scripts/aws/eks/pod/server_al_2023/syslog-ng-server.conf ${{ inputs.artifacts_output_dir }}/syslog-ng-server.conf
         ls -l ${{ inputs.artifacts_output_dir }}
 
     - name: Check disk usage

@@ -127,7 +127,7 @@ jobs:
       image_tag: ${{ steps.updatePom.outputs.image_tag }}
 
   buildUID2EIF:
-    name: Build UID2 EIF for EKS
+    name: Build UID2 EIF and Pod for EKS
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -149,7 +149,7 @@ jobs:
       enclave_id: ${{ steps.build_docker_image.outputs.enclave_id }}
 
   buildEUIDEIF:
-    name: Build EUID EIF for EKS
+    name: Build EUID EIF and Pod for EKS
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -37,20 +37,76 @@ function setup_dante() {
     /home/sockd -D
 }
 
+function start_syslog() {
+    /usr/sbin/syslog-ng --no-caps
+}
+
 function run_config_server() {
     echo "run_config_server"
     cd /home/config-server/
     /config-server/bin/flask run --host 127.0.0.1 --port 27015 &
+    sleep 5
+}
+
+function wait_for_config() {
+    RETRY_COUNT=0
+    MAX_RETRY=20
+    while true; do
+        RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:27015/getConfig)
+        if [ "$RESPONSE" -eq "200" ]; then
+            echo "Config server running"
+            break;
+        else
+            echo "Config server still starting..."
+        fi
+        RETRY_COUNT=$(( RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -gt $MAX_RETRY ]; then
+            echo "Config Server did not start. Exiting"
+            exit 1
+        fi
+        sleep 5
+    done
+}
+
+function update_config() {
+    IDENTITY_SERVICE_CONFIG=$(curl -s http://127.0.0.1:27015/getConfig)
+    if jq -e . >/dev/null 2>&1 <<<"${IDENTITY_SERVICE_CONFIG}"; then
+        echo "Identity service returned valid config"
+    else
+        echo "Failed to get a valid config from identity service"
+        exit 1
+    fi
+
+    shopt -s nocasematch
+    USER_CUSTOMIZED=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.customize_enclave')
+
+    if [ "$USER_CUSTOMIZED" = "true" ]; then
+        echo "Applying user customized CPU/Mem allocation..."
+        CPU_COUNT=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count')
+        MEMORY_MB=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb')
+    fi
+    shopt -u nocasematch
 }
 
 function run_enclave() {
-    echo "starting enclave..."
-    nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name simple-eif --debug-mode --attach-console
+    echo "starting enclave... --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID"
+    nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator
 }
 
+echo "starting ..."
 terminate_old_enclave
+echo "terminated old enclaves"
+
+echo "starting syslog-ng"
+start_syslog
+echo "started syslog-ng"
+
 debug
 setup_vsockproxy
 setup_dante
 run_config_server
+wait_for_config
+update_config
 run_enclave
+
+sleep infinity

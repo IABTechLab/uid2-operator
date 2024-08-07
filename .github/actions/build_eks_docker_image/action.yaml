@@ -30,34 +30,6 @@ runs:
   using: "composite"
 
   steps:
-    - name: Checkout full history on Main
-      uses: actions/checkout@v4
-      if: ${{ inputs.version_number_input == '' }}
-      with:
-        # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-        fetch-depth: 0
-
-    - name: Checkout full history at tag v${{ inputs.version_number_input }}
-      uses: actions/checkout@v4
-      if: ${{ inputs.version_number_input != '' }}
-      with:
-        ref: v${{ inputs.version_number_input }}
-        # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-        fetch-depth: 0
-
-    - name: Restore timestamps
-      uses: thetradedesk/git-restore-mtime-action@v1.3
-
-    - name: Free up space - delete preinstalled tools
-      shell: bash
-      run: |
-        rm -rf /opt/hostedtoolcache
-
-    - name: Check disk usage
-      shell: bash
-      run: |
-        df -h
-
     - name: Build AWS EIF for EKS
       id: build_aws_eif
       uses: ./.github/actions/build_aws_eif
@@ -66,6 +38,7 @@ runs:
         artifacts_base_output_dir: ${{ inputs.artifacts_output_dir }}
         amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux2023.Dockerfile
         makefile: Makefile.eif
+        version_number_input: ${{ inputs.version_number_input }}
 
     - name: Copy docker files for the Operator Pod
       shell: bash

@@ -34,21 +34,29 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  buildEIFs:
-    name: Build UID2 and EUID EIFs
-    uses: IABTechLab/uid2-operator/.github/workflows/publish-aws-nitro-enclave-docker.yaml@ian-UID2-3822-config-server-share-eif
-    with:
-      release_type: ${{ inputs.release_type }}
-      version_number_input: ${{ inputs.version_number_input }}
+  start:
+    name: Update Operator Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Operator Version
+        id: update_version
+        uses: IABTechLab/uid2-operator/actions/update_operator_version@main
+        with:
+          release_type: ${{ inputs.release_type }}
 
-  buildUID2Docker:
-    name: Build UID2 Docker for EKS
+    outputs:
+      new_version: ${{ steps.update_version.outputs.new_version }}
+      is_release: ${{ steps.update_version.outputs.is_release }}
+      image_tag: ${{ steps.update_version.outputs.image_tag }}
+
+  buildUID2EIF:
+    name: Build UID2 EIF for EKS
     runs-on: ubuntu-latest
     permissions:
       contents: write
       security-events: write
       packages: write
-    needs: buildEIFs
+    needs: start
     steps:
       - name: Build Docker Image for EKS Pod
         id: build_docker_image

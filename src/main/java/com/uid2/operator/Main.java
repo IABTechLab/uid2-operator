@@ -155,7 +155,7 @@ public class Main {
             this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
         }
 
-        this.siteProvider = clientSideTokenGenerate ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath))) : null;
+        this.siteProvider = clientSideTokenGenerate ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath)), s3KeyProvider) : null;
 
         if (useStorageMock && coreAttestUrl == null) {
             if (clientSideTokenGenerate) {

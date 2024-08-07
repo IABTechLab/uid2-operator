@@ -32,7 +32,7 @@ runs:
   steps:
     - name: Build AWS EIF for EKS
       id: build_aws_eif
-      uses: ./.github/actions/build_aws_eif
+      uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@ian-UID2-3822-config-server-share-eif
       with:
         identity_scope: ${{ inputs.identity_scope }}
         artifacts_base_output_dir: ${{ inputs.artifacts_output_dir }}

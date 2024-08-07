@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class RotatingS3KeyOperatorProvider extends RotatingS3KeyProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(RotatingS3KeyOperatorProvider.class);
 
-    private final ApiStoreReader<Map<Integer, S3Key>> apiStoreReader;
+    public ApiStoreReader<Map<Integer, S3Key>> apiStoreReader;
 
     public RotatingS3KeyOperatorProvider(DownloadCloudStorage fileStreamProvider, StoreScope scope) {
         super(fileStreamProvider, scope);

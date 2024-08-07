@@ -10,12 +10,12 @@ RUN dnf install python3.11 -y
 RUN dnf install python3.11-pip -y
 
 COPY ./sockd /home/
-COPY sockd_eks.conf /etc/sockd.conf
+COPY ./sockd_eks.conf /etc/sockd.conf
 COPY ./vsockpx /home
 
-COPY entrypoint.sh /home/
+COPY ./entrypoint.sh /home/
 COPY ./uid2operator.eif /home/
-COPY proxies.host.yaml /home/proxies.host.yaml
+COPY ./proxies.host.yaml /home/proxies.host.yaml
 
 RUN chmod +x /home/vsockpx && chmod +x /home/entrypoint.sh
 # RUN yum install net-tools -y

@@ -9,6 +9,7 @@
   "salts_metadata_path": "/com.uid2.core/test/salts/metadata.json",
   "services_metadata_path": "/com.uid2.core/test/services/metadata.json",
   "service_links_metadata_path": "/com.uid2.core/test/service_links/metadata.json",
+  "s3_keys_metadata_path":"/com.uid2.core/test/s3encryption_keys/metadata.json",
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,

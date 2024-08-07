@@ -49,6 +49,8 @@ function run_config_server() {
 }
 
 function wait_for_config() {
+    RETRY_COUNT=0
+    MAX_RETRY=20
     while true; do
         RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:27015/getConfig)
         if [ "$RESPONSE" -eq "200" ]; then
@@ -57,8 +59,36 @@ function wait_for_config() {
         else
             echo "Config server still starting..."
         fi
+        RETRY_COUNT=$(( RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -gt $MAX_RETRY ]; then
+            echo "Config Server did not start. Exiting"
+            exit 1
+        fi
         sleep 5
     done
+}
+
+function update_config() {
+    IDENTITY_SERVICE_CONFIG=$(curl -s -x http://127.0.0.1:27015/getConfig)
+    if jq -e . >/dev/null 2>&1 <<<"${IDENTITY_SERVICE_CONFIG}"; then
+        echo "Identity service returned valid config"
+    else
+        echo "Failed to get a valid config from identity service"
+        exit 1
+    fi
+
+    shopt -s nocasematch
+    USER_CUSTOMIZED=$($IDENTITY_SERVICE_CONFIG | jq -r '.customize_enclave')
+
+    if [ "$USER_CUSTOMIZED" = "true" ]; then
+        echo "Applying user customized CPU/Mem allocation..."
+        CPU_COUNT=${CPU_COUNT:-$($IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count')}
+        MEMORY_MB=${MEMORY_MB:-$($IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb')}
+    else
+        echo "Applying default CPU/Mem allocation..."
+        CPU_COUNT=6
+        MEMORY_MB=24576
+    fi
 }
 
 function run_enclave() {

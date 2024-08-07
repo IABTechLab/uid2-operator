@@ -1,4 +1,4 @@
-name: Publish AWS Nitro EIF
+name: Publish AWS Nitro Operator
 run-name: ${{ format('Publish {0} AWS Nitro Operator', inputs.release_type) }}
 on:
   workflow_dispatch:

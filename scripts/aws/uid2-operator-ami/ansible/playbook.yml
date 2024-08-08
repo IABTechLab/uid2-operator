@@ -19,6 +19,13 @@
       name: nmap-ncat
       state: latest
 
+  - name: Install python
+    ansible.builtin.dnf:
+      name:
+        - python3.11
+        - python3.11-pip
+      state: latest
+
   - name: Create etc/uid2operator directory
     ansible.builtin.file:
       path: /etc/uid2operator
@@ -50,6 +57,18 @@
     ansible.builtin.file:
       path: /usr/bin/vsockpx
       mode: '0755'
+
+  - name: Install config service
+    ansible.builtin.copy:
+      src: /tmp/artifacts/config-server
+      dest: /opt/uid2operator/
+      remote_src: yes
+
+  - name: Create virtualenv
+    ansible.builtin.pip:
+      virtualenv: /opt/uid2operator/config-server
+      requirements: /opt/uid2operator/config-server/requirements.txt
+      virtualenv_command: 'python3 -m venv'
 
   - name: Install starter script
     ansible.builtin.copy:

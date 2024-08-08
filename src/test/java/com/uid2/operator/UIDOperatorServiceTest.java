@@ -196,7 +196,7 @@ public class UIDOperatorServiceTest {
     }
 
     @Test
-    public void testTestOptOutKey() {
+    public void testTestOptOutKey_DoNotRespectOptout() {
         final InputUtil.InputVal inputVal = InputUtil.normalizeEmail(IdentityConst.OptOutIdentityForEmail);
 
         final IdentityRequest identityRequest = new IdentityRequest(
@@ -208,9 +208,25 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(tokens);
+        assertFalse(tokens.isEmptyToken());
 
         final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(tokens.getRefreshToken());
         assertEquals(RefreshResponse.Optout, uid2Service.refreshIdentity(refreshToken));
+    }
+
+    @Test
+    public void testTestOptOutKey_RespectOptout() {
+        final InputUtil.InputVal inputVal = InputUtil.normalizeEmail(IdentityConst.OptOutIdentityForEmail);
+
+        final IdentityRequest identityRequest = new IdentityRequest(
+                new PublisherIdentity(123, 124, 125),
+                inputVal.toUserIdentity(IdentityScope.UID2, 0, this.now),
+                OptoutCheckPolicy.RespectOptOut
+        );
+        final IdentityTokens tokens = uid2Service.generateIdentity(identityRequest);
+        assertTrue(tokens.isEmptyToken());
+        verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
+        verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
     }
 
     @Test

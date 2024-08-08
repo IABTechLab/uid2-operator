@@ -427,8 +427,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final String emailHash = requestPayload.getString("email_hash");
         final String phoneHash = requestPayload.getString("phone_hash");
-        final int optoutCheck = requestPayload.getInteger("optout_check", 0);
-        final boolean cstgRequestHasOptoutCheckFlag = optoutCheck == OptoutCheckPolicy.RespectOptOut.ordinal();
         final InputUtil.InputVal input;
 
 
@@ -461,10 +459,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();
 
-        if(cstgRequestHasOptoutCheckFlag) {
-            privacyBits.setClientSideTokenGenerateOptoutResponse();
-        }
-
         IdentityTokens identityTokens;
         try {
             identityTokens = this.idService.generateIdentity(
@@ -480,16 +474,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
         if (identityTokens.isEmptyToken()) {
-            if (UIDOperatorService.shouldCstgOptedOutUserReturnOptOutResponse(identityScope, cstgRequestHasOptoutCheckFlag)) {
-                response = ResponseUtil.SuccessNoBodyV2("optout");
-                responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
-            }
-            else {
-                privacyBits.setClientSideTokenGenerateOptout();
-                //user opted out we will generate an optout token with the opted out user identity
-                identityTokens = generateOptedOutIdentityTokens(privacyBits, input, clientSideKeypair);
-                response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
-            }
+            response = ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut);
+            responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
         }
         else { //user not opted out and already generated valid identity token
             response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
@@ -564,19 +550,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             this.responseStatus = responseStatus;
             this.originOrAppName = originOrAppName;
         }
-    }
-
-    private IdentityTokens generateOptedOutIdentityTokens(PrivacyBits privacyBits, InputUtil.InputVal input, ClientSideKeypair clientSideKeypair) {
-        UserIdentity cstgOptOutIdentity;
-        if (input.getIdentityType() == IdentityType.Email) {
-            cstgOptOutIdentity = InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
-        } else {
-            cstgOptOutIdentity = InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
-        }
-        return this.idService.generateIdentity(
-                new IdentityRequest(
-                        new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
-                        cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

@@ -52,7 +52,7 @@ jobs:
       image_tag: ${{ steps.update_version.outputs.image_tag }}
 
   buildUID2EIF:
-    name: Build UID2 EIF for EKS
+    name: Build UID2 EIF and Pod for EKS
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -74,7 +74,7 @@ jobs:
       enclave_id: ${{ steps.build_docker_image.outputs.enclave_id }}
 
   buildEUIDEIF:
-    name: Build EUID EIF for EKS
+    name: Build EUID EIF and Pod for EKS
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -118,12 +118,6 @@ jobs:
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
           if-no-files-found: error
 
-      - name: Generate release archive files
-        if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
-        run: |
-          zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/*
-          # zip -j ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/*
-
       - name: Build changelog
         id: github_release
         if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
@@ -142,10 +136,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ needs.start.outputs.new_version }}
-          body: ${{ steps.github_release.outputs.github_changelog }}
+          body: ${{ steps.github_release.outputs.changelog }}
           draft: true
           files: |
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt

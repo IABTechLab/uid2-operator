@@ -41,7 +41,7 @@ spec:
                 - uid2-operator
             topologyKey: kubernetes.io/hostname
       containers:
-        - image: ghcr.io/iabtechlab/uid2-operator-eks-uid2:5.37.209-alpha-77-snapshot-eks-nitro
+        - image: IMAGE_PLACEHOLDER
           imagePullPolicy: Always
           name: uid2-operator
           env:

@@ -1398,8 +1398,20 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private InputUtil.InputVal[] getIdentityBulkInputV1(RoutingContext rc) {
         final JsonObject obj = rc.body().asJsonObject();
-        final JsonArray emails = obj.getJsonArray("email");
-        final JsonArray emailHashes = obj.getJsonArray("email_hash");
+        JsonArray emails;
+        try {
+            emails = obj.getJsonArray("email");
+        } catch (ClassCastException e) {
+            ResponseUtil.ClientError(rc, "Email is not an array");
+            return null;
+        }
+        JsonArray emailHashes;
+        try {
+            emailHashes = obj.getJsonArray("email_hash");
+        } catch (ClassCastException e) {
+            ResponseUtil.ClientError(rc, "email_hash is not an array");
+            return null;
+        }
         final JsonArray phones = obj.getJsonArray("phone");
         final JsonArray phoneHashes = obj.getJsonArray("phone_hash");
 
@@ -1527,13 +1539,26 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonObject obj = (JsonObject) rc.data().get("request");
 
         Supplier<InputUtil.InputVal[]> getInputList = null;
+        JsonArray emails;
+        try {
+            emails = obj.getJsonArray("email");
+        } catch (ClassCastException e) {
+            ResponseUtil.ClientError(rc, "email is not an array");
+            return null;
+        }
 
-        final JsonArray emails = obj.getJsonArray("email");
         if (emails != null && !emails.isEmpty()) {
             getInputList = () -> createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
         }
 
-        final JsonArray emailHashes = obj.getJsonArray("email_hash");
+        JsonArray emailHashes;
+        try {
+            emailHashes = obj.getJsonArray("email_hash");
+        } catch (ClassCastException e) {
+            ResponseUtil.ClientError(rc, "email_hash is not an array");
+            return null;
+        }
+
         if (emailHashes != null && !emailHashes.isEmpty()) {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed

@@ -2074,6 +2074,46 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
+    void identityMapSingleEmailProvided(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emailHashes = new JsonArray();
+        req.put("email", "test@example.com");
+
+        send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 400, json -> {
+            assertFalse(json.containsKey("body"));
+            assertEquals("client_error", json.getString("status"));
+
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void identityMapSingleEmailHashProvided(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emailHashes = new JsonArray();
+        req.put("email_hash", "test@example.com");
+
+        send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 400, json -> {
+            assertFalse(json.containsKey("body"));
+            assertEquals("client_error", json.getString("status"));
+
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchEmails(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);

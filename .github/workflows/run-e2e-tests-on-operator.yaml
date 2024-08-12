@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       operator_type:
-        description: The operator type [public, gcp, azure, aws]
+        description: The operator type [public, gcp, azure, aws, eks]
         required: true
         type: choice
         options:
@@ -12,6 +12,7 @@ on:
           - gcp
           - azure
           - aws
+          - eks
       identity_scope:
         description: The identity scope [UID2, EUID]
         required: true
@@ -58,7 +59,7 @@ on:
   workflow_call:
     inputs:
       operator_type:
-        description: The operator type [public, gcp, azure, aws]
+        description: The operator type [public, gcp, azure, aws, eks]
         type: string
         default: public
       identity_scope:
@@ -104,7 +105,7 @@ on:
 jobs:
   e2e-test:
     name: E2E Test
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v2
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@kcc-UID2-3783-e2e-test-for-eks
     with:
       operator_type: ${{ inputs.operator_type }}
       operator_image_version: ${{ inputs.operator_image_version }}

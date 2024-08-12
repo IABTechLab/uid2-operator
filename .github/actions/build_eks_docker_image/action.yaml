@@ -30,42 +30,15 @@ runs:
   using: "composite"
 
   steps:
-    - name: Checkout full history on Main
-      uses: actions/checkout@v4
-      if: ${{ inputs.version_number_input == '' }}
-      with:
-        # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-        fetch-depth: 0
-
-    - name: Checkout full history at tag v${{ inputs.version_number_input }}
-      uses: actions/checkout@v4
-      if: ${{ inputs.version_number_input != '' }}
-      with:
-        ref: v${{ inputs.version_number_input }}
-        # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-        fetch-depth: 0
-
-    - name: Restore timestamps
-      uses: thetradedesk/git-restore-mtime-action@v1.3
-
-    - name: Free up space - delete preinstalled tools
-      shell: bash
-      run: |
-        rm -rf /opt/hostedtoolcache
-
-    - name: Check disk usage
-      shell: bash
-      run: |
-        df -h
-
     - name: Build AWS EIF for EKS
       id: build_aws_eif
-      uses: ./.github/actions/build_aws_eif
+      uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
       with:
         identity_scope: ${{ inputs.identity_scope }}
         artifacts_base_output_dir: ${{ inputs.artifacts_output_dir }}
         amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux2023.Dockerfile
-        makefile: Makefile.eks
+        makefile: Makefile.eif
+        version_number_input: ${{ inputs.version_number_input }}
 
     - name: Copy docker files for the Operator Pod
       shell: bash
@@ -73,9 +46,9 @@ runs:
       run: |
         mkdir -p ${{ inputs.artifacts_output_dir }}
         cp -r ./scripts/aws/config-server/* ${{ inputs.artifacts_output_dir }}
-        cp -r ./scripts/aws/eks/pod/* ${{ inputs.artifacts_output_dir }}
+        cp -r ./scripts/aws/eks-pod/* ${{ inputs.artifacts_output_dir }}
         cp -r ./scripts/aws/syslog-ng/server_al_2023/* ${{ inputs.artifacts_output_dir }}/server_al_2023
-        cp ./scripts/aws/eks/pod/server_al_2023/syslog-ng-server.conf ${{ inputs.artifacts_output_dir }}/syslog-ng-server.conf
+        cp ./scripts/aws/eks-pod/server_al_2023/syslog-ng-server.conf ${{ inputs.artifacts_output_dir }}/syslog-ng-server.conf
         ls -l ${{ inputs.artifacts_output_dir }}
 
     - name: Check disk usage

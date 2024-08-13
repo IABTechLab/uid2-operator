@@ -124,4 +124,5 @@ jobs:
       aws_region: ${{ fromJson(inputs.aws).region }}
       aws_ami: ${{ fromJson(inputs.aws).ami }}
       aws_pcr0: ${{ fromJson(inputs.aws).pcr0 }}
+      eks_pcr0: ${{ fromJson(inputs.eks).pcr0 }}
     secrets: inherit

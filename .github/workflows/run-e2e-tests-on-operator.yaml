@@ -36,18 +36,14 @@ on:
         description: 'Image: E2E image version'
         type: string
         default: latest
-      core_branch:
-        description: 'Config: Core branch for config'
+
+      branch:
+        description: The arguments for custom branches
         type: string
-        default: main
-      optout_branch:
-        description: 'Config: Optout branch for config'
-        type: string
-        default: main
-      admin_branch:
-        description: 'Config: Admin branch for config'
-        type: string
-        default: main
+        default: '{
+          "core": "main",
+          "optout": "main",
+          "admin": "main" }'
       aws:
         description: The arguments for AWS private operator
         type: string
@@ -82,18 +78,13 @@ on:
         description: 'Image: E2E image version'
         type: string
         default: latest
-      core_branch:
-        description: 'Config: Core branch for config'
+      branch:
+        description: The arguments for custom branches
         type: string
-        default: main
-      optout_branch:
-        description: 'Config: Optout branch for config'
-        type: string
-        default: main
-      admin_branch:
-        description: 'Config: Admin branch for config'
-        type: string
-        default: main
+        default: '{
+          "core": "main",
+          "optout": "main",
+          "admin": "main" }'
       aws:
         description: The arguments for AWS private operator
         type: string
@@ -113,9 +104,9 @@ jobs:
       optout_image_version: ${{ inputs.optout_image_version }}
       e2e_image_version: ${{ inputs.e2e_image_version }}
       operator_branch: ${{ github.ref }}
-      core_branch: ${{ inputs.core_branch }}
-      optout_branch: ${{ inputs.optout_branch }}
-      admin_branch: ${{ inputs.admin_branch }}
+      branch_core: ${{ fromJson(inputs.branch).core }}
+      branch_optout: ${{ fromJson(inputs.branch).optout }}
+      branch_admin: ${{ fromJson(inputs.branch).admin }}
       uid2_e2e_identity_scope: ${{ inputs.identity_scope }}
       gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
       gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}

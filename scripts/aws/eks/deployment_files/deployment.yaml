@@ -8,7 +8,7 @@ metadata:
     env: integ
   name: uid2-operator
 spec:
-  replicas: 2
+  replicas: 1
   revisionHistoryLimit: 10
   selector:
     matchLabels: *Labels
@@ -41,7 +41,7 @@ spec:
                 - uid2-operator
             topologyKey: kubernetes.io/hostname
       containers:
-        - image: IMAGE_PLACEHOLDER
+        - image: ghcr.io/iabtechlab/uid2-operator-eks-uid2:5.37.209-alpha-77-snapshot-eks-nitro
           imagePullPolicy: Always
           name: uid2-operator
           env:
@@ -66,12 +66,12 @@ spec:
           resources:
             limits:
               aws.ec2.nitro/nitro_enclaves: "1"
-              hugepages-1Gi: 2Gi
-              cpu: 12
+              hugepages-1Gi: 24Gi
+              cpu: 250m
             requests:
               aws.ec2.nitro/nitro_enclaves: "1"
-              hugepages-1Gi: 2Gi
-              cpu: 12
+              hugepages-1Gi: 24Gi
+              cpu: 250m
           volumeMounts:
             - name: secret-volume
               mountPath: "/etc/secret/secret-value"
@@ -85,4 +85,4 @@ spec:
           medium: HugePages-1Gi
       - name: secret-volume
         secret:
-          secretName: github-uid2-secret
+          secretName: github-test-secret

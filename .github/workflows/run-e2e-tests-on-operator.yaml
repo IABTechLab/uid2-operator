@@ -51,6 +51,11 @@ on:
           "region": "us-east-1",
           "ami": "ami-xxxxx",
           "pcr0": "xxxxx" }'
+      eks:
+        description: The arguments for EKS operator
+        type: string
+        default: '{
+          "pcr0": "xxxxx" }'
 
   workflow_call:
     inputs:
@@ -91,6 +96,11 @@ on:
         default: '{
           "region": "us-east-1",
           "ami": "ami-xxxxx",
+          "pcr0": "xxxxx" }'
+      eks:
+        description: The arguments for EKS operator
+        type: string
+        default: '{
           "pcr0": "xxxxx" }'
 
 jobs:

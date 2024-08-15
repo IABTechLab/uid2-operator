@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels: &Labels
+    app: uid2-operator
+    flavor: operator
+  annotations: &Annotations
+    env: integ
+  name: uid2-operator
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels: *Labels
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+  template:
+    metadata:
+      labels: *Labels
+      annotations: *Annotations
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: aws-nitro-enclaves-k8s-dp  # this ensures that the pod is only deployed to nodes that have the nitro extension installed
+                    operator: In
+                    values:
+                    - enabled
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app # this ensures that a new pod is not deployed if there is already a pod with the label 'app=nginx' in the same topologyKey i.e. kubernetes.io/hostname
+                operator: In
+                values:
+                - uid2-operator
+            topologyKey: kubernetes.io/hostname
+      containers:
+        - image: IMAGE_PLACEHOLDER
+          imagePullPolicy: Always
+          name: uid2-operator
+          env:
+            - name: test
+              value: test
+          ports:
+            - containerPort: 80
+              protocol: TCP
+            - name: prometheus
+              containerPort: 9080
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ops/healthcheck
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              aws.ec2.nitro/nitro_enclaves: "1"
+              hugepages-1Gi: 24Gi
+              cpu: 250m
+            requests:
+              aws.ec2.nitro/nitro_enclaves: "1"
+              hugepages-1Gi: 24Gi
+              cpu: 250m
+          volumeMounts:
+            - name: secret-volume
+              mountPath: "/etc/secret/secret-value"
+              readOnly: true
+            - name: hugepage
+              mountPath: /dev/hugepages
+              readOnly: false
+      volumes:
+      - name: hugepage
+        emptyDir:
+          medium: HugePages-1Gi
+      - name: secret-volume
+        secret:
+          secretName: github-test-secret

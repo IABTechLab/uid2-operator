@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       operator_type:
-        description: The operator type [public, gcp, azure, aws]
+        description: The operator type [public, gcp, azure, aws, eks]
         required: true
         type: choice
         options:
@@ -12,6 +12,7 @@ on:
           - gcp
           - azure
           - aws
+          - eks
       identity_scope:
         description: The identity scope [UID2, EUID]
         required: true
@@ -35,18 +36,14 @@ on:
         description: 'Image: E2E image version'
         type: string
         default: latest
-      core_branch:
-        description: 'Config: Core branch for config'
+
+      branch:
+        description: The arguments for custom branches
         type: string
-        default: main
-      optout_branch:
-        description: 'Config: Optout branch for config'
-        type: string
-        default: main
-      admin_branch:
-        description: 'Config: Admin branch for config'
-        type: string
-        default: main
+        default: '{
+          "core": "main",
+          "optout": "main",
+          "admin": "main" }'
       aws:
         description: The arguments for AWS private operator
         type: string
@@ -54,11 +51,16 @@ on:
           "region": "us-east-1",
           "ami": "ami-xxxxx",
           "pcr0": "xxxxx" }'
+      eks:
+        description: The arguments for EKS operator
+        type: string
+        default: '{
+          "pcr0": "xxxxx" }'
 
   workflow_call:
     inputs:
       operator_type:
-        description: The operator type [public, gcp, azure, aws]
+        description: The operator type [public, gcp, azure, aws, eks]
         type: string
         default: public
       identity_scope:
@@ -81,18 +83,13 @@ on:
         description: 'Image: E2E image version'
         type: string
         default: latest
-      core_branch:
-        description: 'Config: Core branch for config'
+      branch:
+        description: The arguments for custom branches
         type: string
-        default: main
-      optout_branch:
-        description: 'Config: Optout branch for config'
-        type: string
-        default: main
-      admin_branch:
-        description: 'Config: Admin branch for config'
-        type: string
-        default: main
+        default: '{
+          "core": "main",
+          "optout": "main",
+          "admin": "main" }'
       aws:
         description: The arguments for AWS private operator
         type: string
@@ -100,11 +97,16 @@ on:
           "region": "us-east-1",
           "ami": "ami-xxxxx",
           "pcr0": "xxxxx" }'
+      eks:
+        description: The arguments for EKS operator
+        type: string
+        default: '{
+          "pcr0": "xxxxx" }'
 
 jobs:
   e2e-test:
     name: E2E Test
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v2
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v3
     with:
       operator_type: ${{ inputs.operator_type }}
       operator_image_version: ${{ inputs.operator_image_version }}
@@ -112,9 +114,9 @@ jobs:
       optout_image_version: ${{ inputs.optout_image_version }}
       e2e_image_version: ${{ inputs.e2e_image_version }}
       operator_branch: ${{ github.ref }}
-      core_branch: ${{ inputs.core_branch }}
-      optout_branch: ${{ inputs.optout_branch }}
-      admin_branch: ${{ inputs.admin_branch }}
+      branch_core: ${{ fromJson(inputs.branch).core }}
+      branch_optout: ${{ fromJson(inputs.branch).optout }}
+      branch_admin: ${{ fromJson(inputs.branch).admin }}
       uid2_e2e_identity_scope: ${{ inputs.identity_scope }}
       gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
       gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
@@ -122,4 +124,5 @@ jobs:
       aws_region: ${{ fromJson(inputs.aws).region }}
       aws_ami: ${{ fromJson(inputs.aws).ami }}
       aws_pcr0: ${{ fromJson(inputs.aws).pcr0 }}
+      eks_pcr0: ${{ fromJson(inputs.eks).pcr0 }}
     secrets: inherit

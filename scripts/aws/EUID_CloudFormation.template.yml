@@ -46,11 +46,10 @@ Parameters:
     Default: ''
     ConstraintDescription: must be the VPC ID of an existing Virtual Private Cloud.
   VpcSubnet1:
-    Description: AZ1 Subnet ID from existing VPC, if using existing VPC
-    Type: String
+    Description: AZ1 Subnet ID from an existing VPC
     Default: ''
   VpcSubnet2:
-    Description: AZ2 Subnet ID from existing VPC, if using existing VPC
+    Description: AZ2 Subnet ID from an existing VPC
     Type: String
     Default: ''
   SSHKeyName:

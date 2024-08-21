@@ -1,5 +1,5 @@
 #!/bin/bash -eufx
-LOG_FILE="start.txt"
+LOG_FILE="/home/start.txt"
 
 exec > $LOG_FILE
 exec 2>&1

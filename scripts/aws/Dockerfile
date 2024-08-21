@@ -43,7 +43,6 @@ COPY ./conf/*.xml                  /app/conf/
 COPY ./syslog-ng-client.conf       /etc/syslog-ng/syslog-ng.conf
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh
-RUN touch /home/start.txt
 
 
-CMD ["/app/entrypoint.sh > /home/start.txt 2>&1"]
+CMD exec "/app/entrypoint.sh

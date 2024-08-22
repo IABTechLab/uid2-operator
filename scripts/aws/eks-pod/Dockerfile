@@ -40,4 +40,4 @@ RUN config-server/bin/pip3 install -r /home/config-server/requirements.txt
 
 RUN useradd ec2-user
 
-CMD ["/home/entrypoint.sh > /home/start.txt 2>&1"]
+CMD ["/home/entrypoint.sh"]

@@ -1,4 +1,8 @@
 #!/bin/bash -eufx
+LOG_FILE="/home/start.txt"
+
+exec > $LOG_FILE
+exec 2>&1
 
 set -o pipefail
 ulimit -n 65536
@@ -83,4 +87,4 @@ java \
   -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
   -Dlogback.configurationFile=./conf/logback.xml \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
-  -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar > /home/start.txt 2>&1
+  -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar > $LOG_FILE 2>&1

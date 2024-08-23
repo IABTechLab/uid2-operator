@@ -1398,10 +1398,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private InputUtil.InputVal[] getIdentityBulkInputV1(RoutingContext rc) {
         final JsonObject obj = rc.body().asJsonObject();
-        final JsonArray emails = obj.getJsonArray("email");
-        final JsonArray emailHashes = obj.getJsonArray("email_hash");
-        final JsonArray phones = obj.getJsonArray("phone");
-        final JsonArray phoneHashes = obj.getJsonArray("phone_hash");
+        if(obj.isEmpty()) {
+            ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
+            return null;
+        }
+        final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
+        final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
+        final JsonArray phones = JsonParseUtils.parseArray(obj,"phone", rc);
+        final JsonArray phoneHashes = JsonParseUtils.parseArray(obj,"phone_hash", rc);
+
+        if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
+            return null;
+        }
 
         int validInputs = 0;
         int nonEmptyInputs = 0;
@@ -1527,13 +1535,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonObject obj = (JsonObject) rc.data().get("request");
 
         Supplier<InputUtil.InputVal[]> getInputList = null;
-
-        final JsonArray emails = obj.getJsonArray("email");
+        final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
         if (emails != null && !emails.isEmpty()) {
             getInputList = () -> createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
         }
 
-        final JsonArray emailHashes = obj.getJsonArray("email_hash");
+        final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
         if (emailHashes != null && !emailHashes.isEmpty()) {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
@@ -1541,7 +1548,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             getInputList = () -> createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
         }
 
-        final JsonArray phones = this.phoneSupport ? obj.getJsonArray("phone") : null;
+        final JsonArray phones = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone", rc) : null;
         if (phones != null && !phones.isEmpty()) {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
@@ -1549,7 +1556,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             getInputList = () -> createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
         }
 
-        final JsonArray phoneHashes = this.phoneSupport ? obj.getJsonArray("phone_hash") : null;
+        final JsonArray phoneHashes = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone_hash", rc) : null;
         if (phoneHashes != null && !phoneHashes.isEmpty()) {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed

@@ -1,4 +1,5 @@
 from flask import Flask
+import json
 
 app = Flask(__name__)
 
@@ -7,7 +8,11 @@ def get_config():
     try:
         with open('/etc/secret/secret-value/config', 'r') as secret_file:
             secret_value = secret_file.read().strip()
-        return secret_value
+            secret_value_json = json.loads(secret_value)
+            secret_value_json["environment"] = secret_value_json["environment"].lower()
+            secret_value_json["core_base_url"] = secret_value_json["core_base_url"].lower()
+            secret_value_json["optout_base_url"] = secret_value_json["optout_base_url"].lower()
+        return json.dumps(secret_value_json)
     except Exception as e:
         return str(e), 500
 

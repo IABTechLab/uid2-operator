@@ -22,7 +22,7 @@ public class DebugRequestCapturingHandler extends RequestCapturingHandler {
 
         int status = context.request().response().getStatusCode();
 
-        if ((path == null || path.contains("unknown")) && (status >= 200 && status < 300)) {
+        if (path.contains("unknown") && (status >= 200 && status < 300)) {
             LOGGER.error("Unknown path with URI [{}] has a successful 2xx HTTP code [{}]", uri, status);
         }
 

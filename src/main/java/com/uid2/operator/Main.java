@@ -412,6 +412,15 @@ public class Main {
         return Vertx.vertx(vertxOptions);
     }
 
+    private static String getNormalizedPath(String path) {
+        try {
+            String normalized = HttpUtils.normalizePath(path).split("\\?")[0];
+            return Endpoints.pathSet().contains(normalized) ? normalized : "/unknown";
+        } catch (IllegalArgumentException e) {
+            return path;
+        }
+    }
+
     private static void setupMetrics(MicrometerMetricsOptions metricOptions) {
         BackendRegistries.setupBackend(metricOptions);
 
@@ -424,14 +433,21 @@ public class Main {
             prometheusRegistry.config()
                 // providing common renaming for prometheus metric, e.g. "hello.world" to "hello_world"
                 .meterFilter(new PrometheusRenameFilter())
-                .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), actualPath -> {
-                    try {
-                        String normalized = HttpUtils.normalizePath(actualPath).split("\\?")[0];
-                        return Endpoints.pathSet().contains(normalized) ? normalized : "/unknown";
-                    } catch (IllegalArgumentException e) {
-                        return actualPath;
+                .meterFilter(new MeterFilter() {
+                    @Override
+                    public DistributionStatisticConfig configure(Meter.Id id, DistributionStatisticConfig config) {
+                        String path = id.getTag(Label.HTTP_PATH.toString());
+                        String normalizedPath = getNormalizedPath(path == null ? "" : path);
+                        String httpCode = id.getTag(Label.HTTP_CODE.toString());
+
+                        if (("".equals(normalizedPath) || normalizedPath.contains("unknown")) && httpCode != null && httpCode.startsWith("2")) {
+                            LOGGER.error("Unknown path [{}] has a successful 2xx HTTP code [{}]", path, httpCode);
+                        }
+
+                        MeterFilter mf = MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), Main::getNormalizedPath);
+                        return mf.configure(id, config);
                     }
-                }))
+                })
                 // Don't record metrics for 404s.
                 .meterFilter(MeterFilter.deny(id ->
                     id.getName().startsWith(MetricsDomain.HTTP_SERVER.getPrefix()) &&

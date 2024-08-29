@@ -10,11 +10,10 @@ public class DebugRequestCapturingHandler extends RequestCapturingHandler {
 
     @Override
     public void handle(RoutingContext context) {
-        String path = context.currentRoute().getPath();
         String uri = context.request().uri();
         int status = context.request().response().getStatusCode();
 
-        if (path == null && (status >= 200 && status < 300)) {
+        if ((uri != null && !Endpoints.pathSet().contains(uri)) && (status >= 200 && status < 300)) {
             LOGGER.error("Unknown path with URI [{}] has a successful 2xx HTTP code [{}]", uri, status);
         }
 

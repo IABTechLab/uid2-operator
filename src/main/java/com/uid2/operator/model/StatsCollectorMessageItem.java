@@ -5,15 +5,17 @@ public class StatsCollectorMessageItem {
     private String referer;
     private String apiContact;
     private Integer siteId;
+    private String clientVersion;
 
     //USED by json serial
     public StatsCollectorMessageItem(){}
 
-    public StatsCollectorMessageItem(String path, String referer, String apiContact, Integer siteId){
+    public StatsCollectorMessageItem(String path, String referer, String apiContact, Integer siteId, String clientVersion) {
         this.path = path;
         this.referer = referer;
         this.apiContact = apiContact;
         this.siteId = siteId;
+        this.clientVersion = clientVersion;
     }
 
 
@@ -48,4 +50,7 @@ public class StatsCollectorMessageItem {
     public void setSiteId(Integer siteId) {
         this.siteId = siteId;
     }
+
+    public String getClientVersion() { return clientVersion; }
+    public void setClientVersion(String clientVersion) { this.clientVersion = clientVersion; }
 }

@@ -1,0 +1,238 @@
+---
+- name: Ansible playbook to build AMI
+  hosts: all
+  connection: ssh
+  gather_facts: true
+  become: true
+  become_user: root
+  become_method: sudo
+
+  tasks:
+  - name: Update all base packages
+    ansible.builtin.dnf:
+      update_cache: yes
+      name: '*'
+      state: latest
+  
+  - name: Install Netcat
+    ansible.builtin.dnf:
+      name: nmap-ncat
+      state: latest
+
+  - name: Install python
+    ansible.builtin.dnf:
+      name:
+        - python3.11
+        - python3.11-pip
+      state: latest
+
+  - name: Create etc/uid2operator directory
+    ansible.builtin.file:
+      path: /etc/uid2operator
+      state: directory
+
+  - name: Create opt/uid2operator directory
+    ansible.builtin.file:
+      path: /opt/uid2operator
+      state: directory
+
+  - name: Install libxcrypt-compat
+    ansible.builtin.dnf:
+      name: libxcrypt-compat
+      state: latest
+
+  - name: vsock-proxy config
+    ansible.builtin.copy:
+      src: /tmp/artifacts/proxies.host.yaml
+      dest: /etc/uid2operator/proxy.yaml
+      remote_src: yes
+
+  - name: Install vsock-proxy
+    ansible.builtin.copy:
+      src: /tmp/artifacts/vsockpx
+      dest: /usr/bin/vsockpx
+      remote_src: yes
+
+  - name: Make vsock-proxy executable
+    ansible.builtin.file:
+      path: /usr/bin/vsockpx
+      mode: '0755'
+
+  - name: Install config service
+    ansible.builtin.copy:
+      src: /tmp/artifacts/config-server
+      dest: /opt/uid2operator/
+      remote_src: yes
+
+  - name: Create virtualenv
+    ansible.builtin.pip:
+      virtualenv: /opt/uid2operator/config-server
+      requirements: /opt/uid2operator/config-server/requirements.txt
+      virtualenv_command: 'python3 -m venv'
+
+  - name: Install starter script
+    ansible.builtin.copy:
+      src: /tmp/artifacts/start.sh
+      dest: /opt/uid2operator/start.sh
+      remote_src: yes
+
+  - name: Make starter script executable
+    ansible.builtin.file:
+      path: /opt/uid2operator/start.sh
+      mode: '0755'
+
+  - name: Install stopper script
+    ansible.builtin.copy:
+      src: /tmp/artifacts/stop.sh
+      dest: /opt/uid2operator/stop.sh
+      remote_src: yes
+
+  - name: Make starter script executable
+    ansible.builtin.file:
+      path: /opt/uid2operator/stop.sh
+      mode: '0755'
+
+  - name: Install Identity Scope
+    ansible.builtin.copy:
+      src: /tmp/artifacts/identity_scope.txt
+      dest: /opt/uid2operator/identity_scope.txt
+      remote_src: yes
+
+  - name: Dante config
+    ansible.builtin.copy:
+      src: /tmp/artifacts/sockd.conf
+      dest: /etc/sockd.conf
+      remote_src: yes
+
+  - name: Install Dante
+    ansible.builtin.copy:
+      src: /tmp/artifacts/sockd
+      dest: /usr/bin/sockd
+      remote_src: yes
+
+  - name: Copy Ivykis package
+    ansible.builtin.copy:
+      src: /tmp/artifacts/ivykis-0.43-1.amzn2023.x86_64.rpm
+      dest: /opt/uid2operator/ivykis-0.43-1.amzn2023.x86_64.rpm
+      remote_src: yes
+  - name: Copy Libnet package
+    ansible.builtin.copy:
+      src: /tmp/artifacts/libnet-1.2-2.amzn2023.0.2.x86_64.rpm
+      dest: /opt/uid2operator/libnet-1.2-2.amzn2023.0.2.x86_64.rpm
+      remote_src: yes
+  - name: Copy Syslog package
+    ansible.builtin.copy:
+      src: /tmp/artifacts/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
+      dest: /opt/uid2operator/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
+      remote_src: yes
+  - name: Copy Syslog Logrotate package
+    ansible.builtin.copy:
+      src: /tmp/artifacts/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
+      dest: /opt/uid2operator/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
+      remote_src: yes
+
+  - name: Copy Syslog public key
+    ansible.builtin.copy:
+      src: /tmp/artifacts/pubkey.gpg
+      dest: /opt/uid2operator/pubkey.gpg
+      remote_src: yes
+
+  - name: Make sockd executable
+    ansible.builtin.file:
+      path: /usr/bin/sockd
+      mode: '0755'
+
+  - name: Install Operator service
+    ansible.builtin.copy:
+      src: /tmp/artifacts/uid2operator.service
+      dest: /etc/systemd/system/uid2operator.service
+      remote_src: yes
+
+  - name: Install AWS Nitro Enclaves CLI
+    ansible.builtin.dnf:
+      name: aws-nitro-enclaves-cli
+      state: latest
+  
+  - name: Enable the Nitro Enclave allocator service at boot
+    ansible.builtin.systemd:
+      name: nitro-enclaves-allocator.service
+      enabled: yes
+
+  - name: Update nitro enclave CPU allocation
+    ansible.builtin.command: 'sed -r "s/^(\s*cpu_count\s*:\s*).*/\16/" -i /etc/nitro_enclaves/allocator.yaml'
+
+  - name: Update nitro enclave memory allocation
+    ansible.builtin.command: 'sed -r "s/^(\s*memory_mib\s*:\s*).*/\124576/" -i /etc/nitro_enclaves/allocator.yaml'
+
+  - name: Register Public key
+    ansible.builtin.command: rpmkeys --import /opt/uid2operator/pubkey.gpg
+
+  - name: Install package
+    ansible.builtin.command: rpm -U /opt/uid2operator/ivykis-0.43-1.amzn2023.x86_64.rpm
+  - name: Install package
+    ansible.builtin.command: rpm -U /opt/uid2operator/libnet-1.2-2.amzn2023.0.2.x86_64.rpm
+  - name: Install package
+    ansible.builtin.command: rpm -U /opt/uid2operator/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
+  - name: Install package
+    ansible.builtin.command: rpm -U /opt/uid2operator/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm
+
+  - name: unregister Public key
+    ansible.builtin.command: rpm -e gpg-pubkey-2c519859-6630e289
+
+  - name: syslog-ng config
+    ansible.builtin.copy:
+      src: /tmp/artifacts/syslog-ng-server.conf
+      dest: /etc/syslog-ng/syslog-ng.conf
+      remote_src: yes
+
+  - name: logrotate config
+    ansible.builtin.copy:
+      src: /tmp/artifacts/operator-logrotate.conf
+      dest: /etc/logrotate.d/operator-logrotate.conf
+      remote_src: yes
+  
+  - name: Ensure /etc/cron.d/ folder exist
+    ansible.builtin.file:
+      path: /etc/cron.d
+      state: directory
+      mode: 0755
+
+  - name: Run logrotate under cron.d
+    ansible.builtin.copy:
+      src: /tmp/artifacts/logrotate
+      dest: /etc/cron.d/logrotate
+      mode: 0644
+      remote_src: yes
+
+  - name: Run logrotate under cron.daily
+    ansible.builtin.copy:
+      src: /tmp/artifacts/logrotateDaily
+      dest: /etc/cron.daily/logrotate
+      mode: 0700
+      remote_src: yes
+
+  - name: Ensure syslog-ng is enabled at boot
+    ansible.builtin.systemd:
+      name: syslog-ng
+      state: started
+      enabled: true
+
+  - name: Ensure uid2 operator is enabled at boot
+    ansible.builtin.systemd:
+      name: uid2operator.service
+      enabled: yes
+
+  - name: Clean up tmp files
+    file:
+      path: /tmp/artifacts
+      state: absent
+      
+  - name: Clean up ec2_user SSH authorized keys file
+    file:
+      path: /home/ec2-user/.ssh/authorized_keys
+      state: absent
+      
+  - name: Clean up root SSH authorized keys file
+    file:
+      path: /root/.ssh/authorized_keys
+      state: absent

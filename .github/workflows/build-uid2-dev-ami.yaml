@@ -43,7 +43,7 @@ jobs:
         run: |
           ARTIFACTS_OUTPUT_DIR="./scripts/aws/uid2-dev-ami/artifacts"
 
-          echo "uid2"                                                                                               ${ARTIFACTS_OUTPUT_DIR}/identity_scope.txt
+          echo "uid2" >                                                                                             ${ARTIFACTS_OUTPUT_DIR}/identity_scope.txt
           cp ./scripts/aws/proxies.host.yaml                                                                        ${ARTIFACTS_OUTPUT_DIR}/
           cp ./scripts/aws/sockd.conf                                                                               ${ARTIFACTS_OUTPUT_DIR}/
           cp ./scripts/aws/uid2operator.service                                                                     ${ARTIFACTS_OUTPUT_DIR}/

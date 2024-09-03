@@ -40,6 +40,7 @@ jobs:
 
       - name: Setup Artifacts
         id: setupArtifacts
+        shell: bash
         run: |
           ARTIFACTS_OUTPUT_DIR="./scripts/aws/uid2-dev-ami/artifacts"
 

@@ -38,9 +38,6 @@ runs:
       env:
         GITHUB_CONTEXT: ${{ toJson(github) }}
 
-    - name: Checkout full history
-      uses: actions/checkout@v4
-
     - name: Configure UID2 AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       if: ${{ inputs.identity_scope == 'uid2' }}

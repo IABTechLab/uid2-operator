@@ -1,6 +1,9 @@
 name: Build UID2 and EUID AMIs
 run-name: Build UID2 and EUID AMIs for Operator Release ${{ inputs.operator_release }} by @${{ github.actor }}
 on:
+  push:
+    branches:
+      - cbc-UID2-4015-develoment-ami
   workflow_dispatch:
     inputs:
       save_ami:

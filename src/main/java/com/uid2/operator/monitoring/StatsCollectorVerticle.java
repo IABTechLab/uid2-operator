@@ -149,7 +149,6 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
                         }
                 );
                 pathMap.clear();
-                clientVersionStat.clear();
             }
         }
     }

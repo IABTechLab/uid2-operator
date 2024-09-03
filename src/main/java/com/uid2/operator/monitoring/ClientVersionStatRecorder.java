@@ -5,19 +5,32 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 public class ClientVersionStatRecorder {
+    private static final String NOT_RECORDED = "<Not recorded>";
     private final int siteClientBucketLimit;
-    private final Map<Integer, Map<String, Integer>> clientVersionToSiteCount = new HashMap<>();
+    private final Map<Integer, Map<String, Integer>> siteIdToVersionCounts = new HashMap<>();
 
     public ClientVersionStatRecorder(int maxVersionBucketsPerSite) {
         this.siteClientBucketLimit = maxVersionBucketsPerSite;
     }
 
     public Stream<SiteClientVersionStat> getStatsView() {
-        return clientVersionToSiteCount.entrySet().stream().map(entry -> new SiteClientVersionStat(entry.getKey(), entry.getValue()));
+        return siteIdToVersionCounts.entrySet().stream().map(entry -> new SiteClientVersionStat(entry.getKey(), entry.getValue()));
     }
 
-    public void clear() {
-        clientVersionToSiteCount.clear();
+    private void removeLowVersionCounts(int siteId) {
+        var versionCounts = siteIdToVersionCounts.get(siteId);
+        if (versionCounts == null) return;
+
+        // Remove 3 items to avoid a couple of new version values from continuously evicting each other
+        versionCounts.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                .filter(entry -> !entry.getKey().equals(NOT_RECORDED))
+                .limit(3)
+                .forEach(entry -> {
+                    var notRecordedCount = versionCounts.getOrDefault(NOT_RECORDED, 0);
+                    versionCounts.put(NOT_RECORDED, notRecordedCount + entry.getValue());
+                    versionCounts.remove(entry.getKey());
+                });
     }
 
     public void add(Integer siteId, String clientVersion) {
@@ -25,18 +38,12 @@ public class ClientVersionStatRecorder {
             return;
         }
 
-        var clientVersionCounts = clientVersionToSiteCount.computeIfAbsent(siteId, k -> new HashMap<>());
+        var clientVersionCounts = siteIdToVersionCounts.computeIfAbsent(siteId, k -> new HashMap<>());
 
-        var count = clientVersionCounts.get(clientVersion);
-        if (count == null && clientVersionCounts.size() >= siteClientBucketLimit) {
-            var notRecordedCount = clientVersionCounts.getOrDefault("NotRecorded", 0);
-            clientVersionCounts.put("NotRecorded", notRecordedCount + 1);
+        var count = clientVersionCounts.getOrDefault(clientVersion, 0);
+        if (count == 0 && clientVersionCounts.size() >= siteClientBucketLimit) {
+            removeLowVersionCounts(siteId);
         }
-        else if (count == null) {
-            clientVersionCounts.put(clientVersion, 1);
-        }
-        else {
-            clientVersionCounts.put(clientVersion, count + 1);
-        }
+        clientVersionCounts.put(clientVersion, count + 1);
     }
 }

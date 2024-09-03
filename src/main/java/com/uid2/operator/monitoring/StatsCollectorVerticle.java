@@ -158,7 +158,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         ObjectMapper statMapper = new ObjectMapper();
         for (Object stat : stats) {
             try {
-                String jsonString = mapper.writeValueAsString(stat);
+                String jsonString = statMapper.writeValueAsString(stat);
                 LOGGER.info(jsonString);
             } catch (JsonProcessingException e) {
                 LOGGER.error(e.getMessage(), e);

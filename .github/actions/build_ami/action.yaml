@@ -89,6 +89,7 @@ runs:
       shell: bash
       id: copy_config_server
       run: |
+        pwd
         mkdir -p ./scripts/aws/uid2-operator-ami/artifacts/config-server
         cp -r ./scripts/aws/config-server/* ./scripts/aws/uid2-operator-ami/artifacts
         ls -l ./scripts/aws/uid2-operator-ami/artifacts/config-server

@@ -118,6 +118,8 @@ runs:
         cp ./scripts/aws/logrotate/logrotateDaily                                                                 ${ARTIFACTS_OUTPUT_DIR}/
         cp -r ./scripts/aws/config-server                                                                         ${ARTIFACTS_OUTPUT_DIR}/
 
+        ls ${ARTIFACTS_OUTPUT_DIR}/ -al
+
         docker cp amazonlinux:/sockd                                    ${ARTIFACTS_OUTPUT_DIR}/
         docker cp amazonlinux:/vsockpx                                  ${ARTIFACTS_OUTPUT_DIR}/
         docker cp amazonlinux:/${{ inputs.identity_scope }}operator.eif ${ARTIFACTS_OUTPUT_DIR}/uid2operator.eif

@@ -38,6 +38,36 @@ runs:
       env:
         GITHUB_CONTEXT: ${{ toJson(github) }}
 
+    - name: Run amazonlinux Docker image
+      shell: bash
+      run: |
+        docker build -t amazonlinux -f scripts/aws/pipeline/amazonlinux2023.Dockerfile .
+        docker run -d --privileged --name amazonlinux amazonlinux:latest
+
+    - name: Setup Artifacts
+      id: setupArtifacts
+      shell: bash
+      run: |
+        ARTIFACTS_OUTPUT_DIR="./scripts/aws/uid2-dev-ami/artifacts"
+        
+        echo "${{ inputs.identity_scope }}" >                                                                     ${ARTIFACTS_OUTPUT_DIR}/identity_scope.txt
+        cp ./scripts/aws/proxies.host.yaml                                                                        ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/sockd.conf                                                                               ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/uid2operator.service                                                                     ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/syslog-ng-server.conf                                                          ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/ivykis-0.43-1.amzn2023.x86_64.rpm                               ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/libnet-1.2-2.amzn2023.0.2.x86_64.rpm                            ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/pubkey.gpg                                                      ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm              ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm    ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/logrotate/operator-logrotate.conf                                                        ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/logrotate/logrotate                                                                      ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/logrotate/logrotateDaily                                                                 ${ARTIFACTS_OUTPUT_DIR}/
+        cp -r ./scripts/aws/config-server                                                                          ${ARTIFACTS_OUTPUT_DIR}/
+        
+        docker cp amazonlinux:/sockd                                    ${ARTIFACTS_OUTPUT_DIR}/
+        docker cp amazonlinux:/vsockpx                                  ${ARTIFACTS_OUTPUT_DIR}/
+
     - name: Configure UID2 AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       if: ${{ inputs.identity_scope == 'uid2' }}

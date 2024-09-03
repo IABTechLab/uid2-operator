@@ -10,7 +10,7 @@ variable "identity_scope" {
 
 variable "service" {
   description = "distinct name for the service"
-  default     = "operator"
+  default     = "dev-image"
 }
 
 variable "region" {

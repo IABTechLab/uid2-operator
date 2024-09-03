@@ -41,7 +41,7 @@ jobs:
       - name: Setup Artifacts
         id: setupArtifacts
         run: |
-          ARTIFACTS_OUTPUT_DIR="scripts/aws/uid2-dev-ami/artifacts"
+          ARTIFACTS_OUTPUT_DIR="./scripts/aws/uid2-dev-ami/artifacts"
 
           echo "uid2"                                                                                               ${ARTIFACTS_OUTPUT_DIR}/identity_scope.txt
           cp ./scripts/aws/proxies.host.yaml                                                                        ${ARTIFACTS_OUTPUT_DIR}/
@@ -61,7 +61,7 @@ jobs:
           docker cp amazonlinux:/sockd                                    ${ARTIFACTS_OUTPUT_DIR}/
           docker cp amazonlinux:/vsockpx                                  ${ARTIFACTS_OUTPUT_DIR}/
 
-      - name: Build UID2 Operator AMI
+      - name: Build UID2 Dev AMI
         id: buildAMI
         uses: IABTechLab/uid2-operator/.github/actions/build_dev_ami@cbc-UID2-4015-develoment-ami
         with:
@@ -72,94 +72,94 @@ jobs:
           euid_aws_role: ${{ env.EUID_AWS_ROLE }}
           euid_aws_region: ${{ env.EUID_AWS_REGION }}
   
-  buildEUID:
-      name: EUID Operator AMI
-      runs-on: ubuntu-latest
-      permissions:
-        id-token: write
-      outputs:
-        version_number: ${{ steps.buildAMI.outputs.version_number }}
-      steps:
-        - name: Checkout repo
-          uses: actions/checkout@v4
-
-#        - name: Pre-cleanup
+#  buildEUID:
+#      name: EUID Operator AMI
+#      runs-on: ubuntu-latest
+#      permissions:
+#        id-token: write
+#      outputs:
+#        version_number: ${{ steps.buildAMI.outputs.version_number }}
+#      steps:
+#        - name: Checkout repo
+#          uses: actions/checkout@v4
+#
+##        - name: Pre-cleanup
+##          shell: bash
+##          working-directory: ${{ github.workspace }}
+##          run: |
+##            echo "Cleaning up previous run"
+##            sudo rm -rf * || true
+##            docker stop $(docker ps -aq) || true
+##            docker rm $(docker ps -aq) || true
+##            docker rmi $(docker images -q) || true
+#
+#        - name: Run amazonlinux Docker image
 #          shell: bash
-#          working-directory: ${{ github.workspace }}
 #          run: |
-#            echo "Cleaning up previous run"
-#            sudo rm -rf * || true
-#            docker stop $(docker ps -aq) || true
-#            docker rm $(docker ps -aq) || true
-#            docker rmi $(docker images -q) || true
-
-        - name: Run amazonlinux Docker image
-          shell: bash
-          run: |
-            docker build -t amazonlinux -f scripts/aws/pipeline/amazonlinux2023.Dockerfile .
-            docker run -d --privileged --name amazonlinux amazonlinux:latest
-
-        - name: Setup Artifacts
-          id: setupArtifacts
-          run: |
-            ARTIFACTS_OUTPUT_DIR="scripts/aws/uid2-dev-ami/artifacts"
-            
-            echo "euid"                                                                                               ${ARTIFACTS_OUTPUT_DIR}/identity_scope.txt
-            cp ./scripts/aws/proxies.host.yaml                                                                        ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/sockd.conf                                                                               ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/uid2operator.service                                                                     ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/syslog-ng/syslog-ng-server.conf                                                          ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/syslog-ng/server_al_2023/ivykis-0.43-1.amzn2023.x86_64.rpm                               ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/syslog-ng/server_al_2023/libnet-1.2-2.amzn2023.0.2.x86_64.rpm                            ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/syslog-ng/server_al_2023/pubkey.gpg                                                      ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/syslog-ng/server_al_2023/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm              ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/syslog-ng/server_al_2023/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm    ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/logrotate/operator-logrotate.conf                                                        ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/logrotate/logrotate                                                                      ${ARTIFACTS_OUTPUT_DIR}/
-            cp ./scripts/aws/logrotate/logrotateDaily                                                                 ${ARTIFACTS_OUTPUT_DIR}/
-            cp -r ./scripts/aws/config-server                                                                          ${ARTIFACTS_OUTPUT_DIR}/
-            
-            docker cp amazonlinux:/sockd                                    ${ARTIFACTS_OUTPUT_DIR}/
-            docker cp amazonlinux:/vsockpx                                  ${ARTIFACTS_OUTPUT_DIR}/
-
-        - name: Build EUID Operator AMI
-          id: buildAMI
-          uses: IABTechLab/uid2-operator/.github/actions/build_dev_ami@cbc-UID2-4015-develoment-ami
-          with:
-            identity_scope: euid
-            save_ami: ${{ inputs.save_ami }}
-            uid2_aws_role: ${{ env.UID2_AWS_ROLE }}
-            uid2_aws_region: ${{ env.UID2_AWS_REGION }}
-            euid_aws_role: ${{ env.EUID_AWS_ROLE }}
-            euid_aws_region: ${{ env.EUID_AWS_REGION }}
-    
-  collectAllArtifacts:
-    name: Collect All Artifacts
-    if: ${{ inputs.save_ami }}
-    runs-on: ubuntu-latest
-    needs: [buildUID2, buildEUID]
-    steps:
-      - name: Download UID2 artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: uid2_AMI_measurement
-          path: ./artifacts
-
-      - name: Download EUID artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: euid_AMI_measurement
-          path: ./artifacts
-
-      - name: Delete staging artifacts
-        uses: geekyeggo/delete-artifact@v5
-        with: 
-          name: |
-            uid2_AMI_measurement
-            euid_AMI_measurement
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: uid2-operator-release-${{ needs.buildUID2.outputs.version_number }}-aws
-          path: ./artifacts/
+#            docker build -t amazonlinux -f scripts/aws/pipeline/amazonlinux2023.Dockerfile .
+#            docker run -d --privileged --name amazonlinux amazonlinux:latest
+#
+#        - name: Setup Artifacts
+#          id: setupArtifacts
+#          run: |
+#            ARTIFACTS_OUTPUT_DIR="scripts/aws/uid2-dev-ami/artifacts"
+#
+#            echo "euid"                                                                                               ${ARTIFACTS_OUTPUT_DIR}/identity_scope.txt
+#            cp ./scripts/aws/proxies.host.yaml                                                                        ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/sockd.conf                                                                               ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/uid2operator.service                                                                     ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/syslog-ng/syslog-ng-server.conf                                                          ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/syslog-ng/server_al_2023/ivykis-0.43-1.amzn2023.x86_64.rpm                               ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/syslog-ng/server_al_2023/libnet-1.2-2.amzn2023.0.2.x86_64.rpm                            ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/syslog-ng/server_al_2023/pubkey.gpg                                                      ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/syslog-ng/server_al_2023/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm              ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/syslog-ng/server_al_2023/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm    ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/logrotate/operator-logrotate.conf                                                        ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/logrotate/logrotate                                                                      ${ARTIFACTS_OUTPUT_DIR}/
+#            cp ./scripts/aws/logrotate/logrotateDaily                                                                 ${ARTIFACTS_OUTPUT_DIR}/
+#            cp -r ./scripts/aws/config-server                                                                          ${ARTIFACTS_OUTPUT_DIR}/
+#
+#            docker cp amazonlinux:/sockd                                    ${ARTIFACTS_OUTPUT_DIR}/
+#            docker cp amazonlinux:/vsockpx                                  ${ARTIFACTS_OUTPUT_DIR}/
+#
+#        - name: Build EUID Operator AMI
+#          id: buildAMI
+#          uses: IABTechLab/uid2-operator/.github/actions/build_dev_ami@cbc-UID2-4015-develoment-ami
+#          with:
+#            identity_scope: euid
+#            save_ami: ${{ inputs.save_ami }}
+#            uid2_aws_role: ${{ env.UID2_AWS_ROLE }}
+#            uid2_aws_region: ${{ env.UID2_AWS_REGION }}
+#            euid_aws_role: ${{ env.EUID_AWS_ROLE }}
+#            euid_aws_region: ${{ env.EUID_AWS_REGION }}
+#
+#  collectAllArtifacts:
+#    name: Collect All Artifacts
+#    if: ${{ inputs.save_ami }}
+#    runs-on: ubuntu-latest
+#    needs: [buildUID2, buildEUID]
+#    steps:
+#      - name: Download UID2 artifacts
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: uid2_AMI_measurement
+#          path: ./artifacts
+#
+#      - name: Download EUID artifacts
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: euid_AMI_measurement
+#          path: ./artifacts
+#
+#      - name: Delete staging artifacts
+#        uses: geekyeggo/delete-artifact@v5
+#        with:
+#          name: |
+#            uid2_AMI_measurement
+#            euid_AMI_measurement
+#
+#      - name: Upload artifacts
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: uid2-operator-release-${{ needs.buildUID2.outputs.version_number }}-aws
+#          path: ./artifacts/

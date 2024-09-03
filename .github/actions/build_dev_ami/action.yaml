@@ -125,4 +125,4 @@ runs:
       if: ${{ inputs.save_ami == 'true' }}
       with:
         name: ${{ inputs.identity_scope }}_AMI_measurement
-        path: ./scripts/aws/uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt
+        path: ./scripts/aws/uid2-dev-ami/${{ inputs.identity_scope }}_AMI_measurement.txt

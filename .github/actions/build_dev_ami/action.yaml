@@ -69,6 +69,7 @@ runs:
       working-directory: ./scripts/aws/uid2-dev-ami
       run: |
         ls -al
+        ls -al ./artifacts/
         TIMESTAMP=$(date +%s)
         echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_OUTPUT
         packer init .

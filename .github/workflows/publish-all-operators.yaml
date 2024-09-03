@@ -179,10 +179,10 @@ jobs:
 
       - name: Zip files
         run: |
-          zip -jr ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/aws-euid-deployment-files-${{ needs.start.outputs.new_version }}/*
-          zip -jr ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}/*
-          zip -jr ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/azure-cc-deployment-files-${{ needs.start.outputs.new_version }}/*
-          zip -jr ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}/*
+          zip -r ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/aws-euid-deployment-files-${{ needs.start.outputs.new_version }}/*
+          zip -r ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}/*
+          zip -r ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/azure-cc-deployment-files-${{ needs.start.outputs.new_version }}/*
+          zip -r ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}/*
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
       - name: Create draft release

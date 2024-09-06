@@ -21,7 +21,7 @@ echo "Starting syslog-ng..."
 
 # -- load config from identity service
 echo "Loading config from identity service via proxy..."
-IDENTITY_SERVICE_CONFIG=$(curl -s -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig)
+IDENTITY_SERVICE_CONFIG=$(curl -s -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig) > /dev/null 2>&1
 if jq -e . >/dev/null 2>&1 <<<"${IDENTITY_SERVICE_CONFIG}"; then
     echo "Identity service returned valid config"
 else
@@ -71,8 +71,6 @@ if [ -n "${CORE_BASE_URL}" ] && [ "${CORE_BASE_URL}" != "null" ] && [ -n "${OPTO
     sed -i "s#https://optout.integ.euid.eu#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
     sed -i "s#https://optout.prod.euid.eu#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
 fi
-
-cat "${FINAL_CONFIG}"
 
 # -- set pwd to /app so we can find default configs
 cd /app

@@ -10,8 +10,10 @@ def get_config():
             secret_value = secret_file.read().strip()
             secret_value_json = json.loads(secret_value)
             secret_value_json["environment"] = secret_value_json["environment"].lower()
-            secret_value_json["core_base_url"] = secret_value_json["core_base_url"].lower()
-            secret_value_json["optout_base_url"] = secret_value_json["optout_base_url"].lower()
+            if secret_value_json["environment"] is not None:
+                secret_value_json["core_base_url"] = secret_value_json["core_base_url"].lower()
+            if secret_value_json["optout_base_url"] is not None:
+                secret_value_json["optout_base_url"] = secret_value_json["optout_base_url"].lower()
         return json.dumps(secret_value_json)
     except Exception as e:
         return str(e), 500

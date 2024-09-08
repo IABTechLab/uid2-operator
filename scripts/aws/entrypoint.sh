@@ -1,16 +1,12 @@
 #!/bin/bash -eufx
 LOG_FILE="/home/start.txt"
 
+set -x
 exec > $LOG_FILE
 exec 2>&1
 
 set -o pipefail
 ulimit -n 65536
-
-function execute_notrace() {
-    { set +x; } 2>/dev/null
-    { $@; set -x; }
-}
 
 # -- setup loopback device
 echo "Setting up loopback device..."
@@ -26,7 +22,7 @@ echo "Starting syslog-ng..."
 
 # -- load config from identity service
 echo "Loading config from identity service via proxy..."
-execute_notrace "IDENTITY_SERVICE_CONFIG=$(curl -s -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig)"
+{ set +x; } 2>/dev/null; { IDENTITY_SERVICE_CONFIG=$(curl -s -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig); set -x; }
 if jq -e . >/dev/null 2>&1 <<<"${IDENTITY_SERVICE_CONFIG}"; then
     echo "Identity service returned valid config"
 else
@@ -35,7 +31,7 @@ else
 fi
 
 export OVERRIDES_CONFIG="/app/conf/config-overrides.json"
-execute_notrace "echo '${IDENTITY_SERVICE_CONFIG}' > '${OVERRIDES_CONFIG}'"
+{ set +x; } 2>/dev/null; { echo "${IDENTITY_SERVICE_CONFIG}" > "${OVERRIDES_CONFIG}"; set -x; }
 
 export DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${OVERRIDES_CONFIG}")
 export CORE_BASE_URL=$(jq -r ".core_base_url" < "${OVERRIDES_CONFIG}")

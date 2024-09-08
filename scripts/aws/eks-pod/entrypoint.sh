@@ -4,6 +4,11 @@ EIF_PATH=/home/uid2operator.eif
 MEMORY_MB=24576
 CPU_COUNT=6
 
+function execute_notrace() {
+    { set +x; } 2>/dev/null
+    { $@; set -x; }
+}
+
 function terminate_old_enclave() {
     echo "terminate_old_enclave"
     ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
@@ -69,7 +74,7 @@ function wait_for_config() {
 }
 
 function update_config() {
-    { set +x; } 2>/dev/null; { IDENTITY_SERVICE_CONFIG=$(curl -s http://127.0.0.1:27015/getConfig); set -x; }
+    execute_notrace "IDENTITY_SERVICE_CONFIG=$(curl -s http://127.0.0.1:27015/getConfig)"
     if jq -e . >/dev/null 2>&1 <<<"${IDENTITY_SERVICE_CONFIG}"; then
         echo "Identity service returned valid config"
     else
@@ -78,12 +83,12 @@ function update_config() {
     fi
 
     shopt -s nocasematch
-    { set +x; } 2>/dev/null; { USER_CUSTOMIZED=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.customize_enclave'); set -x; }
+    execute_notrace "USER_CUSTOMIZED=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.customize_enclave')"
 
     if [ "$USER_CUSTOMIZED" = "true" ]; then
         echo "Applying user customized CPU/Mem allocation..."
-        { set +x; } 2>/dev/null; { CPU_COUNT=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count'); set -x; }
-        { set +x; } 2>/dev/null; { MEMORY_MB=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb'); set -x; }
+        execute_notrace "CPU_COUNT=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count')"
+        execute_notrace "MEMORY_MB=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb')"
     fi
     shopt -u nocasematch
 }

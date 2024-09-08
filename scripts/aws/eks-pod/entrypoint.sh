@@ -78,12 +78,12 @@ function update_config() {
     fi
 
     shopt -s nocasematch
-    USER_CUSTOMIZED=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.customize_enclave')
+    { set +x 2>/dev/null; USER_CUSTOMIZED=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.customize_enclave'); set -x; }
 
     if [ "$USER_CUSTOMIZED" = "true" ]; then
         echo "Applying user customized CPU/Mem allocation..."
-        CPU_COUNT=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count')
-        MEMORY_MB=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb')
+        { set +x 2>/dev/null; CPU_COUNT=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count'); set -x; }
+        { set +x 2>/dev/null; MEMORY_MB=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb'); set -x; }
     fi
     shopt -u nocasematch
 }

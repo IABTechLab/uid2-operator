@@ -69,7 +69,7 @@ function wait_for_config() {
 }
 
 function update_config() {
-    { set +x 2>/dev/null; IDENTITY_SERVICE_CONFIG=$(curl -s http://127.0.0.1:27015/getConfig); set -x; }
+    { set +x; } 2>/dev/null; { IDENTITY_SERVICE_CONFIG=$(curl -s http://127.0.0.1:27015/getConfig); set -x; }
     if jq -e . >/dev/null 2>&1 <<<"${IDENTITY_SERVICE_CONFIG}"; then
         echo "Identity service returned valid config"
     else
@@ -78,12 +78,12 @@ function update_config() {
     fi
 
     shopt -s nocasematch
-    { set +x 2>/dev/null; USER_CUSTOMIZED=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.customize_enclave'); set -x; }
+    { set +x; } 2>/dev/null; { USER_CUSTOMIZED=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.customize_enclave'); set -x; }
 
     if [ "$USER_CUSTOMIZED" = "true" ]; then
         echo "Applying user customized CPU/Mem allocation..."
-        { set +x 2>/dev/null; CPU_COUNT=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count'); set -x; }
-        { set +x 2>/dev/null; MEMORY_MB=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb'); set -x; }
+        { set +x; } 2>/dev/null; { CPU_COUNT=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count'); set -x; }
+        { set +x; } 2>/dev/null; { MEMORY_MB=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb'); set -x; }
     fi
     shopt -u nocasematch
 }

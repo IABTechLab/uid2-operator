@@ -21,7 +21,7 @@ echo "Starting syslog-ng..."
 
 # -- load config from identity service
 echo "Loading config from identity service via proxy..."
-{ set +x 2>/dev/null; IDENTITY_SERVICE_CONFIG=$(curl -s -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig); set -x; }
+{ set +x; } 2>/dev/null; { IDENTITY_SERVICE_CONFIG=$(curl -s -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig); set -x; }
 if jq -e . >/dev/null 2>&1 <<<"${IDENTITY_SERVICE_CONFIG}"; then
     echo "Identity service returned valid config"
 else
@@ -30,7 +30,7 @@ else
 fi
 
 export OVERRIDES_CONFIG="/app/conf/config-overrides.json"
-{ set +x 2>/dev/null; echo "${IDENTITY_SERVICE_CONFIG}" > "${OVERRIDES_CONFIG}"; set -x; }
+{ set +x; } 2>/dev/null; { echo "${IDENTITY_SERVICE_CONFIG}" > "${OVERRIDES_CONFIG}"; set -x; }
 
 export DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${OVERRIDES_CONFIG}")
 export CORE_BASE_URL=$(jq -r ".core_base_url" < "${OVERRIDES_CONFIG}")

@@ -69,7 +69,7 @@ function wait_for_config() {
 }
 
 function update_config() {
-    {IDENTITY_SERVICE_CONFIG=$(curl -s http://127.0.0.1:27015/getConfig)} &> /dev/null 2>&1
+    {IDENTITY_SERVICE_CONFIG=$(curl -s http://127.0.0.1:27015/getConfig)} &> /dev/null
     if jq -e . >/dev/null 2>&1 <<<"${IDENTITY_SERVICE_CONFIG}"; then
         echo "Identity service returned valid config"
     else

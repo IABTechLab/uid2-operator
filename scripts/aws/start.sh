@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -x
 echo "$HOSTNAME" > /etc/uid2operator/HOSTNAME
 EIF_PATH=${EIF_PATH:-/opt/uid2operator/uid2operator.eif}
 IDENTITY_SCOPE=${IDENTITY_SCOPE:-$(cat /opt/uid2operator/identity_scope.txt)}

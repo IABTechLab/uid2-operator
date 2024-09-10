@@ -1,6 +1,5 @@
 #!/bin/bash
 
-set -x
 echo "$HOSTNAME" > /etc/uid2operator/HOSTNAME
 EIF_PATH=${EIF_PATH:-/opt/uid2operator/uid2operator.eif}
 IDENTITY_SCOPE=${IDENTITY_SCOPE:-$(cat /opt/uid2operator/identity_scope.txt)}
@@ -96,11 +95,9 @@ function setup_dante() {
 function run_config_server() {
     mkdir -p /etc/secret/secret-value
     SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString')
-    { set +x; } 2>/dev/null; { echo ${SECRET_JSON}; set -x; }
-    echo ${SECRET_JSON} > /etc/secret/secret-value/config
+    { set +x; } 2>/dev/null; { echo ${SECRET_JSON} > /etc/secret/secret-value/config; set -x; }
     echo $(jq ".core_base_url = \"$CORE_BASE_URL\"" /etc/secret/secret-value/config) > /etc/secret/secret-value/config
     echo $(jq ".optout_base_url = \"$OPTOUT_BASE_URL\"" /etc/secret/secret-value/config) > /etc/secret/secret-value/config
-    { set +x; } 2>/dev/null; { cat /etc/secret/secret-value/config; set -x; }
     echo "run_config_server"
     cd /opt/uid2operator/config-server
     ./bin/flask run --host 127.0.0.1 --port 27015 &

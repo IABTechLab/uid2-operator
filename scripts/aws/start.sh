@@ -98,7 +98,7 @@ function run_config_server() {
         set +x;  # Disable tracing within this block
         2>/dev/null;
         SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString')
-        echo "${SECRET_JSON}" > config; 
+        echo "${SECRET_JSON}" > /etc/secret/secret-value/config; 
     }
     echo $(jq ".core_base_url = \"$CORE_BASE_URL\"" /etc/secret/secret-value/config) > /etc/secret/secret-value/config
     echo $(jq ".optout_base_url = \"$OPTOUT_BASE_URL\"" /etc/secret/secret-value/config) > /etc/secret/secret-value/config

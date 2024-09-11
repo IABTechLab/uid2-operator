@@ -19,6 +19,7 @@ overrides_path = sys.argv[3]
 thread_count = int(sys.argv[4])
 
 config = load_json(config_path)
+print(config)
 overrides = load_json(overrides_path)
 
 # set API key

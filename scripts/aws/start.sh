@@ -94,12 +94,14 @@ function setup_dante() {
 
 function run_config_server() {
     mkdir -p /etc/secret/secret-value
-    SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString')
-    echo ${SECRET_JSON}
-    echo ${SECRET_JSON} > /etc/secret/secret-value/config
+    { 
+        set +x;  # Disable tracing within this block
+        2>/dev/null;
+        SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString')
+        echo "${SECRET_JSON}" > /etc/secret/secret-value/config; 
+    }
     echo $(jq ".core_base_url = \"$CORE_BASE_URL\"" /etc/secret/secret-value/config) > /etc/secret/secret-value/config
     echo $(jq ".optout_base_url = \"$OPTOUT_BASE_URL\"" /etc/secret/secret-value/config) > /etc/secret/secret-value/config
-    cat /etc/secret/secret-value/config
     echo "run_config_server"
     cd /opt/uid2operator/config-server
     ./bin/flask run --host 127.0.0.1 --port 27015 &

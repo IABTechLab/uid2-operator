@@ -19,7 +19,6 @@ overrides_path = sys.argv[3]
 thread_count = int(sys.argv[4])
 
 config = load_json(config_path)
-print(config)
 overrides = load_json(overrides_path)
 
 # set API key
@@ -49,5 +48,6 @@ if overrides.get('environment') == 'integ':
   apply_override(config, integ_config, 'core_attest_url', str)
   apply_override(config, integ_config, 'optout_api_uri', str)
   apply_override(config, integ_config, 'optout_s3_folder', str)
+  apply_override(config, integ_config, 'allow_legacy_api', str)
 
 print(json.dumps(config))

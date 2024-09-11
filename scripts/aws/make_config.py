@@ -48,6 +48,6 @@ if overrides.get('environment') == 'integ':
   apply_override(config, integ_config, 'core_attest_url', str)
   apply_override(config, integ_config, 'optout_api_uri', str)
   apply_override(config, integ_config, 'optout_s3_folder', str)
-  apply_override(config, integ_config, 'allow_legacy_api', str)
+  apply_override(config, integ_config, 'allow_legacy_api', bool)
 
 print(json.dumps(config))

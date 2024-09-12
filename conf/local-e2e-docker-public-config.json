@@ -33,5 +33,7 @@
   "optout_delta_rotate_interval": 60,
   "optout_status_api_enabled": true,
   "cloud_refresh_interval": 30,
-  "salts_expired_shutdown_hours": 12
+  "salts_expired_shutdown_hours": 12,
+  "operator_type": "public"
+
 }

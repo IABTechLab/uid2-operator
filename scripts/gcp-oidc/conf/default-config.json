@@ -39,5 +39,6 @@
   "sharing_token_expiry_seconds": 2592000,
   "validate_service_links": false,
   "advertising_token_v4_percentage": 100,
-  "site_ids_using_v4_tokens": ""
+  "site_ids_using_v4_tokens": "",
+  "operator_type": "private"
 }

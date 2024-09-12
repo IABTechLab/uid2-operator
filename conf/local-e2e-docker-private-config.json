@@ -27,5 +27,6 @@
   "optout_api_uri": "http://optout:8081/optout/replicate",
   "optout_delta_rotate_interval": 60,
   "cloud_refresh_interval": 30,
-  "salts_expired_shutdown_hours": 12
+  "salts_expired_shutdown_hours": 12,
+  "operator_type": "private"
 }

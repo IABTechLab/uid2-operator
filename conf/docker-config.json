@@ -37,5 +37,7 @@
   "optout_inmem_cache": false,
   "enclave_platform": null,
   "failure_shutdown_wait_hours": 120,
-  "salts_expired_shutdown_hours": 12
+  "salts_expired_shutdown_hours": 12,
+  "operator_type": "public"
+
 }

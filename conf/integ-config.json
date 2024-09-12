@@ -13,5 +13,7 @@
   "core_api_token": "trusted-partner-key",
   "optout_api_token": "test-operator-key",
   "optout_api_uri": "http://localhost:8081/optout/replicate",
-  "salts_expired_shutdown_hours": 12
+  "salts_expired_shutdown_hours": 12,
+  "operator_type": "public"
+
 }

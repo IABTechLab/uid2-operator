@@ -14,5 +14,6 @@
   "enclave_platform": "gcp-vmid",
   "service_instances": 16,
   "allow_legacy_api": false,
-  "sharing_token_expiry_seconds": 2592000
+  "sharing_token_expiry_seconds": 2592000,
+  "operator_type": "private"
 }

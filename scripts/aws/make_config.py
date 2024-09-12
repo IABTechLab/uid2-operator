@@ -28,11 +28,6 @@ config['optout_api_token'] = overrides['api_token']
 # number of threads
 config['service_instances'] = thread_count
 
-# allowed overrides
-apply_override(config, overrides, 'loki_enabled', bool)
-apply_override(config, overrides, 'optout_synthetic_logs_enabled', bool)
-apply_override(config, overrides, 'optout_synthetic_logs_count', int)
-
 # environment
 if overrides.get('environment') == 'integ':
   integ_config = load_json(integ_config_path)
@@ -48,5 +43,15 @@ if overrides.get('environment') == 'integ':
   apply_override(config, integ_config, 'core_attest_url', str)
   apply_override(config, integ_config, 'optout_api_uri', str)
   apply_override(config, integ_config, 'optout_s3_folder', str)
+
+
+apply_override(config, overrides, 'operator_type', str)
+if config['operator_type'] == 'public':
+  config.update(overrides)
+else:
+  # allowed overrides
+  apply_override(config, overrides, 'loki_enabled', bool)
+  apply_override(config, overrides, 'optout_synthetic_logs_enabled', bool)
+  apply_override(config, overrides, 'optout_synthetic_logs_count', int)
 
 print(json.dumps(config))

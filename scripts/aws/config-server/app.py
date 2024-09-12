@@ -17,12 +17,13 @@ def get_config():
                 secret_value_json["optout_base_url"] = secret_value_json["optout_base_url"].lower()
             if "operator_type" in secret_value_json and secret_value_json['operator_type'] == "public":
                 mount_path = '/etc/config/config-values'
-                config_keys = [f for f in os.listdir(mount_path) if os.path.isfile(os.path.join(mount_path, f))]
-                config = {}
-                for k in config_keys:
-                    with open(os.path.join(mount_path, k), 'r') as value:
-                        config[k] = value.read()
-                secret_value_json.update(config)
+                if os.path.exists(mount_path):
+                    config_keys = [f for f in os.listdir(mount_path) if os.path.isfile(os.path.join(mount_path, f))]
+                    config = {}
+                    for k in config_keys:
+                        with open(os.path.join(mount_path, k), 'r') as value:
+                            config[k] = value.read()
+                    secret_value_json.update(config)
         return json.dumps(secret_value_json)
     except Exception as e:
         return str(e), 500

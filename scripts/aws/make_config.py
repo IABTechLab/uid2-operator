@@ -46,7 +46,7 @@ if overrides.get('environment') == 'integ':
 
 
 apply_override(config, overrides, 'operator_type', str)
-if config['operator_type'] == 'public':
+if 'operator_type' in config and config['operator_type'] == 'public':
   config.update(overrides)
 else:
   # allowed overrides

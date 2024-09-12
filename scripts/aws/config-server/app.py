@@ -22,7 +22,6 @@ def get_config():
                 for k in config_keys:
                     with open(os.join(mount_path, k), 'r') as value:
                         config[k] = value.read()
-                print(config)
                 secret_value_json.update(config)
         return json.dumps(secret_value_json)
     except Exception as e:

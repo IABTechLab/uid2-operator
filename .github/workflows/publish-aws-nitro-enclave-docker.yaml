@@ -96,6 +96,7 @@ jobs:
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux2023.Dockerfile
           makefile: Makefile.eif
+          version_number_input: ${{ inputs.version_number_input }}
 
       - name: Check disk usage
         shell: bash

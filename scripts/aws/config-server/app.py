@@ -15,7 +15,7 @@ def get_config():
                 secret_value_json["core_base_url"] = secret_value_json["core_base_url"].lower()
             if "optout_base_url" in secret_value_json:
                 secret_value_json["optout_base_url"] = secret_value_json["optout_base_url"].lower()
-            if "operator_type" in secret_value_json and secret_value_json['operator_type'] == "public":
+            if "operator_type" in secret_value_json and secret_value_json["operator_type"].lower() == "public":
                 mount_path = '/etc/config/config-values'
                 if os.path.exists(mount_path):
                     config_keys = [f for f in os.listdir(mount_path) if os.path.isfile(os.path.join(mount_path, f))]

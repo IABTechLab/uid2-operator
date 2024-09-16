@@ -77,6 +77,14 @@ runs:
 
     - name: Get version number from pom.xml
       shell: bash
+      if: ${{ inputs.version_number_input == '' }}
+      run: |
+        grep -o '<version>.*</version>' ./pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/' > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
+        cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
+
+    - name: Get version number from inputs
+      shell: bash
+      if: ${{ inputs.version_number_input != '' }}
       run: |
         echo ${{ inputs.version_number_input }} > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
         cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt

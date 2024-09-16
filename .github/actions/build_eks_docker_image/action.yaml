@@ -15,7 +15,7 @@ inputs:
     description: The Tag to give the docker image
     required: true
   new_version:
-    description: The new version number after potentially updating the POM. NOTE: This will only be set when version_number_input == ''.
+    description: The new version number after potentially updating the POM. NOTE This will only be set when version_number_input == ''.
     required: true
   github_token:
     description: The GitHub token used to login to Docker

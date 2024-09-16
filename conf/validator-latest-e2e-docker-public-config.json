@@ -32,5 +32,7 @@
   "optout_metadata_path": "http://optout:8081/optout/refresh",
   "optout_api_uri": "http://optout:8081/optout/replicate",
   "optout_delta_rotate_interval": 60,
-  "cloud_refresh_interval": 30
+  "cloud_refresh_interval": 30,
+  "operator_type": "public"
+
 }

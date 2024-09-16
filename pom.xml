@@ -18,11 +18,11 @@
         <vertx.verticle>com.uid2.operator.vertx.UIDOperatorVerticle</vertx.verticle>
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
         <micrometer.version>1.12.2</micrometer.version>
-        <enclave-api.version>2.0.0-f968aec0e3</enclave-api.version>
-        <enclave-aws.version>2.0.0-f7c174410e</enclave-aws.version>
-        <enclave-azure.version>2.0.4-ef52553c57</enclave-azure.version>
-        <enclave-gcp.version>2.0.0-21f950573a</enclave-gcp.version>
-        <uid2-shared.version>7.9.0</uid2-shared.version>
+        <enclave-api.version>2.1.6</enclave-api.version>
+        <enclave-aws.version>2.1.0</enclave-aws.version>
+        <enclave-azure.version>2.1.0</enclave-azure.version>
+        <enclave-gcp.version>2.1.0</enclave-gcp.version>
+        <uid2-shared.version>7.19.0</uid2-shared.version>
         <image.version>${project.version}</image.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>

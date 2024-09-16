@@ -23,16 +23,11 @@ def get_config():
                     for k in config_keys:
                         with open(os.path.join(mount_path, k), 'r') as value:
                             config[k] = value.read()
-                            if config[k] in ['true', 'false']:
-                                config[k] = bool(config[k])
-                            elif config[k].isdigit():
-                                config[k] = int(config[k])
-                            else:
-                                try:
-                                    float(config[k])
-                                    config[k] = float(config[k])
-                                except Exception:
-                                    pass
+                            try:
+                                json.loads(config[k])
+                                config[k] = json.loads(config[k])
+                            except Exception:
+                                pass
                     secret_value_json.update(config)
         return json.dumps(secret_value_json)
     except Exception as e:

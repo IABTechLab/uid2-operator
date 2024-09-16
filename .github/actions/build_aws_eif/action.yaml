@@ -17,6 +17,9 @@ inputs:
   version_number_input:
     description: If set, the version number will not be incremented and the given number will be used.
     default: ''
+  new_version:
+    description: The new version that will be used to build the EIF. NOTE: This will only be set when version_number_input == ''.
+    default: ''
 
 outputs:
   enclave_id:
@@ -77,16 +80,16 @@ runs:
 
     - name: Get version number from pom.xml
       shell: bash
-      if: ${{ inputs.version_number_input == '' }}
+      if: ${{ inputs.version_number_input != '' }}
       run: |
         grep -o '<version>.*</version>' ./pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/' > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
         cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
 
     - name: Get version number from inputs
       shell: bash
-      if: ${{ inputs.version_number_input != '' }}
+      if: ${{ inputs.version_number_input == '' }} && ${{ inputs.new_version != '' }}
       run: |
-        echo ${{ inputs.version_number_input }} > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
+        echo ${{ inputs.new_version }} > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
         cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
 
     - name: Build EIF

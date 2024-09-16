@@ -2064,7 +2064,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         if (Duration.between(lastInvalidOriginProcessTime, Instant.now()).compareTo(Duration.ofMinutes(60)) >= 0) {
             lastInvalidOriginProcessTime = Instant.now();
-            LOGGER.error(generateInvalidOriginAndAppNameMessage(siteIdToInvalidOriginsAndAppNames));
+            LOGGER.info(generateInvalidOriginAndAppNameMessage(siteIdToInvalidOriginsAndAppNames));
             siteIdToInvalidOriginsAndAppNames.clear();
         }
     }

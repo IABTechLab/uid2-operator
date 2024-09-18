@@ -22,15 +22,16 @@ public class ClientVersionStatRecorder {
         if (versionCounts == null) return;
 
         // Remove 3 items to avoid a couple of new version values from continuously evicting each other
-        versionCounts.entrySet().stream()
+        var lowestEntries = versionCounts.entrySet().stream()
                 .sorted(Map.Entry.comparingByValue())
                 .filter(entry -> !entry.getKey().equals(NOT_RECORDED))
                 .limit(3)
-                .forEach(entry -> {
-                    var notRecordedCount = versionCounts.getOrDefault(NOT_RECORDED, 0);
-                    versionCounts.put(NOT_RECORDED, notRecordedCount + entry.getValue());
-                    versionCounts.remove(entry.getKey());
-                });
+                .toList();
+        for (var entry : lowestEntries) {
+            var notRecordedCount = versionCounts.getOrDefault(NOT_RECORDED, 0);
+            versionCounts.put(NOT_RECORDED, notRecordedCount + entry.getValue());
+            versionCounts.remove(entry.getKey());
+        }
     }
 
     public void add(Integer siteId, String clientVersion) {

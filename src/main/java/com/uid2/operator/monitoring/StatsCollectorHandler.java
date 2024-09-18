@@ -34,8 +34,9 @@ public class StatsCollectorHandler implements Handler<RoutingContext> {
         final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(routingContext);
         final String apiContact = clientKey == null ? null : clientKey.getContact();
         final Integer siteId = clientKey == null ? null : clientKey.getSiteId();
+        final String clientVersion = getClientVersion(routingContext);
 
-        final StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(path, referer, apiContact, siteId, getClientVersion(routingContext));
+        final StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(path, referer, apiContact, siteId, clientVersion);
 
         _statCollectorQueue.enqueue(vertx, messageItem);
     }

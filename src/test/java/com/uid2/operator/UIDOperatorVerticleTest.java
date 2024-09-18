@@ -55,6 +55,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.LoggerFactory;
+import static org.assertj.core.api.Assertions.*;
 
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
@@ -3304,7 +3305,7 @@ public class UIDOperatorVerticleTest {
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
-                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOriginAndAppName: site test (123): http://gototest.com"));
+                    assertThat(logWatcher.list.stream().map(ILoggingEvent::getFormattedMessage).collect(Collectors.toList())).contains("InvalidHttpOrfdiginAndAppName: site test (123): http://gototest.com");
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,

@@ -183,6 +183,7 @@ public class StatsCollectorVerticleTest {
             }
         }
         sendStatMessage(new StatsCollectorMessageItem("/test", "https://test.com", "test", 2, CLIENT_VERSION + "single"));
+        sendStatMessage(new StatsCollectorMessageItem("/test", "https://test.com", "test", 2, null));
 
         waitForLogInterval(testContext);
         triggerSerializeAndWait(testContext);

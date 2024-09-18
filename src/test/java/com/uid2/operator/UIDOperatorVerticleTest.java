@@ -3305,7 +3305,7 @@ public class UIDOperatorVerticleTest {
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
-                    assertThat(logWatcher.list.stream().map(ILoggingEvent::getFormattedMessage).collect(Collectors.toList())).contains("InvalidHttpOrfdiginAndAppName: site test (123): http://gototest.com");
+                    assertThat(logWatcher.list.stream().map(ILoggingEvent::getFormattedMessage).collect(Collectors.toList())).contains("InvalidHttpOriginAndAppName: site test (123): http://gototest.com");
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,

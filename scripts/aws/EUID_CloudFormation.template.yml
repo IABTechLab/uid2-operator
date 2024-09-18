@@ -95,9 +95,9 @@ Metadata:
       TrustNetworkCidr:
         default: Trusted Network CIDR (required)
       VpcId:
-        default: If using an existing VPC, enter existing VPC ID (required in case of existing VPC)
+        default: Existing VPC ID (required)
       VpcSubnet:
-        default: If using an existing VPC, enter existing Subnet ID (required in case of existing VPC)
+        default: Existing Subnet ID (required)
       CustomizeEnclaceResource:
         default: Enclave resource configuration auto calculated or manual
       EnclavememoryinMB:

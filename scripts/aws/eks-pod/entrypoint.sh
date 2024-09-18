@@ -115,4 +115,5 @@ ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
 while [ "$ENCLAVE_ID" != "null" ];
 do
   ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
+  sleep 10s
 done;

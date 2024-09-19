@@ -37,6 +37,7 @@ env:
   REGISTRY: ghcr.io
   ENCLAVE_PROTOCOL: aws-nitro
   ARTIFACTS_BASE_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
+  IMAGE_NAME: ${{ github.repository }}
   REPO_OWNER: IABTechLab
   REPO_NAME: uid2-operator
 

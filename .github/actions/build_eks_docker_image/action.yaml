@@ -85,7 +85,7 @@ runs:
       working-directory: ${{ inputs.artifacts_output_dir }}
       run: |
         ls -al
-        VERSION_NUMBER=$(cat ./artifacts/version_number.txt)
+        VERSION_NUMBER=$(cat ./version_number.txt)
         echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
         echo $VERSION_NUMBER
 

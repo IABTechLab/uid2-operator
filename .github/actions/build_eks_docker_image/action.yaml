@@ -56,6 +56,12 @@ runs:
         run_id: ${{ inputs.operator_run_number }}
         skip_unpack: true
 
+    - name: Show folder
+      shell: bash
+      working-directory: ${{ inputs.artifacts_output_dir }}
+      run: |
+        ls -al
+
     - name: Unzip artifacts
       if: ${{ inputs.operator_release == '' }}
       shell: bash

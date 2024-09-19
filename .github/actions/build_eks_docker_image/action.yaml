@@ -88,7 +88,7 @@ runs:
         VERSION_NUMBER=$(cat ./version_number.txt)
         echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
         echo $VERSION_NUMBER
-        ENCLAVE_ID=$(cat ./prc0.txt)
+        ENCLAVE_ID=$(cat ./pcr0.txt)
         echo "ENCLAVE_ID=$ENCLAVE_ID" >> $GITHUB_OUTPUT
         echo $ENCLAVE_ID
 

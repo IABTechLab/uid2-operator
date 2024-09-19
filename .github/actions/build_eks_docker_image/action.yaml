@@ -19,9 +19,6 @@ inputs:
   artifacts_output_dir:
     description: The output directory for the artifacts
     required: true
-  image_tag:
-    description: The Tag to give the docker image
-    required: true
   github_token:
     description: The GitHub token used to login to Docker
     required: true
@@ -30,6 +27,9 @@ outputs:
   enclave_id:
     description: The enclave id for this EIF.
     value: ${{ steps.versionNumber.outputs.ENCLAVE_ID }}
+  image_tag:
+    description: The Image tag of the docker image
+    value: ${{ steps.versionNumber.outputs.VERSION_NUMBER }}
     
 runs:
   using: "composite"
@@ -121,7 +121,7 @@ runs:
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-eks-${{ inputs.identity_scope }}
         tags: |
-          type=raw,value=${{ inputs.image_tag }}
+          type=raw,value=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
 
     - name: Build and export to Docker
       uses: docker/build-push-action@v5

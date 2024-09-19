@@ -29,7 +29,7 @@ inputs:
 outputs:
   enclave_id:
     description: The enclave id for this EIF.
-    value: ${{ steps.build_aws_eif.outputs.enclave_id }}
+    value: ${{ steps.versionNumber.outputs.ENCLAVE_ID }}
     
 runs:
   using: "composite"
@@ -79,7 +79,7 @@ runs:
         unzip -o -d ${{ inputs.artifacts_output_dir }} $FILE.zip
         rm $FILE.zip
 
-    - name: Get version number
+    - name: Get version number and Enclave Id
       id: versionNumber
       shell: bash
       working-directory: ${{ inputs.artifacts_output_dir }}
@@ -88,6 +88,9 @@ runs:
         VERSION_NUMBER=$(cat ./version_number.txt)
         echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
         echo $VERSION_NUMBER
+        ENCLAVE_ID=$(cat ./prc0.txt)
+        echo "ENCLAVE_ID=$ENCLAVE_ID" >> $GITHUB_OUTPUT
+        echo $ENCLAVE_ID
 
     - name: Copy docker files for the Operator Pod
       shell: bash

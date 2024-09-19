@@ -1,21 +1,26 @@
 name: Build AWS EKS Docker Image
-description: Builds the docker images to use as a EKS Pod. Includes building the EIF
+description: Builds the docker images to use as a EKS Pod.
 
 inputs:
-  version_number_input:
-    description: If set, the version number will not be incremented and the given number will be used.
-    default: ''
   identity_scope:
     description: The identity scope [uid2, euid]
     required: true
+  eif_repo_owner:
+    description: The owner of the EIF repo
+    required: true
+  eif_repo_name:
+    description: The name of the EIF repo
+    required: true
+  operator_release:
+    description: The operator release that has the EIF to use
+    default: ''
+  operator_run_number:
+    description: The Operator run number for artifacts. Ignored if Operator Release is given
   artifacts_output_dir:
     description: The output directory for the artifacts
     required: true
   image_tag:
     description: The Tag to give the docker image
-    required: true
-  new_version:
-    description: The new version number after potentially updating the POM
     required: true
   github_token:
     description: The GitHub token used to login to Docker
@@ -30,15 +35,45 @@ runs:
   using: "composite"
 
   steps:
-    - name: Build AWS EIF for EKS
-      id: build_aws_eif
-      uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+    - name: Get EIF for Release ${{ inputs.operator_release }}
+      uses: IABTechLab/uid2-operator/.github/actions/download_release_artifact@main
+      if: ${{ inputs.operator_release != '' }}
       with:
-        identity_scope: ${{ inputs.identity_scope }}
-        artifacts_base_output_dir: ${{ inputs.artifacts_output_dir }}
-        amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux2023.Dockerfile
-        makefile: Makefile.eif
-        version_number_input: ${{ inputs.version_number_input }}
+        github_token: ${{ inputs.github_token }}
+        repo_owner: ${{ inputs.eif_repo_owner }}
+        repo_name: ${{ inputs.eif_repo_name }}
+        release_name: ${{ inputs.operator_release }}
+        artifact_name: aws-${{ inputs.identity_scope }}-deployment-files
+        folder: ./scripts/aws/uid2-operator-ami/artifacts
+
+    - name: Get EIF for Run ${{ inputs.operator_run_number }}
+      id: get_eif_for_run
+      uses: dawidd6/action-download-artifact@v6
+      if: ${{ inputs.operator_release == '' }}
+      with:
+        name: 'aws-${{ inputs.identity_scope }}-deployment-files-.*'
+        name_is_regexp: true
+        run_id: ${{ inputs.operator_run_number }}
+        skip_unpack: true
+
+    - name: Unzip artifacts
+      if: ${{ inputs.operator_release == '' }}
+      shell: bash
+      run: |
+        ARTIFACTS='${{ steps.get_eif_for_run.outputs.artifacts }}'
+        FILE=$(echo $ARTIFACTS | jq -r '.[0].name')
+        unzip -o -d ./scripts/aws/uid2-operator-ami/artifacts $FILE.zip
+        rm $FILE.zip
+
+    - name: Get version number
+      id: versionNumber
+      shell: bash
+      working-directory: ./scripts/aws/uid2-operator-ami
+      run: |
+        ls -al
+        VERSION_NUMBER=$(cat ./artifacts/version_number.txt)
+        echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+        echo $VERSION_NUMBER
 
     - name: Copy docker files for the Operator Pod
       shell: bash
@@ -79,8 +114,8 @@ runs:
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         build-args: |
-          JAR_VERSION=${{ inputs.new_version }}
-          IMAGE_VERSION=${{ inputs.new_version }}
+          JAR_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+          IMAGE_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
           BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
 
     - name: Push to Docker
@@ -92,8 +127,8 @@ runs:
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         build-args: |
-          JAR_VERSION=${{ inputs.new_version }}
-          IMAGE_VERSION=${{ inputs.new_version }}
+          JAR_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+          IMAGE_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
 
     - name: Check disk usage
       shell: bash

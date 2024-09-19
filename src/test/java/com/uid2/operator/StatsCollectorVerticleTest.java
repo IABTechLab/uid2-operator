@@ -193,9 +193,9 @@ public class StatsCollectorVerticleTest {
         triggerSerializeAndWait(testContext);
 
         var expectedLogs = List.of(
-                "{\"siteId\":1,\"versionCounts\":{\"uid2-sdk-3.0.01\":1,\"uid2-sdk-3.0.02\":1,\"uid2-sdk-3.0.00\":1}}",
-                "{\"siteId\":1,\"versionCounts\":{\"uid2-sdk-3.0.01\":2,\"uid2-sdk-3.0.02\":1,\"uid2-sdk-3.0.00\":1}}",
-                "{\"siteId\":2,\"versionCounts\":{\"<Not recorded>\":21,\"uid2-sdk-3.0.06\":7,\"uid2-sdk-3.0.07\":8,\"uid2-sdk-3.0.011\":12,\"uid2-sdk-3.0.08\":9,\"uid2-sdk-3.0.010\":11,\"uid2-sdk-3.0.09\":10,\"uid2-sdk-3.0.0single\":1}}"
+                "version log; siteId=1 versions={\"uid2-sdk-3.0.01\":1,\"uid2-sdk-3.0.02\":1,\"uid2-sdk-3.0.00\":1}",
+                "version log; siteId=1 versions={\"uid2-sdk-3.0.01\":2,\"uid2-sdk-3.0.02\":1,\"uid2-sdk-3.0.00\":1}",
+                "version log; siteId=2 versions={\"<Not recorded>\":21,\"uid2-sdk-3.0.06\":7,\"uid2-sdk-3.0.07\":8,\"uid2-sdk-3.0.011\":12,\"uid2-sdk-3.0.08\":9,\"uid2-sdk-3.0.010\":11,\"uid2-sdk-3.0.09\":10,\"uid2-sdk-3.0.0single\":1}"
         );
         var messages = getMessages();
         assertThat(messages).containsAll(expectedLogs);

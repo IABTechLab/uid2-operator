@@ -25,7 +25,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     private static final Logger LOGGER = LoggerFactory.getLogger(StatsCollectorVerticle.class);
     private HashMap<String, EndpointStat> pathMap;
 
-    private ClientVersionStatRecorder clientVersionStat;
+    private final ClientVersionStatRecorder clientVersionStat;
 
     private static final int MAX_AVAILABLE = 1000;
     private final int maxInvalidPaths;
@@ -153,12 +153,12 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         }
     }
 
-    private Void serializeToLogs(List<Object> stats) {
+    private Void serializeToLogs(List<ILoggedStat> stats) {
         LOGGER.debug("Starting JSON Serialize");
         ObjectMapper statMapper = new ObjectMapper();
-        for (Object stat : stats) {
+        for (var stat : stats) {
             try {
-                String jsonString = statMapper.writeValueAsString(stat);
+                String jsonString = "%s%s".formatted(stat.GetLogPrefix(), statMapper.writeValueAsString(stat.GetValueToLog()));
                 LOGGER.info(jsonString);
             } catch (JsonProcessingException e) {
                 LOGGER.error(e.getMessage(), e);
@@ -172,9 +172,9 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         return a;
     }
 
-    private List<Object> buildStatsList() {
-        Stream<?> pathMapStream = pathMap.values().stream();
-        Stream<?> clientVersionStream = clientVersionStat.getStatsView();
+    private List<ILoggedStat> buildStatsList() {
+        Stream<EndpointStat> pathMapStream = pathMap.values().stream();
+        Stream<ILoggedStat> clientVersionStream = clientVersionStat.getStatsView();
         var stats = Stream.concat(pathMapStream, clientVersionStream);
         return stats.toList();
     }
@@ -222,7 +222,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         }
     }
 
-    class EndpointStat {
+    class EndpointStat implements ILoggedStat {
         private final String endpoint;
         private final Integer siteId;
         private final String apiVersion;
@@ -272,6 +272,16 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
             } else {
                 domainMissedCounter.increment();
             }
+        }
+
+        @Override
+        public String GetLogPrefix() {
+            return "";
+        }
+
+        @Override
+        public Object GetValueToLog() {
+            return this;
         }
     }
 }

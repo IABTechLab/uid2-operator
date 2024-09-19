@@ -13,13 +13,15 @@ public class ClientVersionStatRecorder {
         this.siteClientBucketLimit = maxVersionBucketsPerSite;
     }
 
-    public Stream<SiteClientVersionStat> getStatsView() {
+    public Stream<ILoggedStat> getStatsView() {
         return siteIdToVersionCounts.entrySet().stream().map(entry -> new SiteClientVersionStat(entry.getKey(), entry.getValue()));
     }
 
     private void removeLowVersionCounts(int siteId) {
         var versionCounts = siteIdToVersionCounts.get(siteId);
-        if (versionCounts == null) return;
+        if (versionCounts == null) {
+            return;
+        }
 
         // Remove 3 items to avoid a couple of new version values from continuously evicting each other
         var lowestEntries = versionCounts.entrySet().stream()
@@ -35,7 +37,7 @@ public class ClientVersionStatRecorder {
     }
 
     public void add(Integer siteId, String clientVersion) {
-        if (siteId == null || clientVersion == null) {
+        if (siteId == null || clientVersion == null || clientVersion.isBlank()) {
             return;
         }
 

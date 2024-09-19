@@ -8,7 +8,8 @@ public class StatsCollectorMessageItem {
     private String clientVersion;
 
     //USED by json serial
-    public StatsCollectorMessageItem(){}
+    public StatsCollectorMessageItem() {
+    }
 
     public StatsCollectorMessageItem(String path, String referer, String apiContact, Integer siteId, String clientVersion) {
         this.path = path;
@@ -51,6 +52,11 @@ public class StatsCollectorMessageItem {
         this.siteId = siteId;
     }
 
-    public String getClientVersion() { return clientVersion; }
-    public void setClientVersion(String clientVersion) { this.clientVersion = clientVersion; }
+    public String getClientVersion() {
+        return clientVersion;
+    }
+
+    public void setClientVersion(String clientVersion) {
+        this.clientVersion = clientVersion;
+    }
 }

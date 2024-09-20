@@ -1,5 +1,7 @@
 name: Build UID2 and EUID AMIs
-run-name: Build UID2 and EUID AMIs for Operator Release ${{ inputs.operator_release }} by @${{ github.actor }}
+run-name: >-
+  ${{ inputs.operator_release == '' && format('Build UID2 and EUID AMIs for Operator Run Number: {0} by {1}', inputs.operator_run_number, github.actor) || format('Build UID2 and EUID AMIs for Operator Release: {0} by {1}', inputs.operator_release, github.actor) }}
+
 on:
   workflow_dispatch:
     inputs:

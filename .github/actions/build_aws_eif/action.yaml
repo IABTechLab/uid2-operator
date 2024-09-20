@@ -17,8 +17,8 @@ inputs:
   version_number_input:
     description: If set, the version number will not be incremented and the given number will be used.
     default: ''
-  new_version:
-    description: The new version that will be used to build the EIF. NOTE This will only be set when version_number_input == ''.
+  commit_sha:
+    description: The commit SHA for committing the new version for pom.xml.
     default: ''
 
 outputs:
@@ -30,18 +30,10 @@ runs:
   using: "composite"
 
   steps:
-    - name: Checkout full history on Main
+    - name: Checkout full history at commit sha ${{ inputs.commit_sha }}
       uses: actions/checkout@v4
-      if: ${{ inputs.version_number_input == '' }}
       with:
-        # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
-        fetch-depth: 0
-
-    - name: Checkout full history at tag v${{ inputs.version_number_input }}
-      uses: actions/checkout@v4
-      if: ${{ inputs.version_number_input != '' }}
-      with:
-        ref: v${{ inputs.version_number_input }}
+        ref: ${{ inputs.commit_sha }}
         # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
         fetch-depth: 0
 
@@ -78,18 +70,10 @@ runs:
         echo "${{ inputs.identity_scope }}" | tr '[:lower:]' '[:upper:]' > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt
         cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt
 
-    - name: Get version number from pom.xml
+    - name: Get version number
       shell: bash
-      if: ${{ inputs.version_number_input != '' }}
       run: |
-        grep -o '<version>.*</version>' ./pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/' > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
-        cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
-
-    - name: Get version number from inputs
-      shell: bash
-      if: ${{ inputs.version_number_input == '' }} && ${{ inputs.new_version != '' }}
-      run: |
-        echo ${{ inputs.new_version }} > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
+        echo ${{ inputs.version_number_input }} > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
         cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
     
     - name: Build EIF

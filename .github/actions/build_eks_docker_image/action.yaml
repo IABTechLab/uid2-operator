@@ -30,6 +30,9 @@ outputs:
   image_tag:
     description: The Image tag of the docker image
     value: ${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+  eif_version_number:
+    description: The version number of the EIF used to build the image
+    value: ${{ steps.versionNumber.outputs.VERSION_NUMBER }}
     
 runs:
   using: "composite"
@@ -87,10 +90,10 @@ runs:
         ls -al
         VERSION_NUMBER=$(cat ./version_number.txt)
         echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
-        echo $VERSION_NUMBER
+        echo "Version Number: " $VERSION_NUMBER
         ENCLAVE_ID=$(cat ./pcr0.txt)
         echo "ENCLAVE_ID=$ENCLAVE_ID" >> $GITHUB_OUTPUT
-        echo $ENCLAVE_ID
+        echo "Enclave ID:" $ENCLAVE_ID
 
     - name: Copy docker files for the Operator Pod
       shell: bash

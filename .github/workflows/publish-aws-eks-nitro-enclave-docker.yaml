@@ -1,21 +1,13 @@
 name: Publish EKS Operator Docker Images
-run-name: ${{ format('Publish {0} EKS Operator Docker Images', inputs.release_type) }}
+run-name: >-
+  if [[ ${{ inputs.operator_release }} == ""]]; then
+  "Publish EKS Operator Docker Images for Operator Run Number: ${{ inputs.operator_run_number }}"
+  else
+  "Publish EKS Operator Docker Images for Operator Release: ${{ inputs.operator_release }}"
+  fi
 on:
   workflow_dispatch:
     inputs:
-      release_type:
-        type: choice
-        description: The type of release
-        default: Snapshot
-        options:
-        - Snapshot
-        - Patch
-        - Minor
-        - Major
-      version_number_input:
-        description: "Version Number: if set, the version number will not be incremented and the given number will be used."
-        type: string
-        default: ''
       operator_release:
         description: The Operator Release number that built the EIF files to use
         type: string
@@ -24,14 +16,12 @@ on:
         type: string
   workflow_call:
     inputs:
-      release_type:
-        description: The type of version number to return. Must be one of [Snapshot, Patch, Minor or Major]
-        required: true
+      operator_release:
+        description: The Operator Release number that built the EIF files to use
         type: string
-      version_number_input:
-        description: "Version Number: if set, the version number will not be incremented and the given number will be used."
+      operator_run_number:
+        description: The Operator run number. Ignored if Release Number specified.
         type: string
-        default: ''
 
 env:
   REGISTRY: ghcr.io
@@ -42,23 +32,6 @@ env:
   REPO_NAME: uid2-operator
 
 jobs:
-  start:
-    name: Update Operator Version
-    runs-on: ubuntu-latest
-    steps:
-      - name: Update Operator Version
-        id: update_version
-        uses: IABTechLab/uid2-operator/.github/actions/update_operator_version@main
-        with:
-          release_type: ${{ inputs.release_type }}
-          version_number_input: ${{ inputs.version_number_input }}
-          image_tag_suffix: eks-nitro
-
-    outputs:
-      new_version: ${{ steps.update_version.outputs.new_version }}
-      is_release: ${{ steps.update_version.outputs.is_release }}
-      image_tag: ${{ steps.update_version.outputs.image_tag }}
-
   buildUID2Image:
     name: Build UID2 Pod for EKS
     runs-on: ubuntu-latest
@@ -66,7 +39,6 @@ jobs:
       contents: write
       security-events: write
       packages: write
-    needs: start
     steps:
       - name: Build Docker Image for EKS Pod
         id: build_docker_image_uid
@@ -82,6 +54,7 @@ jobs:
 
     outputs:
       enclave_id: ${{ steps.build_docker_image_uid.outputs.enclave_id }}
+      eif_version: ${{ steps.build_docker_image_uid.outputs.eif_version_number }}
 
   buildEUIDImage:
     name: Build EUID Pod for EKS
@@ -90,7 +63,6 @@ jobs:
       contents: write
       security-events: write
       packages: write
-    needs: start
     steps:
       - name: Build Docker Image for EKS Pod
         id: build_docker_image_euid
@@ -110,7 +82,7 @@ jobs:
   cleanup:
     name: Cleanup Building AWS Image
     runs-on: ubuntu-latest
-    needs: [start, buildUID2Image, buildEUIDImage]
+    needs: [buildUID2Image, buildEUIDImage]
     steps:
       - name: Check disk usage
         shell: bash
@@ -120,36 +92,12 @@ jobs:
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
-          echo ${{ needs.buildUID2Image.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
-          echo ${{ needs.buildEUIDImage.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt
+          echo ${{ needs.buildUID2Image.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildEUIDImage.outputs.eif_version_number }}.txt
+          echo ${{ needs.buildEUIDImage.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.eif_version_number }}.txt
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aws-eks-enclave-ids-${{ needs.start.outputs.new_version }}
+          name: aws-eks-enclave-ids-${{ needs.buildEUIDImage.outputs.eif_version_number }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
           if-no-files-found: error
-
-      - name: Build changelog
-        id: github_release
-        if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
-        uses: mikepenz/release-changelog-builder-action@v4
-        with:
-          configurationJson: |
-            {
-              "template": "#{{CHANGELOG}}\n## Installation\n```\See [AWS Marketplace](https://unifiedid.com/docs/guides/operator-guide-aws-marketplace) for details\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
-              "pr_template": " - #{{TITLE}} - ( PR: ##{{NUMBER}} )"
-            }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create release
-        if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
-        uses: softprops/action-gh-release@v2
-        with:
-          name: ${{ needs.start.outputs.new_version }}
-          body: ${{ steps.github_release.outputs.changelog }}
-          draft: true
-          files: |
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
-            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt

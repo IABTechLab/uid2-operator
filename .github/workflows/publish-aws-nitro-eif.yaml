@@ -27,6 +27,7 @@ on:
         default: ''
       commit_sha:
         description: The commit SHA for committing the new version for pom.xml.
+        type: string
         default: ''
 
 env:

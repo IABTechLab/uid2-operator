@@ -1,5 +1,5 @@
-name: Publish AWS Nitro Operator
-run-name: ${{ format('Publish {0} AWS Nitro Operator', inputs.release_type) }}
+name: Publish AWS Nitro EIFs
+run-name: ${{ format('Publish {0} AWS Nitro EIFs', inputs.release_type) }}
 on:
   workflow_dispatch:
     inputs:

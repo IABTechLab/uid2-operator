@@ -78,7 +78,7 @@ jobs:
           release_type: ${{ inputs.release_type }}
           version_number_input: ${{ inputs.version_number_input }}
           image_tag_suffix: ${{ env.ENCLAVE_PROTOCOL }}
-          image_sha: ${{ inputs.image_sha }}
+          commit_sha: ${{ inputs.commit_sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v4

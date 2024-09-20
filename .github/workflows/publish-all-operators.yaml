@@ -75,7 +75,7 @@ jobs:
 
       - name: Commit pom.xml, version.json and set tag
         id: commit-and-tag
-        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@kcc-UID2-4116-fix-euid-version-problem
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v3
         with:
           add: 'pom.xml version.json'
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'

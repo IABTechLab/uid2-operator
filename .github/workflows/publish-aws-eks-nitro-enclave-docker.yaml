@@ -1,10 +1,6 @@
 name: Publish EKS Operator Docker Images
 run-name: >-
-  if [[ ${{ inputs.operator_release }} == ""]]; then
-  "Publish EKS Operator Docker Images for Operator Run Number: ${{ inputs.operator_run_number }}"
-  else
-  "Publish EKS Operator Docker Images for Operator Release: ${{ inputs.operator_release }}"
-  fi
+  ${{ inputs.operator_release == '' && format('Publish EKS Operator Docker Images for Operator Run Number: {0}', inputs.operator_run_number) || format('Publish EKS Operator Docker Images for Operator Release: {0}', inputs.operator_release)}}
 on:
   workflow_dispatch:
     inputs:

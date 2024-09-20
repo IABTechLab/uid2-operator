@@ -111,8 +111,8 @@ wait_for_config
 update_config
 run_enclave
 
-ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
 sleep 60s
+ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
 while [ "$ENCLAVE_ID" != "null" ];
 do
   ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")

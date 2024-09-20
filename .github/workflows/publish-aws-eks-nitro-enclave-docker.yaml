@@ -89,11 +89,11 @@ jobs:
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
-          echo "UID2 EIF Version: ${{ needs.buildUID2Image.outputs.eif_version_number }}" >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.eif_version_number }}.txt
-          echo ${{ needs.buildUID2Image.outputs.enclave_id }} > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.eif_version_number }}.txt
+          echo "UID2 EIF Version: ${{ needs.buildUID2Image.outputs.eif_version_number }}" > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.eif_version_number }}.txt
+          echo ${{ needs.buildUID2Image.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.eif_version_number }}.txt
 
-          echo "EUID EIF Version: ${{ needs.buildEUIDImage.outputs.eif_version_number }}" >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.eif_version_number }}.txt
-          echo ${{ needs.buildEUIDImage.outputs.enclave_id }} > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.eif_version_number }}.txt
+          echo "EUID EIF Version: ${{ needs.buildEUIDImage.outputs.eif_version_number }}" > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.eif_version_number }}.txt
+          echo ${{ needs.buildEUIDImage.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.eif_version_number }}.txt
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@v4

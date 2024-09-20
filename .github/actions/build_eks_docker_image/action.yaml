@@ -47,7 +47,7 @@ runs:
         mkdir ${{ inputs.artifacts_output_dir }} -p
 
     - name: Get EIF for Release ${{ inputs.operator_release }}
-      uses: IABTechLab/uid2-operator/.github/actions/download_release_artifact@main
+      uses: IABTechLab/uid2-operator/.github/actions/download_release_artifact@tjm-UID2-4116-fix-release-builds
       if: ${{ inputs.operator_release != '' }}
       with:
         github_token: ${{ inputs.github_token }}

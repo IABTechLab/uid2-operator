@@ -116,7 +116,7 @@ jobs:
   buildAWS:
     name: AWS Private Operator
     needs: start
-    uses: ./.github/workflows/publish-aws-nitro-enclave-docker.yaml
+    uses: ./.github/workflows/publish-aws-nitro-eif.yaml
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}

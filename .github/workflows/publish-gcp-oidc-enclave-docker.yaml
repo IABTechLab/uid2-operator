@@ -32,6 +32,10 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
+      commit_sha:
+        description: The commit SHA for committing the new version for pom.xml.
+        type: string
+        default: ''
       vulnerability_severity:
         description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised. Must be one of ['CRITICAL', 'CRITICAL,HIGH' or 'CRITICAL,HIGH,MEDIUM'] (without space in between).
         type: string
@@ -74,6 +78,7 @@ jobs:
           release_type: ${{ inputs.release_type }}
           version_number_input: ${{ inputs.version_number_input }}
           image_tag_suffix: ${{ env.ENCLAVE_PROTOCOL }}
+          commit_sha: ${{ inputs.commit_sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v4

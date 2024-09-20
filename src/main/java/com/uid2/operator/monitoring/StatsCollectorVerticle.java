@@ -19,10 +19,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCollectorQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(StatsCollectorVerticle.class);
     private HashMap<String, EndpointStat> pathMap;
+
+    private final ClientVersionStatRecorder clientVersionStat;
 
     private static final int MAX_AVAILABLE = 1000;
     private final int maxInvalidPaths;
@@ -41,7 +44,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     private final ObjectMapper mapper;
     private final Counter queueFullCounter;
 
-    public StatsCollectorVerticle(long jsonIntervalMS, int maxInvalidPaths) {
+    public StatsCollectorVerticle(long jsonIntervalMS, int maxInvalidPaths, int maxVersionBucketsPerSite) {
         pathMap = new HashMap<>();
 
         _statsCollectorCount = new AtomicInteger();
@@ -65,6 +68,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
                 .register(Metrics.globalRegistry);
 
         mapper = new ObjectMapper();
+        clientVersionStat = new ClientVersionStatRecorder(maxVersionBucketsPerSite);
     }
 
     @Override
@@ -121,6 +125,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
             pathMap.merge(path, endpointStat, this::mergeEndpoint);
         }
 
+        clientVersionStat.add(siteId, messageItem.getClientVersion());
 
         _statsCollectorCount.decrementAndGet();
 
@@ -133,7 +138,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
                 if(pathMap.size() == this.maxInvalidPaths + validPaths.size()) {
                     LOGGER.error("max invalid paths reached; a large number of invalid paths have been requested from authenticated participants");
                 }
-                Object[] stats = pathMap.values().toArray();
+                var stats = buildStatsList();
                 this.jsonSerializerExecutor.<Void>executeBlocking(
                         promise -> promise.complete(this.serializeToLogs(stats)),
                         res -> {
@@ -148,12 +153,12 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         }
     }
 
-    private Void serializeToLogs(Object[] stats) {
+    private Void serializeToLogs(List<ILoggedStat> stats) {
         LOGGER.debug("Starting JSON Serialize");
-        ObjectMapper mapper = new ObjectMapper();
-        for (Object stat : stats) {
+        ObjectMapper statMapper = new ObjectMapper();
+        for (var stat : stats) {
             try {
-                String jsonString = mapper.writeValueAsString(stat);
+                String jsonString = "%s%s".formatted(stat.GetLogPrefix(), statMapper.writeValueAsString(stat.GetValueToLog()));
                 LOGGER.info(jsonString);
             } catch (JsonProcessingException e) {
                 LOGGER.error(e.getMessage(), e);
@@ -167,19 +172,11 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         return a;
     }
 
-
-    public String getEndpointStats() {
-        Object[] stats = pathMap.values().toArray();
-        StringBuilder completeStats = new StringBuilder();
-        for (Object stat : stats) {
-            try {
-                String jsonString = mapper.writeValueAsString(stat);
-                completeStats.append(jsonString).append("\n");
-            } catch (JsonProcessingException e) {
-                LOGGER.error(e.getMessage(), e);
-            }
-        }
-        return completeStats.toString();
+    private List<ILoggedStat> buildStatsList() {
+        Stream<EndpointStat> pathMapStream = pathMap.values().stream();
+        Stream<ILoggedStat> clientVersionStream = clientVersionStat.getStatsView();
+        var stats = Stream.concat(pathMapStream, clientVersionStream);
+        return stats.toList();
     }
 
     @Override
@@ -225,7 +222,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         }
     }
 
-    class EndpointStat {
+    class EndpointStat implements ILoggedStat {
         private final String endpoint;
         private final Integer siteId;
         private final String apiVersion;
@@ -275,6 +272,16 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
             } else {
                 domainMissedCounter.increment();
             }
+        }
+
+        @Override
+        public String GetLogPrefix() {
+            return "";
+        }
+
+        @Override
+        public Object GetValueToLog() {
+            return this;
         }
     }
 }

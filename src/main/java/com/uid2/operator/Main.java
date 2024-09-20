@@ -365,7 +365,7 @@ public class Main {
 
     private Future<String> createAndDeployStatsCollector() {
         Promise<String> promise = Promise.promise();
-        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50));
+        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50), config.getInteger(Const.Config.MaxVersionBucketsPerSite, 50));
         vertx.deployVerticle(statsCollectorVerticle, promise);
         _statsCollectorQueue = statsCollectorVerticle;
         return promise.future();

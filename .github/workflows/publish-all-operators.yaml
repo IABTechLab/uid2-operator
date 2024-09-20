@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
         new_version: ${{ steps.version.outputs.new_version }}
+        commit_sha: ${{ steps.commit-and-tag.outputs.commit_sha }}
     steps:
       - name: Approve Major release
         if: inputs.release_type == 'Major'
@@ -73,12 +74,13 @@ jobs:
           echo "Version number updated from $current_version to $new_version"
 
       - name: Commit pom.xml, version.json and set tag
-        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
+        id: commit-and-tag
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v3
         with:
           add: 'pom.xml version.json'
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }} 
-  
+
   buildPublic:
     name: Public Operator
     needs: start
@@ -96,6 +98,7 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+      commit_sha: ${{ needs.start.outputs.commit_sha }}
       vulnerability_severity: ${{ inputs.vulnerability_severity }}
     secrets: inherit
 
@@ -106,16 +109,18 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+      commit_sha: ${{ needs.start.outputs.commit_sha }}
       vulnerability_severity: ${{ inputs.vulnerability_severity }}
     secrets: inherit
 
   buildAWS:
     name: AWS Private Operator
     needs: start
-    uses: ./.github/workflows/publish-aws-nitro-enclave-docker.yaml
+    uses: ./.github/workflows/publish-aws-nitro-eif.yaml
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+      commit_sha: ${{ needs.start.outputs.commit_sha }}
     secrets: inherit
 
   createRelease:

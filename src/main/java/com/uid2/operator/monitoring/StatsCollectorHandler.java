@@ -1,6 +1,7 @@
 package com.uid2.operator.monitoring;
 
 import com.uid2.operator.model.StatsCollectorMessageItem;
+import com.uid2.shared.Const;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.middleware.AuthMiddleware;
 import io.vertx.core.Handler;
@@ -33,10 +34,19 @@ public class StatsCollectorHandler implements Handler<RoutingContext> {
         final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(routingContext);
         final String apiContact = clientKey == null ? null : clientKey.getContact();
         final Integer siteId = clientKey == null ? null : clientKey.getSiteId();
+        final String clientVersion = getClientVersion(routingContext);
 
-        final StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(path, referer, apiContact, siteId);
+        final StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(path, referer, apiContact, siteId, clientVersion);
 
         _statCollectorQueue.enqueue(vertx, messageItem);
+    }
+
+    private String getClientVersion(RoutingContext routingContext) {
+        String clientVersion = routingContext.request().headers().get(Const.Http.ClientVersionHeader);
+        if (clientVersion == null) {
+            clientVersion =  !routingContext.queryParam("client").isEmpty() ? routingContext.queryParam("client").get(0) : null;
+        }
+        return clientVersion;
     }
 
 }

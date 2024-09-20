@@ -25,6 +25,10 @@ on:
         description: If set, the version number will not be incremented and the given number will be used.
         type: string
         default: ''
+      commit_sha:
+        description: The commit SHA for committing the new version for pom.xml.
+        type: string
+        default: ''
 
 env:
   ENCLAVE_PROTOCOL: aws-nitro
@@ -42,11 +46,13 @@ jobs:
           release_type: ${{ inputs.release_type }}
           version_number_input: ${{ inputs.version_number_input }}
           image_tag_suffix: ${{ env.ENCLAVE_PROTOCOL }}
+          commit_sha: ${{ inputs.commit_sha }}
 
     outputs:
       new_version: ${{ steps.update_version.outputs.new_version }}
       is_release: ${{ steps.update_version.outputs.is_release }}
       image_tag: ${{ steps.update_version.outputs.image_tag }}
+      commit_sha: ${{ steps.update_version.outputs.commit_sha }}
 
   buildUID2EIF:
     name: Build UID2 EIF
@@ -61,7 +67,8 @@ jobs:
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
           amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux2023.Dockerfile
           makefile: Makefile.eif
-          version_number_input: ${{ inputs.version_number_input }}
+          version_number_input: ${{ needs.start.outputs.new_version }}
+          commit_sha: ${{ needs.start.outputs.commit_sha }}
 
       - name: Check disk usage
         shell: bash
@@ -96,6 +103,8 @@ jobs:
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
           amazonlinux_dockerfile: ./scripts/aws/pipeline/amazonlinux2023.Dockerfile
           makefile: Makefile.eif
+          version_number_input: ${{ needs.start.outputs.new_version }}
+          commit_sha: ${{ needs.start.outputs.commit_sha }}
 
       - name: Check disk usage
         shell: bash

@@ -39,6 +39,12 @@ outputs:
   version_number:
     description: The version number set in IABTechLab/uid2-operator pom.xml.
     value: ${{ steps.versionNumber.outputs.version_number }}
+  ami_id:
+    description: the AMI_ID of the newly created AMI
+    value: ${{ steps.ex }}
+  enclave_id:
+    description: the Enclave_ID of the EIF used to create the AMI
+    value: ${{ steps}}
 
 runs:
   using: "composite"
@@ -142,13 +148,16 @@ runs:
         echo $AMI_ID
 
     - name: Persist UID2 enclave and AMI IDs
+      id: extractUid2Data
       if: ${{ inputs.identity_scope == 'uid2' }}
       shell: bash
       working-directory: ./scripts/aws/uid2-operator-ami
       run: |
         touch uid2_AMI_measurement.txt
+        UID2_ENCLAVE_ID=$(cat ./artifacts/pcr0.txt)
+        echo "UID2_ENCLAVE_ID=$UID2_ENCLAVE_ID" >> $GITHUB_OUTPUT
         echo "Enclave ID: $(cat ./artifacts/pcr0.txt)" >> uid2_AMI_measurement.txt
-        echo "AMI ID: " ${{ steps.extractAmiId.outputs.AMI_ID }} >> uid2_AMI_measurement.txt
+        echo "AMI ID: " ${{ steps.extractAmiId.outputs.UID2_AMI_ID }} >> uid2_AMI_measurement.txt
         echo "uid2_AMI_measurement.txt Contents:"
         cat uid2_AMI_measurement.txt
         ls -al
@@ -164,11 +173,14 @@ runs:
         echo $US_EAST_AMI_ID
 
     - name: Persist EUID enclave and AMI IDs
+      id: extractEuidData
       if: ${{ inputs.identity_scope == 'euid' }}
       shell: bash
       working-directory: ./scripts/aws/uid2-operator-ami
       run: |
         touch euid_AMI_measurement.txt
+        EUID_ENCLAVE_ID=$(cat ./artifacts/pcr0.txt)
+        echo "EUID_ENCLAVE_ID=$EUID_ENCLAVE_ID" >> $GITHUB_OUTPUT
         echo "Enclave ID: $(cat ./artifacts/pcr0.txt)" >> euid_AMI_measurement.txt
         echo "eu-central-1 AMI ID:" ${{ steps.extractAmiId.outputs.AMI_ID }} >> euid_AMI_measurement.txt
         echo "us-east-1 AMI ID:" ${{ steps.euidCopyAmi.outputs.US_EAST_1_AMI_ID }} >> euid_AMI_measurement.txt

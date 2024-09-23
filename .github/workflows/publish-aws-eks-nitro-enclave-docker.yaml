@@ -76,10 +76,20 @@ jobs:
       enclave_id:  ${{ steps.build_docker_image_euid.outputs.enclave_id }}
       eif_version_number: ${{ steps.build_docker_image_euid.outputs.eif_version_number }}
 
+  testUID2Eks:
+    name: E2E Tests UID2 EKS
+    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+    needs: [buildUID2Image]
+    with:
+      operator_image_version: ${{ needs.buildUID2Image.outputs.eif_version_number }}
+      operator_type: eks
+      eks: '{ "pcr0":"${{ needs.buildUID2Image.outputs.enclave_id }}"}'
+    secrets: inherit
+
   cleanup:
     name: Cleanup Building AWS Image
     runs-on: ubuntu-latest
-    needs: [buildUID2Image, buildEUIDImage]
+    needs: [buildUID2Image, buildEUIDImage, testUID2Eks]
     steps:
       - name: Check disk usage
         shell: bash

@@ -16,6 +16,12 @@ on:
         type: boolean
         required: false
         default: true
+  workflow_call:
+    inputs:
+      operator_run_number:
+        description: The Operator run number. Ignored if Release Number specified.
+        type: string
+
 
 env:
   REPO_OWNER: IABTechLab

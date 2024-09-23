@@ -10,6 +10,7 @@ on:
         - Patch
         - Minor
         - Major
+        - Snapshot
       vulnerability_severity:
         description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised.
         type: choice

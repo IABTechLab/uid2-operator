@@ -129,14 +129,14 @@ jobs:
     needs: [start, buildAWS]
     uses: ./.github/workflows/build-uid2-ami.yaml
     with:
-      operator_run_number: ${{ github.run_number }}
+      operator_run_number: ${{ github.run_id }}
 
   buildEKS:
     name: Build AWS EKS Docker
     needs: [start, buildAWS]
     uses: ./.github/workflows/publish-aws-eks-nitro-enclave-docker.yaml
     with:
-      operator_run_number: ${{ github.run_number }}
+      operator_run_number: ${{ github.run_id }}
 
   createRelease:
     name: Create Release

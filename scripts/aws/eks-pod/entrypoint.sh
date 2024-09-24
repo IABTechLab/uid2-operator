@@ -1,4 +1,4 @@
-#!/bin/bash -ufx
+#!/bin/bash -eufx
 CID=42
 EIF_PATH=/home/uid2operator.eif
 MEMORY_MB=24576
@@ -92,7 +92,7 @@ function update_config() {
 
 function run_enclave() {
     echo "starting enclave... --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID"
-    nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator --debug-mode --attach-console
+    nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator
 }
 
 echo "starting ..."

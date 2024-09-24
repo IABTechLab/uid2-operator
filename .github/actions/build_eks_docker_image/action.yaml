@@ -29,7 +29,7 @@ outputs:
     value: ${{ steps.versionNumber.outputs.ENCLAVE_ID }}
   image_tag:
     description: The Image tag of the docker image
-    value: ${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+    value: ${{ steps.versionNumber.outputs.VERSION_NUMBER }}.${{ github.run_number }}
   eif_version_number:
     description: The version number of the EIF used to build the image
     value: ${{ steps.versionNumber.outputs.VERSION_NUMBER }}
@@ -124,7 +124,7 @@ runs:
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-eks-${{ inputs.identity_scope }}
         tags: |
-          type=raw,value=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+          type=raw,value=${{ steps.versionNumber.outputs.VERSION_NUMBER }}.${{ github.run_number }}
 
     - name: Build and export to Docker
       uses: docker/build-push-action@v5

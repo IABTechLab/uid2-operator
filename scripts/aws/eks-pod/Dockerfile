@@ -31,7 +31,7 @@ COPY ./entrypoint.sh /home/
 COPY ./uid2operator.eif /home/
 COPY ./proxies.host.yaml /home/proxies.host.yaml
 
-RUN chmod +x /home/vsockpx && chmod +x /home/entrypoint.sh
+RUN chmod +x /home/vsockpx && chmod +x /home/entrypoint.sh && chmod +x /home/sockd
 
 COPY ./app.py /home/config-server/
 COPY ./requirements.txt /home/config-server/

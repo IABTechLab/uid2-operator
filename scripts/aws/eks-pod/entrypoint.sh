@@ -36,8 +36,7 @@ function setup_vsockproxy() {
 function setup_dante() {
     echo "setup_dante"
     ulimit -n 1024
-    /home/sockd -D -d
-    sleep infinity
+    /home/sockd -D
 }
 
 function start_syslog() {
@@ -107,15 +106,15 @@ echo "started syslog-ng"
 debug
 setup_vsockproxy
 setup_dante
-#run_config_server
-#wait_for_config
-#update_config
-#run_enclave
+run_config_server
+wait_for_config
+update_config
+run_enclave
 
-#sleep 60s
-#ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
-#while [ "$ENCLAVE_ID" != "null" ];
-#do
-#  ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
-#  sleep 10s
-#done;
+sleep 60s
+ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
+while [ "$ENCLAVE_ID" != "null" ];
+do
+  ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
+  sleep 10s
+done;

@@ -124,7 +124,7 @@ runs:
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-eks-${{ inputs.identity_scope }}
         tags: |
-          type=raw,value=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+          type=raw,value=${{ steps.versionNumber.outputs.VERSION_NUMBER }}.${{ github.run_number }}
 
     - name: Build and export to Docker
       uses: docker/build-push-action@v5

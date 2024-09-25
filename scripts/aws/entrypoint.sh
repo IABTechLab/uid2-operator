@@ -22,6 +22,27 @@ echo "Starting syslog-ng..."
 
 # -- load config from identity service
 echo "Loading config from identity service via proxy..."
+set +e
+#wait for config service
+RETRY_COUNT=0
+MAX_RETRY=10
+while true; do
+  RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig)
+  if [ "$RESPONSE" -eq "200" ]; then
+      echo "Config server running"
+      break;
+  else
+      echo "Config server still starting..."
+  fi
+  RETRY_COUNT=$(( RETRY_COUNT + 1))
+  if [ $RETRY_COUNT -gt $MAX_RETRY ]; then
+      echo "Config Server did not return a response. Exiting"
+      exit 1
+  fi
+  sleep 5
+
+done
+
 { set +x; } 2>/dev/null; { IDENTITY_SERVICE_CONFIG=$(curl -s -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig); set -x; }
 if jq -e . >/dev/null 2>&1 <<<"${IDENTITY_SERVICE_CONFIG}"; then
     echo "Identity service returned valid config"
@@ -29,6 +50,7 @@ else
     echo "Failed to get a valid config from identity service"
     exit 1
 fi
+set -e
 
 export OVERRIDES_CONFIG="/app/conf/config-overrides.json"
 { set +x; } 2>/dev/null; { echo "${IDENTITY_SERVICE_CONFIG}" > "${OVERRIDES_CONFIG}"; set -x; }

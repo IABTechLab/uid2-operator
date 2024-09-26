@@ -29,7 +29,7 @@ echo "Loading config from identity service via proxy..."
 #wait for config service, then download config
 export OVERRIDES_CONFIG="/app/conf/config-overrides.json"
 
-until curl -s -f -o "${OVERRIDES_CONFIG}" -x "socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig"
+until curl -s -f -o "${OVERRIDES_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
 do
   echo "Waiting for config service to be available"
   sleep 2

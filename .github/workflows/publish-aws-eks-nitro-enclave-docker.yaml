@@ -51,6 +51,7 @@ jobs:
     outputs:
       enclave_id: ${{ steps.build_docker_image_uid.outputs.enclave_id }}
       eif_version_number: ${{ steps.build_docker_image_uid.outputs.eif_version_number }}
+      image_tag: ${{ steps.build_docker_image_uid.outputs.image_tag }}
 
   buildEUIDImage:
     name: Build EUID Pod for EKS
@@ -75,6 +76,7 @@ jobs:
     outputs:
       enclave_id:  ${{ steps.build_docker_image_euid.outputs.enclave_id }}
       eif_version_number: ${{ steps.build_docker_image_euid.outputs.eif_version_number }}
+      image_tag: ${{ steps.build_docker_image_euid.outputs.image_tag }}
 
   testUID2Eks:
     name: E2E Tests UID2 EKS
@@ -99,15 +101,17 @@ jobs:
       - name: Save Enclave Ids
         run: |
           mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
-          echo "UID2 EIF Version: ${{ needs.buildUID2Image.outputs.eif_version_number }}" > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.eif_version_number }}.txt
-          echo ${{ needs.buildUID2Image.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.eif_version_number }}.txt
+          echo "UID2 EIF Version: ${{ needs.buildUID2Image.outputs.eif_version_number }}" > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.image_tag }}.txt
+          echo "UID2 Image Tag: ${{ needs.buildUID2Image.outputs.image_tag }}" >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.image_tag }}.txt
+          echo "Enclave ID (maybe shared by other images): " ${{ needs.buildUID2Image.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.image_tag }}.txt
 
-          echo "EUID EIF Version: ${{ needs.buildEUIDImage.outputs.eif_version_number }}" > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.eif_version_number }}.txt
-          echo ${{ needs.buildEUIDImage.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.eif_version_number }}.txt
+          echo "EUID EIF Version: ${{ needs.buildEUIDImage.outputs.eif_version_number }}" > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
+          echo "EUID Image Tag: ${{ needs.buildEUIDImage.outputs.image_tag }}" >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
+          echo "Enclave ID (maybe shared by other images): " ${{ needs.buildEUIDImage.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aws-eks-enclave-ids-${{ needs.buildUID2Image.outputs.eif_version_number }}
+          name: aws-eks-enclave-ids-${{ needs.buildUID2Image.outputs.image_tag }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
           if-no-files-found: error

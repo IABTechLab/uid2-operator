@@ -1,4 +1,7 @@
 #!/bin/bash -eufx
+
+# This is the entrypoint for the Enclave. It is executed in all enclaves - EC2 and EKS
+
 LOG_FILE="/home/start.txt"
 
 set -x
@@ -22,16 +25,30 @@ echo "Starting syslog-ng..."
 
 # -- load config from identity service
 echo "Loading config from identity service via proxy..."
-{ set +x; } 2>/dev/null; { IDENTITY_SERVICE_CONFIG=$(curl -s -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig); set -x; }
-if jq -e . >/dev/null 2>&1 <<<"${IDENTITY_SERVICE_CONFIG}"; then
+
+#wait for config service, then download config
+OVERRIDES_CONFIG="/app/conf/config-overrides.json"
+
+RETRY_COUNT=0
+MAX_RETRY=20
+until curl -s -f -o "${OVERRIDES_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
+do
+  echo "Waiting for config service to be available"
+  RETRY_COUNT=$(( RETRY_COUNT + 1))
+  if [ $RETRY_COUNT -gt $MAX_RETRY ]; then
+      echo "Config Server did not return a response. Exiting"
+      exit 1
+  fi
+  sleep 2
+done
+
+# check the config is valid. Querying for a known missing element (empty) makes jq parse the file, but does not echo the results
+if jq empty "${OVERRIDES_CONFIG}"; then
     echo "Identity service returned valid config"
 else
     echo "Failed to get a valid config from identity service"
     exit 1
 fi
-
-export OVERRIDES_CONFIG="/app/conf/config-overrides.json"
-{ set +x; } 2>/dev/null; { echo "${IDENTITY_SERVICE_CONFIG}" > "${OVERRIDES_CONFIG}"; set -x; }
 
 export DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${OVERRIDES_CONFIG}")
 export CORE_BASE_URL=$(jq -r ".core_base_url" < "${OVERRIDES_CONFIG}")

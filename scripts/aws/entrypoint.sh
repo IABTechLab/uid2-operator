@@ -29,9 +29,16 @@ echo "Loading config from identity service via proxy..."
 #wait for config service, then download config
 OVERRIDES_CONFIG="/app/conf/config-overrides.json"
 
+RETRY_COUNT=0
+MAX_RETRY=20
 until curl -s -f -o "${OVERRIDES_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
 do
   echo "Waiting for config service to be available"
+  RETRY_COUNT=$(( RETRY_COUNT + 1))
+  if [ $RETRY_COUNT -gt $MAX_RETRY ]; then
+      echo "Config Server did not return a response. Exiting"
+      exit 1
+  fi
   sleep 2
 done
 

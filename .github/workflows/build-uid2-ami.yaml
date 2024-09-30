@@ -6,16 +6,22 @@ on:
   workflow_dispatch:
     inputs:
       operator_release:
-        description: The Operator Release number that built the EIF files to use
+        description: The Operator Release number that built the EIF files to use.
         type: string
       operator_run_number:
-        description: The Operator run number. Ignored if Release Number specified.
+        description: The Operator run number that built the EIFs to use. Ignored if Release Number specified.
         type: string
       save_ami:
         description: Save the AMIs as a build artifact.
         type: boolean
         required: false
         default: true
+  workflow_call:
+    inputs:
+      operator_run_number:
+        description: The Operator run number that built the EIFs to use. Ignored if Release Number specified.
+        type: string
+
 
 env:
   REPO_OWNER: IABTechLab
@@ -33,13 +39,15 @@ jobs:
       id-token: write
     outputs:
       version_number: ${{ steps.buildAMI.outputs.version_number }}
+      ami_id: ${{ steps.buildAMI.outputs.ami_id }}
+      enclave_id: ${{ steps.buildAMI.outputs.enclave_id }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Build UID2 Operator AMI
         id: buildAMI
-        uses: IABTechLab/uid2-operator/.github/actions/build_ami@main
+        uses: IABTechLab/uid2-operator/.github/actions/build_ami@v3
         with:
           identity_scope: uid2
           eif_repo_owner: ${{ env.REPO_OWNER }}
@@ -52,7 +60,19 @@ jobs:
           uid2_aws_region: ${{ env.UID2_AWS_REGION }}
           euid_aws_role: ${{ env.EUID_AWS_ROLE }}
           euid_aws_region: ${{ env.EUID_AWS_REGION }}
-  
+
+  testUID2Ami:
+    name: E2E Tests UID2 AMI
+    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+    needs: [buildUID2]
+    with:
+      operator_image_version: ${{ needs.buildUID2.outputs.version_number }}
+      operator_type: aws
+      identity_scope: UID2
+      aws: '{ "region": "us-east-1", "ami": "${{ needs.buildUID2.outputs.ami_id }}", "pcr0": "${{ needs.buildUID2.outputs.enclave_id }}" }'
+    secrets: inherit
+
+
   buildEUID:
       name: EUID Operator AMI
       runs-on: ubuntu-latest
@@ -60,6 +80,8 @@ jobs:
         id-token: write
       outputs:
         version_number: ${{ steps.buildAMI.outputs.version_number }}
+        ami_id: ${{ steps.buildAMI.outputs.ami_id }}
+        enclave_id: ${{ steps.buildAMI.outputs.enclave_id }}
       steps:
         - name: Checkout repo
           uses: actions/checkout@v4
@@ -76,7 +98,7 @@ jobs:
 
         - name: Build EUID Operator AMI
           id: buildAMI
-          uses: IABTechLab/uid2-operator/.github/actions/build_ami@main
+          uses: IABTechLab/uid2-operator/.github/actions/build_ami@v3
           with:
             identity_scope: euid
             eif_repo_owner: ${{ env.REPO_OWNER }}
@@ -89,12 +111,24 @@ jobs:
             uid2_aws_region: ${{ env.UID2_AWS_REGION }}
             euid_aws_role: ${{ env.EUID_AWS_ROLE }}
             euid_aws_region: ${{ env.EUID_AWS_REGION }}
-    
+
+  testEUIDAmi:
+    name: E2E Tests EUID AMI
+    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+    needs: [buildEUID]
+    with:
+      operator_image_version: ${{ needs.buildEUID.outputs.version_number }}
+      operator_type: aws
+      identity_scope: EUID
+      aws: '{ "region": "eu-central-1", "ami": "${{ needs.buildEUID.outputs.ami_id }}", "pcr0": "${{ needs.buildEUID.outputs.enclave_id }}" }'
+    secrets: inherit
+
+
   collectAllArtifacts:
     name: Collect All Artifacts
     if: ${{ inputs.save_ami }}
     runs-on: ubuntu-latest
-    needs: [buildUID2, buildEUID]
+    needs: [testUID2Ami, testEUIDAmi]
     steps:
       - name: Download UID2 artifacts
         uses: actions/download-artifact@v4

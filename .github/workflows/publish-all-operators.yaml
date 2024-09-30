@@ -10,6 +10,7 @@ on:
         - Patch
         - Minor
         - Major
+        - Snapshot
       vulnerability_severity:
         description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised.
         type: choice
@@ -114,7 +115,7 @@ jobs:
     secrets: inherit
 
   buildAWS:
-    name: AWS Private Operator
+    name: AWS Private Operator EIF
     needs: start
     uses: ./.github/workflows/publish-aws-nitro-eif.yaml
     with:
@@ -123,10 +124,24 @@ jobs:
       commit_sha: ${{ needs.start.outputs.commit_sha }}
     secrets: inherit
 
+  buildAMI:
+    name: Build AWS AMI
+    needs: [start, buildAWS]
+    uses: ./.github/workflows/build-uid2-ami.yaml
+    with:
+      operator_run_number: ${{ github.run_id }}
+
+  buildEKS:
+    name: Build AWS EKS Docker
+    needs: [start, buildAWS]
+    uses: ./.github/workflows/publish-aws-eks-nitro-enclave-docker.yaml
+    with:
+      operator_run_number: ${{ github.run_id }}
+
   createRelease:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [start, buildPublic, buildGCP, buildAzure, buildAWS]
+    needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI, buildEKS]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -156,6 +171,18 @@ jobs:
         with:
           pattern: 'aws-enclave-ids-*'
           path: ./manifests/aws_nitro_operator
+
+      - name: Download AWS AMI manifest
+        uses: actions/download-artifact@v4
+        with:
+          pattern: 'uid2-operator-release-*'
+          path: ./manifests/aws_ami
+
+      - name: Download AWS EKS manifest
+        uses: actions/download-artifact@v4
+        with:
+          pattern: 'aws-eks-enclave-ids-*'
+          path: ./manifests/aws_eks
 
       - name: Download Deployment Files
         uses: actions/download-artifact@v4

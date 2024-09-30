@@ -177,7 +177,7 @@ jobs:
       - name: Download AWS AMI manifest
         uses: actions/download-artifact@v4
         with:
-          pattern: 'uid2-operator-release-*'
+          pattern: 'aws-enclave-ids-*'
           path: ./manifests/aws_ami
 
       - name: Download AWS EKS manifest

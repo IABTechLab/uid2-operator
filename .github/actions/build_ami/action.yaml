@@ -19,9 +19,6 @@ inputs:
     default: ''
   operator_run_number:
     description: The Operator run number for artifacts. Ignored if Operator Release is given
-  save_ami:
-    description: Save the AMIs as a build artifact.
-    default: "true"
   uid2_aws_role:
     description: The AWS role to assume for UID2
     required: true
@@ -189,7 +186,6 @@ runs:
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
-      if: ${{ inputs.save_ami == 'true' }}
       with:
         name: ${{ inputs.identity_scope }}_AMI_measurement
         path: ./scripts/aws/uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt

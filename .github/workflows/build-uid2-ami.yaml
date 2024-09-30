@@ -47,7 +47,7 @@ jobs:
 
       - name: Build UID2 Operator AMI
         id: buildAMI
-        uses: IABTechLab/uid2-operator/.github/actions/build_ami@v3
+        uses: IABTechLab/uid2-operator/.github/actions/build_ami@main
         with:
           identity_scope: uid2
           eif_repo_owner: ${{ env.REPO_OWNER }}
@@ -98,7 +98,7 @@ jobs:
 
         - name: Build EUID Operator AMI
           id: buildAMI
-          uses: IABTechLab/uid2-operator/.github/actions/build_ami@v3
+          uses: IABTechLab/uid2-operator/.github/actions/build_ami@main
           with:
             identity_scope: euid
             eif_repo_owner: ${{ env.REPO_OWNER }}
@@ -128,7 +128,7 @@ jobs:
     name: Collect All Artifacts
     if: ${{ inputs.save_ami }}
     runs-on: ubuntu-latest
-    needs: [testUID2Ami, testEUIDAmi]
+    needs: [buildUID2, testUID2Ami, testEUIDAmi]
     steps:
       - name: Download UID2 artifacts
         uses: actions/download-artifact@v4

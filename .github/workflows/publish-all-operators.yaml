@@ -83,7 +83,7 @@ jobs:
           tag: v${{ steps.version.outputs.new_version }} 
 
   buildPublic:
-    name: Public Operator
+    name: 1. Public Operator
     needs: start
     uses: ./.github/workflows/publish-public-operator-docker-image.yaml
     with:
@@ -93,7 +93,7 @@ jobs:
     secrets: inherit
 
   buildGCP:
-    name: GCP Private Operator
+    name: 2. GCP Private Operator
     needs: start
     uses: ./.github/workflows/publish-gcp-oidc-enclave-docker.yaml
     with:
@@ -104,7 +104,7 @@ jobs:
     secrets: inherit
 
   buildAzure:
-    name: Azure Private Operator
+    name: 3. Azure Private Operator
     needs: start
     uses: ./.github/workflows/publish-azure-cc-enclave-docker.yaml
     with:
@@ -115,7 +115,7 @@ jobs:
     secrets: inherit
 
   buildAWS:
-    name: AWS Private Operator EIF
+    name: 4. AWS Private Operator EIF
     needs: start
     uses: ./.github/workflows/publish-aws-nitro-eif.yaml
     with:
@@ -130,6 +130,7 @@ jobs:
     uses: ./.github/workflows/build-uid2-ami.yaml
     with:
       operator_run_number: ${{ github.run_id }}
+    secrets: inherit
 
   buildEKS:
     name: Build AWS EKS Docker
@@ -137,6 +138,7 @@ jobs:
     uses: ./.github/workflows/publish-aws-eks-nitro-enclave-docker.yaml
     with:
       operator_run_number: ${{ github.run_id }}
+    secrets: inherit
 
   createRelease:
     name: Create Release

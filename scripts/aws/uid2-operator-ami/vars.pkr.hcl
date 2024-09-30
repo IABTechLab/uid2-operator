@@ -20,7 +20,7 @@ variable "region" {
 
 variable "instance_type" {
   description = "instance type to build on"
-  default     = "m5.4xlarge"
+  default     = "m5.2xlarge"
 }
 
 variable "vpc_id" {

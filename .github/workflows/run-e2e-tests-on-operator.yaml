@@ -106,7 +106,7 @@ on:
 jobs:
   e2e-test:
     name: E2E Test
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@tjm-UID2-3620-publish-all-use-ami
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v3
     with:
       operator_type: ${{ inputs.operator_type }}
       operator_image_version: ${{ inputs.operator_image_version }}

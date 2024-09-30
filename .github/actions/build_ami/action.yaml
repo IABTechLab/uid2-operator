@@ -44,7 +44,7 @@ outputs:
     value: ${{ steps.extractAmiIdAndEnclaveId.outputs.AMI_ID }}
   enclave_id:
     description: the Enclave_ID of the EIF used to create the AMI
-    value: ${{ steps}}
+    value: ${{ steps.extractAmiIdAndEnclaveId.outputs.ENCLAVE_ID }}
 
 runs:
   using: "composite"

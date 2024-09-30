@@ -67,8 +67,8 @@ jobs:
     needs: [buildUID2]
     with:
       operator_image_version: ${{ needs.buildUID2.outputs.version_number }}
-      operator_type: eks
-      eks: '{ "region": "us-east-1", "ami": "${{ needs.buildUID2.outputs.ami_id }}", "pcr0": "${{ needs.buildUID2.outputs.enclave_id }}" }'
+      operator_type: aws
+      aws: '{ "region": "us-east-1", "ami": "${{ needs.buildUID2.outputs.ami_id }}", "pcr0": "${{ needs.buildUID2.outputs.enclave_id }}" }'
     secrets: inherit
 
 
@@ -117,8 +117,8 @@ jobs:
     needs: [buildEUID]
     with:
       operator_image_version: ${{ needs.buildEUID.outputs.version_number }}
-      operator_type: eks
-      eks: '{ "region": "us-east-1", "ami": "${{ needs.buildEUID.outputs.ami_id }}", "pcr0": "${{ needs.buildEUID.outputs.enclave_id }}" }'
+      operator_type: aws
+      aws: '{ "region": "eu-central-1", "ami": "${{ needs.buildEUID.outputs.ami_id }}", "pcr0": "${{ needs.buildEUID.outputs.enclave_id }}" }'
     secrets: inherit
 
 

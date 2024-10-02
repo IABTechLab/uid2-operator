@@ -125,4 +125,6 @@ jobs:
       aws_ami: ${{ fromJson(inputs.aws).ami }}
       aws_pcr0: ${{ fromJson(inputs.aws).pcr0 }}
       eks_pcr0: ${{ fromJson(inputs.eks).pcr0 }}
+      eks_test_cluster: ${{ vars.EKS_TEST_CLUSTER }}
+      eks_test_cluster_region: ${{ vars.EKS_TEST_CLUSTER_REGION }}
     secrets: inherit

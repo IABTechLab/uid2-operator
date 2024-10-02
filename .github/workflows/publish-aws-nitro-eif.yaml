@@ -68,15 +68,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: start
     steps:
-      - name: Show Context
-        shell: bash
-        run: |
-          printenv
-          echo "$GITHUB_CONTEXT"
-          echo "Commit SHA:" $COMMIT_SHA
-        env: 
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
@@ -113,15 +104,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: start
     steps:
-      - name: Show Context
-        shell: bash
-        run: |
-          printenv
-          echo "$GITHUB_CONTEXT"
-          echo "Commit SHA:" $COMMIT_SHA
-        env: 
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-
       - name: Build EUID AWS EIF
         id: build_euid_eif
         uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main

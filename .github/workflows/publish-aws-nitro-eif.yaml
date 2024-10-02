@@ -164,7 +164,7 @@ jobs:
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aws-enclave-ids-${{ needs.start.outputs.new_version }}
+          name: aws-eif-enclave-ids-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
           if-no-files-found: error
 

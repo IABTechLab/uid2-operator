@@ -168,16 +168,16 @@ jobs:
           pattern: azure-cc-enclave-id-*
           path: ./manifests/azure_cc_operator
 
-      - name: Download AWS manifest
+      - name: Download EIF manifest
         uses: actions/download-artifact@v4
         with:
-          pattern: 'aws-enclave-ids-*'
-          path: ./manifests/aws_nitro_operator
+          pattern: 'aws-eif-enclave-ids-*'
+          path: ./manifests/aws_eif
 
       - name: Download AWS AMI manifest
         uses: actions/download-artifact@v4
         with:
-          pattern: 'aws-enclave-ids-*'
+          pattern: 'aws-ami-ids-*'
           path: ./manifests/aws_ami
 
       - name: Download AWS EKS manifest

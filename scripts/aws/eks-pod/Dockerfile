@@ -1,5 +1,5 @@
 FROM amazonlinux:2023
-RUN dnf check-update && dnf update && dnf install nmap-ncat libxcrypt-compat python3 aws-nitro-enclaves-cli logrotate iproute net-tools python3.11 python3.11-pip shadow-utils -y
+RUN dnf check-update && dnf update && dnf install nmap-ncat libxcrypt-compat python3 aws-nitro-enclaves-cli logrotate iproute net-tools python3.11 python3.11-pip shadow-utils procps -y
 
 ARG IVYKIS_RPM="ivykis-0.43-1.amzn2023.x86_64.rpm"
 ARG LIBNET_RPM="libnet-1.2-2.amzn2023.0.2.x86_64.rpm"

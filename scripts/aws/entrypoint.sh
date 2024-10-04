@@ -6,7 +6,6 @@ LOG_FILE="/home/start.txt"
 
 set -x
 exec &> >(tee -a "$LOG_FILE")
-exec 2>&1
 
 set -o pipefail
 ulimit -n 65536

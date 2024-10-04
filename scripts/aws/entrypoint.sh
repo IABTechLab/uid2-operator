@@ -98,7 +98,7 @@ cd /app
 
 # -- start operator
 echo "Starting Java application..."
-if [[ ! "$DEBUG_MODE" = "true" ]]; then
+if [[ "$DEBUG_MODE" = "true" ]]; then
   java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
     -Djava.security.egd=file:/dev/./urandom \

@@ -14,7 +14,9 @@ function terminate_old_enclave() {
         nitro-cli terminate-enclave --enclave-id ${ENCLAVE_ID}
         echo "Terminated enclave with ID ${ENCLAVE_ID}"
     else
+        nitro-cli describe-enclaves
         echo "No running enclaves to terminate."
+        sleep 30
     fi
 }
 
@@ -120,6 +122,7 @@ wait_for_config
 update_config
 run_enclave
 
+nitro-cli describe-enclaves
 sleep 60s
 set +x
 ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")

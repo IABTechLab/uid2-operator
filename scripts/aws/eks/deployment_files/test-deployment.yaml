@@ -12,7 +12,7 @@ data:
   client_side_token_generate: 'true'
   client_side_token_generate_log_invalid_http_origins: 'true'
   key_sharing_endpoint_provide_app_names: 'true'
-  enclave_cpu_count: '14'
+  enclave_cpu_count: '12'
   enclave_memory_mb: '40152'
   customize_enclave: 'true'
   test: test1

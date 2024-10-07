@@ -12,12 +12,12 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <vertx.version>4.5.10</vertx.version>
         <vertx-maven-plugin.version>1.0.29</vertx-maven-plugin.version>
-        <junit-jupiter.version>5.11.2</junit-jupiter.version>
-        <junit-vintage.version>5.11.2</junit-vintage.version>
+        <junit-jupiter.version>5.10.1</junit-jupiter.version>
+        <junit-vintage.version>5.10.1</junit-vintage.version>
         <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
         <vertx.verticle>com.uid2.operator.vertx.UIDOperatorVerticle</vertx.verticle>
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
-        <micrometer.version>1.13.5</micrometer.version>
+        <micrometer.version>1.12.2</micrometer.version>
         <enclave-api.version>2.1.6</enclave-api.version>
         <enclave-aws.version>2.1.0</enclave-aws.version>
         <enclave-azure.version>2.1.0</enclave-azure.version>
@@ -122,13 +122,13 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.10.0</version>
+            <version>5.14.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.25.2</version>
+            <version>3.26.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -191,13 +191,13 @@
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
-            <version>1.35</version>
+            <version>1.37</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-generator-annprocess</artifactId>
-            <version>1.35</version>
+            <version>1.37</version>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -105,16 +105,17 @@ if [[ "$DEBUG_MODE" = "true" ]]; then
     -Djava.library.path=/app/lib \
     -Dvertx-config-path="${FINAL_CONFIG}" \
     -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
+    -Dlogback.configurationFile=./conf/logback-debug.xml \
     -Dhttp_proxy=socks5://127.0.0.1:3305 \
     -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar
 else
   java \
-      -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
-      -Djava.security.egd=file:/dev/./urandom \
-      -Djava.library.path=/app/lib \
-      -Dvertx-config-path="${FINAL_CONFIG}" \
-      -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
-      -Dlogback.configurationFile=./conf/logback.xml \
-      -Dhttp_proxy=socks5://127.0.0.1:3305 \
-      -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar
+    -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
+    -Djava.security.egd=file:/dev/./urandom \
+    -Djava.library.path=/app/lib \
+    -Dvertx-config-path="${FINAL_CONFIG}" \
+    -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
+    -Dlogback.configurationFile=./conf/logback.xml \
+    -Dhttp_proxy=socks5://127.0.0.1:3305 \
+    -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar
 fi

@@ -17,7 +17,7 @@
         <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
         <vertx.verticle>com.uid2.operator.vertx.UIDOperatorVerticle</vertx.verticle>
         <!-- check micrometer.version vertx-micrometer-metrics consumes before bumping up -->
-        <micrometer.version>1.12.2</micrometer.version>
+        <micrometer.version>1.13.5</micrometer.version>
         <enclave-api.version>2.1.6</enclave-api.version>
         <enclave-aws.version>2.1.0</enclave-aws.version>
         <enclave-azure.version>2.1.0</enclave-azure.version>

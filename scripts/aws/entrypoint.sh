@@ -101,6 +101,7 @@ echo "Starting Java application..."
 if [[ "$DEBUG_MODE" = "true" ]]; then
   java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
+    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8000 \
     -Djava.security.egd=file:/dev/./urandom \
     -Djava.library.path=/app/lib \
     -Dvertx-config-path="${FINAL_CONFIG}" \

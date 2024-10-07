@@ -35,8 +35,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
-import io.micrometer.prometheus.PrometheusMeterRegistry;
-import io.micrometer.prometheus.PrometheusRenameFilter;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+import io.micrometer.prometheusmetrics.PrometheusRenameFilter;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.impl.HttpUtils;
@@ -414,7 +414,7 @@ public class Main {
     }
 
     private static void setupMetrics(MicrometerMetricsOptions metricOptions) {
-        BackendRegistries.setupBackend(metricOptions);
+        BackendRegistries.setupBackend(metricOptions, null);
 
         MeterRegistry backendRegistry = BackendRegistries.getDefaultNow();
         if (backendRegistry instanceof PrometheusMeterRegistry) {

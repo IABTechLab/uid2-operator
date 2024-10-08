@@ -39,6 +39,15 @@ jobs:
     name: Update Operator Version
     runs-on: ubuntu-latest
     steps:
+      - name: Show Context
+        shell: bash
+        run: |
+          printenv
+          echo "$GITHUB_CONTEXT"
+          echo "Commit SHA:" $COMMIT_SHA
+        env: 
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        
       - name: Update Operator Version
         id: update_version
         uses: IABTechLab/uid2-operator/.github/actions/update_operator_version@main
@@ -155,7 +164,7 @@ jobs:
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aws-enclave-ids-${{ needs.start.outputs.new_version }}
+          name: aws-eif-enclave-ids-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
           if-no-files-found: error
 

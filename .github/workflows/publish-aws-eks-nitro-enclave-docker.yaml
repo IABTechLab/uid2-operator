@@ -86,6 +86,7 @@ jobs:
       operator_image_version: ${{ needs.buildUID2Image.outputs.image_tag }}
       operator_type: eks
       eks: '{ "pcr0":"${{ needs.buildUID2Image.outputs.enclave_id }}"}'
+      identity_scope: UID2
     secrets: inherit
 
   testEUIDEks:
@@ -96,6 +97,7 @@ jobs:
       operator_image_version: ${{ needs.buildEUIDImage.outputs.image_tag }}
       operator_type: eks
       eks: '{ "pcr0":"${{ needs.buildEUIDImage.outputs.enclave_id }}"}'
+      identity_scope: EUID
     secrets: inherit
 
   cleanup:

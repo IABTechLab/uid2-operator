@@ -7,7 +7,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: operator-and-validator-operators-configmap
-  namespace: compute
+  namespace: NAMESPACE_PLACEHOLDER
 data:
   client_side_token_generate: 'true'
   client_side_token_generate_log_invalid_http_origins: 'true'
@@ -23,7 +23,7 @@ metadata:
   labels:
     app: operator
   name: operator-service
-  namespace: compute
+  namespace: NAMESPACE_PLACEHOLDER
 spec:
   ports:
   - name: http
@@ -45,7 +45,7 @@ metadata:
     enclave: "true"
     flavor: operator
   name: operator
-  namespace: compute
+  namespace: NAMESPACE_PLACEHOLDER
 spec:
   progressDeadlineSeconds: 600
   replicas: 1

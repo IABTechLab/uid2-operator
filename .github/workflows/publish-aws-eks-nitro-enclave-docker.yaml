@@ -83,7 +83,7 @@ jobs:
     uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
     needs: [buildUID2Image]
     with:
-      operator_image_version: ${{ needs.buildUID2Image.outputs.eif_version_number }}
+      operator_image_version: ${{ needs.buildUID2Image.outputs.image_tag }}
       operator_type: eks
       eks: '{ "pcr0":"${{ needs.buildUID2Image.outputs.enclave_id }}"}'
     secrets: inherit
@@ -93,7 +93,7 @@ jobs:
     uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
     needs: [buildEUIDImage]
     with:
-      operator_image_version: ${{ needs.buildEUIDImage.outputs.eif_version_number }}
+      operator_image_version: ${{ needs.buildEUIDImage.outputs.image_tag }}
       operator_type: eks
       eks: '{ "pcr0":"${{ needs.buildEUIDImage.outputs.enclave_id }}"}'
     secrets: inherit

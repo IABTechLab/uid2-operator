@@ -137,8 +137,6 @@ spec:
           name: hugepage
           readOnly: false
       dnsPolicy: ClusterFirst
-      imagePullSecrets:
-      - name: gh-uid2-docker
       restartPolicy: Always
       schedulerName: default-scheduler
       securityContext: {}

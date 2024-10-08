@@ -92,7 +92,7 @@ jobs:
   testEUIDEks:
     name: E2E Tests EUID EKS
     uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
-    needs: [buildEUIDImage]
+    needs: [buildEUIDImage, testUID2Eks]
     with:
       operator_image_version: ${{ needs.buildEUIDImage.outputs.image_tag }}
       operator_type: eks

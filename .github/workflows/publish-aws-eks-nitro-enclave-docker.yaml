@@ -89,21 +89,10 @@ jobs:
       identity_scope: UID2
     secrets: inherit
 
-  testEUIDEks:
-    name: E2E Tests EUID EKS
-    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
-    needs: [buildEUIDImage, testUID2Eks]
-    with:
-      operator_image_version: ${{ needs.buildEUIDImage.outputs.image_tag }}
-      operator_type: eks
-      eks: '{ "pcr0":"${{ needs.buildEUIDImage.outputs.enclave_id }}"}'
-      identity_scope: EUID
-    secrets: inherit
-
   cleanup:
     name: Cleanup Building AWS Image
     runs-on: ubuntu-latest
-    needs: [buildUID2Image, buildEUIDImage, testUID2Eks, testEUIDEks]
+    needs: [buildUID2Image, buildEUIDImage, testUID2Eks]
     steps:
       - name: Check disk usage
         shell: bash

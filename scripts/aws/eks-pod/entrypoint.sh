@@ -1,4 +1,4 @@
-#!/bin/bash -eufx
+#!/bin/bash -ufx
 CID=42
 EIF_PATH=/home/uid2operator.eif
 MEMORY_MB=24576

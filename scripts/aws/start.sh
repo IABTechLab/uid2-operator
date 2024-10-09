@@ -89,6 +89,7 @@ function setup_vsockproxy() {
 }
 
 function setup_dante() {
+    ulimit -n 1024
     sockd -D
 }
 

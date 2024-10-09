@@ -98,6 +98,9 @@ function run_enclave() {
     echo "starting enclave... --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID"
     nitro-cli terminate-enclave --all
     nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator --debug-mode --attach-console
+
+    echo "Show log files..."
+    cat /var/log/nitro_enclaves/*.log
 }
 
 echo "starting ..."

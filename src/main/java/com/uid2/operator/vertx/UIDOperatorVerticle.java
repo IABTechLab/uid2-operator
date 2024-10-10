@@ -1243,7 +1243,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
-            jsonObject.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+            jsonObject.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.rawUid));
             jsonObject.put("bucket_id", mappedIdentity.bucketId);
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
@@ -1264,7 +1264,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             else {
                 final Instant now = Instant.now();
                 final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
-                rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+                rc.response().end(EncodingUtils.toBase64String(mappedIdentity.rawUid));
             }
         } catch (Exception ex) {
             LOGGER.error("Unexpected error while mapping identity", ex);
@@ -1474,7 +1474,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 } else {
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.rawUid));
                     resp.put("bucket_id", mappedIdentity.bucketId);
                     mapped.add(resp);
                 }

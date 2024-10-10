@@ -1,17 +1,17 @@
 package com.uid2.operator.model;
 
 public class MappedIdentity {
-    public static MappedIdentity LogoutIdentity = new MappedIdentity(new byte[33], "");
-    // AdvertisingId is the raw UID
-    public final byte[] advertisingId;
+    public static MappedIdentity OptoutIdentity = new MappedIdentity(new byte[33], "");
+    // The raw UID is also known as Advertising Id (historically)
+    public final byte[] rawUid;
     public final String bucketId;
 
-    public MappedIdentity(byte[] advertisingId, String bucketId) {
-        this.advertisingId = advertisingId;
+    public MappedIdentity(byte[] rawUid, String bucketId) {
+        this.rawUid = rawUid;
         this.bucketId = bucketId;
     }
 
     public boolean isOptedOut() {
-        return this.equals(LogoutIdentity) || this.bucketId == null || this.bucketId.isEmpty();
+        return this.equals(OptoutIdentity) || this.bucketId == null || this.bucketId.isEmpty();
     }
 }

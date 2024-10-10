@@ -110,7 +110,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
-            return Identity.LogoutToken;
+            return Identity.InvalidIdentity;
         } else {
             return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
         }

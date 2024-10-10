@@ -407,7 +407,7 @@ public class UIDOperatorServiceTest {
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertEquals(identity, Identity.LogoutToken);
+        assertEquals(identity, Identity.InvalidIdentity);
     }
 
     @ParameterizedTest
@@ -471,7 +471,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identity);
-        assertNotEquals(Identity.LogoutToken, identity);
+        assertNotEquals(Identity.InvalidIdentity, identity);
 
         // identity has no optout record, ensure refresh still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
@@ -513,7 +513,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identity);
-        assertNotEquals(Identity.LogoutToken, identity);
+        assertNotEquals(Identity.InvalidIdentity, identity);
 
         // identity has no optout record, ensure refresh still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
@@ -590,7 +590,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identity);
-        assertNotEquals(Identity.LogoutToken, identity);
+        assertNotEquals(Identity.InvalidIdentity, identity);
         assertNotNull(advertisingToken.userIdentity);
     }
 
@@ -651,7 +651,7 @@ public class UIDOperatorServiceTest {
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertNotEquals(identity, Identity.LogoutToken);
+        assertNotEquals(identity, Identity.InvalidIdentity);
         assertNotNull(identity);
 
         final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(identity.getRefreshToken());
@@ -717,7 +717,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(false);
         assertNotNull(identity);
-        assertNotEquals(Identity.LogoutToken, identity);
+        assertNotEquals(Identity.InvalidIdentity, identity);
         assertNotNull(advertisingToken.userIdentity);
 
         final RefreshToken refreshToken = this.tokenEncoder.decodeRefreshToken(identity.getRefreshToken());

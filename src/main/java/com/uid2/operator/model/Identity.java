@@ -5,7 +5,7 @@ import com.uid2.shared.model.TokenVersion;
 import java.time.Instant;
 
 public class Identity {
-    public static Identity LogoutToken = new Identity("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+    public static Identity InvalidIdentity = new Identity("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
     private final String advertisingToken;
     private final TokenVersion advertisingTokenVersion;
     private final String refreshToken;

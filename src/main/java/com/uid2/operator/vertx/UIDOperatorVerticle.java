@@ -257,7 +257,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             router.get(V0_IDENTITY_MAP.toString()).handler(auth.handle(this::handleIdentityMap, Role.MAPPER));
             router.post(V0_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handle(this::handleIdentityMapBatch, Role.MAPPER));
 
-            // Internal service APIs
+            // internal API to handle user optout of UID
             router.get(V0_TOKEN_LOGOUT.toString()).handler(auth.handle(this::handleLogoutAsync, Role.OPTOUT));
 
             // only uncomment to do local testing
@@ -286,6 +286,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
         mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
+        // internal API to handle user optout of UID
         mainRouter.post(V2_TOKEN_LOGOUT.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
         if (this.optOutStatusApiEnabled) {

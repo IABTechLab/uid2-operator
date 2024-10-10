@@ -102,7 +102,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public IdentityTokens generateIdentity(IdentityRequest request) {
+    public Identity generateIdentity(IdentityRequest request) {
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.userIdentity.id, now);
         final UserIdentity firstLevelHashIdentity = new UserIdentity(
@@ -110,7 +110,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
-            return IdentityTokens.LogoutToken;
+            return Identity.InvalidIdentity;
         } else {
             return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
         }
@@ -143,9 +143,9 @@ public class UIDOperatorService implements IUIDOperatorService {
             final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
 
             if (!optedOut) {
-                IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
+                Identity identity = this.generateIdentity(token.publisherIdentity, token.userIdentity);
 
-                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
+                return RefreshResponse.createRefreshedResponse(identity, durationSinceLastRefresh, isCstg);
             } else {
                 return RefreshResponse.Optout;
             }
@@ -160,7 +160,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     public MappedIdentity mapIdentity(MapRequest request) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.userIdentity, request.asOf);
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
-            return MappedIdentity.LogoutIdentity;
+            return MappedIdentity.OptoutIdentity;
         } else {
             return getAdvertisingId(firstLevelHashIdentity, request.asOf);
         }
@@ -192,7 +192,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
         final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf);
 
-        this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.advertisingId, r -> {
+        this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.rawUid, r -> {
             if (r.succeeded()) {
                 handler.handle(Future.succeededFuture(r.result()));
             } else {
@@ -207,7 +207,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf);
 
         final AdvertisingToken token = this.encoder.decodeAdvertisingToken(advertisingToken);
-        return Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id);
+        return Arrays.equals(mappedIdentity.rawUid, token.userIdentity.id);
     }
 
     @Override
@@ -244,12 +244,12 @@ public class UIDOperatorService implements IUIDOperatorService {
                 rotatingSalt.getHashedId());
     }
 
-    private IdentityTokens generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity) {
+    private Identity generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
         final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, nowUtc);
         final UserIdentity advertisingIdentity = new UserIdentity(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType,
-                mappedIdentity.advertisingId, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
+                mappedIdentity.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
 
         return this.encoder.encode(
                 this.createAdvertisingToken(publisherIdentity, advertisingIdentity, nowUtc),

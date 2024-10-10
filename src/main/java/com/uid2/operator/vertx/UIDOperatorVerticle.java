@@ -2,6 +2,7 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.Identity;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
@@ -45,7 +46,6 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.AllowForwardHeaders;
-import io.vertx.ext.web.Route;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -257,7 +257,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             router.get(V0_IDENTITY_MAP.toString()).handler(auth.handle(this::handleIdentityMap, Role.MAPPER));
             router.post(V0_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handle(this::handleIdentityMapBatch, Role.MAPPER));
 
-            // Internal service APIs
+            // internal API to handle user optout of UID
             router.get(V0_TOKEN_LOGOUT.toString()).handler(auth.handle(this::handleLogoutAsync, Role.OPTOUT));
 
             // only uncomment to do local testing
@@ -286,6 +286,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
         mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
+        // internal API to handle user optout of UID
         mainRouter.post(V2_TOKEN_LOGOUT.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
         if (this.optOutStatusApiEnabled) {
@@ -458,9 +459,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();
 
-        IdentityTokens identityTokens;
+        Identity identity;
         try {
-            identityTokens = this.idService.generateIdentity(
+            identity = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                             input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
@@ -472,12 +473,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         JsonObject response;
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
-        if (identityTokens.isEmptyToken()) {
+        if (identity.isEmptyToken()) {
             response = ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut);
             responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
         }
         else { //user not opted out and already generated valid identity token
-            response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
+            response = ResponseUtil.SuccessV2(toJsonV1(identity));
         }
         //if returning an optout token or a successful identity token created originally
         if (responseStatus == TokenResponseStatsCollector.ResponseStatus.Success) {
@@ -485,7 +486,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, responseStatus, siteProvider, identityTokens.getAdvertisingTokenVersion(), platformType);
+        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, responseStatus, siteProvider, identity.getAdvertisingTokenVersion(), platformType);
     }
 
     private boolean hasValidOriginOrAppName(RoutingContext rc, CstgRequest request, ClientSideKeypair keypair, TokenResponseStatsCollector.PlatformType platformType) {
@@ -823,7 +824,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
-                ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
+                ResponseUtil.Success(rc, toJsonV1(r.getIdentity()));
                 this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
             }
 
@@ -857,7 +858,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
-                ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
+                ResponseUtil.SuccessV2(rc, toJsonV1(r.getIdentity()));
                 this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, r, platformType);
@@ -935,7 +936,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (!checkForInvalidTokenInput(input, rc)) {
                 return;
             } else {
-                final IdentityTokens t = this.idService.generateIdentity(
+                final Identity t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
@@ -991,7 +992,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     return;
                 }
 
-                final IdentityTokens t = this.idService.generateIdentity(
+                final Identity t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
@@ -1007,7 +1008,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         pb.setLegacyBit();
                         pb.setClientSideTokenGenerateOptout();
 
-                        final IdentityTokens optOutTokens = this.idService.generateIdentity(
+                        final Identity optOutTokens = this.idService.generateIdentity(
                                 new IdentityRequest(
                                         new PublisherIdentity(siteId, 0, 0),
                                         optOutTokenInput.toUserIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
@@ -1047,7 +1048,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         try {
             siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
-            final IdentityTokens t = this.idService.generateIdentity(
+            final Identity t = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(siteId, 0, 0),
                             input.toUserIdentity(this.identityScope, 1, Instant.now()),
@@ -1074,7 +1075,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
 
-            sendJsonResponse(rc, toJson(r.getTokens()));
+            sendJsonResponse(rc, toJson(r.getIdentity()));
 
             siteId = rc.get(Const.RoutingContextData.SiteId);
             if (r.isRefreshed()) {
@@ -1242,7 +1243,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
-            jsonObject.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+            jsonObject.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.rawUid));
             jsonObject.put("bucket_id", mappedIdentity.bucketId);
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
@@ -1263,7 +1264,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             else {
                 final Instant now = Instant.now();
                 final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
-                rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+                rc.response().end(EncodingUtils.toBase64String(mappedIdentity.rawUid));
             }
         } catch (Exception ex) {
             LOGGER.error("Unexpected error while mapping identity", ex);
@@ -1473,7 +1474,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 } else {
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+                    resp.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.rawUid));
                     resp.put("bucket_id", mappedIdentity.bucketId);
                     mapped.add(resp);
                 }
@@ -1984,7 +1985,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private JsonObject toJsonV1(IdentityTokens t) {
+    private JsonObject toJsonV1(Identity t) {
         final JsonObject json = new JsonObject();
         json.put("advertising_token", t.getAdvertisingToken());
         json.put("refresh_token", t.getRefreshToken());
@@ -2038,7 +2039,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return json;
     }
 
-    private JsonObject toJson(IdentityTokens t) {
+    private JsonObject toJson(Identity t) {
         final JsonObject json = new JsonObject();
         json.put("advertisement_token", t.getAdvertisingToken());
         json.put("advertising_token", t.getAdvertisingToken());

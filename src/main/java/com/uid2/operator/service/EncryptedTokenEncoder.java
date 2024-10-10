@@ -337,12 +337,12 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     @Override
-    public IdentityTokens encode(AdvertisingToken advertisingToken, RefreshToken refreshToken, Instant refreshFrom, Instant asOf) {
+    public Identity encode(AdvertisingToken advertisingToken, RefreshToken refreshToken, Instant refreshFrom, Instant asOf) {
 
         final byte[] advertisingTokenBytes = encode(advertisingToken, asOf);
         final String base64AdvertisingToken = bytesToBase64Token(advertisingTokenBytes, advertisingToken.version);
 
-        return new IdentityTokens(
+        return new Identity(
                 base64AdvertisingToken,
                 advertisingToken.version,
                 EncodingUtils.toBase64String(encode(refreshToken, asOf)),

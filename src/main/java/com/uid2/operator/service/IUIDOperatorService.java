@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface IUIDOperatorService {
 
-    IdentityTokens generateIdentity(IdentityRequest request);
+    Identity generateIdentity(IdentityRequest request);
 
     RefreshResponse refreshIdentity(RefreshToken refreshToken);
 

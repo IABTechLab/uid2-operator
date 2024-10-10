@@ -1,28 +1,40 @@
 package com.uid2.operator;
 
-import com.uid2.operator.service.V2RequestUtil;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
+import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.KeyManager;
+import com.uid2.operator.service.V2RequestUtil;
 import com.uid2.shared.IClock;
 import com.uid2.shared.auth.ClientKey;
+import com.uid2.shared.encryption.Random;
+import com.uid2.shared.model.KeysetKey;
 import io.vertx.core.json.JsonObject;
 import org.junit.Test;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class V2RequestUtilTest {
     private static final String LOGGER_NAME = "com.uid2.operator.service.V2RequestUtil";
     private static MemoryAppender memoryAppender;
     private IClock clock = mock(IClock.class);
     private Instant mockNow = Instant.parse("2024-03-20T04:02:46.130Z");
+    private AutoCloseable mocks;
+    KeyManager keyManager = Mockito.mock(KeyManager.class);
+    KeysetKey refreshKey = Mockito.mock(KeysetKey.class);
 
     public void setupMemoryAppender() {
         Logger logger = (Logger)LoggerFactory.getLogger(LOGGER_NAME);
@@ -33,10 +45,16 @@ public class V2RequestUtilTest {
         memoryAppender.start();
     }
 
+    @BeforeEach
+    public void setup() {
+        mocks = MockitoAnnotations.openMocks(this);
+    }
+
     @AfterEach
-    public void close() {
+    public void close() throws Exception {
         memoryAppender.reset();
         memoryAppender.stop();
+        mocks.close();
     }
 
     @Test
@@ -117,5 +135,29 @@ public class V2RequestUtilTest {
         assertThat(memoryAppender.countEventsForLogger(LOGGER_NAME)).isEqualTo(1);
         assertThat(memoryAppender.search("[ERROR] Invalid payload in body: Data is not valid json string.").size()).isEqualTo(1);
         assertThat(memoryAppender.checkNoThrowableLogged().size()).isEqualTo(1);
+    }
+
+    @Test
+    public void testHandleRefreshTokenInResponseBody() {
+        String response = "{\n" +
+                "  \"identity\": {\n" +
+                "    \"advertising_token\": \"A4AAABZBgXozOcvdoBLWXaJSltTRG27n1kFegS9IKt-wN8bUPIPKiUXu9gxOzB0CvYprD8-tJNJjYNUy_HegQ1DdWkHwTm9vz9C2PUPtWzZenVy3g5L3hrbD_c7GuA6M6suZAkQGgeRM-7ixjVK2iUKYs5fOgxqzAl21St-7Bm97mgUEoMmg37bW5-X9w3TVs6PAUgSF2DuQmmwVXeKIsmoQZA\",\n" +
+                "    \"refresh_token\": \"AAAAFkKfY/PfFkWOByfIqQpP/nWp70ULyurGFQU7CUs5VWWhSgvzFRqXBes5DBqn6GKtwgKH/dF1Cx6Id951RnumXMJ5Oebw4vxQSvtGMNroN1B6HuPZcZiMnvDaTKjCZSAMd6Rc61pZzaQQ7wDKNP9NHNIzRmp7oziVlnEkT/sTJFfZZQPMFjWNqPy2nR0CFg8Zxui5ac6Ix9KEIFXOPM2v1O3kUm5E6x8MJ4vRLclK3NtAbWE3imauSpGSVlqG12hQKEBfN5CbcGRtdQGzdZoWjl8adZQdovufwulg59o8yKrEVPpL7wmoQ5oBaG9GG+FZMx4ttzkS/UlW+uk5qxUopeCRsuOSD/zWAsDDPP+6/FFuIMj+ftASZ7gXVaDraWqD\",\n" +
+                "    \"identity_expires\": 1728595268736,\n" +
+                "    \"refresh_expires\": 1731186368736,\n" +
+                "    \"refresh_from\": 1728594668736,\n" +
+                "    \"refresh_response_key\": \"sMRiJivNZJ6msQSvZhsVooG2T/xXTigaFRBPFHCPGQQ=\"\n" +
+                "  }\n" +
+                "}";
+        JsonObject jsonBody = new JsonObject(response);
+        when(keyManager.getRefreshKey()).thenReturn(refreshKey);
+        when(refreshKey.getId()).thenReturn(Integer.MAX_VALUE);
+        when(refreshKey.getKeyBytes()).thenReturn(Random.getRandomKeyBytes());
+        try {
+            V2RequestUtil.handleRefreshTokenInResponseBody(jsonBody, keyManager, IdentityScope.UID2);
+            fail("IllegalArgumentException not thrown");
+        } catch (IllegalArgumentException e) {
+            assertEquals("Generated refresh token's length=168 is not equal to=388", e.getMessage());
+        }
     }
 }

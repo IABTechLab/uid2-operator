@@ -72,14 +72,14 @@ public class TokenResponseStatsCollector {
     public static void recordRefresh(ISiteStore siteStore, Integer siteId, Endpoint endpoint, RefreshResponse refreshResponse, PlatformType platformType) {
         if (!refreshResponse.isRefreshed()) {
             if (refreshResponse.isOptOut() || refreshResponse.isDeprecated()) {
-                recordInternal(siteStore, siteId, endpoint, ResponseStatus.OptOut, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.OptOut, refreshResponse.getIdentity().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
             } else if (refreshResponse.isInvalidToken()) {
-                recordInternal(siteStore, siteId, endpoint, ResponseStatus.InvalidToken, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.InvalidToken, refreshResponse.getIdentity().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
             } else if (refreshResponse.isExpired()) {
-                recordInternal(siteStore, siteId, endpoint, ResponseStatus.ExpiredToken, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.ExpiredToken, refreshResponse.getIdentity().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
             }
         } else {
-            recordInternal(siteStore, siteId, endpoint, ResponseStatus.Success, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
+            recordInternal(siteStore, siteId, endpoint, ResponseStatus.Success, refreshResponse.getIdentity().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
         }
     }
 }

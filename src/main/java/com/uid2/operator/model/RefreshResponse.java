@@ -4,37 +4,37 @@ import java.time.Duration;
 
 public class RefreshResponse {
 
-    public static RefreshResponse Invalid = new RefreshResponse(Status.Invalid, IdentityTokens.LogoutToken);
-    public static RefreshResponse Optout = new RefreshResponse(Status.Optout, IdentityTokens.LogoutToken);
-    public static RefreshResponse Expired = new RefreshResponse(Status.Expired, IdentityTokens.LogoutToken);
-    public static RefreshResponse Deprecated = new RefreshResponse(Status.Deprecated, IdentityTokens.LogoutToken);
-    public static RefreshResponse NoActiveKey = new RefreshResponse(Status.NoActiveKey, IdentityTokens.LogoutToken);
+    public static RefreshResponse Invalid = new RefreshResponse(Status.Invalid, Identity.LogoutToken);
+    public static RefreshResponse Optout = new RefreshResponse(Status.Optout, Identity.LogoutToken);
+    public static RefreshResponse Expired = new RefreshResponse(Status.Expired, Identity.LogoutToken);
+    public static RefreshResponse Deprecated = new RefreshResponse(Status.Deprecated, Identity.LogoutToken);
+    public static RefreshResponse NoActiveKey = new RefreshResponse(Status.NoActiveKey, Identity.LogoutToken);
     private final Status status;
-    private final IdentityTokens tokens;
+    private final Identity identity;
     private final Duration durationSinceLastRefresh;
     private final boolean isCstg;
 
-    private RefreshResponse(Status status, IdentityTokens tokens, Duration durationSinceLastRefresh, boolean isCstg) {
+    private RefreshResponse(Status status, Identity identity, Duration durationSinceLastRefresh, boolean isCstg) {
         this.status = status;
-        this.tokens = tokens;
+        this.identity = identity;
         this.durationSinceLastRefresh = durationSinceLastRefresh;
         this.isCstg = isCstg;
     }
 
-    private RefreshResponse(Status status, IdentityTokens tokens) {
-        this(status, tokens, null, false);
+    private RefreshResponse(Status status, Identity identity) {
+        this(status, identity, null, false);
     }
 
-    public static RefreshResponse createRefreshedResponse(IdentityTokens tokens, Duration durationSinceLastRefresh, boolean isCstg) {
-        return new RefreshResponse(Status.Refreshed, tokens, durationSinceLastRefresh, isCstg);
+    public static RefreshResponse createRefreshedResponse(Identity identity, Duration durationSinceLastRefresh, boolean isCstg) {
+        return new RefreshResponse(Status.Refreshed, identity, durationSinceLastRefresh, isCstg);
     }
 
     public Status getStatus() {
         return status;
     }
 
-    public IdentityTokens getTokens() {
-        return tokens;
+    public Identity getIdentity() {
+        return identity;
     }
 
     public Duration getDurationSinceLastRefresh() {

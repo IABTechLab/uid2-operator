@@ -2,6 +2,7 @@ package com.uid2.operator.model;
 
 public class MappedIdentity {
     public static MappedIdentity LogoutIdentity = new MappedIdentity(new byte[33], "");
+    // AdvertisingId is the raw UID
     public final byte[] advertisingId;
     public final String bucketId;
 

@@ -102,7 +102,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public IdentityTokens generateIdentity(IdentityRequest request) {
+    public Identity generateIdentity(IdentityRequest request) {
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.userIdentity.id, now);
         final UserIdentity firstLevelHashIdentity = new UserIdentity(
@@ -110,7 +110,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
-            return IdentityTokens.LogoutToken;
+            return Identity.LogoutToken;
         } else {
             return generateIdentity(request.publisherIdentity, firstLevelHashIdentity);
         }
@@ -143,9 +143,9 @@ public class UIDOperatorService implements IUIDOperatorService {
             final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
 
             if (!optedOut) {
-                IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
+                Identity identity = this.generateIdentity(token.publisherIdentity, token.userIdentity);
 
-                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
+                return RefreshResponse.createRefreshedResponse(identity, durationSinceLastRefresh, isCstg);
             } else {
                 return RefreshResponse.Optout;
             }
@@ -244,7 +244,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 rotatingSalt.getHashedId());
     }
 
-    private IdentityTokens generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity) {
+    private Identity generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
         final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, nowUtc);

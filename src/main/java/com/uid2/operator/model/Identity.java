@@ -4,8 +4,8 @@ import com.uid2.shared.model.TokenVersion;
 
 import java.time.Instant;
 
-public class IdentityTokens {
-    public static IdentityTokens LogoutToken = new IdentityTokens("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+public class Identity {
+    public static Identity LogoutToken = new Identity("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
     private final String advertisingToken;
     private final TokenVersion advertisingTokenVersion;
     private final String refreshToken;
@@ -13,8 +13,8 @@ public class IdentityTokens {
     private final Instant refreshExpires;
     private final Instant refreshFrom;
 
-    public IdentityTokens(String advertisingToken, TokenVersion advertisingTokenVersion, String refreshToken,
-                          Instant identityExpires, Instant refreshExpires, Instant refreshFrom) {
+    public Identity(String advertisingToken, TokenVersion advertisingTokenVersion, String refreshToken,
+                    Instant identityExpires, Instant refreshExpires, Instant refreshFrom) {
         this.advertisingToken = advertisingToken;
         this.advertisingTokenVersion = advertisingTokenVersion;
         this.refreshToken = refreshToken;

@@ -473,7 +473,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         JsonObject response;
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
-        if (identity.isEmptyToken()) {
+        if (identity.isNotValid()) {
             response = ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut);
             responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
         }
@@ -998,7 +998,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                 input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
                                 OptoutCheckPolicy.respectOptOut()));
 
-                if (t.isEmptyToken()) {
+                if (t.isNotValid()) {
                     if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
                         final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
                                 ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)

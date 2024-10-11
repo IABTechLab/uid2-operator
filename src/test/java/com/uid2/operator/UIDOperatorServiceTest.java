@@ -211,7 +211,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identity);
-        assertFalse(identity.isEmptyToken());
+        assertFalse(identity.isNotValid());
 
         final RefreshTokenInput refreshTokenInput = this.tokenEncoder.decodeRefreshToken(identity.getRefreshToken());
         assertEquals(RefreshResponse.Optout, uid2Service.refreshIdentity(refreshTokenInput));
@@ -227,7 +227,7 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.RespectOptOut
         );
         final Identity identity = uid2Service.generateIdentity(identityRequest);
-        assertTrue(identity.isEmptyToken());
+        assertTrue(identity.isNotValid());
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
     }

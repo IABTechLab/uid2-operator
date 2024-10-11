@@ -48,7 +48,7 @@ public class Identity {
         return refreshFrom;
     }
 
-    public boolean isEmptyToken() {
+    public boolean isNotValid() {
         return advertisingToken == null || advertisingToken.isEmpty();
     }
 }

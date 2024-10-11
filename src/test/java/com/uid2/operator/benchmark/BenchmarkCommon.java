@@ -159,7 +159,7 @@ public class BenchmarkCommon {
         return arr;
     }
 
-    static PublisherIdentity createPublisherIdentity() throws Exception {
+    static SourcePublisher createSourcePublisher() throws Exception {
         RotatingClientKeyProvider clients = new RotatingClientKeyProvider(
                 new EmbeddedResourceStorage(Main.class),
                 new GlobalScope(new CloudPath("/com.uid2.core/test/clients/metadata.json")));
@@ -167,7 +167,7 @@ public class BenchmarkCommon {
 
         for (ClientKey client : clients.getAll()) {
             if (client.hasRole(Role.GENERATOR)) {
-                return new PublisherIdentity(client.getSiteId(), 0, 0);
+                return new SourcePublisher(client.getSiteId(), 0, 0);
             }
         }
         throw new IllegalStateException("embedded resource does not include any publisher key");

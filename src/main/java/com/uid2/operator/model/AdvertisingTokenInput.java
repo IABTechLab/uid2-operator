@@ -5,14 +5,14 @@ import com.uid2.shared.model.TokenVersion;
 
 public class AdvertisingTokenInput extends VersionedToken {
     public final OperatorIdentity operatorIdentity;
-    public final PublisherIdentity publisherIdentity;
+    public final SourcePublisher sourcePublisher;
     public final RawUidIdentity rawUidIdentity;
 
     public AdvertisingTokenInput(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
-                                 PublisherIdentity publisherIdentity, RawUidIdentity rawUidIdentity) {
+                                 SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity) {
         super(version, createdAt, expiresAt);
         this.operatorIdentity = operatorIdentity;
-        this.publisherIdentity = publisherIdentity;
+        this.sourcePublisher = sourcePublisher;
         this.rawUidIdentity = rawUidIdentity;
     }
 }

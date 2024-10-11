@@ -463,7 +463,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             identity = this.idService.generateIdentity(
                     new IdentityRequest(
-                            new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
+                            new SourcePublisher(clientSideKeypair.getSiteId(), 0, 0),
                             input.toHashedDiiIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                             OptoutCheckPolicy.RespectOptOut));
         } catch (KeyManager.NoActiveKeyException e){
@@ -938,7 +938,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             } else {
                 final Identity t = this.idService.generateIdentity(
                         new IdentityRequest(
-                                new PublisherIdentity(siteId, 0, 0),
+                                new SourcePublisher(siteId, 0, 0),
                                 input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
                                 OptoutCheckPolicy.defaultPolicy()));
 
@@ -994,7 +994,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
                 final Identity t = this.idService.generateIdentity(
                         new IdentityRequest(
-                                new PublisherIdentity(siteId, 0, 0),
+                                new SourcePublisher(siteId, 0, 0),
                                 input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
                                 OptoutCheckPolicy.respectOptOut()));
 
@@ -1010,7 +1010,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
                         final Identity optOutTokens = this.idService.generateIdentity(
                                 new IdentityRequest(
-                                        new PublisherIdentity(siteId, 0, 0),
+                                        new SourcePublisher(siteId, 0, 0),
                                         optOutTokenInput.toHashedDiiIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
                                         OptoutCheckPolicy.DoNotRespect));
 
@@ -1050,7 +1050,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
             final Identity t = this.idService.generateIdentity(
                     new IdentityRequest(
-                            new PublisherIdentity(siteId, 0, 0),
+                            new SourcePublisher(siteId, 0, 0),
                             input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
                             OptoutCheckPolicy.defaultPolicy()));
 
@@ -1788,7 +1788,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return RefreshResponse.Invalid;
         }
         if (!AuthMiddleware.isAuthenticated(rc)) {
-            rc.put(Const.RoutingContextData.SiteId, refreshTokenInput.publisherIdentity.siteId);
+            rc.put(Const.RoutingContextData.SiteId, refreshTokenInput.sourcePublisher.siteId);
         }
         recordRefreshTokenVersionCount(String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)), this.getRefreshTokenVersion(tokenStr));
 

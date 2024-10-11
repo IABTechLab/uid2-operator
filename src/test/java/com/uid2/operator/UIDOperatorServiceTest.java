@@ -151,7 +151,7 @@ public class UIDOperatorServiceTest {
     @CsvSource({"123, V2","127, V4","128, V4"}) //site id 127 and 128 is for testing "site_ids_using_v4_tokens"
     public void testGenerateAndRefresh(int siteId, TokenVersion tokenVersion) {
         final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(siteId, 124, 125),
+                new SourcePublisher(siteId, 124, 125),
                 createHashedDiiIdentity("test-email-hash", IdentityScope.UID2, IdentityType.Email),
                 OptoutCheckPolicy.DoNotRespect
         );
@@ -162,13 +162,13 @@ public class UIDOperatorServiceTest {
 
         UIDOperatorVerticleTest.validateAdvertisingToken(identity.getAdvertisingToken(), tokenVersion, IdentityScope.UID2, IdentityType.Email);
         AdvertisingTokenInput advertisingTokenInput = tokenEncoder.decodeAdvertisingToken(identity.getAdvertisingToken());assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingTokenInput.expiresAt);
-        assertEquals(identityRequest.publisherIdentity.siteId, advertisingTokenInput.publisherIdentity.siteId);
+        assertEquals(identityRequest.sourcePublisher.siteId, advertisingTokenInput.sourcePublisher.siteId);
         assertIdentityScopeIdentityTypeAndEstablishedAt(identityRequest.hashedDiiIdentity, advertisingTokenInput.rawUidIdentity);
 
         RefreshTokenInput refreshTokenInput = tokenEncoder.decodeRefreshToken(identity.getRefreshToken());
         assertEquals(this.now, refreshTokenInput.createdAt);
         assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), refreshTokenInput.expiresAt);
-        assertEquals(identityRequest.publisherIdentity.siteId, refreshTokenInput.publisherIdentity.siteId);
+        assertEquals(identityRequest.sourcePublisher.siteId, refreshTokenInput.sourcePublisher.siteId);
         assertIdentityScopeIdentityTypeAndEstablishedAt(identityRequest.hashedDiiIdentity, refreshTokenInput.firstLevelHashIdentity);
 
         setNow(Instant.now().plusSeconds(200));
@@ -184,7 +184,7 @@ public class UIDOperatorServiceTest {
         UIDOperatorVerticleTest.validateAdvertisingToken(refreshResponse.getIdentity().getAdvertisingToken(), tokenVersion, IdentityScope.UID2, IdentityType.Email);
         AdvertisingTokenInput advertisingTokenInput2 = tokenEncoder.decodeAdvertisingToken(refreshResponse.getIdentity().getAdvertisingToken());
         assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingTokenInput2.expiresAt);
-        assertEquals(advertisingTokenInput.publisherIdentity.siteId, advertisingTokenInput2.publisherIdentity.siteId);
+        assertEquals(advertisingTokenInput.sourcePublisher.siteId, advertisingTokenInput2.sourcePublisher.siteId);
         assertIdentityScopeIdentityTypeAndEstablishedAt(advertisingTokenInput.rawUidIdentity,
                 advertisingTokenInput2.rawUidIdentity);
         assertArrayEquals(advertisingTokenInput.rawUidIdentity.rawUid,
@@ -193,7 +193,7 @@ public class UIDOperatorServiceTest {
         RefreshTokenInput refreshTokenInput2 = tokenEncoder.decodeRefreshToken(refreshResponse.getIdentity().getRefreshToken());
         assertEquals(this.now, refreshTokenInput2.createdAt);
         assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), refreshTokenInput2.expiresAt);
-        assertEquals(refreshTokenInput.publisherIdentity.siteId, refreshTokenInput2.publisherIdentity.siteId);
+        assertEquals(refreshTokenInput.sourcePublisher.siteId, refreshTokenInput2.sourcePublisher.siteId);
         assertIdentityScopeIdentityTypeAndEstablishedAt(refreshTokenInput.firstLevelHashIdentity, refreshTokenInput2.firstLevelHashIdentity);
         assertArrayEquals(refreshTokenInput.firstLevelHashIdentity.firstLevelHash, refreshTokenInput2.firstLevelHashIdentity.firstLevelHash);
     }
@@ -203,7 +203,7 @@ public class UIDOperatorServiceTest {
         final InputUtil.InputVal inputVal = InputUtil.normalizeEmail(IdentityConst.OptOutIdentityForEmail);
 
         final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 inputVal.toHashedDiiIdentity(IdentityScope.UID2, 0, this.now),
                 OptoutCheckPolicy.DoNotRespect
         );
@@ -222,7 +222,7 @@ public class UIDOperatorServiceTest {
         final InputUtil.InputVal inputVal = InputUtil.normalizeEmail(IdentityConst.OptOutIdentityForEmail);
 
         final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 inputVal.toHashedDiiIdentity(IdentityScope.UID2, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
@@ -238,7 +238,7 @@ public class UIDOperatorServiceTest {
         final InputUtil.InputVal inputVal = InputUtil.normalizeEmail(email);
 
         final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 inputVal.toHashedDiiIdentity(IdentityScope.EUID, 0, this.now),
                 OptoutCheckPolicy.DoNotRespect
         );
@@ -262,12 +262,12 @@ public class UIDOperatorServiceTest {
         final HashedDiiIdentity hashedDiiIdentity = createHashedDiiIdentity(id, scope, type);
 
         final IdentityRequest identityRequestForceGenerate = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 hashedDiiIdentity,
                 OptoutCheckPolicy.DoNotRespect);
 
         final IdentityRequest identityRequestRespectOptOut = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 hashedDiiIdentity,
                 OptoutCheckPolicy.RespectOptOut);
 
@@ -282,7 +282,7 @@ public class UIDOperatorServiceTest {
             identity = uid2Service.generateIdentity(identityRequestForceGenerate);
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-            advertisingTokenInput = validateAndGetToken(tokenEncoder, identity.getAdvertisingToken(), IdentityScope.UID2, hashedDiiIdentity.identityType, identityRequestRespectOptOut.publisherIdentity.siteId);
+            advertisingTokenInput = validateAndGetToken(tokenEncoder, identity.getAdvertisingToken(), IdentityScope.UID2, hashedDiiIdentity.identityType, identityRequestRespectOptOut.sourcePublisher.siteId);
             reset(shutdownHandler);
             identityAfterOptOut = uid2Service.generateIdentity(identityRequestRespectOptOut);
 
@@ -290,7 +290,7 @@ public class UIDOperatorServiceTest {
             identity = euidService.generateIdentity(identityRequestForceGenerate);
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-            advertisingTokenInput = validateAndGetToken(tokenEncoder, identity.getAdvertisingToken(), IdentityScope.EUID, hashedDiiIdentity.identityType, identityRequestRespectOptOut.publisherIdentity.siteId);
+            advertisingTokenInput = validateAndGetToken(tokenEncoder, identity.getAdvertisingToken(), IdentityScope.EUID, hashedDiiIdentity.identityType, identityRequestRespectOptOut.sourcePublisher.siteId);
             reset(shutdownHandler);
             identityAfterOptOut = euidService.generateIdentity(identityRequestRespectOptOut);
         }
@@ -393,7 +393,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 inputVal.toHashedDiiIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
@@ -459,7 +459,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 inputVal.toHashedDiiIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.DoNotRespect
         );
@@ -498,7 +498,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 inputVal.toHashedDiiIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
@@ -573,7 +573,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 inputVal.toHashedDiiIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
@@ -589,7 +589,7 @@ public class UIDOperatorServiceTest {
         else {
             identity = uid2Service.generateIdentity(identityRequest);
         }
-        advertisingTokenInput = validateAndGetToken(tokenEncoder, identity.getAdvertisingToken(), scope, identityRequest.hashedDiiIdentity.identityType, identityRequest.publisherIdentity.siteId);
+        advertisingTokenInput = validateAndGetToken(tokenEncoder, identity.getAdvertisingToken(), scope, identityRequest.hashedDiiIdentity.identityType, identityRequest.sourcePublisher.siteId);
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identity);
@@ -641,7 +641,7 @@ public class UIDOperatorServiceTest {
     void testNormalIdentityOptIn(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
         final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 inputVal.toHashedDiiIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.DoNotRespect
         );
@@ -702,7 +702,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityRequest identityRequest = new IdentityRequest(
-                new PublisherIdentity(123, 124, 125),
+                new SourcePublisher(123, 124, 125),
                 inputVal.toHashedDiiIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut);
 
@@ -711,11 +711,11 @@ public class UIDOperatorServiceTest {
         reset(shutdownHandler);
         if(scope == IdentityScope.EUID) {
             identity = euidService.generateIdentity(identityRequest);
-            advertisingTokenInput = validateAndGetToken(tokenEncoder, identity.getAdvertisingToken(), IdentityScope.EUID, identityRequest.hashedDiiIdentity.identityType, identityRequest.publisherIdentity.siteId);
+            advertisingTokenInput = validateAndGetToken(tokenEncoder, identity.getAdvertisingToken(), IdentityScope.EUID, identityRequest.hashedDiiIdentity.identityType, identityRequest.sourcePublisher.siteId);
         }
         else {
             identity = uid2Service.generateIdentity(identityRequest);
-            advertisingTokenInput = validateAndGetToken(tokenEncoder, identity.getAdvertisingToken(), IdentityScope.UID2, identityRequest.hashedDiiIdentity.identityType, identityRequest.publisherIdentity.siteId);
+            advertisingTokenInput = validateAndGetToken(tokenEncoder, identity.getAdvertisingToken(), IdentityScope.UID2, identityRequest.hashedDiiIdentity.identityType, identityRequest.sourcePublisher.siteId);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(false);

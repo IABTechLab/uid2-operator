@@ -14,7 +14,7 @@ public class TokenEndecBenchmark {
 
     private static final IUIDOperatorService uidService;
     private static final HashedDiiIdentity[] userIdentities;
-    private static final PublisherIdentity publisher;
+    private static final SourcePublisher publisher;
     private static final EncryptedTokenEncoder encoder;
     private static final Identity[] generatedTokens;
     private static int idx = 0;
@@ -23,7 +23,7 @@ public class TokenEndecBenchmark {
         try {
             uidService = BenchmarkCommon.createUidOperatorService();
             userIdentities = BenchmarkCommon.createUserIdentities();
-            publisher = BenchmarkCommon.createPublisherIdentity();
+            publisher = BenchmarkCommon.createSourcePublisher();
             encoder = BenchmarkCommon.createTokenEncoder();
             generatedTokens = createAdvertisingTokens();
             if (generatedTokens.length < 65536 || userIdentities.length < 65536) {

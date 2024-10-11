@@ -56,7 +56,7 @@ public class TokenEncodingTest {
             now,
             now.plusSeconds(360),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
-            new PublisherIdentity(111, 112, 113),
+            new SourcePublisher(111, 112, 113),
             new FirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Email, firstLevelHash, 121, now, now.minusSeconds(122))
         );
 
@@ -74,7 +74,7 @@ public class TokenEncodingTest {
         assertTrue(token.firstLevelHashIdentity.matches(decoded.firstLevelHashIdentity));
         assertEquals(token.firstLevelHashIdentity.privacyBits, decoded.firstLevelHashIdentity.privacyBits);
         assertEquals(token.firstLevelHashIdentity.establishedAt, decoded.firstLevelHashIdentity.establishedAt);
-        assertEquals(token.publisherIdentity.siteId, decoded.publisherIdentity.siteId);
+        assertEquals(token.sourcePublisher.siteId, decoded.sourcePublisher.siteId);
 
         Buffer b = Buffer.buffer(encodedBytes);
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 25 : 2);
@@ -98,7 +98,7 @@ public class TokenEncodingTest {
             now,
             now.plusSeconds(60),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
-            new PublisherIdentity(111, 112, 113),
+            new SourcePublisher(111, 112, 113),
             new RawUidIdentity(IdentityScope.UID2, IdentityType.Email, rawUid, 121, now, now.minusSeconds(122))
         );
 
@@ -111,7 +111,7 @@ public class TokenEncodingTest {
         assertTrue(token.rawUidIdentity.matches(decoded.rawUidIdentity));
         assertEquals(token.rawUidIdentity.privacyBits, decoded.rawUidIdentity.privacyBits);
         assertEquals(token.rawUidIdentity.establishedAt, decoded.rawUidIdentity.establishedAt);
-        assertEquals(token.publisherIdentity.siteId, decoded.publisherIdentity.siteId);
+        assertEquals(token.sourcePublisher.siteId, decoded.sourcePublisher.siteId);
 
         Buffer b = Buffer.buffer(encodedBytes);
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 1 : 2); //TODO - extract master key from token should be a helper function

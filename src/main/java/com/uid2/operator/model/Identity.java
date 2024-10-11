@@ -4,6 +4,7 @@ import com.uid2.shared.model.TokenVersion;
 
 import java.time.Instant;
 
+// this is the response of the /token/generate and /client/generate endpoints
 public class Identity {
     public static Identity InvalidIdentity = new Identity("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
     private final String advertisingToken;

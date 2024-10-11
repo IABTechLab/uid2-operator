@@ -1,4 +1,4 @@
-#!/bin/bash -eufx
+#!/bin/bash -ufx
 
 # This is the entrypoint for the Enclave. It is executed in all enclaves - EC2 and EKS
 
@@ -16,7 +16,7 @@ ifconfig lo 127.0.0.1
 
 # -- start vsock proxy
 echo "Starting vsock proxy..."
-/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 0
+/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 1
 
 # -- load config from identity service
 echo "Loading config from identity service via proxy..."

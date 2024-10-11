@@ -1,4 +1,4 @@
-#!/bin/bash -eufx
+#!/bin/bash -ufx
 CID=42
 EIF_PATH=/home/uid2operator.eif
 MEMORY_MB=24576
@@ -30,7 +30,7 @@ function setup_vsockproxy() {
     VSOCK_PROXY=${VSOCK_PROXY:-/home/vsockpx}
     VSOCK_CONFIG=${VSOCK_CONFIG:-/home/proxies.host.yaml}
     VSOCK_THREADS=${VSOCK_THREADS:-$(( $(nproc) * 2 )) }
-    VSOCK_LOG_LEVEL=0
+    VSOCK_LOG_LEVEL=1
     echo "starting vsock proxy at $VSOCK_PROXY with $VSOCK_THREADS worker threads..."
     $VSOCK_PROXY -c $VSOCK_CONFIG --workers $VSOCK_THREADS --log-level $VSOCK_LOG_LEVEL --daemon
     echo "vsock proxy now running in background."

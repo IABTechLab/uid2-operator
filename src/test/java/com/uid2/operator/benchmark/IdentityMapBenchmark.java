@@ -1,6 +1,7 @@
 package com.uid2.operator.benchmark;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
 import com.uid2.operator.service.IUIDOperatorService;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;

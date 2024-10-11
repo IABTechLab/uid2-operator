@@ -1,5 +1,7 @@
 package com.uid2.operator.model;
 
+import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+
 public final class IdentityRequest {
     public final SourcePublisher sourcePublisher;
     public final HashedDiiIdentity hashedDiiIdentity;

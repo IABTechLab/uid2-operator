@@ -2,7 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.IdentityType;
-import com.uid2.operator.model.HashedDiiIdentity;
+import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
 
 import java.time.Instant;
 

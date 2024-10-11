@@ -1,5 +1,7 @@
 package com.uid2.operator.model;
 
+import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+
 import java.time.Instant;
 
 public final class MapRequest {

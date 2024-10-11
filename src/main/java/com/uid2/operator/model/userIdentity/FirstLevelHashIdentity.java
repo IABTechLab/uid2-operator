@@ -1,16 +1,14 @@
-package com.uid2.operator.model;
+package com.uid2.operator.model.userIdentity;
+
+import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.IdentityType;
 
 import java.time.Instant;
 import java.util.Arrays;
 
 // Contains a first level salted computed from Hashed DII (email/phone number) and applying salt to it
-public class FirstLevelHashIdentity implements UserIdentity {
-    public final IdentityScope identityScope;
-    public final IdentityType identityType;
+public class FirstLevelHashIdentity extends UserIdentity {
     public final byte[] firstLevelHash;
-    public final int privacyBits;
-    public final Instant establishedAt;
-    public final Instant refreshedAt;
 
     public FirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] firstLevelHash, int privacyBits,
                                   Instant establishedAt, Instant refreshedAt) {
@@ -27,9 +25,4 @@ public class FirstLevelHashIdentity implements UserIdentity {
                 this.identityType.equals(that.identityType) &&
                 Arrays.equals(this.firstLevelHash, that.firstLevelHash);
     }
-
-    public IdentityScope GetIdentityScope() { return identityScope; }
-    public IdentityType GetIdentityType() { return identityType; }
-    public Instant GetEstablishedAt() { return establishedAt; };
-    public Instant GetIRefreshedAt() { return refreshedAt; }
 }

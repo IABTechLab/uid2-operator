@@ -1,6 +1,8 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
+import com.uid2.operator.model.userIdentity.RawUidIdentity;
 import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.encryption.AesCbc;

@@ -1,6 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
 import com.uid2.shared.model.SaltEntry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;

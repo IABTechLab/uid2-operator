@@ -3,6 +3,8 @@ package com.uid2.operator.benchmark;
 import com.uid2.operator.Const;
 import com.uid2.operator.Main;
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
+import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.UIDOperatorService;

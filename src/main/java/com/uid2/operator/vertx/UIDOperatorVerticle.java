@@ -4,6 +4,7 @@ import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.Identity;
 import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;

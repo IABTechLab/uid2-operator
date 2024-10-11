@@ -1,7 +1,6 @@
 package com.uid2.operator.store;
 
-import com.uid2.operator.model.FirstLevelHashIdentity;
-import com.uid2.operator.model.HashedDiiIdentity;
+import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 

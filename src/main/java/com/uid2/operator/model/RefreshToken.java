@@ -6,13 +6,13 @@ import com.uid2.shared.model.TokenVersion;
 public class RefreshToken extends VersionedToken {
     public final OperatorIdentity operatorIdentity;
     public final PublisherIdentity publisherIdentity;
-    public final UserIdentity userIdentity;
+    public final FirstLevelHashIdentity firstLevelHashIdentity;
 
     public RefreshToken(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
-                        PublisherIdentity publisherIdentity, UserIdentity userIdentity) {
+                        PublisherIdentity publisherIdentity, FirstLevelHashIdentity firstLevelHashIdentity) {
         super(version, createdAt, expiresAt);
         this.operatorIdentity = operatorIdentity;
         this.publisherIdentity = publisherIdentity;
-        this.userIdentity = userIdentity;
+        this.firstLevelHashIdentity = firstLevelHashIdentity;
     }
 }

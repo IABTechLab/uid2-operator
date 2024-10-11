@@ -57,7 +57,7 @@ public class TokenEncodingTest {
             now.plusSeconds(360),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
             new PublisherIdentity(111, 112, 113),
-            new UserIdentity(IdentityScope.UID2, IdentityType.Email, firstLevelHash, 121, now, now.minusSeconds(122))
+            new FirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Email, firstLevelHash, 121, now, now.minusSeconds(122))
         );
 
         if (tokenVersion == TokenVersion.V4) {
@@ -71,9 +71,9 @@ public class TokenEncodingTest {
         assertEquals(token.createdAt, decoded.createdAt);
         int addSeconds = (tokenVersion == TokenVersion.V2) ? 60 : 0; //todo: why is there a 60 second buffer in encodeV2() but not in encodeV3()?
         assertEquals(token.expiresAt.plusSeconds(addSeconds), decoded.expiresAt);
-        assertTrue(token.userIdentity.matches(decoded.userIdentity));
-        assertEquals(token.userIdentity.privacyBits, decoded.userIdentity.privacyBits);
-        assertEquals(token.userIdentity.establishedAt, decoded.userIdentity.establishedAt);
+        assertTrue(token.firstLevelHashIdentity.matches(decoded.firstLevelHashIdentity));
+        assertEquals(token.firstLevelHashIdentity.privacyBits, decoded.firstLevelHashIdentity.privacyBits);
+        assertEquals(token.firstLevelHashIdentity.establishedAt, decoded.firstLevelHashIdentity.establishedAt);
         assertEquals(token.publisherIdentity.siteId, decoded.publisherIdentity.siteId);
 
         Buffer b = Buffer.buffer(encodedBytes);
@@ -99,7 +99,7 @@ public class TokenEncodingTest {
             now.plusSeconds(60),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
             new PublisherIdentity(111, 112, 113),
-            new UserIdentity(IdentityScope.UID2, IdentityType.Email, rawUid, 121, now, now.minusSeconds(122))
+            new RawUidIdentity(IdentityScope.UID2, IdentityType.Email, rawUid, 121, now, now.minusSeconds(122))
         );
 
         final byte[] encodedBytes = encoder.encode(token, now);
@@ -108,9 +108,9 @@ public class TokenEncodingTest {
         assertEquals(tokenVersion, decoded.version);
         assertEquals(token.createdAt, decoded.createdAt);
         assertEquals(token.expiresAt, decoded.expiresAt);
-        assertTrue(token.userIdentity.matches(decoded.userIdentity));
-        assertEquals(token.userIdentity.privacyBits, decoded.userIdentity.privacyBits);
-        assertEquals(token.userIdentity.establishedAt, decoded.userIdentity.establishedAt);
+        assertTrue(token.rawUidIdentity.matches(decoded.rawUidIdentity));
+        assertEquals(token.rawUidIdentity.privacyBits, decoded.rawUidIdentity.privacyBits);
+        assertEquals(token.rawUidIdentity.establishedAt, decoded.rawUidIdentity.establishedAt);
         assertEquals(token.publisherIdentity.siteId, decoded.publisherIdentity.siteId);
 
         Buffer b = Buffer.buffer(encodedBytes);

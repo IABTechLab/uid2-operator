@@ -4,7 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
-import com.uid2.operator.model.UserIdentity;
+import com.uid2.operator.model.FirstLevelHashIdentity;
+import com.uid2.operator.model.HashedDiiIdentity;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.shared.Utils;
 import com.uid2.shared.cloud.CloudStorageException;
@@ -74,8 +75,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
-    public Instant getLatestEntry(UserIdentity firstLevelHashIdentity) {
-        long epochSecond = this.snapshot.get().getOptOutTimestamp(firstLevelHashIdentity.id);
+    public Instant getLatestEntry(FirstLevelHashIdentity firstLevelHashIdentity) {
+        long epochSecond = this.snapshot.get().getOptOutTimestamp(firstLevelHashIdentity.firstLevelHash);
         Instant instant = epochSecond > 0 ? Instant.ofEpochSecond(epochSecond) : null;
         return instant;
     }
@@ -86,14 +87,14 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
-    public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
+    public void addEntry(FirstLevelHashIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
         if (remoteApiHost == null) {
             handler.handle(Future.failedFuture("remote api not set"));
             return;
         }
 
         this.webClient.get(remoteApiPort, remoteApiHost, remoteApiPath).
-            addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.id))
+            addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.firstLevelHash))
             .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId))
             .putHeader("Authorization", remoteApiBearerToken)
             .as(BodyCodec.string())

@@ -148,12 +148,12 @@ public class BenchmarkCommon {
         return storage;
     }
 
-    static UserIdentity[] createUserIdentities() {
-        UserIdentity[] arr = new UserIdentity[65536];
+    static HashedDiiIdentity[] createUserIdentities() {
+        HashedDiiIdentity[] arr = new HashedDiiIdentity[65536];
         for (int i = 0; i < 65536; i++) {
             final byte[] id = new byte[33];
             new Random().nextBytes(id);
-            arr[i] = new UserIdentity(IdentityScope.UID2, IdentityType.Email, id, 0,
+            arr[i] = new HashedDiiIdentity(IdentityScope.UID2, IdentityType.Email, id, 0,
                     Instant.now().minusSeconds(120), Instant.now().minusSeconds(60));
         }
         return arr;
@@ -187,14 +187,14 @@ public class BenchmarkCommon {
         }
 
         @Override
-        public Instant getLatestEntry(UserIdentity firstLevelHashIdentity) {
-            long epochSecond = this.snapshot.getOptOutTimestamp(firstLevelHashIdentity.id);
+        public Instant getLatestEntry(FirstLevelHashIdentity firstLevelHashIdentity) {
+            long epochSecond = this.snapshot.getOptOutTimestamp(firstLevelHashIdentity.firstLevelHash);
             Instant instant = epochSecond > 0 ? Instant.ofEpochSecond(epochSecond) : null;
             return instant;
         }
 
         @Override
-        public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
+        public void addEntry(FirstLevelHashIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
             // noop
         }
 

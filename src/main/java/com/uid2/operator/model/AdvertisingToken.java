@@ -6,14 +6,14 @@ import com.uid2.shared.model.TokenVersion;
 public class AdvertisingToken extends VersionedToken {
     public final OperatorIdentity operatorIdentity;
     public final PublisherIdentity publisherIdentity;
-    public final UserIdentity userIdentity;
+    public final RawUidIdentity rawUidIdentity;
 
     public AdvertisingToken(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
-                            PublisherIdentity publisherIdentity, UserIdentity userIdentity) {
+                            PublisherIdentity publisherIdentity, RawUidIdentity rawUidIdentity) {
         super(version, createdAt, expiresAt);
         this.operatorIdentity = operatorIdentity;
         this.publisherIdentity = publisherIdentity;
-        this.userIdentity = userIdentity;
+        this.rawUidIdentity = rawUidIdentity;
     }
 }
 

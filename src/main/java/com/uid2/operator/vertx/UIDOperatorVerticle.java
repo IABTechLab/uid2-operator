@@ -464,7 +464,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             identity = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
-                            input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
+                            input.toHashedDiiIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
                             OptoutCheckPolicy.RespectOptOut));
         } catch (KeyManager.NoActiveKeyException e){
             SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, e, platformType);
@@ -877,7 +877,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     || (Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Phone)) {
                 try {
                     final Instant now = Instant.now();
-                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
+                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toHashedDiiIdentity(this.identityScope, 0, now), now)) {
                         ResponseUtil.Success(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.Success(rc, Boolean.FALSE);
@@ -910,7 +910,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
 
-                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(this.identityScope, 0, now), now)) {
+                    if (this.idService.advertisingTokenMatches(token, input.toHashedDiiIdentity(this.identityScope, 0, now), now)) {
                         ResponseUtil.SuccessV2(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.SuccessV2(rc, Boolean.FALSE);
@@ -939,7 +939,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 final Identity t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
-                                input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                                input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
                                 OptoutCheckPolicy.defaultPolicy()));
 
                 //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
@@ -995,7 +995,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 final Identity t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
-                                input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                                input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
                                 OptoutCheckPolicy.respectOptOut()));
 
                 if (t.isEmptyToken()) {
@@ -1011,7 +1011,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         final Identity optOutTokens = this.idService.generateIdentity(
                                 new IdentityRequest(
                                         new PublisherIdentity(siteId, 0, 0),
-                                        optOutTokenInput.toUserIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
+                                        optOutTokenInput.toHashedDiiIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
                                         OptoutCheckPolicy.DoNotRespect));
 
                         ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
@@ -1051,7 +1051,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final Identity t = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(siteId, 0, 0),
-                            input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                            input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
                             OptoutCheckPolicy.defaultPolicy()));
 
             //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
@@ -1093,7 +1093,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (input != null && input.isValid() && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput())) {
                 try {
                     final Instant now = Instant.now();
-                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
+                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toHashedDiiIdentity(this.identityScope, 0, now), now)) {
                         rc.response().end("true");
                     } else {
                         rc.response().end("false");
@@ -1114,7 +1114,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
         if (input.isValid()) {
             final Instant now = Instant.now();
-            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, ar -> {
+            this.idService.invalidateTokensAsync(input.toHashedDiiIdentity(this.identityScope, 0, now), now, ar -> {
                 if (ar.succeeded()) {
                     rc.response().end("OK");
                 } else {
@@ -1133,7 +1133,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
-            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, ar -> {
+            this.idService.invalidateTokensAsync(input.toHashedDiiIdentity(this.identityScope, 0, now), now, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
                     body.put("optout", "OK");
@@ -1155,8 +1155,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (input.isValid()) {
             try {
                 final Instant now = Instant.now();
-                final UserIdentity userIdentity = input.toUserIdentity(this.identityScope, 0, now);
-                final Instant result = this.idService.getLatestOptoutEntry(userIdentity, now);
+                final HashedDiiIdentity hashedDiiIdentity = input.toHashedDiiIdentity(this.identityScope, 0, now);
+                final Instant result = this.idService.getLatestOptoutEntry(hashedDiiIdentity, now);
                 long timestamp = result == null ? -1 : result.getEpochSecond();
                 rc.response().setStatusCode(200)
                         .setChunked(true)
@@ -1240,7 +1240,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         try {
             final Instant now = Instant.now();
-            final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
+            final MappedIdentity mappedIdentity = this.idService.map(input.toHashedDiiIdentity(this.identityScope, 0, now), now);
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
             jsonObject.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.rawUid));
@@ -1263,7 +1263,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             else {
                 final Instant now = Instant.now();
-                final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
+                final MappedIdentity mappedIdentity = this.idService.map(input.toHashedDiiIdentity(this.identityScope, 0, now), now);
                 rc.response().end(EncodingUtils.toBase64String(mappedIdentity.rawUid));
             }
         } catch (Exception ex) {
@@ -1461,7 +1461,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (input != null && input.isValid()) {
                 final MappedIdentity mappedIdentity = idService.mapIdentity(
                         new MapRequest(
-                                input.toUserIdentity(this.identityScope, 0, now),
+                                input.toHashedDiiIdentity(this.identityScope, 0, now),
                                 OptoutCheckPolicy.respectOptOut(),
                                 now));
 

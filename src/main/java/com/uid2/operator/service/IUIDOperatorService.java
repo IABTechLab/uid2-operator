@@ -18,15 +18,15 @@ public interface IUIDOperatorService {
     MappedIdentity mapIdentity(MapRequest request);
 
     @Deprecated
-    MappedIdentity map(UserIdentity userIdentity, Instant asOf);
+    MappedIdentity map(HashedDiiIdentity hashedDiiIdentity, Instant asOf);
 
     List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
 
-    void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler);
+    void invalidateTokensAsync(HashedDiiIdentity hashedDiiIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler);
 
-    boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf);
+    boolean advertisingTokenMatches(String advertisingToken, HashedDiiIdentity hashedDiiIdentity, Instant asOf);
 
-    Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf);
+    Instant getLatestOptoutEntry(HashedDiiIdentity hashedDiiIdentity, Instant asOf);
 
     Duration getIdentityExpiryDuration();
 }

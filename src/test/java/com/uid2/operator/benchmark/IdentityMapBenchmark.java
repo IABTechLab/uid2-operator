@@ -10,13 +10,13 @@ import java.time.Instant;
 
 public class IdentityMapBenchmark {
     private static final IUIDOperatorService uidService;
-    private static final UserIdentity[] userIdentities;
+    private static final HashedDiiIdentity[] firstLevelHashIdentities;
     private static int idx = 0;
 
     static {
         try {
             uidService = BenchmarkCommon.createUidOperatorService();
-            userIdentities = BenchmarkCommon.createUserIdentities();
+            firstLevelHashIdentities = BenchmarkCommon.createUserIdentities();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -25,12 +25,12 @@ public class IdentityMapBenchmark {
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
     public MappedIdentity IdentityMapRawThroughput() {
-        return uidService.map(userIdentities[(idx++) & 65535], Instant.now());
+        return uidService.map(firstLevelHashIdentities[(idx++) & 65535], Instant.now());
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
     public MappedIdentity IdentityMapWithOptOutThroughput() {
-        return uidService.mapIdentity(new MapRequest(userIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
+        return uidService.mapIdentity(new MapRequest(firstLevelHashIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
     }
 }

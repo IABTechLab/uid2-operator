@@ -13,7 +13,7 @@ import java.util.List;
 public class TokenEndecBenchmark {
 
     private static final IUIDOperatorService uidService;
-    private static final UserIdentity[] userIdentities;
+    private static final HashedDiiIdentity[] userIdentities;
     private static final PublisherIdentity publisher;
     private static final EncryptedTokenEncoder encoder;
     private static final Identity[] generatedTokens;

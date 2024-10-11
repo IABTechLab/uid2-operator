@@ -254,7 +254,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 firstLevelHashIdentity.identityType,
                 mappedIdentityResult.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
 
-        return this.encoder.encode(
+        return this.encoder.encodeIntoIdentityResponse(
                 this.createAdvertisingTokenInput(publisherIdentity, rawUidIdentity, nowUtc),
                 this.createRefreshTokenInput(publisherIdentity, firstLevelHashIdentity, nowUtc),
                 nowUtc.plusMillis(refreshIdentityAfter.toMillis()),

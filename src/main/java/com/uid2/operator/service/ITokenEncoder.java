@@ -7,7 +7,7 @@ import com.uid2.operator.model.RefreshTokenInput;
 import java.time.Instant;
 
 public interface ITokenEncoder {
-    Identity encode(AdvertisingTokenInput advertisingTokenInput, RefreshTokenInput refreshTokenInput, Instant refreshFrom, Instant asOf);
+    Identity encodeIntoIdentityResponse(AdvertisingTokenInput advertisingTokenInput, RefreshTokenInput refreshTokenInput, Instant refreshFrom, Instant asOf);
 
     AdvertisingTokenInput decodeAdvertisingToken(String base64String);
 

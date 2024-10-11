@@ -1051,8 +1051,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                             input.toUserIdentity(this.identityScope, 1, Instant.now()),
                             OptoutCheckPolicy.defaultPolicy()));
 
-            //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
-
             recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), TokenResponseStatsCollector.PlatformType.Other);
             sendJsonResponse(rc, toJson(t));
 
@@ -1252,13 +1250,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = this.getTokenInput(rc);
 
         try {
-            if (input == null) {
-                ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
-            }
-            else if (!input.isValid()) {
-                ResponseUtil.ClientError(rc, "Invalid email or email_hash");
-            }
-            else {
+            if (isTokenInputValid(input, rc)) {
                 final Instant now = Instant.now();
                 final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                 rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));

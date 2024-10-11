@@ -1774,25 +1774,25 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
-        final RefreshToken refreshToken;
+        final RefreshTokenInput refreshTokenInput;
         try {
             if (AuthMiddleware.isAuthenticated(rc)) {
                 rc.put(Const.RoutingContextData.SiteId, AuthMiddleware.getAuthClient(ClientKey.class, rc).getSiteId());
             }
-            refreshToken = this.encoder.decodeRefreshToken(tokenStr);
+            refreshTokenInput = this.encoder.decodeRefreshToken(tokenStr);
         } catch (ClientInputValidationException cie) {
             LOGGER.warn("Failed to decode refresh token for site ID: " + rc.data().get(Const.RoutingContextData.SiteId), cie);
             return RefreshResponse.Invalid;
         }
-        if (refreshToken == null) {
+        if (refreshTokenInput == null) {
             return RefreshResponse.Invalid;
         }
         if (!AuthMiddleware.isAuthenticated(rc)) {
-            rc.put(Const.RoutingContextData.SiteId, refreshToken.publisherIdentity.siteId);
+            rc.put(Const.RoutingContextData.SiteId, refreshTokenInput.publisherIdentity.siteId);
         }
         recordRefreshTokenVersionCount(String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)), this.getRefreshTokenVersion(tokenStr));
 
-        return this.idService.refreshIdentity(refreshToken);
+        return this.idService.refreshIdentity(refreshTokenInput);
     }
 
     public static String getSiteName(ISiteStore siteStore, Integer siteId) {

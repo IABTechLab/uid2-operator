@@ -52,7 +52,7 @@ public class TokenEncodingTest {
 
         final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity("test@example.com", "some-salt");
 
-        final RefreshToken token = new RefreshToken(tokenVersion,
+        final RefreshTokenInput token = new RefreshTokenInput(tokenVersion,
             now,
             now.plusSeconds(360),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
@@ -65,7 +65,7 @@ public class TokenEncodingTest {
             return; //V4 not supported for RefreshTokens
         }
         final byte[] encodedBytes = encoder.encode(token, now);
-        final RefreshToken decoded = encoder.decodeRefreshToken(EncodingUtils.toBase64String(encodedBytes));
+        final RefreshTokenInput decoded = encoder.decodeRefreshToken(EncodingUtils.toBase64String(encodedBytes));
 
         assertEquals(tokenVersion, decoded.version);
         assertEquals(token.createdAt, decoded.createdAt);
@@ -93,7 +93,7 @@ public class TokenEncodingTest {
 
         final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, "test@example.com", IdentityScope.UID2, tokenVersion != TokenVersion.V2);
 
-        final AdvertisingToken token = new AdvertisingToken(
+        final AdvertisingTokenInput token = new AdvertisingTokenInput(
             tokenVersion,
             now,
             now.plusSeconds(60),
@@ -103,7 +103,7 @@ public class TokenEncodingTest {
         );
 
         final byte[] encodedBytes = encoder.encode(token, now);
-        final AdvertisingToken decoded = encoder.decodeAdvertisingToken(EncryptedTokenEncoder.bytesToBase64Token(encodedBytes, tokenVersion));
+        final AdvertisingTokenInput decoded = encoder.decodeAdvertisingToken(EncryptedTokenEncoder.bytesToBase64Token(encodedBytes, tokenVersion));
 
         assertEquals(tokenVersion, decoded.version);
         assertEquals(token.createdAt, decoded.createdAt);

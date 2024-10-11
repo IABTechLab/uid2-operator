@@ -117,7 +117,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public RefreshResponse refreshIdentity(RefreshToken token) {
+    public RefreshResponse refreshIdentity(RefreshTokenInput token) {
         // should not be possible as different scopes should be using different keys, but just in case
         if (token.firstLevelHashIdentity.identityScope != this.identityScope) {
             return RefreshResponse.Invalid;
@@ -207,7 +207,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(diiIdentity, asOf);
         final MappedIdentityResult mappedIdentityResult = generateMappedIdentity(firstLevelHashIdentity, asOf);
 
-        final AdvertisingToken token = this.encoder.decodeAdvertisingToken(advertisingToken);
+        final AdvertisingTokenInput token = this.encoder.decodeAdvertisingToken(advertisingToken);
         return Arrays.equals(mappedIdentityResult.rawUid, token.rawUidIdentity.rawUid);
     }
 
@@ -255,16 +255,16 @@ public class UIDOperatorService implements IUIDOperatorService {
                 mappedIdentityResult.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
 
         return this.encoder.encode(
-                this.createAdvertisingToken(publisherIdentity, rawUidIdentity, nowUtc),
-                this.createRefreshToken(publisherIdentity, firstLevelHashIdentity, nowUtc),
+                this.createAdvertisingTokenInput(publisherIdentity, rawUidIdentity, nowUtc),
+                this.createRefreshTokenInput(publisherIdentity, firstLevelHashIdentity, nowUtc),
                 nowUtc.plusMillis(refreshIdentityAfter.toMillis()),
                 nowUtc
         );
     }
 
-    private RefreshToken createRefreshToken(PublisherIdentity publisherIdentity, FirstLevelHashIdentity firstLevelHashIdentity,
-                                            Instant now) {
-        return new RefreshToken(
+    private RefreshTokenInput createRefreshTokenInput(PublisherIdentity publisherIdentity, FirstLevelHashIdentity firstLevelHashIdentity,
+                                                      Instant now) {
+        return new RefreshTokenInput(
                 this.refreshTokenVersion,
                 now,
                 now.plusMillis(refreshExpiresAfter.toMillis()),
@@ -273,8 +273,8 @@ public class UIDOperatorService implements IUIDOperatorService {
                 firstLevelHashIdentity);
     }
 
-    private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, RawUidIdentity rawUidIdentity,
-                                                    Instant now) {
+    private AdvertisingTokenInput createAdvertisingTokenInput(PublisherIdentity publisherIdentity, RawUidIdentity rawUidIdentity,
+                                                              Instant now) {
         TokenVersion tokenVersion;
         if (siteIdsUsingV4Tokens.contains(publisherIdentity.siteId)) {
             tokenVersion = TokenVersion.V4;
@@ -288,7 +288,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             }
             tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         }
-        return new AdvertisingToken(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, rawUidIdentity);
+        return new AdvertisingTokenInput(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, rawUidIdentity);
     }
 
     static protected class GlobalOptoutResult {

@@ -13,7 +13,7 @@ public interface IUIDOperatorService {
 
     Identity generateIdentity(IdentityRequest request);
 
-    RefreshResponse refreshIdentity(RefreshToken refreshToken);
+    RefreshResponse refreshIdentity(RefreshTokenInput refreshTokenInput);
 
     MappedIdentityResult mapIdentity(MapRequest request);
 

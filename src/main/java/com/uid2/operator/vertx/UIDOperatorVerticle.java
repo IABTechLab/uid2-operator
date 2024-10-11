@@ -2,7 +2,7 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.Identity;
+import com.uid2.operator.model.IdentityResponse;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -460,9 +460,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();
 
-        Identity identity;
+        IdentityResponse identityResponse;
         try {
-            identity = this.idService.generateIdentity(
+            identityResponse = this.idService.generateIdentity(
                     new IdentityRequest(
                             new SourcePublisher(clientSideKeypair.getSiteId(), 0, 0),
                             input.toHashedDiiIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
@@ -474,12 +474,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         JsonObject response;
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
-        if (identity.isNotValid()) {
+        if (identityResponse.isNotValid()) {
             response = ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut);
             responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
         }
         else { //user not opted out and already generated valid identity token
-            response = ResponseUtil.SuccessV2(toJsonV1(identity));
+            response = ResponseUtil.SuccessV2(toJsonV1(identityResponse));
         }
         //if returning an optout token or a successful identity token created originally
         if (responseStatus == TokenResponseStatsCollector.ResponseStatus.Success) {
@@ -487,7 +487,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, responseStatus, siteProvider, identity.getAdvertisingTokenVersion(), platformType);
+        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, responseStatus, siteProvider, identityResponse.getAdvertisingTokenVersion(), platformType);
     }
 
     private boolean hasValidOriginOrAppName(RoutingContext rc, CstgRequest request, ClientSideKeypair keypair, TokenResponseStatsCollector.PlatformType platformType) {
@@ -937,7 +937,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (!checkForInvalidTokenInput(input, rc)) {
                 return;
             } else {
-                final Identity t = this.idService.generateIdentity(
+                final IdentityResponse t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new SourcePublisher(siteId, 0, 0),
                                 input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
@@ -993,7 +993,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     return;
                 }
 
-                final Identity t = this.idService.generateIdentity(
+                final IdentityResponse t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new SourcePublisher(siteId, 0, 0),
                                 input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
@@ -1009,7 +1009,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         pb.setLegacyBit();
                         pb.setClientSideTokenGenerateOptout();
 
-                        final Identity optOutTokens = this.idService.generateIdentity(
+                        final IdentityResponse optOutTokens = this.idService.generateIdentity(
                                 new IdentityRequest(
                                         new SourcePublisher(siteId, 0, 0),
                                         optOutTokenInput.toHashedDiiIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
@@ -1049,7 +1049,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         try {
             siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
-            final Identity t = this.idService.generateIdentity(
+            final IdentityResponse t = this.idService.generateIdentity(
                     new IdentityRequest(
                             new SourcePublisher(siteId, 0, 0),
                             input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
@@ -1986,7 +1986,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private JsonObject toJsonV1(Identity t) {
+    private JsonObject toJsonV1(IdentityResponse t) {
         final JsonObject json = new JsonObject();
         json.put("advertising_token", t.getAdvertisingToken());
         json.put("refresh_token", t.getRefreshToken());
@@ -2040,7 +2040,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return json;
     }
 
-    private JsonObject toJson(Identity t) {
+    private JsonObject toJson(IdentityResponse t) {
         final JsonObject json = new JsonObject();
         json.put("advertisement_token", t.getAdvertisingToken());
         json.put("advertising_token", t.getAdvertisingToken());

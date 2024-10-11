@@ -342,12 +342,12 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     @Override
-    public Identity encodeIntoIdentityResponse(AdvertisingTokenInput advertisingTokenInput, RefreshTokenInput refreshTokenInput, Instant refreshFrom, Instant asOf) {
+    public IdentityResponse encodeIntoIdentityResponse(AdvertisingTokenInput advertisingTokenInput, RefreshTokenInput refreshTokenInput, Instant refreshFrom, Instant asOf) {
 
         final byte[] advertisingTokenBytes = encode(advertisingTokenInput, asOf);
         final String base64AdvertisingToken = bytesToBase64Token(advertisingTokenBytes, advertisingTokenInput.version);
 
-        return new Identity(
+        return new IdentityResponse(
                 base64AdvertisingToken,
                 advertisingTokenInput.version,
                 EncodingUtils.toBase64String(encode(refreshTokenInput, asOf)),

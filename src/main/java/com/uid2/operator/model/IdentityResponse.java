@@ -4,9 +4,10 @@ import com.uid2.shared.model.TokenVersion;
 
 import java.time.Instant;
 
-// this is the response of the /token/generate and /client/generate endpoints
-public class Identity {
-    public static Identity InvalidIdentity = new Identity("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+// this defines all the fields for the response of the /token/generate and /client/generate endpoints before they are
+// json-ised
+public class IdentityResponse {
+    public static IdentityResponse invalidIdentityResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
     private final String advertisingToken;
     private final TokenVersion advertisingTokenVersion;
     private final String refreshToken;
@@ -14,8 +15,8 @@ public class Identity {
     private final Instant refreshExpires;
     private final Instant refreshFrom;
 
-    public Identity(String advertisingToken, TokenVersion advertisingTokenVersion, String refreshToken,
-                    Instant identityExpires, Instant refreshExpires, Instant refreshFrom) {
+    public IdentityResponse(String advertisingToken, TokenVersion advertisingTokenVersion, String refreshToken,
+                            Instant identityExpires, Instant refreshExpires, Instant refreshFrom) {
         this.advertisingToken = advertisingToken;
         this.advertisingTokenVersion = advertisingTokenVersion;
         this.refreshToken = refreshToken;

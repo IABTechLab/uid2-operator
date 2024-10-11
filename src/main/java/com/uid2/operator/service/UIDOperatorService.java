@@ -162,14 +162,14 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return MappedIdentity.OptoutIdentity;
         } else {
-            return getAdvertisingId(firstLevelHashIdentity, request.asOf);
+            return generateMappedIdentity(firstLevelHashIdentity, request.asOf);
         }
     }
 
     @Override
     public MappedIdentity map(UserIdentity userIdentity, Instant asOf) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        return getAdvertisingId(firstLevelHashIdentity, asOf);
+        return generateMappedIdentity(firstLevelHashIdentity, asOf);
     }
 
     @Override
@@ -190,7 +190,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf);
+        final MappedIdentity mappedIdentity = generateMappedIdentity(firstLevelHashIdentity, asOf);
 
         this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.rawUid, r -> {
             if (r.succeeded()) {
@@ -204,7 +204,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf);
+        final MappedIdentity mappedIdentity = generateMappedIdentity(firstLevelHashIdentity, asOf);
 
         final AdvertisingToken token = this.encoder.decodeAdvertisingToken(advertisingToken);
         return Arrays.equals(mappedIdentity.rawUid, token.userIdentity.id);
@@ -234,7 +234,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         return TokenUtils.getFirstLevelHash(identityHash, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
     }
 
-    private MappedIdentity getAdvertisingId(UserIdentity firstLevelHashIdentity, Instant asOf) {
+    private MappedIdentity generateMappedIdentity(UserIdentity firstLevelHashIdentity, Instant asOf) {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
 
         return new MappedIdentity(
@@ -247,7 +247,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private Identity generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
-        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, nowUtc);
+        final MappedIdentity mappedIdentity = generateMappedIdentity(firstLevelHashIdentity, nowUtc);
         final UserIdentity advertisingIdentity = new UserIdentity(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType,
                 mappedIdentity.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
 

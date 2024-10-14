@@ -217,7 +217,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
             final int siteId = b3.getInt(0);
             final int length = b3.getInt(4);
 
-            final byte[] advertisingId = EncodingUtils.fromBase64(b3.slice(8, 8 + length).getBytes());
+            final byte[] getRawUid = EncodingUtils.fromBase64(b3.slice(8, 8 + length).getBytes());
 
             final int privacyBits = b3.getInt(8 + length);
             final long establishedMillis = b3.getLong(8 + length + 4);
@@ -228,7 +228,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                     Instant.ofEpochMilli(expiresMillis),
                     new OperatorIdentity(0, OperatorType.Service, 0, masterKeyId),
                     new SourcePublisher(siteId, siteKeyId, 0),
-                    new RawUidIdentity(IdentityScope.UID2, IdentityType.Email, advertisingId, privacyBits,
+                    new RawUidIdentity(IdentityScope.UID2, IdentityType.Email, getRawUid, privacyBits,
                             Instant.ofEpochMilli(establishedMillis), null)
             );
 

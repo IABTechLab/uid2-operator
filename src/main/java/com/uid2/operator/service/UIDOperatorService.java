@@ -160,18 +160,18 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public RawUid2Result mapIdentity(MapRequest request) {
+    public RawUidResult mapIdentity(MapRequest request) {
         final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.hashedDiiIdentity,
                 request.asOf);
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
-            return RawUid2Result.OptoutIdentity;
+            return RawUidResult.OptoutIdentity;
         } else {
             return generateRawUid(firstLevelHashIdentity, request.asOf);
         }
     }
 
     @Override
-    public RawUid2Result map(HashedDiiIdentity diiIdentity, Instant asOf) {
+    public RawUidResult map(HashedDiiIdentity diiIdentity, Instant asOf) {
         final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(diiIdentity, asOf);
         return generateRawUid(firstLevelHashIdentity, asOf);
     }
@@ -194,9 +194,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public void invalidateTokensAsync(HashedDiiIdentity diiIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler) {
         final FirstLevelHashIdentity hashedDiiIdentity = getFirstLevelHashIdentity(diiIdentity, asOf);
-        final RawUid2Result rawUid2Result = generateRawUid(hashedDiiIdentity, asOf);
+        final RawUidResult rawUidResult = generateRawUid(hashedDiiIdentity, asOf);
 
-        this.optOutStore.addEntry(hashedDiiIdentity, rawUid2Result.rawUid, r -> {
+        this.optOutStore.addEntry(hashedDiiIdentity, rawUidResult.rawUid, r -> {
             if (r.succeeded()) {
                 handler.handle(Future.succeededFuture(r.result()));
             } else {
@@ -208,10 +208,10 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public boolean advertisingTokenMatches(String advertisingToken, HashedDiiIdentity diiIdentity, Instant asOf) {
         final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(diiIdentity, asOf);
-        final RawUid2Result rawUid2Result = generateRawUid(firstLevelHashIdentity, asOf);
+        final RawUidResult rawUidResult = generateRawUid(firstLevelHashIdentity, asOf);
 
         final AdvertisingTokenInput token = this.encoder.decodeAdvertisingToken(advertisingToken);
-        return Arrays.equals(rawUid2Result.rawUid, token.rawUidIdentity.rawUid);
+        return Arrays.equals(rawUidResult.rawUid, token.rawUidIdentity.rawUid);
     }
 
     @Override
@@ -238,24 +238,24 @@ public class UIDOperatorService implements IUIDOperatorService {
         return TokenUtils.getFirstLevelHash(identityHash, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
     }
 
-    private RawUid2Result generateRawUid(FirstLevelHashIdentity firstLevelHashIdentity, Instant asOf) {
+    private RawUidResult generateRawUid(FirstLevelHashIdentity firstLevelHashIdentity, Instant asOf) {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.firstLevelHash);
 
-        return new RawUid2Result(
+        return new RawUidResult(
                 this.identityV3Enabled
-                    ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope,
+                    ? TokenUtils.getRawUidV3(firstLevelHashIdentity.identityScope,
                         firstLevelHashIdentity.identityType, firstLevelHashIdentity.firstLevelHash, rotatingSalt.getSalt())
-                    : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.firstLevelHash, rotatingSalt.getSalt()),
+                    : TokenUtils.getRawUidV2(firstLevelHashIdentity.firstLevelHash, rotatingSalt.getSalt()),
                 rotatingSalt.getHashedId());
     }
 
     private IdentityResponse generateIdentity(SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
-        final RawUid2Result rawUid2Result = generateRawUid(firstLevelHashIdentity, nowUtc);
+        final RawUidResult rawUidResult = generateRawUid(firstLevelHashIdentity, nowUtc);
         final RawUidIdentity rawUidIdentity = new RawUidIdentity(firstLevelHashIdentity.identityScope,
                 firstLevelHashIdentity.identityType,
-                rawUid2Result.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
+                rawUidResult.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
 
         return this.encoder.encodeIntoIdentityResponse(
                 this.createAdvertisingTokenInput(sourcePublisher, rawUidIdentity, nowUtc),

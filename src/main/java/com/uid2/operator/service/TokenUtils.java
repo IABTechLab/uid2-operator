@@ -27,19 +27,19 @@ public class TokenUtils {
         return EncodingUtils.getSha256Bytes(identityHash, firstLevelSalt);
     }
 
-    public static byte[] getAdvertisingIdV2(byte[] firstLevelHash, String rotatingSalt) {
+    public static byte[] getRawUidV2(byte[] firstLevelHash, String rotatingSalt) {
         return EncodingUtils.getSha256Bytes(EncodingUtils.toBase64String(firstLevelHash), rotatingSalt);
     }
 
-    public static byte[] getAdvertisingIdV2FromIdentity(String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getAdvertisingIdV2(getFirstLevelHashFromIdentity(identityString, firstLevelSalt), rotatingSalt);
+    public static byte[] getRawUidV2FromIdentity(String identityString, String firstLevelSalt, String rotatingSalt) {
+        return getRawUidV2(getFirstLevelHashFromIdentity(identityString, firstLevelSalt), rotatingSalt);
     }
 
-    public static byte[] getAdvertisingIdV2FromIdentityHash(String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getAdvertisingIdV2(getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
+    public static byte[] getRawUidV2FromIdentityHash(String identityString, String firstLevelSalt, String rotatingSalt) {
+        return getRawUidV2(getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
     }
 
-    public static byte[] getAdvertisingIdV3(IdentityScope scope, IdentityType type, byte[] firstLevelHash, String rotatingSalt) {
+    public static byte[] getRawUidV3(IdentityScope scope, IdentityType type, byte[] firstLevelHash, String rotatingSalt) {
         final byte[] sha = EncodingUtils.getSha256Bytes(EncodingUtils.toBase64String(firstLevelHash), rotatingSalt);
         final byte[] id = new byte[33];
         id[0] = (byte)(encodeIdentityScope(scope) | encodeIdentityType(type));
@@ -47,12 +47,12 @@ public class TokenUtils {
         return id;
     }
 
-    public static byte[] getAdvertisingIdV3FromIdentity(IdentityScope scope, IdentityType type, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getAdvertisingIdV3(scope, type, getFirstLevelHashFromIdentity(identityString, firstLevelSalt), rotatingSalt);
+    public static byte[] getRawUidV3FromIdentity(IdentityScope scope, IdentityType type, String identityString, String firstLevelSalt, String rotatingSalt) {
+        return getRawUidV3(scope, type, getFirstLevelHashFromIdentity(identityString, firstLevelSalt), rotatingSalt);
     }
 
-    public static byte[] getAdvertisingIdV3FromIdentityHash(IdentityScope scope, IdentityType type, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getAdvertisingIdV3(scope, type, getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
+    public static byte[] getRawUidV3FromIdentityHash(IdentityScope scope, IdentityType type, String identityString, String firstLevelSalt, String rotatingSalt) {
+        return getRawUidV3(scope, type, getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
     }
 
     public static byte encodeIdentityScope(IdentityScope identityScope) {

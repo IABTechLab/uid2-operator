@@ -16,10 +16,10 @@ public interface IUIDOperatorService {
 
     RefreshResponse refreshIdentity(RefreshTokenInput refreshTokenInput);
 
-    RawUid2Result mapIdentity(MapRequest request);
+    RawUidResult mapIdentity(MapRequest request);
 
     @Deprecated
-    RawUid2Result map(HashedDiiIdentity hashedDiiIdentity, Instant asOf);
+    RawUidResult map(HashedDiiIdentity hashedDiiIdentity, Instant asOf);
 
     List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
 

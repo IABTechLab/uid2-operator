@@ -825,7 +825,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
-                ResponseUtil.Success(rc, toJsonV1(r.getIdentity()));
+                ResponseUtil.Success(rc, toJsonV1(r.getIdentityResponse()));
                 this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
             }
 
@@ -859,7 +859,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
-                ResponseUtil.SuccessV2(rc, toJsonV1(r.getIdentity()));
+                ResponseUtil.SuccessV2(rc, toJsonV1(r.getIdentityResponse()));
                 this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, r, platformType);
@@ -1076,7 +1076,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
 
-            sendJsonResponse(rc, toJson(r.getIdentity()));
+            sendJsonResponse(rc, toJson(r.getIdentityResponse()));
 
             siteId = rc.get(Const.RoutingContextData.SiteId);
             if (r.isRefreshed()) {

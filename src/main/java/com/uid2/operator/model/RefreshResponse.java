@@ -33,7 +33,7 @@ public class RefreshResponse {
         return status;
     }
 
-    public IdentityResponse getIdentity() {
+    public IdentityResponse getIdentityResponse() {
         return identityResponse;
     }
 

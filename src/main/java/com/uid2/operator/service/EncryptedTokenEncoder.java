@@ -344,18 +344,29 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     @Override
     public IdentityResponse encodeIntoIdentityResponse(AdvertisingTokenInput advertisingTokenInput, RefreshTokenInput refreshTokenInput, Instant refreshFrom, Instant asOf) {
 
-        final byte[] advertisingTokenBytes = encode(advertisingTokenInput, asOf);
-        final String base64AdvertisingToken = bytesToBase64Token(advertisingTokenBytes, advertisingTokenInput.version);
-
+        final String base64AdvertisingToken = generateBase64AdvertisingToken(advertisingTokenInput, asOf);
+        final String base64RefreshToken = generateBase64RefreshToken(refreshTokenInput, asOf);
         return new IdentityResponse(
                 base64AdvertisingToken,
                 advertisingTokenInput.version,
-                EncodingUtils.toBase64String(encode(refreshTokenInput, asOf)),
+                base64RefreshToken,
                 advertisingTokenInput.expiresAt,
                 refreshTokenInput.expiresAt,
                 refreshFrom
         );
     }
+
+    private String generateBase64RefreshToken(RefreshTokenInput refreshTokenInput, Instant asOf) {
+        return EncodingUtils.toBase64String(encode(refreshTokenInput, asOf));
+    }
+
+    private String generateBase64AdvertisingToken(AdvertisingTokenInput advertisingTokenInput, Instant asOf) {
+        final byte[] advertisingTokenBytes = encode(advertisingTokenInput, asOf);
+        final String base64AdvertisingToken = bytesToBase64Token(advertisingTokenBytes, advertisingTokenInput.version);
+        return base64AdvertisingToken;
+    }
+
+
 
     private byte[] encryptIdentityV2(SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity, KeysetKey key) {
         return encryptIdentityV2(sourcePublisher, firstLevelHashIdentity.firstLevelHash, firstLevelHashIdentity.privacyBits,

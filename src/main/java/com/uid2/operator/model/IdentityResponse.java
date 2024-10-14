@@ -1,6 +1,7 @@
 package com.uid2.operator.model;
 
 import com.uid2.shared.model.TokenVersion;
+import io.vertx.core.json.JsonObject;
 
 import java.time.Instant;
 
@@ -51,5 +52,26 @@ public class IdentityResponse {
 
     public boolean isNotValid() {
         return advertisingToken == null || advertisingToken.isEmpty();
+    }
+
+    // for v1/v2 token/generate and token/refresh and client/generate (CSTG) endpoints
+    public JsonObject toJsonV1() {
+        final JsonObject json = new JsonObject();
+        json.put("advertising_token", getAdvertisingToken());
+        json.put("refresh_token", getRefreshToken());
+        json.put("identity_expires", getIdentityExpires().toEpochMilli());
+        json.put("refresh_expires", getRefreshExpires().toEpochMilli());
+        json.put("refresh_from", getRefreshFrom().toEpochMilli());
+        return json;
+    }
+
+    // for the original/legacy token/generate and token/refresh endpoint
+    public JsonObject toJsonV0() {
+        final JsonObject json = new JsonObject();
+        json.put("advertisement_token", getAdvertisingToken());
+        json.put("advertising_token", getAdvertisingToken());
+        json.put("refresh_token", getRefreshToken());
+
+        return json;
     }
 }

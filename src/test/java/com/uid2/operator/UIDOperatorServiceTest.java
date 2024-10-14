@@ -4,10 +4,7 @@ import com.uid2.operator.model.*;
 import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
 import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
 import com.uid2.operator.model.userIdentity.UserIdentity;
-import com.uid2.operator.service.EncodingUtils;
-import com.uid2.operator.service.EncryptedTokenEncoder;
-import com.uid2.operator.service.InputUtil;
-import com.uid2.operator.service.UIDOperatorService;
+import com.uid2.operator.service.*;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.store.CloudPath;
@@ -262,7 +259,8 @@ public class UIDOperatorServiceTest {
             "Phone,+01010101010,UID2",
             "Phone,+01010101010,EUID"})
     public void testGenerateTokenForOptOutUser(IdentityType type, String id, IdentityScope scope) {
-        final HashedDiiIdentity hashedDiiIdentity = createHashedDiiIdentity(id, scope, type);
+        final HashedDiiIdentity hashedDiiIdentity = createHashedDiiIdentity(TokenUtils.getIdentityHashString(id),
+                scope, type);
 
         final IdentityRequest identityRequestForceGenerate = new IdentityRequest(
                 new SourcePublisher(123, 124, 125),

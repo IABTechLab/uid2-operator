@@ -91,7 +91,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final AuthMiddleware auth;
     private final ISiteStore siteProvider;
     private final IClientSideKeypairStore clientSideKeypairProvider;
-    private final ITokenEncoder encoder;
+    private final EncryptedTokenEncoder encoder;
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final IClientKeyProvider clientKeyProvider;

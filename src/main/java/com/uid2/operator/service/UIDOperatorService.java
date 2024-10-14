@@ -36,7 +36,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private static final Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
-    private final ITokenEncoder encoder;
+    private final EncryptedTokenEncoder encoder;
     private final Clock clock;
     private final IdentityScope identityScope;
     private final FirstLevelHashIdentity testOptOutIdentityForEmail;
@@ -58,7 +58,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private final Handler<Boolean> saltRetrievalResponseHandler;
 
-    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
+    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock,
                               IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;

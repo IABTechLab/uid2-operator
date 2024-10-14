@@ -8,7 +8,7 @@ import java.time.Instant;
 // this defines all the fields for the response of the /token/generate and /client/generate endpoints before they are
 // json-ised
 public class IdentityResponse {
-    public static IdentityResponse optOutIdentityResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+    public static IdentityResponse OptOutIdentityResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
     private final String advertisingToken;
     private final TokenVersion advertisingTokenVersion;
     private final String refreshToken;
@@ -50,7 +50,7 @@ public class IdentityResponse {
         return refreshFrom;
     }
 
-    public boolean isNotValid() {
+    public boolean isOptedout() {
         return advertisingToken == null || advertisingToken.isEmpty();
     }
 

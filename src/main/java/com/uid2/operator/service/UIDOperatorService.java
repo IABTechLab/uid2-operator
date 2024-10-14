@@ -113,7 +113,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.hashedDiiIdentity.establishedAt, request.hashedDiiIdentity.refreshedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
-            return IdentityResponse.optOutIdentityResponse;
+            return IdentityResponse.OptOutIdentityResponse;
         } else {
             return generateIdentity(request.sourcePublisher, firstLevelHashIdentity);
         }

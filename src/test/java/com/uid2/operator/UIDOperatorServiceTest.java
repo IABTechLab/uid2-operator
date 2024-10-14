@@ -411,7 +411,7 @@ public class UIDOperatorServiceTest {
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertEquals(identityResponse, IdentityResponse.optOutIdentityResponse);
+        assertEquals(identityResponse, IdentityResponse.OptOutIdentityResponse);
     }
 
     @ParameterizedTest
@@ -475,7 +475,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identityResponse);
-        assertNotEquals(IdentityResponse.optOutIdentityResponse, identityResponse);
+        assertNotEquals(IdentityResponse.OptOutIdentityResponse, identityResponse);
 
         // identity has no optout record, ensure refresh still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
@@ -517,7 +517,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identityResponse);
-        assertNotEquals(IdentityResponse.optOutIdentityResponse, identityResponse);
+        assertNotEquals(IdentityResponse.OptOutIdentityResponse, identityResponse);
 
         // identity has no optout record, ensure refresh still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
@@ -594,7 +594,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identityResponse);
-        assertNotEquals(IdentityResponse.optOutIdentityResponse, identityResponse);
+        assertNotEquals(IdentityResponse.OptOutIdentityResponse, identityResponse);
         assertNotNull(advertisingTokenInput.rawUidIdentity);
     }
 
@@ -655,7 +655,7 @@ public class UIDOperatorServiceTest {
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertNotEquals(identityResponse, IdentityResponse.optOutIdentityResponse);
+        assertNotEquals(identityResponse, IdentityResponse.OptOutIdentityResponse);
         assertNotNull(identityResponse);
 
         final RefreshTokenInput refreshTokenInput = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
@@ -721,7 +721,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(false);
         assertNotNull(identityResponse);
-        assertNotEquals(IdentityResponse.optOutIdentityResponse, identityResponse);
+        assertNotEquals(IdentityResponse.OptOutIdentityResponse, identityResponse);
         assertNotNull(advertisingTokenInput.rawUidIdentity);
 
         final RefreshTokenInput refreshTokenInput = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());

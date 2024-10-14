@@ -49,7 +49,7 @@ public class IdentityResponse {
         return refreshFrom;
     }
 
-    public boolean isNotValid() {
+    public boolean isOptedout() {
         return advertisingToken == null || advertisingToken.isEmpty();
     }
 }

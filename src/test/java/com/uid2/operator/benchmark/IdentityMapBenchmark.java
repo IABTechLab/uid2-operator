@@ -25,13 +25,13 @@ public class IdentityMapBenchmark {
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public RawUidResult IdentityMapRawThroughput() {
+    public RawUidResponse IdentityMapRawThroughput() {
         return uidService.map(firstLevelHashIdentities[(idx++) & 65535], Instant.now());
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public RawUidResult IdentityMapWithOptOutThroughput() {
+    public RawUidResponse IdentityMapWithOptOutThroughput() {
         return uidService.mapIdentity(new MapRequest(firstLevelHashIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
     }
 }

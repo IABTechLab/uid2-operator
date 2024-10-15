@@ -149,7 +149,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final Instant establishedAt = Instant.ofEpochMilli(b2.getLong(49));
         final IdentityScope identityScope = decodeIdentityScopeV3(b2.getByte(57));
         final IdentityType identityType = decodeIdentityTypeV3(b2.getByte(57));
-        final byte[] id = b2.getBytes(58, 90);
+        final byte[] firstLevelHash = b2.getBytes(58, 90);
 
         if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
             throw new ClientInputValidationException("Failed to decode refreshTokenV3: Identity scope mismatch");
@@ -160,7 +160,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new RefreshTokenInput(
                 TokenVersion.V3, createdAt, expiresAt, operatorIdentity, sourcePublisher,
-                new FirstLevelHashIdentity(identityScope, identityType, id, privacyBits, establishedAt, null));
+                new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, privacyBits, establishedAt, null));
     }
 
     @Override

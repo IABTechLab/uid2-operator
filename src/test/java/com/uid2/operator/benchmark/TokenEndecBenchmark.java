@@ -14,7 +14,7 @@ import java.util.List;
 public class TokenEndecBenchmark {
 
     private static final IUIDOperatorService uidService;
-    private static final HashedDiiIdentity[] userIdentities;
+    private static final HashedDiiIdentity[] hashedDiiIdentities;
     private static final SourcePublisher publisher;
     private static final EncryptedTokenEncoder encoder;
     private static final IdentityResponse[] generatedTokens;
@@ -23,11 +23,11 @@ public class TokenEndecBenchmark {
     static {
         try {
             uidService = BenchmarkCommon.createUidOperatorService();
-            userIdentities = BenchmarkCommon.createUserIdentities();
+            hashedDiiIdentities = BenchmarkCommon.createHashedDiiIdentities();
             publisher = BenchmarkCommon.createSourcePublisher();
             encoder = BenchmarkCommon.createTokenEncoder();
             generatedTokens = createAdvertisingTokens();
-            if (generatedTokens.length < 65536 || userIdentities.length < 65536) {
+            if (generatedTokens.length < 65536 || hashedDiiIdentities.length < 65536) {
                 throw new IllegalStateException("must create more than 65535 test candidates.");
             }
         } catch (Exception e) {
@@ -37,11 +37,11 @@ public class TokenEndecBenchmark {
 
     static IdentityResponse[] createAdvertisingTokens() {
         List<IdentityResponse> tokens = new ArrayList<>();
-        for (int i = 0; i < userIdentities.length; i++) {
+        for (int i = 0; i < hashedDiiIdentities.length; i++) {
             tokens.add(
                     uidService.generateIdentity(new IdentityRequest(
                             publisher,
-                            userIdentities[i],
+                            hashedDiiIdentities[i],
                             OptoutCheckPolicy.DoNotRespect)));
         }
         return tokens.toArray(new IdentityResponse[tokens.size()]);
@@ -52,7 +52,7 @@ public class TokenEndecBenchmark {
     public IdentityResponse TokenGenerationBenchmark() {
         return uidService.generateIdentity(new IdentityRequest(
                 publisher,
-                userIdentities[(idx++) & 65535],
+                hashedDiiIdentities[(idx++) & 65535],
                 OptoutCheckPolicy.DoNotRespect));
     }
 

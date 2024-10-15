@@ -41,10 +41,10 @@ public class TokenUtils {
 
     public static byte[] getRawUidV3(IdentityScope scope, IdentityType type, byte[] firstLevelHash, String rotatingSalt) {
         final byte[] sha = EncodingUtils.getSha256Bytes(EncodingUtils.toBase64String(firstLevelHash), rotatingSalt);
-        final byte[] id = new byte[33];
-        id[0] = (byte)(encodeIdentityScope(scope) | encodeIdentityType(type));
-        System.arraycopy(sha, 0, id, 1, 32);
-        return id;
+        final byte[] rawUid = new byte[33];
+        rawUid[0] = (byte)(encodeIdentityScope(scope) | encodeIdentityType(type));
+        System.arraycopy(sha, 0, rawUid, 1, 32);
+        return rawUid;
     }
 
     public static byte[] getRawUidV3FromIdentity(IdentityScope scope, IdentityType type, String identityString, String firstLevelSalt, String rotatingSalt) {

@@ -12,12 +12,8 @@ public class RawUidIdentity extends UserIdentity {
 
     public RawUidIdentity(IdentityScope identityScope, IdentityType identityType, byte[] rawUid, int privacyBits,
                           Instant establishedAt, Instant refreshedAt) {
-        this.identityScope = identityScope;
-        this.identityType = identityType;
+        super(identityScope, identityType, privacyBits, establishedAt, refreshedAt);
         this.rawUid = rawUid;
-        this.privacyBits = privacyBits;
-        this.establishedAt = establishedAt;
-        this.refreshedAt = refreshedAt;
     }
 
     public boolean matches(RawUidIdentity that) {

@@ -12,12 +12,8 @@ public class FirstLevelHashIdentity extends UserIdentity {
 
     public FirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] firstLevelHash, int privacyBits,
                                   Instant establishedAt, Instant refreshedAt) {
-        this.identityScope = identityScope;
-        this.identityType = identityType;
+        super(identityScope, identityType, privacyBits, establishedAt, refreshedAt);
         this.firstLevelHash = firstLevelHash;
-        this.privacyBits = privacyBits;
-        this.establishedAt = establishedAt;
-        this.refreshedAt = refreshedAt;
     }
 
     public boolean matches(FirstLevelHashIdentity that) {

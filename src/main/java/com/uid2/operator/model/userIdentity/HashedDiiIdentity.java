@@ -12,11 +12,7 @@ public class HashedDiiIdentity extends UserIdentity{
 
     public HashedDiiIdentity(IdentityScope identityScope, IdentityType identityType, byte[] hashedDii, int privacyBits,
                              Instant establishedAt, Instant refreshedAt) {
-        this.identityScope = identityScope;
-        this.identityType = identityType;
+        super(identityScope, identityType, privacyBits, establishedAt, refreshedAt);
         this.hashedDii = hashedDii;
-        this.privacyBits = privacyBits;
-        this.establishedAt = establishedAt;
-        this.refreshedAt = refreshedAt;
     }
 }

@@ -142,9 +142,9 @@ public class UIDOperatorServiceTest {
 
     private void assertIdentityScopeIdentityTypeAndEstablishedAt(UserIdentity expctedValues,
                                                                  UserIdentity actualValues) {
-        assertEquals(expctedValues.GetIdentityScope(), actualValues.GetIdentityScope());
-        assertEquals(expctedValues.GetIdentityType(), actualValues.GetIdentityType());
-        assertEquals(expctedValues.GetEstablishedAt(), actualValues.GetEstablishedAt());
+        assertEquals(expctedValues.identityScope, actualValues.identityScope);
+        assertEquals(expctedValues.identityType, actualValues.identityType);
+        assertEquals(expctedValues.establishedAt, actualValues.establishedAt);
     }
 
     @ParameterizedTest

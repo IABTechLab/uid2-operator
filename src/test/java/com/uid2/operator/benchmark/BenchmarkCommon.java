@@ -150,12 +150,12 @@ public class BenchmarkCommon {
         return storage;
     }
 
-    static HashedDiiIdentity[] createUserIdentities() {
+    static HashedDiiIdentity[] createHashedDiiIdentities() {
         HashedDiiIdentity[] arr = new HashedDiiIdentity[65536];
         for (int i = 0; i < 65536; i++) {
-            final byte[] id = new byte[33];
-            new Random().nextBytes(id);
-            arr[i] = new HashedDiiIdentity(IdentityScope.UID2, IdentityType.Email, id, 0,
+            final byte[] diiHash = new byte[33];
+            new Random().nextBytes(diiHash);
+            arr[i] = new HashedDiiIdentity(IdentityScope.UID2, IdentityType.Email, diiHash, 0,
                     Instant.now().minusSeconds(120), Instant.now().minusSeconds(60));
         }
         return arr;

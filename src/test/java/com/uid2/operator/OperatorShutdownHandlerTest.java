@@ -5,6 +5,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
+import com.uid2.shared.attest.AttestationResponseCode;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
@@ -51,17 +52,18 @@ public class OperatorShutdownHandlerTest {
     }
 
     @Test
-    void shutdownOnAttest401(VertxTestContext testContext) {
+    void shutdownOnAttestFailure(VertxTestContext testContext) {
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
         // Revoke auth
         try {
-            this.operatorShutdownHandler.handleAttestResponse(Pair.of(401, "Unauthorized"));
+            this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.AttestationFailure, "Unauthorized"));
         } catch (RuntimeException e) {
             verify(shutdownService).Shutdown(1);
-            Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation failed with 401, shutting down operator, core response: "));
+            String message = logWatcher.list.get(0).getFormattedMessage();
+            Assertions.assertEquals("core attestation failed with AttestationFailure, shutting down operator, core response: Unauthorized", logWatcher.list.get(0).getFormattedMessage());
             testContext.completeNow();
         }
     }
@@ -72,11 +74,11 @@ public class OperatorShutdownHandlerTest {
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
-        this.operatorShutdownHandler.handleAttestResponse(Pair.of(500, ""));
+        this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.RetryableFailure, ""));
 
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(60));
         try {
-            this.operatorShutdownHandler.handleAttestResponse(Pair.of(500, ""));
+            this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.RetryableFailure, ""));
         } catch (RuntimeException e) {
             verify(shutdownService).Shutdown(1);
             Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation has been in failed state for too long. shutting down operator"));
@@ -90,13 +92,13 @@ public class OperatorShutdownHandlerTest {
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
-        this.operatorShutdownHandler.handleAttestResponse(Pair.of(500, ""));
+        this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.RetryableFailure, ""));
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(6, ChronoUnit.HOURS));
-        this.operatorShutdownHandler.handleAttestResponse(Pair.of(200, ""));
+        this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.Success, ""));
 
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
         assertDoesNotThrow(() -> {
-            this.operatorShutdownHandler.handleAttestResponse(Pair.of(500, ""));
+            this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.RetryableFailure, ""));
         });
         verify(shutdownService, never()).Shutdown(anyInt());
         testContext.completeNow();

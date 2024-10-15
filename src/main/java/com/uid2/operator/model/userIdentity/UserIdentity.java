@@ -6,7 +6,7 @@ import com.uid2.operator.model.IdentityType;
 import java.time.Instant;
 
 //base class for all other HshedDii/FirstLevelHash/RawUIDIdentity class and define the basic common fields
-public class UserIdentity {
+public abstract class UserIdentity {
 
     public final IdentityScope identityScope;
     public final IdentityType identityType;

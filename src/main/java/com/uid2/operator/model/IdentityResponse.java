@@ -5,7 +5,7 @@ import com.uid2.shared.model.TokenVersion;
 import java.time.Instant;
 
 // this defines all the fields for the response of the /token/generate and /client/generate endpoints before they are
-// json-ised
+// jsonified
 public class IdentityResponse {
     public static IdentityResponse OptOutIdentityResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
     private final String advertisingToken;
@@ -49,7 +49,7 @@ public class IdentityResponse {
         return refreshFrom;
     }
 
-    public boolean isOptedout() {
+    public boolean isOptedOut() {
         return advertisingToken == null || advertisingToken.isEmpty();
     }
 }

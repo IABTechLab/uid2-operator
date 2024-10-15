@@ -474,7 +474,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         JsonObject response;
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
-        if (identityResponse.isOptedout()) {
+        if (identityResponse.isOptedOut()) {
             response = ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut);
             responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
         }
@@ -999,7 +999,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                 input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
                                 OptoutCheckPolicy.respectOptOut()));
 
-                if (t.isOptedout()) {
+                if (t.isOptedOut()) {
                     if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
                         final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
                                 ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
@@ -1241,11 +1241,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         try {
             final Instant now = Instant.now();
-            final RawUidResult rawUidResult = this.idService.map(input.toHashedDiiIdentity(this.identityScope, 0, now), now);
+            final RawUidResponse rawUidResponse = this.idService.map(input.toHashedDiiIdentity(this.identityScope, 0, now), now);
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
-            jsonObject.put("advertising_id", EncodingUtils.toBase64String(rawUidResult.rawUid));
-            jsonObject.put("bucket_id", rawUidResult.bucketId);
+            jsonObject.put("advertising_id", EncodingUtils.toBase64String(rawUidResponse.rawUid));
+            jsonObject.put("bucket_id", rawUidResponse.bucketId);
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State", e);
@@ -1264,8 +1264,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             else {
                 final Instant now = Instant.now();
-                final RawUidResult rawUidResult = this.idService.map(input.toHashedDiiIdentity(this.identityScope, 0, now), now);
-                rc.response().end(EncodingUtils.toBase64String(rawUidResult.rawUid));
+                final RawUidResponse rawUidResponse = this.idService.map(input.toHashedDiiIdentity(this.identityScope, 0, now), now);
+                rc.response().end(EncodingUtils.toBase64String(rawUidResponse.rawUid));
             }
         } catch (Exception ex) {
             LOGGER.error("Unexpected error while mapping identity", ex);
@@ -1460,13 +1460,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         for (int i = 0; i < count; ++i) {
             final InputUtil.InputVal input = inputList[i];
             if (input != null && input.isValid()) {
-                final RawUidResult rawUidResult = idService.mapIdentity(
+                final RawUidResponse rawUidResponse = idService.mapIdentity(
                         new MapRequest(
                                 input.toHashedDiiIdentity(this.identityScope, 0, now),
                                 OptoutCheckPolicy.respectOptOut(),
                                 now));
 
-                if (rawUidResult.isOptedOut()) {
+                if (rawUidResponse.isOptedOut()) {
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
                     resp.put("reason", "optout");
@@ -1475,8 +1475,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 } else {
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", EncodingUtils.toBase64String(rawUidResult.rawUid));
-                    resp.put("bucket_id", rawUidResult.bucketId);
+                    resp.put("advertising_id", EncodingUtils.toBase64String(rawUidResponse.rawUid));
+                    resp.put("bucket_id", rawUidResponse.bucketId);
                     mapped.add(resp);
                 }
             } else {

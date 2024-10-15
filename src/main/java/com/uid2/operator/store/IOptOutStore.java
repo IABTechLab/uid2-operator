@@ -9,9 +9,10 @@ import java.time.Instant;
 public interface IOptOutStore {
 
     /**
-     * Get latest Opt-out record with respect to the UID (hashed identity)
+     * Get latest opt-out record
      *
-     * @param firstLevelHashIdentity@return The timestamp of latest opt-out record. <b>NULL</b> if no record.
+     * @param firstLevelHashIdentity The first level hash of a DII Hash
+     * @return The timestamp of latest opt-out record. <b>NULL</b> if no record.
      */
     Instant getLatestEntry(FirstLevelHashIdentity firstLevelHashIdentity);
 

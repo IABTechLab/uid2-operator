@@ -217,7 +217,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
             final int siteId = b3.getInt(0);
             final int length = b3.getInt(4);
 
-            final byte[] getRawUid = EncodingUtils.fromBase64(b3.slice(8, 8 + length).getBytes());
+            final byte[] rawUid = EncodingUtils.fromBase64(b3.slice(8, 8 + length).getBytes());
 
             final int privacyBits = b3.getInt(8 + length);
             final long establishedMillis = b3.getLong(8 + length + 4);
@@ -228,7 +228,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                     Instant.ofEpochMilli(expiresMillis),
                     new OperatorIdentity(0, OperatorType.Service, 0, masterKeyId),
                     new SourcePublisher(siteId, siteKeyId, 0),
-                    new RawUidIdentity(IdentityScope.UID2, IdentityType.Email, getRawUid, privacyBits,
+                    new RawUidIdentity(IdentityScope.UID2, IdentityType.Email, rawUid, privacyBits,
                             Instant.ofEpochMilli(establishedMillis), null)
             );
 
@@ -253,11 +253,11 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final int privacyBits = sitePayload.getInt(16);
         final Instant establishedAt = Instant.ofEpochMilli(sitePayload.getLong(20));
         final Instant refreshedAt = Instant.ofEpochMilli(sitePayload.getLong(28));
-        final byte[] id = sitePayload.slice(36, sitePayload.length()).getBytes();
-        final IdentityScope identityScope = id.length == 32 ? IdentityScope.UID2 : decodeIdentityScopeV3(id[0]);
-        final IdentityType identityType = id.length == 32 ? IdentityType.Email : decodeIdentityTypeV3(id[0]);
+        final byte[] rawUid = sitePayload.slice(36, sitePayload.length()).getBytes();
+        final IdentityScope identityScope = rawUid.length == 32 ? IdentityScope.UID2 : decodeIdentityScopeV3(rawUid[0]);
+        final IdentityType identityType = rawUid.length == 32 ? IdentityType.Email : decodeIdentityTypeV3(rawUid[0]);
 
-        if (id.length > 32)
+        if (rawUid.length > 32)
         {
             if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
                 throw new ClientInputValidationException("Failed decoding advertisingTokenV3: Identity scope mismatch");
@@ -269,7 +269,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new AdvertisingTokenInput(
                 tokenVersion, createdAt, expiresAt, operatorIdentity, sourcePublisher,
-                new RawUidIdentity(identityScope, identityType, id, privacyBits, establishedAt, refreshedAt)
+                new RawUidIdentity(identityScope, identityType, rawUid, privacyBits, establishedAt, refreshedAt)
         );
     }
 
@@ -360,7 +360,6 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     private byte[] encryptIdentityV2(SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity, KeysetKey key) {
         return encryptIdentityV2(sourcePublisher, firstLevelHashIdentity.firstLevelHash, firstLevelHashIdentity.privacyBits,
                 firstLevelHashIdentity.establishedAt, key);
-
     }
 
     private byte[] encryptIdentityV2(SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity,

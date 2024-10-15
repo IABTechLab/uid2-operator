@@ -94,7 +94,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         this.webClient.get(remoteApiPort, remoteApiHost, remoteApiPath).
             addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.firstLevelHash))
-            .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId))
+            .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId)) // advertising id aka raw UID
             .putHeader("Authorization", remoteApiBearerToken)
             .as(BodyCodec.string())
             .send(ar -> {

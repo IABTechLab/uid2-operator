@@ -63,10 +63,10 @@ public class TokenEncodingTest {
         );
 
         if (tokenVersion == TokenVersion.V4) {
-            Assert.assertThrows(Exception.class, () -> encoder.encode(token, now));
+            Assert.assertThrows(Exception.class, () -> encoder.encodeIntoRefreshToken(token, now));
             return; //V4 not supported for RefreshTokens
         }
-        final byte[] encodedBytes = encoder.encode(token, now);
+        final byte[] encodedBytes = encoder.encodeIntoRefreshToken(token, now);
         final RefreshTokenInput decoded = encoder.decodeRefreshToken(EncodingUtils.toBase64String(encodedBytes));
 
         assertEquals(tokenVersion, decoded.version);
@@ -104,7 +104,7 @@ public class TokenEncodingTest {
             new RawUidIdentity(IdentityScope.UID2, IdentityType.Email, rawUid, 121, now, now.minusSeconds(122))
         );
 
-        final byte[] encodedBytes = encoder.encode(token, now);
+        final byte[] encodedBytes = encoder.encodeIntoAdvertisingToken(token, now);
         final AdvertisingTokenInput decoded = encoder.decodeAdvertisingToken(EncryptedTokenEncoder.bytesToBase64Token(encodedBytes, tokenVersion));
 
         assertEquals(tokenVersion, decoded.version);

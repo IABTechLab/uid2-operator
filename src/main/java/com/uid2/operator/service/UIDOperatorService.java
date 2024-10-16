@@ -110,7 +110,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final byte[] firstLevelHash = getFirstLevelHash(request.hashedDiiIdentity.hashedDii, now);
         final FirstLevelHashIdentity firstLevelHashIdentity = new FirstLevelHashIdentity(
                 request.hashedDiiIdentity.identityScope, request.hashedDiiIdentity.identityType, firstLevelHash, request.hashedDiiIdentity.privacyBits,
-                request.hashedDiiIdentity.establishedAt, request.hashedDiiIdentity.refreshedAt);
+                request.hashedDiiIdentity.establishedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return IdentityResponse.OptOutIdentityResponse;
@@ -231,7 +231,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private FirstLevelHashIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf) {
         final byte[] firstLevelHash = getFirstLevelHash(identityHash, asOf);
-        return new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, 0, null, null);
+        return new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, 0, null);
     }
 
     private byte[] getFirstLevelHash(byte[] identityHash, Instant asOf) {
@@ -255,7 +255,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, nowUtc);
         final RawUidIdentity rawUidIdentity = new RawUidIdentity(firstLevelHashIdentity.identityScope,
                 firstLevelHashIdentity.identityType,
-                rawUidResponse.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
+                rawUidResponse.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt);
 
         return this.encoder.encodeIntoIdentityResponse(
                 this.createAdvertisingTokenInput(sourcePublisher, rawUidIdentity, nowUtc),

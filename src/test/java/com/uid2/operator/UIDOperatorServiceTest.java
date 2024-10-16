@@ -129,8 +129,7 @@ public class UIDOperatorServiceTest {
                 type,
                 rawIdentityHash.getBytes(StandardCharsets.UTF_8),
                 0,
-                this.now.minusSeconds(234),
-                this.now.plusSeconds(12345)
+                this.now.minusSeconds(234)
         );
     }
 

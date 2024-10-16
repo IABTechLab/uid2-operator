@@ -11,8 +11,8 @@ public class FirstLevelHashIdentity extends UserIdentity {
     public final byte[] firstLevelHash;
 
     public FirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] firstLevelHash, int privacyBits,
-                                  Instant establishedAt, Instant refreshedAt) {
-        super(identityScope, identityType, privacyBits, establishedAt, refreshedAt);
+                                  Instant establishedAt) {
+        super(identityScope, identityType, privacyBits, establishedAt);
         this.firstLevelHash = firstLevelHash;
     }
 

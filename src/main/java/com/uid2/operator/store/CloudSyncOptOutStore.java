@@ -542,7 +542,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
             Instant tsOld = OptOutUtils.lastPartitionTimestamp(indexedNonSynthetic);
             Instant tsNew = OptOutUtils.lastPartitionTimestamp(newNonSynthetic);
-            if (tsOld != Instant.EPOCH && tsNew != Instant.EPOCH && tsOld.isBefore(tsNew)) {
+            if (tsOld != Instant.EPOCH && tsNew != Instant.EPOCH && !tsOld.isBefore(tsNew)) {
                 final String errorMsg = "Last partition timestamp of indexed files " + tsOld.getEpochSecond()
                 + " is after last partition of non-indexed files " + tsNew.getEpochSecond();
                 LOGGER.error(errorMsg);

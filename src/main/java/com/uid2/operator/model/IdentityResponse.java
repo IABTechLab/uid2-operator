@@ -4,8 +4,10 @@ import com.uid2.shared.model.TokenVersion;
 
 import java.time.Instant;
 
-public class IdentityTokens {
-    public static IdentityTokens LogoutToken = new IdentityTokens("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+// this defines all the fields for the response of the /token/generate and /client/generate endpoints before they are
+// jsonified
+public class IdentityResponse {
+    public static IdentityResponse OptOutIdentityResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
     private final String advertisingToken;
     private final TokenVersion advertisingTokenVersion;
     private final String refreshToken;
@@ -13,8 +15,8 @@ public class IdentityTokens {
     private final Instant refreshExpires;
     private final Instant refreshFrom;
 
-    public IdentityTokens(String advertisingToken, TokenVersion advertisingTokenVersion, String refreshToken,
-                          Instant identityExpires, Instant refreshExpires, Instant refreshFrom) {
+    public IdentityResponse(String advertisingToken, TokenVersion advertisingTokenVersion, String refreshToken,
+                            Instant identityExpires, Instant refreshExpires, Instant refreshFrom) {
         this.advertisingToken = advertisingToken;
         this.advertisingTokenVersion = advertisingTokenVersion;
         this.refreshToken = refreshToken;
@@ -47,7 +49,7 @@ public class IdentityTokens {
         return refreshFrom;
     }
 
-    public boolean isEmptyToken() {
+    public boolean isOptedOut() {
         return advertisingToken == null || advertisingToken.isEmpty();
     }
 }

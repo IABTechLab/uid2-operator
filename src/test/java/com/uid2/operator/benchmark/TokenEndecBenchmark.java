@@ -8,6 +8,7 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,7 +43,7 @@ public class TokenEndecBenchmark {
                     uidService.generateIdentity(new IdentityRequest(
                             publisher,
                             hashedDiiIdentities[i],
-                            OptoutCheckPolicy.DoNotRespect)));
+                            OptoutCheckPolicy.DoNotRespect, 1, Instant.now())));
         }
         return tokens.toArray(new IdentityResponse[tokens.size()]);
     }
@@ -53,7 +54,7 @@ public class TokenEndecBenchmark {
         return uidService.generateIdentity(new IdentityRequest(
                 publisher,
                 hashedDiiIdentities[(idx++) & 65535],
-                OptoutCheckPolicy.DoNotRespect));
+                OptoutCheckPolicy.DoNotRespect, 1, Instant.now()));
     }
 
     @Benchmark

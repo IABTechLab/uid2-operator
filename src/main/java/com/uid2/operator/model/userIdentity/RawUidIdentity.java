@@ -10,9 +10,8 @@ import java.util.Arrays;
 public class RawUidIdentity extends UserIdentity {
     public final byte[] rawUid;
 
-    public RawUidIdentity(IdentityScope identityScope, IdentityType identityType, byte[] rawUid, int privacyBits,
-                          Instant establishedAt) {
-        super(identityScope, identityType, privacyBits, establishedAt);
+    public RawUidIdentity(IdentityScope identityScope, IdentityType identityType, byte[] rawUid) {
+        super(identityScope, identityType);
         this.rawUid = rawUid;
     }
 

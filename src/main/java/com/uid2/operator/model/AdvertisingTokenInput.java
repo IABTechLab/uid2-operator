@@ -10,12 +10,18 @@ public class AdvertisingTokenInput extends VersionedToken {
     public final SourcePublisher sourcePublisher;
     public final RawUidIdentity rawUidIdentity;
 
+    public final int privacyBits;
+    public final Instant establishedAt;
+
     public AdvertisingTokenInput(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
-                                 SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity) {
+                                 SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity, int privacyBits,
+                                 Instant establishedAt) {
         super(version, createdAt, expiresAt);
         this.operatorIdentity = operatorIdentity;
         this.sourcePublisher = sourcePublisher;
         this.rawUidIdentity = rawUidIdentity;
+        this.privacyBits = privacyBits;
+        this.establishedAt = establishedAt;
     }
 }
 

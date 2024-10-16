@@ -612,8 +612,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                 } else if (numPartitions > 1) {
                     if (this.iteration != 0) {
                         final String errorMsg = "Should not load more than 1 partition at a time, unless during service bootstrap. Current iteration " + this.iteration;
-                        LOGGER.error(errorMsg);
-                        throw new IllegalStateException(errorMsg);
+                        LOGGER.warn(errorMsg);
                     }
                     return this.processPartitions(iuc);
                 } else {

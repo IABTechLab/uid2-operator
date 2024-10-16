@@ -55,6 +55,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         encodePublisherRequesterV3(sitePayload, t.sourcePublisher);
         sitePayload.appendInt(t.privacyBits);
         sitePayload.appendLong(t.establishedAt.toEpochMilli());
+        // this is the refreshedAt field in the spec - but effectively it is the time this advertising token is generated
         sitePayload.appendLong(t.createdAt.toEpochMilli());
         sitePayload.appendBytes(t.rawUidIdentity.rawUid); // 32 or 33 bytes
 
@@ -253,6 +254,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final SourcePublisher sourcePublisher = decodeSourcePublisherV3(sitePayload, 0);
         final int privacyBits = sitePayload.getInt(16);
         final Instant establishedAt = Instant.ofEpochMilli(sitePayload.getLong(20));
+        // refreshedAt is currently not used
         final Instant refreshedAt = Instant.ofEpochMilli(sitePayload.getLong(28));
         final byte[] rawUid = sitePayload.slice(36, sitePayload.length()).getBytes();
         final IdentityScope identityScope = rawUid.length == 32 ? IdentityScope.UID2 : decodeIdentityScopeV3(rawUid[0]);

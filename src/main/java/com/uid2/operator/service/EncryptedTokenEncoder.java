@@ -24,16 +24,16 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         this.keyManager = keyManager;
     }
 
-    public byte[] encode(AdvertisingTokenInput t, Instant asOf) {
+    public byte[] encodeIntoAdvertisingToken(AdvertisingTokenInput t, Instant asOf) {
         final KeysetKey masterKey = this.keyManager.getMasterKey(asOf);
         final KeysetKey siteEncryptionKey = this.keyManager.getActiveKeyBySiteIdWithFallback(t.sourcePublisher.siteId, Data.AdvertisingTokenSiteId, asOf);
 
         return t.version == TokenVersion.V2
-                ? encodeV2(t, masterKey, siteEncryptionKey)
-                : encodeV3(t, masterKey, siteEncryptionKey); //TokenVersion.V4 also calls encodeV3() since the byte array is identical between V3 and V4
+                ? encodeIntoAdvertisingTokenV2(t, masterKey, siteEncryptionKey)
+                : encodeIntoAdvertisingTokenV3(t, masterKey, siteEncryptionKey); //TokenVersion.V4 also calls encodeV3() since the byte array is identical between V3 and V4
     }
 
-    private byte[] encodeV2(AdvertisingTokenInput t, KeysetKey masterKey, KeysetKey siteKey) {
+    private byte[] encodeIntoAdvertisingTokenV2(AdvertisingTokenInput t, KeysetKey masterKey, KeysetKey siteKey) {
         final Buffer b = Buffer.buffer();
 
         b.appendByte((byte) t.version.rawVersion);
@@ -50,7 +50,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return b.getBytes();
     }
 
-    private byte[] encodeV3(AdvertisingTokenInput t, KeysetKey masterKey, KeysetKey siteKey) {
+    private byte[] encodeIntoAdvertisingTokenV3(AdvertisingTokenInput t, KeysetKey masterKey, KeysetKey siteKey) {
         final Buffer sitePayload = Buffer.buffer(69);
         encodePublisherRequesterV3(sitePayload, t.sourcePublisher);
         sitePayload.appendInt(t.rawUidIdentity.privacyBits);
@@ -281,22 +281,22 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                 .register(Metrics.globalRegistry).increment();
     }
 
-    public byte[] encode(RefreshTokenInput t, Instant asOf) {
+    public byte[] encodeIntoRefreshToken(RefreshTokenInput t, Instant asOf) {
         final KeysetKey serviceKey = this.keyManager.getRefreshKey(asOf);
 
         switch (t.version) {
             case V2:
                 recordRefreshTokenVersionCount(String.valueOf(t.sourcePublisher.siteId), TokenVersion.V2);
-                return encodeV2(t, serviceKey);
+                return encodeIntoRefreshTokenV2(t, serviceKey);
             case V3:
                 recordRefreshTokenVersionCount(String.valueOf(t.sourcePublisher.siteId), TokenVersion.V3);
-                return encodeV3(t, serviceKey);
+                return encodeIntoRefreshTokenV3(t, serviceKey);
             default:
                 throw new ClientInputValidationException("RefreshToken version " + t.version + " not supported");
         }
     }
 
-    public byte[] encodeV2(RefreshTokenInput t, KeysetKey serviceKey) {
+    public byte[] encodeIntoRefreshTokenV2(RefreshTokenInput t, KeysetKey serviceKey) {
         final Buffer b = Buffer.buffer();
         b.appendByte((byte) t.version.rawVersion);
         b.appendLong(t.createdAt.toEpochMilli());
@@ -309,7 +309,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return b.getBytes();
     }
 
-    public byte[] encodeV3(RefreshTokenInput t, KeysetKey serviceKey) {
+    public byte[] encodeIntoRefreshTokenV3(RefreshTokenInput t, KeysetKey serviceKey) {
         final Buffer refreshPayload = Buffer.buffer(90);
         refreshPayload.appendLong(t.expiresAt.toEpochMilli());
         refreshPayload.appendLong(t.createdAt.toEpochMilli());
@@ -343,30 +343,26 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     @Override
     public IdentityResponse encodeIntoIdentityResponse(AdvertisingTokenInput advertisingTokenInput, RefreshTokenInput refreshTokenInput, Instant refreshFrom, Instant asOf) {
-
-        final String base64AdvertisingToken = generateBase64AdvertisingToken(advertisingTokenInput, asOf);
-        final String base64RefreshToken = generateBase64RefreshToken(refreshTokenInput, asOf);
+        final String advertisingToken = generateAdvertisingTokenString(advertisingTokenInput, asOf);
+        final String refreshToken = generateRefreshTokenString(refreshTokenInput, asOf);
         return new IdentityResponse(
-                base64AdvertisingToken,
+                advertisingToken,
                 advertisingTokenInput.version,
-                base64RefreshToken,
+                refreshToken,
                 advertisingTokenInput.expiresAt,
                 refreshTokenInput.expiresAt,
                 refreshFrom
         );
     }
 
-    private String generateBase64RefreshToken(RefreshTokenInput refreshTokenInput, Instant asOf) {
-        return EncodingUtils.toBase64String(encode(refreshTokenInput, asOf));
+    private String generateRefreshTokenString(RefreshTokenInput refreshTokenInput, Instant asOf) {
+        return EncodingUtils.toBase64String(encodeIntoRefreshToken(refreshTokenInput, asOf));
     }
 
-    private String generateBase64AdvertisingToken(AdvertisingTokenInput advertisingTokenInput, Instant asOf) {
-        final byte[] advertisingTokenBytes = encode(advertisingTokenInput, asOf);
-        final String base64AdvertisingToken = bytesToBase64Token(advertisingTokenBytes, advertisingTokenInput.version);
-        return base64AdvertisingToken;
+    private String generateAdvertisingTokenString(AdvertisingTokenInput advertisingTokenInput, Instant asOf) {
+        final byte[] advertisingTokenBytes = encodeIntoAdvertisingToken(advertisingTokenInput, asOf);
+        return bytesToBase64Token(advertisingTokenBytes, advertisingTokenInput.version);
     }
-
-
 
     private byte[] encryptIdentityV2(SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity, KeysetKey key) {
         return encryptIdentityV2(sourcePublisher, firstLevelHashIdentity.firstLevelHash, firstLevelHashIdentity.privacyBits,

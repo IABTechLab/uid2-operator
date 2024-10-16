@@ -40,12 +40,19 @@ runs:
     - name: Restore timestamps
       uses: thetradedesk/git-restore-mtime-action@v1.3
 
+    - name: Check disk usage before clean
+      shell: bash
+      run: |
+        df -h
+
     - name: Free up space - delete preinstalled tools
       shell: bash
       run: |
         rm -rf /opt/hostedtoolcache
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
 
-    - name: Check disk usage
+    - name: Check disk usage after clean
       shell: bash
       run: |
         df -h

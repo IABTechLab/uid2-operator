@@ -11,8 +11,8 @@ public class RawUidIdentity extends UserIdentity {
     public final byte[] rawUid;
 
     public RawUidIdentity(IdentityScope identityScope, IdentityType identityType, byte[] rawUid, int privacyBits,
-                          Instant establishedAt, Instant refreshedAt) {
-        super(identityScope, identityType, privacyBits, establishedAt, refreshedAt);
+                          Instant establishedAt) {
+        super(identityScope, identityType, privacyBits, establishedAt);
         this.rawUid = rawUid;
     }
 

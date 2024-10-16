@@ -12,13 +12,11 @@ public abstract class UserIdentity {
     public final IdentityType identityType;
     public final int privacyBits;
     public final Instant establishedAt;
-    public final Instant refreshedAt;
 
-    public UserIdentity(IdentityScope identityScope, IdentityType identityType, int privacyBits, Instant establishedAt, Instant refreshedAt) {
+    public UserIdentity(IdentityScope identityScope, IdentityType identityType, int privacyBits, Instant establishedAt) {
         this.identityScope = identityScope;
         this.identityType = identityType;
         this.privacyBits = privacyBits;
         this.establishedAt = establishedAt;
-        this.refreshedAt = refreshedAt;
     }
 }

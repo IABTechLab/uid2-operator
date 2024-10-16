@@ -55,7 +55,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         encodePublisherRequesterV3(sitePayload, t.sourcePublisher);
         sitePayload.appendInt(t.rawUidIdentity.privacyBits);
         sitePayload.appendLong(t.rawUidIdentity.establishedAt.toEpochMilli());
-        sitePayload.appendLong(t.rawUidIdentity.refreshedAt.toEpochMilli());
+        sitePayload.appendLong(t.createdAt.toEpochMilli());
         sitePayload.appendBytes(t.rawUidIdentity.rawUid); // 32 or 33 bytes
 
         final Buffer masterPayload = Buffer.buffer(130);
@@ -127,7 +127,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                 new OperatorIdentity(0, OperatorType.Service, 0, 0),
                 new SourcePublisher(siteId, 0, 0),
                 new FirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Email, identity, privacyBits,
-                        Instant.ofEpochMilli(establishedMillis), null));
+                        Instant.ofEpochMilli(establishedMillis)));
     }
 
     private RefreshTokenInput decodeRefreshTokenV3(Buffer b, byte[] bytes) {
@@ -160,7 +160,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new RefreshTokenInput(
                 TokenVersion.V3, createdAt, expiresAt, operatorIdentity, sourcePublisher,
-                new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, privacyBits, establishedAt, null));
+                new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, privacyBits, establishedAt));
     }
 
     @Override
@@ -229,7 +229,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                     new OperatorIdentity(0, OperatorType.Service, 0, masterKeyId),
                     new SourcePublisher(siteId, siteKeyId, 0),
                     new RawUidIdentity(IdentityScope.UID2, IdentityType.Email, rawUid, privacyBits,
-                            Instant.ofEpochMilli(establishedMillis), null)
+                            Instant.ofEpochMilli(establishedMillis))
             );
 
         } catch (Exception e) {
@@ -269,7 +269,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new AdvertisingTokenInput(
                 tokenVersion, createdAt, expiresAt, operatorIdentity, sourcePublisher,
-                new RawUidIdentity(identityScope, identityType, rawUid, privacyBits, establishedAt, refreshedAt)
+                new RawUidIdentity(identityScope, identityType, rawUid, privacyBits, establishedAt)
         );
     }
 

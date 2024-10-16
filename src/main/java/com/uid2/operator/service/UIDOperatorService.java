@@ -36,7 +36,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private static final Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
-    private final ITokenEncoder encoder;
+    private final EncryptedTokenEncoder encoder;
     private final Clock clock;
     private final IdentityScope identityScope;
     private final FirstLevelHashIdentity testOptOutIdentityForEmail;
@@ -58,7 +58,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private final Handler<Boolean> saltRetrievalResponseHandler;
 
-    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
+    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock,
                               IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
@@ -110,7 +110,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final byte[] firstLevelHash = getFirstLevelHash(request.hashedDiiIdentity.hashedDii, now);
         final FirstLevelHashIdentity firstLevelHashIdentity = new FirstLevelHashIdentity(
                 request.hashedDiiIdentity.identityScope, request.hashedDiiIdentity.identityType, firstLevelHash, request.hashedDiiIdentity.privacyBits,
-                request.hashedDiiIdentity.establishedAt, request.hashedDiiIdentity.refreshedAt);
+                request.hashedDiiIdentity.establishedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return IdentityResponse.OptOutIdentityResponse;
@@ -231,7 +231,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private FirstLevelHashIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf) {
         final byte[] firstLevelHash = getFirstLevelHash(identityHash, asOf);
-        return new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, 0, null, null);
+        return new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, 0, null);
     }
 
     private byte[] getFirstLevelHash(byte[] identityHash, Instant asOf) {
@@ -255,7 +255,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, nowUtc);
         final RawUidIdentity rawUidIdentity = new RawUidIdentity(firstLevelHashIdentity.identityScope,
                 firstLevelHashIdentity.identityType,
-                rawUidResponse.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
+                rawUidResponse.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt);
 
         return this.encoder.encodeIntoIdentityResponse(
                 this.createAdvertisingTokenInput(sourcePublisher, rawUidIdentity, nowUtc),

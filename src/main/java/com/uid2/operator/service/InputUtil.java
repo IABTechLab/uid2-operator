@@ -267,7 +267,6 @@ public class InputUtil {
                     this.identityType,
                     getIdentityInput(),
                     privacyBits,
-                    establishedAt,
                     establishedAt);
         }
     }

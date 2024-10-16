@@ -4,7 +4,7 @@ EIF_PATH=/home/uid2operator.eif
 MEMORY_MB=24576
 CPU_COUNT=6
 
-set -x
+# This is the entry point for the EKS Pod
 
 function terminate_old_enclave() {
     echo "terminate_old_enclave"
@@ -94,9 +94,26 @@ function update_config() {
     shopt -u nocasematch
 }
 
+function test_downloads() {
+    echo "Download small file..."
+    curl -s -o /dev/null -w "DNS Lookup: %{time_namelookup}\nTCP Connect: %{time_connect}\nTotal: %{time_total}\nApp Connect: %{time_appconnect}\nRedirect time: %{time_redirect}\n" "https://tjm-test-download.s3.amazonaws.com/aws-enclave-ids-5.40.50-alpha-102-SNAPSHOT.zip"
+
+    echo "Download medium file..."
+    curl -s -o /dev/null -w "DNS Lookup: %{time_namelookup}\nTCP Connect: %{time_connect}\nTotal: %{time_total}\nApp Connect: %{time_appconnect}\nRedirect time: %{time_redirect}\n" "https://tjm-test-download.s3.amazonaws.com/OktaVerifySetup-4.10.7.0-9673055.exe"
+
+    echo "Download large file..."
+    curl -s -o /dev/null -w "DNS Lookup: %{time_namelookup}\nTCP Connect: %{time_connect}\nTotal: %{time_total}\nApp Connect: %{time_appconnect}\nRedirect time: %{time_redirect}\n" "https://tjm-test-download.s3.amazonaws.com/aws-uid2-deployment-files-5.40.32.zip"
+    
+}
+
 function run_enclave() {
     echo "starting enclave... --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID"
     nitro-cli terminate-enclave --all
+    systemctl stop nitro-enclaves-allocator.service
+    systemctl start nitro-enclaves-allocator.service 
+    systemctl enable nitro-enclaves-allocator.service
+    systemctl status nitro-enclaves-allocator.service
+
     nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator --debug-mode --attach-console
 
     echo "Show log files..."
@@ -117,6 +134,7 @@ setup_dante
 run_config_server
 wait_for_config
 update_config
+test_downloads
 run_enclave
 
 sleep 60s

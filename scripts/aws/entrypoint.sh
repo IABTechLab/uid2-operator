@@ -1,4 +1,4 @@
-#!/bin/bash -eufx
+#!/bin/bash -ufx
 
 # This is the entrypoint for the Enclave. It is executed in all enclaves - EC2 and EKS
 
@@ -92,6 +92,15 @@ fi
 
 # -- set pwd to /app so we can find default configs
 cd /app
+
+echo "Download small file..."
+curl -s -o /dev/null -w "DNS Lookup: %{time_namelookup}\nTCP Connect: %{time_connect}\nTotal: %{time_total}\nApp Connect: %{time_appconnect}\nRedirect time: %{time_redirect}\n" -x socks5h://127.0.0.1:3305 "https://tjm-test-download.s3.amazonaws.com/aws-enclave-ids-5.40.50-alpha-102-SNAPSHOT.zip"
+
+echo "Download medium file..."
+curl -s -o /dev/null -w "DNS Lookup: %{time_namelookup}\nTCP Connect: %{time_connect}\nTotal: %{time_total}\nApp Connect: %{time_appconnect}\nRedirect time: %{time_redirect}\n" -x socks5h://127.0.0.1:3305 "https://tjm-test-download.s3.amazonaws.com/OktaVerifySetup-4.10.7.0-9673055.exe"
+
+echo "Download large file..."
+curl -s -o /dev/null -w "DNS Lookup: %{time_namelookup}\nTCP Connect: %{time_connect}\nTotal: %{time_total}\nApp Connect: %{time_appconnect}\nRedirect time: %{time_redirect}\n" -x socks5h://127.0.0.1:3305 "https://tjm-test-download.s3.amazonaws.com/aws-uid2-deployment-files-5.40.32.zip"
 
 # -- start operator
 echo "Starting Java application..."

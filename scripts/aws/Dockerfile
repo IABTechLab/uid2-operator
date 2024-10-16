@@ -1,6 +1,8 @@
 # https://hub.docker.com/layers/library/eclipse-temurin/21-jre-jammy/images/sha256-3186dd88a59659929855a6bb785b0528c812eb0b03d97fd6e2221526547ed322?context=explore
 FROM eclipse-temurin:21-jre-jammy
 
+# This is the docker file to build the Nitro EIF
+
 WORKDIR /app
 
 ARG JAR_NAME=uid2-operator

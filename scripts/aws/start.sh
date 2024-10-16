@@ -109,7 +109,7 @@ function run_config_server() {
 
 function run_enclave() {
     echo "starting enclave..."
-    nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator
+    nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator --debug-mode --attach-console
 }
 
 terminate_old_enclave

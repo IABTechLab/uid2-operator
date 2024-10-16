@@ -5,8 +5,8 @@
 LOG_FILE="/home/start.txt"
 
 set -x
-exec > $LOG_FILE
-exec 2>&1
+#exec > $LOG_FILE
+#exec 2>&1
 
 set -o pipefail
 ulimit -n 65536
@@ -14,10 +14,6 @@ ulimit -n 65536
 # -- setup loopback device
 echo "Setting up loopback device..."
 ifconfig lo 127.0.0.1
-
-# -- start sshd
-echo "Starting sshd"
-/sbin/sshd
 
 # -- start vsock proxy
 echo "Starting vsock proxy..."
@@ -96,6 +92,12 @@ fi
 
 # -- set pwd to /app so we can find default configs
 cd /app
+
+# -- start sshd
+sleep 5
+echo "Starting sshd"
+/sbin/sshd
+sleep 5
 
 # -- enable core dumps
 ulimit -c unlimited

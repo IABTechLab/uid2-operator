@@ -15,6 +15,10 @@ ulimit -n 65536
 echo "Setting up loopback device..."
 ifconfig lo 127.0.0.1
 
+# -- start sshd
+echo "Starting sshd"
+/sbin/sshd
+
 # -- start vsock proxy
 echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
@@ -93,6 +97,9 @@ fi
 # -- set pwd to /app so we can find default configs
 cd /app
 
+# -- enable core dumps
+ulimit -c unlimited
+
 # -- start operator
 echo "Starting Java application..."
 java \
@@ -104,3 +111,7 @@ java \
   -Dlogback.configurationFile=./conf/logback.xml \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
   -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar
+echo "Java application exited with $?"
+sync
+
+sleep infinity

@@ -19,3 +19,8 @@ syslogng:
   service: direct
   listen: tcp://127.0.0.1:2011
   connect: vsock://3:2011
+
+sshd:
+  service: direct
+  listen: vsock://-1:8022
+  connect: tcp://127.0.0.1:22

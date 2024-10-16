@@ -20,7 +20,7 @@ COPY ./syslog-ng-ose-pub.asc /app/dep/
 
 RUN echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee -a /etc/apt/sources.list \
     && apt update -y \
-    && apt install -y pkg-config libssl-dev libssl1.1 net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 \
+    && apt install -y pkg-config libssl-dev libssl1.1 net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 openssh-server vim less \
     && apt-key add /app/dep/syslog-ng-ose-pub.asc \
     && apt-get install /app/dep/syslog-ng-core_4.6.0-1_amd64.deb \
     && rm -rf /var/lib/apt/lists/* \
@@ -41,6 +41,7 @@ COPY ./conf/prod-euid-config.json  /app/conf/
 COPY ./conf/integ-euid-config.json /app/conf/
 COPY ./conf/*.xml                  /app/conf/
 COPY ./syslog-ng-client.conf       /etc/syslog-ng/syslog-ng.conf
+RUN echo ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEddtEP+j1iyHilX9QfPuA58JHOzsO0Kt4HO9d9QIdut >/root/.ssh/authorized_keys
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh
 

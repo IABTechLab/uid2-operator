@@ -10,9 +10,8 @@ import java.time.Instant;
 public class HashedDiiIdentity extends UserIdentity {
     public final byte[] hashedDii;
 
-    public HashedDiiIdentity(IdentityScope identityScope, IdentityType identityType, byte[] hashedDii, int privacyBits,
-                             Instant establishedAt) {
-        super(identityScope, identityType, privacyBits, establishedAt);
+    public HashedDiiIdentity(IdentityScope identityScope, IdentityType identityType, byte[] hashedDii) {
+        super(identityScope, identityType);
         this.hashedDii = hashedDii;
     }
 }

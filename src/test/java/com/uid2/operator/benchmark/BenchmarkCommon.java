@@ -155,8 +155,7 @@ public class BenchmarkCommon {
         for (int i = 0; i < 65536; i++) {
             final byte[] diiHash = new byte[33];
             new Random().nextBytes(diiHash);
-            arr[i] = new HashedDiiIdentity(IdentityScope.UID2, IdentityType.Email, diiHash, 0,
-                    Instant.now().minusSeconds(120));
+            arr[i] = new HashedDiiIdentity(IdentityScope.UID2, IdentityType.Email, diiHash);
         }
         return arr;
     }

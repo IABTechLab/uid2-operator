@@ -109,8 +109,8 @@ public class UIDOperatorService implements IUIDOperatorService {
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.hashedDiiIdentity.hashedDii, now);
         final FirstLevelHashIdentity firstLevelHashIdentity = new FirstLevelHashIdentity(
-                request.hashedDiiIdentity.identityScope, request.hashedDiiIdentity.identityType, firstLevelHash, request.hashedDiiIdentity.privacyBits,
-                request.hashedDiiIdentity.establishedAt);
+                request.hashedDiiIdentity.identityScope, request.hashedDiiIdentity.identityType, firstLevelHash, request.privacyBits,
+                request.establishedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return IdentityResponse.OptOutIdentityResponse;
@@ -255,10 +255,10 @@ public class UIDOperatorService implements IUIDOperatorService {
         final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, nowUtc);
         final RawUidIdentity rawUidIdentity = new RawUidIdentity(firstLevelHashIdentity.identityScope,
                 firstLevelHashIdentity.identityType,
-                rawUidResponse.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt);
+                rawUidResponse.rawUid);
 
         return this.encoder.encodeIntoIdentityResponse(
-                this.createAdvertisingTokenInput(sourcePublisher, rawUidIdentity, nowUtc),
+                this.createAdvertisingTokenInput(sourcePublisher, rawUidIdentity, nowUtc, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt),
                 this.createRefreshTokenInput(sourcePublisher, firstLevelHashIdentity, nowUtc),
                 nowUtc.plusMillis(refreshIdentityAfter.toMillis()),
                 nowUtc
@@ -277,7 +277,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private AdvertisingTokenInput createAdvertisingTokenInput(SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity,
-                                                              Instant now) {
+                                                              Instant now, int privacyBits, Instant establishedAt) {
         TokenVersion tokenVersion;
         if (siteIdsUsingV4Tokens.contains(sourcePublisher.siteId)) {
             tokenVersion = TokenVersion.V4;
@@ -291,7 +291,8 @@ public class UIDOperatorService implements IUIDOperatorService {
             }
             tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         }
-        return new AdvertisingTokenInput(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, sourcePublisher, rawUidIdentity);
+        return new AdvertisingTokenInput(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, sourcePublisher, rawUidIdentity,
+                privacyBits, establishedAt);
     }
 
     static protected class GlobalOptoutResult {

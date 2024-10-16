@@ -16,7 +16,6 @@ function terminate_old_enclave() {
     else
         nitro-cli describe-enclaves
         echo "No running enclaves to terminate."
-        sleep 30
     fi
 }
 

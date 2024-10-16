@@ -1,15 +1,15 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.model.AdvertisingToken;
-import com.uid2.operator.model.IdentityTokens;
-import com.uid2.operator.model.RefreshToken;
+import com.uid2.operator.model.AdvertisingTokenInput;
+import com.uid2.operator.model.IdentityResponse;
+import com.uid2.operator.model.RefreshTokenInput;
 
 import java.time.Instant;
 
 public interface ITokenEncoder {
-    IdentityTokens encode(AdvertisingToken advertisingToken, RefreshToken refreshToken, Instant refreshFrom, Instant asOf);
+    IdentityResponse encodeIntoIdentityResponse(AdvertisingTokenInput advertisingTokenInput, RefreshTokenInput refreshTokenInput, Instant refreshFrom, Instant asOf);
 
-    AdvertisingToken decodeAdvertisingToken(String base64String);
+    AdvertisingTokenInput decodeAdvertisingToken(String base64String);
 
-    RefreshToken decodeRefreshToken(String base64String);
+    RefreshTokenInput decodeRefreshToken(String base64String);
 }

@@ -1,17 +1,19 @@
 package com.uid2.operator.model;
 
+import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+
 public final class IdentityRequest {
-    public final PublisherIdentity publisherIdentity;
-    public final UserIdentity userIdentity;
+    public final SourcePublisher sourcePublisher;
+    public final HashedDiiIdentity hashedDiiIdentity;
     public final OptoutCheckPolicy optoutCheckPolicy;
 
     public IdentityRequest(
-            PublisherIdentity publisherIdentity,
-            UserIdentity userIdentity,
+            SourcePublisher sourcePublisher,
+            HashedDiiIdentity hashedDiiIdentity,
             OptoutCheckPolicy tokenGeneratePolicy)
     {
-        this.publisherIdentity = publisherIdentity;
-        this.userIdentity = userIdentity;
+        this.sourcePublisher = sourcePublisher;
+        this.hashedDiiIdentity = hashedDiiIdentity;
         this.optoutCheckPolicy = tokenGeneratePolicy;
     }
 

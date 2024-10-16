@@ -193,10 +193,10 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     @Override
     public void invalidateTokensAsync(HashedDiiIdentity diiIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler) {
-        final FirstLevelHashIdentity hashedDiiIdentity = getFirstLevelHashIdentity(diiIdentity, asOf);
-        final RawUidResponse rawUidResponse = generateRawUid(hashedDiiIdentity, asOf);
+        final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(diiIdentity, asOf);
+        final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, asOf);
 
-        this.optOutStore.addEntry(hashedDiiIdentity, rawUidResponse.rawUid, r -> {
+        this.optOutStore.addEntry(firstLevelHashIdentity, rawUidResponse.rawUid, r -> {
             if (r.succeeded()) {
                 handler.handle(Future.succeededFuture(r.result()));
             } else {

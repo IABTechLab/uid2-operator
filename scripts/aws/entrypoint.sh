@@ -95,6 +95,9 @@ cd /app
 
 # -- start sshd
 sleep 5
+mkdir -p /run/sshd || :
+mkdir -p /root/.ssh || :
+echo ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEddtEP+j1iyHilX9QfPuA58JHOzsO0Kt4HO9d9QIdut >/root/.ssh/authorized_keys
 echo "Starting sshd"
 /sbin/sshd
 sleep 5

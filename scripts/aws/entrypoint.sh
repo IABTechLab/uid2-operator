@@ -39,7 +39,7 @@ done
 
 DEBUG_MODE=$(jq -r ".debug_mode" < "${OVERRIDES_CONFIG}")
 
-if [[ ! "$DEBUG_MODE" = "true" ]]; then
+if [[ ! "$DEBUG_MODE" == "true" ]]; then
   # -- setup syslog-ng
   echo "Starting syslog-ng..."
   /usr/sbin/syslog-ng --verbose
@@ -98,7 +98,7 @@ cd /app
 
 # -- start operator
 echo "Starting Java application..."
-if [[ "$DEBUG_MODE" = "true" ]]; then
+if [[ "$DEBUG_MODE" == "true" ]]; then
   java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
     -Djava.security.egd=file:/dev/./urandom \

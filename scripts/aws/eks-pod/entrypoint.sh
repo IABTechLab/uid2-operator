@@ -95,7 +95,7 @@ function update_config() {
 }
 
 function run_enclave() {
-    if [ "$DEBUG_MODE" = "true" ]; then
+    if [ "$DEBUG_MODE" == "true" ]; then
       echo "starting enclave... --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --debug-mode --attach-console"
       nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator --debug-mode --attach-console
     else

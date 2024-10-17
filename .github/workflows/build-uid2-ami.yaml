@@ -144,5 +144,5 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aws-enclave-ids-${{ needs.buildUID2.outputs.version_number }}
+          name: aws-ami-ids-${{ needs.buildUID2.outputs.version_number }}
           path: ./artifacts/

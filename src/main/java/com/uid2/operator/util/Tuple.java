@@ -6,8 +6,9 @@ public class Tuple {
         private final T2 item2;
 
         public Tuple2(T1 item1, T2 item2) {
-            assert item1 != null;
-            assert item2 != null;
+            if (item1 == null || item2 == null) {
+                throw new NullPointerException();
+            }
 
             this.item1 = item1;
             this.item2 = item2;
@@ -34,9 +35,9 @@ public class Tuple {
         private final T3 item3;
 
         public Tuple3(T1 item1, T2 item2, T3 item3) {
-            assert item1 != null;
-            assert item2 != null;
-            assert item3 != null;
+            if (item1 == null || item2 == null || item3 == null) {
+                throw new NullPointerException();
+            }
 
             this.item1 = item1;
             this.item2 = item2;

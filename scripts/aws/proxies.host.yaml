@@ -10,11 +10,6 @@ operator-service:
   listen: tcp://0.0.0.0:80
   connect: vsock://42:8080
 
-operator-debug:
-  service: direct
-  listen: tcp://0.0.0.0:8000
-  connect: vsock://42:8000
-
 operator-prometheus:
   service: direct
   listen: tcp://0.0.0.0:9080

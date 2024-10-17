@@ -1,4 +1,4 @@
-#!/bin/bash -ufx
+#!/bin/bash -eufx
 CID=42
 EIF_PATH=/home/uid2operator.eif
 MEMORY_MB=24576
@@ -121,7 +121,6 @@ wait_for_config
 update_config
 run_enclave
 
-nitro-cli describe-enclaves
 sleep 60s
 set +x
 ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")

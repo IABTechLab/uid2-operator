@@ -5,7 +5,9 @@
 LOG_FILE="/home/start.txt"
 
 set -x
-exec &> >(tee -a "$LOG_FILE")
+exec > $LOG_FILE
+exec 2>&1
+#exec &> >(tee -a "$LOG_FILE")
 
 set -o pipefail
 ulimit -n 65536
@@ -38,11 +40,6 @@ do
 done
 
 DEBUG_MODE=$(jq -r ".debug_mode" < "${OVERRIDES_CONFIG}")
-
-
-# -- setup syslog-ng
-echo "Starting syslog-ng..."
-/usr/sbin/syslog-ng --verbose
 
 if [[ ! "$DEBUG_MODE" == "true" ]]; then
   # -- setup syslog-ng

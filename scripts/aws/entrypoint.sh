@@ -20,6 +20,10 @@ ifconfig lo 127.0.0.1
 echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
 
+# -- setup syslog-ng
+echo "Starting syslog-ng..."
+/usr/sbin/syslog-ng --verbose
+
 # -- load config from identity service
 echo "Loading config from identity service via proxy..."
 
@@ -41,11 +45,11 @@ done
 
 DEBUG_MODE=$(jq -r ".debug_mode" < "${OVERRIDES_CONFIG}")
 
-if [[ ! "$DEBUG_MODE" == "true" ]]; then
-  # -- setup syslog-ng
-  echo "Starting syslog-ng..."
-  /usr/sbin/syslog-ng --verbose
-fi
+#if [[ ! "$DEBUG_MODE" == "true" ]]; then
+#  # -- setup syslog-ng
+#  echo "Starting syslog-ng..."
+#  /usr/sbin/syslog-ng --verbose
+#fi
 
 # check the config is valid. Querying for a known missing element (empty) makes jq parse the file, but does not echo the results
 if jq empty "${OVERRIDES_CONFIG}"; then

@@ -39,7 +39,10 @@ done
 
 DEBUG_MODE=$(jq -r ".debug_mode" < "${OVERRIDES_CONFIG}")
 
-if [[ ! "$DEBUG_MODE" == "true" ]]; then
+if [[ "$DEBUG_MODE" == "true" ]]; then
+  LOGBACK_CONF="./conf/logback-debug.xml"
+else
+  LOGBACK_CONF="./conf/logback.xml"
   # -- setup syslog-ng
   echo "Starting syslog-ng..."
   /usr/sbin/syslog-ng --verbose
@@ -97,11 +100,6 @@ fi
 cd /app
 
 # -- start operator
-if [[ "$DEBUG_MODE" == "true" ]]; then
-  LOGBACK_CONF="./conf/logback-debug.xml"
-else
-  LOGBACK_CONF="./conf/logback.xml"
-fi
 echo "Starting Java application..."
 java \
   -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \

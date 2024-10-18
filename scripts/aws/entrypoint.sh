@@ -97,25 +97,18 @@ fi
 cd /app
 
 # -- start operator
-echo "Starting Java application..."
 if [[ "$DEBUG_MODE" == "true" ]]; then
-  java \
-    -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
-    -Djava.security.egd=file:/dev/./urandom \
-    -Djava.library.path=/app/lib \
-    -Dvertx-config-path="${FINAL_CONFIG}" \
-    -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
-    -Dlogback.configurationFile=./conf/logback-debug.xml \
-    -Dhttp_proxy=socks5://127.0.0.1:3305 \
-    -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar
+  LOGBACK_CONF="./conf/logback-debug.xml"
 else
-  java \
-    -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
-    -Djava.security.egd=file:/dev/./urandom \
-    -Djava.library.path=/app/lib \
-    -Dvertx-config-path="${FINAL_CONFIG}" \
-    -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
-    -Dlogback.configurationFile=./conf/logback.xml \
-    -Dhttp_proxy=socks5://127.0.0.1:3305 \
-    -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar
+  LOGBACK_CONF="./conf/logback.xml"
 fi
+echo "Starting Java application..."
+java \
+  -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
+  -Djava.security.egd=file:/dev/./urandom \
+  -Djava.library.path=/app/lib \
+  -Dvertx-config-path="${FINAL_CONFIG}" \
+  -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
+  -Dlogback.configurationFile=${LOGBACK_CONF} \
+  -Dhttp_proxy=socks5://127.0.0.1:3305 \
+  -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar

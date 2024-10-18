@@ -39,6 +39,11 @@ done
 
 DEBUG_MODE=$(jq -r ".debug_mode" < "${OVERRIDES_CONFIG}")
 
+
+# -- setup syslog-ng
+echo "Starting syslog-ng..."
+/usr/sbin/syslog-ng --verbose
+
 if [[ ! "$DEBUG_MODE" == "true" ]]; then
   # -- setup syslog-ng
   echo "Starting syslog-ng..."

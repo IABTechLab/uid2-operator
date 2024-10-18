@@ -604,7 +604,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                 if (numPartitions == 0) {
                     // if update doesn't have a new partition, simply update heap with new log data
                     if (!iuc.getDeltasToRemove().isEmpty()) {
-                        final String errorMsg = "Invalid number of Deltas to remove=" + iuc.getDeltasToRemove().size();
+                        final String errorMsg = "Invalid number of Deltas to remove=" + iuc.getDeltasToRemove().size()
+                                + " when there are 0 new partitions to index";
                         LOGGER.error(errorMsg);
                         throw new IllegalStateException(errorMsg);
                     }

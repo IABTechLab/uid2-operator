@@ -1,14 +1,15 @@
 package com.uid2.operator.util;
 
+import java.util.Objects;
+
 public class Tuple {
     public static class Tuple2<T1, T2> {
         private final T1 item1;
         private final T2 item2;
 
         public Tuple2(T1 item1, T2 item2) {
-            if (item1 == null || item2 == null) {
-                throw new NullPointerException();
-            }
+            Objects.requireNonNull(item1);
+            Objects.requireNonNull(item2);
 
             this.item1 = item1;
             this.item2 = item2;
@@ -35,9 +36,9 @@ public class Tuple {
         private final T3 item3;
 
         public Tuple3(T1 item1, T2 item2, T3 item3) {
-            if (item1 == null || item2 == null || item3 == null) {
-                throw new NullPointerException();
-            }
+            Objects.requireNonNull(item1);
+            Objects.requireNonNull(item2);
+            Objects.requireNonNull(item3);
 
             this.item1 = item1;
             this.item2 = item2;

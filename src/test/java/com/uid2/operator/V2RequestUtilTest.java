@@ -23,7 +23,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -153,11 +153,9 @@ public class V2RequestUtilTest {
         when(keyManager.getRefreshKey()).thenReturn(refreshKey);
         when(refreshKey.getId()).thenReturn(Integer.MAX_VALUE);
         when(refreshKey.getKeyBytes()).thenReturn(Random.getRandomKeyBytes());
-        try {
-            V2RequestUtil.handleRefreshTokenInResponseBody(jsonBody, keyManager, IdentityScope.UID2);
-            fail("IllegalArgumentException not thrown");
-        } catch (IllegalArgumentException e) {
-            assertEquals("Generated refresh token's length=168 is not equal to=388", e.getMessage());
-        }
+        IllegalArgumentException e = assertThrowsExactly(
+                IllegalArgumentException.class,
+                () -> V2RequestUtil.handleRefreshTokenInResponseBody(jsonBody, keyManager, IdentityScope.UID2));
+        assertEquals("Generated refresh token's length=168 is not equal to=388", e.getMessage());
     }
 }

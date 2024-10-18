@@ -88,10 +88,6 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
             return;
         }
 
-        if (messageItem == null) {
-            throw new NullPointerException("Message could not be deserialized");
-        }
-
         String path = messageItem.getPath();
         String apiVersion = "v0";
         String endpoint = path.substring(1);

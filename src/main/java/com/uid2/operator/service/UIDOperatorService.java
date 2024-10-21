@@ -109,13 +109,13 @@ public class UIDOperatorService implements IUIDOperatorService {
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.hashedDiiIdentity.hashedDii, now);
         final FirstLevelHashIdentity firstLevelHashIdentity = new FirstLevelHashIdentity(
-                request.hashedDiiIdentity.identityScope, request.hashedDiiIdentity.identityType, firstLevelHash, request.privacyBits,
+                request.hashedDiiIdentity.identityScope, request.hashedDiiIdentity.identityType, firstLevelHash,
                 request.establishedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return IdentityResponse.OptOutIdentityResponse;
         } else {
-            return generateIdentity(request.sourcePublisher, firstLevelHashIdentity);
+            return generateIdentity(request.sourcePublisher, firstLevelHashIdentity, request.privacyBits);
         }
     }
 
@@ -136,7 +136,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             return RefreshResponse.Expired;
         }
 
-        final PrivacyBits privacyBits = PrivacyBits.fromInt(token.firstLevelHashIdentity.privacyBits);
+        final PrivacyBits privacyBits = PrivacyBits.fromInt(token.privacyBits);
         final boolean isCstg = privacyBits.isClientSideTokenGenerated();
 
         try {
@@ -146,7 +146,9 @@ public class UIDOperatorService implements IUIDOperatorService {
             final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
 
             if (!optedOut) {
-                IdentityResponse identityResponse = this.generateIdentity(token.sourcePublisher, token.firstLevelHashIdentity);
+                IdentityResponse identityResponse = this.generateIdentity(token.sourcePublisher,
+                        token.firstLevelHashIdentity,
+                        token.privacyBits);
 
                 return RefreshResponse.createRefreshedResponse(identityResponse, durationSinceLastRefresh, isCstg);
             } else {
@@ -231,7 +233,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private FirstLevelHashIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf) {
         final byte[] firstLevelHash = getFirstLevelHash(identityHash, asOf);
-        return new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, 0, null);
+        return new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, null);
     }
 
     private byte[] getFirstLevelHash(byte[] identityHash, Instant asOf) {
@@ -249,7 +251,8 @@ public class UIDOperatorService implements IUIDOperatorService {
                 rotatingSalt.getHashedId());
     }
 
-    private IdentityResponse generateIdentity(SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity) {
+    private IdentityResponse generateIdentity(SourcePublisher sourcePublisher,
+                                              FirstLevelHashIdentity firstLevelHashIdentity, int privacyBits) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
         final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, nowUtc);
@@ -258,22 +261,26 @@ public class UIDOperatorService implements IUIDOperatorService {
                 rawUidResponse.rawUid);
 
         return this.encoder.encodeIntoIdentityResponse(
-                this.createAdvertisingTokenInput(sourcePublisher, rawUidIdentity, nowUtc, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt),
-                this.createRefreshTokenInput(sourcePublisher, firstLevelHashIdentity, nowUtc),
+                this.createAdvertisingTokenInput(sourcePublisher, rawUidIdentity, nowUtc, privacyBits,
+                        firstLevelHashIdentity.establishedAt),
+                this.createRefreshTokenInput(sourcePublisher, firstLevelHashIdentity, nowUtc, privacyBits),
                 nowUtc.plusMillis(refreshIdentityAfter.toMillis()),
                 nowUtc
         );
     }
 
-    private RefreshTokenInput createRefreshTokenInput(SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity,
-                                                      Instant now) {
+    private RefreshTokenInput createRefreshTokenInput(SourcePublisher sourcePublisher,
+                                                      FirstLevelHashIdentity firstLevelHashIdentity,
+                                                      Instant now,
+                                                      int privacyBits) {
         return new RefreshTokenInput(
                 this.refreshTokenVersion,
                 now,
                 now.plusMillis(refreshExpiresAfter.toMillis()),
                 this.operatorIdentity,
                 sourcePublisher,
-                firstLevelHashIdentity);
+                firstLevelHashIdentity,
+                privacyBits);
     }
 
     private AdvertisingTokenInput createAdvertisingTokenInput(SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity,

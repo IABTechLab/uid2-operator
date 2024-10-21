@@ -4203,7 +4203,7 @@ public class UIDOperatorVerticleTest {
 
     private void assertAreClientSideGeneratedTokens(AdvertisingTokenInput advertisingTokenInput, RefreshTokenInput refreshTokenInput, int siteId, IdentityType identityType, String identity, boolean expectedOptOut) {
         final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingTokenInput.privacyBits);
-        final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshTokenInput.firstLevelHashIdentity.privacyBits);
+        final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshTokenInput.privacyBits);
 
         final byte[] rawUid = getRawUidFromIdentity(identityType,
                 identity,

@@ -9,7 +9,6 @@ public class AdvertisingTokenInput extends VersionedToken {
     public final OperatorIdentity operatorIdentity;
     public final SourcePublisher sourcePublisher;
     public final RawUidIdentity rawUidIdentity;
-
     public final int privacyBits;
     public final Instant establishedAt;
 

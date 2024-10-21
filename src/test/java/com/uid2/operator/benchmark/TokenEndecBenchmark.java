@@ -43,7 +43,7 @@ public class TokenEndecBenchmark {
                     uidService.generateIdentity(new IdentityRequest(
                             publisher,
                             hashedDiiIdentities[i],
-                            OptoutCheckPolicy.DoNotRespect, 1, Instant.now())));
+                            OptoutCheckPolicy.DoNotRespect)));
         }
         return tokens.toArray(new IdentityResponse[tokens.size()]);
     }
@@ -54,7 +54,7 @@ public class TokenEndecBenchmark {
         return uidService.generateIdentity(new IdentityRequest(
                 publisher,
                 hashedDiiIdentities[(idx++) & 65535],
-                OptoutCheckPolicy.DoNotRespect, 1, Instant.now()));
+                OptoutCheckPolicy.DoNotRespect));
     }
 
     @Benchmark

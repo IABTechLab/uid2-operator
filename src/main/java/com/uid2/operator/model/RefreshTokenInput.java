@@ -9,7 +9,7 @@ public class RefreshTokenInput extends VersionedToken {
     public final OperatorIdentity operatorIdentity;
     public final SourcePublisher sourcePublisher;
     public final FirstLevelHashIdentity firstLevelHashIdentity;
-    // inherited from the previous refresh token's privacy bits 
+    // by default, inherited from the previous refresh token's privacy bits
     public final int privacyBits;
 
 

@@ -1,6 +1,7 @@
 package com.uid2.operator.model;
 
 import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.util.PrivacyBits;
 
 import java.time.Instant;
 
@@ -24,6 +25,18 @@ public final class IdentityRequest {
         this.optoutCheckPolicy = tokenGeneratePolicy;
         this.privacyBits = privacyBits;
         this.establishedAt = establishedAt;
+    }
+
+    public IdentityRequest(
+            SourcePublisher sourcePublisher,
+            HashedDiiIdentity hashedDiiIdentity,
+            OptoutCheckPolicy tokenGeneratePolicy)
+    {
+        this.sourcePublisher = sourcePublisher;
+        this.hashedDiiIdentity = hashedDiiIdentity;
+        this.optoutCheckPolicy = tokenGeneratePolicy;
+        this.privacyBits = PrivacyBits.DEFAULT_PRIVACY_BIT_VALUE;
+        this.establishedAt = Instant.now();
     }
 
     public boolean shouldCheckOptOut() {

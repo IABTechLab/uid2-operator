@@ -3,6 +3,9 @@ package com.uid2.operator.util;
 
 public class PrivacyBits {
 
+    // For historical reason this bit is set
+    public static final int DEFAULT_PRIVACY_BIT_VALUE = 1;
+
     private static final int BIT_LEGACY = 0;
     private static final int BIT_CSTG = 1;
     private static final int BIT_CSTG_OPTOUT = 2;

@@ -648,7 +648,7 @@ public class UIDOperatorServiceTest {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new SourcePublisher(123, 124, 125),
                 inputVal.toHashedDiiIdentity(scope),
-                OptoutCheckPolicy.DoNotRespect, 1, Instant.now()
+                OptoutCheckPolicy.DoNotRespect
         );
         IdentityResponse identityResponse;
         if(scope == IdentityScope.EUID) {

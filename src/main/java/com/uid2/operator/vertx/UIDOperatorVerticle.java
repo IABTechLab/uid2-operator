@@ -941,7 +941,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new IdentityRequest(
                                 new SourcePublisher(siteId, 0, 0),
                                 input.toHashedDiiIdentity(this.identityScope),
-                                OptoutCheckPolicy.defaultPolicy(), 1, Instant.now()));
+                                OptoutCheckPolicy.defaultPolicy()));
 
                 //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
@@ -997,7 +997,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new IdentityRequest(
                                 new SourcePublisher(siteId, 0, 0),
                                 input.toHashedDiiIdentity(this.identityScope),
-                                OptoutCheckPolicy.respectOptOut(),1, Instant.now()));
+                                OptoutCheckPolicy.respectOptOut()));
 
                 if (t.isOptedOut()) {
                     if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
@@ -1053,7 +1053,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     new IdentityRequest(
                             new SourcePublisher(siteId, 0, 0),
                             input.toHashedDiiIdentity(this.identityScope),
-                            OptoutCheckPolicy.defaultPolicy(), 1, Instant.now()));
+                            OptoutCheckPolicy.defaultPolicy()));
 
             //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 

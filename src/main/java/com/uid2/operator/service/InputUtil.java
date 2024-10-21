@@ -261,13 +261,11 @@ public class InputUtil {
             return valid;
         }
 
-        public HashedDiiIdentity toHashedDiiIdentity(IdentityScope identityScope, int privacyBits, Instant establishedAt) {
+        public HashedDiiIdentity toHashedDiiIdentity(IdentityScope identityScope) {
             return new HashedDiiIdentity(
                     identityScope,
                     this.identityType,
-                    getIdentityInput(),
-                    privacyBits,
-                    establishedAt);
+                    getIdentityInput());
         }
     }
 

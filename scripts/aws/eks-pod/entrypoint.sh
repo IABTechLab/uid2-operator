@@ -3,7 +3,7 @@ CID=42
 EIF_PATH=/home/uid2operator.eif
 MEMORY_MB=24576
 CPU_COUNT=6
-DEBUG_MODE="false"
+DEBUG_MODE="true"
 
 set -x
 

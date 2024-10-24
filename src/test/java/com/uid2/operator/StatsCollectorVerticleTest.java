@@ -85,8 +85,8 @@ public class StatsCollectorVerticleTest {
 
         triggerSerializeAndWait(testContext);
 
-        var expectedList = List.of("{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v1\",\"domainList\":[{\"domain\":\"test.com\",\"count\":2,\"apiContact\":\"test\"}]}",
-                            "{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v0\",\"domainList\":[{\"domain\":\"test.com\",\"count\":3,\"apiContact\":\"test\"}]}");
+        var expectedList = List.of("{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v1\",\"remoteAddress\":\"\",\"domainList\":[{\"domain\":\"test.com\",\"count\":2,\"apiContact\":\"test\"}]}",
+                            "{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v0\",\"remoteAddress\":\"\",\"domainList\":[{\"domain\":\"test.com\",\"count\":3,\"apiContact\":\"test\"}]}");
         var messages = getMessages();
         assertThat(messages).containsAll(expectedList);
 
@@ -110,8 +110,8 @@ public class StatsCollectorVerticleTest {
         waitForLogInterval(testContext);
         triggerSerializeAndWait(testContext);
 
-        var expectedList = List.of("{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v2\",\"domainList\":[{\"domain\":\"test.com\",\"count\":3,\"apiContact\":\"test\"}]}",
-                        "{\"endpoint\":\"v2\",\"siteId\":1,\"apiVersion\":\"unknown\",\"domainList\":[{\"domain\":\"test.com\",\"count\":2,\"apiContact\":\"test\"}]}");
+        var expectedList = List.of("{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v2\",\"remoteAddress\":\"\",\"domainList\":[{\"domain\":\"test.com\",\"count\":3,\"apiContact\":\"test\"}]}",
+                        "{\"endpoint\":\"v2\",\"siteId\":1,\"apiVersion\":\"unknown\",\"remoteAddress\":\"\",\"domainList\":[{\"domain\":\"test.com\",\"count\":2,\"apiContact\":\"test\"}]}");
         var messages = getMessages();
         assertThat(messages).containsAll(expectedList);
 
@@ -158,7 +158,7 @@ public class StatsCollectorVerticleTest {
         var messages = getMessages();
         // MAX_INVALID_PATHS is not the hard limit. The maximum paths that can be recorded, including valid ones, is MAX_INVALID_PATHS + validPaths.size * 2
         for(int i = 0; i < MAX_INVALID_PATHS + Endpoints.pathSet().size(); i++) {
-            String expected = "{\"endpoint\":\"bad" + i + "\",\"siteId\":1,\"apiVersion\":\"v0\",\"domainList\":[{\"domain\":\"test.com\",\"count\":1,\"apiContact\":\"test\"}]}";
+            String expected = "{\"endpoint\":\"bad" + i + "\",\"siteId\":1,\"apiVersion\":\"v0\",\"remoteAddress\":\"\",\"domainList\":[{\"domain\":\"test.com\",\"count\":1,\"apiContact\":\"test\"}]}";
             assertThat(messages).contains(expected);
         }
         for(int i = MAX_INVALID_PATHS + Endpoints.pathSet().size(); i < MAX_INVALID_PATHS + 5; i++) {

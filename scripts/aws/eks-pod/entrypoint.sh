@@ -36,7 +36,6 @@ function setup_vsockproxy() {
 
 function setup_dante() {
     echo "setup_dante"
-    ulimit -n 1024
     /home/sockd -D
 }
 

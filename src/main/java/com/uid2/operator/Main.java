@@ -384,6 +384,12 @@ public class Main {
             ObjectName objectName = new ObjectName("uid2.operator:type=jmx,name=AdminApi");
             MBeanServer server = ManagementFactory.getPlatformMBeanServer();
             server.registerMBean(AdminApi.instance, objectName);
+
+            try {
+                AdminApi.instance.setCaptureRequests(true);
+            } catch (Exception e) {
+                // intentionally ignore
+            }
         } catch (InstanceAlreadyExistsException | MBeanRegistrationException | NotCompliantMBeanException | MalformedObjectNameException e) {
             System.err.format("%s", e.getMessage());
             System.exit(-1);

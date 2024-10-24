@@ -116,7 +116,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         Integer siteId = messageItem.getSiteId();
         DomainStat domain = new DomainStat(referer, 1, apiContact);
 
-        EndpointStat endpointStat = new EndpointStat(endpoint, siteId, apiVersion, domain);
+        EndpointStat endpointStat = new EndpointStat(endpoint, siteId, apiVersion, domain, messageItem.getRemoteAddress());
 
         Set<String> validPaths = Endpoints.pathSet();
         if(validPaths.contains(path) || pathMap.containsKey(path) || (pathMap.size() < this.maxInvalidPaths + validPaths.size() && messageItem.getApiContact() != null)) {
@@ -224,15 +224,21 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         private final String endpoint;
         private final Integer siteId;
         private final String apiVersion;
+        private final String remoteAddress;
         private final ArrayList<DomainStat> domainList;
         private final HashMap<String, Integer> domainMap;
 
         private final int MaxDomains = 1000;
 
         public EndpointStat(String e, Integer s, String a, DomainStat d) {
+            this(e, s, a, d, "");
+        }
+
+        public EndpointStat(String e, Integer s, String a, DomainStat d, String remoteAddress) {
             endpoint = e;
             siteId = s;
             apiVersion = a;
+            this.remoteAddress = remoteAddress == null ? "" : remoteAddress;
             domainList = new ArrayList<>(MaxDomains);
             domainMap = new HashMap<>();
 
@@ -249,6 +255,10 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
 
         public String getApiVersion() {
             return apiVersion;
+        }
+
+        public String getRemoteAddress() {
+            return remoteAddress;
         }
 
         public ArrayList<DomainStat> getDomainList() {

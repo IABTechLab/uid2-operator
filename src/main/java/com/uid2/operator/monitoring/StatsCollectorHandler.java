@@ -37,8 +37,9 @@ public class StatsCollectorHandler implements Handler<RoutingContext> {
         final String apiContact = clientKey == null ? null : clientKey.getContact();
         final Integer siteId = clientKey == null ? null : clientKey.getSiteId();
         final String clientVersion = getClientVersion(routingContext);
+        final String remoteAddress = routingContext.request().remoteAddress() != null ? routingContext.request().remoteAddress().toString() : "";
 
-        final StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(path, referer, apiContact, siteId, clientVersion);
+        final StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem(path, referer, apiContact, siteId, clientVersion, remoteAddress);
 
         _statCollectorQueue.enqueue(vertx, messageItem);
     }

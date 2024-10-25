@@ -46,7 +46,7 @@ function start_syslog() {
 function run_config_server() {
     echo "run_config_server"
     cd /home/config-server/
-    /config-server/bin/flask run --host 0.0.0.0  --port 27015 > /var/log/flask.log 2>&1  &
+    /config-server/bin/flask run --host 127.0.0.1  --port 27015 > /var/log/flask.log 2>&1  &
     sleep 1
 }
 

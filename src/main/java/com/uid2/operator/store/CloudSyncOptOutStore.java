@@ -542,7 +542,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
             Instant tsOld = OptOutUtils.lastPartitionTimestamp(indexedNonSynthetic);
             Instant tsNew = OptOutUtils.lastPartitionTimestamp(newNonSynthetic);
-            if (tsOld != Instant.EPOCH && tsNew != Instant.EPOCH && !tsOld.isBefore(tsNew)) {
+            if (tsOld != Instant.EPOCH && tsNew != Instant.EPOCH && !tsOld.isBefore(tsNew) && this.iteration > 1) {
                 final String errorMsg = "Last partition timestamp of indexed files " + tsOld.getEpochSecond()
                 + " is after last partition of non-indexed files " + tsNew.getEpochSecond();
                 LOGGER.error(errorMsg);
@@ -611,7 +611,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                     }
                     return this.processDeltas(iuc);
                 } else if (numPartitions > 1) {
-                    if (this.iteration != 0) {
+                    if (this.iteration > 1) {
                         final String errorMsg = "Should not load more than 1 partition at a time, unless during service bootstrap. Current iteration " + this.iteration;
                         // Leaving this as a warning as this condition is true in production
                         LOGGER.warn(errorMsg);

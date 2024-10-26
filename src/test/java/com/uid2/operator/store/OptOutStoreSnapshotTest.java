@@ -22,6 +22,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.Mockito.mock;
 
@@ -112,6 +114,59 @@ class OptOutStoreSnapshotTest {
             for (OptOutEntry entry : entries) {
                 assertEquals(entry.timestamp, snapshot.getAdIdOptOutTimestamp(entry.advertisingIdToB64()));
             }
+        }
+
+        @ParameterizedTest
+        @CsvSource({
+                "1,1",
+                "10,1",
+                "10,10"
+        })
+        void emptySnapshotUpdatedWithPartitionFilesMultipleIterations(int partitionFileCount, int entriesPerPartitionFileCount) throws CloudStorageException, IOException {
+            assumeTrue(partitionFileCount > 0);
+            assumeTrue(entriesPerPartitionFileCount > 0);
+
+            // Arrange
+            Clock clock = Clock.fixed(Instant.parse("2024-05-06T10:15:30.00Z"), ZoneOffset.UTC);
+
+            MemCachedStorage fsStore = new MemCachedStorage();
+
+            for (int i = 0; i < partitionFileCount; i++) {
+                Instant partitionTimestamp = clock.instant()
+                        .minus(i, ChronoUnit.DAYS);
+
+                // creates partitions and uploads to FS Store
+                createPartition(entriesPerPartitionFileCount, partitionTimestamp, fsStore);
+            }
+
+            Set<String> paths = new HashSet<>(fsStore.list(OptOutUtils.prefixPartitionFile));
+
+            JsonObject config = make1mOptOutEntryConfig(true);
+
+            // Iteration 0
+            CloudSyncOptOutStore.OptOutStoreSnapshot snapshot = new CloudSyncOptOutStore.OptOutStoreSnapshot(fsStore, config, clock)
+                    .updateIndex(paths);
+
+            // Add a new partition file with older timestamp
+            createPartition(entriesPerPartitionFileCount, clock.instant()
+                    .minus(partitionFileCount + 1, ChronoUnit.DAYS), fsStore);
+            // call update again, iteration 1
+            paths = new HashSet<>(fsStore.list(OptOutUtils.prefixPartitionFile));
+
+            snapshot = snapshot.updateIndex(paths);
+
+            // Add another new partition file with older timestamp
+            createPartition(entriesPerPartitionFileCount, clock.instant()
+                    .minus(partitionFileCount + 2, ChronoUnit.DAYS), fsStore);
+            // call update again, iteration 2
+            paths = new HashSet<>(fsStore.list(OptOutUtils.prefixPartitionFile));
+
+            Set<String> finalPaths = paths;
+            CloudSyncOptOutStore.OptOutStoreSnapshot finalSnapshot = snapshot;
+            IllegalStateException e = assertThrowsExactly(
+                    IllegalStateException.class,
+                    () -> finalSnapshot.updateIndex(finalPaths));
+            assertTrue(e.getMessage().matches("Last partition timestamp of indexed files [0-9]+ is after last partition of non-indexed files [0-9]+"));
         }
 
         @Test

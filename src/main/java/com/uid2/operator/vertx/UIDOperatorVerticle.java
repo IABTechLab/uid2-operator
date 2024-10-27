@@ -930,7 +930,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void handleTokenGenerateV1(RoutingContext rc) {
-        final int siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
+        IAuthorizable authorizable =AuthMiddleware.getAuthClient(rc);
+        final int siteId = authorizable.getSiteId();
+        String apiContact = authorizable.getContact();
+        String forwardedFor = rc.request().getHeader("X-Forwarded-For");
+        String remoteAddress = rc.request().remoteAddress() != null ? rc.request().remoteAddress().toString() : "unknown";
+
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
         try {
             final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
@@ -944,6 +949,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
                 ResponseUtil.Success(rc, toJsonV1(t));
                 recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
+                LOGGER.info("Token Generate V1 Request for siteId: {}, ApiContact: {}, Forwarded For: {}, Remote Address: {}", siteId, apiContact, forwardedFor, remoteAddress);
             }
         } catch (Exception e) {
             SendServerErrorResponseAndRecordStats(rc, "Unknown error while generating token v1", siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, platformType);
@@ -1044,7 +1050,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         try {
-            siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
+            IAuthorizable authorizable =AuthMiddleware.getAuthClient(rc);
+            siteId = authorizable.getSiteId();
+            String apiContact = authorizable.getContact();
+            String forwardedFor = rc.request().getHeader("X-Forwarded-For");
+            String remoteAddress = rc.request().remoteAddress() != null ? rc.request().remoteAddress().toString() : "unknown";
             final IdentityTokens t = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(siteId, 0, 0),
@@ -1052,6 +1062,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                             OptoutCheckPolicy.defaultPolicy()));
 
             recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), TokenResponseStatsCollector.PlatformType.Other);
+            LOGGER.info("Token Generate Request for siteId: {}, ApiContact: {}, Forwarded For: {}, Remote Address: {}", siteId, apiContact, forwardedFor, remoteAddress);
             sendJsonResponse(rc, toJson(t));
 
         } catch (Exception e) {

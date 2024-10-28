@@ -1,4 +1,4 @@
-package com.uid2.operator;
+package com.uid2.operator.utilTests;
 
 import com.uid2.operator.util.PrivacyBits;
 import org.junit.Test;
@@ -8,7 +8,7 @@ import static org.junit.Assert.*;
 
 public class PrivacyBitsTest {
     @Test
-    public void generateNewClientKeys() throws NoSuchAlgorithmException {
+    public void doPrivacyBitsTest() throws NoSuchAlgorithmException {
         assertEquals(PrivacyBits.DEFAULT.getAsInt(), 1);
         PrivacyBits pb1 = new PrivacyBits();
         assertEquals(pb1.getAsInt(), 0);

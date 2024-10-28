@@ -19,6 +19,8 @@ import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import static com.uid2.operator.service.TokenUtils.getFirstLevelHash;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,7 +48,7 @@ public class UIDOperatorServiceTest {
     UIDOperatorService uid2Service;
     UIDOperatorService euidService;
     Instant now;
-
+    RotatingSaltProvider saltProvider;
     final int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
     final int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
     final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
@@ -67,7 +69,7 @@ public class UIDOperatorServiceTest {
                 new GlobalScope(new CloudPath("/com.uid2.core/test/keysets/metadata.json")));
         keysetProvider.loadContent();
 
-        RotatingSaltProvider saltProvider = new RotatingSaltProvider(
+        saltProvider = new RotatingSaltProvider(
                 new EmbeddedResourceStorage(Main.class),
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
@@ -164,6 +166,7 @@ public class UIDOperatorServiceTest {
         assertEquals(identityRequest.sourcePublisher.siteId, advertisingTokenInput.sourcePublisher.siteId);
         assertIdentityScopeIdentityType(identityRequest.hashedDiiIdentity, advertisingTokenInput.rawUidIdentity);
         assertEquals(identityRequest.establishedAt, advertisingTokenInput.establishedAt);
+        assertEquals(identityRequest.privacyBits, advertisingTokenInput.privacyBits);
 
         RefreshTokenInput refreshTokenInput = tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
         assertEquals(this.now, refreshTokenInput.createdAt);
@@ -171,6 +174,11 @@ public class UIDOperatorServiceTest {
         assertEquals(identityRequest.sourcePublisher.siteId, refreshTokenInput.sourcePublisher.siteId);
         assertIdentityScopeIdentityType(identityRequest.hashedDiiIdentity, refreshTokenInput.firstLevelHashIdentity);
         assertEquals(identityRequest.establishedAt, refreshTokenInput.firstLevelHashIdentity.establishedAt);
+
+        final byte[] firstLevelHash = getFirstLevelHash(identityRequest.hashedDiiIdentity.hashedDii,
+                saltProvider.getSnapshot(this.now).getFirstLevelSalt() );
+        assertArrayEquals(firstLevelHash, refreshTokenInput.firstLevelHashIdentity.firstLevelHash);
+
 
         setNow(Instant.now().plusSeconds(200));
 
@@ -191,6 +199,7 @@ public class UIDOperatorServiceTest {
         assertEquals(advertisingTokenInput.establishedAt, advertisingTokenInput2.establishedAt);
         assertArrayEquals(advertisingTokenInput.rawUidIdentity.rawUid,
                 advertisingTokenInput2.rawUidIdentity.rawUid);
+        assertEquals(identityRequest.privacyBits, advertisingTokenInput2.privacyBits);
 
         RefreshTokenInput refreshTokenInput2 = tokenEncoder.decodeRefreshToken(refreshResponse.getIdentityResponse().getRefreshToken());
         assertEquals(this.now, refreshTokenInput2.createdAt);
@@ -199,6 +208,7 @@ public class UIDOperatorServiceTest {
         assertIdentityScopeIdentityType(refreshTokenInput.firstLevelHashIdentity, refreshTokenInput2.firstLevelHashIdentity);
         assertEquals(refreshTokenInput.firstLevelHashIdentity.establishedAt, refreshTokenInput2.firstLevelHashIdentity.establishedAt);
         assertArrayEquals(refreshTokenInput.firstLevelHashIdentity.firstLevelHash, refreshTokenInput2.firstLevelHashIdentity.firstLevelHash);
+        assertArrayEquals(firstLevelHash, refreshTokenInput2.firstLevelHashIdentity.firstLevelHash);
     }
 
     @Test

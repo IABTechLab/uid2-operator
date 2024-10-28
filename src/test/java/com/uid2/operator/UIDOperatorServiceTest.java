@@ -5,16 +5,23 @@ import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
 import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
 import com.uid2.operator.model.userIdentity.UserIdentity;
 import com.uid2.operator.service.*;
+import com.uid2.operator.service.EncodingUtils;
+import com.uid2.operator.service.EncryptedTokenEncoder;
+import com.uid2.operator.service.ITokenEncoder;
+import com.uid2.operator.service.InputUtil;
+import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.store.CloudPath;
+import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import com.uid2.shared.store.scope.GlobalScope;
 import com.uid2.shared.model.TokenVersion;
+import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,13 +52,27 @@ public class UIDOperatorServiceTest {
     EncryptedTokenEncoder tokenEncoder;
     JsonObject uid2Config;
     JsonObject euidConfig;
-    UIDOperatorService uid2Service;
-    UIDOperatorService euidService;
+    ExtendedUIDOperatorService uid2Service;
+    ExtendedUIDOperatorService euidService;
     Instant now;
     RotatingSaltProvider saltProvider;
     final int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
     final int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
     final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
+
+    class ExtendedUIDOperatorService extends UIDOperatorService {
+        public ExtendedUIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler) {
+            super(config, optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler);
+        }
+
+        public TokenVersion getAdvertisingTokenVersionForTests(int siteId) {
+            assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
+            if (this.siteIdsUsingV4Tokens.contains(siteId)) {
+                return TokenVersion.V4;
+            }
+            return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
+        }
+    }
 
     @BeforeEach
     void setup() throws Exception {
@@ -87,7 +108,7 @@ public class UIDOperatorServiceTest {
         uid2Config.put("advertising_token_v3", false); // prod is using v2 token version for now
         uid2Config.put("identity_v3", false);
 
-        uid2Service = new UIDOperatorService(
+        uid2Service = new ExtendedUIDOperatorService(
                 uid2Config,
                 optOutStore,
                 saltProvider,
@@ -105,7 +126,7 @@ public class UIDOperatorServiceTest {
         euidConfig.put("advertising_token_v3", true);
         euidConfig.put("identity_v3", true);
 
-        euidService = new UIDOperatorService(
+        euidService = new ExtendedUIDOperatorService(
                 euidConfig,
                 optOutStore,
                 saltProvider,

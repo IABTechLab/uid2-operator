@@ -50,9 +50,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Duration refreshIdentityAfter;
 
     private final OperatorIdentity operatorIdentity;
-    private final TokenVersion tokenVersionToUseIfNotV4;
-    private final int advertisingTokenV4Percentage;
-    private final Set<Integer> siteIdsUsingV4Tokens;
+    protected final TokenVersion tokenVersionToUseIfNotV4;
+    protected final int advertisingTokenV4Percentage;
+    protected final Set<Integer> siteIdsUsingV4Tokens;
     private final TokenVersion refreshTokenVersion;
     private final boolean identityV3Enabled;
 
@@ -333,13 +333,5 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
         Instant result = this.optOutStore.getLatestEntry(firstLevelHashIdentity);
         return new GlobalOptoutResult(result);
-    }
-
-    public TokenVersion getAdvertisingTokenVersionForTests(int siteId) {
-        assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
-        if (this.siteIdsUsingV4Tokens.contains(siteId)) {
-            return TokenVersion.V4;
-        }
-        return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
     }
 }

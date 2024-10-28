@@ -88,8 +88,6 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
             return;
         }
 
-        assert messageItem != null;
-
         String path = messageItem.getPath();
         String apiVersion = "v0";
         String endpoint = path.substring(1);

@@ -3,6 +3,7 @@ package com.uid2.operator.vertx;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.monitoring.DebugMetricsCollector;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
@@ -217,6 +218,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final Router router = Router.router(vertx);
 
         router.allowForward(AllowForwardHeaders.X_FORWARD);
+        router.route().handler(new DebugLatencyMeasurementHandler("top_level_route_handler"));
         router.route().handler(new RequestCapturingHandler());
         router.route().handler(CorsHandler.create()
                 .addRelativeOrigin(".*.")
@@ -229,7 +231,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .allowedHeader("Access-Control-Allow-Origin")
                 .allowedHeader("Access-Control-Allow-Headers")
                 .allowedHeader("Content-Type"));
+        router.route().handler(new DebugLatencyMeasurementHandler("pre_stats_collector"));
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
+        router.route().handler(new DebugLatencyMeasurementHandler("post_stats_collector"));
         router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().failureHandler(new GenericFailureHandler());
 
@@ -237,7 +241,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         setupV2Routes(router, bodyHandler);
 
         // Static and health check
-        router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
+        router.get(OPS_HEALTHCHECK.toString()).handler(new DebugLatencyMeasurementHandler("healthcheck")).handler(this::handleHealthCheck);
 
         if (this.config.getBoolean(Const.Config.AllowLegacyAPIProp, true)) {
             // V1 APIs
@@ -269,6 +273,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void setupV2Routes(Router mainRouter, BodyHandler bodyHandler) {
+
+        //var preBodyHandlerLatency = new DebugLatencyMeasurementHandler("pre_body_handler");
 
         mainRouter.post(V2_TOKEN_GENERATE.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
@@ -839,7 +845,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             platformType = getPlatformType(rc);
             String tokenStr = (String) rc.data().get("request");
+            var refreshIdentityStartTime = DebugMetricsCollector.start();
             final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
+            DebugMetricsCollector.recordLatency(refreshIdentityStartTime, "token_refresh_identity_v2");
             siteId = rc.get(Const.RoutingContextData.SiteId);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
@@ -1791,7 +1799,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         recordRefreshTokenVersionCount(String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)), this.getRefreshTokenVersion(tokenStr));
 
-        return this.idService.refreshIdentity(refreshToken);
+        var startTime = DebugMetricsCollector.start();
+        var result = this.idService.refreshIdentity(refreshToken);
+        DebugMetricsCollector.recordLatency(startTime, "refresh_identity_post_decode");
+        return result;
     }
 
     public static String getSiteName(ISiteStore siteStore, Integer siteId) {

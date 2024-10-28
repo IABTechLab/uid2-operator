@@ -2,6 +2,7 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
+import com.uid2.operator.monitoring.DebugMetricsCollector;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.ResponseUtil;
@@ -115,6 +116,8 @@ public class V2PayloadHandler {
     }
 
     public void handleTokenRefresh(RoutingContext rc, Handler<RoutingContext> apiHandler) {
+        var handlerStartTime = DebugMetricsCollector.start();
+
         if (!enableEncryption) {
             passThrough(rc, apiHandler);
             return;
@@ -135,7 +138,9 @@ public class V2PayloadHandler {
             rc.data().put("request", bodyString);
         }
 
+        var apiHandlerStartTime = DebugMetricsCollector.start();
         apiHandler.handle(rc);
+        DebugMetricsCollector.recordLatency(apiHandlerStartTime, "v2_payload_handler");
 
         if (rc.response().getStatusCode() != 200) {
             return;
@@ -165,6 +170,8 @@ public class V2PayloadHandler {
             LOGGER.error("Failed to refresh token", ex);
             ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
+
+        DebugMetricsCollector.recordLatency(handlerStartTime, "v2_token_refresh_payload_success");
     }
 
     private void passThrough(RoutingContext rc, Handler<RoutingContext> apiHandler) {

@@ -1,6 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.monitoring.DebugMetricsCollector;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
@@ -316,7 +317,9 @@ public class UIDOperatorService implements IUIDOperatorService {
         } else if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
             return new GlobalOptoutResult(Instant.now());
         }
+        var startTime = DebugMetricsCollector.start();
         Instant result = this.optOutStore.getLatestEntry(userIdentity);
+        DebugMetricsCollector.recordLatency(startTime, "optout_check");
         return new GlobalOptoutResult(result);
     }
 

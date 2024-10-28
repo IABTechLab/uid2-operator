@@ -24,3 +24,8 @@ sshd:
   service: direct
   listen: tcp://127.0.0.1:8022
   connect: vsock://42:8022
+
+testsrv:
+  service: direct
+  listen: tcp://127.0.0.1:8888
+  connect: vsock://42:8888

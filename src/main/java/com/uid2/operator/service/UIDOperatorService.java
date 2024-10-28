@@ -136,8 +136,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             return RefreshResponse.Expired;
         }
 
-        final PrivacyBits privacyBits = PrivacyBits.fromInt(token.privacyBits);
-        final boolean isCstg = privacyBits.isClientSideTokenGenerated();
+        final boolean isCstg = token.privacyBits.isClientSideTokenGenerated();
 
         try {
             final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.firstLevelHashIdentity, true);
@@ -252,7 +251,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private IdentityResponse generateIdentity(SourcePublisher sourcePublisher,
-                                              FirstLevelHashIdentity firstLevelHashIdentity, int privacyBits) {
+                                              FirstLevelHashIdentity firstLevelHashIdentity, PrivacyBits privacyBits) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
         final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, nowUtc);
@@ -272,7 +271,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private RefreshTokenInput createRefreshTokenInput(SourcePublisher sourcePublisher,
                                                       FirstLevelHashIdentity firstLevelHashIdentity,
                                                       Instant now,
-                                                      int privacyBits) {
+                                                      PrivacyBits privacyBits) {
         return new RefreshTokenInput(
                 this.refreshTokenVersion,
                 now,
@@ -284,7 +283,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private AdvertisingTokenInput createAdvertisingTokenInput(SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity,
-                                                              Instant now, int privacyBits, Instant establishedAt) {
+                                                              Instant now, PrivacyBits privacyBits, Instant establishedAt) {
         TokenVersion tokenVersion;
         if (siteIdsUsingV4Tokens.contains(sourcePublisher.siteId)) {
             tokenVersion = TokenVersion.V4;

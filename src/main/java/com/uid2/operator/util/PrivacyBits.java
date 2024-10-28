@@ -4,7 +4,7 @@ package com.uid2.operator.util;
 public class PrivacyBits {
 
     // For historical reason this bit is set
-    public static final int DEFAULT_PRIVACY_BIT_VALUE = 1;
+    public static final PrivacyBits DEFAULT = PrivacyBits.fromInt(1);
 
     private static final int BIT_LEGACY = 0;
     private static final int BIT_CSTG = 1;
@@ -17,6 +17,24 @@ public class PrivacyBits {
     public static PrivacyBits fromInt(int privacyBits) { return new PrivacyBits(privacyBits); }
 
     public PrivacyBits() {
+    }
+
+    public PrivacyBits(PrivacyBits pb) {
+        bits = pb.bits;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null || !obj.getClass().equals(this.getClass())) {
+            return false;
+        }
+        PrivacyBits other = (PrivacyBits)obj;
+        return this.bits == other.bits;
+    }
+
+    @Override
+    public int hashCode() {
+        return this.bits;
     }
 
     public PrivacyBits(int bits) {

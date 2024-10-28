@@ -466,7 +466,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     new IdentityRequest(
                             new SourcePublisher(clientSideKeypair.getSiteId(), 0, 0),
                             input.toHashedDiiIdentity(this.identityScope),
-                            OptoutCheckPolicy.RespectOptOut, privacyBits.getAsInt(), Instant.now()));
+                            OptoutCheckPolicy.RespectOptOut, privacyBits, Instant.now()));
         } catch (KeyManager.NoActiveKeyException e){
             SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, e, platformType);
             return;
@@ -1013,7 +1013,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                 new IdentityRequest(
                                         new SourcePublisher(siteId, 0, 0),
                                         optOutTokenInput.toHashedDiiIdentity(this.identityScope),
-                                        OptoutCheckPolicy.DoNotRespect, pb.getAsInt(), Instant.now()));
+                                        OptoutCheckPolicy.DoNotRespect, pb, Instant.now()));
 
                         ResponseUtil.SuccessV2(rc, optOutTokens.toJsonV1());
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, optOutTokens.getAdvertisingTokenVersion(), platformType);

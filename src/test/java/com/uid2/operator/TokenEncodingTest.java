@@ -6,6 +6,7 @@ import com.uid2.operator.model.userIdentity.RawUidIdentity;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.TokenUtils;
+import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.CloudPath;
@@ -60,7 +61,7 @@ public class TokenEncodingTest {
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
             new SourcePublisher(111, 112, 113),
             new FirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Email, firstLevelHash, now),
-           121
+            PrivacyBits.fromInt(121)
         );
 
         if (tokenVersion == TokenVersion.V4) {
@@ -103,7 +104,7 @@ public class TokenEncodingTest {
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
             new SourcePublisher(111, 112, 113),
             new RawUidIdentity(IdentityScope.UID2, IdentityType.Email, rawUid),
-            121,
+            PrivacyBits.fromInt(121),
             now
         );
 

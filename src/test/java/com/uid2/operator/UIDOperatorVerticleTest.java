@@ -1182,8 +1182,8 @@ public class UIDOperatorVerticleTest {
                     final String token = advertisingTokenString;
                     final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, optOutTokenInput.toHashedDiiIdentity(getIdentityScope()), now);
                     assertTrue(matchedOptedOutIdentity);
-                    assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenGenerated());
-                    assertTrue(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenOptedOut());
+                    assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
+                    assertTrue(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
 
                     assertTokenStatusMetrics(
                             201,
@@ -1229,8 +1229,8 @@ public class UIDOperatorVerticleTest {
 
                     AdvertisingTokenInput advertisingTokenInput = validateAndGetToken(encoder, body, IdentityType.Email);
 
-                    assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenGenerated());
-                    assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenOptedOut());
+                    assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
+                    assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
                     assertEquals(clientSiteId, advertisingTokenInput.sourcePublisher.siteId);
                     assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenInput.rawUidIdentity.rawUid);
 
@@ -1271,8 +1271,8 @@ public class UIDOperatorVerticleTest {
 
                     AdvertisingTokenInput advertisingTokenInput = validateAndGetToken(encoder, body, IdentityType.Email);
 
-                    assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenGenerated());
-                    assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenOptedOut());
+                    assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
+                    assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
                     assertEquals(clientSiteId, advertisingTokenInput.sourcePublisher.siteId);
                     assertArrayEquals(getRawUidFromIdentityHash(IdentityType.Email, emailHash, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenInput.rawUidIdentity.rawUid);
 
@@ -1315,8 +1315,8 @@ public class UIDOperatorVerticleTest {
 
                 AdvertisingTokenInput advertisingTokenInput = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
 
-                assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenGenerated());
-                assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenOptedOut());
+                assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
+                assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
                 assertEquals(clientSiteId, advertisingTokenInput.sourcePublisher.siteId);
                 assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenInput.rawUidIdentity.rawUid);
 
@@ -1374,8 +1374,8 @@ public class UIDOperatorVerticleTest {
 
                 AdvertisingTokenInput advertisingTokenInput = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
 
-                assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenGenerated());
-                assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenOptedOut());
+                assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
+                assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
                 assertEquals(clientSiteId, advertisingTokenInput.sourcePublisher.siteId);
                 assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenInput.rawUidIdentity.rawUid);
 
@@ -1586,8 +1586,8 @@ public class UIDOperatorVerticleTest {
 
                     AdvertisingTokenInput advertisingTokenInput = validateAndGetToken(encoder, body, IdentityType.Email);
 
-                    assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenGenerated());
-                    assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenOptedOut());
+                    assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
+                    assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
                     assertEquals(clientSiteId, advertisingTokenInput.sourcePublisher.siteId);
                     assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenInput.rawUidIdentity.rawUid);
 
@@ -2498,8 +2498,8 @@ public class UIDOperatorVerticleTest {
 
             AdvertisingTokenInput advertisingTokenInput = validateAndGetToken(encoder, body, IdentityType.Phone);
 
-            assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenGenerated());
-            assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenOptedOut());
+            assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
+            assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
             assertEquals(clientSiteId, advertisingTokenInput.sourcePublisher.siteId);
             assertArrayEquals(getRawUidFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenInput.rawUidIdentity.rawUid);
 
@@ -2537,8 +2537,8 @@ public class UIDOperatorVerticleTest {
 
             AdvertisingTokenInput advertisingTokenInput = validateAndGetToken(encoder, body, IdentityType.Phone);
 
-            assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenGenerated());
-            assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenOptedOut());
+            assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
+            assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
             assertEquals(clientSiteId, advertisingTokenInput.sourcePublisher.siteId);
             assertArrayEquals(getRawUidFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenInput.rawUidIdentity.rawUid);
 
@@ -2581,8 +2581,8 @@ public class UIDOperatorVerticleTest {
 
                 AdvertisingTokenInput advertisingTokenInput = validateAndGetToken(encoder, refreshBody, IdentityType.Phone);
 
-                assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenGenerated());
-                assertFalse(PrivacyBits.fromInt(advertisingTokenInput.privacyBits).isClientSideTokenOptedOut());
+                assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
+                assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
                 assertEquals(clientSiteId, advertisingTokenInput.sourcePublisher.siteId);
                 assertArrayEquals(getRawUidFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenInput.rawUidIdentity.rawUid);
 
@@ -4202,8 +4202,8 @@ public class UIDOperatorVerticleTest {
     }
 
     private void assertAreClientSideGeneratedTokens(AdvertisingTokenInput advertisingTokenInput, RefreshTokenInput refreshTokenInput, int siteId, IdentityType identityType, String identity, boolean expectedOptOut) {
-        final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingTokenInput.privacyBits);
-        final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshTokenInput.privacyBits);
+        final PrivacyBits advertisingTokenPrivacyBits = advertisingTokenInput.privacyBits;
+        final PrivacyBits refreshTokenPrivacyBits = refreshTokenInput.privacyBits;
 
         final byte[] rawUid = getRawUidFromIdentity(identityType,
                 identity,

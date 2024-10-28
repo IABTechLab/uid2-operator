@@ -20,7 +20,7 @@ COPY ./syslog-ng-ose-pub.asc /app/dep/
 
 RUN echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee -a /etc/apt/sources.list \
     && apt update -y \
-    && apt install -y pkg-config libssl-dev libssl1.1 net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 openssh-server vim less \
+    && apt install -y pkg-config libssl-dev libssl1.1 net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 openssh-server vim \
     && apt-key add /app/dep/syslog-ng-ose-pub.asc \
     && apt-get install /app/dep/syslog-ng-core_4.6.0-1_amd64.deb \
     && rm -rf /var/lib/apt/lists/* \

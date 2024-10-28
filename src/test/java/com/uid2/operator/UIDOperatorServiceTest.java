@@ -159,7 +159,8 @@ public class UIDOperatorServiceTest {
         assertNotNull(identityResponse);
 
         UIDOperatorVerticleTest.validateAdvertisingToken(identityResponse.getAdvertisingToken(), tokenVersion, IdentityScope.UID2, IdentityType.Email);
-        AdvertisingTokenInput advertisingTokenInput = tokenEncoder.decodeAdvertisingToken(identityResponse.getAdvertisingToken());assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingTokenInput.expiresAt);
+        AdvertisingTokenInput advertisingTokenInput = tokenEncoder.decodeAdvertisingToken(identityResponse.getAdvertisingToken());
+        assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingTokenInput.expiresAt);
         assertEquals(identityRequest.sourcePublisher.siteId, advertisingTokenInput.sourcePublisher.siteId);
         assertIdentityScopeIdentityType(identityRequest.hashedDiiIdentity, advertisingTokenInput.rawUidIdentity);
         assertEquals(identityRequest.establishedAt, advertisingTokenInput.establishedAt);

@@ -1304,6 +1304,10 @@ public class UIDOperatorVerticleTest {
 
             String genRefreshToken = bodyJson.getString("refresh_token");
             EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+
+            AdvertisingTokenInput firstAdvertisingTokenInput = validateAndGetToken(encoder, bodyJson,
+                    IdentityType.Email);
+
             RefreshTokenInput firstRefreshTokenInput = decodeRefreshToken(encoder, bodyJson.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
@@ -1316,19 +1320,29 @@ public class UIDOperatorVerticleTest {
 
 
                 AdvertisingTokenInput advertisingTokenInput = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
-
                 assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
                 assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
                 assertEquals(clientSiteId, advertisingTokenInput.sourcePublisher.siteId);
+
+                // checks that the raw Uid from raw input, from original tokgen/generate response and the subsequent
+                // token/refresh response are identical
                 assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenInput.rawUidIdentity.rawUid);
+                assertArrayEquals(firstAdvertisingTokenInput.rawUidIdentity.rawUid,
+                        advertisingTokenInput.rawUidIdentity.rawUid);
+
 
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
                 RefreshTokenInput refreshTokenInput = decodeRefreshToken(encoder, refreshTokenStringNew);
 
+                // check that first level hash from token/generate's refresh token and token/refresh's refresh token
+                // are identical
                 assertEquals(firstRefreshTokenInput.firstLevelHashIdentity.establishedAt,
                         refreshTokenInput.firstLevelHashIdentity.establishedAt);
                 assertTrue(firstRefreshTokenInput.firstLevelHashIdentity.matches(refreshTokenInput.firstLevelHashIdentity));
+                
+                verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(emailAddress,
+                        firstLevelSalt), refreshTokenInput, refreshBody, now);
 
                 assertEquals(clientSiteId, refreshTokenInput.sourcePublisher.siteId);
                 assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshTokenInput.firstLevelHashIdentity.firstLevelHash);

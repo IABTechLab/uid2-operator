@@ -26,7 +26,7 @@ OVERRIDES_CONFIG="/app/conf/config-overrides.json"
 
 RETRY_COUNT=0
 MAX_RETRY=20
-until curl -s -f -o "${OVERRIDES_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
+until curl -s -f -o "${OVERRIDES_CONFIG}" -x socks5h://127.0.0.1:3305 http://internal-flask-1186594260.ap-southeast-2.elb.amazonaws.com/getConfig
 do
   echo "Waiting for config service to be available"
   RETRY_COUNT=$(( RETRY_COUNT + 1))

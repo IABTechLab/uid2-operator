@@ -24,6 +24,7 @@ RUN echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee -a /e
     && apt-key add /app/dep/syslog-ng-ose-pub.asc \
     && apt-get install /app/dep/syslog-ng-core_4.6.0-1_amd64.deb \
     && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean \
     && apt-key del 6694369F 
 RUN pip3 install boto3==1.16.9
 

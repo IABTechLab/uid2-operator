@@ -32,11 +32,8 @@ public final class IdentityRequest {
             HashedDiiIdentity hashedDiiIdentity,
             OptoutCheckPolicy tokenGeneratePolicy)
     {
-        this.sourcePublisher = sourcePublisher;
-        this.hashedDiiIdentity = hashedDiiIdentity;
-        this.optoutCheckPolicy = tokenGeneratePolicy;
-        this.privacyBits = PrivacyBits.DEFAULT_PRIVACY_BIT_VALUE;
-        this.establishedAt = Instant.now();
+        this(sourcePublisher, hashedDiiIdentity, tokenGeneratePolicy, PrivacyBits.DEFAULT_PRIVACY_BIT_VALUE, Instant.now());
+
     }
 
     public boolean shouldCheckOptOut() {

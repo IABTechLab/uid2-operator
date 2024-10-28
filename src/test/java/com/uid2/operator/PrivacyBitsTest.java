@@ -1,17 +1,8 @@
 package com.uid2.operator;
 
-import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.util.PrivacyBits;
-import com.uid2.shared.cloud.EmbeddedResourceStorage;
-import com.uid2.shared.store.CloudPath;
-import com.uid2.shared.store.reader.RotatingClientKeyProvider;
-import com.uid2.shared.store.scope.GlobalScope;
-import io.vertx.core.json.JsonObject;
 import org.junit.Test;
-
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-
 import static org.junit.Assert.*;
 
 

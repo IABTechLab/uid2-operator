@@ -26,7 +26,7 @@ config['core_api_token'] = overrides['api_token']
 config['optout_api_token'] = overrides['api_token']
 
 # number of threads
-config['service_instances'] = thread_count
+config['service_instances'] = int((thread_count + 1) * 2 / 3)
 
 # environment
 if overrides.get('environment') == 'integ':

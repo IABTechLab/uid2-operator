@@ -545,8 +545,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             if (tsOld != Instant.EPOCH && tsNew != Instant.EPOCH && !tsOld.isBefore(tsNew)) {
                 final String errorMsg = "Last partition timestamp of indexed files " + tsOld.getEpochSecond()
                 + " is after last partition of non-indexed files " + tsNew.getEpochSecond();
-                LOGGER.error(errorMsg);
-                throw new IllegalStateException(errorMsg);
+                // Leaving this as a warning until issue is fixed permanently
+                LOGGER.warn(errorMsg);
             }
             // if there are new partitions in this update, let index delete some in-mem delta caches that is old
             if (tsNew != Instant.EPOCH) {

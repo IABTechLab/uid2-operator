@@ -4153,12 +4153,21 @@ public class UIDOperatorVerticleTest {
 
                     RefreshTokenInput refreshTokenInput = decodeRefreshToken(encoder, genBody.getString("decrypted_refresh_token"), identityType);
 
-                    PrivacyBits pb = new PrivacyBits();
-                    pb.setLegacyBit();
-                    pb.setClientSideTokenGenerate();
-                    verifyPrivacyBits(pb, advertisingTokenInput, refreshTokenInput);
-                    verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), refreshTokenInput, genBody, advertisingTokenInput.establishedAt);
 
+
+                    byte[] expectedRawUidIdentity = getRawUidFromIdentity(identityType, id, firstLevelSalt, rotatingSalt123.getSalt());
+                    byte[] expectedFirstLevelHashIdentity = TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt);
+
+                    PrivacyBits expectedPrivacyBits = new PrivacyBits();
+                    expectedPrivacyBits.setLegacyBit();
+                    expectedPrivacyBits.setClientSideTokenGenerate();
+
+                    assertAdvertisingTokenRefreshTokenInputs(advertisingTokenInput, refreshTokenInput,
+                            clientSideTokenGenerateSiteId,
+                            expectedRawUidIdentity,
+                            expectedPrivacyBits,
+                            genBody,
+                            expectedFirstLevelHashIdentity);
                     assertAreClientSideGeneratedTokens(advertisingTokenInput, refreshTokenInput, clientSideTokenGenerateSiteId, identityType, id);
                     assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_expires")), 10);
@@ -4186,10 +4195,12 @@ public class UIDOperatorVerticleTest {
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
                         RefreshTokenInput refreshTokenAfterRefreshSource = decodeRefreshToken(encoder, refreshTokenStringNew, identityType);
 
-                        verifyPrivacyBits(pb, adTokenFromRefresh, refreshTokenInput);
-                        verifyPrivacyBits(pb, adTokenFromRefresh, refreshTokenAfterRefreshSource);
-                        verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), refreshTokenAfterRefreshSource, refreshBody, advertisingTokenInput.establishedAt);
-
+                        assertAdvertisingTokenRefreshTokenInputs(adTokenFromRefresh, refreshTokenAfterRefreshSource,
+                                clientSideTokenGenerateSiteId,
+                                expectedRawUidIdentity,
+                                expectedPrivacyBits,
+                                genBody,
+                                expectedFirstLevelHashIdentity);
                         assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefreshSource, clientSideTokenGenerateSiteId, identityType, id);
                         assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
                         assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);

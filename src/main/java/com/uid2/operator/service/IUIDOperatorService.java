@@ -14,7 +14,7 @@ public interface IUIDOperatorService {
 
     IdentityResponse generateIdentity(IdentityRequest request);
 
-    RefreshResponse refreshIdentity(RefreshTokenInput refreshTokenInput);
+    RefreshResponse refreshIdentity(RefreshTokenInput input);
 
     RawUidResponse mapIdentity(MapRequest request);
 

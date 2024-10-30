@@ -9,9 +9,12 @@ import java.time.Instant;
 // jsonified
 public class IdentityResponse {
     public static IdentityResponse OptOutIdentityResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+
+    //aka UID token
     private final String advertisingToken;
     private final TokenVersion advertisingTokenVersion;
     private final String refreshToken;
+    // when the advertising token/uid token expires
     private final Instant identityExpires;
     private final Instant refreshExpires;
     private final Instant refreshFrom;

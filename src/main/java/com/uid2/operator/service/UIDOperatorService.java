@@ -120,34 +120,34 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public RefreshResponse refreshIdentity(RefreshTokenInput token) {
+    public RefreshResponse refreshIdentity(RefreshTokenInput input) {
         // should not be possible as different scopes should be using different keys, but just in case
-        if (token.firstLevelHashIdentity.identityScope != this.identityScope) {
+        if (input.firstLevelHashIdentity.identityScope != this.identityScope) {
             return RefreshResponse.Invalid;
         }
 
-        if (token.firstLevelHashIdentity.establishedAt.isBefore(RefreshCutoff)) {
+        if (input.firstLevelHashIdentity.establishedAt.isBefore(RefreshCutoff)) {
             return RefreshResponse.Deprecated;
         }
 
         final Instant now = clock.instant();
 
-        if (token.expiresAt.isBefore(now)) {
+        if (input.expiresAt.isBefore(now)) {
             return RefreshResponse.Expired;
         }
 
-        final boolean isCstg = token.privacyBits.isClientSideTokenGenerated();
+        final boolean isCstg = input.privacyBits.isClientSideTokenGenerated();
 
         try {
-            final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.firstLevelHashIdentity, true);
+            final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(input.firstLevelHashIdentity, true);
             final boolean optedOut = logoutEntry.isOptedOut();
 
-            final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
+            final Duration durationSinceLastRefresh = Duration.between(input.createdAt, now);
 
             if (!optedOut) {
-                IdentityResponse identityResponse = this.generateIdentity(token.sourcePublisher,
-                        token.firstLevelHashIdentity,
-                        token.privacyBits);
+                IdentityResponse identityResponse = this.generateIdentity(input.sourcePublisher,
+                        input.firstLevelHashIdentity,
+                        input.privacyBits);
 
                 return RefreshResponse.createRefreshedResponse(identityResponse, durationSinceLastRefresh, isCstg);
             } else {

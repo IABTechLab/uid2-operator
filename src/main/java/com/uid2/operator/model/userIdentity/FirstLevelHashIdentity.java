@@ -21,6 +21,7 @@ public class FirstLevelHashIdentity extends UserIdentity {
         this.establishedAt = establishedAt;
     }
 
+    // explicitly not checking establishedAt - this is only for making sure the first level hash matches a new input
     public boolean matches(FirstLevelHashIdentity that) {
         return this.identityScope.equals(that.identityScope) &&
                 this.identityType.equals(that.identityType) &&

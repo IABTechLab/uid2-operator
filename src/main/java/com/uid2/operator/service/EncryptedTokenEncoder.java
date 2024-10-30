@@ -57,6 +57,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         sitePayload.appendInt(t.privacyBits.getAsInt());
         sitePayload.appendLong(t.establishedAt.toEpochMilli());
         // this is the refreshedAt field in the spec - but effectively it is the time this advertising token is generated
+        // this is a redundant field as it is stored in master payload again, can consider dropping this field in future token version
         sitePayload.appendLong(t.createdAt.toEpochMilli());
         sitePayload.appendBytes(t.rawUidIdentity.rawUid); // 32 or 33 bytes
 

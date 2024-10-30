@@ -24,9 +24,11 @@ public class IdentityResponseTest {
         Instant identityExpires = Instant.now();
         Instant refreshFrom = identityExpires.plus(5, ChronoUnit.MINUTES);
         Instant refreshExpires = identityExpires.plus(10, ChronoUnit.MINUTES);
+
+
+
         IdentityResponse response1 = new IdentityResponse("adToken", TokenVersion.V3, "refreshToken", identityExpires
                 , refreshExpires, refreshFrom);
-
         assertEquals(response1.getAdvertisingToken(), "adToken");
         assertEquals(response1.getAdvertisingTokenVersion(), TokenVersion.V3);
         assertEquals(response1.getRefreshToken(), "refreshToken");

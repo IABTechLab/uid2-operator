@@ -58,6 +58,9 @@ public class PrivacyBits {
     public void setLegacyBit() {
         setBit(BIT_LEGACY);//unknown why this bit is set in https://github.com/IABTechLab/uid2-operator/blob/dbab58346e367c9d4122ad541ff9632dc37bd410/src/main/java/com/uid2/operator/vertx/UIDOperatorVerticle.java#L534
     }
+    public boolean isLegacyBitSet() {
+        return isBitSet(BIT_LEGACY);
+    }
 
     private void setBit(int position) {
         bits |= (1 << position);

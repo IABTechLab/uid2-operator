@@ -7,7 +7,6 @@ import com.uid2.operator.model.userIdentity.UserIdentity;
 import com.uid2.operator.service.*;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
-import com.uid2.operator.service.ITokenEncoder;
 import com.uid2.operator.service.InputUtil;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
@@ -337,7 +336,7 @@ public class UIDOperatorServiceTest {
         assertNotNull(advertisingTokenInput.rawUidIdentity);
         assertNotNull(identityResponseAfterOptOut);
         assertTrue(identityResponseAfterOptOut.getAdvertisingToken() == null || identityResponseAfterOptOut.getAdvertisingToken().isEmpty());
-
+        assertTrue(identityResponseAfterOptOut.isOptedOut());
     }
 
     @ParameterizedTest
@@ -464,7 +463,6 @@ public class UIDOperatorServiceTest {
 
         final MapRequest mapRequestRespectOptOut = new MapRequest(
                 inputVal.toHashedDiiIdentity(scope),
-//                inputVal.toHashedDiiIdentity(scope, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 

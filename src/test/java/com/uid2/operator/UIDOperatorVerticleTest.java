@@ -1238,7 +1238,7 @@ public class UIDOperatorVerticleTest {
 
                     verifyPrivacyBits(PrivacyBits.DEFAULT, advertisingTokenInput, refreshTokenInput);
 
-                    verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshTokenInput, body, now);
+                    verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshTokenInput, body, advertisingTokenInput.establishedAt);
 
                     assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
                     assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
@@ -1288,7 +1288,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals(clientSiteId, refreshTokenInput.sourcePublisher.siteId);
 
                     verifyPrivacyBits(PrivacyBits.DEFAULT, advertisingTokenInput, refreshTokenInput);
-                    verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentityHash(emailHash, firstLevelSalt), refreshTokenInput, body, now);
+                    verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentityHash(emailHash, firstLevelSalt), refreshTokenInput, body, advertisingTokenInput.establishedAt);
 
                     assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
                     assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
@@ -1319,6 +1319,8 @@ public class UIDOperatorVerticleTest {
                     IdentityType.Email);
 
             RefreshTokenInput firstRefreshTokenInput = decodeRefreshToken(encoder, bodyJson.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"));
+
+            assertEquals(firstAdvertisingTokenInput.establishedAt, firstRefreshTokenInput.firstLevelHashIdentity.establishedAt);
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
@@ -1355,7 +1357,7 @@ public class UIDOperatorVerticleTest {
                 verifyPrivacyBits(PrivacyBits.DEFAULT, advertisingTokenInput, refreshTokenInput);
 
                 verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(emailAddress,
-                        firstLevelSalt), refreshTokenInput, refreshBody, now);
+                        firstLevelSalt), refreshTokenInput, refreshBody, firstAdvertisingTokenInput.establishedAt);
 
                 assertEquals(clientSiteId, refreshTokenInput.sourcePublisher.siteId);
                 assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshTokenInput.firstLevelHashIdentity.firstLevelHash);
@@ -1620,6 +1622,8 @@ public class UIDOperatorVerticleTest {
 
                     AdvertisingTokenInput advertisingTokenInput = validateAndGetToken(encoder, body, IdentityType.Email);
 
+                    assertTrue(advertisingTokenInput.privacyBits.isLegacyBitSet());
+                    assertEquals(advertisingTokenInput.privacyBits, PrivacyBits.DEFAULT);
                     assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenGenerated());
                     assertFalse(advertisingTokenInput.privacyBits.isClientSideTokenOptedOut());
                     assertEquals(clientSiteId, advertisingTokenInput.sourcePublisher.siteId);
@@ -2542,7 +2546,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, refreshTokenInput.sourcePublisher.siteId);
             verifyPrivacyBits(PrivacyBits.DEFAULT, advertisingTokenInput, refreshTokenInput);
             verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(phone,
-                    firstLevelSalt), refreshTokenInput, body, now);
+                    firstLevelSalt), refreshTokenInput, body, advertisingTokenInput.establishedAt);
 
             assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
             assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
@@ -2555,10 +2559,10 @@ public class UIDOperatorVerticleTest {
     void verifyFirstLevelHashIdentityAndEstablishedAt(byte[] expectedFirstLevelHash,
                                                       RefreshTokenInput refreshTokenInput,
                                                       JsonObject receivedJsonBody,
-                                                      Instant establishedTime) {
+                                                      Instant expectedEstablishedTime) {
 
         assertArrayEquals(expectedFirstLevelHash, refreshTokenInput.firstLevelHashIdentity.firstLevelHash);
-        assertEqualsClose(establishedTime, refreshTokenInput.firstLevelHashIdentity.establishedAt, 10);
+        assertEquals(expectedEstablishedTime, refreshTokenInput.firstLevelHashIdentity.establishedAt);
         assertTrue(refreshTokenInput.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("identity_expires") );
         assertTrue(refreshTokenInput.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("refresh_expires") );
         assertTrue(refreshTokenInput.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("refresh_from") );
@@ -2595,7 +2599,7 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, refreshTokenInput.sourcePublisher.siteId);
 
             verifyPrivacyBits(PrivacyBits.DEFAULT, advertisingTokenInput, refreshTokenInput);
-            verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt), refreshTokenInput, body, now);
+            verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt), refreshTokenInput, body, advertisingTokenInput.establishedAt);
 
             assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
             assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
@@ -2648,7 +2652,7 @@ public class UIDOperatorVerticleTest {
                 verifyPrivacyBits(PrivacyBits.DEFAULT, firstAdvertisingTokenInput, refreshTokenInput);
                 verifyPrivacyBits(PrivacyBits.DEFAULT, advertisingTokenInput, refreshTokenInput);
                 verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(phone,
-                        firstLevelSalt), refreshTokenInput, refreshBody, now);
+                        firstLevelSalt), refreshTokenInput, refreshBody, advertisingTokenInput.establishedAt);
 
                 assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
                 assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
@@ -4133,7 +4137,7 @@ public class UIDOperatorVerticleTest {
                     pb.setLegacyBit();
                     pb.setClientSideTokenGenerate();
                     verifyPrivacyBits(pb, advertisingTokenInput, refreshTokenInput);
-                    verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), refreshTokenInput, genBody, now);
+                    verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), refreshTokenInput, genBody, advertisingTokenInput.establishedAt);
 
                     assertAreClientSideGeneratedTokens(advertisingTokenInput, refreshTokenInput, clientSideTokenGenerateSiteId, identityType, id);
                     assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
@@ -4164,7 +4168,7 @@ public class UIDOperatorVerticleTest {
 
                         verifyPrivacyBits(pb, adTokenFromRefresh, refreshTokenInput);
                         verifyPrivacyBits(pb, adTokenFromRefresh, refreshTokenAfterRefreshSource);
-                        verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), refreshTokenAfterRefreshSource, refreshBody, now);
+                        verifyFirstLevelHashIdentityAndEstablishedAt(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), refreshTokenAfterRefreshSource, refreshBody, advertisingTokenInput.establishedAt);
 
                         assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefreshSource, clientSideTokenGenerateSiteId, identityType, id);
                         assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);

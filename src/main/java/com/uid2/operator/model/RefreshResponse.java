@@ -4,11 +4,12 @@ import java.time.Duration;
 
 public class RefreshResponse {
 
-    public static RefreshResponse Invalid = new RefreshResponse(Status.Invalid, IdentityResponse.OptOutIdentityResponse);
-    public static RefreshResponse Optout = new RefreshResponse(Status.Optout, IdentityResponse.OptOutIdentityResponse);
-    public static RefreshResponse Expired = new RefreshResponse(Status.Expired, IdentityResponse.OptOutIdentityResponse);
-    public static RefreshResponse Deprecated = new RefreshResponse(Status.Deprecated, IdentityResponse.OptOutIdentityResponse);
-    public static RefreshResponse NoActiveKey = new RefreshResponse(Status.NoActiveKey, IdentityResponse.OptOutIdentityResponse);
+    public static final RefreshResponse Invalid = new RefreshResponse(Status.Invalid,
+            IdentityResponse.OptOutIdentityResponse);
+    public static final RefreshResponse Optout = new RefreshResponse(Status.Optout, IdentityResponse.OptOutIdentityResponse);
+    public static final RefreshResponse Expired = new RefreshResponse(Status.Expired, IdentityResponse.OptOutIdentityResponse);
+    public static final RefreshResponse Deprecated = new RefreshResponse(Status.Deprecated, IdentityResponse.OptOutIdentityResponse);
+    public static final RefreshResponse NoActiveKey = new RefreshResponse(Status.NoActiveKey, IdentityResponse.OptOutIdentityResponse);
     private final Status status;
     private final IdentityResponse identityResponse;
     private final Duration durationSinceLastRefresh;

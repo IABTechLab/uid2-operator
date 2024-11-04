@@ -120,7 +120,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public RefreshResponse refreshIdentity(RefreshTokenInput input) {
+    public RefreshResponse refreshIdentity(RefreshTokenRequest input) {
         // should not be possible as different scopes should be using different keys, but just in case
         if (input.firstLevelHashIdentity.identityScope != this.identityScope) {
             return RefreshResponse.Invalid;
@@ -211,7 +211,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(diiIdentity, asOf);
         final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, asOf);
 
-        final AdvertisingTokenInput token = this.encoder.decodeAdvertisingToken(advertisingToken);
+        final AdvertisingTokenRequest token = this.encoder.decodeAdvertisingToken(advertisingToken);
         return Arrays.equals(rawUidResponse.rawUid, token.rawUidIdentity.rawUid);
     }
 
@@ -260,19 +260,19 @@ public class UIDOperatorService implements IUIDOperatorService {
                 rawUidResponse.rawUid);
 
         return this.encoder.encodeIntoIdentityResponse(
-                this.createAdvertisingTokenInput(sourcePublisher, rawUidIdentity, nowUtc, privacyBits,
+                this.createAdvertisingTokenRequest(sourcePublisher, rawUidIdentity, nowUtc, privacyBits,
                         firstLevelHashIdentity.establishedAt),
-                this.createRefreshTokenInput(sourcePublisher, firstLevelHashIdentity, nowUtc, privacyBits),
+                this.createRefreshTokenRequest(sourcePublisher, firstLevelHashIdentity, nowUtc, privacyBits),
                 nowUtc.plusMillis(refreshIdentityAfter.toMillis()),
                 nowUtc
         );
     }
 
-    private RefreshTokenInput createRefreshTokenInput(SourcePublisher sourcePublisher,
-                                                      FirstLevelHashIdentity firstLevelHashIdentity,
-                                                      Instant now,
-                                                      PrivacyBits privacyBits) {
-        return new RefreshTokenInput(
+    private RefreshTokenRequest createRefreshTokenRequest(SourcePublisher sourcePublisher,
+                                                          FirstLevelHashIdentity firstLevelHashIdentity,
+                                                          Instant now,
+                                                          PrivacyBits privacyBits) {
+        return new RefreshTokenRequest(
                 this.refreshTokenVersion,
                 now,
                 now.plusMillis(refreshExpiresAfter.toMillis()),
@@ -282,8 +282,8 @@ public class UIDOperatorService implements IUIDOperatorService {
                 privacyBits);
     }
 
-    private AdvertisingTokenInput createAdvertisingTokenInput(SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity,
-                                                              Instant now, PrivacyBits privacyBits, Instant establishedAt) {
+    private AdvertisingTokenRequest createAdvertisingTokenRequest(SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity,
+                                                                  Instant now, PrivacyBits privacyBits, Instant establishedAt) {
         TokenVersion tokenVersion;
         if (siteIdsUsingV4Tokens.contains(sourcePublisher.siteId)) {
             tokenVersion = TokenVersion.V4;
@@ -297,7 +297,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             }
             tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         }
-        return new AdvertisingTokenInput(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, sourcePublisher, rawUidIdentity,
+        return new AdvertisingTokenRequest(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, sourcePublisher, rawUidIdentity,
                 privacyBits, establishedAt);
     }
 

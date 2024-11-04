@@ -18,7 +18,7 @@ RUN wget https://www.inet.no/dante/files/dante-1.4.3.tar.gz \
 
 RUN git clone https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git \
     && mkdir uid2-aws-enclave-vsockproxy/build \
-    && cd uid2-aws-enclave-vsockproxy/build; cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo; make; cd ../.. \
+    && cd uid2-aws-enclave-vsockproxy/build && git checkout ant-UID2-4391-refactoring; cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo; make; cd ../.. \
     && cp uid2-aws-enclave-vsockproxy/build/vsock-bridge/src/vsock-bridge ./vsockpx
 
 COPY ./scripts/aws/pipeline/aws_nitro_eif.sh /aws_nitro_eif.sh

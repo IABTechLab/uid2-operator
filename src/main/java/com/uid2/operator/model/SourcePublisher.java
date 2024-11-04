@@ -11,4 +11,10 @@ public class SourcePublisher {
         this.clientKeyId = clientKeyId;
         this.publisherId = publisherId;
     }
+
+    public SourcePublisher(int siteId) {
+        this.siteId = siteId;
+        this.clientKeyId = 0;
+        this.publisherId = 0;
+    }
 }

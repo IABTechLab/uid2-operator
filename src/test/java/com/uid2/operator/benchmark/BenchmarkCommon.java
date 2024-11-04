@@ -168,7 +168,7 @@ public class BenchmarkCommon {
 
         for (ClientKey client : clients.getAll()) {
             if (client.hasRole(Role.GENERATOR)) {
-                return new SourcePublisher(client.getSiteId(), 0, 0);
+                return new SourcePublisher(client.getSiteId());
             }
         }
         throw new IllegalStateException("embedded resource does not include any publisher key");

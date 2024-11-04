@@ -12,8 +12,7 @@ public final class MapRequest {
     public MapRequest(
             HashedDiiIdentity hashedDiiIdentity,
             OptoutCheckPolicy optoutCheckPolicy,
-            Instant asOf)
-    {
+            Instant asOf) {
         this.hashedDiiIdentity = hashedDiiIdentity;
         this.optoutCheckPolicy = optoutCheckPolicy;
         this.asOf = asOf;

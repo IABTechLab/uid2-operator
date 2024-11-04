@@ -18,8 +18,7 @@ public final class IdentityRequest {
             HashedDiiIdentity hashedDiiIdentity,
             OptoutCheckPolicy tokenGeneratePolicy,
             PrivacyBits privacyBits,
-            Instant establishedAt)
-    {
+            Instant establishedAt) {
         this.sourcePublisher = sourcePublisher;
         this.hashedDiiIdentity = hashedDiiIdentity;
         this.optoutCheckPolicy = tokenGeneratePolicy;
@@ -30,8 +29,7 @@ public final class IdentityRequest {
     public IdentityRequest(
             SourcePublisher sourcePublisher,
             HashedDiiIdentity hashedDiiIdentity,
-            OptoutCheckPolicy tokenGeneratePolicy)
-    {
+            OptoutCheckPolicy tokenGeneratePolicy) {
         this(sourcePublisher, hashedDiiIdentity, tokenGeneratePolicy, PrivacyBits.DEFAULT, Instant.now());
 
     }

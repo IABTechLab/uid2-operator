@@ -7,7 +7,7 @@ public class IdentityConst {
     public static final String OptOutTokenIdentityForEmail = "optout@unifiedid.com";
     public static final String OptOutTokenIdentityForPhone = "+00000000001";
 
-    // DIIs for for testing with token/validate endpoint, see https://unifiedid.com/docs/endpoints/post-token-validate
+    // DIIs for testing with token/validate endpoint, see https://unifiedid.com/docs/endpoints/post-token-validate
     public static final String ValidateIdentityForEmail = "validate@example.com";
     public static final String ValidateIdentityForPhone = "+12345678901";
     public static final byte[] ValidateIdentityForEmailHash = EncodingUtils.getSha256Bytes(IdentityConst.ValidateIdentityForEmail);

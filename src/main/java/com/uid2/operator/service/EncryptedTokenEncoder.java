@@ -128,7 +128,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return new RefreshTokenInput(
                 TokenVersion.V2, createdAt, validTill,
                 new OperatorIdentity(0, OperatorType.Service, 0, 0),
-                new SourcePublisher(siteId, 0, 0),
+                new SourcePublisher(siteId),
                 new FirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Email, identity,
                         Instant.ofEpochMilli(establishedMillis)),
                 privacyBits);

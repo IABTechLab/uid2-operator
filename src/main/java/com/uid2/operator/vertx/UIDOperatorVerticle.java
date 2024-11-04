@@ -939,13 +939,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
             platformType = getPlatformType(rc);
             if (isTokenInputValid(input, rc)) {
-                final IdentityResponse t = this.idService.generateIdentity(
+                final IdentityResponse response = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new SourcePublisher(siteId),
                                 input.toHashedDiiIdentity(this.identityScope),
                                 OptoutCheckPolicy.defaultPolicy()));
-                ResponseUtil.Success(rc, t.toJsonV1());
-                recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
+                ResponseUtil.Success(rc, response.toJsonV1());
+                recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, response.getAdvertisingTokenVersion(), platformType);
             }
         } catch (Exception e) {
             SendServerErrorResponseAndRecordStats(rc, "Unknown error while generating token v1", siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, platformType);
@@ -991,13 +991,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     return;
                 }
 
-                final IdentityResponse t = this.idService.generateIdentity(
+                final IdentityResponse response = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new SourcePublisher(siteId),
                                 input.toHashedDiiIdentity(this.identityScope),
                                 OptoutCheckPolicy.respectOptOut()));
 
-                if (t.isOptedOut()) {
+                if (response.isOptedOut()) {
                     if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
                         final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
                                 ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
@@ -1020,8 +1020,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider, null, platformType);
                     }
                 } else {
-                    ResponseUtil.SuccessV2(rc, t.toJsonV1());
-                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
+                    ResponseUtil.SuccessV2(rc, response.toJsonV1());
+                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, response.getAdvertisingTokenVersion(), platformType);
                 }
             }
         } catch (KeyManager.NoActiveKeyException e) {
@@ -1047,14 +1047,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         try {
             siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
-            final IdentityResponse t = this.idService.generateIdentity(
+            final IdentityResponse response = this.idService.generateIdentity(
                     new IdentityRequest(
                             new SourcePublisher(siteId),
                             input.toHashedDiiIdentity(this.identityScope),
                             OptoutCheckPolicy.defaultPolicy()));
 
-            recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), TokenResponseStatsCollector.PlatformType.Other);
-            sendJsonResponse(rc, t.toJsonV0());
+            recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, response.getAdvertisingTokenVersion(), TokenResponseStatsCollector.PlatformType.Other);
+            sendJsonResponse(rc, response.toJsonV0());
 
         } catch (Exception e) {
             SendServerErrorResponseAndRecordStats(rc, "Unknown error while generating token", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, TokenResponseStatsCollector.PlatformType.Other);

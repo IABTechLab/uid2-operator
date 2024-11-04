@@ -1450,7 +1450,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         for (int i = 0; i < count; ++i) {
             final InputUtil.InputVal input = inputList[i];
             if (input != null && input.isValid()) {
-                final RawUidResponse rawUidResponse = idService.mapIdentity(
+                final RawUidResponse rawUidResponse = idService.mapHashedDiiIdentity(
                         new MapRequest(
                                 input.toHashedDiiIdentity(this.identityScope),
                                 OptoutCheckPolicy.respectOptOut(),

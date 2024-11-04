@@ -32,6 +32,6 @@ public class IdentityMapBenchmark {
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
     public RawUidResponse IdentityMapWithOptOutThroughput() {
-        return uidService.mapIdentity(new MapRequest(hashedDiiIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
+        return uidService.mapHashedDiiIdentity(new MapRequest(hashedDiiIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
     }
 }

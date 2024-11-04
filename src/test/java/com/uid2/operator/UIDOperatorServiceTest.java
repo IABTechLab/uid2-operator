@@ -367,15 +367,15 @@ public class UIDOperatorServiceTest {
         if (scope == IdentityScope.UID2) {
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-            rawUidResponse = uid2Service.mapIdentity(mapRequestForceMap);
+            rawUidResponse = uid2Service.mapHashedDiiIdentity(mapRequestForceMap);
             reset(shutdownHandler);
-            rawUidResponseShouldBeOptOut = uid2Service.mapIdentity(mapRequestRespectOptOut);
+            rawUidResponseShouldBeOptOut = uid2Service.mapHashedDiiIdentity(mapRequestRespectOptOut);
         } else {
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-            rawUidResponse = euidService.mapIdentity(mapRequestForceMap);
+            rawUidResponse = euidService.mapHashedDiiIdentity(mapRequestForceMap);
             reset(shutdownHandler);
-            rawUidResponseShouldBeOptOut = euidService.mapIdentity(mapRequestRespectOptOut);
+            rawUidResponseShouldBeOptOut = euidService.mapHashedDiiIdentity(mapRequestRespectOptOut);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
@@ -471,10 +471,10 @@ public class UIDOperatorServiceTest {
 
         final RawUidResponse rawUidResponse;
         if(scope == IdentityScope.EUID) {
-            rawUidResponse = euidService.mapIdentity(mapRequestRespectOptOut);
+            rawUidResponse = euidService.mapHashedDiiIdentity(mapRequestRespectOptOut);
         }
         else {
-            rawUidResponse = uid2Service.mapIdentity(mapRequestRespectOptOut);
+            rawUidResponse = uid2Service.mapHashedDiiIdentity(mapRequestRespectOptOut);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
@@ -585,10 +585,10 @@ public class UIDOperatorServiceTest {
 
         final RawUidResponse rawUidResponse;
         if(scope == IdentityScope.EUID) {
-            rawUidResponse = euidService.mapIdentity(mapRequestRespectOptOut);
+            rawUidResponse = euidService.mapHashedDiiIdentity(mapRequestRespectOptOut);
         }
         else {
-            rawUidResponse = uid2Service.mapIdentity(mapRequestRespectOptOut);
+            rawUidResponse = uid2Service.mapHashedDiiIdentity(mapRequestRespectOptOut);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
@@ -656,10 +656,10 @@ public class UIDOperatorServiceTest {
 
         final RawUidResponse rawUidResponse;
         if(scope == IdentityScope.EUID) {
-            rawUidResponse = euidService.mapIdentity(mapRequestRespectOptOut);
+            rawUidResponse = euidService.mapHashedDiiIdentity(mapRequestRespectOptOut);
         }
         else {
-            rawUidResponse = uid2Service.mapIdentity(mapRequestRespectOptOut);
+            rawUidResponse = uid2Service.mapHashedDiiIdentity(mapRequestRespectOptOut);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
@@ -775,10 +775,10 @@ public class UIDOperatorServiceTest {
         final RawUidResponse rawUidResponse;
         reset(shutdownHandler);
         if(scope == IdentityScope.EUID) {
-            rawUidResponse = euidService.mapIdentity(mapRequest);
+            rawUidResponse = euidService.mapHashedDiiIdentity(mapRequest);
         }
         else {
-            rawUidResponse = uid2Service.mapIdentity(mapRequest);
+            rawUidResponse = uid2Service.mapHashedDiiIdentity(mapRequest);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(false);

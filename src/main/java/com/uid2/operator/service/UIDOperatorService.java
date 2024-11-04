@@ -161,7 +161,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public RawUidResponse mapIdentity(MapRequest request) {
+    public RawUidResponse mapHashedDiiIdentity(MapRequest request) {
         final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.hashedDiiIdentity,
                 request.asOf);
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {

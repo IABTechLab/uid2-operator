@@ -218,6 +218,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         router.allowForward(AllowForwardHeaders.X_FORWARD);
         router.route().handler(new RequestCapturingHandler());
+        router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js"));
         router.route().handler(CorsHandler.create()
                 .addRelativeOrigin(".*.")
                 .allowedMethod(io.vertx.core.http.HttpMethod.GET)

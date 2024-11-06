@@ -99,6 +99,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
     private final Map<Tuple.Tuple3<String, OptoutCheckPolicy, String>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
+    private final Map<String, Counter> _tokenGenerateTCFUsage = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
 
@@ -962,7 +963,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (isTokenInputValid(input, rc)) {
                 final String apiContact = getApiContact(rc);
 
-                switch (validateUserConsent(req)) {
+                switch (validateUserConsent(req, apiContact)) {
                     case INVALID: {
                         SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "User consent is invalid", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidUserConsentString, siteProvider, platformType);
                         return;
@@ -1891,9 +1892,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return resp;
     }
 
-    private UserConsentStatus validateUserConsent(JsonObject req) {
-        // TCF string is an optional parameter and we should only check tcf if in EUID and the string is present
+    private UserConsentStatus validateUserConsent(JsonObject req, String apiContact) {
+        // TCF string is an optional parameter, and we should only check tcf if in EUID and the string is present
         if (identityScope.equals(IdentityScope.EUID) && req.containsKey("tcf_consent_string")) {
+            recordTokenGenerateTCFUsage(apiContact);
             TransparentConsentParseResult tcResult = this.getUserConsentV2(req);
             if (!tcResult.isSuccess()) {
                 return UserConsentStatus.INVALID;
@@ -1960,6 +1962,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .register(Metrics.globalRegistry)).increment();
     }
 
+    private void recordTokenGenerateTCFUsage(String apiContact) {
+        _tokenGenerateTCFUsage.computeIfAbsent(apiContact, contact -> Counter
+                .builder("uid2.token_generate_tcf_usage")
+                .description("Counter for token generate tcf usage")
+                .tags("api_contact", contact, "policy")
+                .register(Metrics.globalRegistry)).increment();
+    }
 
     private TransparentConsentParseResult getUserConsentV2(JsonObject req) {
         final String rawTcString = req.getString("tcf_consent_string");

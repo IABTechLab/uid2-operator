@@ -26,7 +26,7 @@
   "identity_scope": "euid",
   "advertising_token_v3": true,
   "refresh_token_v3": true,
-  "enable_phone_support": false,
+  "enable_phone_support": true,
   "enable_v1_phone_support": false,
   "enable_v2_encryption": true
 }

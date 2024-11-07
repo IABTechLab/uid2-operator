@@ -1966,7 +1966,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         _tokenGenerateTCFUsage.computeIfAbsent(apiContact, contact -> Counter
                 .builder("uid2.token_generate_tcf_usage")
                 .description("Counter for token generate tcf usage")
-                .tags("api_contact", contact, "policy")
+                .tags("api_contact", contact)
                 .register(Metrics.globalRegistry)).increment();
     }
 

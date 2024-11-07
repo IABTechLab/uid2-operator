@@ -8,6 +8,7 @@ public class RefreshResponse {
     public static RefreshResponse Optout = new RefreshResponse(Status.Optout, IdentityTokens.LogoutToken);
     public static RefreshResponse Expired = new RefreshResponse(Status.Expired, IdentityTokens.LogoutToken);
     public static RefreshResponse Deprecated = new RefreshResponse(Status.Deprecated, IdentityTokens.LogoutToken);
+    public static RefreshResponse NoActiveKey = new RefreshResponse(Status.NoActiveKey, IdentityTokens.LogoutToken);
     private final Status status;
     private final IdentityTokens tokens;
     private final Duration durationSinceLastRefresh;
@@ -62,12 +63,17 @@ public class RefreshResponse {
         return Status.Expired.equals(this.status);
     }
 
+    public boolean noActiveKey() {
+        return Status.NoActiveKey.equals(this.status);
+    }
+
     public enum Status {
         Refreshed,
         Invalid,
         Optout,
         Expired,
-        Deprecated
+        Deprecated,
+        NoActiveKey
     }
 
 }

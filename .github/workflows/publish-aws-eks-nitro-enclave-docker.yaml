@@ -1,0 +1,129 @@
+name: Publish EKS Operator Docker Images
+run-name: >-
+  ${{ inputs.operator_release == '' && format('Publish EKS Operator Docker Images for Operator Run Number: {0}', inputs.operator_run_number) || format('Publish EKS Operator Docker Images for Operator Release: {0}', inputs.operator_release)}}
+on:
+  workflow_dispatch:
+    inputs:
+      operator_release:
+        description: The Operator Release number that built the EIF files to use
+        type: string
+      operator_run_number:
+        description: The Operator run number. Ignored if Release Number specified.
+        type: string
+  workflow_call:
+    inputs:
+      operator_release:
+        description: The Operator Release number that built the EIF files to use
+        type: string
+      operator_run_number:
+        description: The Operator run number. Ignored if Release Number specified.
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  ENCLAVE_PROTOCOL: aws-nitro
+  ARTIFACTS_BASE_OUTPUT_DIR: ${{ github.workspace }}/deployment-artifacts
+  IMAGE_NAME: ${{ github.repository }}
+  REPO_OWNER: IABTechLab
+  REPO_NAME: uid2-operator
+
+jobs:
+  buildUID2Image:
+    name: Build UID2 Pod for EKS
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
+    steps:
+      - name: Build Docker Image for EKS Pod
+        id: build_docker_image_uid
+        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@main
+        with:
+          identity_scope: uid2
+          artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          eif_repo_owner: ${{ env.REPO_OWNER }}
+          eif_repo_name: ${{ env.REPO_NAME }}
+          operator_release: ${{ inputs.operator_release }}
+          operator_run_number: ${{ inputs.operator_run_number }}
+
+    outputs:
+      enclave_id: ${{ steps.build_docker_image_uid.outputs.enclave_id }}
+      eif_version_number: ${{ steps.build_docker_image_uid.outputs.eif_version_number }}
+      image_tag: ${{ steps.build_docker_image_uid.outputs.image_tag }}
+
+  buildEUIDImage:
+    name: Build EUID Pod for EKS
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
+    steps:
+      - name: Build Docker Image for EKS Pod
+        id: build_docker_image_euid
+        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@main
+        with:
+          identity_scope: euid
+          artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          eif_repo_owner: ${{ env.REPO_OWNER }}
+          eif_repo_name: ${{ env.REPO_NAME }}
+          operator_release: ${{ inputs.operator_release }}
+          operator_run_number: ${{ inputs.operator_run_number }}
+
+    outputs:
+      enclave_id:  ${{ steps.build_docker_image_euid.outputs.enclave_id }}
+      eif_version_number: ${{ steps.build_docker_image_euid.outputs.eif_version_number }}
+      image_tag: ${{ steps.build_docker_image_euid.outputs.image_tag }}
+
+  testUID2Eks:
+    name: E2E Tests UID2 EKS
+    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+    needs: [buildUID2Image]
+    with:
+      operator_image_version: ${{ needs.buildUID2Image.outputs.image_tag }}
+      operator_type: eks
+      eks: '{ "pcr0":"${{ needs.buildUID2Image.outputs.enclave_id }}"}'
+      identity_scope: UID2
+    secrets: inherit
+
+  testEUIDEks:
+    name: E2E Tests EUID EKS
+    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+    needs: [buildEUIDImage]
+    with:
+      operator_image_version: ${{ needs.buildEUIDImage.outputs.image_tag }}
+      operator_type: eks
+      eks: '{ "pcr0":"${{ needs.buildEUIDImage.outputs.enclave_id }}"}'
+      identity_scope: EUID
+    secrets: inherit
+
+  cleanup:
+    name: Cleanup Building AWS Image
+    runs-on: ubuntu-latest
+    needs: [buildUID2Image, buildEUIDImage, testUID2Eks, testEUIDEks]
+    steps:
+      - name: Check disk usage
+        shell: bash
+        run: |
+          df -h  
+
+      - name: Save Enclave Ids
+        run: |
+          mkdir -p ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
+          echo "UID2 EIF Version: ${{ needs.buildUID2Image.outputs.eif_version_number }}" > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.image_tag }}.txt
+          echo "UID2 Image Tag: ${{ needs.buildUID2Image.outputs.image_tag }}" >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.image_tag }}.txt
+          echo "Enclave ID (maybe shared by other images): " ${{ needs.buildUID2Image.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.image_tag }}.txt
+
+          echo "EUID EIF Version: ${{ needs.buildEUIDImage.outputs.eif_version_number }}" > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
+          echo "EUID Image Tag: ${{ needs.buildEUIDImage.outputs.image_tag }}" >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
+          echo "Enclave ID (maybe shared by other images): " ${{ needs.buildEUIDImage.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
+
+      - name: Save Manifests as build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-eks-enclave-ids-${{ needs.buildUID2Image.outputs.image_tag }}
+          path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
+          if-no-files-found: error

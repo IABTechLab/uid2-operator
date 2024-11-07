@@ -3,6 +3,9 @@ package com.uid2.operator.service;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.IdentityType;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class TokenUtils {
     public static byte[] getIdentityHash(String identityString) {
         return EncodingUtils.getSha256Bytes(identityString);
@@ -58,5 +61,22 @@ public class TokenUtils {
 
     public static byte encodeIdentityType(IdentityType identityType) {
         return (byte) (identityType.value << 2);
+    }
+
+    public static Set<Integer> getSiteIdsUsingV4Tokens(String siteIdsUsingV4TokensInString) {
+        String[] siteIdsV4TokensList = siteIdsUsingV4TokensInString.split(",");
+
+        Set<Integer> siteIdsV4TokensSet = new HashSet<>();
+        try {
+            for (String siteId : siteIdsV4TokensList) {
+                String siteIdTrimmed = siteId.trim();
+                if (!siteIdTrimmed.isEmpty()) {
+                    siteIdsV4TokensSet.add(Integer.parseInt(siteIdTrimmed));
+                }
+            }
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(String.format("Invalid integer format found in site_ids_using_v4_tokens:  %s", siteIdsUsingV4TokensInString));
+        }
+        return siteIdsV4TokensSet;
     }
 }

@@ -36,12 +36,17 @@ public class ResponseUtil {
                 .end(json.encode());
     }
 
-    public static void SuccessNoBodyV2(String status, RoutingContext rc) {
+    public static JsonObject SuccessNoBodyV2(String status) {
         final JsonObject json = new JsonObject(new HashMap<>() {
             {
                 put("status", status);
             }
         });
+        return json;
+    }
+
+    public static void SuccessNoBodyV2(String status, RoutingContext rc) {
+        final JsonObject json = SuccessNoBodyV2(status);
         rc.data().put("response", json);
     }
 
@@ -63,21 +68,21 @@ public class ResponseUtil {
         Warning(ResponseStatus.ClientError, 400, rc, message);
     }
 
-    public static void SendClientErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider)
+    public static void SendClientErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, TokenResponseStatsCollector.PlatformType platformType)
     {
         Warning(errorStatus, statusCode, rc, message);
-        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null);
+        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null, platformType);
     }
 
-    public static void SendServerErrorResponseAndRecordStats(RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, Exception exception)
+    public static void SendServerErrorResponseAndRecordStats(RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, Exception exception, TokenResponseStatsCollector.PlatformType platformType)
     {
         Error(ResponseStatus.UnknownError, 500, rc, message, exception);
         rc.fail(500);
-        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null);
+        recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null, platformType);
     }
 
-    public static void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, TokenVersion advertisingTokenVersion) {
-        TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, advertisingTokenVersion, responseStatus);
+    public static void recordTokenResponseStats(Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, TokenVersion advertisingTokenVersion, TokenResponseStatsCollector.PlatformType platformType) {
+        TokenResponseStatsCollector.record(siteProvider, siteId, endpoint, advertisingTokenVersion, responseStatus, platformType);
     }
 
     public static JsonObject Response(String status, String message) {
@@ -147,7 +152,7 @@ public class ResponseUtil {
     }
 
     private static void logWarning(String status, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
-        String warnMessage = "Warning response to http request. " + JsonObject.of(
+        JsonObject warnMessageJsonObject = JsonObject.of(
                 "errorStatus", status,
                 "contact", contextReader.getContact(),
                 "siteId", contextReader.getSiteId(),
@@ -155,7 +160,18 @@ public class ResponseUtil {
                 "statusCode", statusCode,
                 "clientAddress", clientAddress,
                 "message", message
-        ).encode();
+        );
+        final String referer = contextReader.getReferer();
+        final String origin = contextReader.getOrigin();
+        if (statusCode >= 400 && statusCode < 500) {
+            if (referer != null) {
+                warnMessageJsonObject.put("referer", referer);
+            }
+            if (origin != null) {
+                warnMessageJsonObject.put("origin", origin);
+            }
+        }
+        String warnMessage = "Warning response to http request. " + warnMessageJsonObject.encode();
         LOGGER.warn(warnMessage);
     }
 
@@ -170,5 +186,6 @@ public class ResponseUtil {
         public static final String UnknownError = "unknown";
         public static final String InsufficientUserConsent = "insufficient_user_consent";
         public static final String InvalidHttpOrigin = "invalid_http_origin";
+        public static final String InvalidAppName = "invalid_app_name";
     }
 }

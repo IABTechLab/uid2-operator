@@ -22,6 +22,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.uid2.operator.IdentityConst.*;
+import static com.uid2.operator.service.TokenUtils.getSiteIdsUsingV4Tokens;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
@@ -46,17 +47,22 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Duration refreshIdentityAfter;
 
     private final OperatorIdentity operatorIdentity;
-    private final TokenVersion tokenVersionToUseIfNotV4;
-    private final int advertisingTokenV4Percentage;
+    protected final TokenVersion tokenVersionToUseIfNotV4;
+    protected final int advertisingTokenV4Percentage;
+    protected final Set<Integer> siteIdsUsingV4Tokens;
     private final TokenVersion refreshTokenVersion;
     private final boolean identityV3Enabled;
 
-    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope) {
+    private final Handler<Boolean> saltRetrievalResponseHandler;
+
+    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = identityScope;
+        this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
 
         this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
                 InputUtil.normalizeEmail(OptOutIdentityForEmail).getIdentityInput(), Instant.now());
@@ -88,6 +94,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
 
         this.advertisingTokenV4Percentage = config.getInteger("advertising_token_v4_percentage", 0); //0 indicates token v4 will not be used
+        this.siteIdsUsingV4Tokens = getSiteIdsUsingV4Tokens(config.getString("site_ids_using_v4_tokens", ""));
         this.tokenVersionToUseIfNotV4 = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
 
         this.refreshTokenVersion = TokenVersion.V3;
@@ -139,44 +146,13 @@ public class UIDOperatorService implements IUIDOperatorService {
                 IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity);
 
                 return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
-            } else if (isCstg) {
-                // The user has opted out after the userIdentity was established.
-                privacyBits.setClientSideTokenGenerateOptout();
-
-                final UserIdentity cstgOptOutIdentity = getClientSideTokenGenerateOptOutInputVal(token.userIdentity.identityType)
-                        .toUserIdentity(identityScope, privacyBits.getAsInt(), now);
-
-                final IdentityTokens identityTokens = generateIdentity(
-                        new IdentityRequest(
-                                new PublisherIdentity(token.publisherIdentity.siteId, 0, 0),
-                                cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
-
-                return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, true);
             } else {
                 return RefreshResponse.Optout;
             }
+        } catch (KeyManager.NoActiveKeyException e) {
+            return RefreshResponse.NoActiveKey;
         } catch (Exception ex) {
             return RefreshResponse.Invalid;
-        }
-    }
-
-    private static InputUtil.InputVal getClientSideTokenGenerateOptOutInputVal(IdentityType identityType) {
-        switch (identityType) {
-            case Email:
-                return InputUtil.InputVal.validEmail(
-                        OptOutTokenIdentityForEmail,
-                        OptOutTokenIdentityForEmail);
-            case Phone:
-                return InputUtil.InputVal.validPhone(
-                        OptOutTokenIdentityForPhone,
-                        OptOutTokenIdentityForPhone);
-            default:
-                // Assert will fire when this code path is hit by a test.
-                assert false: "Invalid identity type " + identityType;
-                // Provide a fallback value instead of throwing an exception.
-                return InputUtil.InputVal.validEmail(
-                        OptOutTokenIdentityForEmail,
-                        OptOutTokenIdentityForEmail);
         }
     }
 
@@ -203,8 +179,10 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private ISaltProvider.ISaltSnapshot getSaltProviderSnapshot(Instant asOf) {
         ISaltProvider.ISaltSnapshot snapshot = this.saltProvider.getSnapshot(asOf);
-        if(snapshot == null) {
-            LOGGER.error("SaltProvider returned NULL on getSnapshot for instant {}", asOf);
+        if(snapshot.getExpires().isBefore(Instant.now())) {
+            saltRetrievalResponseHandler.handle(true);
+        } else {
+            saltRetrievalResponseHandler.handle(false);
         }
         return snapshot;
     }
@@ -292,15 +270,19 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
-        int pseudoRandomNumber = 1;
-        final var rawUid = userIdentity.id;
-        if (rawUid.length > 2)
-        {
-            int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
-            pseudoRandomNumber = (hash % 100) + 1; //1 to 100
+        TokenVersion tokenVersion;
+        if (siteIdsUsingV4Tokens.contains(publisherIdentity.siteId)) {
+            tokenVersion = TokenVersion.V4;
+        } else {
+            int pseudoRandomNumber = 1;
+            final var rawUid = userIdentity.id;
+            if (rawUid.length > 2)
+            {
+                int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
+                pseudoRandomNumber = (hash % 100) + 1; //1 to 100
+            }
+            tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         }
-
-        var tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         return new AdvertisingToken(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
     }
 
@@ -336,10 +318,5 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
         Instant result = this.optOutStore.getLatestEntry(userIdentity);
         return new GlobalOptoutResult(result);
-    }
-
-    public TokenVersion getAdvertisingTokenVersionForTests() {
-        assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
-        return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
     }
 }

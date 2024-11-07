@@ -3,6 +3,7 @@ package com.uid2.operator.service;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.vertx.ClientInputValidationException;
+import com.uid2.shared.IClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.encryption.AesGcm;
@@ -54,7 +55,8 @@ public class V2RequestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
-    public static V2Request parseRequest(String bodyString, ClientKey ck) {
+    // clock is passed in to test V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES in unit tests
+    public static V2Request parseRequest(String bodyString, ClientKey ck, IClock clock) {
         if (bodyString == null) {
             return new V2Request("Invalid body: Body is missing.");
         }
@@ -91,7 +93,7 @@ public class V2RequestUtil {
         //  byte 16-end: base64 encoded request json
         Buffer b = Buffer.buffer(decryptedBody);
         Instant tm = Instant.ofEpochMilli(b.getLong(0));
-        if (Math.abs(Duration.between(tm, Clock.systemUTC().instant()).toMinutes()) >
+        if (Math.abs(Duration.between(tm, clock.now()).toMinutes()) >
                 V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
             return new V2Request("Invalid timestamp: Request too old or client time drift.");
         }
@@ -103,7 +105,7 @@ public class V2RequestUtil {
                 String bodyStr = new String(decryptedBody, 16, decryptedBody.length - 16, StandardCharsets.UTF_8);
                 payload = new JsonObject(bodyStr);
             } catch (Exception ex) {
-                LOGGER.error("Invalid payload in body: Data is not valid json string.", ex);
+                LOGGER.error("Invalid payload in body: Data is not valid json string.");
                 return new V2Request("Invalid payload in body: Data is not valid json string.");
             }
         }
@@ -129,15 +131,15 @@ public class V2RequestUtil {
 
         KeysetKey key = keyManager.getKey(keyId);
         if (key == null) {
-            return new V2Request("Invalid key: Generator of this token does not exist.");
+            return new V2Request(String.format("Invalid key: Generator of this token (Key ID: %d) does not exist.", keyId));
         }
 
         byte[] decrypted;
         try {
             decrypted = AesGcm.decrypt(bytes, 5, key);
         } catch (Exception ex) {
-            LOGGER.error("Invalid data: Check encryption method and encryption key", ex);
-            return new V2Request("Invalid data: Check encryption method and encryption key");
+            LOGGER.error("Invalid data: Check encryption method and encryption key.", ex);
+            return new V2Request("Invalid data: Check encryption method and encryption key.");
         }
 
         try {
@@ -147,8 +149,8 @@ public class V2RequestUtil {
 
             return new V2Request(null, refreshToken, responseKey);
         } catch (Exception ex) {
-            LOGGER.error("Invalid format: Payload is not valid json or missing required data", ex);
-            return new V2Request("Invalid format: Payload is not valid json or missing required data");
+            LOGGER.error("Invalid format: Payload is not valid json or missing required data.", ex);
+            return new V2Request("Invalid format: Payload is not valid json or missing required data.");
         }
     }
 
@@ -170,7 +172,12 @@ public class V2RequestUtil {
                 .appendInt(refreshKey.getId())
                 .appendBytes(encrypted)
                 .getBytes());
-        assert modifiedToken.length() == V2_REFRESH_PAYLOAD_LENGTH;
+        if (modifiedToken.length() != V2_REFRESH_PAYLOAD_LENGTH) {
+            final String errorMsg = "Generated refresh token's length=" + modifiedToken.length()
+                    + " is not equal to=" + V2_REFRESH_PAYLOAD_LENGTH;
+            LOGGER.error(errorMsg);
+            throw new IllegalArgumentException(errorMsg);
+        }
 
         bodyJson.put("refresh_token", modifiedToken);
         bodyJson.put("refresh_response_key", refreshResponseKey);

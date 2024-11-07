@@ -3,6 +3,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.StatsCollectorMessageItem;
+import com.uid2.operator.vertx.Endpoints;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.AbstractVerticle;
@@ -18,12 +19,16 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCollectorQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(StatsCollectorVerticle.class);
     private HashMap<String, EndpointStat> pathMap;
 
+    private final ClientVersionStatRecorder clientVersionStat;
+
     private static final int MAX_AVAILABLE = 1000;
+    private final int maxInvalidPaths;
 
     private final Duration jsonProcessingInterval;
     private Instant lastJsonProcessTime;
@@ -39,13 +44,14 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
     private final ObjectMapper mapper;
     private final Counter queueFullCounter;
 
-    public StatsCollectorVerticle(long jsonIntervalMS) {
+    public StatsCollectorVerticle(long jsonIntervalMS, int maxInvalidPaths, int maxVersionBucketsPerSite) {
         pathMap = new HashMap<>();
 
         _statsCollectorCount = new AtomicInteger();
         _runningSerializer = false;
 
         jsonProcessingInterval = Duration.ofMillis(jsonIntervalMS);
+        this.maxInvalidPaths = maxInvalidPaths;
 
         logCycleSkipperCounter = Counter
                 .builder("uid2.api_usage_log_cycle_skipped")
@@ -62,6 +68,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
                 .register(Metrics.globalRegistry);
 
         mapper = new ObjectMapper();
+        clientVersionStat = new ClientVersionStatRecorder(maxVersionBucketsPerSite);
     }
 
     @Override
@@ -80,8 +87,6 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
             LOGGER.error(e.getMessage(), e);
             return;
         }
-
-        assert messageItem != null;
 
         String path = messageItem.getPath();
         String apiVersion = "v0";
@@ -113,7 +118,12 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
 
         EndpointStat endpointStat = new EndpointStat(endpoint, siteId, apiVersion, domain);
 
-        pathMap.merge(path, endpointStat, this::mergeEndpoint);
+        Set<String> validPaths = Endpoints.pathSet();
+        if(validPaths.contains(path) || pathMap.containsKey(path) || (pathMap.size() < this.maxInvalidPaths + validPaths.size() && messageItem.getApiContact() != null)) {
+            pathMap.merge(path, endpointStat, this::mergeEndpoint);
+        }
+
+        clientVersionStat.add(siteId, messageItem.getClientVersion());
 
         _statsCollectorCount.decrementAndGet();
 
@@ -123,7 +133,10 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
                 logCycleSkipperCounter.increment();
             } else {
                 _runningSerializer = true;
-                Object[] stats = pathMap.values().toArray();
+                if(pathMap.size() == this.maxInvalidPaths + validPaths.size()) {
+                    LOGGER.error("max invalid paths reached; a large number of invalid paths have been requested from authenticated participants");
+                }
+                var stats = buildStatsList();
                 this.jsonSerializerExecutor.<Void>executeBlocking(
                         promise -> promise.complete(this.serializeToLogs(stats)),
                         res -> {
@@ -138,12 +151,12 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         }
     }
 
-    private Void serializeToLogs(Object[] stats) {
+    private Void serializeToLogs(List<ILoggedStat> stats) {
         LOGGER.debug("Starting JSON Serialize");
-        ObjectMapper mapper = new ObjectMapper();
-        for (Object stat : stats) {
+        ObjectMapper statMapper = new ObjectMapper();
+        for (var stat : stats) {
             try {
-                String jsonString = mapper.writeValueAsString(stat);
+                String jsonString = "%s%s".formatted(stat.GetLogPrefix(), statMapper.writeValueAsString(stat.GetValueToLog()));
                 LOGGER.info(jsonString);
             } catch (JsonProcessingException e) {
                 LOGGER.error(e.getMessage(), e);
@@ -157,19 +170,11 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         return a;
     }
 
-
-    public String getEndpointStats() {
-        Object[] stats = pathMap.values().toArray();
-        StringBuilder completeStats = new StringBuilder();
-        for (Object stat : stats) {
-            try {
-                String jsonString = mapper.writeValueAsString(stat);
-                completeStats.append(jsonString).append("\n");
-            } catch (JsonProcessingException e) {
-                LOGGER.error(e.getMessage(), e);
-            }
-        }
-        return completeStats.toString();
+    private List<ILoggedStat> buildStatsList() {
+        Stream<EndpointStat> pathMapStream = pathMap.values().stream();
+        Stream<ILoggedStat> clientVersionStream = clientVersionStat.getStatsView();
+        var stats = Stream.concat(pathMapStream, clientVersionStream);
+        return stats.toList();
     }
 
     @Override
@@ -215,7 +220,7 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         }
     }
 
-    class EndpointStat {
+    class EndpointStat implements ILoggedStat {
         private final String endpoint;
         private final Integer siteId;
         private final String apiVersion;
@@ -265,6 +270,16 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
             } else {
                 domainMissedCounter.increment();
             }
+        }
+
+        @Override
+        public String GetLogPrefix() {
+            return "";
+        }
+
+        @Override
+        public Object GetValueToLog() {
+            return this;
         }
     }
 }

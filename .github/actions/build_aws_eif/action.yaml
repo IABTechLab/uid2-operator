@@ -1,0 +1,128 @@
+name: Build AWS EIF
+description: Builds the EIF for AWS private operators
+
+inputs:
+  identity_scope:
+    description: The identity scope [uid2, euid]
+    required: true
+  artifacts_base_output_dir:
+    description: The base output directory for the AMI artifacts
+    required: true
+  amazonlinux_dockerfile:
+    description: The Docker file to use to build the EIF
+    default: amazonlinux.Dockerfile
+  makefile:
+    description: The make file to use
+    default: Makefile.eif
+  version_number_input:
+    description: If set, the version number will not be incremented and the given number will be used.
+    default: ''
+  commit_sha:
+    description: The commit SHA for committing the new version for pom.xml.
+    default: ''
+
+outputs:
+  enclave_id:
+    description: The enclave id for this EIF.
+    value: ${{ steps.prepare_artifacts.outputs.enclave_id }}
+    
+runs:
+  using: "composite"
+
+  steps:
+    - name: Checkout full history at commit sha ${{ inputs.commit_sha }}
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.commit_sha }}
+        # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.
+        fetch-depth: 0
+
+    - name: Restore timestamps
+      uses: thetradedesk/git-restore-mtime-action@v1.3
+
+    - name: Free up space - delete preinstalled tools
+      shell: bash
+      run: |
+        rm -rf /opt/hostedtoolcache
+
+    - name: Check disk usage
+      shell: bash
+      run: |
+        df -h
+
+    - name: Run amazonlinux Docker image
+      shell: bash
+      run: |
+        docker build -t amazonlinux -f ${{ inputs.amazonlinux_dockerfile }} .
+        docker run -d --privileged --name amazonlinux amazonlinux:latest
+
+    - name: Create build folder
+      id: buildFolder
+      shell: bash
+      run: |
+        BUILD_FOLDER="./build/${{ inputs.identity_scope }}"
+        mkdir -p $BUILD_FOLDER
+        echo "BUILD_FOLDER=$BUILD_FOLDER" >> $GITHUB_OUTPUT
+
+    - name: Get identity scope
+      shell: bash
+      run: |
+        echo "${{ inputs.identity_scope }}" | tr '[:lower:]' '[:upper:]' > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt
+        cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt
+
+    - name: Get version number
+      shell: bash
+      run: |
+        echo ${{ inputs.version_number_input }} > ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
+        cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt
+    
+    - name: Build EIF
+      shell: bash
+      run: |
+        make -f ${{ inputs.makefile }} ${{ inputs.identity_scope }}operator.eif
+
+    - name: Free up space
+      shell: bash
+      run: |
+        echo y | docker system prune -a
+
+    - name: Prepare artifacts
+      id: prepare_artifacts
+      shell: bash
+      run: |
+        ARTIFACTS_OUTPUT_DIR="${{ inputs.artifacts_base_output_dir }}"
+
+        mkdir -p ${ARTIFACTS_OUTPUT_DIR}
+
+        cp ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt                                       ${ARTIFACTS_OUTPUT_DIR}/
+        cp ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt                                       ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/start.sh                                                                                 ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/stop.sh                                                                                  ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/proxies.host.yaml                                                                        ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/sockd.conf                                                                               ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/uid2operator.service                                                                     ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/pipeline/$(cat ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt)_VERSION ${ARTIFACTS_OUTPUT_DIR}/VERSION
+        cp ./scripts/aws/syslog-ng/syslog-ng-server.conf                                                          ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/ivykis-0.43-1.amzn2023.x86_64.rpm                               ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/libnet-1.2-2.amzn2023.0.2.x86_64.rpm                            ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/pubkey.gpg                                                      ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm              ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/syslog-ng/server_al_2023/syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm    ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/logrotate/operator-logrotate.conf                                                        ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/logrotate/logrotate                                                                      ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/logrotate/logrotateDaily                                                                 ${ARTIFACTS_OUTPUT_DIR}/
+        cp -r ./scripts/aws/config-server                                                                         ${ARTIFACTS_OUTPUT_DIR}/
+
+        docker cp amazonlinux:/sockd                                    ${ARTIFACTS_OUTPUT_DIR}/
+        docker cp amazonlinux:/vsockpx                                  ${ARTIFACTS_OUTPUT_DIR}/
+        docker cp amazonlinux:/${{ inputs.identity_scope }}operator.eif ${ARTIFACTS_OUTPUT_DIR}/uid2operator.eif
+
+        docker cp amazonlinux:/pcr0.txt                                 ${{ steps.buildFolder.outputs.BUILD_FOLDER }}
+        docker cp amazonlinux:/pcr0.txt                                 ${ARTIFACTS_OUTPUT_DIR}/
+        echo "enclave_id=$(cat ${{ steps.buildFolder.outputs.BUILD_FOLDER}}/pcr0.txt)" >> $GITHUB_OUTPUT
+
+    - name: Cleanup
+      shell: bash
+      run: |
+        docker rm -vf $(docker ps -a -q)
+        docker rmi -f $(docker images -aq)

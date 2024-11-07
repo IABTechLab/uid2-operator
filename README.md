@@ -33,7 +33,14 @@ mvn clean compile exec:java -Dvertx-config-path=conf/local-config.json
 mvn clean compile exec:java -Dvertx-config-path=conf/integ-config.json
 ```
 ## Local deployment/testing on Docker
-1. Change `COPY ./conf/default-config.json /app/conf/` in line 13 of `Dockerfile` to `COPY ./conf/docker-config.json /app/conf/local-config.json`
+1. In [Dockerfile](Dockerfile), change the line
+    ```
+    COPY ./conf/default-config.json /app/conf/
+    ```
+    to:
+    ```
+    COPY ./conf/docker-config.json /app/conf/local-config.json
+    ```
 2. Run ```mvn package```
 3. Go to `pom.xml` and find the version wrapped under `<version>` tag
 4. Run ```docker build -t uid2-operator --build-arg JAR_VERSION={version you find in step 3} .```

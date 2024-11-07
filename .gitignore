@@ -5,13 +5,11 @@ target/*
 .idea/*
 .idea/
 dependencies/
-conf/*.json
 uid2-operator.iml
 build/**
 e2e-target
 .DS_Store
 */node_modules/*
 *.iml
-.pre-commit-trivy-cache/
 # Ignore generated credentials from google-github-actions/auth
 gha-creds-*.json

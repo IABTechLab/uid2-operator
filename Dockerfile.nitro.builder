@@ -1,10 +1,10 @@
-FROM debian:bullseye
+FROM ubuntu:22.04
 
 ENV enclave_platform="aws-nitro"
 
 # install build-essential, openjdk, maven, git
 RUN apt-get update -y \
-    && apt-get install -y curl -y build-essential pkg-config libssl-dev cmake openjdk-11-jdk maven git \
+    && apt-get install -y curl -y build-essential pkg-config libssl-dev cmake openjdk-21-jdk maven git \
     && rm -rf /var/lib/apt/lists/*
 
 # install rust
@@ -13,9 +13,8 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /build
-ADD conf ./conf
-ADD src ./src
-ADD static ./static
+COPY src ./src
+COPY static ./static
 COPY ./pom.xml ./pom.xml
 
 # build operator jar and save package version

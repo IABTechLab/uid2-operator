@@ -3,7 +3,8 @@
     "id": 123,
     "name": "MegaTest Site",
     "enabled": true,
-    "domain_names" : ["localhost", "uidapi.com"]
+    "domain_names" : ["localhost", "uidapi.com"],
+    "app_names": ["com.123.Game.App.android", "123456789", "com.123.Game.App.ios", "com.uid2.devapp"]
   },
   {
     "id": 124,
@@ -19,5 +20,12 @@
     "id": 126,
     "name": "AWS Venice",
     "enabled": true
+  },
+  {
+    "id": 127,
+    "name": "App Name Test Site",
+    "enabled": true,
+    "app_names" : ["com.UID2.operator.TEST", "13456789"],
+    "domain_names" : ["example.com", "unifiedid.com"]
   }
 ]

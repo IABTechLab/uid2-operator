@@ -2,12 +2,15 @@ package com.uid2.operator;
 
 import ch.qos.logback.classic.LoggerContext;
 import com.google.common.base.Strings;
+import com.uid2.enclave.IAttestationProvider;
 import com.uid2.enclave.IOperatorKeyRetriever;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.service.SecureLinkValidatorService;
+import com.uid2.operator.service.ShutdownService;
+import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.store.CloudSyncOptOutStore;
 import com.uid2.operator.store.OptOutCloudStorage;
@@ -50,6 +53,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
@@ -94,6 +98,7 @@ public class Main {
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
+        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC(), new ShutdownService());
 
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
 
@@ -102,9 +107,8 @@ public class Main {
 
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
-            this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Clock.systemUTC());
 
-            var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleResponse);
+            var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);
             UidCoreClient coreClient = clients.getKey();
             UidOptOutClient optOutClient = clients.getValue();
             fsStores = coreClient;
@@ -139,7 +143,7 @@ public class Main {
         this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
-        this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey);
+        this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
 
         if (this.validateServiceLinks) {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
@@ -163,6 +167,17 @@ public class Main {
             if (this.validateServiceLinks) {
                 this.serviceProvider.loadContent();
                 this.serviceLinkProvider.loadContent();
+            }
+
+            try {
+                getKeyManager().getMasterKey();
+            } catch (KeyManager.NoActiveKeyException e) {
+                LOGGER.error("No active master key found", e);
+                System.exit(1);
+            }
+            if (saltProvider.getSnapshot(Instant.now()).getExpires().isBefore(Instant.now())) {
+                LOGGER.error("all salts are expired");
+                System.exit(1);
             }
         }
         metrics = new OperatorMetrics(getKeyManager(), saltProvider);
@@ -251,7 +266,7 @@ public class Main {
 
     private void run() throws Exception {
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider));
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
             return verticle;
         };
 
@@ -350,7 +365,7 @@ public class Main {
 
     private Future<String> createAndDeployStatsCollector() {
         Promise<String> promise = Promise.promise();
-        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000);
+        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50), config.getInteger(Const.Config.MaxVersionBucketsPerSite, 50));
         vertx.deployVerticle(statsCollectorVerticle, promise);
         _statsCollectorQueue = statsCollectorVerticle;
         return promise.future();
@@ -412,7 +427,8 @@ public class Main {
                 .meterFilter(new PrometheusRenameFilter())
                 .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), actualPath -> {
                     try {
-                        return HttpUtils.normalizePath(actualPath).split("\\?")[0];
+                        String normalized = HttpUtils.normalizePath(actualPath).split("\\?")[0];
+                        return Endpoints.pathSet().contains(normalized) ? normalized : "/unknown";
                     } catch (IllegalArgumentException e) {
                         return actualPath;
                     }
@@ -451,36 +467,46 @@ public class Main {
                 .register(globalRegistry);
     }
 
-    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
-        AttestationTokenRetriever attestationTokenRetriever = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
-        Boolean enforceHttps = this.config.getBoolean("enforce_https", true);
-        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
-        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, enforceHttps, attestationTokenRetriever);
+    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
+        AttestationResponseHandler attestationResponseHandler = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
+        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
+        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }
 
-    private AttestationTokenRetriever getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
-        String enclavePlatform = this.config.getString("enclave_platform");
-        if (Strings.isNullOrEmpty(enclavePlatform)) {
-            return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher, CloudUtils.defaultProxy);
-        }
+    private AttestationResponseHandler getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
+        String enclavePlatform = this.config.getString(Const.Config.EnclavePlatformProp);
+        String operatorType = this.config.getString(Const.Config.OperatorTypeProp, "");
+
+        IAttestationProvider attestationProvider;
         switch (enclavePlatform) {
+            case null:
+            case "":
+                LOGGER.info("creating uid core client with trusted attestation protocol");
+                attestationProvider = new NoAttestationProvider();
+                break;
             case "aws-nitro":
                 LOGGER.info("creating uid core client with aws attestation protocol");
-                return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                attestationProvider = AttestationFactory.getNitroAttestation();
+                break;
             case "gcp-vmid":
                 LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-                return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                attestationProvider = AttestationFactory.getGcpVmidAttestation();
+                break;
             case "gcp-oidc":
                 LOGGER.info("creating uid core client with gcp oidc attestation protocol");
-                return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                attestationProvider = AttestationFactory.getGcpOidcAttestation();
+                break;
             case "azure-cc":
                 LOGGER.info("creating uid core client with azure cc attestation protocol");
                 String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
-                return new AttestationTokenRetriever(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureCCAttestation(maaServerBaseUrl), responseWatcher, CloudUtils.defaultProxy);
+                attestationProvider = AttestationFactory.getAzureCCAttestation(maaServerBaseUrl);
+                break;
             default:
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));
         }
+
+        return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, operatorType, this.appVersion, attestationProvider, responseWatcher, CloudUtils.defaultProxy);
     }
 
     private IOperatorKeyRetriever createOperatorKeyRetriever() throws Exception {

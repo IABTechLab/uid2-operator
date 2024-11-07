@@ -1,16 +1,6 @@
 [
   {
-    "allowed_sites": [
-      -1,
-      -2,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8
-    ],
+    "allowed_sites": null,
     "created": 1617149276,
     "default": true,
     "enabled": true,
@@ -146,5 +136,14 @@
     "keyset_id": 801,
     "name": "My keyset #5",
     "site_id": 8
+  },
+  {
+    "site_id": 127,
+    "name": "App Name Test Site Key Set 1",
+    "keyset_id": 901,
+    "default": true,
+    "created": 1713225363,
+    "enabled": true,
+    "allowed_sites": [123]
   }
 ]

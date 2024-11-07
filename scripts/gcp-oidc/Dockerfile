@@ -1,12 +1,15 @@
-FROM eclipse-temurin@sha256:de8e6219ff5360811a453a9237713679a9d9106ba5150290ef37fb23e246ce7d
+# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.4_7-jre-alpine/images/sha256-8179ddc8a6c5ac9af935020628763b9a5a671e0914976715d2b61b21881cefca
+FROM eclipse-temurin@sha256:8179ddc8a6c5ac9af935020628763b9a5a671e0914976715d2b61b21881cefca
 
 LABEL "tee.launch_policy.allow_env_override"="API_TOKEN_SECRET_NAME,DEPLOYMENT_ENVIRONMENT,CORE_BASE_URL,OPTOUT_BASE_URL"
+LABEL "tee.launch_policy.log_redirect"="always"
 
 # Install Packages
 RUN apk update && apk add jq
 
 WORKDIR /app
 EXPOSE 8080
+EXPOSE 9080
 
 ARG JAR_NAME=uid2-operator
 ARG JAR_VERSION=1.0.0-SNAPSHOT
@@ -16,7 +19,6 @@ ENV JAR_VERSION=${JAR_VERSION}
 ENV IMAGE_VERSION=${IMAGE_VERSION}
 ENV REGION=default
 ENV LOKI_HOSTNAME=loki
-ENV LOGBACK_CONF=${LOGBACK_CONF:-./conf/logback.xml}
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app

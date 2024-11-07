@@ -1,0 +1,156 @@
+name: Build AWS EKS Docker Image
+description: Builds the docker images to use as a EKS Pod.
+
+inputs:
+  identity_scope:
+    description: The identity scope [uid2, euid]
+    required: true
+  eif_repo_owner:
+    description: The owner of the EIF repo
+    required: true
+  eif_repo_name:
+    description: The name of the EIF repo
+    required: true
+  operator_release:
+    description: The operator release that has the EIF to use
+    default: ''
+  operator_run_number:
+    description: The Operator run number for artifacts. Ignored if Operator Release is given
+  artifacts_output_dir:
+    description: The output directory for the artifacts
+    required: true
+  github_token:
+    description: The GitHub token used to login to Docker
+    required: true
+
+outputs:
+  enclave_id:
+    description: The enclave id for this EIF.
+    value: ${{ steps.versionNumber.outputs.ENCLAVE_ID }}
+  image_tag:
+    description: The Image tag of the docker image
+    value: ${{ steps.versionNumber.outputs.VERSION_NUMBER }}.${{ github.run_number }}
+  eif_version_number:
+    description: The version number of the EIF used to build the image
+    value: ${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+    
+runs:
+  using: "composite"
+
+  steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Make output dir
+      shell: bash
+      run: |
+        mkdir ${{ inputs.artifacts_output_dir }} -p
+
+    - name: Get EIF for Release ${{ inputs.operator_release }}
+      uses: IABTechLab/uid2-operator/.github/actions/download_release_artifact@main
+      if: ${{ inputs.operator_release != '' }}
+      with:
+        github_token: ${{ inputs.github_token }}
+        repo_owner: ${{ inputs.eif_repo_owner }}
+        repo_name: ${{ inputs.eif_repo_name }}
+        release_name: ${{ inputs.operator_release }}
+        artifact_name: aws-${{ inputs.identity_scope }}-deployment-files
+        folder: ${{ inputs.artifacts_output_dir }}
+
+    - name: Get EIF for Run ${{ inputs.operator_run_number }}
+      id: get_eif_for_run
+      uses: dawidd6/action-download-artifact@v6
+      if: ${{ inputs.operator_release == '' }}
+      with:
+        name: 'aws-${{ inputs.identity_scope }}-deployment-files-.*'
+        name_is_regexp: true
+        run_id: ${{ inputs.operator_run_number }}
+        skip_unpack: true
+
+    - name: Show folder
+      shell: bash
+      working-directory: ${{ inputs.artifacts_output_dir }}
+      run: |
+        ls -al
+
+    - name: Unzip artifacts
+      if: ${{ inputs.operator_release == '' }}
+      shell: bash
+      run: |
+        ARTIFACTS='${{ steps.get_eif_for_run.outputs.artifacts }}'
+        FILE=$(echo $ARTIFACTS | jq -r '.[0].name')
+        unzip -o -d ${{ inputs.artifacts_output_dir }} $FILE.zip
+        rm $FILE.zip
+
+    - name: Get version number and Enclave Id
+      id: versionNumber
+      shell: bash
+      working-directory: ${{ inputs.artifacts_output_dir }}
+      run: |
+        ls -al
+        VERSION_NUMBER=$(cat ./version_number.txt)
+        echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+        echo "Version Number: " $VERSION_NUMBER
+        ENCLAVE_ID=$(cat ./pcr0.txt)
+        echo "ENCLAVE_ID=$ENCLAVE_ID" >> $GITHUB_OUTPUT
+        echo "Enclave ID:" $ENCLAVE_ID
+
+    - name: Copy docker files for the Operator Pod
+      shell: bash
+      id: copy_docker_files
+      run: |
+        mkdir -p ${{ inputs.artifacts_output_dir }}
+        cp -r ./scripts/aws/config-server/* ${{ inputs.artifacts_output_dir }}
+        cp -r ./scripts/aws/eks-pod/* ${{ inputs.artifacts_output_dir }}
+        cp -r ./scripts/aws/syslog-ng/server_al_2023/* ${{ inputs.artifacts_output_dir }}/server_al_2023
+        cp ./scripts/aws/eks-pod/server_al_2023/syslog-ng-server.conf ${{ inputs.artifacts_output_dir }}/syslog-ng-server.conf
+        ls -l ${{ inputs.artifacts_output_dir }}
+
+    - name: Check disk usage
+      shell: bash
+      run: |
+        df -h
+
+    - name: Log in to the Docker container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ inputs.github_token }}
+
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-eks-${{ inputs.identity_scope }}
+        tags: |
+          type=raw,value=${{ steps.versionNumber.outputs.VERSION_NUMBER }}.${{ github.run_number }}
+
+    - name: Build and export to Docker
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ inputs.artifacts_output_dir }}
+        load: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          JAR_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+          IMAGE_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+          BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
+
+    - name: Push to Docker
+      id: push-to-docker
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ inputs.artifacts_output_dir }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          JAR_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+          IMAGE_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+
+    - name: Check disk usage
+      shell: bash
+      run: |
+        df -h

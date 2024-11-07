@@ -11,17 +11,16 @@ import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import com.uid2.shared.store.scope.GlobalScope;
+import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import org.junit.Assert;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Instant;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TokenEncodingTest {
 
@@ -80,6 +79,10 @@ public class TokenEncodingTest {
         Buffer b = Buffer.buffer(encodedBytes);
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 25 : 2);
         assertEquals(Data.RefreshKeySiteId, keyManager.getSiteIdFromKeyId(keyId));
+
+        assertNotNull(Metrics.globalRegistry
+                .get("uid2_refresh_token_served_count")
+                .counter());
     }
 
     @ParameterizedTest

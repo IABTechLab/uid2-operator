@@ -2,6 +2,29 @@
 #
 # This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
+function wait_for_sidecar() {
+  url="http://169.254.169.254/ping"
+  delay=1
+  max_retries=15
+
+  while true; do
+    if wget -q --spider --tries=1 --timeout 5 "$url" > /dev/null; then
+      echo "side car started"
+      break
+    else
+      echo "side car not started. Retrying in $delay seconds..."
+      sleep $delay
+      if [ $delay -gt $max_retries ]; then
+        echo "side car failed to start"
+        break
+      fi
+      delay=$((delay + 1))
+    fi
+  done
+}
+
+TMP_FINAL_CONFIG="/tmp/final-config.tmp"
+
 if [ -z "${VAULT_NAME}" ]; then
   echo "VAULT_NAME cannot be empty"
   exit 1
@@ -48,12 +71,17 @@ if [ -n "${CORE_BASE_URL}" -a -n "${OPTOUT_BASE_URL}" -a "${DEPLOYMENT_ENVIRONME
     sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 fi
 
+cat $FINAL_CONFIG
+
+# delay the start of the operator until the side car has started correctly
+wait_for_sidecar
+
 # -- start operator
 echo "-- starting java application"
 java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
     -Djava.security.egd=file:/dev/./urandom \
     -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
-    -Dlogback.configurationFile=${LOGBACK_CONF} \
+    -Dlogback.configurationFile=/app/conf/logback.xml \
     -Dvertx-config-path=${FINAL_CONFIG} \
     -jar ${JAR_NAME}-${JAR_VERSION}.jar

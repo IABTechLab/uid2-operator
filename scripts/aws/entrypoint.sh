@@ -1,68 +1,112 @@
-#!/bin/bash -euf
+#!/bin/bash -eufx
+
+# This is the entrypoint for the Enclave. It is executed in all enclaves - EC2 and EKS
+
+LOG_FILE="/home/start.txt"
+
+set -x
+exec &> >(tee -a "$LOG_FILE")
 
 set -o pipefail
-
 ulimit -n 65536
 
-# setup loopback device
+# -- setup loopback device
+echo "Setting up loopback device..."
 ifconfig lo 127.0.0.1
 
 # -- start vsock proxy
+echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
 
-# -- load config via proxy
-if [ "$IDENTITY_SCOPE" = 'UID2' ]; then
-  UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo ${BASH_REMATCH[1]} || echo "uid2-operator-config-key")
-elif [ "$IDENTITY_SCOPE" = 'EUID' ]; then
-  UID2_CONFIG_SECRET_KEY=$([[ "$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data | grep EUID_CONFIG_SECRET_KEY=)" =~ ^export\ EUID_CONFIG_SECRET_KEY=\"(.*)\" ]] && echo ${BASH_REMATCH[1]} || echo "euid-operator-config-key")
+# -- load config from identity service
+echo "Loading config from identity service via proxy..."
+
+#wait for config service, then download config
+OVERRIDES_CONFIG="/app/conf/config-overrides.json"
+
+RETRY_COUNT=0
+MAX_RETRY=20
+until curl -s -f -o "${OVERRIDES_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
+do
+  echo "Waiting for config service to be available"
+  RETRY_COUNT=$(( RETRY_COUNT + 1))
+  if [ $RETRY_COUNT -gt $MAX_RETRY ]; then
+      echo "Config Server did not return a response. Exiting"
+      exit 1
+  fi
+  sleep 2
+done
+
+DEBUG_MODE=$(jq -r ".debug_mode" < "${OVERRIDES_CONFIG}")
+
+if [[ "$DEBUG_MODE" == "true" ]]; then
+  LOGBACK_CONF="./conf/logback-debug.xml"
 else
-  echo "Unrecognized IDENTITY_SCOPE $IDENTITY_SCOPE"
+  LOGBACK_CONF="./conf/logback.xml"
+  # -- setup syslog-ng
+  echo "Starting syslog-ng..."
+  /usr/sbin/syslog-ng --verbose
+fi
+
+# check the config is valid. Querying for a known missing element (empty) makes jq parse the file, but does not echo the results
+if jq empty "${OVERRIDES_CONFIG}"; then
+    echo "Identity service returned valid config"
+else
+    echo "Failed to get a valid config from identity service"
+    exit 1
+fi
+
+export DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${OVERRIDES_CONFIG}")
+export CORE_BASE_URL=$(jq -r ".core_base_url" < "${OVERRIDES_CONFIG}")
+export OPTOUT_BASE_URL=$(jq -r ".optout_base_url" < "${OVERRIDES_CONFIG}")
+echo "DEPLOYMENT_ENVIRONMENT=${DEPLOYMENT_ENVIRONMENT}"
+if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then
+  echo "DEPLOYMENT_ENVIRONMENT cannot be empty"
   exit 1
 fi
-export AWS_REGION_NAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/dynamic/instance-identity/document/ | jq -r '.region')
-IAM_ROLE=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/iam/security-credentials/)
-echo "IAM_ROLE=$IAM_ROLE"
-CREDS_ENDPOINT="http://169.254.169.254/latest/meta-data/iam/security-credentials/$IAM_ROLE"
-export AWS_ACCESS_KEY_ID=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.AccessKeyId')
-export AWS_SECRET_KEY=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(curl -s -x socks5h://127.0.0.1:3305 $CREDS_ENDPOINT | jq -r '.Token')
-echo "UID2_CONFIG_SECRET_KEY=$UID2_CONFIG_SECRET_KEY"
-echo "AWS_REGION_NAME=$AWS_REGION_NAME"
-echo "127.0.0.1 secretsmanager.$AWS_REGION_NAME.amazonaws.com" >> /etc/hosts
-
-python3 /app/load_config.py >/app/conf/config-overrides.json
-
-if [ "$IDENTITY_SCOPE" = 'UID2' ]; then
-  python3 /app/make_config.py /app/conf/prod-uid2-config.json /app/conf/integ-uid2-config.json /app/conf/config-overrides.json $(nproc) >/app/conf/config-final.json
-elif [ "$IDENTITY_SCOPE" = 'EUID' ]; then
-  python3 /app/make_config.py /app/conf/prod-euid-config.json /app/conf/integ-euid-config.json /app/conf/config-overrides.json $(nproc) >/app/conf/config-final.json
-else
-  echo "Unrecognized IDENTITY_SCOPE $IDENTITY_SCOPE"
+if [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "integ" ]; then
+  echo "Unrecognized DEPLOYMENT_ENVIRONMENT ${DEPLOYMENT_ENVIRONMENT}"
   exit 1
 fi
 
-get_config_value() {
-  jq -r ".\"$1\"" /app/conf/config-final.json
-}
+echo "Loading config final..."
+export FINAL_CONFIG="/app/conf/config-final.json"
+if [ "${IDENTITY_SCOPE}" = "UID2" ]; then
+  python3 /app/make_config.py /app/conf/prod-uid2-config.json /app/conf/integ-uid2-config.json ${OVERRIDES_CONFIG} "$(nproc)" > ${FINAL_CONFIG}
+elif [ "${IDENTITY_SCOPE}" = "EUID" ]; then
+  python3 /app/make_config.py /app/conf/prod-euid-config.json /app/conf/integ-euid-config.json ${OVERRIDES_CONFIG} "$(nproc)" > ${FINAL_CONFIG}
+else
+  echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"
+  exit 1
+fi
 
-echo "-- setup loki"
-[[ "$(get_config_value 'loki_enabled')" == "true" ]] \
-  && SETUP_LOKI_LINE="-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory -Dlogback.configurationFile=./conf/logback.loki.xml" \
-  || SETUP_LOKI_LINE=""
+# -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
+# -- using hardcoded domains is fine because they should not be changed frequently
+if [ -n "${CORE_BASE_URL}" ] && [ "${CORE_BASE_URL}" != "null" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${OPTOUT_BASE_URL}" != "null" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
+    echo "Replacing core and optout URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}..."
 
-HOSTNAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/local-hostname)
-echo "HOSTNAME=$HOSTNAME"
+    sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
+    sed -i "s#https://core-prod.uidapi.com#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
+    sed -i "s#https://core.integ.euid.eu#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
+    sed -i "s#https://core.prod.euid.eu#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
+
+    sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
+    sed -i "s#https://optout-prod.uidapi.com#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
+    sed -i "s#https://optout.integ.euid.eu#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
+    sed -i "s#https://optout.prod.euid.eu#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
+fi
 
 # -- set pwd to /app so we can find default configs
 cd /app
 
-echo "-- starting java application"
 # -- start operator
+echo "Starting Java application..."
 java \
   -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
   -Djava.security.egd=file:/dev/./urandom \
   -Djava.library.path=/app/lib \
-  -Dvertx-config-path=/app/conf/config-final.json \
-  $SETUP_LOKI_LINE \
+  -Dvertx-config-path="${FINAL_CONFIG}" \
+  -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
+  -Dlogback.configurationFile=${LOGBACK_CONF} \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
-  -jar /app/$JAR_NAME-$JAR_VERSION.jar
+  -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar

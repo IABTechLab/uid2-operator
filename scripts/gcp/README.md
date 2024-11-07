@@ -130,7 +130,6 @@ write_files:
       "refresh_token_expires_after_seconds": 2592000,
       "refresh_identity_token_after_seconds": 3600,
       "enclave_platform": "gcp-vmid",
-      "enforce_https": true,
       "service_instances": 16,
       "allow_legacy_api": false
     }

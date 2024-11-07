@@ -81,7 +81,8 @@ public class BenchmarkCommon {
                 saltProvider,
                 tokenEncoder,
                 Clock.systemUTC(),
-                IdentityScope.UID2
+                IdentityScope.UID2,
+                null
         );
     }
 
@@ -180,7 +181,7 @@ public class BenchmarkCommon {
         private CloudSyncOptOutStore.OptOutStoreSnapshot snapshot;
 
         public StaticOptOutStore(ICloudStorage storage, JsonObject jsonConfig, Collection<String> partitions) throws CloudStorageException, IOException {
-            snapshot = new CloudSyncOptOutStore.OptOutStoreSnapshot(storage, jsonConfig);
+            snapshot = new CloudSyncOptOutStore.OptOutStoreSnapshot(storage, jsonConfig, Clock.systemUTC());
             snapshot = snapshot.updateIndex(partitions);
             System.out.println(snapshot.size());
         }
@@ -195,6 +196,11 @@ public class BenchmarkCommon {
         @Override
         public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
             // noop
+        }
+
+        @Override
+        public long getOptOutTimestampByAdId(String adId) {
+            return -1;
         }
     }
 

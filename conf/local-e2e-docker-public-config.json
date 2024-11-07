@@ -1,7 +1,6 @@
 {
   "service_instances": 1,
   "storage_mock": false,
-  "enforce_https": false,
   "core_attest_url": "http://core:8088/attest",
   "core_api_token": "UID2-O-L-999-dp9Dt0.JVoGpynN4J8nMA7FxmzsavxJa8B9H74y9xdEE=",
   "sites_metadata_path": "http://core:8088/sites/refresh",
@@ -23,13 +22,18 @@
   "identity_scope": "uid2",
   "enable_v2_encryption": true,
   "client_side_token_generate": true,
-  "client_side_token_generate_domain_name_check_enabled": false,
-  "key_sharing_endpoint_provide_site_domain_names": true,
+  "client_side_token_generate_domain_name_check_enabled": true,
+  "client_side_token_generate_log_invalid_http_origins": true,
+  "key_sharing_endpoint_provide_app_names": true,
   "validate_service_links": true,
   "optout_s3_bucket": "test-optout-bucket",
   "optout_s3_folder": "optout-v2/",
-  "optout_metadata_path": "http://optout:8081/optout/refresh",
+  "optout_metadata_path": "/optout/refresh",
   "optout_api_uri": "http://optout:8081/optout/replicate",
   "optout_delta_rotate_interval": 60,
-  "cloud_refresh_interval": 30
+  "optout_status_api_enabled": true,
+  "cloud_refresh_interval": 30,
+  "salts_expired_shutdown_hours": 12,
+  "operator_type": "public"
+
 }

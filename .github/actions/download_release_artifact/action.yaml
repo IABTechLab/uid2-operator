@@ -68,16 +68,16 @@ runs:
       run: |
         echo 'Asset URL: ${{ steps.get_asset_id.outputs.result }}'
 
-        mkdir -p ./${{ inputs.folder }}
+        mkdir -p ${{ inputs.folder }}
         DOWNLOAD_PATH=${{ steps.get_asset_id.outputs.result }}
         echo $DOWNLOAD_PATH
         curl -L -H "Accept: application/octet-stream" \
           -H "Authorization: Bearer ${{ inputs.github_token }}" \
-          -o "./${{ inputs.folder }}/${{ inputs.artifact_name }}.zip" \
+          -o "${{ inputs.folder }}/${{ inputs.artifact_name }}.zip" \
           $DOWNLOAD_PATH 
   
     - name: Unzip artifacts
       shell: bash
       run: |
-          unzip -o -d './${{ inputs.folder }}' './${{ inputs.folder }}/${{ inputs.artifact_name }}.zip'
-          rm './${{ inputs.folder }}/${{ inputs.artifact_name }}.zip'
+          unzip -o -d '${{ inputs.folder }}' '${{ inputs.folder }}/${{ inputs.artifact_name }}.zip'
+          rm '${{ inputs.folder }}/${{ inputs.artifact_name }}.zip'

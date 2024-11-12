@@ -1,11 +1,12 @@
-# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.3_9-jre-alpine/images/sha256-3c40389d278c7129d9032c5f3ce68fb150c2869b5e107ea801b150a2ae653253?context=explore
-FROM eclipse-temurin@sha256:3c40389d278c7129d9032c5f3ce68fb150c2869b5e107ea801b150a2ae653253
+# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.4_7-jre-alpine/images/sha256-8179ddc8a6c5ac9af935020628763b9a5a671e0914976715d2b61b21881cefca
+FROM eclipse-temurin@sha256:8179ddc8a6c5ac9af935020628763b9a5a671e0914976715d2b61b21881cefca
 
 # Install Packages
 RUN apk update && apk add jq
 
 WORKDIR /app
 EXPOSE 8080
+EXPOSE 9080
 
 ARG JAR_NAME=uid2-operator
 ARG JAR_VERSION=1.0.0-SNAPSHOT

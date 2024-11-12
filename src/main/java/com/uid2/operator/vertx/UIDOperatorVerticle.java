@@ -45,7 +45,6 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.AllowForwardHeaders;
-import io.vertx.ext.web.Route;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -100,6 +99,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
     private final Map<Tuple.Tuple3<String, OptoutCheckPolicy, String>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
+    private final Map<String, Counter> _tokenGenerateTCFUsage = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
 
@@ -129,6 +129,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
     private final static List<String> SUPPORTED_IN_APP = Arrays.asList("Android", "ios", "tvos");
+
+    private static final String ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified";
+    private static final String ERROR_INVALID_INPUT_EMAIL_MISSING = "Required Parameter Missing: exactly one of email or email_hash must be specified";
+    private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
     public final static String ORIGIN_HEADER = "Origin";
 
     public UIDOperatorVerticle(JsonObject config,
@@ -218,7 +222,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         router.allowForward(AllowForwardHeaders.X_FORWARD);
         router.route().handler(new RequestCapturingHandler());
-        router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js"));
+        router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js", clientKeyProvider));
         router.route().handler(CorsHandler.create()
                 .addRelativeOrigin(".*.")
                 .allowedMethod(io.vertx.core.http.HttpMethod.GET)
@@ -427,8 +431,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final String emailHash = requestPayload.getString("email_hash");
         final String phoneHash = requestPayload.getString("phone_hash");
-        final int optoutCheck = requestPayload.getInteger("optout_check", 0);
-        final boolean cstgRequestHasOptoutCheckFlag = optoutCheck == OptoutCheckPolicy.RespectOptOut.ordinal();
         final InputUtil.InputVal input;
 
 
@@ -453,17 +455,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             input = InputUtil.normalizePhoneHash(phoneHash);
         }
 
-        if (!checkForInvalidTokenInput(input, rc)) {
+        if (!isTokenInputValid(input, rc)) {
             return;
         }
 
         PrivacyBits privacyBits = new PrivacyBits();
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();
-
-        if(cstgRequestHasOptoutCheckFlag) {
-            privacyBits.setClientSideTokenGenerateOptoutResponse();
-        }
 
         IdentityTokens identityTokens;
         try {
@@ -480,16 +478,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
         if (identityTokens.isEmptyToken()) {
-            if (UIDOperatorService.shouldCstgOptedOutUserReturnOptOutResponse(identityScope, cstgRequestHasOptoutCheckFlag)) {
-                response = ResponseUtil.SuccessNoBodyV2("optout");
-                responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
-            }
-            else {
-                privacyBits.setClientSideTokenGenerateOptout();
-                //user opted out we will generate an optout token with the opted out user identity
-                identityTokens = generateOptedOutIdentityTokens(privacyBits, input, clientSideKeypair);
-                response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
-            }
+            response = ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut);
+            responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
         }
         else { //user not opted out and already generated valid identity token
             response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
@@ -564,19 +554,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             this.responseStatus = responseStatus;
             this.originOrAppName = originOrAppName;
         }
-    }
-
-    private IdentityTokens generateOptedOutIdentityTokens(PrivacyBits privacyBits, InputUtil.InputVal input, ClientSideKeypair clientSideKeypair) {
-        UserIdentity cstgOptOutIdentity;
-        if (input.getIdentityType() == IdentityType.Email) {
-            cstgOptOutIdentity = InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
-        } else {
-            cstgOptOutIdentity = InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone).toUserIdentity(identityScope, privacyBits.getAsInt(), Instant.now());
-        }
-        return this.idService.generateIdentity(
-                new IdentityRequest(
-                        new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
-                        cstgOptOutIdentity, OptoutCheckPolicy.DoNotRespect));
     }
 
     private byte[] decrypt(byte[] encryptedBytes, int offset, byte[] secretBytes, byte[] aad) throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
@@ -897,7 +874,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenValidateV1(RoutingContext rc) {
         try {
             final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
-            if (!checkForInvalidTokenInput(input, rc)) {
+            if (!isTokenInputValid(input, rc)) {
                 return;
             }
             if ((Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Email)
@@ -928,7 +905,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonObject req = (JsonObject) rc.data().get("request");
 
             final InputUtil.InputVal input = getTokenInputV2(req);
-            if (!checkForInvalidTokenInput(input, rc)) {
+            if (!isTokenInputValid(input, rc)) {
                 return;
             }
             if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()))
@@ -960,16 +937,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
             platformType = getPlatformType(rc);
-            if (!checkForInvalidTokenInput(input, rc)) {
-                return;
-            } else {
+            if (isTokenInputValid(input, rc)) {
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
                                 OptoutCheckPolicy.defaultPolicy()));
-
-                //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
                 ResponseUtil.Success(rc, toJsonV1(t));
                 recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
@@ -987,12 +960,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             platformType = getPlatformType(rc);
 
             final InputUtil.InputVal input = this.getTokenInputV2(req);
-            if (!checkForInvalidTokenInput(input, rc)) {
-                return;
-            } else {
+            if (isTokenInputValid(input, rc)) {
                 final String apiContact = getApiContact(rc);
 
-                switch (validateUserConsent(req)) {
+                switch (validateUserConsent(req, apiContact)) {
                     case INVALID: {
                         SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "User consent is invalid", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidUserConsentString, siteProvider, platformType);
                         return;
@@ -1006,8 +977,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         break;
                     }
                     default: {
-                        assert false : "Please update UIDOperatorVerticle.handleTokenGenerateV2 when changing UserConsentStatus";
-                        break;
+                        final String errorMsg = "Please update UIDOperatorVerticle.handleTokenGenerateV2 when changing UserConsentStatus";
+                        LOGGER.error(errorMsg);
+                        throw new IllegalStateException(errorMsg);
                     }
                 }
 
@@ -1065,7 +1037,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = this.getTokenInput(rc);
         Integer siteId = null;
         if (input == null) {
-            SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Required Parameter Missing: exactly one of email or email_hash must be specified", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
+            SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, ERROR_INVALID_INPUT_EMAIL_MISSING, siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
             return;
         }
         else if (!input.isValid()) {
@@ -1080,8 +1052,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                             new PublisherIdentity(siteId, 0, 0),
                             input.toUserIdentity(this.identityScope, 1, Instant.now()),
                             OptoutCheckPolicy.defaultPolicy()));
-
-            //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
 
             recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), TokenResponseStatsCollector.PlatformType.Other);
             sendJsonResponse(rc, toJson(t));
@@ -1262,7 +1232,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV1(RoutingContext rc) {
         final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-        if (!checkForInvalidTokenInput(input, rc)) {
+        if (!isTokenInputValid(input, rc)) {
             return;
         }
         try {
@@ -1282,13 +1252,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = this.getTokenInput(rc);
 
         try {
-            if (input == null) {
-                ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
-            }
-            else if (!input.isValid()) {
-                ResponseUtil.ClientError(rc, "Invalid email or email_hash");
-            }
-            else {
+            if (isTokenInputValid(input, rc)) {
                 final Instant now = Instant.now();
                 final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
                 rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
@@ -1391,9 +1355,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return null;
     }
 
-    private boolean checkForInvalidTokenInput(InputUtil.InputVal input, RoutingContext rc) {
+    private boolean isTokenInputValid(InputUtil.InputVal input, RoutingContext rc) {
         if (input == null) {
-            String message = this.phoneSupport ? "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified" : "Required Parameter Missing: exactly one of email or email_hash must be specified";
+            String message = this.phoneSupport ? ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_INPUT_EMAIL_MISSING;
             ResponseUtil.ClientError(rc, message);
             return false;
         } else if (!input.isValid()) {
@@ -1409,11 +1373,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonArray emailHashes = obj.getJsonArray("email_hash");
         // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
         if (emails == null && emailHashes == null) {
-            ResponseUtil.ClientError(rc, "Exactly one of email or email_hash must be specified");
+            ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
             return null;
         } else if (emails != null && !emails.isEmpty()) {
             if (emailHashes != null && !emailHashes.isEmpty()) {
-                ResponseUtil.ClientError(rc, "Only one of email or email_hash can be specified");
+                ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_TWICE);
                 return null;
             }
             return createInputList(emails, false);
@@ -1425,10 +1389,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private InputUtil.InputVal[] getIdentityBulkInputV1(RoutingContext rc) {
         final JsonObject obj = rc.body().asJsonObject();
-        final JsonArray emails = obj.getJsonArray("email");
-        final JsonArray emailHashes = obj.getJsonArray("email_hash");
-        final JsonArray phones = obj.getJsonArray("phone");
-        final JsonArray phoneHashes = obj.getJsonArray("phone_hash");
+        if(obj.isEmpty()) {
+            ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
+            return null;
+        }
+        final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
+        final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
+        final JsonArray phones = JsonParseUtils.parseArray(obj,"phone", rc);
+        final JsonArray phoneHashes = JsonParseUtils.parseArray(obj,"phone_hash", rc);
+
+        if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
+            return null;
+        }
 
         int validInputs = 0;
         int nonEmptyInputs = 0;
@@ -1450,7 +1422,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         if (validInputs == 0 || nonEmptyInputs > 1) {
-            ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
+            ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
             return null;
         }
 
@@ -1531,9 +1503,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
             if (inputList == null) {
                 if (this.phoneSupport)
-                    ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
+                    ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
                 else
-                    ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
+                    ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
                 return;
             }
 
@@ -1554,13 +1526,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonObject obj = (JsonObject) rc.data().get("request");
 
         Supplier<InputUtil.InputVal[]> getInputList = null;
-
-        final JsonArray emails = obj.getJsonArray("email");
+        final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
         if (emails != null && !emails.isEmpty()) {
             getInputList = () -> createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
         }
 
-        final JsonArray emailHashes = obj.getJsonArray("email_hash");
+        final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
         if (emailHashes != null && !emailHashes.isEmpty()) {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
@@ -1568,7 +1539,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             getInputList = () -> createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
         }
 
-        final JsonArray phones = this.phoneSupport ? obj.getJsonArray("phone") : null;
+        final JsonArray phones = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone", rc) : null;
         if (phones != null && !phones.isEmpty()) {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
@@ -1576,7 +1547,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             getInputList = () -> createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
         }
 
-        final JsonArray phoneHashes = this.phoneSupport ? obj.getJsonArray("phone_hash") : null;
+        final JsonArray phoneHashes = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone_hash", rc) : null;
         if (phoneHashes != null && !phoneHashes.isEmpty()) {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
@@ -1600,11 +1571,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonArray emails = obj.getJsonArray("email");
             final JsonArray emailHashes = obj.getJsonArray("email_hash");
             if (emails == null && emailHashes == null) {
-                ResponseUtil.ClientError(rc, "Exactly one of email or email_hash must be specified");
+                ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
                 return;
             } else if (emails != null && !emails.isEmpty()) {
                 if (emailHashes != null && !emailHashes.isEmpty()) {
-                    ResponseUtil.ClientError(rc, "Only one of email or email_hash can be specified");
+                    ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_TWICE);
                     return;
                 }
                 inputList = createInputList(emails, false);
@@ -1801,6 +1772,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
             refreshToken = this.encoder.decodeRefreshToken(tokenStr);
         } catch (ClientInputValidationException cie) {
+            LOGGER.warn("Failed to decode refresh token for site ID: " + rc.data().get(Const.RoutingContextData.SiteId), cie);
             return RefreshResponse.Invalid;
         }
         if (refreshToken == null) {
@@ -1920,9 +1892,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return resp;
     }
 
-    private UserConsentStatus validateUserConsent(JsonObject req) {
-        // TCF string is an optional parameter and we should only check tcf if in EUID and the string is present
+    private UserConsentStatus validateUserConsent(JsonObject req, String apiContact) {
+        // TCF string is an optional parameter, and we should only check tcf if in EUID and the string is present
         if (identityScope.equals(IdentityScope.EUID) && req.containsKey("tcf_consent_string")) {
+            recordTokenGenerateTCFUsage(apiContact);
             TransparentConsentParseResult tcResult = this.getUserConsentV2(req);
             if (!tcResult.isSuccess()) {
                 return UserConsentStatus.INVALID;
@@ -1989,6 +1962,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .register(Metrics.globalRegistry)).increment();
     }
 
+    private void recordTokenGenerateTCFUsage(String apiContact) {
+        _tokenGenerateTCFUsage.computeIfAbsent(apiContact, contact -> Counter
+                .builder("uid2.token_generate_tcf_usage")
+                .description("Counter for token generate tcf usage")
+                .tags("api_contact", contact)
+                .register(Metrics.globalRegistry)).increment();
+    }
 
     private TransparentConsentParseResult getUserConsentV2(JsonObject req) {
         final String rawTcString = req.getString("tcf_consent_string");
@@ -2083,7 +2063,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         if (Duration.between(lastInvalidOriginProcessTime, Instant.now()).compareTo(Duration.ofMinutes(60)) >= 0) {
             lastInvalidOriginProcessTime = Instant.now();
-            LOGGER.error(generateInvalidOriginAndAppNameMessage(siteIdToInvalidOriginsAndAppNames));
+            LOGGER.info(generateInvalidOriginAndAppNameMessage(siteIdToInvalidOriginsAndAppNames));
             siteIdToInvalidOriginsAndAppNames.clear();
         }
     }

@@ -55,6 +55,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.LoggerFactory;
+import static org.assertj.core.api.Assertions.*;
 
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
@@ -2074,6 +2075,90 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"v1", "v2"})
+    void identityMapSingleEmailProvided(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emailHashes = new JsonArray();
+        req.put("email", "test@example.com");
+
+        send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 400, json -> {
+            assertFalse(json.containsKey("body"));
+            assertEquals("client_error", json.getString("status"));
+            assertEquals("email must be an array", json.getString("message"));
+
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void identityMapSingleEmailHashProvided(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emailHashes = new JsonArray();
+        req.put("email_hash", "test@example.com");
+
+        send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 400, json -> {
+            assertFalse(json.containsKey("body"));
+            assertEquals("client_error", json.getString("status"));
+            assertEquals("email_hash must be an array", json.getString("message"));
+
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void identityMapSinglePhoneProvided(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emailHashes = new JsonArray();
+        req.put("phone", "555-555-5555");
+
+        send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 400, json -> {
+            assertFalse(json.containsKey("body"));
+            assertEquals("client_error", json.getString("status"));
+            assertEquals("phone must be an array", json.getString("message"));
+
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
+    void identityMapSinglePhoneHashProvided(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emailHashes = new JsonArray();
+        req.put("phone_hash", "555-555-5555");
+
+        send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 400, json -> {
+            assertFalse(json.containsKey("body"));
+            assertEquals("client_error", json.getString("status"));
+            assertEquals("phone_hash must be an array", json.getString("message"));
+
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"v1", "v2"})
     void identityMapBatchEmails(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -3139,14 +3224,12 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "true,https://blahblah.com",
-            "false,https://blahblah.com",
-            "true,http://local1host:8080", //intentionally spelling localhost wrong here!
-            "false,http://local1host:8080",
+            "https://blahblah.com",
+            "http://local1host:8080", //intentionally spelling localhost wrong here!
     })
-    void cstgDomainNameCheckFails(boolean setOptoutCheckFlagInRequest, String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
@@ -3175,7 +3258,7 @@ public class UIDOperatorVerticleTest {
     })
     void cstgAppNameCheckFails(String appName, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend(Collections.emptyList(), List.of("com.123.Game.App.android"));
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), false, appName);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), appName);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 null,
@@ -3201,17 +3284,16 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "true,http://gototest.com",
-            "false,http://gototest.com",
+            "http://gototest.com",
     })
-    void cstgDomainNameCheckFailsAndLogInvalidHttpOrigin(boolean setOptoutCheckFlagInRequest, String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgDomainNameCheckFailsAndLogInvalidHttpOrigin(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
         this.uidOperatorVerticle.setLastInvalidOriginProcessTime(Instant.now().minusSeconds(3600));
 
         setupCstgBackend();
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
@@ -3223,7 +3305,7 @@ public class UIDOperatorVerticleTest {
                     assertFalse(respJson.containsKey("body"));
                     assertEquals("unexpected http origin", respJson.getString("message"));
                     assertEquals("invalid_http_origin", respJson.getString("status"));
-                    Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("InvalidHttpOriginAndAppName: site test (123): http://gototest.com"));
+                    assertThat(logWatcher.list.stream().map(ILoggingEvent::getFormattedMessage).collect(Collectors.toList())).contains("InvalidHttpOriginAndAppName: site test (123): http://gototest.com");
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
@@ -3242,7 +3324,7 @@ public class UIDOperatorVerticleTest {
         this.uidOperatorVerticle.setLastInvalidOriginProcessTime(Instant.now().minusSeconds(3600));
 
         setupCstgBackend();
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), false, appName);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), appName);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 null,
@@ -3288,7 +3370,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", subscriptionID);
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), false, null);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), null);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 null,
@@ -3309,10 +3391,9 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "true,http://gototest.com",
-            "false,http://gototest.com",
+            "http://gototest.com",
     })
-    void cstgDomainNameCheckFailsAndLogSeveralInvalidHttpOrigin(boolean setOptoutCheckFlagInRequest, String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgDomainNameCheckFailsAndLogSeveralInvalidHttpOrigin(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
@@ -3327,7 +3408,7 @@ public class UIDOperatorVerticleTest {
         setupCstgBackend();
         when(siteProvider.getSite(124)).thenReturn(new Site(124, "test2", true, new HashSet<>()));
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
@@ -3351,16 +3432,13 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "true,https://cstg.co.uk",
-            "false,https://cstg.co.uk",
-            "true,https://cstg2.com",
-            "false,https://cstg2.com",
-            "true,http://localhost:8080",
-            "false,http://localhost:8080",
+            "https://cstg.co.uk",
+            "https://cstg2.com",
+            "http://localhost:8080",
     })
-    void cstgDomainNameCheckPasses(boolean setOptoutCheckFlagInRequest, String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk", "cstg2.com", "localhost");
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
@@ -3387,7 +3465,7 @@ public class UIDOperatorVerticleTest {
     })
     void cstgAppNameCheckPasses(String appName, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend(Collections.emptyList(), List.of("com.123.Game.App.android", "123456789"));
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), false, appName);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), appName);
         sendCstg(vertx,
                 "v2/token/client-generate",
                 null,
@@ -3868,11 +3946,11 @@ public class UIDOperatorVerticleTest {
         return new Tuple.Tuple2<>(requestJson, secretKey);
     }
 
-    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId, long timestamp, boolean setOptoutCheckFlagInRequest) throws NoSuchAlgorithmException, InvalidKeyException {
-        return createClientSideTokenGenerateRequest(identityType, rawId, timestamp, setOptoutCheckFlagInRequest, null);
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId, long timestamp) throws NoSuchAlgorithmException, InvalidKeyException {
+        return createClientSideTokenGenerateRequest(identityType, rawId, timestamp, null);
     }
 
-    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId, long timestamp, boolean setOptoutCheckFlagInRequest, String appName) throws NoSuchAlgorithmException, InvalidKeyException {
+    private Tuple.Tuple2<JsonObject, SecretKey> createClientSideTokenGenerateRequest(IdentityType identityType, String rawId, long timestamp, String appName) throws NoSuchAlgorithmException, InvalidKeyException {
 
         JsonObject identity = new JsonObject();
 
@@ -3885,11 +3963,7 @@ public class UIDOperatorVerticleTest {
         else { //can't be other types
             assertFalse(true);
         }
-
-        if(setOptoutCheckFlagInRequest) {
-            identity.put("optout_check", 1);
-        }
-
+        
         return createClientSideTokenGenerateRequestWithPayload(identity, timestamp, appName);
     }
 
@@ -3901,15 +3975,13 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "true,test@example.com,Email",
-            "true,+61400000000,Phone",
-            "false,test@example.com,Email",
-            "false,+61400000000,Phone",
+            "test@example.com,Email",
+            "+61400000000,Phone"
     })
-    void cstgUserOptsOutAfterTokenGenerate(boolean setOptoutCheckFlagInRequest, String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgUserOptsOutAfterTokenGenerate(String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
 
-        final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
+        final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
 
         // When we generate the token the user hasn't opted out.
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
@@ -3935,60 +4007,35 @@ public class UIDOperatorVerticleTest {
                     final AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
                     final RefreshToken refreshToken = decodeRefreshToken(encoder, decodeV2RefreshToken(response), identityType);
 
-                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id, setOptoutCheckFlagInRequest);
+                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
 
                     // When we refresh the token the user has opted out.
                     when(optOutStore.getLatestEntry(any(UserIdentity.class)))
                         .thenReturn(advertisingToken.userIdentity.establishedAt.plusSeconds(1));
 
                     sendTokenRefresh("v2", vertx, testContext, genBody.getString("refresh_token"), genBody.getString("refresh_response_key"), 200, refreshRespJson -> {
-
-                        if (setOptoutCheckFlagInRequest || getIdentityScope() == IdentityScope.EUID) {
-                            assertEquals("optout", refreshRespJson.getString("status"));
-                            testContext.completeNow();
-                            return;
-                        }
-
-                        // EUID can't have an opt out token ever
-                        assertEquals(getIdentityScope(), IdentityScope.UID2);
-
-                        verify(optOutStore, times(2)).getLatestEntry(argumentCaptor.capture());
-                        assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt), argumentCaptor.getValue().id);
-
-                        assertEquals("success", refreshRespJson.getString("status"));
-                        final JsonObject refreshBody = refreshRespJson.getJsonObject("body");
-
-                        final AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
-                        final RefreshToken refreshTokenFromRefresh = decodeRefreshToken(encoder, decodeV2RefreshToken(refreshRespJson), identityType);
-
-                        assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenFromRefresh, clientSideTokenGenerateSiteId, identityType, setOptoutCheckFlagInRequest);
-
-                        verifyNoMoreInteractions(optOutStore);
-
+                        assertEquals("optout", refreshRespJson.getString("status"));
                         testContext.completeNow();
                     });
                 });
     }
 
-    // tests for opted out user should lead to generating ad tokens with the default optout identity or optout success response depends on setOptoutCheckFlagInRequest flag
-    // tests for opted in user should lead to generating ad tokens that never match the default optout identity
+    // tests for opted out user should lead to generating ad tokens with optout success response
+    // tests for non-opted out user should generate the UID2 identity and the generated refresh token can be
+    // refreshed again
     // tests for all email/phone combos
     @ParameterizedTest
     @CsvSource({
-            "true,true,abc@abc.com,Email,optout@unifiedid.com",
-            "true,true,+61400000000,Phone,+00000000001",
-            "true,false,abc@abc.com,Email,optout@unifiedid.com",
-            "true,false,+61400000000,Phone,+00000000001",
-            "false,true,abc@abc.com,Email,optout@unifiedid.com",
-            "false,true,+61400000000,Phone,+00000000001",
-            "false,false,abc@abc.com,Email,optout@unifiedid.com",
-            "false,false,+61400000000,Phone,+00000000001"
+            "true,abc@abc.com,Email",
+            "true,+61400000000,Phone",
+            "false,abc@abc.com,Email",
+            "false,+61400000000,Phone",
     })
-    void cstgOptedOutTest(boolean setOptoutCheckFlagInRequest, boolean optOutExpected, String id, IdentityType identityType, String expectedOptedOutIdentity,
+    void cstgSuccessForBothOptedAndNonOptedOutTest(boolean optOutExpected, String id, IdentityType identityType,
                           Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
 
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
 
         if(optOutExpected)
         {
@@ -4009,8 +4056,7 @@ public class UIDOperatorVerticleTest {
                 testContext,
                 respJson -> {
 
-                    if (optOutExpected
-                            && (setOptoutCheckFlagInRequest || getIdentityScope() == IdentityScope.EUID)) {
+                    if (optOutExpected) {
                         assertEquals("optout", respJson.getString("status"));
                         testContext.completeNow();
                         return;
@@ -4026,34 +4072,11 @@ public class UIDOperatorVerticleTest {
 
                     RefreshToken refreshToken = decodeRefreshToken(encoder, genBody.getString("decrypted_refresh_token"), identityType);
 
-                    if (optOutExpected) {
-                        assertAreClientSideGeneratedOptOutTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, setOptoutCheckFlagInRequest);
-                    } else {
-                        assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id, setOptoutCheckFlagInRequest);
-                    }
-
+                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
                     assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_from")), 10);
 
-                    String advertisingTokenString = genBody.getString("advertising_token");
-
-                    InputUtil.InputVal input;
-                    if(identityType == IdentityType.Email) {
-                        input = InputUtil.InputVal.validEmail(expectedOptedOutIdentity, expectedOptedOutIdentity);
-                    }
-                    else if(identityType == IdentityType.Phone) {
-                        input = InputUtil.InputVal.validPhone(expectedOptedOutIdentity, expectedOptedOutIdentity);
-                    }
-                    else { //should never happen
-                        input = null;
-                        assertFalse(true);
-                    }
-
-                    final Instant now = Instant.now();
-                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(advertisingTokenString, input.toUserIdentity(getIdentityScope(), 0, now), now);
-
-                    assertEquals(optOutExpected, matchedOptedOutIdentity);
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
                             TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2,
@@ -4064,18 +4087,6 @@ public class UIDOperatorVerticleTest {
                     //test a subsequent refresh from this cstg call and see if it still works
                     sendTokenRefresh("v2", vertx, testContext, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson ->
                     {
-
-                        if (optOutExpected
-                                && (setOptoutCheckFlagInRequest || getIdentityScope() == IdentityScope.EUID)) {
-                            fail("Getting a successful optout response for an opted out user with optout check is impossible as the original CSTG request should already gave an optout response and no refresh token should be returned to reach here!");
-                            return;
-                        }
-
-                        // EUID can't have an opt out token - the only way is when optout isn't expected
-                        if(getIdentityScope() == IdentityScope.EUID) {
-                            assert(!optOutExpected);
-                        }
-
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                         assertNotNull(refreshBody);
@@ -4088,12 +4099,7 @@ public class UIDOperatorVerticleTest {
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
                         RefreshToken refreshTokenAfterRefresh = decodeRefreshToken(encoder, refreshTokenStringNew, identityType);
 
-                        if (optOutExpected) {
-                            assertAreClientSideGeneratedOptOutTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, setOptoutCheckFlagInRequest);
-                        } else {
-                            assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id, setOptoutCheckFlagInRequest);
-                        }
-
+                        assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id);
                         assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
                         assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
                         assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_from")), 10);
@@ -4111,17 +4117,14 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "true,https://cstg.co.uk",
-            "false,https://cstg.co.uk",
-            "true,https://cstg2.com",
-            "false,https://cstg2.com",
-            "true,http://localhost:8080",
-            "false,http://localhost:8080",
+            "https://cstg.co.uk",
+            "https://cstg2.com",
+            "http://localhost:8080",
     })
-    void cstgSaltsExpired(boolean setOptoutCheckFlagInRequest, String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgSaltsExpired(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
         setupCstgBackend("cstg.co.uk", "cstg2.com", "localhost");
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), setOptoutCheckFlagInRequest);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
@@ -4147,7 +4150,7 @@ public class UIDOperatorVerticleTest {
     void cstgNoActiveKey(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
         setupKeys(true);
-        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli(), true);
+        Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "http://cstg.co.uk",
@@ -4190,31 +4193,16 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity,
-                                                    boolean expectClientSideTokenGenerateOptoutResponse) {
+    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity) {
         assertAreClientSideGeneratedTokens(advertisingToken,
                 refreshToken,
                 siteId,
                 identityType,
                 identity,
-                false,
-                expectClientSideTokenGenerateOptoutResponse);
+                false);
     }
 
-    private void assertAreClientSideGeneratedOptOutTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, boolean expectClientSideTokenGenerateOptoutResponse) {
-        final String identity = getClientSideGeneratedTokenOptOutIdentity(identityType);
-
-        assertAreClientSideGeneratedTokens(advertisingToken,
-                refreshToken,
-                siteId,
-                identityType,
-                identity,
-                true,
-                expectClientSideTokenGenerateOptoutResponse);
-    }
-
-    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity, boolean expectedOptOut,
-                                                    boolean expectClientSideTokenGenerateOptoutResponse) {
+    private void assertAreClientSideGeneratedTokens(AdvertisingToken advertisingToken, RefreshToken refreshToken, int siteId, IdentityType identityType, String identity, boolean expectedOptOut) {
         final PrivacyBits advertisingTokenPrivacyBits = PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits);
         final PrivacyBits refreshTokenPrivacyBits = PrivacyBits.fromInt(refreshToken.userIdentity.privacyBits);
 
@@ -4226,9 +4214,6 @@ public class UIDOperatorVerticleTest {
         final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(identity, firstLevelSalt);
 
         assertAll(
-                () -> assertEquals(advertisingTokenPrivacyBits.isClientSideTokenGenerateOptoutResponseOn(), expectClientSideTokenGenerateOptoutResponse, "Advertising token privacy bits CSTG Optout Response flag is incorrect"),
-                () -> assertEquals(refreshTokenPrivacyBits.isClientSideTokenGenerateOptoutResponseOn(), expectClientSideTokenGenerateOptoutResponse, "Refresh token privacy bits CSTG Optout Response flag is incorrect"),
-
                 () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenGenerated(), "Advertising token privacy bits CSTG flag is incorrect"),
                 () -> assertEquals(expectedOptOut, advertisingTokenPrivacyBits.isClientSideTokenOptedOut(), "Advertising token privacy bits CSTG optout flag is incorrect"),
 
@@ -4241,16 +4226,6 @@ public class UIDOperatorVerticleTest {
                 () -> assertArrayEquals(advertisingId, advertisingToken.userIdentity.id, "Advertising token ID is incorrect"),
                 () -> assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id, "Refresh token ID is incorrect")
         );
-    }
-
-    private static String getClientSideGeneratedTokenOptOutIdentity(IdentityType identityType) {
-        switch (identityType) {
-            case Email:
-                return OptOutTokenIdentityForEmail;
-            case Phone:
-                return OptOutTokenIdentityForPhone;
-        }
-        throw new ClientInputValidationException("Invalid identity type " + identityType);
     }
 
     /********************************************************
@@ -5113,76 +5088,6 @@ public class UIDOperatorVerticleTest {
         send("v2", vertx, "v2" + "/identity/map", false, null, req, 401, json -> {
             assertEquals("unauthorized", json.getString("status"));
             assertEquals("Invalid link_id", json.getString("message"));
-            testContext.completeNow();
-        });
-    }
-
-    @ParameterizedTest // note that this test will be removed when we switch to logging versions
-    @ValueSource(strings = {"euid-sdk-1.0.0", "openid-sdk-1.0", "uid2-esp-0.0.1a", "uid2-sdk-0.0.1a",
-            "uid2-sdk-0.0.1b", "uid2-sdk-1.0.0", "uid2-sdk-2.0.0"})
-    void clientVersionHeader(String clientVersion, Vertx vertx, VertxTestContext testContext) {
-        WebClient client = WebClient.create(vertx);
-        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint"));
-        req.putHeader("X-UID2-Client-Version", clientVersion);
-        req.send(ar -> {
-            assertEquals(404, ar.result().statusCode());
-            final double actual = Metrics.globalRegistry
-                    .get("uid2.client_sdk_versions")
-                    .tag("client_version", clientVersion)
-                    .counter().count();
-            assertEquals(1, actual);
-            testContext.completeNow();
-        });
-    }
-
-    @ParameterizedTest // note that this test will be removed when we switch to logging versions
-    @ValueSource(strings = {"euid-sdk-1.0.0", "openid-sdk-1.0", "uid2-esp-0.0.1a", "uid2-sdk-0.0.1a",
-            "uid2-sdk-0.0.1b", "uid2-sdk-1.0.0", "uid2-sdk-2.0.0"})
-    void clientVersionQueryParameter(String clientVersion, Vertx vertx, VertxTestContext testContext) {
-        WebClient client = WebClient.create(vertx);
-        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint?client=" + clientVersion));
-        req.send(ar -> {
-            assertEquals(404, ar.result().statusCode());
-            final double actual = Metrics.globalRegistry
-                    .get("uid2.client_sdk_versions")
-                    .tag("client_version", clientVersion)
-                    .counter().count();
-            assertEquals(1, actual);
-            testContext.completeNow();
-        });
-    }
-
-    @Test // note that this test will be removed when we switch to logging versions
-    void clientVersionHeaderNotFound(Vertx vertx, VertxTestContext testContext) {
-        WebClient client = WebClient.create(vertx);
-        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint"));
-        String clientVersion = "invalid-sdk";
-        req.putHeader("X-UID2-Client-Version", clientVersion);
-        req.send(ar -> {
-            assertEquals(404, ar.result().statusCode());
-            assertThrows(MeterNotFoundException.class, () -> {
-                Metrics.globalRegistry
-                        .get("uid2.client_sdk_versions")
-                        .tag("client_version", clientVersion)
-                        .counter();
-            });
-            testContext.completeNow();
-        });
-    }
-
-    @Test // note that this test will be removed when we switch to logging versions
-    void clientVersionQueryParameterNotFound(Vertx vertx, VertxTestContext testContext) {
-        WebClient client = WebClient.create(vertx);
-        String clientVersion = "invalid-sdk";
-        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint("/any/endpoint?client=" + clientVersion));
-        req.send(ar -> {
-            assertEquals(404, ar.result().statusCode());
-            assertThrows(MeterNotFoundException.class, () -> {
-                Metrics.globalRegistry
-                        .get("uid2.client_sdk_versions")
-                        .tag("client_version", clientVersion)
-                        .counter();
-            });
             testContext.completeNow();
         });
     }

@@ -1,5 +1,12 @@
 #!/bin/bash -eufx
 
+# This is the entrypoint for the Enclave. It is executed in all enclaves - EC2 and EKS
+
+LOG_FILE="/home/start.txt"
+
+set -x
+exec &> >(tee -a "$LOG_FILE")
+
 set -o pipefail
 ulimit -n 65536
 
@@ -9,50 +16,49 @@ ifconfig lo 127.0.0.1
 
 # -- start vsock proxy
 echo "Starting vsock proxy..."
-/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( $(nproc) * 2 )) --log-level 3
+/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
-# -- setup syslog-ng
-echo "Starting syslog-ng..."
-/usr/sbin/syslog-ng --verbose
+# -- load config from identity service
+echo "Loading config from identity service via proxy..."
 
-# -- load env vars via proxy
-echo "Loading env vars via proxy..."
+#wait for config service, then download config
+OVERRIDES_CONFIG="/app/conf/config-overrides.json"
 
-TOKEN=$(curl -x socks5h://127.0.0.1:3305 --request PUT "http://169.254.169.254/latest/api/token" --header "X-aws-ec2-metadata-token-ttl-seconds: 3600")
-USER_DATA=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/user-data --header "X-aws-ec2-metadata-token: $TOKEN")
-if [ "${IDENTITY_SCOPE}" = "UID2" ]; then
-  UID2_CONFIG_SECRET_KEY=$([[ "$(echo "${USER_DATA}" | grep UID2_CONFIG_SECRET_KEY=)" =~ ^export\ UID2_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "uid2-operator-config-key")
-elif [ "${IDENTITY_SCOPE}" = "EUID" ]; then
-  UID2_CONFIG_SECRET_KEY=$([[ "$(echo "${USER_DATA}" | grep EUID_CONFIG_SECRET_KEY=)" =~ ^export\ EUID_CONFIG_SECRET_KEY=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "euid-operator-config-key")
+RETRY_COUNT=0
+MAX_RETRY=20
+until curl -s -f -o "${OVERRIDES_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
+do
+  echo "Waiting for config service to be available"
+  RETRY_COUNT=$(( RETRY_COUNT + 1))
+  if [ $RETRY_COUNT -gt $MAX_RETRY ]; then
+      echo "Config Server did not return a response. Exiting"
+      exit 1
+  fi
+  sleep 2
+done
+
+DEBUG_MODE=$(jq -r ".debug_mode" < "${OVERRIDES_CONFIG}")
+
+if [[ "$DEBUG_MODE" == "true" ]]; then
+  LOGBACK_CONF="./conf/logback-debug.xml"
 else
-  echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"
-  exit 1
+  LOGBACK_CONF="./conf/logback.xml"
+  # -- setup syslog-ng
+  echo "Starting syslog-ng..."
+  /usr/sbin/syslog-ng --verbose
 fi
-CORE_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep CORE_BASE_URL=)" =~ ^export\ CORE_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
-OPTOUT_BASE_URL=$([[ "$(echo "${USER_DATA}" | grep OPTOUT_BASE_URL=)" =~ ^export\ OPTOUT_BASE_URL=\"(.*)\"$ ]] && echo "${BASH_REMATCH[1]}" || echo "")
 
-echo "UID2_CONFIG_SECRET_KEY=${UID2_CONFIG_SECRET_KEY}"
-echo "CORE_BASE_URL=${CORE_BASE_URL}"
-echo "OPTOUT_BASE_URL=${OPTOUT_BASE_URL}"
-
-export AWS_REGION_NAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/dynamic/instance-identity/document/ --header "X-aws-ec2-metadata-token: $TOKEN" | jq -r ".region")
-echo "AWS_REGION_NAME=${AWS_REGION_NAME}"
-echo "127.0.0.1 secretsmanager.${AWS_REGION_NAME}.amazonaws.com" >> /etc/hosts
-
-IAM_ROLE=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/iam/security-credentials/ --header "X-aws-ec2-metadata-token: $TOKEN")
-echo "IAM_ROLE=${IAM_ROLE}"
-
-SECURITY_CREDS=$(curl -s -x socks5h://127.0.0.1:3305 "http://169.254.169.254/latest/meta-data/iam/security-credentials/${IAM_ROLE}" --header "X-aws-ec2-metadata-token: $TOKEN")
-export AWS_ACCESS_KEY_ID=$(echo $SECURITY_CREDS | jq -r ".AccessKeyId")
-export AWS_SECRET_KEY=$(echo $SECURITY_CREDS | jq -r ".SecretAccessKey")
-export AWS_SESSION_TOKEN=$(echo $SECURITY_CREDS | jq -r ".Token")
-
-# -- load configs via proxy
-echo "Loading config overrides..."
-export OVERRIDES_CONFIG="/app/conf/config-overrides.json"
-python3 /app/load_config.py > "${OVERRIDES_CONFIG}"
+# check the config is valid. Querying for a known missing element (empty) makes jq parse the file, but does not echo the results
+if jq empty "${OVERRIDES_CONFIG}"; then
+    echo "Identity service returned valid config"
+else
+    echo "Failed to get a valid config from identity service"
+    exit 1
+fi
 
 export DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${OVERRIDES_CONFIG}")
+export CORE_BASE_URL=$(jq -r ".core_base_url" < "${OVERRIDES_CONFIG}")
+export OPTOUT_BASE_URL=$(jq -r ".optout_base_url" < "${OVERRIDES_CONFIG}")
 echo "DEPLOYMENT_ENVIRONMENT=${DEPLOYMENT_ENVIRONMENT}"
 if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then
   echo "DEPLOYMENT_ENVIRONMENT cannot be empty"
@@ -74,13 +80,9 @@ else
   exit 1
 fi
 
-get_config_value() {
-  jq -r ".\"$1\"" ${FINAL_CONFIG}
-}
-
 # -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
 # -- using hardcoded domains is fine because they should not be changed frequently
-if [ -n "${CORE_BASE_URL}" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
+if [ -n "${CORE_BASE_URL}" ] && [ "${CORE_BASE_URL}" != "null" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${OPTOUT_BASE_URL}" != "null" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
     echo "Replacing core and optout URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}..."
 
     sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
@@ -94,11 +96,6 @@ if [ -n "${CORE_BASE_URL}" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${DEPLOYMENT_E
     sed -i "s#https://optout.prod.euid.eu#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
 fi
 
-cat "${FINAL_CONFIG}"
-
-HOSTNAME=$(curl -s -x socks5h://127.0.0.1:3305 http://169.254.169.254/latest/meta-data/local-hostname --header "X-aws-ec2-metadata-token: $TOKEN")
-echo "HOSTNAME=${HOSTNAME}"
-
 # -- set pwd to /app so we can find default configs
 cd /app
 
@@ -110,6 +107,6 @@ java \
   -Djava.library.path=/app/lib \
   -Dvertx-config-path="${FINAL_CONFIG}" \
   -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
-  -Dlogback.configurationFile=./conf/logback.xml \
+  -Dlogback.configurationFile=${LOGBACK_CONF} \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
-  -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar > /home/start.txt 2>&1
+  -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar

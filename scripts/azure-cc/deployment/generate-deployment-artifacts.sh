@@ -54,6 +54,7 @@ for f in ${INPUT_FILES[@]}; do
     fi
 done
 
+az version
 # Install confcom extension, az is originally available in GitHub workflow environment
 az extension add --name confcom
 if [[ $? -ne 0 ]]; then

@@ -98,6 +98,10 @@
                 {
                   "port": 8080,
                   "protocol": "TCP"
+                },
+                {
+                  "port": 9080,
+                  "protocol": "TCP"
                 }
               ],
               "resources": {

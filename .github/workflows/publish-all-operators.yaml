@@ -10,6 +10,7 @@ on:
         - Patch
         - Minor
         - Major
+        - Snapshot
       vulnerability_severity:
         description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised.
         type: choice
@@ -24,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
         new_version: ${{ steps.version.outputs.new_version }}
+        commit_sha: ${{ steps.commit-and-tag.outputs.commit_sha }}
     steps:
       - name: Approve Major release
         if: inputs.release_type == 'Major'
@@ -53,7 +55,7 @@ jobs:
           fetch-depth: 0
 
       - name: Scan vulnerabilities
-        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan_filesystem@v2
+        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan_filesystem@v3
         with:
           scan_severity: HIGH,CRITICAL
           failure_severity: CRITICAL
@@ -73,12 +75,13 @@ jobs:
           echo "Version number updated from $current_version to $new_version"
 
       - name: Commit pom.xml, version.json and set tag
-        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
+        id: commit-and-tag
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v3
         with:
           add: 'pom.xml version.json'
           message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }} 
-  
+
   buildPublic:
     name: Public Operator
     needs: start
@@ -96,6 +99,7 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+      commit_sha: ${{ needs.start.outputs.commit_sha }}
       vulnerability_severity: ${{ inputs.vulnerability_severity }}
     secrets: inherit
 
@@ -106,22 +110,40 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+      commit_sha: ${{ needs.start.outputs.commit_sha }}
       vulnerability_severity: ${{ inputs.vulnerability_severity }}
     secrets: inherit
 
   buildAWS:
-    name: AWS Private Operator
+    name: AWS Private Operator EIF
     needs: start
-    uses: ./.github/workflows/publish-aws-nitro-enclave-docker.yaml
+    uses: ./.github/workflows/publish-aws-nitro-eif.yaml
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
+      commit_sha: ${{ needs.start.outputs.commit_sha }}
+    secrets: inherit
+
+  buildAMI:
+    name: Build AWS AMI
+    needs: [start, buildAWS]
+    uses: ./.github/workflows/build-uid2-ami.yaml
+    with:
+      operator_run_number: ${{ github.run_id }}
+    secrets: inherit
+
+  buildEKS:
+    name: Build AWS EKS Docker
+    needs: [start, buildAWS]
+    uses: ./.github/workflows/publish-aws-eks-nitro-enclave-docker.yaml
+    with:
+      operator_run_number: ${{ github.run_id }}
     secrets: inherit
 
   createRelease:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [start, buildPublic, buildGCP, buildAzure, buildAWS]
+    needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI, buildEKS]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -146,11 +168,23 @@ jobs:
           pattern: azure-cc-enclave-id-*
           path: ./manifests/azure_cc_operator
 
-      - name: Download AWS manifest
+      - name: Download EIF manifest
         uses: actions/download-artifact@v4
         with:
-          pattern: 'aws-enclave-ids-*'
-          path: ./manifests/aws_nitro_operator
+          pattern: 'aws-eif-enclave-ids-*'
+          path: ./manifests/aws_eif
+
+      - name: Download AWS AMI manifest
+        uses: actions/download-artifact@v4
+        with:
+          pattern: 'aws-ami-ids-*'
+          path: ./manifests/aws_ami
+
+      - name: Download AWS EKS manifest
+        uses: actions/download-artifact@v4
+        with:
+          pattern: 'aws-eks-enclave-ids-*'
+          path: ./manifests/aws_eks
 
       - name: Download Deployment Files
         uses: actions/download-artifact@v4
@@ -179,10 +213,10 @@ jobs:
 
       - name: Zip files
         run: |
-          zip -j ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/aws-euid-deployment-files-${{ needs.start.outputs.new_version }}/*
-          zip -j ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}/*
-          zip -j ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/azure-cc-deployment-files-${{ needs.start.outputs.new_version }}/*
-          zip -j ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip  ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}/*
+          (cd ./deployment/aws-euid-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
+          (cd ./deployment/aws-uid2-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
+          (cd ./deployment/azure-cc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
+          (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
       - name: Create draft release

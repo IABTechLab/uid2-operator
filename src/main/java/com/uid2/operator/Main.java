@@ -2,6 +2,7 @@ package com.uid2.operator;
 
 import ch.qos.logback.classic.LoggerContext;
 import com.google.common.base.Strings;
+import com.uid2.enclave.IAttestationProvider;
 import com.uid2.enclave.IOperatorKeyRetriever;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -370,7 +371,7 @@ public class Main {
 
     private Future<String> createAndDeployStatsCollector() {
         Promise<String> promise = Promise.promise();
-        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50));
+        StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50), config.getInteger(Const.Config.MaxVersionBucketsPerSite, 50));
         vertx.deployVerticle(statsCollectorVerticle, promise);
         _statsCollectorQueue = statsCollectorVerticle;
         return promise.future();
@@ -472,35 +473,46 @@ public class Main {
                 .register(globalRegistry);
     }
 
-    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
+    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
         AttestationResponseHandler attestationResponseHandler = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
         UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
         UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }
 
-    private AttestationResponseHandler getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
-        String enclavePlatform = this.config.getString("enclave_platform");
-        if (Strings.isNullOrEmpty(enclavePlatform)) {
-            return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, this.appVersion, new NoAttestationProvider(), responseWatcher, CloudUtils.defaultProxy);
-        }
+    private AttestationResponseHandler getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
+        String enclavePlatform = this.config.getString(Const.Config.EnclavePlatformProp);
+        String operatorType = this.config.getString(Const.Config.OperatorTypeProp, "");
+
+        IAttestationProvider attestationProvider;
         switch (enclavePlatform) {
+            case null:
+            case "":
+                LOGGER.info("creating uid core client with trusted attestation protocol");
+                attestationProvider = new NoAttestationProvider();
+                break;
             case "aws-nitro":
                 LOGGER.info("creating uid core client with aws attestation protocol");
-                return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getNitroAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                attestationProvider = AttestationFactory.getNitroAttestation();
+                break;
             case "gcp-vmid":
                 LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-                return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpVmidAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                attestationProvider = AttestationFactory.getGcpVmidAttestation();
+                break;
             case "gcp-oidc":
                 LOGGER.info("creating uid core client with gcp oidc attestation protocol");
-                return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getGcpOidcAttestation(), responseWatcher, CloudUtils.defaultProxy);
+                attestationProvider = AttestationFactory.getGcpOidcAttestation();
+                break;
             case "azure-cc":
                 LOGGER.info("creating uid core client with azure cc attestation protocol");
                 String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
-                return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, this.appVersion, AttestationFactory.getAzureCCAttestation(maaServerBaseUrl), responseWatcher, CloudUtils.defaultProxy);
+                attestationProvider = AttestationFactory.getAzureCCAttestation(maaServerBaseUrl);
+                break;
             default:
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));
         }
+
+        return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, operatorType, this.appVersion, attestationProvider, responseWatcher, CloudUtils.defaultProxy);
     }
 
     private IOperatorKeyRetriever createOperatorKeyRetriever() throws Exception {

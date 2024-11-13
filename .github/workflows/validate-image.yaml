@@ -21,7 +21,7 @@ jobs:
   build-publish-docker-default:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@ian-test-fix-trivy-issue
     with: 
-      failure_severity: ${{ inputs.failure_severity || 'CRITICAL,HIGH' }}
+      failure_severity: 'CRITICAL,HIGH'
       fail_on_error: ${{ inputs.fail_on_error || true }}
       cloud_provider: 'default'
       java_version: 21
@@ -29,7 +29,7 @@ jobs:
   build-publish-docker-aws:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@ian-test-fix-trivy-issue
     with: 
-      failure_severity: ${{ inputs.failure_severity || 'CRITICAL,HIGH' }}
+      failure_severity: 'CRITICAL,HIGH'
       fail_on_error: ${{ inputs.fail_on_error || true }}
       cloud_provider: 'aws'
       java_version: 21
@@ -38,7 +38,7 @@ jobs:
   build-publish-docker-gcp:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@ian-test-fix-trivy-issue
     with: 
-      failure_severity: ${{ inputs.failure_severity || 'CRITICAL,HIGH' }}
+      failure_severity: 'CRITICAL,HIGH'
       fail_on_error: ${{ inputs.fail_on_error || true }}
       cloud_provider: 'gcp'
       java_version: 21
@@ -47,7 +47,7 @@ jobs:
   build-publish-docker-azure:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-validate-image.yaml@ian-test-fix-trivy-issue
     with: 
-      failure_severity: ${{ inputs.failure_severity || 'CRITICAL,HIGH' }}
+      failure_severity: 'CRITICAL,HIGH'
       fail_on_error: ${{ inputs.fail_on_error || true }}
       cloud_provider: 'azure'
       java_version: 21

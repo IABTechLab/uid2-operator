@@ -2,4 +2,9 @@
 # See https://aquasecurity.github.io/trivy/v0.35/docs/vulnerability/examples/filter/ 
 # for more details
 # e.g. 
-# CVE-2022-3996
+
+# https://thetradedesk.atlassian.net/browse/UID2-4460
+CVE-2024-47535
+
+# https://thetradedesk.atlassian.net/browse/UID2-4461
+CVE-2024-7254

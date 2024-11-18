@@ -20,6 +20,27 @@ class EC2(ConfidentialCompute):
         super().__init__()
         self.config = {}
 
+    def __get_aws_token(self):
+        try:
+            token_url = "http://169.254.169.254/latest/api/token"
+            token_response = requests.put(token_url, headers={"X-aws-ec2-metadata-token-ttl-seconds": "3600"}, timeout=2)
+            return token_response.text
+        except Exception as e:
+            return "blank"
+    
+    def __get_current_region(self):
+        token = self.__get_aws_token()
+        metadata_url = "http://169.254.169.254/latest/dynamic/instance-identity/document"
+        headers = {"X-aws-ec2-metadata-token": token}
+        try:
+            response = requests.get(metadata_url, headers=headers,timeout=2)
+            if response.status_code == 200:
+                return response.json().get("region")
+            else:
+                print(f"Failed to fetch region, status code: {response.status_code}")  
+        except Exception as e:
+            raise Exception(f"Region not found, are you running in EC2 environment. {e}")
+
     def _get_secret(self, secret_identifier):
         client = boto3.client("secretsmanager", region_name=self.__get_current_region())
         try:
@@ -58,45 +79,7 @@ class EC2(ConfidentialCompute):
             print(f"Failed to start config server: {e}")
 
     def __run_socks_proxy(self, log_level):
-        subprocess.Popen(["sockd", "-d"])
-
-    def _validate_auxilaries(self):
-        proxy = "socks5h://127.0.0.1:3305"
-        url = "http://127.0.0.1:27015/getConfig"
-        response = requests.get(url)
-        if response.status_code != 200:
-            raise Exception("Config server unreachable")
-        proxies = {
-            "http": proxy,
-            "https": proxy,
-        }
-        try:
-            response = requests.get(url, proxies=proxies)
-            response.raise_for_status() 
-        except Exception as e:
-            raise Exception(f"Cannot conect to config server through socks5: {e}")
-        pass
-
-    def __get_aws_token(self):
-        try:
-            token_url = "http://169.254.169.254/latest/api/token"
-            token_response = requests.put(token_url, headers={"X-aws-ec2-metadata-token-ttl-seconds": "3600"}, timeout=2)
-            return token_response.text
-        except Exception as e:
-            return "blank"
-    
-    def __get_current_region(self):
-        token = self.__get_aws_token()
-        metadata_url = "http://169.254.169.254/latest/dynamic/instance-identity/document"
-        headers = {"X-aws-ec2-metadata-token": token}
-        try:
-            response = requests.get(metadata_url, headers=headers,timeout=2)
-            if response.status_code == 200:
-                return response.json().get("region")
-            else:
-                print(f"Failed to fetch region, status code: {response.status_code}")  
-        except Exception as e:
-            raise Exception(f"Region not found, are you running in EC2 environment. {e}")
+        subprocess.Popen(["sockd", "-d"]) 
 
     def __get_secret_name_from_userdata(self):
         token = self.__get_aws_token()
@@ -124,6 +107,23 @@ class EC2(ConfidentialCompute):
         self.__setup_vsockproxy(log_level)
         self.__run_config_server(log_level)
         self.__run_socks_proxy(log_level)
+
+    
+    def _validate_auxilaries(self):
+        proxy = "socks5h://127.0.0.1:3305"
+        url = "http://127.0.0.1:27015/getConfig"
+        response = requests.get(url)
+        if response.status_code != 200:
+            raise Exception("Config server unreachable")
+        proxies = {
+            "http": proxy,
+            "https": proxy,
+        }
+        try:
+            response = requests.get(url, proxies=proxies)
+            response.raise_for_status() 
+        except Exception as e:
+            raise Exception(f"Cannot conect to config server through socks5: {e}")
 
     def run_compute(self):
         self._setup_auxilaries()

@@ -45,4 +45,4 @@ COPY ./syslog-ng-client.conf       /etc/syslog-ng/syslog-ng.conf
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh
 
 
-CMD ["/app/ec2.py"]
+CMD ["/app/entrypoint.sh"]

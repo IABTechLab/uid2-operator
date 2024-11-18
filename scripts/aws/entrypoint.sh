@@ -80,6 +80,7 @@ else
   exit 1
 fi
 
+# DO WE NEED THIS? do we expect customers to change URL? 
 # -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
 # -- using hardcoded domains is fine because they should not be changed frequently
 if [ -n "${CORE_BASE_URL}" ] && [ "${CORE_BASE_URL}" != "null" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${OPTOUT_BASE_URL}" != "null" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then

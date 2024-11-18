@@ -357,6 +357,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId, siteProvider, platformType);
             return;
         }
+        rc.data().put("api-contact", siteProvider.getSite(clientSideKeypair.getSiteId()).getName());
 
         if(clientSideKeypair.isDisabled()) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.Unauthorized, 401, rc, "Unauthorized",

@@ -357,7 +357,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId, siteProvider, platformType);
             return;
         }
-        rc.data().put(AuthMiddleware.API_CONTACT_PROP, siteProvider.getSite(clientSideKeypair.getSiteId()).getName());
         rc.put(com.uid2.shared.Const.RoutingContextData.SiteId, clientSideKeypair.getSiteId());
 
         if(clientSideKeypair.isDisabled()) {

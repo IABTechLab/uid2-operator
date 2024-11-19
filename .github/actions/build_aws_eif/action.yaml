@@ -49,6 +49,7 @@ runs:
       shell: bash
       run: |
         df -h
+        ls -la
 
     - name: Run amazonlinux Docker image
       shell: bash

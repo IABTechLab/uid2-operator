@@ -10,170 +10,197 @@ import requests
 import signal
 import argparse
 from botocore.exceptions import ClientError
+from typing import Dict
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute
+from confidential_compute import ConfidentialCompute, OperatorConfig
+
 
 class EC2(ConfidentialCompute):
 
     def __init__(self):
         super().__init__()
-        self.config = {}
+        self.configs: OperatorConfig = {}
 
-    def __get_aws_token(self):
+    def __get_aws_token(self) -> str:
+        """Fetches a temporary AWS EC2 metadata token."""
         try:
             token_url = "http://169.254.169.254/latest/api/token"
-            token_response = requests.put(token_url, headers={"X-aws-ec2-metadata-token-ttl-seconds": "3600"}, timeout=2)
-            return token_response.text
-        except Exception as e:
-            return "blank"
-    
-    def __get_current_region(self):
+            response = requests.put(
+                token_url, headers={"X-aws-ec2-metadata-token-ttl-seconds": "3600"}, timeout=2
+            )
+            return response.text
+        except requests.RequestException as e:
+            raise RuntimeError(f"Failed to fetch aws token: {e}")
+
+    def __get_current_region(self) -> str:
+        """Fetches the current AWS region from EC2 instance metadata."""
         token = self.__get_aws_token()
         metadata_url = "http://169.254.169.254/latest/dynamic/instance-identity/document"
         headers = {"X-aws-ec2-metadata-token": token}
         try:
-            response = requests.get(metadata_url, headers=headers,timeout=2)
-            if response.status_code == 200:
-                return response.json().get("region")
-            else:
-                print(f"Failed to fetch region, status code: {response.status_code}")  
-        except Exception as e:
-            raise Exception(f"Region not found, are you running in EC2 environment. {e}")
+            response = requests.get(metadata_url, headers=headers, timeout=2)
+            response.raise_for_status()
+            return response.json()["region"]
+        except requests.RequestException as e:
+            raise RuntimeError(f"Failed to fetch region: {e}")
 
-    def _get_secret(self, secret_identifier):
-        client = boto3.client("secretsmanager", region_name=self.__get_current_region())
+    def _get_secret(self, secret_identifier: str) -> Dict:
+        """Fetches a secret value from AWS Secrets Manager."""
+        region = self.__get_current_region()
+        client = boto3.client("secretsmanager", region_name=region)
         try:
             secret = client.get_secret_value(SecretId=secret_identifier)
             return json.loads(secret["SecretString"])
         except ClientError as e:
-            raise Exception("Unable to access secret store")
-        
-    def __add_defaults(self, configs):
+            raise RuntimeError(f"Unable to access Secrets Manager: {e}")
+
+    @staticmethod
+    def __add_defaults(configs: Dict[str, any]) -> OperatorConfig:
+        """Adds default values to configuration if missing."""
         configs.setdefault("enclave_memory_mb", 24576)
         configs.setdefault("enclave_cpu_count", 6)
         configs.setdefault("debug_mode", False)
         return configs
 
-    def __setup_vsockproxy(self, log_level):
-        thread_count = int((multiprocessing.cpu_count() + 1) // 2)
-        log_level = log_level
+    @staticmethod
+    def __error_out_on_execute(command: list, error_message: str) -> None:
+        """Runs a command in the background and handles exceptions."""
         try:
-            subprocess.Popen(["/usr/bin/vsockpx", "-c", "/etc/uid2operator/proxy.yaml", "--workers", str(thread_count), "--log-level", log_level, "--daemon"])
-            print("VSOCK proxy is now running in the background")
-        except FileNotFoundError:
-            print("Error: vsockpx not found. Please ensure the path is correct")
+            subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as e:
-            print("Failed to start VSOCK proxy")
+            print(f"{error_message} \n '{' '.join(command)}': {e}")
 
-    def __run_config_server(self, log_level):
+    def __setup_vsockproxy(self, log_level: int) -> None:
+        """Sets up the vsock proxy service."""
+        thread_count = (multiprocessing.cpu_count() + 1) // 2
+        command = [
+            "/usr/bin/vsockpx", "-c", "/etc/uid2operator/proxy.yaml",
+            "--workers", str(thread_count), "--log-level", str(log_level), "--daemon"
+        ]
+        self.__error_out_on_execute(command, "vsockpx not found. Ensure it is installed.")
+
+    def __run_config_server(self) -> None:
+        """Starts the Flask configuration server."""
         os.makedirs("/etc/secret/secret-value", exist_ok=True)
-        with open('/etc/secret/secret-value/config', 'w') as fp:
-            json.dump(self.configs, fp)
+        config_path = "/etc/secret/secret-value/config"
+        with open(config_path, 'w') as config_file:
+            json.dump(self.configs, config_file)
         os.chdir("/opt/uid2operator/config-server")
-        # TODO: Add --log-level to flask. 
-        try:
-            subprocess.Popen(["./bin/flask", "run", "--host", "127.0.0.1", "--port", "27015"])
-            print("Config server is now running in the background.")
-        except Exception as e:
-            print(f"Failed to start config server: {e}")
+        command = ["./bin/flask", "run", "--host", "127.0.0.1", "--port", "27015"]
+        self.__error_out_on_execute(command, "Failed to start the Flask config server.")
 
-    def __run_socks_proxy(self, log_level):
-        subprocess.Popen(["sockd", "-d"]) 
+    def __run_socks_proxy(self) -> None:
+        """Starts the SOCKS proxy service."""
+        command = ["sockd", "-d"]
+        self.__error_out_on_execute(command, "Failed to start socks proxy.")
 
-    def __get_secret_name_from_userdata(self):
+    def __get_secret_name_from_userdata(self) -> str:
+        """Extracts the secret name from EC2 user data."""
         token = self.__get_aws_token()
         user_data_url = "http://169.254.169.254/latest/user-data"
-        user_data_response = requests.get(user_data_url, headers={"X-aws-ec2-metadata-token": token})
-        user_data = user_data_response.text
-        identity_scope = open("/opt/uid2operator/identity_scope.txt").read().strip()
-        default_name = "{}-operator-config-key".format(identity_scope.lower())
-        hardcoded_value = "{}_CONFIG_SECRET_KEY".format(identity_scope.upper())
+        response = requests.get(user_data_url, headers={"X-aws-ec2-metadata-token": token})
+        user_data = response.text
+
+        with open("/opt/uid2operator/identity_scope.txt") as file:
+            identity_scope = file.read().strip()
+
+        default_name = f"{identity_scope.lower()}-operator-config-key"
+        hardcoded_value = f"{identity_scope.upper()}_CONFIG_SECRET_KEY"
         match = re.search(rf'^export {hardcoded_value}="(.+?)"$', user_data, re.MULTILINE)
         return match.group(1) if match else default_name
 
-    def _setup_auxilaries(self):
+    def _setup_auxiliaries(self) -> None:
+        """Sets up the necessary auxiliary services and configurations."""
         hostname = os.getenv("HOSTNAME", default=os.uname()[1])
-        file_path = "HOSTNAME"
         try:
-            with open(file_path, "w") as file:
+            with open("HOSTNAME", "w") as file:
                 file.write(hostname)
-                print(f"Hostname '{hostname}' written to {file_path}")
+            print(f"Hostname '{hostname}' written to file.")
         except Exception as e:
-            print(f"An error occurred : {e}")
+            """
+            Ignoring error here, as we are currently not using this information anywhere. 
+            But can be added in future for tracibility on debug
+            """
+            print(f"Error writing hostname: {e}")
+
         config = self._get_secret(self.__get_secret_name_from_userdata())
         self.configs = self.__add_defaults(config)
-        log_level = 3 if self.configs['debug_mode'] else 1
+        log_level = 3 if self.configs["debug_mode"] else 1
         self.__setup_vsockproxy(log_level)
-        self.__run_config_server(log_level)
-        self.__run_socks_proxy(log_level)
+        self.__run_config_server()
+        self.__run_socks_proxy()
 
-    
-    def _validate_auxilaries(self):
+    def _validate_auxiliaries(self) -> None:
+        """Validates auxiliary services."""
         proxy = "socks5h://127.0.0.1:3305"
-        url = "http://127.0.0.1:27015/getConfig"
-        response = requests.get(url)
-        if response.status_code != 200:
-            raise Exception("Config server unreachable")
-        proxies = {
-            "http": proxy,
-            "https": proxy,
-        }
+        config_url = "http://127.0.0.1:27015/getConfig"
         try:
-            response = requests.get(url, proxies=proxies)
-            response.raise_for_status() 
-        except Exception as e:
-            raise Exception(f"Cannot conect to config server through socks5: {e}")
+            response = requests.get(config_url)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            raise RuntimeError(f"Config server unreachable: {e}")
+        proxies = {"http": proxy, "https": proxy}
+        try:
+            response = requests.get(config_url, proxies=proxies)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            raise RuntimeError(f"Cannot connect to config server via SOCKS proxy: {e}")
 
-    def run_compute(self):
-        self._setup_auxilaries()
-        self._validate_auxilaries()
+    def run_compute(self) -> None:
+        """Main execution flow for confidential compute."""
+        self._setup_auxiliaries()
+        self._validate_auxiliaries()
+        self.validate_connectivity(self.configs)
         command = [
             "nitro-cli", "run-enclave",
             "--eif-path", "/opt/uid2operator/uid2operator.eif",
-            "--memory", self.config['enclave_memory_mb'],
-            "--cpu-count", self.config['enclave_cpu_count'],
-            "--enclave-cid", 42,
+            "--memory", str(self.configs["enclave_memory_mb"]),
+            "--cpu-count", str(self.configs["enclave_cpu_count"]),
+            "--enclave-cid", "42",
             "--enclave-name", "uid2operator"
         ]
-        if self.config['debug']:
-            command+=["--debug-mode", "--attach-console"]
+        if self.configs["debug_mode"]:
+            command += ["--debug-mode", "--attach-console"]
         subprocess.run(command, check=True)
 
-    def cleanup(self):
-        describe_output = subprocess.check_output(["nitro-cli", "describe-enclaves"], text=True)
-        enclaves = json.loads(describe_output)
-        enclave_id = enclaves[0].get("EnclaveID") if enclaves else None
-        if enclave_id:
-            subprocess.run(["nitro-cli", "terminate-enclave", "--enclave-id", enclave_id])
-            print(f"Enclave with ID {enclave_id} has been terminated.")
-        else:
-            print("No enclave found or EnclaveID is null.")
-
-    def kill_process(self, process_name):
+    def cleanup(self) -> None:
+        """Terminates the Nitro Enclave and auxiliary processes."""
         try:
-            result = subprocess.run(
-                ["pgrep", "-f", process_name], 
-                stdout=subprocess.PIPE, 
-                text=True, 
-                check=False
-            )
+            describe_output = subprocess.check_output(["nitro-cli", "describe-enclaves"], text=True)
+            enclaves = json.loads(describe_output)
+            enclave_id = enclaves[0].get("EnclaveID") if enclaves else None
+            if enclave_id:
+                subprocess.run(["nitro-cli", "terminate-enclave", "--enclave-id", enclave_id])
+                print(f"Terminated enclave with ID: {enclave_id}")
+            else:
+                print("No active enclaves found.")
+        except subprocess.SubprocessError as e:
+            raise (f"Error during cleanup: {e}")
+
+    def kill_process(self, process_name: str) -> None:
+        """Kills a process by its name."""
+        try:
+            result = subprocess.run(["pgrep", "-f", process_name], stdout=subprocess.PIPE, text=True, check=False)
             if result.stdout.strip():
                 for pid in result.stdout.strip().split("\n"):
                     os.kill(int(pid), signal.SIGKILL)
-                print(f"{process_name} exited")
+                print(f"Killed process '{process_name}'.")
             else:
-                print(f"Process {process_name} not found")
+                print(f"No process named '{process_name}' found.")
         except Exception as e:
-            print(f"Failed to shut down {process_name}: {e}")
+            print(f"Error killing process '{process_name}': {e}")
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-o", "--operation", required=False)
+    parser = argparse.ArgumentParser(description="Manage EC2-based confidential compute workflows.")
+    parser.add_argument("-o", "--operation", choices=["stop", "start"], default="start", help="Operation to perform.")
     args = parser.parse_args()
     ec2 = EC2()
-    if args.operation and args.operation == "stop":
+    if args.operation == "stop":
         ec2.cleanup()
-        [ec2.kill_process(process) for process in ["vsockpx", "sockd", "vsock-proxy", "nohup"]]
+        for process in ["vsockpx", "sockd", "vsock-proxy"]:
+            ec2.kill_process(process)
     else:
         ec2.run_compute()
+           

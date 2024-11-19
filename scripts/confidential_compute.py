@@ -3,6 +3,15 @@ import re
 import socket
 from urllib.parse import urlparse
 from abc import ABC, abstractmethod
+from typing import TypedDict, Dict
+
+class OperatorConfig(TypedDict):
+    enclave_memory_mb: int
+    enclave_cpu_count: int
+    debug_mode: bool
+    api_token: str
+    core_base_url: str
+    optout_base_url: str
 
 class ConfidentialCompute(ABC):
 
@@ -16,7 +25,7 @@ class ConfidentialCompute(ABC):
         """
         pass
 
-    def validate_operator_key(self, secrets):
+    def validate_operator_key(self, secrets: OperatorConfig):
         """
         Validates operator key if following new pattern. Ignores otherwise
         """
@@ -31,7 +40,7 @@ class ConfidentialCompute(ABC):
                     raise Exception("Operator key does not match the environment")
         return True
 
-    def validate_connectivity(self, config):
+    def validate_connectivity(self, config: OperatorConfig):
         """
         Validates core/optout is accessible. 
         """
@@ -52,14 +61,14 @@ class ConfidentialCompute(ABC):
         return
     
     @abstractmethod
-    def _setup_auxilaries(self, secrets):
+    def _setup_auxiliaries(self):
         """
         Sets up auxilary processes required to confidential compute
         """
         pass
 
     @abstractmethod
-    def _validate_auxilaries(self, secrets):
+    def _validate_auxiliaries(self):
         """
         Validates auxilary services are running
         """

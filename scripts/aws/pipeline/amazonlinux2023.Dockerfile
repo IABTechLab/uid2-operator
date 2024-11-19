@@ -7,9 +7,6 @@ RUN dnf update -y
 RUN dnf -y groupinstall "Development Tools" \
     && dnf -y install systemd vim-common wget git tar libstdc++-static.x86_64 cmake cmake3 \
     && dnf clean all
-
-ENV S3_BUCKET=troubleshoot-delete-uid2-aws
-ENV ZIP_FILE=enclave-cli-1.5.3rc.zip
     
 aws s3 cp s3://troubleshoot-delete-uid2-aws/enclave-cli-1.5.3rc.zip /tmp/ && unzip /tmp/enclave-cli-1.5.3rc.zip -d /tmp/ && dnf install -y /tmp/*.rpm
 

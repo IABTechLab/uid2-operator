@@ -34,7 +34,7 @@ COPY ./proxies.host.yaml /home/proxies.host.yaml
 
 RUN chmod +x /home/vsockpx && chmod +x /home/entrypoint.sh && chmod +x /home/sockd && chmod +rwx /home/enclave-cli-1.5.3rc.zip
 
-RUN unzip /enclave-cli-1.5.3rc.zip -d /home/tmp/
+RUN unzip /home/enclave-cli-1.5.3rc.zip -d /home/tmp/
 RUN chmod a+rwx /home/tmp/enclave-cli-1.5.3rc/* 
 RUN dnf install -y /home/tmp/enclave-cli-1.5.3rc/aws-nitro-enclaves-cli-1.3.5-0.amzn2023.x86_64.rpm 
 RUN dnf install -y /home/tmp/enclave-cli-1.5.3rc/aws-nitro-enclaves-cli-devel-1.3.5-0.amzn2023.x86_64.rpm 

@@ -1,5 +1,5 @@
 FROM amazonlinux:2023
-RUN dnf check-update && dnf update && dnf install nmap-ncat libxcrypt-compat python3 logrotate iproute net-tools python3.11 python3.11-pip shadow-utils unzip -y
+RUN dnf check-update && dnf update && dnf install nmap-ncat libxcrypt-compat python3 aws-nitro-enclaves-cli logrotate iproute net-tools python3.11 python3.11-pip shadow-utils -y
 
 ARG IVYKIS_RPM="ivykis-0.43-1.amzn2023.x86_64.rpm"
 ARG LIBNET_RPM="libnet-1.2-2.amzn2023.0.2.x86_64.rpm"
@@ -7,7 +7,6 @@ ARG PUBKEY="pubkey.gpg"
 ARG SYSLOG_NG_RPM="syslog-ng-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm"
 ARG SYSLOG_NG_LOGROTATE_RPM="syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x86_64.rpm"
 
-COPY ./enclave-cli-1.5.3rc.zip /home/enclave-cli-1.5.3rc.zip
 COPY ./sockd /home/
 COPY ./sockd_eks.conf /etc/sockd.conf
 COPY ./vsockpx /home
@@ -32,12 +31,7 @@ COPY ./entrypoint.sh /home/
 COPY ./uid2operator.eif /home/
 COPY ./proxies.host.yaml /home/proxies.host.yaml
 
-RUN chmod +x /home/vsockpx && chmod +x /home/entrypoint.sh && chmod +x /home/sockd && chmod +rwx /home/enclave-cli-1.5.3rc.zip
-
-RUN unzip /home/enclave-cli-1.5.3rc.zip -d /home/tmp/
-RUN chmod a+rwx /home/tmp/enclave-cli-1.5.3rc/* 
-RUN dnf install -y /home/tmp/enclave-cli-1.5.3rc/aws-nitro-enclaves-cli-1.3.5-0.amzn2023.x86_64.rpm 
-RUN dnf install -y /home/tmp/enclave-cli-1.5.3rc/aws-nitro-enclaves-cli-devel-1.3.5-0.amzn2023.x86_64.rpm 
+RUN chmod +x /home/vsockpx && chmod +x /home/entrypoint.sh && chmod +x /home/sockd
 
 COPY ./app.py /home/config-server/
 COPY ./requirements.txt /home/config-server/

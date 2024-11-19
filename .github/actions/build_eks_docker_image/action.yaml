@@ -87,7 +87,6 @@ runs:
       shell: bash
       working-directory: ${{ inputs.artifacts_output_dir }}
       run: |
-        ls -al
         VERSION_NUMBER=$(cat ./version_number.txt)
         echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
         echo "Version Number: " $VERSION_NUMBER
@@ -104,7 +103,6 @@ runs:
         cp -r ./scripts/aws/eks-pod/* ${{ inputs.artifacts_output_dir }}
         cp -r ./scripts/aws/syslog-ng/server_al_2023/* ${{ inputs.artifacts_output_dir }}/server_al_2023
         cp ./scripts/aws/eks-pod/server_al_2023/syslog-ng-server.conf ${{ inputs.artifacts_output_dir }}/syslog-ng-server.conf
-        cp ./scripts/aws/pipeline/enclave-cli-1.5.3rc.zip ${{ inputs.artifacts_output_dir }}/enclave-cli-1.5.3rc.zip
         ls -l ${{ inputs.artifacts_output_dir }}
 
     - name: Check disk usage

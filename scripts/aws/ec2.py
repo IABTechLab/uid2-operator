@@ -61,6 +61,8 @@ class EC2(ConfidentialCompute):
         configs.setdefault("enclave_memory_mb", 24576)
         configs.setdefault("enclave_cpu_count", 6)
         configs.setdefault("debug_mode", False)
+        configs.setdefault("core_base_url", "https://core.uidapi.com" if configs["environment"] == "prod" else "https://core-integ.uidapi.com")
+        configs.setdefault("optout_base_url", "https://optout.uidapi.com" if configs["environment"] == "prod" else "https://optout-integ.uidapi.com")
         return configs
 
     @staticmethod

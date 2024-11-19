@@ -5,8 +5,13 @@ RUN dnf update -y
     # systemd is not a hard requirement for Amazon ECS Anywhere, but the installation script currently only supports systemd to run.
     # Amazon ECS Anywhere can be used without systemd, if you set up your nodes and register them into your ECS cluster **without** the installation script.
 RUN dnf -y groupinstall "Development Tools" \
-    && dnf -y install systemd vim-common wget git tar libstdc++-static.x86_64 cmake cmake3 aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel \
+    && dnf -y install systemd vim-common wget git tar libstdc++-static.x86_64 cmake cmake3 \
     && dnf clean all
+
+ENV S3_BUCKET=troubleshoot-delete-uid2-aws
+ENV ZIP_FILE=enclave-cli-1.5.3rc.zip
+    
+RUN aws s3 cp s3://$S3_BUCKET/$ZIP_FILE /tmp/ && unzip /tmp/$ZIP_FILE -d /tmp/ && dnf install -y /tmp/*.rpm
 
 RUN systemctl enable docker
 

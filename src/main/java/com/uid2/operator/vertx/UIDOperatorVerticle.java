@@ -357,6 +357,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId, siteProvider, platformType);
             return;
         }
+        rc.put(com.uid2.shared.Const.RoutingContextData.SiteId, clientSideKeypair.getSiteId());
 
         if(clientSideKeypair.isDisabled()) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.Unauthorized, 401, rc, "Unauthorized",

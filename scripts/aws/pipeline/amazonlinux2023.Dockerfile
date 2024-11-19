@@ -11,7 +11,8 @@ RUN dnf -y groupinstall "Development Tools" \
 COPY ./scripts/aws/pipeline/enclave-cli-1.5.3rc.zip /tmp/enclave-cli-1.5.3rc.zip
 RUN unzip /tmp/enclave-cli-1.5.3rc.zip -d /tmp/ 
 RUN chmod a+rwx /tmp/enclave-cli-1.5.3rc/* 
-RUN dnf install -y /tmp/enclave-cli-1.5.3rc/aws-nitro-enclaves-cli-devel-1.3.5-0.amzn2023.x86_64.rpm && /tmp/enclave-cli-1.5.3rc/aws-nitro-enclaves-cli-1.3.5-0.amzn2023.x86_64.rpm 
+RUN dnf install -y /tmp/enclave-cli-1.5.3rc/aws-nitro-enclaves-cli-1.3.5-0.amzn2023.x86_64.rpm 
+RUN dnf install -y /tmp/enclave-cli-1.5.3rc/aws-nitro-enclaves-cli-devel-1.3.5-0.amzn2023.x86_64.rpm 
 
 # RUN aws s3 cp s3://troubleshoot-delete-uid2-aws/enclave-cli-1.5.3rc.zip /tmp/ && unzip /tmp/enclave-cli-1.5.3rc.zip -d /tmp/ && dnf install -y /tmp/*.rpm
 

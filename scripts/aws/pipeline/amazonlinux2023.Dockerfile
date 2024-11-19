@@ -11,7 +11,7 @@ RUN dnf -y groupinstall "Development Tools" \
 ENV S3_BUCKET=troubleshoot-delete-uid2-aws
 ENV ZIP_FILE=enclave-cli-1.5.3rc.zip
     
-RUN aws s3 cp s3://$S3_BUCKET/$ZIP_FILE /tmp/ && unzip /tmp/$ZIP_FILE -d /tmp/ && dnf install -y /tmp/*.rpm
+aws s3 cp s3://troubleshoot-delete-uid2-aws/enclave-cli-1.5.3rc.zip /tmp/ && unzip /tmp/enclave-cli-1.5.3rc.zip -d /tmp/ && dnf install -y /tmp/*.rpm
 
 RUN systemctl enable docker
 

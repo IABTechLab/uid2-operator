@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "generated": 1620253519,
+  "s3encryption_keys": {
+    "location": "/com.uid2.core/test/s3encryption_keys/s3encryption_keys.json"
+  }
+}

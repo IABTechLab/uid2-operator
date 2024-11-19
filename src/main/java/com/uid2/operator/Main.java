@@ -8,6 +8,7 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
+import com.uid2.operator.reader.RotatingS3KeyOperatorProvider;
 import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.vertx.Endpoints;
@@ -81,6 +82,7 @@ public class Main {
     private IStatsCollectorQueue _statsCollectorQueue;
     private RotatingServiceStore serviceProvider;
     private RotatingServiceLinkStore serviceLinkProvider;
+    private RotatingS3KeyOperatorProvider s3KeyProvider;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -144,6 +146,8 @@ public class Main {
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
+        String s3KeyMdPath = this.config.getString(Const.Config.S3keysMetadataPathProp);
+        this.s3KeyProvider = new RotatingS3KeyOperatorProvider(fsStores, new GlobalScope(new CloudPath(s3KeyMdPath)));
 
         if (this.validateServiceLinks) {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
@@ -163,6 +167,7 @@ public class Main {
             this.saltProvider.loadContent();
             this.keysetProvider.loadContent();
             this.keysetKeyStore.loadContent();
+            this.s3KeyProvider.loadContent();
 
             if (this.validateServiceLinks) {
                 this.serviceProvider.loadContent();
@@ -330,6 +335,7 @@ public class Main {
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("s3encryption_keys", s3KeyProvider, "s3keys_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {

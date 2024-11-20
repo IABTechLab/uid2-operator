@@ -51,6 +51,7 @@ class EC2(ConfidentialCompute):
         client = boto3.client("secretsmanager", region_name=region)
         try:
             secret = client.get_secret_value(SecretId=secret_identifier)
+            #TODO: validate secret string has operator key, environment and other required values
             return json.loads(secret["SecretString"])
         except ClientError as e:
             raise RuntimeError(f"Unable to access Secrets Manager: {e}")
@@ -65,37 +66,42 @@ class EC2(ConfidentialCompute):
         configs.setdefault("optout_base_url", "https://optout.uidapi.com" if configs["environment"] == "prod" else "https://optout-integ.uidapi.com")
         return configs
 
-    @staticmethod
-    def __error_out_on_execute(command: list, error_message: str) -> None:
-        """Runs a command in the background and handles exceptions."""
-        try:
-            subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as e:
-            print(f"{error_message} \n '{' '.join(command)}': {e}")
-
     def __setup_vsockproxy(self, log_level: int) -> None:
-        """Sets up the vsock proxy service."""
+        """
+        Sets up the vsock proxy service.
+        TODO: Evaluate adding vsock logging based on log_level here
+        """
         thread_count = (multiprocessing.cpu_count() + 1) // 2
         command = [
             "/usr/bin/vsockpx", "-c", "/etc/uid2operator/proxy.yaml",
             "--workers", str(thread_count), "--log-level", str(log_level), "--daemon"
         ]
-        self.__error_out_on_execute(command, "vsockpx not found. Ensure it is installed.")
+        subprocess.run(command)
 
-    def __run_config_server(self) -> None:
-        """Starts the Flask configuration server."""
+    def __run_config_server(self,log_level) -> None:
+        """
+        Starts the Flask configuration server.
+        TODO: Based on log level add logging to flask
+        """
         os.makedirs("/etc/secret/secret-value", exist_ok=True)
         config_path = "/etc/secret/secret-value/config"
         with open(config_path, 'w') as config_file:
             json.dump(self.configs, config_file)
         os.chdir("/opt/uid2operator/config-server")
         command = ["./bin/flask", "run", "--host", "127.0.0.1", "--port", "27015"]
-        self.__error_out_on_execute(command, "Failed to start the Flask config server.")
+        try:
+            subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            print(f"Failed to start the Flask config server.\n '{' '.join(command)}': {e}")
+            raise RuntimeError ("Failed to start required flask server")
 
-    def __run_socks_proxy(self) -> None:
-        """Starts the SOCKS proxy service."""
+    def __run_socks_proxy(self, log_level) -> None:
+        """
+        Starts the SOCKS proxy service.
+        TODO: Based on log level add logging to sockd
+        """
         command = ["sockd", "-d"]
-        self.__error_out_on_execute(command, "Failed to start socks proxy.")
+        subprocess.run(command)
 
     def __get_secret_name_from_userdata(self) -> str:
         """Extracts the secret name from EC2 user data."""
@@ -125,13 +131,13 @@ class EC2(ConfidentialCompute):
             But can be added in future for tracibility on debug
             """
             print(f"Error writing hostname: {e}")
-
+    
         config = self._get_secret(self.__get_secret_name_from_userdata())
         self.configs = self.__add_defaults(config)
         log_level = 3 if self.configs["debug_mode"] else 1
         self.__setup_vsockproxy(log_level)
-        self.__run_config_server()
-        self.__run_socks_proxy()
+        self.__run_config_server(log_level)
+        self.__run_socks_proxy(log_level)
 
     def _validate_auxiliaries(self) -> None:
         """Validates auxiliary services."""

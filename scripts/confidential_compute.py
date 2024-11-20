@@ -13,6 +13,7 @@ class OperatorConfig(TypedDict):
     api_token: str
     core_base_url: str
     optout_base_url: str
+    environment: str
 
 
 class ConfidentialCompute(ABC):

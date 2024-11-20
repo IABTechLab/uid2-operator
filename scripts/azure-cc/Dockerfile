@@ -17,6 +17,17 @@ ENV IMAGE_VERSION=${IMAGE_VERSION}
 ENV REGION=default
 ENV LOKI_HOSTNAME=loki
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --upgrade pip
+
+RUN pip install --no-cache-dir \
+    azure-identity \
+    azure-keyvault-secrets
+
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-static.tar.gz /app/static.tar.gz
@@ -25,10 +36,10 @@ COPY ./conf/*.xml /app/conf/
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
 
-COPY ./entrypoint.sh /app/
-RUN chmod a+x /app/entrypoint.sh
+COPY ./azure.py /app/
+RUN chmod a+x /app/azure.py
 
 RUN adduser -D uid2-operator && mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && mkdir -p /app && chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
 USER uid2-operator
 
-CMD ["/app/entrypoint.sh"]
+CMD ["/app/azure.py"]

@@ -1,9 +1,9 @@
 package com.uid2.operator;
 
 import com.uid2.operator.reader.ApiStoreReader;
-import com.uid2.operator.reader.RotatingS3KeyOperatorProvider;
+import com.uid2.operator.reader.RotatingCloudEncryptionKeyApiProvider;
 import com.uid2.shared.cloud.DownloadCloudStorage;
-import com.uid2.shared.model.S3Key;
+import com.uid2.shared.model.CloudEncryptionKey;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.scope.StoreScope;
 import io.vertx.core.json.JsonObject;
@@ -18,7 +18,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-class RotatingS3KeyOperatorProviderTest {
+class RotatingCloudEncryptionKeyApiProviderTest {
 
     @Mock
     private DownloadCloudStorage mockFileStreamProvider;
@@ -27,15 +27,15 @@ class RotatingS3KeyOperatorProviderTest {
     private StoreScope mockScope;
 
     @Mock
-    private ApiStoreReader<Map<Integer, S3Key>> mockApiStoreReader;
+    private ApiStoreReader<Map<Integer, CloudEncryptionKey>> mockApiStoreReader;
 
-    private RotatingS3KeyOperatorProvider rotatingS3KeyOperatorProvider;
+    private RotatingCloudEncryptionKeyApiProvider rotatingCloudEncryptionKeyApiProvider;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        rotatingS3KeyOperatorProvider = new RotatingS3KeyOperatorProvider(mockFileStreamProvider, mockScope);
-        rotatingS3KeyOperatorProvider.apiStoreReader = mockApiStoreReader;
+        rotatingCloudEncryptionKeyApiProvider = new RotatingCloudEncryptionKeyApiProvider(mockFileStreamProvider, mockScope);
+        rotatingCloudEncryptionKeyApiProvider.apiStoreReader = mockApiStoreReader;
     }
 
     @Test
@@ -43,7 +43,7 @@ class RotatingS3KeyOperatorProviderTest {
         JsonObject expectedMetadata = new JsonObject().put("version", 1L);
         when(mockApiStoreReader.getMetadata()).thenReturn(expectedMetadata);
 
-        JsonObject metadata = rotatingS3KeyOperatorProvider.getMetadata();
+        JsonObject metadata = rotatingCloudEncryptionKeyApiProvider.getMetadata();
         assertEquals(expectedMetadata, metadata);
         verify(mockApiStoreReader).getMetadata();
     }
@@ -53,7 +53,7 @@ class RotatingS3KeyOperatorProviderTest {
         CloudPath expectedPath = new CloudPath("test/path");
         when(mockApiStoreReader.getMetadataPath()).thenReturn(expectedPath);
 
-        CloudPath path = rotatingS3KeyOperatorProvider.getMetadataPath();
+        CloudPath path = rotatingCloudEncryptionKeyApiProvider.getMetadataPath();
         assertEquals(expectedPath, path);
         verify(mockApiStoreReader).getMetadataPath();
     }
@@ -63,19 +63,19 @@ class RotatingS3KeyOperatorProviderTest {
         JsonObject metadata = new JsonObject();
         when(mockApiStoreReader.loadContent(metadata, "s3Keys")).thenReturn(1L);
 
-        long version = rotatingS3KeyOperatorProvider.loadContent(metadata);
+        long version = rotatingCloudEncryptionKeyApiProvider.loadContent(metadata);
         assertEquals(1L, version);
         verify(mockApiStoreReader).loadContent(metadata, "s3Keys");
     }
 
     @Test
     void testGetAll() {
-        Map<Integer, S3Key> expectedKeys = new HashMap<>();
-        S3Key key = new S3Key(1, 123, 1687635529, 1687808329, "secret");
+        Map<Integer, CloudEncryptionKey> expectedKeys = new HashMap<>();
+        CloudEncryptionKey key = new CloudEncryptionKey(1, 123, 1687635529, 1687808329, "secret");
         expectedKeys.put(1, key);
         when(mockApiStoreReader.getSnapshot()).thenReturn(expectedKeys);
 
-        Map<Integer, S3Key> keys = rotatingS3KeyOperatorProvider.getAll();
+        Map<Integer, CloudEncryptionKey> keys = rotatingCloudEncryptionKeyApiProvider.getAll();
         assertEquals(expectedKeys, keys);
         verify(mockApiStoreReader).getSnapshot();
     }
@@ -84,7 +84,7 @@ class RotatingS3KeyOperatorProviderTest {
     void testGetAllWithNullSnapshot() {
         when(mockApiStoreReader.getSnapshot()).thenReturn(null);
 
-        Map<Integer, S3Key> keys = rotatingS3KeyOperatorProvider.getAll();
+        Map<Integer, CloudEncryptionKey> keys = rotatingCloudEncryptionKeyApiProvider.getAll();
         assertNotNull(keys);
         assertTrue(keys.isEmpty());
         verify(mockApiStoreReader).getSnapshot();
@@ -96,7 +96,7 @@ class RotatingS3KeyOperatorProviderTest {
         when(mockApiStoreReader.getMetadata()).thenReturn(metadata);
         when(mockApiStoreReader.loadContent(metadata, "s3Keys")).thenReturn(1L);
 
-        rotatingS3KeyOperatorProvider.loadContent();
+        rotatingCloudEncryptionKeyApiProvider.loadContent();
         verify(mockApiStoreReader).getMetadata();
         verify(mockApiStoreReader).loadContent(metadata, "s3Keys");
     }

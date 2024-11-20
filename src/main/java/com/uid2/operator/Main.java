@@ -8,7 +8,7 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
-import com.uid2.operator.reader.RotatingS3KeyOperatorProvider;
+import com.uid2.operator.reader.RotatingCloudEncryptionKeyApiProvider;
 import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.vertx.Endpoints;
@@ -82,7 +82,7 @@ public class Main {
     private IStatsCollectorQueue _statsCollectorQueue;
     private RotatingServiceStore serviceProvider;
     private RotatingServiceLinkStore serviceLinkProvider;
-    private RotatingS3KeyOperatorProvider s3KeyProvider;
+    private RotatingCloudEncryptionKeyApiProvider s3KeyProvider;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -134,8 +134,8 @@ public class Main {
             this.fsOptOut = configureCloudOptOutStore();
         }
 
-        String s3KeyMdPath = this.config.getString(Const.Config.S3keysMetadataPathProp);
-        this.s3KeyProvider = new RotatingS3KeyOperatorProvider(fsStores, new GlobalScope(new CloudPath(s3KeyMdPath)));
+        String s3KeyMdPath = this.config.getString(Const.Config.CloudEncryptionKeysMetadataPathProp);
+        this.s3KeyProvider = new RotatingCloudEncryptionKeyApiProvider(fsStores, new GlobalScope(new CloudPath(s3KeyMdPath)));
         String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
         String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
         this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));

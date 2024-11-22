@@ -335,7 +335,7 @@ public class Main {
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
-        fs.add(createAndDeployRotatingStoreVerticle("s3encryption_keys", s3KeyProvider, "s3keys_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("cloud_encryption_keys", s3KeyProvider, "s3keys_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {

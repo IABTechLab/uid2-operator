@@ -10,6 +10,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.*;
 
 public class RotatingCloudEncryptionKeyApiProvider extends RotatingCloudEncryptionKeyProvider {
@@ -19,7 +20,7 @@ public class RotatingCloudEncryptionKeyApiProvider extends RotatingCloudEncrypti
 
     public RotatingCloudEncryptionKeyApiProvider(DownloadCloudStorage fileStreamProvider, StoreScope scope) {
         super(fileStreamProvider, scope);
-        this.apiStoreReader = new ApiStoreReader<>(fileStreamProvider, scope, new CloudEncryptionKeyParser(), "s3encryption_keys");
+        this.apiStoreReader = new ApiStoreReader<>(fileStreamProvider, scope, new CloudEncryptionKeyParser(), "cloud_encryption_keys");
     }
 
     @Override
@@ -35,6 +36,11 @@ public class RotatingCloudEncryptionKeyApiProvider extends RotatingCloudEncrypti
     @Override
     public long loadContent(JsonObject metadata) throws Exception {
         return apiStoreReader.loadContent(metadata, "s3Keys");
+    }
+
+    @Override
+    public long getVersion(JsonObject metadata) {
+        return Instant.now().getEpochSecond();
     }
 
     @Override

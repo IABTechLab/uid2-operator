@@ -7,7 +7,7 @@ import requests
 import re
 from typing import Dict
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, OperatorConfig
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, OperatorConfig
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
@@ -15,10 +15,9 @@ class AzureCC(ConfidentialCompute):
 
     def __init__(self):
         super().__init__()
-        self.configs: OperatorConfig = {}
+        self.configs: ConfidentialComputeConfig = {}
         
-
-    def _get_secret(self, secret_identifier):
+    def _get_secret(self, secret_identifier) -> ConfidentialComputeConfig:
         """Fetches a secret value from Azure Key Value, reads environment variables and returns config"""
         key_vault_url = "https://{}.vault.azure.net/".format(secret_identifier["key_vault"])
         credential = DefaultAzureCredential()
@@ -30,7 +29,7 @@ class AzureCC(ConfidentialCompute):
              "core_base_url": os.getenv("CORE_BASE_URL"),
              "optout_base_url": os.getenv("OPTOUT_BASE_URL")
           }
-          return {key: value for key, value in config.items() if value is not None}
+          return self.__add_defaults({key: value for key, value in config.items() if value is not None})
         except Exception as e:
            raise RuntimeError(f"Unable to access Secrets Manager: {e}")
 
@@ -77,7 +76,7 @@ class AzureCC(ConfidentialCompute):
           raise ValueError("DEPLOYMENT_ENVIRONMENT should be prod/integ. It is currently set to {}".format(os.getenv("DEPLOYMENT_ENVIRONMENT")))
         
     @staticmethod
-    def __add_defaults(configs: Dict[str, any]) -> OperatorConfig:
+    def __add_defaults(configs: Dict[str, any]) -> ConfidentialComputeConfig:
         """Adds default values to configuration if missing."""
         configs.setdefault("enclave_memory_mb", -1)
         configs.setdefault("enclave_cpu_count", -1)
@@ -85,9 +84,10 @@ class AzureCC(ConfidentialCompute):
         configs.setdefault("core_base_url", "https://core.uidapi.com" if configs["environment"] == "prod" else "https://core-integ.uidapi.com")
         configs.setdefault("optout_base_url", "https://optout.uidapi.com" if configs["environment"] == "prod" else "https://optout-integ.uidapi.com")
         return configs
-        
-    def __update_config_file(self, config_path):
-        """Updates configuration file with base URLs if in a non-production environment."""
+    
+    #TODO: This is repeated in GCP, EC2
+    def __get_overriden_configs(self, config_path) -> OperatorConfig:
+        """Returns the required configurations for operator. Only overrides if environment is integ"""
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
         with open(config_path) as f:
@@ -95,9 +95,7 @@ class AzureCC(ConfidentialCompute):
         if all([os.getenv("CORE_BASE_URL"), os.getenv("OPTOUT_BASE_URL")]) and self.configs["environment"] != "prod":
             config_data = re.sub(r"https://core-integ\.uidapi\.com", os.getenv("CORE_BASE_URL"), config_data)
             config_data = re.sub(r"https://optout-integ\.uidapi\.com", os.getenv("OPTOUT_BASE_URL"), config_data)
-        with open(config_path, "w") as file:
-            file.write(config_data)
-       
+        return config_data
 
     def run_compute(self):
         """Main execution flow for confidential compute."""
@@ -107,13 +105,14 @@ class AzureCC(ConfidentialCompute):
            "key_vault": os.getenv("OPERATOR_KEY_SECRET_NAME"),
            "secret_name": os.getenv("VAULT_NAME")
         }
-        self.configs = self.__add_defaults(self._get_secret(secret_identifier))
+        self.configs = self._get_secret(secret_identifier)
         self.validate_operator_key(self.configs)
         self.validate_connectivity(self.configs)
         os.environ["azure_vault_name"] = os.getenv("VAULT_NAME")
         os.environ["azure_secret_name"] = os.getenv("OPERATOR_KEY_SECRET_NAME")
         config_path="/app/conf/${}-uid2-config.json".format(os.getenv("DEPLOYMENT_ENVIRONMENT"))
-        self.__update_config_file(config_path=config_path)
+        with open(config_path, "w") as file:
+            file.write(self.__get_overriden_configs(config_path=config_path))
         java_command = [
           "java",
           "-XX:MaxRAMPercentage=95",

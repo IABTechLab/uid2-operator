@@ -70,6 +70,12 @@
       requirements: /opt/uid2operator/config-server/requirements.txt
       virtualenv_command: 'python3 -m venv'
 
+  - name: Install confidential_compute script
+    ansible.builtin.copy:
+      src: /tmp/artifacts/confidential_compute.py
+      dest: /opt/uid2operator/confidential_compute.py
+      remote_src: yes
+
   - name: Install starter script
     ansible.builtin.copy:
       src: /tmp/artifacts/ec2.py

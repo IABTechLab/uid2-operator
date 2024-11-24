@@ -6,21 +6,21 @@ import os
 import subprocess
 import re
 import multiprocessing
-import requests
+import requests #need requests[socks]
 import signal
 import argparse
 from botocore.exceptions import ClientError
 from typing import Dict
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, OperatorConfig
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig
 
 
 class EC2(ConfidentialCompute):
 
     def __init__(self):
         super().__init__()
-        self.configs: OperatorConfig = {}
+        self.configs: ConfidentialComputeConfig = {}
 
     def __get_aws_token(self) -> str:
         """Fetches a temporary AWS EC2 metadata token."""
@@ -45,19 +45,19 @@ class EC2(ConfidentialCompute):
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to fetch region: {e}")
 
-    def _get_secret(self, secret_identifier: str) -> Dict:
+    def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
+        secret_identifier = "uid2-config-stack-tjm-unvalidate-eif-test1"
         """Fetches a secret value from AWS Secrets Manager."""
         region = self.__get_current_region()
         client = boto3.client("secretsmanager", region_name=region)
         try:
             secret = client.get_secret_value(SecretId=secret_identifier)
-            #TODO: validate secret string has operator key, environment and other required values
-            return json.loads(secret["SecretString"])
+            return self.__add_defaults(json.loads(secret["SecretString"]))
         except ClientError as e:
-            raise RuntimeError(f"Unable to access Secrets Manager: {e}")
+            raise RuntimeError(f"Unable to access Secrets Manager {secret_identifier}: {e}")
 
     @staticmethod
-    def __add_defaults(configs: Dict[str, any]) -> OperatorConfig:
+    def __add_defaults(configs: Dict[str, any]) -> ConfidentialComputeConfig:
         """Adds default values to configuration if missing."""
         configs.setdefault("enclave_memory_mb", 24576)
         configs.setdefault("enclave_cpu_count", 6)
@@ -100,7 +100,7 @@ class EC2(ConfidentialCompute):
         Starts the SOCKS proxy service.
         TODO: Based on log level add logging to sockd
         """
-        command = ["sockd", "-d"]
+        command = ["sockd", "-D"]
         subprocess.run(command)
 
     def __get_secret_name_from_userdata(self) -> str:
@@ -131,9 +131,7 @@ class EC2(ConfidentialCompute):
             But can be added in future for tracibility on debug
             """
             print(f"Error writing hostname: {e}")
-    
-        config = self._get_secret(self.__get_secret_name_from_userdata())
-        self.configs = self.__add_defaults(config)
+        self.configs = self._get_secret(self.__get_secret_name_from_userdata())
         log_level = 3 if self.configs["debug_mode"] else 1
         self.__setup_vsockproxy(log_level)
         self.__run_config_server(log_level)
@@ -141,7 +139,7 @@ class EC2(ConfidentialCompute):
 
     def _validate_auxiliaries(self) -> None:
         """Validates auxiliary services."""
-        proxy = "socks5h://127.0.0.1:3305"
+        proxy = "socks5://127.0.0.1:3306"
         config_url = "http://127.0.0.1:27015/getConfig"
         try:
             response = requests.get(config_url)
@@ -183,19 +181,21 @@ class EC2(ConfidentialCompute):
                 print(f"Terminated enclave with ID: {enclave_id}")
             else:
                 print("No active enclaves found.")
+            self.__kill_auxiliaries()
         except subprocess.SubprocessError as e:
             raise (f"Error during cleanup: {e}")
 
-    def kill_process(self, process_name: str) -> None:
+    def __kill_auxiliaries(self) -> None:
         """Kills a process by its name."""
         try:
-            result = subprocess.run(["pgrep", "-f", process_name], stdout=subprocess.PIPE, text=True, check=False)
-            if result.stdout.strip():
-                for pid in result.stdout.strip().split("\n"):
-                    os.kill(int(pid), signal.SIGKILL)
-                print(f"Killed process '{process_name}'.")
-            else:
-                print(f"No process named '{process_name}' found.")
+            for process_name in ["vsockpx", "sockd"]:
+                result = subprocess.run(["pgrep", "-f", process_name], stdout=subprocess.PIPE, text=True, check=False)
+                if result.stdout.strip():
+                    for pid in result.stdout.strip().split("\n"):
+                        os.kill(int(pid), signal.SIGKILL)
+                    print(f"Killed process '{process_name}'.")
+                else:
+                    print(f"No process named '{process_name}' found.")
         except Exception as e:
             print(f"Error killing process '{process_name}': {e}")
 
@@ -207,8 +207,6 @@ if __name__ == "__main__":
     ec2 = EC2()
     if args.operation == "stop":
         ec2.cleanup()
-        for process in ["vsockpx", "sockd", "vsock-proxy"]:
-            ec2.kill_process(process)
     else:
         ec2.run_compute()
            

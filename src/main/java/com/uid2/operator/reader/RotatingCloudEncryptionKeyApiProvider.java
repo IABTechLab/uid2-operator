@@ -35,7 +35,7 @@ public class RotatingCloudEncryptionKeyApiProvider extends RotatingCloudEncrypti
 
     @Override
     public long loadContent(JsonObject metadata) throws Exception {
-        return apiStoreReader.loadContent(metadata, "s3Keys");
+        return apiStoreReader.loadContent(metadata, "cloudEncryptionKeys");
     }
 
     @Override

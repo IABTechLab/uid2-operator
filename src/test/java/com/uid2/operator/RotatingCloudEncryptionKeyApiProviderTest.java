@@ -61,11 +61,11 @@ class RotatingCloudEncryptionKeyApiProviderTest {
     @Test
     void testLoadContentWithMetadata() throws Exception {
         JsonObject metadata = new JsonObject();
-        when(mockApiStoreReader.loadContent(metadata, "s3Keys")).thenReturn(1L);
+        when(mockApiStoreReader.loadContent(metadata, "cloudEncryptionKeys")).thenReturn(1L);
 
         long version = rotatingCloudEncryptionKeyApiProvider.loadContent(metadata);
         assertEquals(1L, version);
-        verify(mockApiStoreReader).loadContent(metadata, "s3Keys");
+        verify(mockApiStoreReader).loadContent(metadata, "cloudEncryptionKeys");
     }
 
     @Test
@@ -94,10 +94,10 @@ class RotatingCloudEncryptionKeyApiProviderTest {
     void testLoadContent() throws Exception {
         JsonObject metadata = new JsonObject().put("version", 1L);
         when(mockApiStoreReader.getMetadata()).thenReturn(metadata);
-        when(mockApiStoreReader.loadContent(metadata, "s3Keys")).thenReturn(1L);
+        when(mockApiStoreReader.loadContent(metadata, "cloudEncryptionKeys")).thenReturn(1L);
 
         rotatingCloudEncryptionKeyApiProvider.loadContent();
         verify(mockApiStoreReader).getMetadata();
-        verify(mockApiStoreReader).loadContent(metadata, "s3Keys");
+        verify(mockApiStoreReader).loadContent(metadata, "cloudEncryptionKeys");
     }
 }

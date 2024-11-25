@@ -28,12 +28,12 @@ public class ApiStoreReader<T> extends ScopedStoreReader<T> {
         }
 
         try {
-            JsonArray s3KeysArray = contents.getJsonArray(dataType);
-            if (s3KeysArray == null) {
+            JsonArray dataArray = contents.getJsonArray(dataType);
+            if (dataArray == null) {
                 throw new IllegalArgumentException("No array found in the contents");
             }
 
-            String jsonString = s3KeysArray.toString();
+            String jsonString = dataArray.toString();
             InputStream inputStream = new ByteArrayInputStream(jsonString.getBytes(StandardCharsets.UTF_8));
 
             ParsingResult<T> parsed = parser.deserialize(inputStream);

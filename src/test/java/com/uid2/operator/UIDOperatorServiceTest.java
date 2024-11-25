@@ -60,9 +60,6 @@ public class UIDOperatorServiceTest {
 
         public TokenVersion getAdvertisingTokenVersionForTests(int siteId) {
             assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
-            if (this.siteIdsUsingV4Tokens.contains(siteId)) {
-                return TokenVersion.V4;
-            }
             return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         }
     }

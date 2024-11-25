@@ -97,7 +97,6 @@ public class UIDOperatorServiceTest {
         uid2Config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         uid2Config.put("advertising_token_v4_percentage", 0);
-        uid2Config.put("site_ids_using_v4_tokens", "127,128");
         uid2Config.put("advertising_token_v3", false); // prod is using v2 token version for now
         uid2Config.put("identity_v3", false);
 

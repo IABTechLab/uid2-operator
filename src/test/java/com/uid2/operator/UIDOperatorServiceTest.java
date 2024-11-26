@@ -160,7 +160,7 @@ public class UIDOperatorServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"123, V2","127, V4","128, V4"}) //site id 127 and 128 is for testing "site_ids_using_v4_tokens"
+    @CsvSource({"123, V4","127, V4","128, V4"})
     public void testGenerateAndRefresh(int siteId, TokenVersion tokenVersion) {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(siteId, 124, 125),

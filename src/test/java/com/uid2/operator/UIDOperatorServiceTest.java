@@ -58,7 +58,7 @@ public class UIDOperatorServiceTest {
             super(config, optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler);
         }
 
-        public TokenVersion getAdvertisingTokenVersionForTests(int siteId) {
+        public TokenVersion getAdvertisingTokenVersionForTests() {
             assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
             return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         }
@@ -148,7 +148,7 @@ public class UIDOperatorServiceTest {
     }
 
     private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString, IdentityScope scope, IdentityType type, int siteId) {
-        TokenVersion tokenVersion = (scope == IdentityScope.UID2) ? uid2Service.getAdvertisingTokenVersionForTests(siteId) : euidService.getAdvertisingTokenVersionForTests(siteId);
+        TokenVersion tokenVersion = (scope == IdentityScope.UID2) ? uid2Service.getAdvertisingTokenVersionForTests() : euidService.getAdvertisingTokenVersionForTests();
         UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, tokenVersion, scope, type);
         return tokenEncoder.decodeAdvertisingToken(advertisingTokenString);
     }

@@ -664,7 +664,7 @@ public class UIDOperatorVerticleTest {
         return req;
     }
 
-    protected TokenVersion getTokenVersion() {return TokenVersion.V2;}
+    protected TokenVersion getTokenVersion() {return TokenVersion.V4;}
 
     final boolean useIdentityV3() { return getTokenVersion() != TokenVersion.V2; }
     protected IdentityScope getIdentityScope() { return IdentityScope.UID2; }

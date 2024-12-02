@@ -58,11 +58,8 @@ public class UIDOperatorServiceTest {
             super(config, optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler);
         }
 
-        public TokenVersion getAdvertisingTokenVersionForTests(int siteId) {
+        public TokenVersion getAdvertisingTokenVersionForTests() {
             assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
-            if (this.siteIdsUsingV4Tokens.contains(siteId)) {
-                return TokenVersion.V4;
-            }
             return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
         }
     }
@@ -96,8 +93,7 @@ public class UIDOperatorServiceTest {
         uid2Config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        uid2Config.put("advertising_token_v4_percentage", 0);
-        uid2Config.put("site_ids_using_v4_tokens", "127,128");
+        uid2Config.put("advertising_token_v4_percentage", 100);
         uid2Config.put("advertising_token_v3", false); // prod is using v2 token version for now
         uid2Config.put("identity_v3", false);
 
@@ -152,7 +148,7 @@ public class UIDOperatorServiceTest {
     }
 
     private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString, IdentityScope scope, IdentityType type, int siteId) {
-        TokenVersion tokenVersion = (scope == IdentityScope.UID2) ? uid2Service.getAdvertisingTokenVersionForTests(siteId) : euidService.getAdvertisingTokenVersionForTests(siteId);
+        TokenVersion tokenVersion = (scope == IdentityScope.UID2) ? uid2Service.getAdvertisingTokenVersionForTests() : euidService.getAdvertisingTokenVersionForTests();
         UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, tokenVersion, scope, type);
         return tokenEncoder.decodeAdvertisingToken(advertisingTokenString);
     }
@@ -164,7 +160,7 @@ public class UIDOperatorServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"123, V2","127, V4","128, V4"}) //site id 127 and 128 is for testing "site_ids_using_v4_tokens"
+    @CsvSource({"123, V4","127, V4","128, V4"})
     public void testGenerateAndRefresh(int siteId, TokenVersion tokenVersion) {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(siteId, 124, 125),

@@ -159,7 +159,6 @@ public class UIDOperatorVerticleTest {
 
         config.put("identity_scope", getIdentityScope().toString());
         config.put("advertising_token_v3", getTokenVersion() == TokenVersion.V3);
-        config.put("advertising_token_v4_percentage", getTokenVersion() == TokenVersion.V4 ? 100 : 0);
         config.put("identity_v3", useIdentityV3());
         config.put("client_side_token_generate", true);
         config.put("key_sharing_endpoint_provide_app_names", true);

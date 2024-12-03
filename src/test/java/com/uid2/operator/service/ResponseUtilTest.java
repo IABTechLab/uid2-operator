@@ -42,12 +42,13 @@ class ResponseUtilTest {
 
     @Test
     void logsErrorWithNoExtraDetails() {
-        ResponseUtil.Error("Some error status", 500, rc, "Some error message");
+        ResponseUtil.LogErrorAndSendResponse("Some error status", 500, rc, "Some error message");
 
-        String expected = "Error response to http request. {" +
+        String expected = "Response to http request. {" +
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":null," +
+                "\"path\":null," +
                 "\"statusCode\":500," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"" +
@@ -65,12 +66,13 @@ class ResponseUtilTest {
         when(mockAuthorizable.getSiteId()).thenReturn(10);
         when(rc.data().get("api-client")).thenReturn(mockAuthorizable);
 
-        ResponseUtil.Error("Some error status", 500, rc, "Some error message");
+        ResponseUtil.LogErrorAndSendResponse("Some error status", 500, rc, "Some error message");
 
-        String expected = "Error response to http request. {" +
+        String expected = "Response to http request. {" +
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":\"Test Contract\"," +
                 "\"siteId\":10," +
+                "\"path\":null," +
                 "\"statusCode\":500," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"" +
@@ -83,12 +85,13 @@ class ResponseUtilTest {
     void logsErrorWithSiteIdFromContext() {
         when(rc.get(Const.RoutingContextData.SiteId)).thenReturn(20);
 
-        ResponseUtil.Error("Some error status", 500, rc, "Some error message");
+        ResponseUtil.LogErrorAndSendResponse("Some error status", 500, rc, "Some error message");
 
-        String expected = "Error response to http request. {" +
+        String expected = "Response to http request. {" +
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":20," +
+                "\"path\":null," +
                 "\"statusCode\":500," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"" +
@@ -104,12 +107,13 @@ class ResponseUtilTest {
 
         when(rc.request().remoteAddress()).thenReturn(socket);
 
-        ResponseUtil.Error("Some error status", 500, rc, "Some error message");
+        ResponseUtil.LogErrorAndSendResponse("Some error status", 500, rc, "Some error message");
 
-        String expected = "Error response to http request. {" +
+        String expected = "Response to http request. {" +
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":null," +
+                "\"path\":null," +
                 "\"statusCode\":500," +
                 "\"clientAddress\":\"192.168.10.10\"," +
                 "\"message\":\"Some error message\"" +
@@ -124,11 +128,12 @@ class ResponseUtilTest {
         when(rc1.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "")).thenReturn("TestLink1");
         when(rc1.get(SecureLinkValidatorService.SERVICE_NAME, "")).thenReturn("TestService1");
 
-        ResponseUtil.Error("Some error status", 500, rc1, "Some error message");
-        String expected = "Error response to http request. {" +
+        ResponseUtil.LogErrorAndSendResponse("Some error status", 500, rc1, "Some error message");
+        String expected = "Response to http request. {" +
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":null," +
+                "\"path\":null," +
                 "\"statusCode\":500," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"," +
@@ -144,9 +149,9 @@ class ResponseUtilTest {
         when(request.getHeader("origin")).thenReturn("testOriginHeader");
         when(rc.request()).thenReturn(request);
 
-        ResponseUtil.Warning("Some error status", 400, rc, "Some error message");
+        ResponseUtil.LogInfoAndSendResponse("Some error status", 400, rc, "Some error message");
 
-        String expected = "Warning response to http request. {" +
+        String expected = "Response to http request. {" +
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":null," +
@@ -165,9 +170,9 @@ class ResponseUtilTest {
         when(request.getHeader("origin")).thenReturn(null);
         when(rc.request()).thenReturn(request);
 
-        ResponseUtil.Warning("Some error status", 400, rc, "Some error message");
+        ResponseUtil.LogWarningAndSendResponse("Some error status", 400, rc, "Some error message");
 
-        String expected = "Warning response to http request. {" +
+        String expected = "Response to http request. {" +
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":null," +
@@ -185,9 +190,9 @@ class ResponseUtilTest {
         when(request.getHeader("referer")).thenReturn("testRefererHeader");
         when(rc.request()).thenReturn(request);
 
-        ResponseUtil.Warning("Some error status", 400, rc, "Some error message");
+        ResponseUtil.LogInfoAndSendResponse("Some error status", 400, rc, "Some error message");
 
-        String expected = "Warning response to http request. {" +
+        String expected = "Response to http request. {" +
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":null," +
@@ -206,9 +211,9 @@ class ResponseUtilTest {
         when(request.getHeader("referer")).thenReturn(null);
         when(rc.request()).thenReturn(request);
 
-        ResponseUtil.Warning("Some error status", 400, rc, "Some error message");
+        ResponseUtil.LogWarningAndSendResponse("Some error status", 400, rc, "Some error message");
 
-        String expected = "Warning response to http request. {" +
+        String expected = "Response to http request. {" +
                 "\"errorStatus\":\"Some error status\"," +
                 "\"contact\":null," +
                 "\"siteId\":null," +

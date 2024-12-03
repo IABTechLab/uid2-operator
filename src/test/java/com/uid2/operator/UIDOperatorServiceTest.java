@@ -141,8 +141,7 @@ public class UIDOperatorServiceTest {
     }
 
     private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString, IdentityScope scope, IdentityType type, int siteId) {
-        TokenVersion tokenVersion = TokenVersion.V4;
-        UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, tokenVersion, scope, type);
+        UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, TokenVersion.V4, scope, type);
         return tokenEncoder.decodeAdvertisingToken(advertisingTokenString);
     }
 

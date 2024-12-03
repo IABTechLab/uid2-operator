@@ -57,11 +57,6 @@ public class UIDOperatorServiceTest {
         public ExtendedUIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler) {
             super(config, optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler);
         }
-
-        public TokenVersion getAdvertisingTokenVersionForTests() {
-            assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
-            return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
-        }
     }
 
     @BeforeEach
@@ -93,8 +88,6 @@ public class UIDOperatorServiceTest {
         uid2Config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        uid2Config.put("advertising_token_v4_percentage", 100);
-        uid2Config.put("advertising_token_v3", false); // prod is using v2 token version for now
         uid2Config.put("identity_v3", false);
 
         uid2Service = new ExtendedUIDOperatorService(
@@ -111,8 +104,6 @@ public class UIDOperatorServiceTest {
         euidConfig.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         euidConfig.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         euidConfig.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        euidConfig.put("advertising_token_v4_percentage", 0);
-        euidConfig.put("advertising_token_v3", true);
         euidConfig.put("identity_v3", true);
 
         euidService = new ExtendedUIDOperatorService(
@@ -148,8 +139,7 @@ public class UIDOperatorServiceTest {
     }
 
     private AdvertisingToken validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString, IdentityScope scope, IdentityType type, int siteId) {
-        TokenVersion tokenVersion = (scope == IdentityScope.UID2) ? uid2Service.getAdvertisingTokenVersionForTests() : euidService.getAdvertisingTokenVersionForTests();
-        UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, tokenVersion, scope, type);
+        UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, TokenVersion.V4, scope, type);
         return tokenEncoder.decodeAdvertisingToken(advertisingTokenString);
     }
 

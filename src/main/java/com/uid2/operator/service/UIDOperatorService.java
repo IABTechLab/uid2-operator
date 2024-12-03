@@ -265,14 +265,6 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
-        TokenVersion tokenVersion;
-        int pseudoRandomNumber = 1;
-        final var rawUid = userIdentity.id;
-        if (rawUid.length > 2)
-        {
-            int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
-            pseudoRandomNumber = (hash % 100) + 1; //1 to 100
-        }
         return new AdvertisingToken(TokenVersion.V4, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
     }
 

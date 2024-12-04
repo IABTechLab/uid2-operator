@@ -188,6 +188,7 @@ Resources:
           "enclave_cpu_count":6,
           "enclave_memory_mb":24576,
           "environment":"${DeployToEnvironment}"
+          "debug_mode":"false"
         }'
   WorkerRole:
     Type: 'AWS::IAM::Role'

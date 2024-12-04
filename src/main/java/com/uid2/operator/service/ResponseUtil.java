@@ -70,7 +70,9 @@ public class ResponseUtil {
     public static void SendClientErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, TokenResponseStatsCollector.PlatformType platformType)
     {
         // 400 error
-        if (ResponseStatus.ClientError.equals(errorStatus))
+        if (ResponseStatus.ClientError.equals(errorStatus) ||
+                ResponseStatus.InvalidAppName.equals(errorStatus) ||
+                ResponseStatus.InvalidHttpOrigin.equals(errorStatus))
         {
             LogInfoAndSendResponse(errorStatus, statusCode, rc, message);
         }

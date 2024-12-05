@@ -10,12 +10,18 @@ import java.util.Arrays;
 public class FirstLevelHashIdentity extends UserIdentity {
     public final byte[] firstLevelHash;
 
-    public FirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] firstLevelHash, int privacyBits,
-                                  Instant establishedAt, Instant refreshedAt) {
-        super(identityScope, identityType, privacyBits, establishedAt, refreshedAt);
+    // for brand new token generation, it should be the time it is generated
+    // if the first level hash is from token/refresh call, it will be when the raw UID was originally created in the earliest token generation
+    public final Instant establishedAt;
+
+    public FirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] firstLevelHash,
+                                  Instant establishedAt) {
+        super(identityScope, identityType);
         this.firstLevelHash = firstLevelHash;
+        this.establishedAt = establishedAt;
     }
 
+    // explicitly not checking establishedAt - this is only for making sure the first level hash matches a new input
     public boolean matches(FirstLevelHashIdentity that) {
         return this.identityScope.equals(that.identityScope) &&
                 this.identityType.equals(that.identityType) &&

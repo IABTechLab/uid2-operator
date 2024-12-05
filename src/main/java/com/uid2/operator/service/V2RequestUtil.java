@@ -172,7 +172,12 @@ public class V2RequestUtil {
                 .appendInt(refreshKey.getId())
                 .appendBytes(encrypted)
                 .getBytes());
-        assert modifiedToken.length() == V2_REFRESH_PAYLOAD_LENGTH;
+        if (modifiedToken.length() != V2_REFRESH_PAYLOAD_LENGTH) {
+            final String errorMsg = "Generated refresh token's length=" + modifiedToken.length()
+                    + " is not equal to=" + V2_REFRESH_PAYLOAD_LENGTH;
+            LOGGER.error(errorMsg);
+            throw new IllegalArgumentException(errorMsg);
+        }
 
         bodyJson.put("refresh_token", modifiedToken);
         bodyJson.put("refresh_response_key", refreshResponseKey);

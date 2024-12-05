@@ -3,6 +3,7 @@ CID=42
 EIF_PATH=/home/uid2operator.eif
 MEMORY_MB=24576
 CPU_COUNT=6
+DEBUG_MODE="false"
 
 set -x
 
@@ -87,12 +88,20 @@ function update_config() {
         { set +x; } 2>/dev/null; { CPU_COUNT=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_cpu_count'); set -x; }
         { set +x; } 2>/dev/null; { MEMORY_MB=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.enclave_memory_mb'); set -x; }
     fi
+
+    { set +x; } 2>/dev/null; { DEBUG_MODE=$(echo $IDENTITY_SERVICE_CONFIG | jq -r '.debug_mode'); set -x; }
+
     shopt -u nocasematch
 }
 
 function run_enclave() {
-    echo "starting enclave... --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID"
-    nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator
+    if [ "$DEBUG_MODE" == "true" ]; then
+      echo "starting enclave... --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --debug-mode --attach-console"
+      nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator --debug-mode --attach-console
+    else
+      echo "starting enclave... --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID"
+      nitro-cli run-enclave --cpu-count $CPU_COUNT --memory $MEMORY_MB --eif-path $EIF_PATH --enclave-cid $CID --enclave-name uid2-operator
+    fi
 }
 
 echo "starting ..."

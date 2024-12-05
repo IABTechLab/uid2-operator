@@ -14,9 +14,9 @@ public interface IUIDOperatorService {
 
     IdentityResponse generateIdentity(IdentityRequest request);
 
-    RefreshResponse refreshIdentity(RefreshTokenInput refreshTokenInput);
+    TokenRefreshResponse refreshIdentity(TokenRefreshRequest input);
 
-    RawUidResponse mapIdentity(MapRequest request);
+    RawUidResponse mapHashedDiiIdentity(MapRequest request);
 
     @Deprecated
     RawUidResponse map(HashedDiiIdentity hashedDiiIdentity, Instant asOf);

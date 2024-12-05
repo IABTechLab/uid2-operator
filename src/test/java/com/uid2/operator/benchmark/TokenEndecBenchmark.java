@@ -58,7 +58,7 @@ public class TokenEndecBenchmark {
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public RefreshResponse TokenRefreshBenchmark() {
+    public TokenRefreshResponse TokenRefreshBenchmark() {
         return uidService.refreshIdentity(
                 encoder.decodeRefreshToken(
                         generatedTokens[(idx++) & 65535].getRefreshToken()));

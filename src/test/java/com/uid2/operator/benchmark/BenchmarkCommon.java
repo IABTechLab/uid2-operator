@@ -155,8 +155,7 @@ public class BenchmarkCommon {
         for (int i = 0; i < 65536; i++) {
             final byte[] diiHash = new byte[33];
             new Random().nextBytes(diiHash);
-            arr[i] = new HashedDiiIdentity(IdentityScope.UID2, IdentityType.Email, diiHash, 0,
-                    Instant.now().minusSeconds(120), Instant.now().minusSeconds(60));
+            arr[i] = new HashedDiiIdentity(IdentityScope.UID2, IdentityType.Email, diiHash);
         }
         return arr;
     }
@@ -169,7 +168,7 @@ public class BenchmarkCommon {
 
         for (ClientKey client : clients.getAll()) {
             if (client.hasRole(Role.GENERATOR)) {
-                return new SourcePublisher(client.getSiteId(), 0, 0);
+                return new SourcePublisher(client.getSiteId());
             }
         }
         throw new IllegalStateException("embedded resource does not include any publisher key");

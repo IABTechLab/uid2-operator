@@ -1,16 +1,21 @@
 package com.uid2.operator.model;
 
 import com.uid2.shared.model.TokenVersion;
+import io.vertx.core.json.JsonObject;
 
 import java.time.Instant;
 
 // this defines all the fields for the response of the /token/generate and /client/generate endpoints before they are
 // jsonified
+// todo: can be converted to record later
 public class IdentityResponse {
-    public static IdentityResponse OptOutIdentityResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+    public static final IdentityResponse OptOutResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+
+    //aka UID token
     private final String advertisingToken;
     private final TokenVersion advertisingTokenVersion;
     private final String refreshToken;
+    // when the advertising token/uid token expires
     private final Instant identityExpires;
     private final Instant refreshExpires;
     private final Instant refreshFrom;
@@ -51,5 +56,26 @@ public class IdentityResponse {
 
     public boolean isOptedOut() {
         return advertisingToken == null || advertisingToken.isEmpty();
+    }
+
+    // for v1/v2 token/generate and token/refresh and client/generate (CSTG) endpoints
+    public JsonObject toJsonV1() {
+        final JsonObject json = new JsonObject();
+        json.put("advertising_token", getAdvertisingToken());
+        json.put("refresh_token", getRefreshToken());
+        json.put("identity_expires", getIdentityExpires().toEpochMilli());
+        json.put("refresh_expires", getRefreshExpires().toEpochMilli());
+        json.put("refresh_from", getRefreshFrom().toEpochMilli());
+        return json;
+    }
+
+    // for the original/legacy token/generate and token/refresh endpoint
+    public JsonObject toJsonV0() {
+        final JsonObject json = new JsonObject();
+        json.put("advertisement_token", getAdvertisingToken());
+        json.put("advertising_token", getAdvertisingToken());
+        json.put("refresh_token", getRefreshToken());
+
+        return json;
     }
 }

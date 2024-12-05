@@ -7,7 +7,7 @@ import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.model.TokenVersion;
 
 // class containing enough data to create a new refresh token
-public class RefreshTokenRequest extends VersionedToken {
+public class TokenRefreshRequest extends VersionedTokenRequest {
     public final OperatorIdentity operatorIdentity;
     public final SourcePublisher sourcePublisher;
     public final FirstLevelHashIdentity firstLevelHashIdentity;
@@ -15,7 +15,7 @@ public class RefreshTokenRequest extends VersionedToken {
     public final PrivacyBits privacyBits;
 
 
-    public RefreshTokenRequest(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
+    public TokenRefreshRequest(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
                                SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity, PrivacyBits privacyBits) {
         super(version, createdAt, expiresAt);
         this.operatorIdentity = operatorIdentity;

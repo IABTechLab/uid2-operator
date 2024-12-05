@@ -848,11 +848,11 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    RefreshTokenRequest decodeRefreshToken(EncryptedTokenEncoder encoder, String refreshTokenString, IdentityType identityType) {
-        RefreshTokenRequest refreshTokenRequest = encoder.decodeRefreshToken(refreshTokenString);
-        assertEquals(getIdentityScope(), refreshTokenRequest.firstLevelHashIdentity.identityScope);
-        assertEquals(identityType, refreshTokenRequest.firstLevelHashIdentity.identityType);
-        return refreshTokenRequest;
+    TokenRefreshRequest decodeRefreshToken(EncryptedTokenEncoder encoder, String refreshTokenString, IdentityType identityType) {
+        TokenRefreshRequest tokenRefreshRequest = encoder.decodeRefreshToken(refreshTokenString);
+        assertEquals(getIdentityScope(), tokenRefreshRequest.firstLevelHashIdentity.identityScope);
+        assertEquals(identityType, tokenRefreshRequest.firstLevelHashIdentity.identityType);
+        return tokenRefreshRequest;
     }
 
     @ParameterizedTest
@@ -1165,14 +1165,14 @@ public class UIDOperatorVerticleTest {
                     EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, body, identityType);
-                    RefreshTokenRequest refreshTokenRequest = encoder.decodeRefreshToken(body.getString("decrypted_refresh_token"));
+                    TokenRefreshRequest tokenRefreshRequest = encoder.decodeRefreshToken(body.getString("decrypted_refresh_token"));
                     final byte[] rawUid = getRawUidFromIdentity(identityType,
                             optOutTokenInput.getNormalized(),
                             firstLevelSalt,
                             rotatingSalt123.getSalt());
                     final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(optOutTokenInput.getNormalized(), firstLevelSalt);
                     assertArrayEquals(rawUid, advertisingTokenRequest.rawUidIdentity.rawUid);
-                    assertArrayEquals(firstLevelHash, refreshTokenRequest.firstLevelHashIdentity.firstLevelHash);
+                    assertArrayEquals(firstLevelHash, tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
 
                     String advertisingTokenString = body.getString("advertising_token");
                     final Instant now = Instant.now();
@@ -1225,9 +1225,9 @@ public class UIDOperatorVerticleTest {
                     EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, body, IdentityType.Email);
-                    RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
+                    TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
 
-                    assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, refreshTokenRequest, clientSiteId,
+                    assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, tokenRefreshRequest, clientSiteId,
                             getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()),
                             PrivacyBits.DEFAULT,
                             body,
@@ -1239,15 +1239,15 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    public void assertAdvertisingTokenRefreshTokenRequests(AdvertisingTokenRequest advertisingTokenRequest, RefreshTokenRequest refreshTokenRequest,
+    public void assertAdvertisingTokenRefreshTokenRequests(AdvertisingTokenRequest advertisingTokenRequest, TokenRefreshRequest tokenRefreshRequest,
                                                            int expectedClientSiteId, byte[] expectedRawUidIdentity, PrivacyBits expectedPrivacyBits, JsonObject identityResponse, byte[] firstLevelHashIdentity) {
 
         assertEquals(expectedClientSiteId, advertisingTokenRequest.sourcePublisher.siteId);
-        assertEquals(expectedClientSiteId, refreshTokenRequest.sourcePublisher.siteId);
+        assertEquals(expectedClientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
         assertArrayEquals(expectedRawUidIdentity, advertisingTokenRequest.rawUidIdentity.rawUid);
 
-        verifyPrivacyBits(expectedPrivacyBits, advertisingTokenRequest, refreshTokenRequest);
-        verifyFirstLevelHashIdentityAndEstablishedAt(firstLevelHashIdentity, refreshTokenRequest, identityResponse, advertisingTokenRequest.establishedAt);
+        verifyPrivacyBits(expectedPrivacyBits, advertisingTokenRequest, tokenRefreshRequest);
+        verifyFirstLevelHashIdentityAndEstablishedAt(firstLevelHashIdentity, tokenRefreshRequest, identityResponse, advertisingTokenRequest.establishedAt);
 
         assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(identityResponse.getLong("identity_expires")), 10);
         assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(identityResponse.getLong("refresh_expires")), 10);
@@ -1255,9 +1255,9 @@ public class UIDOperatorVerticleTest {
     }
 
     public void verifyPrivacyBits(PrivacyBits expectedValue, AdvertisingTokenRequest advertisingTokenRequest,
-                      RefreshTokenRequest refreshTokenRequest) {
+                      TokenRefreshRequest tokenRefreshRequest) {
         assertEquals(advertisingTokenRequest.privacyBits, expectedValue);
-        assertEquals(advertisingTokenRequest.privacyBits, refreshTokenRequest.privacyBits);
+        assertEquals(advertisingTokenRequest.privacyBits, tokenRefreshRequest.privacyBits);
     }
 
     @ParameterizedTest
@@ -1282,9 +1282,9 @@ public class UIDOperatorVerticleTest {
                     EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, body, IdentityType.Email);
-                    RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, apiVersion.equals("v2") ? body.getString("decrypted_refresh_token") : body.getString("refresh_token"), IdentityType.Email);
+                    TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, apiVersion.equals("v2") ? body.getString("decrypted_refresh_token") : body.getString("refresh_token"), IdentityType.Email);
 
-                    assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, refreshTokenRequest, clientSiteId,
+                    assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, tokenRefreshRequest, clientSiteId,
                             getRawUidFromIdentityHash(IdentityType.Email, emailHash, firstLevelSalt, rotatingSalt123.getSalt()),
                             PrivacyBits.DEFAULT,
                             body,
@@ -1314,9 +1314,9 @@ public class UIDOperatorVerticleTest {
             AdvertisingTokenRequest firstAdvertisingTokenRequest = validateAndGetToken(encoder, bodyJson,
                     IdentityType.Email);
 
-            RefreshTokenRequest firstRefreshTokenRequest = decodeRefreshToken(encoder, bodyJson.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
+            TokenRefreshRequest firstTokenRefreshRequest = decodeRefreshToken(encoder, bodyJson.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
 
-            assertEquals(firstAdvertisingTokenRequest.establishedAt, firstRefreshTokenRequest.firstLevelHashIdentity.establishedAt);
+            assertEquals(firstAdvertisingTokenRequest.establishedAt, firstTokenRefreshRequest.firstLevelHashIdentity.establishedAt);
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
@@ -1324,7 +1324,7 @@ public class UIDOperatorVerticleTest {
             byte[] expectedRawUidIdentity = getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt());
             byte[] expectedFirstLevelHashIdentity = TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt);
 
-            assertAdvertisingTokenRefreshTokenRequests(firstAdvertisingTokenRequest, firstRefreshTokenRequest, clientSiteId,
+            assertAdvertisingTokenRefreshTokenRequests(firstAdvertisingTokenRequest, firstTokenRefreshRequest, clientSiteId,
                     expectedRawUidIdentity,
                     PrivacyBits.DEFAULT,
                     bodyJson,
@@ -1341,12 +1341,12 @@ public class UIDOperatorVerticleTest {
                 AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
-                RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, refreshTokenStringNew, IdentityType.Email);
+                TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, refreshTokenStringNew, IdentityType.Email);
 
                 // assert if the ad/refresh tokens from original token/generate is same as the ad/refresh tokens from token/refresh
                 assertAdvertisingTokenRefreshTokenRequests(
                         advertisingTokenRequest,
-                        firstRefreshTokenRequest,
+                        firstTokenRefreshRequest,
                         clientSiteId,
                         expectedRawUidIdentity,
                         PrivacyBits.DEFAULT,
@@ -1354,7 +1354,7 @@ public class UIDOperatorVerticleTest {
                         expectedFirstLevelHashIdentity);
                 assertAdvertisingTokenRefreshTokenRequests(
                         firstAdvertisingTokenRequest,
-                        refreshTokenRequest,
+                        tokenRefreshRequest,
                         clientSiteId,
                         expectedRawUidIdentity,
                         PrivacyBits.DEFAULT,
@@ -1362,7 +1362,7 @@ public class UIDOperatorVerticleTest {
                         expectedFirstLevelHashIdentity);
                 assertAdvertisingTokenRefreshTokenRequests(
                         advertisingTokenRequest,
-                        refreshTokenRequest,
+                        tokenRefreshRequest,
                         clientSiteId,
                         expectedRawUidIdentity,
                         PrivacyBits.DEFAULT,
@@ -1420,9 +1420,9 @@ public class UIDOperatorVerticleTest {
 
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
-                RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, refreshTokenStringNew, IdentityType.Email);
-                assertEquals(clientSiteId, refreshTokenRequest.sourcePublisher.siteId);
-                assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshTokenRequest.firstLevelHashIdentity.firstLevelHash);
+                TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, refreshTokenStringNew, IdentityType.Email);
+                assertEquals(clientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
+                assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
 
                 assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
                 assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
@@ -1593,9 +1593,9 @@ public class UIDOperatorVerticleTest {
             assertEquals(clientSiteId, advertisingTokenRequest.sourcePublisher.siteId);
             assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUidIdentity.rawUid);
 
-            RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
-            assertEquals(clientSiteId, refreshTokenRequest.sourcePublisher.siteId);
-            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshTokenRequest.firstLevelHashIdentity.firstLevelHash);
+            TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
+            assertEquals(clientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
+            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
 
             testContext.completeNow();
         });
@@ -1632,9 +1632,9 @@ public class UIDOperatorVerticleTest {
                     assertEquals(clientSiteId, advertisingTokenRequest.sourcePublisher.siteId);
                     assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUidIdentity.rawUid);
 
-                    RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
-                    assertEquals(clientSiteId, refreshTokenRequest.sourcePublisher.siteId);
-                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshTokenRequest.firstLevelHashIdentity.firstLevelHash);
+                    TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
+                    assertEquals(clientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
+                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
 
                     assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
                     assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
@@ -2538,9 +2538,9 @@ public class UIDOperatorVerticleTest {
             EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, body, IdentityType.Phone);
-            RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Phone);
+            TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Phone);
 
-            assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, refreshTokenRequest, clientSiteId,
+            assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, tokenRefreshRequest, clientSiteId,
                     getRawUidFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()),
                     PrivacyBits.DEFAULT,
                     body,
@@ -2551,15 +2551,15 @@ public class UIDOperatorVerticleTest {
     }
 
     void verifyFirstLevelHashIdentityAndEstablishedAt(byte[] expectedFirstLevelHash,
-                                                      RefreshTokenRequest refreshTokenRequest,
+                                                      TokenRefreshRequest tokenRefreshRequest,
                                                       JsonObject receivedJsonBody,
                                                       Instant expectedEstablishedTime) {
 
-        assertArrayEquals(expectedFirstLevelHash, refreshTokenRequest.firstLevelHashIdentity.firstLevelHash);
-        assertEquals(expectedEstablishedTime, refreshTokenRequest.firstLevelHashIdentity.establishedAt);
-        assertTrue(refreshTokenRequest.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("identity_expires") );
-        assertTrue(refreshTokenRequest.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("refresh_expires") );
-        assertTrue(refreshTokenRequest.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("refresh_from") );
+        assertArrayEquals(expectedFirstLevelHash, tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
+        assertEquals(expectedEstablishedTime, tokenRefreshRequest.firstLevelHashIdentity.establishedAt);
+        assertTrue(tokenRefreshRequest.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("identity_expires") );
+        assertTrue(tokenRefreshRequest.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("refresh_expires") );
+        assertTrue(tokenRefreshRequest.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("refresh_from") );
     }
 
     @ParameterizedTest
@@ -2583,9 +2583,9 @@ public class UIDOperatorVerticleTest {
             EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, body, IdentityType.Phone);
-            RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Phone);
+            TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Phone);
 
-            assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, refreshTokenRequest, clientSiteId,
+            assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, tokenRefreshRequest, clientSiteId,
                     getRawUidFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()),
                     PrivacyBits.DEFAULT,
                     body,
@@ -2614,14 +2614,14 @@ public class UIDOperatorVerticleTest {
             AdvertisingTokenRequest firstAdvertisingTokenRequest = validateAndGetToken(encoder, bodyJson,
                     IdentityType.Phone);
             String genRefreshToken = bodyJson.getString("refresh_token");
-            RefreshTokenRequest firstRefreshTokenRequest = decodeRefreshToken(encoder, bodyJson.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Phone);
+            TokenRefreshRequest firstTokenRefreshRequest = decodeRefreshToken(encoder, bodyJson.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Phone);
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
             byte[] expectedRawUidIdentity = getRawUidFromIdentity(IdentityType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt());
             byte[] expectedFirstLevelHashIdentity = TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt);
 
-            assertAdvertisingTokenRefreshTokenRequests(firstAdvertisingTokenRequest, firstRefreshTokenRequest, clientSiteId,
+            assertAdvertisingTokenRefreshTokenRequests(firstAdvertisingTokenRequest, firstTokenRefreshRequest, clientSiteId,
                     expectedRawUidIdentity,
                     PrivacyBits.DEFAULT,
                     bodyJson,
@@ -2637,12 +2637,12 @@ public class UIDOperatorVerticleTest {
                 AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, refreshBody, IdentityType.Phone);
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
-                RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, refreshTokenStringNew, IdentityType.Phone);
+                TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, refreshTokenStringNew, IdentityType.Phone);
 
                 // assert if the ad/refresh tokens from original token/generate is same as the ad/refresh tokens from token/refresh
                 assertAdvertisingTokenRefreshTokenRequests(
                         advertisingTokenRequest,
-                        firstRefreshTokenRequest,
+                        firstTokenRefreshRequest,
                         clientSiteId,
                         expectedRawUidIdentity,
                         PrivacyBits.DEFAULT,
@@ -2650,7 +2650,7 @@ public class UIDOperatorVerticleTest {
                         expectedFirstLevelHashIdentity);
                 assertAdvertisingTokenRefreshTokenRequests(
                         firstAdvertisingTokenRequest,
-                        refreshTokenRequest,
+                        tokenRefreshRequest,
                         clientSiteId,
                         expectedRawUidIdentity,
                         PrivacyBits.DEFAULT,
@@ -2658,7 +2658,7 @@ public class UIDOperatorVerticleTest {
                         expectedFirstLevelHashIdentity);
                 assertAdvertisingTokenRefreshTokenRequests(
                         advertisingTokenRequest,
-                        refreshTokenRequest,
+                        tokenRefreshRequest,
                         clientSiteId,
                         expectedRawUidIdentity,
                         PrivacyBits.DEFAULT,
@@ -4086,9 +4086,9 @@ public class UIDOperatorVerticleTest {
                     final JsonObject genBody = response.getJsonObject("body");
 
                     final AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, genBody, identityType);
-                    final RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, decodeV2RefreshToken(response), identityType);
+                    final TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, decodeV2RefreshToken(response), identityType);
 
-                    assertAreClientSideGeneratedTokens(advertisingTokenRequest, refreshTokenRequest, clientSideTokenGenerateSiteId, identityType, id);
+                    assertAreClientSideGeneratedTokens(advertisingTokenRequest, tokenRefreshRequest, clientSideTokenGenerateSiteId, identityType, id);
 
                     // When we refresh the token the user has opted out.
                     when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
@@ -4151,7 +4151,7 @@ public class UIDOperatorVerticleTest {
 
                     AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, genBody, identityType);
 
-                    RefreshTokenRequest refreshTokenRequest = decodeRefreshToken(encoder, genBody.getString("decrypted_refresh_token"), identityType);
+                    TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, genBody.getString("decrypted_refresh_token"), identityType);
 
 
 
@@ -4162,13 +4162,13 @@ public class UIDOperatorVerticleTest {
                     expectedPrivacyBits.setLegacyBit();
                     expectedPrivacyBits.setClientSideTokenGenerate();
 
-                    assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, refreshTokenRequest,
+                    assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, tokenRefreshRequest,
                             clientSideTokenGenerateSiteId,
                             expectedRawUidIdentity,
                             expectedPrivacyBits,
                             genBody,
                             expectedFirstLevelHashIdentity);
-                    assertAreClientSideGeneratedTokens(advertisingTokenRequest, refreshTokenRequest, clientSideTokenGenerateSiteId, identityType, id);
+                    assertAreClientSideGeneratedTokens(advertisingTokenRequest, tokenRefreshRequest, clientSideTokenGenerateSiteId, identityType, id);
                     assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_from")), 10);
@@ -4193,7 +4193,7 @@ public class UIDOperatorVerticleTest {
 
                         String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
-                        RefreshTokenRequest refreshTokenAfterRefreshSource = decodeRefreshToken(encoder, refreshTokenStringNew, identityType);
+                        TokenRefreshRequest refreshTokenAfterRefreshSource = decodeRefreshToken(encoder, refreshTokenStringNew, identityType);
 
                         assertAdvertisingTokenRefreshTokenRequests(adTokenFromRefresh, refreshTokenAfterRefreshSource,
                                 clientSideTokenGenerateSiteId,
@@ -4295,18 +4295,18 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    private void assertAreClientSideGeneratedTokens(AdvertisingTokenRequest advertisingTokenRequest, RefreshTokenRequest refreshTokenRequest, int siteId, IdentityType identityType, String identity) {
+    private void assertAreClientSideGeneratedTokens(AdvertisingTokenRequest advertisingTokenRequest, TokenRefreshRequest tokenRefreshRequest, int siteId, IdentityType identityType, String identity) {
         assertAreClientSideGeneratedTokens(advertisingTokenRequest,
-                refreshTokenRequest,
+                tokenRefreshRequest,
                 siteId,
                 identityType,
                 identity,
                 false);
     }
 
-    private void assertAreClientSideGeneratedTokens(AdvertisingTokenRequest advertisingTokenRequest, RefreshTokenRequest refreshTokenRequest, int siteId, IdentityType identityType, String identity, boolean expectedOptOut) {
+    private void assertAreClientSideGeneratedTokens(AdvertisingTokenRequest advertisingTokenRequest, TokenRefreshRequest tokenRefreshRequest, int siteId, IdentityType identityType, String identity, boolean expectedOptOut) {
         final PrivacyBits advertisingTokenPrivacyBits = advertisingTokenRequest.privacyBits;
-        final PrivacyBits refreshTokenPrivacyBits = refreshTokenRequest.privacyBits;
+        final PrivacyBits refreshTokenPrivacyBits = tokenRefreshRequest.privacyBits;
 
         final byte[] rawUid = getRawUidFromIdentity(identityType,
                 identity,
@@ -4323,10 +4323,10 @@ public class UIDOperatorVerticleTest {
                 () -> assertEquals(expectedOptOut, refreshTokenPrivacyBits.isClientSideTokenOptedOut(), "Refresh token privacy bits CSTG optout flag is incorrect"),
 
                 () -> assertEquals(siteId, advertisingTokenRequest.sourcePublisher.siteId, "Advertising token site ID is incorrect"),
-                () -> assertEquals(siteId, refreshTokenRequest.sourcePublisher.siteId, "Refresh token site ID is incorrect"),
+                () -> assertEquals(siteId, tokenRefreshRequest.sourcePublisher.siteId, "Refresh token site ID is incorrect"),
 
                 () -> assertArrayEquals(rawUid, advertisingTokenRequest.rawUidIdentity.rawUid, "Advertising token ID is incorrect"),
-                () -> assertArrayEquals(firstLevelHash, refreshTokenRequest.firstLevelHashIdentity.firstLevelHash, "Refresh token ID is incorrect")
+                () -> assertArrayEquals(firstLevelHash, tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash, "Refresh token ID is incorrect")
         );
     }
 

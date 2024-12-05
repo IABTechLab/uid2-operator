@@ -813,7 +813,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         try {
-            final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
+            final TokenRefreshResponse r = this.refreshIdentity(rc, refreshToken);
             siteId = rc.get(Const.RoutingContextData.SiteId);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
@@ -845,7 +845,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             platformType = getPlatformType(rc);
             String tokenStr = (String) rc.data().get("request");
-            final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
+            final TokenRefreshResponse r = this.refreshIdentity(rc, tokenStr);
             siteId = rc.get(Const.RoutingContextData.SiteId);
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
@@ -1070,7 +1070,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         try {
-            final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
+            final TokenRefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
 
             sendJsonResponse(rc, r.getIdentityResponse().toJsonV0());
 
@@ -1764,26 +1764,26 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
-    private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
-        final RefreshTokenRequest refreshTokenRequest;
+    private TokenRefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
+        final TokenRefreshRequest tokenRefreshRequest;
         try {
             if (AuthMiddleware.isAuthenticated(rc)) {
                 rc.put(Const.RoutingContextData.SiteId, AuthMiddleware.getAuthClient(ClientKey.class, rc).getSiteId());
             }
-            refreshTokenRequest = this.encoder.decodeRefreshToken(tokenStr);
+            tokenRefreshRequest = this.encoder.decodeRefreshToken(tokenStr);
         } catch (ClientInputValidationException cie) {
             LOGGER.warn("Failed to decode refresh token for site ID: " + rc.data().get(Const.RoutingContextData.SiteId), cie);
-            return RefreshResponse.Invalid;
+            return TokenRefreshResponse.Invalid;
         }
-        if (refreshTokenRequest == null) {
-            return RefreshResponse.Invalid;
+        if (tokenRefreshRequest == null) {
+            return TokenRefreshResponse.Invalid;
         }
         if (!AuthMiddleware.isAuthenticated(rc)) {
-            rc.put(Const.RoutingContextData.SiteId, refreshTokenRequest.sourcePublisher.siteId);
+            rc.put(Const.RoutingContextData.SiteId, tokenRefreshRequest.sourcePublisher.siteId);
         }
         recordRefreshTokenVersionCount(String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)), this.getRefreshTokenVersion(tokenStr));
 
-        return this.idService.refreshIdentity(refreshTokenRequest);
+        return this.idService.refreshIdentity(tokenRefreshRequest);
     }
 
     public static String getSiteName(ISiteStore siteStore, Integer siteId) {

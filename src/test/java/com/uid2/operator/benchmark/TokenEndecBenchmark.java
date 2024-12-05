@@ -8,7 +8,6 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,7 +58,7 @@ public class TokenEndecBenchmark {
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public RefreshResponse TokenRefreshBenchmark() {
+    public TokenRefreshResponse TokenRefreshBenchmark() {
         return uidService.refreshIdentity(
                 encoder.decodeRefreshToken(
                         generatedTokens[(idx++) & 65535].getRefreshToken()));

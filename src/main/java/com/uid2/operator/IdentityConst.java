@@ -13,7 +13,7 @@ public class IdentityConst {
     public static final byte[] ValidateIdentityForEmailHash = EncodingUtils.getSha256Bytes(IdentityConst.ValidateIdentityForEmail);
     public static final byte[] ValidateIdentityForPhoneHash = EncodingUtils.getSha256Bytes(IdentityConst.ValidateIdentityForPhone);
 
-    // DIIs to use when you want to generate a optout response in token generation or identity map
+    // DIIs to use when you want to generate an optout response in token generation or identity map
     public static final String OptOutIdentityForEmail = "optout@example.com";
     public static final String OptOutIdentityForPhone = "+00000000000";
 

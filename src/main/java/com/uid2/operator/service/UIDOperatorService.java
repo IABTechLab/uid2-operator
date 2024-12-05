@@ -113,27 +113,27 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.establishedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
-            return IdentityResponse.OptOutIdentityResponse;
+            return IdentityResponse.OptOutResponse;
         } else {
             return generateIdentity(request.sourcePublisher, firstLevelHashIdentity, request.privacyBits);
         }
     }
 
     @Override
-    public RefreshResponse refreshIdentity(RefreshTokenRequest input) {
+    public TokenRefreshResponse refreshIdentity(TokenRefreshRequest input) {
         // should not be possible as different scopes should be using different keys, but just in case
         if (input.firstLevelHashIdentity.identityScope != this.identityScope) {
-            return RefreshResponse.Invalid;
+            return TokenRefreshResponse.Invalid;
         }
 
         if (input.firstLevelHashIdentity.establishedAt.isBefore(RefreshCutoff)) {
-            return RefreshResponse.Deprecated;
+            return TokenRefreshResponse.Deprecated;
         }
 
         final Instant now = clock.instant();
 
         if (input.expiresAt.isBefore(now)) {
-            return RefreshResponse.Expired;
+            return TokenRefreshResponse.Expired;
         }
 
         final boolean isCstg = input.privacyBits.isClientSideTokenGenerated();
@@ -149,14 +149,14 @@ public class UIDOperatorService implements IUIDOperatorService {
                         input.firstLevelHashIdentity,
                         input.privacyBits);
 
-                return RefreshResponse.createRefreshedResponse(identityResponse, durationSinceLastRefresh, isCstg);
+                return TokenRefreshResponse.createRefreshedResponse(identityResponse, durationSinceLastRefresh, isCstg);
             } else {
-                return RefreshResponse.Optout;
+                return TokenRefreshResponse.Optout;
             }
         } catch (KeyManager.NoActiveKeyException e) {
-            return RefreshResponse.NoActiveKey;
+            return TokenRefreshResponse.NoActiveKey;
         } catch (Exception ex) {
-            return RefreshResponse.Invalid;
+            return TokenRefreshResponse.Invalid;
         }
     }
 
@@ -262,17 +262,17 @@ public class UIDOperatorService implements IUIDOperatorService {
         return this.encoder.encodeIntoIdentityResponse(
                 this.createAdvertisingTokenRequest(sourcePublisher, rawUidIdentity, nowUtc, privacyBits,
                         firstLevelHashIdentity.establishedAt),
-                this.createRefreshTokenRequest(sourcePublisher, firstLevelHashIdentity, nowUtc, privacyBits),
+                this.createTokenRefreshRequest(sourcePublisher, firstLevelHashIdentity, nowUtc, privacyBits),
                 nowUtc.plusMillis(refreshIdentityAfter.toMillis()),
                 nowUtc
         );
     }
 
-    private RefreshTokenRequest createRefreshTokenRequest(SourcePublisher sourcePublisher,
+    private TokenRefreshRequest createTokenRefreshRequest(SourcePublisher sourcePublisher,
                                                           FirstLevelHashIdentity firstLevelHashIdentity,
                                                           Instant now,
                                                           PrivacyBits privacyBits) {
-        return new RefreshTokenRequest(
+        return new TokenRefreshRequest(
                 this.refreshTokenVersion,
                 now,
                 now.plusMillis(refreshExpiresAfter.toMillis()),

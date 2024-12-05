@@ -55,7 +55,7 @@ public class TokenEncodingTest {
 
         final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity("test@example.com", "some-salt");
 
-        final RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(tokenVersion,
+        final TokenRefreshRequest tokenRefreshRequest = new TokenRefreshRequest(tokenVersion,
             now,
             now.plusSeconds(360),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
@@ -65,20 +65,20 @@ public class TokenEncodingTest {
         );
 
         if (tokenVersion == TokenVersion.V4) {
-            Assert.assertThrows(Exception.class, () -> encoder.encodeIntoRefreshToken(refreshTokenRequest, now));
+            Assert.assertThrows(Exception.class, () -> encoder.encodeIntoRefreshToken(tokenRefreshRequest, now));
             return; //V4 not supported for RefreshTokens
         }
-        final byte[] encodedBytes = encoder.encodeIntoRefreshToken(refreshTokenRequest, now);
-        final RefreshTokenRequest decoded = encoder.decodeRefreshToken(EncodingUtils.toBase64String(encodedBytes));
+        final byte[] encodedBytes = encoder.encodeIntoRefreshToken(tokenRefreshRequest, now);
+        final TokenRefreshRequest decoded = encoder.decodeRefreshToken(EncodingUtils.toBase64String(encodedBytes));
 
         assertEquals(tokenVersion, decoded.version);
-        assertEquals(refreshTokenRequest.createdAt, decoded.createdAt);
+        assertEquals(tokenRefreshRequest.createdAt, decoded.createdAt);
         int addSeconds = (tokenVersion == TokenVersion.V2) ? 60 : 0; //todo: why is there a 60 second buffer in encodeV2() but not in encodeV3()?
-        assertEquals(refreshTokenRequest.expiresAt.plusSeconds(addSeconds), decoded.expiresAt);
-        assertTrue(refreshTokenRequest.firstLevelHashIdentity.matches(decoded.firstLevelHashIdentity));
-        assertEquals(refreshTokenRequest.privacyBits, decoded.privacyBits);
-        assertEquals(refreshTokenRequest.firstLevelHashIdentity.establishedAt, decoded.firstLevelHashIdentity.establishedAt);
-        assertEquals(refreshTokenRequest.sourcePublisher.siteId, decoded.sourcePublisher.siteId);
+        assertEquals(tokenRefreshRequest.expiresAt.plusSeconds(addSeconds), decoded.expiresAt);
+        assertTrue(tokenRefreshRequest.firstLevelHashIdentity.matches(decoded.firstLevelHashIdentity));
+        assertEquals(tokenRefreshRequest.privacyBits, decoded.privacyBits);
+        assertEquals(tokenRefreshRequest.firstLevelHashIdentity.establishedAt, decoded.firstLevelHashIdentity.establishedAt);
+        assertEquals(tokenRefreshRequest.sourcePublisher.siteId, decoded.sourcePublisher.siteId);
 
         Buffer b = Buffer.buffer(encodedBytes);
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 25 : 2);

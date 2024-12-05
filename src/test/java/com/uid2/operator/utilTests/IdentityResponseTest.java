@@ -15,8 +15,8 @@ import static org.junit.Assert.*;
 public class IdentityResponseTest {
     @Test
     public void doIdentityResponseTest() throws NoSuchAlgorithmException {
-        assertEquals(IdentityResponse.OptOutIdentityResponse.getAdvertisingToken(), "");
-        assertTrue(IdentityResponse.OptOutIdentityResponse.isOptedOut());
+        assertEquals(IdentityResponse.OptOutResponse.getAdvertisingToken(), "");
+        assertTrue(IdentityResponse.OptOutResponse.isOptedOut());
 
         IdentityResponse nullAdTokenValue = new IdentityResponse(null, TokenVersion.V4, "refreshToken", null,null,null);
         assertTrue(nullAdTokenValue.isOptedOut());

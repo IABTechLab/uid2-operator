@@ -9,7 +9,7 @@ import java.time.Instant;
 // jsonified
 // todo: can be converted to record later
 public class IdentityResponse {
-    public static IdentityResponse OptOutIdentityResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+    public static final IdentityResponse OptOutResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
 
     //aka UID token
     private final String advertisingToken;

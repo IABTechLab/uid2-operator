@@ -188,26 +188,26 @@ public class UIDOperatorServiceTest {
         assertEquals(identityRequest.establishedAt, advertisingTokenRequest.establishedAt);
         assertEquals(identityRequest.privacyBits, advertisingTokenRequest.privacyBits);
 
-        RefreshTokenRequest refreshTokenRequest = tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
-        assertEquals(this.now, refreshTokenRequest.createdAt);
-        assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), refreshTokenRequest.expiresAt);
-        assertEquals(identityRequest.sourcePublisher.siteId, refreshTokenRequest.sourcePublisher.siteId);
-        assertIdentityScopeIdentityType(identityRequest.hashedDiiIdentity, refreshTokenRequest.firstLevelHashIdentity);
-        assertEquals(identityRequest.establishedAt, refreshTokenRequest.firstLevelHashIdentity.establishedAt);
+        TokenRefreshRequest tokenRefreshRequest = tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
+        assertEquals(this.now, tokenRefreshRequest.createdAt);
+        assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), tokenRefreshRequest.expiresAt);
+        assertEquals(identityRequest.sourcePublisher.siteId, tokenRefreshRequest.sourcePublisher.siteId);
+        assertIdentityScopeIdentityType(identityRequest.hashedDiiIdentity, tokenRefreshRequest.firstLevelHashIdentity);
+        assertEquals(identityRequest.establishedAt, tokenRefreshRequest.firstLevelHashIdentity.establishedAt);
 
         final byte[] firstLevelHash = getFirstLevelHash(identityRequest.hashedDiiIdentity.hashedDii,
                 saltProvider.getSnapshot(this.now).getFirstLevelSalt() );
-        assertArrayEquals(firstLevelHash, refreshTokenRequest.firstLevelHashIdentity.firstLevelHash);
+        assertArrayEquals(firstLevelHash, tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
 
 
         setNow(Instant.now().plusSeconds(200));
 
         reset(shutdownHandler);
-        final RefreshResponse refreshResponse = uid2Service.refreshIdentity(refreshTokenRequest);
+        final TokenRefreshResponse refreshResponse = uid2Service.refreshIdentity(tokenRefreshRequest);
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(refreshResponse);
-        assertEquals(RefreshResponse.Status.Refreshed, refreshResponse.getStatus());
+        assertEquals(TokenRefreshResponse.Status.Refreshed, refreshResponse.getStatus());
         assertNotNull(refreshResponse.getIdentityResponse());
 
         UIDOperatorVerticleTest.validateAdvertisingToken(refreshResponse.getIdentityResponse().getAdvertisingToken(), tokenVersion, IdentityScope.UID2, IdentityType.Email);
@@ -221,14 +221,14 @@ public class UIDOperatorServiceTest {
                 advertisingTokenRequest2.rawUidIdentity.rawUid);
         assertEquals(identityRequest.privacyBits, advertisingTokenRequest2.privacyBits);
 
-        RefreshTokenRequest refreshTokenRequest2 = tokenEncoder.decodeRefreshToken(refreshResponse.getIdentityResponse().getRefreshToken());
-        assertEquals(this.now, refreshTokenRequest2.createdAt);
-        assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), refreshTokenRequest2.expiresAt);
-        assertEquals(refreshTokenRequest.sourcePublisher.siteId, refreshTokenRequest2.sourcePublisher.siteId);
-        assertIdentityScopeIdentityType(refreshTokenRequest.firstLevelHashIdentity, refreshTokenRequest2.firstLevelHashIdentity);
-        assertEquals(refreshTokenRequest.firstLevelHashIdentity.establishedAt, refreshTokenRequest2.firstLevelHashIdentity.establishedAt);
-        assertArrayEquals(refreshTokenRequest.firstLevelHashIdentity.firstLevelHash, refreshTokenRequest2.firstLevelHashIdentity.firstLevelHash);
-        assertArrayEquals(firstLevelHash, refreshTokenRequest2.firstLevelHashIdentity.firstLevelHash);
+        TokenRefreshRequest tokenRefreshRequest2 = tokenEncoder.decodeRefreshToken(refreshResponse.getIdentityResponse().getRefreshToken());
+        assertEquals(this.now, tokenRefreshRequest2.createdAt);
+        assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), tokenRefreshRequest2.expiresAt);
+        assertEquals(tokenRefreshRequest.sourcePublisher.siteId, tokenRefreshRequest2.sourcePublisher.siteId);
+        assertIdentityScopeIdentityType(tokenRefreshRequest.firstLevelHashIdentity, tokenRefreshRequest2.firstLevelHashIdentity);
+        assertEquals(tokenRefreshRequest.firstLevelHashIdentity.establishedAt, tokenRefreshRequest2.firstLevelHashIdentity.establishedAt);
+        assertArrayEquals(tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash, tokenRefreshRequest2.firstLevelHashIdentity.firstLevelHash);
+        assertArrayEquals(firstLevelHash, tokenRefreshRequest2.firstLevelHashIdentity.firstLevelHash);
     }
 
     @Test
@@ -246,8 +246,8 @@ public class UIDOperatorServiceTest {
         assertNotNull(identityResponse);
         assertFalse(identityResponse.isOptedOut());
 
-        final RefreshTokenRequest refreshTokenRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
-        assertEquals(RefreshResponse.Optout, uid2Service.refreshIdentity(refreshTokenRequest));
+        final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
+        assertEquals(TokenRefreshResponse.Optout, uid2Service.refreshIdentity(tokenRefreshRequest));
     }
 
     @Test
@@ -280,9 +280,9 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identityResponse);
 
-        final RefreshTokenRequest refreshTokenRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
+        final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
         reset(shutdownHandler);
-        assertEquals(RefreshResponse.Invalid, uid2Service.refreshIdentity(refreshTokenRequest));
+        assertEquals(TokenRefreshResponse.Invalid, uid2Service.refreshIdentity(tokenRefreshRequest));
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(anyBoolean());
     }
 
@@ -446,7 +446,7 @@ public class UIDOperatorServiceTest {
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertEquals(identityResponse, IdentityResponse.OptOutIdentityResponse);
+        assertEquals(identityResponse, IdentityResponse.OptOutResponse);
     }
 
     @ParameterizedTest
@@ -510,14 +510,14 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identityResponse);
-        assertNotEquals(IdentityResponse.OptOutIdentityResponse, identityResponse);
+        assertNotEquals(IdentityResponse.OptOutResponse, identityResponse);
 
         // identity has no optout record, ensure refresh still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-        final RefreshTokenRequest refreshTokenRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
+        final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
         reset(shutdownHandler);
-        assertEquals(RefreshResponse.Optout, (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(refreshTokenRequest));
+        assertEquals(TokenRefreshResponse.Optout, (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest));
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(anyBoolean());
     }
 
@@ -552,14 +552,14 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identityResponse);
-        assertNotEquals(IdentityResponse.OptOutIdentityResponse, identityResponse);
+        assertNotEquals(IdentityResponse.OptOutResponse, identityResponse);
 
         // identity has no optout record, ensure refresh still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-        final RefreshTokenRequest refreshTokenRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
+        final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
         reset(shutdownHandler);
-        assertEquals(RefreshResponse.Optout, (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(refreshTokenRequest));
+        assertEquals(TokenRefreshResponse.Optout, (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest));
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(anyBoolean());
     }
 
@@ -629,7 +629,7 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(identityResponse);
-        assertNotEquals(IdentityResponse.OptOutIdentityResponse, identityResponse);
+        assertNotEquals(IdentityResponse.OptOutResponse, identityResponse);
         assertNotNull(advertisingTokenRequest.rawUidIdentity);
     }
 
@@ -690,14 +690,14 @@ public class UIDOperatorServiceTest {
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertNotEquals(identityResponse, IdentityResponse.OptOutIdentityResponse);
+        assertNotEquals(identityResponse, IdentityResponse.OptOutResponse);
         assertNotNull(identityResponse);
 
-        final RefreshTokenRequest refreshTokenRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
-        RefreshResponse refreshResponse = (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(refreshTokenRequest);
+        final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
+        TokenRefreshResponse refreshResponse = (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest);
         assertTrue(refreshResponse.isRefreshed());
         assertNotNull(refreshResponse.getIdentityResponse());
-        assertNotEquals(RefreshResponse.Optout, refreshResponse);
+        assertNotEquals(TokenRefreshResponse.Optout, refreshResponse);
     }
 
     @ParameterizedTest
@@ -756,17 +756,17 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(false);
         assertNotNull(identityResponse);
-        assertNotEquals(IdentityResponse.OptOutIdentityResponse, identityResponse);
+        assertNotEquals(IdentityResponse.OptOutResponse, identityResponse);
         assertNotNull(advertisingTokenRequest.rawUidIdentity);
 
-        final RefreshTokenRequest refreshTokenRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
+        final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(identityResponse.getRefreshToken());
         reset(shutdownHandler);
-        RefreshResponse refreshResponse = (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(refreshTokenRequest);
+        TokenRefreshResponse refreshResponse = (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest);
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(false);
         assertTrue(refreshResponse.isRefreshed());
         assertNotNull(refreshResponse.getIdentityResponse());
-        assertNotEquals(RefreshResponse.Optout, refreshResponse);
+        assertNotEquals(TokenRefreshResponse.Optout, refreshResponse);
 
         final MapRequest mapRequest = new MapRequest(
                 inputVal.toHashedDiiIdentity(scope),

@@ -6,8 +6,8 @@ import com.uid2.operator.model.userIdentity.RawUidIdentity;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.model.TokenVersion;
 
-// class containing enough data to create a new uid or advertising token
-public class AdvertisingTokenRequest extends VersionedToken {
+// class containing enough information to create a new uid token (aka advertising token)
+public class AdvertisingTokenRequest extends VersionedTokenRequest {
     public final OperatorIdentity operatorIdentity;
     public final SourcePublisher sourcePublisher;
     public final RawUidIdentity rawUidIdentity;

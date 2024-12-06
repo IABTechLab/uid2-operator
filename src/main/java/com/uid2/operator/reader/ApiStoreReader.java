@@ -21,14 +21,13 @@ public class ApiStoreReader<T> extends ScopedStoreReader<T> {
         super(fileStreamProvider, scope, parser, dataTypeName);
     }
 
-    @Override
-    public long loadContent(JsonObject contents, String dataType) throws Exception {
+    public long loadContent(JsonObject contents) throws Exception {
         if (contents == null) {
-            throw new IllegalArgumentException(String.format("No contents provided for loading data type %s, cannot load content", dataType));
+            throw new IllegalArgumentException(String.format("No contents provided for loading data type %s, cannot load content", dataTypeName));
         }
 
         try {
-            JsonArray dataArray = contents.getJsonArray(dataType);
+            JsonArray dataArray = contents.getJsonArray(dataTypeName);
             if (dataArray == null) {
                 throw new IllegalArgumentException("No array found in the contents");
             }

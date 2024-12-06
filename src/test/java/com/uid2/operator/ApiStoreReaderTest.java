@@ -51,7 +51,7 @@ import static org.mockito.Mockito.when;
 
         @Test
         void loadContentThrowsExceptionWhenContentsAreNull() {
-            assertThatThrownBy(() -> reader.loadContent(null, dataType))
+            assertThatThrownBy(() -> reader.loadContent(null))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("No contents provided for loading data type");
         }
@@ -59,7 +59,7 @@ import static org.mockito.Mockito.when;
         @Test
         void loadContentThrowsExceptionWhenArrayNotFound() {
             JsonObject contents = new JsonObject();
-            assertThatThrownBy(() -> reader.loadContent(contents, dataType))
+            assertThatThrownBy(() -> reader.loadContent(contents))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("No array found in the contents");
         }
@@ -73,7 +73,7 @@ import static org.mockito.Mockito.when;
             when(mockParser.deserialize(any(InputStream.class)))
                     .thenReturn(new ParsingResult<>(expectedData, expectedData.size()));
 
-            long count = reader.loadContent(contents, dataType);
+            long count = reader.loadContent(contents);
 
             assertThat(count).isEqualTo(2);
             assertThat(reader.getSnapshot()).isEqualTo(expectedData);

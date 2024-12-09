@@ -5,7 +5,7 @@ import com.uid2.operator.util.PrivacyBits;
 
 import java.time.Instant;
 
-public final class IdentityRequest {
+public final class TokenGenerateRequest {
     public final SourcePublisher sourcePublisher;
     public final HashedDiiIdentity hashedDiiIdentity;
     public final OptoutCheckPolicy optoutCheckPolicy;
@@ -13,7 +13,7 @@ public final class IdentityRequest {
     public final PrivacyBits privacyBits;
     public final Instant establishedAt;
 
-    public IdentityRequest(
+    public TokenGenerateRequest(
             SourcePublisher sourcePublisher,
             HashedDiiIdentity hashedDiiIdentity,
             OptoutCheckPolicy tokenGeneratePolicy,
@@ -26,7 +26,7 @@ public final class IdentityRequest {
         this.establishedAt = establishedAt;
     }
 
-    public IdentityRequest(
+    public TokenGenerateRequest(
             SourcePublisher sourcePublisher,
             HashedDiiIdentity hashedDiiIdentity,
             OptoutCheckPolicy tokenGeneratePolicy) {

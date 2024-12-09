@@ -12,7 +12,7 @@ import java.util.List;
 
 public interface IUIDOperatorService {
 
-    IdentityResponse generateIdentity(IdentityRequest request);
+    TokenGenerateResponse generateIdentity(TokenGenerateRequest request);
 
     TokenRefreshResponse refreshIdentity(TokenRefreshRequest input);
 

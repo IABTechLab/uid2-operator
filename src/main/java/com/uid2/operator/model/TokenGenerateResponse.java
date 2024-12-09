@@ -8,8 +8,8 @@ import java.time.Instant;
 // this defines all the fields for the response of the /token/generate and /client/generate endpoints before they are
 // jsonified
 // todo: can be converted to record later
-public class IdentityResponse {
-    public static final IdentityResponse OptOutResponse = new IdentityResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+public class TokenGenerateResponse {
+    public static final TokenGenerateResponse OptOutResponse = new TokenGenerateResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
 
     //aka UID token
     private final String advertisingToken;
@@ -20,8 +20,8 @@ public class IdentityResponse {
     private final Instant refreshExpires;
     private final Instant refreshFrom;
 
-    public IdentityResponse(String advertisingToken, TokenVersion advertisingTokenVersion, String refreshToken,
-                            Instant identityExpires, Instant refreshExpires, Instant refreshFrom) {
+    public TokenGenerateResponse(String advertisingToken, TokenVersion advertisingTokenVersion, String refreshToken,
+                                 Instant identityExpires, Instant refreshExpires, Instant refreshFrom) {
         this.advertisingToken = advertisingToken;
         this.advertisingTokenVersion = advertisingTokenVersion;
         this.refreshToken = refreshToken;

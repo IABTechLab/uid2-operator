@@ -17,7 +17,7 @@ public class TokenEndecBenchmark {
     private static final HashedDiiIdentity[] hashedDiiIdentities;
     private static final SourcePublisher publisher;
     private static final EncryptedTokenEncoder encoder;
-    private static final IdentityResponse[] generatedTokens;
+    private static final TokenGenerateResponse[] generatedTokens;
     private static int idx = 0;
 
     static {
@@ -35,22 +35,22 @@ public class TokenEndecBenchmark {
         }
     }
 
-    static IdentityResponse[] createAdvertisingTokens() {
-        List<IdentityResponse> tokens = new ArrayList<>();
+    static TokenGenerateResponse[] createAdvertisingTokens() {
+        List<TokenGenerateResponse> tokens = new ArrayList<>();
         for (int i = 0; i < hashedDiiIdentities.length; i++) {
             tokens.add(
-                    uidService.generateIdentity(new IdentityRequest(
+                    uidService.generateIdentity(new TokenGenerateRequest(
                             publisher,
                             hashedDiiIdentities[i],
                             OptoutCheckPolicy.DoNotRespect)));
         }
-        return tokens.toArray(new IdentityResponse[tokens.size()]);
+        return tokens.toArray(new TokenGenerateResponse[tokens.size()]);
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public IdentityResponse TokenGenerationBenchmark() {
-        return uidService.generateIdentity(new IdentityRequest(
+    public TokenGenerateResponse TokenGenerationBenchmark() {
+        return uidService.generateIdentity(new TokenGenerateRequest(
                 publisher,
                 hashedDiiIdentities[(idx++) & 65535],
                 OptoutCheckPolicy.DoNotRespect));

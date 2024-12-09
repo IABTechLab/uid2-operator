@@ -1,6 +1,6 @@
 package com.uid2.operator.utilTests;
 
-import com.uid2.operator.model.IdentityResponse;
+import com.uid2.operator.model.TokenGenerateResponse;
 import com.uid2.shared.model.TokenVersion;
 import io.vertx.core.json.JsonObject;
 import org.junit.Test;
@@ -12,13 +12,13 @@ import java.time.temporal.ChronoUnit;
 import static org.junit.Assert.*;
 
 
-public class IdentityResponseTest {
+public class TokenGenerateResponseTest {
     @Test
     public void doIdentityResponseTest() throws NoSuchAlgorithmException {
-        assertEquals(IdentityResponse.OptOutResponse.getAdvertisingToken(), "");
-        assertTrue(IdentityResponse.OptOutResponse.isOptedOut());
+        assertEquals(TokenGenerateResponse.OptOutResponse.getAdvertisingToken(), "");
+        assertTrue(TokenGenerateResponse.OptOutResponse.isOptedOut());
 
-        IdentityResponse nullAdTokenValue = new IdentityResponse(null, TokenVersion.V4, "refreshToken", null,null,null);
+        TokenGenerateResponse nullAdTokenValue = new TokenGenerateResponse(null, TokenVersion.V4, "refreshToken", null,null,null);
         assertTrue(nullAdTokenValue.isOptedOut());
 
         Instant identityExpires = Instant.now();
@@ -27,7 +27,7 @@ public class IdentityResponseTest {
 
 
 
-        IdentityResponse response1 = new IdentityResponse("adToken", TokenVersion.V3, "refreshToken", identityExpires
+        TokenGenerateResponse response1 = new TokenGenerateResponse("adToken", TokenVersion.V3, "refreshToken", identityExpires
                 , refreshExpires, refreshFrom);
         assertEquals(response1.getAdvertisingToken(), "adToken");
         assertEquals(response1.getAdvertisingTokenVersion(), TokenVersion.V3);

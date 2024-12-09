@@ -105,7 +105,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public IdentityResponse generateIdentity(IdentityRequest request) {
+    public TokenGenerateResponse generateIdentity(TokenGenerateRequest request) {
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.hashedDiiIdentity.hashedDii, now);
         final FirstLevelHashIdentity firstLevelHashIdentity = new FirstLevelHashIdentity(
@@ -113,7 +113,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.establishedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
-            return IdentityResponse.OptOutResponse;
+            return TokenGenerateResponse.OptOutResponse;
         } else {
             return generateIdentity(request.sourcePublisher, firstLevelHashIdentity, request.privacyBits);
         }
@@ -145,11 +145,11 @@ public class UIDOperatorService implements IUIDOperatorService {
             final Duration durationSinceLastRefresh = Duration.between(input.createdAt, now);
 
             if (!optedOut) {
-                IdentityResponse identityResponse = this.generateIdentity(input.sourcePublisher,
+                TokenGenerateResponse tokenGenerateResponse = this.generateIdentity(input.sourcePublisher,
                         input.firstLevelHashIdentity,
                         input.privacyBits);
 
-                return TokenRefreshResponse.createRefreshedResponse(identityResponse, durationSinceLastRefresh, isCstg);
+                return TokenRefreshResponse.createRefreshedResponse(tokenGenerateResponse, durationSinceLastRefresh, isCstg);
             } else {
                 return TokenRefreshResponse.Optout;
             }
@@ -250,8 +250,8 @@ public class UIDOperatorService implements IUIDOperatorService {
                 rotatingSalt.getHashedId());
     }
 
-    private IdentityResponse generateIdentity(SourcePublisher sourcePublisher,
-                                              FirstLevelHashIdentity firstLevelHashIdentity, PrivacyBits privacyBits) {
+    private TokenGenerateResponse generateIdentity(SourcePublisher sourcePublisher,
+                                                   FirstLevelHashIdentity firstLevelHashIdentity, PrivacyBits privacyBits) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
         final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, nowUtc);

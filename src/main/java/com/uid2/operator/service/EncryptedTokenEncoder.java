@@ -351,10 +351,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     @Override
-    public IdentityResponse encodeIntoIdentityResponse(AdvertisingTokenRequest advertisingTokenRequest, TokenRefreshRequest tokenRefreshRequest, Instant refreshFrom, Instant asOf) {
+    public TokenGenerateResponse encodeIntoIdentityResponse(AdvertisingTokenRequest advertisingTokenRequest, TokenRefreshRequest tokenRefreshRequest, Instant refreshFrom, Instant asOf) {
         final String advertisingToken = generateAdvertisingTokenString(advertisingTokenRequest, asOf);
         final String refreshToken = generateRefreshTokenString(tokenRefreshRequest, asOf);
-        return new IdentityResponse(
+        return new TokenGenerateResponse(
                 advertisingToken,
                 advertisingTokenRequest.version,
                 refreshToken,

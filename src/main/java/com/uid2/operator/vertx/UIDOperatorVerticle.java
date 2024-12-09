@@ -1237,11 +1237,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         try {
             final Instant now = Instant.now();
-            final RawUidResponse rawUidResponse = this.idService.map(input.toHashedDiiIdentity(this.identityScope), now);
+            final IdentityMapResponseItem identityMapResponseItem = this.idService.map(input.toHashedDiiIdentity(this.identityScope), now);
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
-            jsonObject.put("advertising_id", EncodingUtils.toBase64String(rawUidResponse.rawUid));
-            jsonObject.put("bucket_id", rawUidResponse.bucketId);
+            jsonObject.put("advertising_id", EncodingUtils.toBase64String(identityMapResponseItem.rawUid));
+            jsonObject.put("bucket_id", identityMapResponseItem.bucketId);
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
             ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State", e);
@@ -1254,8 +1254,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             if (isTokenInputValid(input, rc)) {
                 final Instant now = Instant.now();
-                final RawUidResponse rawUidResponse = this.idService.map(input.toHashedDiiIdentity(this.identityScope), now);
-                rc.response().end(EncodingUtils.toBase64String(rawUidResponse.rawUid));
+                final IdentityMapResponseItem identityMapResponseItem = this.idService.map(input.toHashedDiiIdentity(this.identityScope), now);
+                rc.response().end(EncodingUtils.toBase64String(identityMapResponseItem.rawUid));
             }
         } catch (Exception ex) {
             LOGGER.error("Unexpected error while mapping identity", ex);
@@ -1450,13 +1450,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         for (int i = 0; i < count; ++i) {
             final InputUtil.InputVal input = inputList[i];
             if (input != null && input.isValid()) {
-                final RawUidResponse rawUidResponse = idService.mapHashedDiiIdentity(
-                        new MapRequest(
+                final IdentityMapResponseItem identityMapResponseItem = idService.mapHashedDii(
+                        new IdentityMapRequestItem(
                                 input.toHashedDiiIdentity(this.identityScope),
                                 OptoutCheckPolicy.respectOptOut(),
                                 now));
 
-                if (rawUidResponse.isOptedOut()) {
+                if (identityMapResponseItem.isOptedOut()) {
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
                     resp.put("reason", "optout");
@@ -1465,8 +1465,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 } else {
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", EncodingUtils.toBase64String(rawUidResponse.rawUid));
-                    resp.put("bucket_id", rawUidResponse.bucketId);
+                    resp.put("advertising_id", EncodingUtils.toBase64String(identityMapResponseItem.rawUid));
+                    resp.put("bucket_id", identityMapResponseItem.bucketId);
                     mapped.add(resp);
                 }
             } else {

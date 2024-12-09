@@ -1,6 +1,6 @@
 package com.uid2.operator.utilTests;
 
-import com.uid2.operator.model.RawUidResponse;
+import com.uid2.operator.model.IdentityMapResponseItem;
 import org.junit.Test;
 
 import java.security.NoSuchAlgorithmException;
@@ -9,13 +9,13 @@ import java.util.Arrays;
 import static org.junit.Assert.*;
 
 
-public class RawUidResponseTest {
+public class IdentityMapResponseItemTest {
     @Test
     public void doRawUidResponseTest() throws NoSuchAlgorithmException {
-        assertEquals(RawUidResponse.OptoutIdentity.bucketId, "");
-        assertTrue(RawUidResponse.OptoutIdentity.isOptedOut());
+        assertEquals(IdentityMapResponseItem.OptoutIdentity.bucketId, "");
+        assertTrue(IdentityMapResponseItem.OptoutIdentity.isOptedOut());
 
-        RawUidResponse optoutResponse = new RawUidResponse(new byte[33], null);
+        IdentityMapResponseItem optoutResponse = new IdentityMapResponseItem(new byte[33], null);
         assertTrue(optoutResponse.isOptedOut());
 
         byte[] rawUid = new byte[33];
@@ -23,7 +23,7 @@ public class RawUidResponseTest {
             rawUid[i] = (byte) i;
         }
 
-        RawUidResponse generatedUid = new RawUidResponse(rawUid, "12345");
+        IdentityMapResponseItem generatedUid = new IdentityMapResponseItem(rawUid, "12345");
         assertFalse(generatedUid.isOptedOut());
         assertTrue(Arrays.equals(rawUid, generatedUid.rawUid));
     }

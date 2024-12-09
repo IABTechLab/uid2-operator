@@ -348,12 +348,12 @@ public class UIDOperatorServiceTest {
         final HashedDiiIdentity hashedDiiIdentity = createHashedDiiIdentity(identity, scope, type);
         final Instant now = Instant.now();
 
-        final MapRequest mapRequestForceMap = new MapRequest(
+        final IdentityMapRequestItem mapRequestForceIdentityMapItem = new IdentityMapRequestItem(
                 hashedDiiIdentity,
                 OptoutCheckPolicy.DoNotRespect,
                 now);
 
-        final MapRequest mapRequestRespectOptOut = new MapRequest(
+        final IdentityMapRequestItem identityMapRequestItemRespectOptOut = new IdentityMapRequestItem(
                 hashedDiiIdentity,
                 OptoutCheckPolicy.RespectOptOut,
                 now);
@@ -362,27 +362,27 @@ public class UIDOperatorServiceTest {
         when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
                 .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
 
-        final RawUidResponse rawUidResponse;
-        final RawUidResponse rawUidResponseShouldBeOptOut;
+        final IdentityMapResponseItem identityMapResponseItem;
+        final IdentityMapResponseItem identityMapResponseItemShouldBeOptOut;
         if (scope == IdentityScope.UID2) {
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-            rawUidResponse = uid2Service.mapHashedDiiIdentity(mapRequestForceMap);
+            identityMapResponseItem = uid2Service.mapHashedDii(mapRequestForceIdentityMapItem);
             reset(shutdownHandler);
-            rawUidResponseShouldBeOptOut = uid2Service.mapHashedDiiIdentity(mapRequestRespectOptOut);
+            identityMapResponseItemShouldBeOptOut = uid2Service.mapHashedDii(identityMapRequestItemRespectOptOut);
         } else {
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-            rawUidResponse = euidService.mapHashedDiiIdentity(mapRequestForceMap);
+            identityMapResponseItem = euidService.mapHashedDii(mapRequestForceIdentityMapItem);
             reset(shutdownHandler);
-            rawUidResponseShouldBeOptOut = euidService.mapHashedDiiIdentity(mapRequestRespectOptOut);
+            identityMapResponseItemShouldBeOptOut = euidService.mapHashedDii(identityMapRequestItemRespectOptOut);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertNotNull(rawUidResponse);
-        assertFalse(rawUidResponse.isOptedOut());
-        assertNotNull(rawUidResponseShouldBeOptOut);
-        assertTrue(rawUidResponseShouldBeOptOut.isOptedOut());
+        assertNotNull(identityMapResponseItem);
+        assertFalse(identityMapResponseItem.isOptedOut());
+        assertNotNull(identityMapResponseItemShouldBeOptOut);
+        assertTrue(identityMapResponseItemShouldBeOptOut.isOptedOut());
     }
 
     private enum TestIdentityInputType {
@@ -461,7 +461,7 @@ public class UIDOperatorServiceTest {
     void testSpecialIdentityOptOutIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
-        final MapRequest mapRequestRespectOptOut = new MapRequest(
+        final IdentityMapRequestItem identityMapRequestItemRespectOptOut = new IdentityMapRequestItem(
                 inputVal.toHashedDiiIdentity(scope),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
@@ -469,17 +469,17 @@ public class UIDOperatorServiceTest {
         // identity has no optout record, ensure map still returns optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-        final RawUidResponse rawUidResponse;
+        final IdentityMapResponseItem identityMapResponseItem;
         if(scope == IdentityScope.EUID) {
-            rawUidResponse = euidService.mapHashedDiiIdentity(mapRequestRespectOptOut);
+            identityMapResponseItem = euidService.mapHashedDii(identityMapRequestItemRespectOptOut);
         }
         else {
-            rawUidResponse = uid2Service.mapHashedDiiIdentity(mapRequestRespectOptOut);
+            identityMapResponseItem = uid2Service.mapHashedDii(identityMapRequestItemRespectOptOut);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertNotNull(rawUidResponse);
-        assertTrue(rawUidResponse.isOptedOut());
+        assertNotNull(identityMapResponseItem);
+        assertTrue(identityMapResponseItem.isOptedOut());
     }
 
     @ParameterizedTest
@@ -575,7 +575,7 @@ public class UIDOperatorServiceTest {
     void testSpecialIdentityRefreshOptOutIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
-        final MapRequest mapRequestRespectOptOut = new MapRequest(
+        final IdentityMapRequestItem identityMapRequestItemRespectOptOut = new IdentityMapRequestItem(
                 inputVal.toHashedDiiIdentity(scope),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
@@ -583,17 +583,17 @@ public class UIDOperatorServiceTest {
         // all identities have optout records, ensure refresh-optout identities still map
         when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
-        final RawUidResponse rawUidResponse;
+        final IdentityMapResponseItem identityMapResponseItem;
         if(scope == IdentityScope.EUID) {
-            rawUidResponse = euidService.mapHashedDiiIdentity(mapRequestRespectOptOut);
+            identityMapResponseItem = euidService.mapHashedDii(identityMapRequestItemRespectOptOut);
         }
         else {
-            rawUidResponse = uid2Service.mapHashedDiiIdentity(mapRequestRespectOptOut);
+            identityMapResponseItem = uid2Service.mapHashedDii(identityMapRequestItemRespectOptOut);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertNotNull(rawUidResponse);
-        assertFalse(rawUidResponse.isOptedOut());
+        assertNotNull(identityMapResponseItem);
+        assertFalse(identityMapResponseItem.isOptedOut());
     }
 
     @ParameterizedTest
@@ -646,7 +646,7 @@ public class UIDOperatorServiceTest {
     void testSpecialIdentityValidateIdentityMap(TestIdentityInputType type, String id, IdentityScope scope) {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
-        final MapRequest mapRequestRespectOptOut = new MapRequest(
+        final IdentityMapRequestItem identityMapRequestItemRespectOptOut = new IdentityMapRequestItem(
                 inputVal.toHashedDiiIdentity(scope),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
@@ -654,17 +654,17 @@ public class UIDOperatorServiceTest {
         // all identities have optout records, ensure validate identities still get mapped
         when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
-        final RawUidResponse rawUidResponse;
+        final IdentityMapResponseItem identityMapResponseItem;
         if(scope == IdentityScope.EUID) {
-            rawUidResponse = euidService.mapHashedDiiIdentity(mapRequestRespectOptOut);
+            identityMapResponseItem = euidService.mapHashedDii(identityMapRequestItemRespectOptOut);
         }
         else {
-            rawUidResponse = uid2Service.mapHashedDiiIdentity(mapRequestRespectOptOut);
+            identityMapResponseItem = uid2Service.mapHashedDii(identityMapRequestItemRespectOptOut);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-        assertNotNull(rawUidResponse);
-        assertFalse(rawUidResponse.isOptedOut());
+        assertNotNull(identityMapResponseItem);
+        assertFalse(identityMapResponseItem.isOptedOut());
     }
 
     @ParameterizedTest
@@ -768,22 +768,22 @@ public class UIDOperatorServiceTest {
         assertNotNull(refreshResponse.getIdentityResponse());
         assertNotEquals(TokenRefreshResponse.Optout, refreshResponse);
 
-        final MapRequest mapRequest = new MapRequest(
+        final IdentityMapRequestItem identityMapRequestItem = new IdentityMapRequestItem(
                 inputVal.toHashedDiiIdentity(scope),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
-        final RawUidResponse rawUidResponse;
+        final IdentityMapResponseItem identityMapResponseItem;
         reset(shutdownHandler);
         if(scope == IdentityScope.EUID) {
-            rawUidResponse = euidService.mapHashedDiiIdentity(mapRequest);
+            identityMapResponseItem = euidService.mapHashedDii(identityMapRequestItem);
         }
         else {
-            rawUidResponse = uid2Service.mapHashedDiiIdentity(mapRequest);
+            identityMapResponseItem = uid2Service.mapHashedDii(identityMapRequestItem);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(false);
-        assertNotNull(rawUidResponse);
-        assertFalse(rawUidResponse.isOptedOut());
+        assertNotNull(identityMapResponseItem);
+        assertFalse(identityMapResponseItem.isOptedOut());
 
     }
 }

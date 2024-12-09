@@ -4,12 +4,12 @@ import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
 
 import java.time.Instant;
 
-public final class MapRequest {
+public final class IdentityMapRequestItem {
     public final HashedDiiIdentity hashedDiiIdentity;
     public final OptoutCheckPolicy optoutCheckPolicy;
     public final Instant asOf;
 
-    public MapRequest(
+    public IdentityMapRequestItem(
             HashedDiiIdentity hashedDiiIdentity,
             OptoutCheckPolicy optoutCheckPolicy,
             Instant asOf) {

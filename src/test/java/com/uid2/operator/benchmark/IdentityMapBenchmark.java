@@ -25,13 +25,13 @@ public class IdentityMapBenchmark {
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public RawUidResponse IdentityMapRawThroughput() {
+    public IdentityMapResponseItem IdentityMapRawThroughput() {
         return uidService.map(hashedDiiIdentities[(idx++) & 65535], Instant.now());
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public RawUidResponse IdentityMapWithOptOutThroughput() {
-        return uidService.mapHashedDiiIdentity(new MapRequest(hashedDiiIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
+    public IdentityMapResponseItem IdentityMapWithOptOutThroughput() {
+        return uidService.mapHashedDii(new IdentityMapRequestItem(hashedDiiIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
     }
 }

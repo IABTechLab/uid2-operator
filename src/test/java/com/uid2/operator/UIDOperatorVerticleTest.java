@@ -817,7 +817,8 @@ public class UIDOperatorVerticleTest {
         validateAdvertisingToken(advertisingTokenString, getTokenVersion(), getIdentityScope(), identityType);
         AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(advertisingTokenString);
 
-        // without useIdentityV3() it the assert will fail as there's no IdentityType in raw UID2 v2 generated v4 token
+        // without useIdentityV3() the assert will be trigger as there's no IdentityType in v4 token generated with
+        // a raw UID v2 as old raw UID format doesn't store the identity type (and scope)
         if (useIdentityV3() && getTokenVersion() == TokenVersion.V4) {
             assertEquals(identityType, advertisingToken.userIdentity.identityType);
         }

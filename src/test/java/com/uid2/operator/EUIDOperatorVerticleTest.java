@@ -3,7 +3,7 @@ package com.uid2.operator;
 import com.uid2.shared.model.TokenVersion;
 import org.junit.jupiter.api.Test;
 
-import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.shared.auth.Role;
 
 import io.vertx.core.Vertx;
@@ -17,9 +17,6 @@ import static org.junit.jupiter.api.Assertions.*;
 public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
     public EUIDOperatorVerticleTest() throws IOException {
     }
-
-    @Override
-    protected TokenVersion getTokenVersion() {return TokenVersion.V3;}
 
     @Override
     protected IdentityScope getIdentityScope() { return IdentityScope.EUID; }

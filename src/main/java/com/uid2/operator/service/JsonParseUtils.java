@@ -10,7 +10,7 @@ public class JsonParseUtils {
         try {
             outArray = object.getJsonArray(key);
         } catch (ClassCastException e) {
-            ResponseUtil.ClientError(rc, String.format("%s must be an array", key));
+            ResponseUtil.LogInfoAndSend400Response(rc, String.format("%s must be an array", key));
             return null;
         }
         return outArray;

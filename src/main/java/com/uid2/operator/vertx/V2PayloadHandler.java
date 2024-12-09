@@ -51,7 +51,7 @@ public class V2PayloadHandler {
 
         V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
-            ResponseUtil.ClientError(rc, request.errorMessage);
+            ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
         }
         rc.data().put("request", request.payload);
@@ -69,7 +69,7 @@ public class V2PayloadHandler {
 
         V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
-            ResponseUtil.ClientError(rc, request.errorMessage);
+            ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
         }
         rc.data().put("request", request.payload);
@@ -110,7 +110,7 @@ public class V2PayloadHandler {
         }
         catch (Exception ex){
             LOGGER.error("Failed to generate token", ex);
-            ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.LogErrorAndSendResponse(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 
@@ -163,7 +163,7 @@ public class V2PayloadHandler {
         }
         catch (Exception ex){
             LOGGER.error("Failed to refresh token", ex);
-            ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.LogErrorAndSendResponse(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 
@@ -199,7 +199,7 @@ public class V2PayloadHandler {
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
         } catch (Exception ex) {
             LOGGER.error("Failed to generate response", ex);
-            ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.LogErrorAndSendResponse(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 }

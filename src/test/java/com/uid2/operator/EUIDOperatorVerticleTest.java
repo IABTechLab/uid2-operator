@@ -19,9 +19,6 @@ public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
     }
 
     @Override
-    protected TokenVersion getTokenVersion() {return TokenVersion.V3;}
-
-    @Override
     protected IdentityScope getIdentityScope() { return IdentityScope.EUID; }
     @Override
     protected void addAdditionalTokenGenerateParams(JsonObject payload) {

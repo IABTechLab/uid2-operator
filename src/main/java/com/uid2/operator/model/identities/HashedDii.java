@@ -1,9 +1,7 @@
 package com.uid2.operator.model.identities;
 
-import com.uid2.operator.model.IdentityScope;
-import com.uid2.operator.model.IdentityType;
-
-// Contains a hash DII,
+// Contains a hash Directly Identifying Information (DII) (email or phone) see https://unifiedid.com/docs/ref-info/glossary-uid#gl-dii
 // This hash can either be computed from a raw email/phone number DII input or provided by the UID Participant directly
-public record HashedDii(IdentityScope identityScope, IdentityType identityType, byte[] hashedDii) {
+//
+public record HashedDii(IdentityScope identityScope, DiiType diiType, byte[] hashedDii) {
 }

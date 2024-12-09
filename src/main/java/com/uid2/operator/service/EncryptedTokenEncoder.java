@@ -1,7 +1,9 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.identities.DiiType;
 import com.uid2.operator.model.identities.FirstLevelHash;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.model.identities.RawUid;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.vertx.ClientInputValidationException;
@@ -69,7 +71,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         masterPayload.appendBytes(AesGcm.encrypt(sitePayload.getBytes(), siteKey).getPayload());
 
         final Buffer b = Buffer.buffer(164);
-        b.appendByte(encodeIdentityTypeV3(t.rawUid.identityScope(), t.rawUid.identityType()));
+        b.appendByte(encodeIdentityTypeV3(t.rawUid.identityScope(), t.rawUid.diiType()));
         b.appendByte((byte) t.version.rawVersion);
         b.appendInt(masterKey.getId());
         b.appendBytes(AesGcm.encrypt(masterPayload.getBytes(), masterKey).getPayload());
@@ -129,7 +131,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                 TokenVersion.V2, createdAt, validTill,
                 new OperatorIdentity(0, OperatorType.Service, 0, 0),
                 new SourcePublisher(siteId),
-                new FirstLevelHash(IdentityScope.UID2, IdentityType.Email, identity,
+                new FirstLevelHash(IdentityScope.UID2, DiiType.Email, identity,
                         Instant.ofEpochMilli(establishedMillis)),
                 privacyBits);
     }
@@ -152,19 +154,19 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final PrivacyBits privacyBits = PrivacyBits.fromInt(b2.getInt(45));
         final Instant establishedAt = Instant.ofEpochMilli(b2.getLong(49));
         final IdentityScope identityScope = decodeIdentityScopeV3(b2.getByte(57));
-        final IdentityType identityType = decodeIdentityTypeV3(b2.getByte(57));
+        final DiiType diiType = decodeIdentityTypeV3(b2.getByte(57));
         final byte[] firstLevelHash = b2.getBytes(58, 90);
 
         if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
             throw new ClientInputValidationException("Failed to decode refreshTokenV3: Identity scope mismatch");
         }
-        if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
+        if (diiType != decodeIdentityTypeV3(b.getByte(0))) {
             throw new ClientInputValidationException("Failed to decode refreshTokenV3: Identity type mismatch");
         }
 
         return new TokenRefreshRequest(
                 TokenVersion.V3, createdAt, expiresAt, operatorIdentity, sourcePublisher,
-                new FirstLevelHash(identityScope, identityType, firstLevelHash, establishedAt),
+                new FirstLevelHash(identityScope, diiType, firstLevelHash, establishedAt),
                 privacyBits);
     }
 
@@ -233,7 +235,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                     Instant.ofEpochMilli(expiresMillis),
                     new OperatorIdentity(0, OperatorType.Service, 0, masterKeyId),
                     new SourcePublisher(siteId, siteKeyId, 0),
-                    new RawUid(IdentityScope.UID2, IdentityType.Email, rawUid),
+                    new RawUid(IdentityScope.UID2, DiiType.Email, rawUid),
                     privacyBits,
                     Instant.ofEpochMilli(establishedMillis)
             );
@@ -262,21 +264,21 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final Instant refreshedAt = Instant.ofEpochMilli(sitePayload.getLong(28));
         final byte[] rawUid = sitePayload.slice(36, sitePayload.length()).getBytes();
         final IdentityScope identityScope = rawUid.length == 32 ? IdentityScope.UID2 : decodeIdentityScopeV3(rawUid[0]);
-        final IdentityType identityType = rawUid.length == 32 ? IdentityType.Email : decodeIdentityTypeV3(rawUid[0]);
+        final DiiType diiType = rawUid.length == 32 ? DiiType.Email : decodeIdentityTypeV3(rawUid[0]);
 
         if (rawUid.length > 32)
         {
             if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
                 throw new ClientInputValidationException("Failed decoding advertisingTokenV3: Identity scope mismatch");
             }
-            if (identityType != decodeIdentityTypeV3(b.getByte(0))) {
+            if (diiType != decodeIdentityTypeV3(b.getByte(0))) {
                 throw new ClientInputValidationException("Failed decoding advertisingTokenV3: Identity type mismatch");
             }
         }
 
         return new AdvertisingTokenRequest(
                 tokenVersion, createdAt, expiresAt, operatorIdentity, sourcePublisher,
-                new RawUid(identityScope, identityType, rawUid),
+                new RawUid(identityScope, diiType, rawUid),
                 privacyBits, establishedAt
         );
     }
@@ -326,11 +328,11 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         encodePublisherRequesterV3(refreshPayload, t.sourcePublisher);
         refreshPayload.appendInt(t.privacyBits.getAsInt());
         refreshPayload.appendLong(t.firstLevelHash.establishedAt().toEpochMilli());
-        refreshPayload.appendByte(encodeIdentityTypeV3(t.firstLevelHash.identityScope(), t.firstLevelHash.identityType()));
+        refreshPayload.appendByte(encodeIdentityTypeV3(t.firstLevelHash.identityScope(), t.firstLevelHash.diiType()));
         refreshPayload.appendBytes(t.firstLevelHash.firstLevelHash());
 
         final Buffer b = Buffer.buffer(124);
-        b.appendByte(encodeIdentityTypeV3(t.firstLevelHash.identityScope(), t.firstLevelHash.identityType()));
+        b.appendByte(encodeIdentityTypeV3(t.firstLevelHash.identityScope(), t.firstLevelHash.diiType()));
         b.appendByte((byte) t.version.rawVersion);
         b.appendInt(serviceKey.getId());
         b.appendBytes(AesGcm.encrypt(refreshPayload.getBytes(), serviceKey).getPayload());
@@ -402,8 +404,8 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         }
     }
 
-    static private byte encodeIdentityTypeV3(IdentityScope identityScope, IdentityType identityType) {
-        return (byte) (TokenUtils.encodeIdentityScope(identityScope) | (identityType.value << 2) | 3);
+    static private byte encodeIdentityTypeV3(IdentityScope identityScope, DiiType diiType) {
+        return (byte) (TokenUtils.encodeIdentityScope(identityScope) | (diiType.value << 2) | 3);
         // "| 3" is used so that the 2nd char matches the version when V3 or higher. Eg "3" for V3 and "4" for V4
     }
 
@@ -411,8 +413,8 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return IdentityScope.fromValue((value & 0x10) >> 4);
     }
 
-    static private IdentityType decodeIdentityTypeV3(byte value) {
-        return IdentityType.fromValue((value & 0xf) >> 2);
+    static private DiiType decodeIdentityTypeV3(byte value) {
+        return DiiType.fromValue((value & 0xf) >> 2);
     }
 
     static void encodePublisherRequesterV3(Buffer b, SourcePublisher sourcePublisher) {

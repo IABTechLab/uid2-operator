@@ -1,9 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.identities.FirstLevelHash;
-import com.uid2.operator.model.identities.HashedDii;
-import com.uid2.operator.model.identities.RawUid;
+import com.uid2.operator.model.identities.*;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
@@ -24,7 +22,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static com.uid2.operator.IdentityConst.*;
+import static com.uid2.operator.model.identities.IdentityConst.*;
 import static com.uid2.operator.service.TokenUtils.getSiteIdsUsingV4Tokens;
 
 public class UIDOperatorService implements IUIDOperatorService {
@@ -67,18 +65,18 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.identityScope = identityScope;
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
 
-        this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail(OptOutIdentityForEmail).getIdentityInput(), Instant.now());
-        this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone(OptOutIdentityForPhone).getIdentityInput(), Instant.now());
-        this.testValidateIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail(ValidateIdentityForEmail).getIdentityInput(), Instant.now());
-        this.testValidateIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone(ValidateIdentityForPhone).getIdentityInput(), Instant.now());
-        this.testRefreshOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail(RefreshOptOutIdentityForEmail).getIdentityInput(), Instant.now());
-        this.testRefreshOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone(RefreshOptOutIdentityForPhone).getIdentityInput(), Instant.now());
+        this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, DiiType.Email,
+                InputUtil.normalizeEmail(OptOutIdentityForEmail).getHashedDiiInput(), Instant.now());
+        this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, DiiType.Phone,
+                InputUtil.normalizePhone(OptOutIdentityForPhone).getHashedDiiInput(), Instant.now());
+        this.testValidateIdentityForEmail = getFirstLevelHashIdentity(identityScope, DiiType.Email,
+                InputUtil.normalizeEmail(ValidateIdentityForEmail).getHashedDiiInput(), Instant.now());
+        this.testValidateIdentityForPhone = getFirstLevelHashIdentity(identityScope, DiiType.Phone,
+                InputUtil.normalizePhone(ValidateIdentityForPhone).getHashedDiiInput(), Instant.now());
+        this.testRefreshOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, DiiType.Email,
+                InputUtil.normalizeEmail(RefreshOptOutIdentityForEmail).getHashedDiiInput(), Instant.now());
+        this.testRefreshOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, DiiType.Phone,
+                InputUtil.normalizePhone(RefreshOptOutIdentityForPhone).getHashedDiiInput(), Instant.now());
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
@@ -109,7 +107,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.hashedDii.hashedDii(), now);
         final FirstLevelHash firstLevelHashIdentity = new FirstLevelHash(
-                request.hashedDii.identityScope(), request.hashedDii.identityType(), firstLevelHash,
+                request.hashedDii.identityScope(), request.hashedDii.diiType(), firstLevelHash,
                 request.establishedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
@@ -227,12 +225,12 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private FirstLevelHash getFirstLevelHashIdentity(HashedDii hashedDii, Instant asOf) {
-        return getFirstLevelHashIdentity(hashedDii.identityScope(), hashedDii.identityType(), hashedDii.hashedDii(), asOf);
+        return getFirstLevelHashIdentity(hashedDii.identityScope(), hashedDii.diiType(), hashedDii.hashedDii(), asOf);
     }
 
-    private FirstLevelHash getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf) {
-        final byte[] firstLevelHash = getFirstLevelHash(identityHash, asOf);
-        return new FirstLevelHash(identityScope, identityType, firstLevelHash, null);
+    private FirstLevelHash getFirstLevelHashIdentity(IdentityScope identityScope, DiiType diiType, byte[] hashedDii, Instant asOf) {
+        final byte[] firstLevelHash = getFirstLevelHash(hashedDii, asOf);
+        return new FirstLevelHash(identityScope, diiType, firstLevelHash, null);
     }
 
     private byte[] getFirstLevelHash(byte[] identityHash, Instant asOf) {
@@ -245,7 +243,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         return new IdentityMapResponseItem(
                 this.identityV3Enabled
                     ? TokenUtils.getRawUidV3(firstLevelHash.identityScope(),
-                        firstLevelHash.identityType(), firstLevelHash.firstLevelHash(), rotatingSalt.getSalt())
+                        firstLevelHash.diiType(), firstLevelHash.firstLevelHash(), rotatingSalt.getSalt())
                     : TokenUtils.getRawUidV2(firstLevelHash.firstLevelHash(), rotatingSalt.getSalt()),
                 rotatingSalt.getHashedId());
     }
@@ -256,7 +254,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         final IdentityMapResponseItem identityMapResponseItem = generateRawUid(firstLevelHash, nowUtc);
         final RawUid rawUid = new RawUid(firstLevelHash.identityScope(),
-                firstLevelHash.identityType(),
+                firstLevelHash.diiType(),
                 identityMapResponseItem.rawUid);
 
         return this.encoder.encodeIntoIdentityResponse(

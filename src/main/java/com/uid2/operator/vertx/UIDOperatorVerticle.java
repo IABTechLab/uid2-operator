@@ -3,7 +3,8 @@ package com.uid2.operator.vertx;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.TokenGenerateResponse;
-import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.identities.IdentityScope;
+import com.uid2.operator.model.identities.DiiType;
 import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
@@ -69,7 +70,7 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.uid2.operator.IdentityConst.*;
+import static com.uid2.operator.model.identities.IdentityConst.*;
 import static com.uid2.operator.service.ResponseUtil.*;
 import static com.uid2.operator.vertx.Endpoints.*;
 
@@ -469,7 +470,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             tokenGenerateResponse = this.idService.generateIdentity(
                     new TokenGenerateRequest(
                             new SourcePublisher(clientSideKeypair.getSiteId()),
-                            input.toHashedDiiIdentity(this.identityScope),
+                            input.toHashedDii(this.identityScope),
                             OptoutCheckPolicy.RespectOptOut, privacyBits, Instant.now()));
         } catch (KeyManager.NoActiveKeyException e){
             SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, e, platformType);
@@ -878,11 +879,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (!isTokenInputValid(input, rc)) {
                 return;
             }
-            if ((Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Email)
-                    || (Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Phone)) {
+            if ((Arrays.equals(ValidateIdentityForEmailHash, input.getHashedDiiInput()) && input.getDiiType() == DiiType.Email)
+                    || (Arrays.equals(ValidateIdentityForPhoneHash, input.getHashedDiiInput()) && input.getDiiType() == DiiType.Phone)) {
                 try {
                     final Instant now = Instant.now();
-                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toHashedDiiIdentity(this.identityScope), now)) {
+                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toHashedDii(this.identityScope), now)) {
                         ResponseUtil.Success(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.Success(rc, Boolean.FALSE);
@@ -909,13 +910,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (!isTokenInputValid(input, rc)) {
                 return;
             }
-            if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()))
-                    || (input.getIdentityType() == IdentityType.Phone && Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()))) {
+            if ((input.getDiiType() == DiiType.Email && Arrays.equals(ValidateIdentityForEmailHash, input.getHashedDiiInput()))
+                    || (input.getDiiType() == DiiType.Phone && Arrays.equals(ValidateIdentityForPhoneHash, input.getHashedDiiInput()))) {
                 try {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
 
-                    if (this.idService.advertisingTokenMatches(token, input.toHashedDiiIdentity(this.identityScope), now)) {
+                    if (this.idService.advertisingTokenMatches(token, input.toHashedDii(this.identityScope), now)) {
                         ResponseUtil.SuccessV2(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.SuccessV2(rc, Boolean.FALSE);
@@ -942,7 +943,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 final TokenGenerateResponse response = this.idService.generateIdentity(
                         new TokenGenerateRequest(
                                 new SourcePublisher(siteId),
-                                input.toHashedDiiIdentity(this.identityScope),
+                                input.toHashedDii(this.identityScope),
                                 OptoutCheckPolicy.defaultPolicy()));
                 ResponseUtil.Success(rc, response.toJsonV1());
                 recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, response.getAdvertisingTokenVersion(), platformType);
@@ -994,12 +995,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 final TokenGenerateResponse response = this.idService.generateIdentity(
                         new TokenGenerateRequest(
                                 new SourcePublisher(siteId),
-                                input.toHashedDiiIdentity(this.identityScope),
+                                input.toHashedDii(this.identityScope),
                                 OptoutCheckPolicy.respectOptOut()));
 
                 if (response.isOptedOut()) {
                     if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
-                        final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
+                        final InputUtil.InputVal optOutTokenInput = input.getDiiType() == DiiType.Email
                                 ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
                                 : InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone);
 
@@ -1010,7 +1011,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         final TokenGenerateResponse optOutTokens = this.idService.generateIdentity(
                                 new TokenGenerateRequest(
                                         new SourcePublisher(siteId),
-                                        optOutTokenInput.toHashedDiiIdentity(this.identityScope),
+                                        optOutTokenInput.toHashedDii(this.identityScope),
                                         OptoutCheckPolicy.DoNotRespect, pb, Instant.now()));
 
                         ResponseUtil.SuccessV2(rc, optOutTokens.toJsonV1());
@@ -1050,7 +1051,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final TokenGenerateResponse response = this.idService.generateIdentity(
                     new TokenGenerateRequest(
                             new SourcePublisher(siteId),
-                            input.toHashedDiiIdentity(this.identityScope),
+                            input.toHashedDii(this.identityScope),
                             OptoutCheckPolicy.defaultPolicy()));
 
             recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, response.getAdvertisingTokenVersion(), TokenResponseStatsCollector.PlatformType.Other);
@@ -1087,10 +1088,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleValidate(RoutingContext rc) {
         try {
             final InputUtil.InputVal input = getTokenInput(rc);
-            if (input != null && input.isValid() && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput())) {
+            if (input != null && input.isValid() && Arrays.equals(ValidateIdentityForEmailHash, input.getHashedDiiInput())) {
                 try {
                     final Instant now = Instant.now();
-                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toHashedDiiIdentity(this.identityScope), now)) {
+                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toHashedDii(this.identityScope), now)) {
                         rc.response().end("true");
                     } else {
                         rc.response().end("false");
@@ -1111,7 +1112,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
         if (input.isValid()) {
             final Instant now = Instant.now();
-            this.idService.invalidateTokensAsync(input.toHashedDiiIdentity(this.identityScope), now, ar -> {
+            this.idService.invalidateTokensAsync(input.toHashedDii(this.identityScope), now, ar -> {
                 if (ar.succeeded()) {
                     rc.response().end("OK");
                 } else {
@@ -1130,7 +1131,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
-            this.idService.invalidateTokensAsync(input.toHashedDiiIdentity(this.identityScope), now, ar -> {
+            this.idService.invalidateTokensAsync(input.toHashedDii(this.identityScope), now, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
                     body.put("optout", "OK");
@@ -1152,7 +1153,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (input.isValid()) {
             try {
                 final Instant now = Instant.now();
-                final HashedDii hashedDii = input.toHashedDiiIdentity(this.identityScope);
+                final HashedDii hashedDii = input.toHashedDii(this.identityScope);
                 final Instant result = this.idService.getLatestOptoutEntry(hashedDii, now);
                 long timestamp = result == null ? -1 : result.getEpochSecond();
                 rc.response().setStatusCode(200)
@@ -1237,7 +1238,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         try {
             final Instant now = Instant.now();
-            final IdentityMapResponseItem identityMapResponseItem = this.idService.map(input.toHashedDiiIdentity(this.identityScope), now);
+            final IdentityMapResponseItem identityMapResponseItem = this.idService.map(input.toHashedDii(this.identityScope), now);
             final JsonObject jsonObject = new JsonObject();
             jsonObject.put("identifier", input.getProvided());
             jsonObject.put("advertising_id", EncodingUtils.toBase64String(identityMapResponseItem.rawUid));
@@ -1254,7 +1255,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             if (isTokenInputValid(input, rc)) {
                 final Instant now = Instant.now();
-                final IdentityMapResponseItem identityMapResponseItem = this.idService.map(input.toHashedDiiIdentity(this.identityScope), now);
+                final IdentityMapResponseItem identityMapResponseItem = this.idService.map(input.toHashedDii(this.identityScope), now);
                 rc.response().end(EncodingUtils.toBase64String(identityMapResponseItem.rawUid));
             }
         } catch (Exception ex) {
@@ -1427,16 +1428,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         if (emails != null && !emails.isEmpty()) {
-            return createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
+            return createInputListV1(emails, DiiType.Email, InputUtil.DiiInputType.Raw);
         } else if (emailHashes != null && !emailHashes.isEmpty()) {
-            return createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
+            return createInputListV1(emailHashes, DiiType.Email, InputUtil.DiiInputType.Hash);
         } else if (phones != null && !phones.isEmpty()) {
-            return createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
+            return createInputListV1(phones, DiiType.Phone, InputUtil.DiiInputType.Raw);
         } else if (phoneHashes != null && !phoneHashes.isEmpty()) {
-            return createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
+            return createInputListV1(phoneHashes, DiiType.Phone, InputUtil.DiiInputType.Hash);
         } else {
             // handle empty array
-            return createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw);
+            return createInputListV1(null, DiiType.Email, InputUtil.DiiInputType.Raw);
         }
     }
 
@@ -1452,7 +1453,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (input != null && input.isValid()) {
                 final IdentityMapResponseItem identityMapResponseItem = idService.mapHashedDii(
                         new IdentityMapRequestItem(
-                                input.toHashedDiiIdentity(this.identityScope),
+                                input.toHashedDii(this.identityScope),
                                 OptoutCheckPolicy.respectOptOut(),
                                 now));
 
@@ -1528,7 +1529,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         Supplier<InputUtil.InputVal[]> getInputList = null;
         final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
         if (emails != null && !emails.isEmpty()) {
-            getInputList = () -> createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
+            getInputList = () -> createInputListV1(emails, DiiType.Email, InputUtil.DiiInputType.Raw);
         }
 
         final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
@@ -1536,7 +1537,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
+            getInputList = () -> createInputListV1(emailHashes, DiiType.Email, InputUtil.DiiInputType.Hash);
         }
 
         final JsonArray phones = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone", rc) : null;
@@ -1544,7 +1545,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
+            getInputList = () -> createInputListV1(phones, DiiType.Phone, InputUtil.DiiInputType.Raw);
         }
 
         final JsonArray phoneHashes = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone_hash", rc) : null;
@@ -1552,7 +1553,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
+            getInputList = () -> createInputListV1(phoneHashes, DiiType.Phone, InputUtil.DiiInputType.Hash);
         }
 
         if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
@@ -1560,7 +1561,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         return getInputList == null ?
-                createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
+                createInputListV1(null, DiiType.Email, InputUtil.DiiInputType.Raw) :  // handle empty array
                 getInputList.get();
     }
 
@@ -1854,31 +1855,31 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
-    private InputUtil.InputVal[] createInputListV1(JsonArray a, IdentityType identityType, InputUtil.IdentityInputType inputType) {
+    private InputUtil.InputVal[] createInputListV1(JsonArray a, DiiType diiType, InputUtil.DiiInputType inputType) {
         if (a == null || a.isEmpty()) {
             return new InputUtil.InputVal[0];
         }
         final int size = a.size();
         final InputUtil.InputVal[] resp = new InputUtil.InputVal[size];
 
-        if (identityType == IdentityType.Email) {
-            if (inputType == InputUtil.IdentityInputType.Raw) {
+        if (diiType == DiiType.Email) {
+            if (inputType == InputUtil.DiiInputType.Raw) {
                 for (int i = 0; i < size; ++i) {
                     resp[i] = InputUtil.normalizeEmail(a.getString(i));
                 }
-            } else if (inputType == InputUtil.IdentityInputType.Hash) {
+            } else if (inputType == InputUtil.DiiInputType.Hash) {
                 for (int i = 0; i < size; ++i) {
                     resp[i] = InputUtil.normalizeEmailHash(a.getString(i));
                 }
             } else {
                 throw new IllegalStateException("inputType");
             }
-        } else if (identityType == IdentityType.Phone) {
-            if (inputType == InputUtil.IdentityInputType.Raw) {
+        } else if (diiType == DiiType.Phone) {
+            if (inputType == InputUtil.DiiInputType.Raw) {
                 for (int i = 0; i < size; ++i) {
                     resp[i] = InputUtil.normalizePhone(a.getString(i));
                 }
-            } else if (inputType == InputUtil.IdentityInputType.Hash) {
+            } else if (inputType == InputUtil.DiiInputType.Hash) {
                 for (int i = 0; i < size; ++i) {
                     resp[i] = InputUtil.normalizePhoneHash(a.getString(i));
                 }

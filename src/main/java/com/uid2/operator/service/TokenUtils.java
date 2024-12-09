@@ -1,18 +1,18 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.model.IdentityScope;
-import com.uid2.operator.model.IdentityType;
+import com.uid2.operator.model.identities.IdentityScope;
+import com.uid2.operator.model.identities.DiiType;
 
 import java.util.HashSet;
 import java.util.Set;
 
 public class TokenUtils {
-    public static byte[] getIdentityHash(String identityString) {
+    public static byte[] getDiiHash(String identityString) {
         return EncodingUtils.getSha256Bytes(identityString);
     }
 
-    public static String getIdentityHashString(String identityString) {
-        return EncodingUtils.toBase64String(getIdentityHash(identityString));
+    public static String getDiiHashString(String identityString) {
+        return EncodingUtils.toBase64String(getDiiHash(identityString));
     }
 
     public static byte[] getFirstLevelHash(byte[] identityHash, String firstLevelSalt) {
@@ -20,7 +20,7 @@ public class TokenUtils {
     }
 
     public static byte[] getFirstLevelHashFromIdentity(String identityString, String firstLevelSalt) {
-        return getFirstLevelHash(getIdentityHash(identityString), firstLevelSalt);
+        return getFirstLevelHash(getDiiHash(identityString), firstLevelSalt);
     }
 
     public static byte[] getFirstLevelHashFromIdentityHash(String identityHash, String firstLevelSalt) {
@@ -39,7 +39,7 @@ public class TokenUtils {
         return getRawUidV2(getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
     }
 
-    public static byte[] getRawUidV3(IdentityScope scope, IdentityType type, byte[] firstLevelHash, String rotatingSalt) {
+    public static byte[] getRawUidV3(IdentityScope scope, DiiType type, byte[] firstLevelHash, String rotatingSalt) {
         final byte[] sha = EncodingUtils.getSha256Bytes(EncodingUtils.toBase64String(firstLevelHash), rotatingSalt);
         final byte[] rawUid = new byte[33];
         rawUid[0] = (byte)(encodeIdentityScope(scope) | encodeIdentityType(type));
@@ -47,11 +47,11 @@ public class TokenUtils {
         return rawUid;
     }
 
-    public static byte[] getRawUidV3FromIdentity(IdentityScope scope, IdentityType type, String identityString, String firstLevelSalt, String rotatingSalt) {
+    public static byte[] getRawUidV3FromIdentity(IdentityScope scope, DiiType type, String identityString, String firstLevelSalt, String rotatingSalt) {
         return getRawUidV3(scope, type, getFirstLevelHashFromIdentity(identityString, firstLevelSalt), rotatingSalt);
     }
 
-    public static byte[] getRawUidV3FromIdentityHash(IdentityScope scope, IdentityType type, String identityString, String firstLevelSalt, String rotatingSalt) {
+    public static byte[] getRawUidV3FromIdentityHash(IdentityScope scope, DiiType type, String identityString, String firstLevelSalt, String rotatingSalt) {
         return getRawUidV3(scope, type, getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
     }
 
@@ -59,8 +59,8 @@ public class TokenUtils {
         return (byte) (identityScope.value << 4);
     }
 
-    public static byte encodeIdentityType(IdentityType identityType) {
-        return (byte) (identityType.value << 2);
+    public static byte encodeIdentityType(DiiType diiType) {
+        return (byte) (diiType.value << 2);
     }
 
     public static Set<Integer> getSiteIdsUsingV4Tokens(String siteIdsUsingV4TokensInString) {

@@ -71,7 +71,7 @@ public class InputNormalizationTest extends TestCase {
             Assert.assertEquals(normalization.getProvided(), testCase[0]);
             Assert.assertTrue(normalization.isValid());
             Assert.assertEquals(testCase[1], normalization.getNormalized());
-            Assert.assertEquals(testCase[2], EncodingUtils.toBase64String(normalization.getIdentityInput()));
+            Assert.assertEquals(testCase[2], EncodingUtils.toBase64String(normalization.getHashedDiiInput()));
         }
     }
 
@@ -90,7 +90,7 @@ public class InputNormalizationTest extends TestCase {
             Assert.assertEquals(s, normalization.getProvided());
             Assert.assertTrue(normalization.isValid());
             Assert.assertEquals(masterHash, normalization.getNormalized());
-            Assert.assertEquals(masterHash, EncodingUtils.toBase64String(normalization.getIdentityInput()));
+            Assert.assertEquals(masterHash, EncodingUtils.toBase64String(normalization.getHashedDiiInput()));
         }
     }
 

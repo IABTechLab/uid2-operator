@@ -1,9 +1,7 @@
 package com.uid2.operator;
 
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.identities.FirstLevelHash;
-import com.uid2.operator.model.identities.HashedDii;
-import com.uid2.operator.model.identities.RawUid;
+import com.uid2.operator.model.identities.*;
 import com.uid2.operator.service.*;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
@@ -146,7 +144,7 @@ public class UIDOperatorServiceTest {
         when(clock.instant()).thenAnswer(i -> this.now);
     }
 
-    private HashedDii createHashedDiiIdentity(String rawIdentityHash, IdentityScope scope, IdentityType type) {
+    private HashedDii createHashedDiiIdentity(String rawIdentityHash, IdentityScope scope, DiiType type) {
         return new HashedDii(
                 scope,
                 type,
@@ -154,28 +152,28 @@ public class UIDOperatorServiceTest {
         );
     }
 
-    private AdvertisingTokenRequest validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString, IdentityScope scope, IdentityType type, int siteId) {
+    private AdvertisingTokenRequest validateAndGetToken(EncryptedTokenEncoder tokenEncoder, String advertisingTokenString, IdentityScope scope, DiiType type, int siteId) {
         TokenVersion tokenVersion = (scope == IdentityScope.UID2) ? uid2Service.getAdvertisingTokenVersionForTests(siteId) : euidService.getAdvertisingTokenVersionForTests(siteId);
         UIDOperatorVerticleTest.validateAdvertisingToken(advertisingTokenString, tokenVersion, scope, type);
         return tokenEncoder.decodeAdvertisingToken(advertisingTokenString);
     }
 
-    private void assertIdentityScopeIdentityType(IdentityScope expectedScope, IdentityType expectedIdentityType,
+    private void assertIdentityScopeIdentityType(IdentityScope expectedScope, DiiType expectedDiiType,
                                                  HashedDii hashedDii) {
         assertEquals(expectedScope, hashedDii.identityScope());
-        assertEquals(expectedIdentityType, hashedDii.identityType());
+        assertEquals(expectedDiiType, hashedDii.diiType());
     }
 
-    private void assertIdentityScopeIdentityType(IdentityScope expectedScope, IdentityType expectedIdentityType,
+    private void assertIdentityScopeIdentityType(IdentityScope expectedScope, DiiType expectedDiiType,
                                                  RawUid rawUid) {
         assertEquals(expectedScope, rawUid.identityScope());
-        assertEquals(expectedIdentityType, rawUid.identityType());
+        assertEquals(expectedDiiType, rawUid.diiType());
     }
 
-    private void assertIdentityScopeIdentityType(IdentityScope expectedScope, IdentityType expectedIdentityType,
+    private void assertIdentityScopeIdentityType(IdentityScope expectedScope, DiiType expectedDiiType,
                                                  FirstLevelHash firstLevelHash) {
         assertEquals(expectedScope, firstLevelHash.identityScope());
-        assertEquals(expectedIdentityType, firstLevelHash.identityType());
+        assertEquals(expectedDiiType, firstLevelHash.diiType());
     }
 
 
@@ -186,12 +184,12 @@ public class UIDOperatorServiceTest {
     @CsvSource({"123, V2","127, V4","128, V4"}) //site id 127 and 128 is for testing "site_ids_using_v4_tokens"
     public void testGenerateAndRefresh(int siteId, TokenVersion tokenVersion) {
         IdentityScope expectedIdentityScope = IdentityScope.UID2;
-        IdentityType expectedIdentityType = IdentityType.Email;
+        DiiType expectedDiiType = DiiType.Email;
 
 
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(siteId, 124, 125),
-                createHashedDiiIdentity("test-email-hash", expectedIdentityScope, expectedIdentityType),
+                createHashedDiiIdentity("test-email-hash", expectedIdentityScope, expectedDiiType),
                 OptoutCheckPolicy.DoNotRespect, PrivacyBits.fromInt(0),
                 this.now.minusSeconds(234)
         );
@@ -200,11 +198,11 @@ public class UIDOperatorServiceTest {
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(tokenGenerateResponse);
 
-        UIDOperatorVerticleTest.validateAdvertisingToken(tokenGenerateResponse.getAdvertisingToken(), tokenVersion, IdentityScope.UID2, IdentityType.Email);
+        UIDOperatorVerticleTest.validateAdvertisingToken(tokenGenerateResponse.getAdvertisingToken(), tokenVersion, IdentityScope.UID2, DiiType.Email);
         AdvertisingTokenRequest advertisingTokenRequest = tokenEncoder.decodeAdvertisingToken(tokenGenerateResponse.getAdvertisingToken());
         assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingTokenRequest.expiresAt);
         assertEquals(tokenGenerateRequest.sourcePublisher.siteId, advertisingTokenRequest.sourcePublisher.siteId);
-        assertIdentityScopeIdentityType(expectedIdentityScope, expectedIdentityType,
+        assertIdentityScopeIdentityType(expectedIdentityScope, expectedDiiType,
                 advertisingTokenRequest.rawUid);
         assertEquals(tokenGenerateRequest.establishedAt, advertisingTokenRequest.establishedAt);
         assertEquals(tokenGenerateRequest.privacyBits, advertisingTokenRequest.privacyBits);
@@ -213,7 +211,7 @@ public class UIDOperatorServiceTest {
         assertEquals(this.now, tokenRefreshRequest.createdAt);
         assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), tokenRefreshRequest.expiresAt);
         assertEquals(tokenGenerateRequest.sourcePublisher.siteId, tokenRefreshRequest.sourcePublisher.siteId);
-        assertIdentityScopeIdentityType(expectedIdentityScope, expectedIdentityType, tokenRefreshRequest.firstLevelHash);
+        assertIdentityScopeIdentityType(expectedIdentityScope, expectedDiiType, tokenRefreshRequest.firstLevelHash);
         assertEquals(tokenGenerateRequest.establishedAt, tokenRefreshRequest.firstLevelHash.establishedAt());
 
         final byte[] firstLevelHash = getFirstLevelHash(tokenGenerateRequest.hashedDii.hashedDii(),
@@ -231,11 +229,11 @@ public class UIDOperatorServiceTest {
         assertEquals(TokenRefreshResponse.Status.Refreshed, refreshResponse.getStatus());
         assertNotNull(refreshResponse.getIdentityResponse());
 
-        UIDOperatorVerticleTest.validateAdvertisingToken(refreshResponse.getIdentityResponse().getAdvertisingToken(), tokenVersion, IdentityScope.UID2, IdentityType.Email);
+        UIDOperatorVerticleTest.validateAdvertisingToken(refreshResponse.getIdentityResponse().getAdvertisingToken(), tokenVersion, IdentityScope.UID2, DiiType.Email);
         AdvertisingTokenRequest advertisingTokenRequest2 = tokenEncoder.decodeAdvertisingToken(refreshResponse.getIdentityResponse().getAdvertisingToken());
         assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingTokenRequest2.expiresAt);
         assertEquals(advertisingTokenRequest.sourcePublisher.siteId, advertisingTokenRequest2.sourcePublisher.siteId);
-        assertIdentityScopeIdentityType(expectedIdentityScope, expectedIdentityType,
+        assertIdentityScopeIdentityType(expectedIdentityScope, expectedDiiType,
                 advertisingTokenRequest2.rawUid);
         assertEquals(advertisingTokenRequest.establishedAt, advertisingTokenRequest2.establishedAt);
         assertArrayEquals(advertisingTokenRequest.rawUid.rawUid(),
@@ -246,7 +244,7 @@ public class UIDOperatorServiceTest {
         assertEquals(this.now, tokenRefreshRequest2.createdAt);
         assertEquals(this.now.plusSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), tokenRefreshRequest2.expiresAt);
         assertEquals(tokenRefreshRequest.sourcePublisher.siteId, tokenRefreshRequest2.sourcePublisher.siteId);
-        assertIdentityScopeIdentityType(expectedIdentityScope, expectedIdentityType, tokenRefreshRequest2.firstLevelHash);
+        assertIdentityScopeIdentityType(expectedIdentityScope, expectedDiiType, tokenRefreshRequest2.firstLevelHash);
         assertEquals(tokenRefreshRequest.firstLevelHash.establishedAt(), tokenRefreshRequest2.firstLevelHash.establishedAt());
         assertArrayEquals(tokenRefreshRequest.firstLevelHash.firstLevelHash(), tokenRefreshRequest2.firstLevelHash.firstLevelHash());
         assertArrayEquals(firstLevelHash, tokenRefreshRequest2.firstLevelHash.firstLevelHash());
@@ -258,7 +256,7 @@ public class UIDOperatorServiceTest {
 
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(123, 124, 125),
-                inputVal.toHashedDiiIdentity(IdentityScope.UID2),
+                inputVal.toHashedDii(IdentityScope.UID2),
                 OptoutCheckPolicy.DoNotRespect, PrivacyBits.fromInt(0), this.now
         );
         final TokenGenerateResponse tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
@@ -277,7 +275,7 @@ public class UIDOperatorServiceTest {
 
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(123, 124, 125),
-                inputVal.toHashedDiiIdentity(IdentityScope.UID2),
+                inputVal.toHashedDii(IdentityScope.UID2),
                 OptoutCheckPolicy.RespectOptOut, PrivacyBits.fromInt(0), this.now
         );
         final TokenGenerateResponse tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
@@ -293,7 +291,7 @@ public class UIDOperatorServiceTest {
 
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(123, 124, 125),
-                inputVal.toHashedDiiIdentity(IdentityScope.EUID),
+                inputVal.toHashedDii(IdentityScope.EUID),
                 OptoutCheckPolicy.DoNotRespect, PrivacyBits.fromInt(0), this.now
         );
         final TokenGenerateResponse tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest);
@@ -312,8 +310,8 @@ public class UIDOperatorServiceTest {
             "Email,test@example.com,EUID",
             "Phone,+01010101010,UID2",
             "Phone,+01010101010,EUID"})
-    public void testGenerateTokenForOptOutUser(IdentityType type, String id, IdentityScope scope) {
-        final HashedDii hashedDii = createHashedDiiIdentity(TokenUtils.getIdentityHashString(id),
+    public void testGenerateTokenForOptOutUser(DiiType type, String id, IdentityScope scope) {
+        final HashedDii hashedDii = createHashedDiiIdentity(TokenUtils.getDiiHashString(id),
                 scope, type);
 
         final TokenGenerateRequest tokenGenerateRequestForceGenerate = new TokenGenerateRequest(
@@ -339,7 +337,7 @@ public class UIDOperatorServiceTest {
             tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequestForceGenerate);
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-            advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.UID2, hashedDii.identityType(), tokenGenerateRequestRespectOptOut.sourcePublisher.siteId);
+            advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.UID2, hashedDii.diiType(), tokenGenerateRequestRespectOptOut.sourcePublisher.siteId);
             reset(shutdownHandler);
             tokenGenerateResponseAfterOptOut = uid2Service.generateIdentity(tokenGenerateRequestRespectOptOut);
 
@@ -347,7 +345,7 @@ public class UIDOperatorServiceTest {
             tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequestForceGenerate);
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
-            advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.EUID, hashedDii.identityType(), tokenGenerateRequestRespectOptOut.sourcePublisher.siteId);
+            advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.EUID, hashedDii.diiType(), tokenGenerateRequestRespectOptOut.sourcePublisher.siteId);
             reset(shutdownHandler);
             tokenGenerateResponseAfterOptOut = euidService.generateIdentity(tokenGenerateRequestRespectOptOut);
         }
@@ -365,7 +363,7 @@ public class UIDOperatorServiceTest {
             "Email,test@example.com,EUID",
             "Phone,+01010101010,UID2",
             "Phone,+01010101010,EUID"})
-    public void testIdentityMapForOptOutUser(IdentityType type, String identity, IdentityScope scope) {
+    public void testIdentityMapForOptOutUser(DiiType type, String identity, IdentityScope scope) {
         final HashedDii hashedDii = createHashedDiiIdentity(identity, scope, type);
         final Instant now = Instant.now();
 
@@ -451,7 +449,7 @@ public class UIDOperatorServiceTest {
 
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(123, 124, 125),
-                inputVal.toHashedDiiIdentity(scope),
+                inputVal.toHashedDii(scope),
                 OptoutCheckPolicy.RespectOptOut, PrivacyBits.fromInt(0), this.now
         );
 
@@ -483,7 +481,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityMapRequestItem identityMapRequestItemRespectOptOut = new IdentityMapRequestItem(
-                inputVal.toHashedDiiIdentity(scope),
+                inputVal.toHashedDii(scope),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
@@ -517,7 +515,7 @@ public class UIDOperatorServiceTest {
 
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(123, 124, 125),
-                inputVal.toHashedDiiIdentity(scope),
+                inputVal.toHashedDii(scope),
                 OptoutCheckPolicy.DoNotRespect, PrivacyBits.fromInt(0), this.now
         );
 
@@ -556,7 +554,7 @@ public class UIDOperatorServiceTest {
 
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(123, 124, 125),
-                inputVal.toHashedDiiIdentity(scope),
+                inputVal.toHashedDii(scope),
                 OptoutCheckPolicy.RespectOptOut, PrivacyBits.fromInt(0), this.now
         );
 
@@ -597,7 +595,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityMapRequestItem identityMapRequestItemRespectOptOut = new IdentityMapRequestItem(
-                inputVal.toHashedDiiIdentity(scope),
+                inputVal.toHashedDii(scope),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
@@ -631,7 +629,7 @@ public class UIDOperatorServiceTest {
 
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(123, 124, 125),
-                inputVal.toHashedDiiIdentity(scope),
+                inputVal.toHashedDii(scope),
                 OptoutCheckPolicy.RespectOptOut, PrivacyBits.fromInt(0), this.now
         );
 
@@ -646,7 +644,7 @@ public class UIDOperatorServiceTest {
         else {
             tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
         }
-        advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), scope, tokenGenerateRequest.hashedDii.identityType(), tokenGenerateRequest.sourcePublisher.siteId);
+        advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), scope, tokenGenerateRequest.hashedDii.diiType(), tokenGenerateRequest.sourcePublisher.siteId);
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(tokenGenerateResponse);
@@ -668,7 +666,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final IdentityMapRequestItem identityMapRequestItemRespectOptOut = new IdentityMapRequestItem(
-                inputVal.toHashedDiiIdentity(scope),
+                inputVal.toHashedDii(scope),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
@@ -699,7 +697,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(123, 124, 125),
-                inputVal.toHashedDiiIdentity(scope),
+                inputVal.toHashedDii(scope),
                 OptoutCheckPolicy.DoNotRespect
         );
         TokenGenerateResponse tokenGenerateResponse;
@@ -760,7 +758,7 @@ public class UIDOperatorServiceTest {
 
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(123, 124, 125),
-                inputVal.toHashedDiiIdentity(scope),
+                inputVal.toHashedDii(scope),
                 OptoutCheckPolicy.RespectOptOut, PrivacyBits.fromInt(0), this.now);
 
         TokenGenerateResponse tokenGenerateResponse;
@@ -768,11 +766,11 @@ public class UIDOperatorServiceTest {
         reset(shutdownHandler);
         if(scope == IdentityScope.EUID) {
             tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest);
-            advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.EUID, tokenGenerateRequest.hashedDii.identityType(), tokenGenerateRequest.sourcePublisher.siteId);
+            advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.EUID, tokenGenerateRequest.hashedDii.diiType(), tokenGenerateRequest.sourcePublisher.siteId);
         }
         else {
             tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
-            advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.UID2, tokenGenerateRequest.hashedDii.identityType(), tokenGenerateRequest.sourcePublisher.siteId);
+            advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.UID2, tokenGenerateRequest.hashedDii.diiType(), tokenGenerateRequest.sourcePublisher.siteId);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(false);
@@ -790,7 +788,7 @@ public class UIDOperatorServiceTest {
         assertNotEquals(TokenRefreshResponse.Optout, refreshResponse);
 
         final IdentityMapRequestItem identityMapRequestItem = new IdentityMapRequestItem(
-                inputVal.toHashedDiiIdentity(scope),
+                inputVal.toHashedDii(scope),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
         final IdentityMapResponseItem identityMapResponseItem;

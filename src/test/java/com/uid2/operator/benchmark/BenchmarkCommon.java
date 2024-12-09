@@ -3,8 +3,10 @@ package com.uid2.operator.benchmark;
 import com.uid2.operator.Const;
 import com.uid2.operator.Main;
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.identities.DiiType;
 import com.uid2.operator.model.identities.FirstLevelHash;
 import com.uid2.operator.model.identities.HashedDii;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.UIDOperatorService;
@@ -155,7 +157,7 @@ public class BenchmarkCommon {
         for (int i = 0; i < 65536; i++) {
             final byte[] diiHash = new byte[33];
             new Random().nextBytes(diiHash);
-            arr[i] = new HashedDii(IdentityScope.UID2, IdentityType.Email, diiHash);
+            arr[i] = new HashedDii(IdentityScope.UID2, DiiType.Email, diiHash);
         }
         return arr;
     }

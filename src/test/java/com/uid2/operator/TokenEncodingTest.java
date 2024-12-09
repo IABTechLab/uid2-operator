@@ -1,7 +1,9 @@
 package com.uid2.operator;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.identities.DiiType;
 import com.uid2.operator.model.identities.FirstLevelHash;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.model.identities.RawUid;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
@@ -60,7 +62,7 @@ public class TokenEncodingTest {
             now.plusSeconds(360),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
             new SourcePublisher(111, 112, 113),
-            new FirstLevelHash(IdentityScope.UID2, IdentityType.Email, firstLevelHash, now),
+            new FirstLevelHash(IdentityScope.UID2, DiiType.Email, firstLevelHash, now),
             PrivacyBits.fromInt(121)
         );
 
@@ -95,7 +97,7 @@ public class TokenEncodingTest {
         final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
 
-        final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, "test@example.com", IdentityScope.UID2, tokenVersion != TokenVersion.V2);
+        final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(DiiType.Email, "test@example.com", IdentityScope.UID2, tokenVersion != TokenVersion.V2);
 
         final AdvertisingTokenRequest adTokenRequest = new AdvertisingTokenRequest(
             tokenVersion,
@@ -103,7 +105,7 @@ public class TokenEncodingTest {
             now.plusSeconds(60),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
             new SourcePublisher(111, 112, 113),
-            new RawUid(IdentityScope.UID2, IdentityType.Email, rawUid),
+            new RawUid(IdentityScope.UID2, DiiType.Email, rawUid),
             PrivacyBits.fromInt(121),
             now
         );

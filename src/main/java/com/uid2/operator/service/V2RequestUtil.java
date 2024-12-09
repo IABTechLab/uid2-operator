@@ -1,8 +1,7 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.model.KeyManager;
-import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.shared.IClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -15,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 

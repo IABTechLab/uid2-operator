@@ -1,4 +1,4 @@
-package com.uid2.operator;
+package com.uid2.operator.model.identities;
 
 import com.uid2.operator.service.EncodingUtils;
 

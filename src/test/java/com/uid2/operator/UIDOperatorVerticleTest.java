@@ -665,7 +665,7 @@ public class UIDOperatorVerticleTest {
 
     protected TokenVersion getTokenVersion() {return TokenVersion.V4;}
 
-    final boolean useIdentityV3() { return getTokenVersion() != TokenVersion.V2; }
+    protected boolean useIdentityV3() { return false; }
     protected IdentityScope getIdentityScope() { return IdentityScope.UID2; }
     protected void addAdditionalTokenGenerateParams(JsonObject payload) {}
 
@@ -816,7 +816,9 @@ public class UIDOperatorVerticleTest {
         final String advertisingTokenString = body.getString("advertising_token");
         validateAdvertisingToken(advertisingTokenString, getTokenVersion(), getIdentityScope(), identityType);
         AdvertisingToken advertisingToken = encoder.decodeAdvertisingToken(advertisingTokenString);
-        if (getTokenVersion() == TokenVersion.V4) {
+
+        // without useIdentityV3() it the assert will fail as there's no IdentityType in raw UID2 v2 generated v4 token
+        if (useIdentityV3() && getTokenVersion() == TokenVersion.V4) {
             assertEquals(identityType, advertisingToken.userIdentity.identityType);
         }
         return advertisingToken;

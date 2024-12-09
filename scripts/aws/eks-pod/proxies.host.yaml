@@ -9,10 +9,10 @@ operator-service:
   service: direct
   listen: tcp://0.0.0.0:80
   connect: vsock://42:8080
-  acceptRcvBuf: 25
-  acceptSndBuf: 25
-  peerRcvBuf: 25
-  peerSndBuf: 25
+  acceptRcvBuf: 25600
+  acceptSndBuf: 25600
+  peerRcvBuf: 25600
+  peerSndBuf: 25600
 
 operator-prometheus:
   service: direct

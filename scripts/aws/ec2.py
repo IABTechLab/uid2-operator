@@ -16,7 +16,7 @@ import time
 import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, ConfidentialComputeMissingConfigError
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, ConfidentialComputeMissingConfigError, SecretNotFoundException
 
 class EC2(ConfidentialCompute):
 
@@ -63,7 +63,7 @@ class EC2(ConfidentialCompute):
             self.__validate_configs(secret)
             return self.__add_defaults(secret)
         except ClientError as e:
-            raise RuntimeError(f"Unable to access Secrets Manager {secret_identifier}: {e}")
+            raise SecretNotFoundException(f"{secret_identifier} in {region}")
 
     @staticmethod
     def __add_defaults(configs: Dict[str, any]) -> ConfidentialComputeConfig:

@@ -90,3 +90,8 @@ class ConfidentialComputeMissingConfigError(Exception):
         self.message = f"Missing configuration keys: {', '.join(missing_keys)}"
         super().__init__(self.message)
 
+class SecretNotFoundException(Exception):
+    """Custom exception if secret manager is not found"""
+    def __init__(self, name):
+        self.message = f"Secret manager not found - {name}"
+        super().__init__(self.message)

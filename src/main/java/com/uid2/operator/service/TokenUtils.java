@@ -7,36 +7,36 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class TokenUtils {
-    public static byte[] getDiiHash(String identityString) {
-        return EncodingUtils.getSha256Bytes(identityString);
+    public static byte[] getHashedDii(String rawDii) {
+        return EncodingUtils.getSha256Bytes(rawDii);
     }
 
-    public static String getDiiHashString(String identityString) {
-        return EncodingUtils.toBase64String(getDiiHash(identityString));
+    public static String getHashedDiiString(String rawDii) {
+        return EncodingUtils.toBase64String(getHashedDii(rawDii));
     }
 
-    public static byte[] getFirstLevelHash(byte[] identityHash, String firstLevelSalt) {
-        return getFirstLevelHashFromIdentityHash(EncodingUtils.toBase64String(identityHash), firstLevelSalt);
+    public static byte[] getFirstLevelHashFromHashedDii(byte[] hashedDii, String firstLevelSalt) {
+        return getFirstLevelHashFromHashedDii(EncodingUtils.toBase64String(hashedDii), firstLevelSalt);
     }
 
-    public static byte[] getFirstLevelHashFromIdentity(String identityString, String firstLevelSalt) {
-        return getFirstLevelHash(getDiiHash(identityString), firstLevelSalt);
+    public static byte[] getFirstLevelHashFromRawDii(String rawDii, String firstLevelSalt) {
+        return getFirstLevelHashFromHashedDii(getHashedDii(rawDii), firstLevelSalt);
     }
 
-    public static byte[] getFirstLevelHashFromIdentityHash(String identityHash, String firstLevelSalt) {
-        return EncodingUtils.getSha256Bytes(identityHash, firstLevelSalt);
+    public static byte[] getFirstLevelHashFromHashedDii(String hashedDii, String firstLevelSalt) {
+        return EncodingUtils.getSha256Bytes(hashedDii, firstLevelSalt);
     }
 
     public static byte[] getRawUidV2(byte[] firstLevelHash, String rotatingSalt) {
         return EncodingUtils.getSha256Bytes(EncodingUtils.toBase64String(firstLevelHash), rotatingSalt);
     }
 
-    public static byte[] getRawUidV2FromIdentity(String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getRawUidV2(getFirstLevelHashFromIdentity(identityString, firstLevelSalt), rotatingSalt);
+    public static byte[] getRawUidV2FromRawDii(String rawDii, String firstLevelSalt, String rotatingSalt) {
+        return getRawUidV2(getFirstLevelHashFromRawDii(rawDii, firstLevelSalt), rotatingSalt);
     }
 
-    public static byte[] getRawUidV2FromIdentityHash(String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getRawUidV2(getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
+    public static byte[] getRawUidV2FromHashedDii(String hashedDii, String firstLevelSalt, String rotatingSalt) {
+        return getRawUidV2(getFirstLevelHashFromHashedDii(hashedDii, firstLevelSalt), rotatingSalt);
     }
 
     public static byte[] getRawUidV3(IdentityScope scope, DiiType type, byte[] firstLevelHash, String rotatingSalt) {
@@ -47,12 +47,12 @@ public class TokenUtils {
         return rawUid;
     }
 
-    public static byte[] getRawUidV3FromIdentity(IdentityScope scope, DiiType type, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getRawUidV3(scope, type, getFirstLevelHashFromIdentity(identityString, firstLevelSalt), rotatingSalt);
+    public static byte[] getRawUidV3FromRawDii(IdentityScope scope, DiiType type, String rawDii, String firstLevelSalt, String rotatingSalt) {
+        return getRawUidV3(scope, type, getFirstLevelHashFromRawDii(rawDii, firstLevelSalt), rotatingSalt);
     }
 
-    public static byte[] getRawUidV3FromIdentityHash(IdentityScope scope, DiiType type, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getRawUidV3(scope, type, getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
+    public static byte[] getRawUidV3FromHashedDii(IdentityScope scope, DiiType type, String hashedDii, String firstLevelSalt, String rotatingSalt) {
+        return getRawUidV3(scope, type, getFirstLevelHashFromHashedDii(hashedDii, firstLevelSalt), rotatingSalt);
     }
 
     public static byte encodeIdentityScope(IdentityScope identityScope) {

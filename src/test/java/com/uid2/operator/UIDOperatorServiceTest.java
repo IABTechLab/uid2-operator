@@ -24,7 +24,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static com.uid2.operator.service.TokenUtils.getFirstLevelHash;
+import static com.uid2.operator.service.TokenUtils.getFirstLevelHashFromHashedDii;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -144,11 +144,11 @@ public class UIDOperatorServiceTest {
         when(clock.instant()).thenAnswer(i -> this.now);
     }
 
-    private HashedDii createHashedDiiIdentity(String rawIdentityHash, IdentityScope scope, DiiType type) {
+    private HashedDii createHashedDii(String hashedDii, IdentityScope scope, DiiType type) {
         return new HashedDii(
                 scope,
                 type,
-                rawIdentityHash.getBytes(StandardCharsets.UTF_8)
+                hashedDii.getBytes(StandardCharsets.UTF_8)
         );
     }
 
@@ -189,7 +189,7 @@ public class UIDOperatorServiceTest {
 
         final TokenGenerateRequest tokenGenerateRequest = new TokenGenerateRequest(
                 new SourcePublisher(siteId, 124, 125),
-                createHashedDiiIdentity("test-email-hash", expectedIdentityScope, expectedDiiType),
+                createHashedDii("test-email-hash", expectedIdentityScope, expectedDiiType),
                 OptoutCheckPolicy.DoNotRespect, PrivacyBits.fromInt(0),
                 this.now.minusSeconds(234)
         );
@@ -214,7 +214,7 @@ public class UIDOperatorServiceTest {
         assertIdentityScopeIdentityType(expectedIdentityScope, expectedDiiType, tokenRefreshRequest.firstLevelHash);
         assertEquals(tokenGenerateRequest.establishedAt, tokenRefreshRequest.firstLevelHash.establishedAt());
 
-        final byte[] firstLevelHash = getFirstLevelHash(tokenGenerateRequest.hashedDii.hashedDii(),
+        final byte[] firstLevelHash = getFirstLevelHashFromHashedDii(tokenGenerateRequest.hashedDii.hashedDii(),
                 saltProvider.getSnapshot(this.now).getFirstLevelSalt() );
         assertArrayEquals(firstLevelHash, tokenRefreshRequest.firstLevelHash.firstLevelHash());
 
@@ -311,7 +311,7 @@ public class UIDOperatorServiceTest {
             "Phone,+01010101010,UID2",
             "Phone,+01010101010,EUID"})
     public void testGenerateTokenForOptOutUser(DiiType type, String id, IdentityScope scope) {
-        final HashedDii hashedDii = createHashedDiiIdentity(TokenUtils.getDiiHashString(id),
+        final HashedDii hashedDii = createHashedDii(TokenUtils.getHashedDiiString(id),
                 scope, type);
 
         final TokenGenerateRequest tokenGenerateRequestForceGenerate = new TokenGenerateRequest(
@@ -364,7 +364,7 @@ public class UIDOperatorServiceTest {
             "Phone,+01010101010,UID2",
             "Phone,+01010101010,EUID"})
     public void testIdentityMapForOptOutUser(DiiType type, String identity, IdentityScope scope) {
-        final HashedDii hashedDii = createHashedDiiIdentity(identity, scope, type);
+        final HashedDii hashedDii = createHashedDii(TokenUtils.getHashedDiiString(identity), scope, type);
         final Instant now = Instant.now();
 
         final IdentityMapRequestItem mapRequestForceIdentityMapItem = new IdentityMapRequestItem(

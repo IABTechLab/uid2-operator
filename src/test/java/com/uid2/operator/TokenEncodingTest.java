@@ -55,7 +55,7 @@ public class TokenEncodingTest {
         final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
 
-        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity("test@example.com", "some-salt");
+        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromRawDii("test@example.com", "some-salt");
 
         final TokenRefreshRequest tokenRefreshRequest = new TokenRefreshRequest(tokenVersion,
             now,

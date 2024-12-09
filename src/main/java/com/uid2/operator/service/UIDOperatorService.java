@@ -170,8 +170,8 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public IdentityMapResponseItem map(HashedDii diiIdentity, Instant asOf) {
-        final FirstLevelHash firstLevelHash = getFirstLevelHashIdentity(diiIdentity, asOf);
+    public IdentityMapResponseItem map(HashedDii hashedDii, Instant asOf) {
+        final FirstLevelHash firstLevelHash = getFirstLevelHashIdentity(hashedDii, asOf);
         return generateRawUid(firstLevelHash, asOf);
     }
 
@@ -233,8 +233,8 @@ public class UIDOperatorService implements IUIDOperatorService {
         return new FirstLevelHash(identityScope, diiType, firstLevelHash, null);
     }
 
-    private byte[] getFirstLevelHash(byte[] identityHash, Instant asOf) {
-        return TokenUtils.getFirstLevelHash(identityHash, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
+    private byte[] getFirstLevelHash(byte[] hashedDii, Instant asOf) {
+        return TokenUtils.getFirstLevelHashFromHashedDii(hashedDii, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
     }
 
     private IdentityMapResponseItem generateRawUid(FirstLevelHash firstLevelHash, Instant asOf) {

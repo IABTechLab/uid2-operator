@@ -623,26 +623,26 @@ public class UIDOperatorVerticleTest {
         assertEquals(1, actual);
     }
 
-    private byte[] getRawUidFromIdentity(DiiType diiType, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getRawUid(diiType, identityString, firstLevelSalt, rotatingSalt, getIdentityScope(), useIdentityV3());
+    private byte[] getRawUidFromRawDii(DiiType diiType, String rawDii, String firstLevelSalt, String rotatingSalt) {
+        return getRawUid(diiType, rawDii, firstLevelSalt, rotatingSalt, getIdentityScope(), useIdentityV3());
     }
 
-    private static byte[] getRawUid(DiiType diiType, String identityString, String firstLevelSalt, String rotatingSalt, IdentityScope identityScope, boolean useIdentityV3) {
+    private static byte[] getRawUid(DiiType diiType, String rawDii, String firstLevelSalt, String rotatingSalt, IdentityScope identityScope, boolean useIdentityV3) {
         return !useIdentityV3
-                ? TokenUtils.getRawUidV2FromIdentity(identityString, firstLevelSalt, rotatingSalt)
-                : TokenUtils.getRawUidV3FromIdentity(identityScope, diiType, identityString, firstLevelSalt, rotatingSalt);
+                ? TokenUtils.getRawUidV2FromRawDii(rawDii, firstLevelSalt, rotatingSalt)
+                : TokenUtils.getRawUidV3FromRawDii(identityScope, diiType, rawDii, firstLevelSalt, rotatingSalt);
     }
 
-    public static byte[] getRawUid(DiiType diiType, String identityString, IdentityScope identityScope, boolean useIdentityV3) {
+    public static byte[] getRawUid(DiiType diiType, String rawDii, IdentityScope identityScope, boolean useIdentityV3) {
         return !useIdentityV3
-                ? TokenUtils.getRawUidV2FromIdentity(identityString, firstLevelSalt, rotatingSalt123.getSalt())
-                : TokenUtils.getRawUidV3FromIdentity(identityScope, diiType, identityString, firstLevelSalt, rotatingSalt123.getSalt());
+                ? TokenUtils.getRawUidV2FromRawDii(rawDii, firstLevelSalt, rotatingSalt123.getSalt())
+                : TokenUtils.getRawUidV3FromRawDii(identityScope, diiType, rawDii, firstLevelSalt, rotatingSalt123.getSalt());
     }
 
-    private byte[] getRawUidFromIdentityHash(DiiType diiType, String identityString, String firstLevelSalt, String rotatingSalt) {
+    private byte[] getRawUidFromHashedDii(DiiType diiType, String hashedDii, String firstLevelSalt, String rotatingSalt) {
         return !useIdentityV3()
-                ? TokenUtils.getRawUidV2FromIdentityHash(identityString, firstLevelSalt, rotatingSalt)
-                : TokenUtils.getRawUidV3FromIdentityHash(getIdentityScope(), diiType, identityString, firstLevelSalt, rotatingSalt);
+                ? TokenUtils.getRawUidV2FromHashedDii(hashedDii, firstLevelSalt, rotatingSalt)
+                : TokenUtils.getRawUidV3FromHashedDii(getIdentityScope(), diiType, hashedDii, firstLevelSalt, rotatingSalt);
     }
 
     private JsonObject createBatchEmailsRequestPayload() {
@@ -766,7 +766,7 @@ public class UIDOperatorVerticleTest {
     void tokenGenerateBothEmailAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
-        final String emailHash = TokenUtils.getDiiHashString(emailAddress);
+        final String emailHash = TokenUtils.getHashedDiiString(emailAddress);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1167,11 +1167,11 @@ public class UIDOperatorVerticleTest {
 
                     AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, body, diiType);
                     TokenRefreshRequest tokenRefreshRequest = encoder.decodeRefreshToken(body.getString("decrypted_refresh_token"));
-                    final byte[] rawUid = getRawUidFromIdentity(diiType,
+                    final byte[] rawUid = getRawUidFromRawDii(diiType,
                             optOutTokenInput.getNormalized(),
                             firstLevelSalt,
                             rotatingSalt123.getSalt());
-                    final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(optOutTokenInput.getNormalized(), firstLevelSalt);
+                    final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromRawDii(optOutTokenInput.getNormalized(), firstLevelSalt);
                     assertArrayEquals(rawUid, advertisingTokenRequest.rawUid.rawUid());
                     assertArrayEquals(firstLevelHash, tokenRefreshRequest.firstLevelHash.firstLevelHash());
 
@@ -1229,10 +1229,10 @@ public class UIDOperatorVerticleTest {
                     TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), DiiType.Email);
 
                     assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, tokenRefreshRequest, clientSiteId,
-                            getRawUidFromIdentity(DiiType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()),
+                            getRawUidFromRawDii(DiiType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()),
                             PrivacyBits.DEFAULT,
                             body,
-                            TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt));
+                            TokenUtils.getFirstLevelHashFromRawDii(emailAddress, firstLevelSalt));
 
                     assertStatsCollector("/" + apiVersion + "/token/generate", null, "test-contact", clientSiteId);
 
@@ -1265,7 +1265,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"v1", "v2"})
     void tokenGenerateForEmailHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailHash = TokenUtils.getDiiHashString("test@uid2.com");
+        final String emailHash = TokenUtils.getHashedDiiString("test@uid2.com");
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -1286,10 +1286,10 @@ public class UIDOperatorVerticleTest {
                     TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, apiVersion.equals("v2") ? body.getString("decrypted_refresh_token") : body.getString("refresh_token"), DiiType.Email);
 
                     assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, tokenRefreshRequest, clientSiteId,
-                            getRawUidFromIdentityHash(DiiType.Email, emailHash, firstLevelSalt, rotatingSalt123.getSalt()),
+                            getRawUidFromHashedDii(DiiType.Email, emailHash, firstLevelSalt, rotatingSalt123.getSalt()),
                             PrivacyBits.DEFAULT,
                             body,
-                            TokenUtils.getFirstLevelHashFromIdentityHash(emailHash, firstLevelSalt));
+                            TokenUtils.getFirstLevelHashFromHashedDii(emailHash, firstLevelSalt));
 
                     testContext.completeNow();
                 });
@@ -1322,8 +1322,8 @@ public class UIDOperatorVerticleTest {
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
 
-            byte[] expectedRawUidIdentity = getRawUidFromIdentity(DiiType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt());
-            byte[] expectedFirstLevelHashIdentity = TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt);
+            byte[] expectedRawUidIdentity = getRawUidFromRawDii(DiiType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt());
+            byte[] expectedFirstLevelHashIdentity = TokenUtils.getFirstLevelHashFromRawDii(emailAddress, firstLevelSalt);
 
             assertAdvertisingTokenRefreshTokenRequests(firstAdvertisingTokenRequest, firstTokenRefreshRequest, clientSiteId,
                     expectedRawUidIdentity,
@@ -1417,13 +1417,13 @@ public class UIDOperatorVerticleTest {
                 assertFalse(advertisingTokenRequest.privacyBits.isClientSideTokenGenerated());
                 assertFalse(advertisingTokenRequest.privacyBits.isClientSideTokenOptedOut());
                 assertEquals(clientSiteId, advertisingTokenRequest.sourcePublisher.siteId);
-                assertArrayEquals(getRawUidFromIdentity(DiiType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUid.rawUid());
+                assertArrayEquals(getRawUidFromRawDii(DiiType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUid.rawUid());
 
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
                 TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, refreshTokenStringNew, DiiType.Email);
                 assertEquals(clientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
-                assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHash.firstLevelHash());
+                assertArrayEquals(TokenUtils.getFirstLevelHashFromRawDii(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHash.firstLevelHash());
 
                 assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
                 assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
@@ -1592,11 +1592,11 @@ public class UIDOperatorVerticleTest {
 
             AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, body, DiiType.Email);
             assertEquals(clientSiteId, advertisingTokenRequest.sourcePublisher.siteId);
-            assertArrayEquals(getRawUidFromIdentity(DiiType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUid.rawUid());
+            assertArrayEquals(getRawUidFromRawDii(DiiType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUid.rawUid());
 
             TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), DiiType.Email);
             assertEquals(clientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
-            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHash.firstLevelHash());
+            assertArrayEquals(TokenUtils.getFirstLevelHashFromRawDii(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHash.firstLevelHash());
 
             testContext.completeNow();
         });
@@ -1631,11 +1631,11 @@ public class UIDOperatorVerticleTest {
                     assertFalse(advertisingTokenRequest.privacyBits.isClientSideTokenGenerated());
                     assertFalse(advertisingTokenRequest.privacyBits.isClientSideTokenOptedOut());
                     assertEquals(clientSiteId, advertisingTokenRequest.sourcePublisher.siteId);
-                    assertArrayEquals(getRawUidFromIdentity(DiiType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUid.rawUid());
+                    assertArrayEquals(getRawUidFromRawDii(DiiType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUid.rawUid());
 
                     TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), DiiType.Email);
                     assertEquals(clientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
-                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHash.firstLevelHash());
+                    assertArrayEquals(TokenUtils.getFirstLevelHashFromRawDii(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHash.firstLevelHash());
 
                     assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
                     assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
@@ -1942,7 +1942,7 @@ public class UIDOperatorVerticleTest {
     void identityMapBothEmailAndHashSpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
-        final String emailHash = TokenUtils.getDiiHashString(emailAddress);
+        final String emailHash = TokenUtils.getHashedDiiString(emailAddress);
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
         setupKeys();
@@ -2030,7 +2030,7 @@ public class UIDOperatorVerticleTest {
     @Test
     void identityMapForEmailHash(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String emailHash = TokenUtils.getDiiHashString("test@uid2.com");
+        final String emailHash = TokenUtils.getHashedDiiString("test@uid2.com");
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
         setupKeys();
@@ -2086,7 +2086,7 @@ public class UIDOperatorVerticleTest {
         req.put("email_hash", emailHashes);
 
         emails.add("test1@uid2.com");
-        emailHashes.add(TokenUtils.getDiiHashString("test2@uid2.com"));
+        emailHashes.add(TokenUtils.getHashedDiiString("test2@uid2.com"));
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 400, respJson -> {
             assertFalse(respJson.containsKey("body"));
@@ -2225,8 +2225,8 @@ public class UIDOperatorVerticleTest {
         JsonArray hashes = new JsonArray();
         req.put("email_hash", hashes);
         final String[] email_hashes = {
-                TokenUtils.getDiiHashString("test1@uid2.com"),
-                TokenUtils.getDiiHashString("test2@uid2.com"),
+                TokenUtils.getHashedDiiString("test1@uid2.com"),
+                TokenUtils.getHashedDiiString("test2@uid2.com"),
         };
 
         for (String email_hash : email_hashes) {
@@ -2453,7 +2453,7 @@ public class UIDOperatorVerticleTest {
     void tokenGenerateBothPhoneAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
-        final String phoneHash = TokenUtils.getDiiHashString(phone);
+        final String phoneHash = TokenUtils.getHashedDiiString(phone);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2499,9 +2499,9 @@ public class UIDOperatorVerticleTest {
     void tokenGenerateBothPhoneHashAndEmailHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
-        final String phoneHash = TokenUtils.getDiiHashString(phone);
+        final String phoneHash = TokenUtils.getHashedDiiString(phone);
         final String emailAddress = "test@uid2.com";
-        final String emailHash = TokenUtils.getDiiHashString(emailAddress);
+        final String emailHash = TokenUtils.getHashedDiiString(emailAddress);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2542,10 +2542,10 @@ public class UIDOperatorVerticleTest {
             TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), DiiType.Phone);
 
             assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, tokenRefreshRequest, clientSiteId,
-                    getRawUidFromIdentity(DiiType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()),
+                    getRawUidFromRawDii(DiiType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()),
                     PrivacyBits.DEFAULT,
                     body,
-                    TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt));
+                    TokenUtils.getFirstLevelHashFromRawDii(phone, firstLevelSalt));
 
             testContext.completeNow();
         });
@@ -2568,7 +2568,7 @@ public class UIDOperatorVerticleTest {
     void tokenGenerateForPhoneHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
-        final String phoneHash = TokenUtils.getDiiHashString(phone);
+        final String phoneHash = TokenUtils.getHashedDiiString(phone);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
@@ -2587,10 +2587,10 @@ public class UIDOperatorVerticleTest {
             TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), DiiType.Phone);
 
             assertAdvertisingTokenRefreshTokenRequests(advertisingTokenRequest, tokenRefreshRequest, clientSiteId,
-                    getRawUidFromIdentity(DiiType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()),
+                    getRawUidFromRawDii(DiiType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt()),
                     PrivacyBits.DEFAULT,
                     body,
-                    TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt));
+                    TokenUtils.getFirstLevelHashFromRawDii(phone, firstLevelSalt));
 
 
             testContext.completeNow();
@@ -2619,8 +2619,8 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            byte[] expectedRawUidIdentity = getRawUidFromIdentity(DiiType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt());
-            byte[] expectedFirstLevelHashIdentity = TokenUtils.getFirstLevelHashFromIdentity(phone, firstLevelSalt);
+            byte[] expectedRawUidIdentity = getRawUidFromRawDii(DiiType.Phone, phone, firstLevelSalt, rotatingSalt123.getSalt());
+            byte[] expectedFirstLevelHashIdentity = TokenUtils.getFirstLevelHashFromRawDii(phone, firstLevelSalt);
 
             assertAdvertisingTokenRefreshTokenRequests(firstAdvertisingTokenRequest, firstTokenRefreshRequest, clientSiteId,
                     expectedRawUidIdentity,
@@ -2859,7 +2859,7 @@ public class UIDOperatorVerticleTest {
     void identityMapBothPhoneAndHashSpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
-        final String phoneHash = TokenUtils.getDiiHashString(phone);
+        final String phoneHash = TokenUtils.getHashedDiiString(phone);
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
         setupKeys();
@@ -2903,7 +2903,7 @@ public class UIDOperatorVerticleTest {
     void identityMapForPhoneHash(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
-        final String phonneHash = TokenUtils.getDiiHashString(phone);
+        final String phonneHash = TokenUtils.getHashedDiiString(phone);
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
         setupKeys();
@@ -2978,7 +2978,7 @@ public class UIDOperatorVerticleTest {
         req.put("phone_hash", phoneHashes);
 
         phones.add("+15555555555");
-        phoneHashes.add(TokenUtils.getDiiHashString("+15555555555"));
+        phoneHashes.add(TokenUtils.getHashedDiiString("+15555555555"));
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 400, respJson -> {
             assertFalse(respJson.containsKey("body"));
@@ -3020,8 +3020,8 @@ public class UIDOperatorVerticleTest {
         JsonArray hashes = new JsonArray();
         req.put("phone_hash", hashes);
         final String[] email_hashes = {
-                TokenUtils.getDiiHashString("+15555555555"),
-                TokenUtils.getDiiHashString("+15555555556"),
+                TokenUtils.getHashedDiiString("+15555555555"),
+                TokenUtils.getHashedDiiString("+15555555556"),
         };
 
         for (String email_hash : email_hashes) {
@@ -3278,9 +3278,9 @@ public class UIDOperatorVerticleTest {
         when(siteProvider.getSite(clientSideTokenGenerateSiteId)).thenReturn(site);
     }
 
-    //if no identity is provided will get an error
+    //if no hashed dii is provided will get an error
     @Test
-    void cstgNoIdentityHashProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgNoHashedDiiProvided(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithNoPayload(Instant.now().toEpochMilli());
         sendCstg(vertx,
@@ -4080,7 +4080,7 @@ public class UIDOperatorVerticleTest {
                 testContext,
                 response -> {
                     verify(optOutStore, times(1)).getLatestEntry(argumentCaptor.capture());
-                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt),
+                    assertArrayEquals(TokenUtils.getFirstLevelHashFromRawDii(id, firstLevelSalt),
                             argumentCaptor.getValue().firstLevelHash());
 
                     assertEquals("success", response.getString("status"));
@@ -4156,8 +4156,8 @@ public class UIDOperatorVerticleTest {
 
 
 
-                    byte[] expectedRawUidIdentity = getRawUidFromIdentity(diiType, id, firstLevelSalt, rotatingSalt123.getSalt());
-                    byte[] expectedFirstLevelHashIdentity = TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt);
+                    byte[] expectedRawUidIdentity = getRawUidFromRawDii(diiType, id, firstLevelSalt, rotatingSalt123.getSalt());
+                    byte[] expectedFirstLevelHashIdentity = TokenUtils.getFirstLevelHashFromRawDii(id, firstLevelSalt);
 
                     PrivacyBits expectedPrivacyBits = new PrivacyBits();
                     expectedPrivacyBits.setLegacyBit();
@@ -4309,12 +4309,12 @@ public class UIDOperatorVerticleTest {
         final PrivacyBits advertisingTokenPrivacyBits = advertisingTokenRequest.privacyBits;
         final PrivacyBits refreshTokenPrivacyBits = tokenRefreshRequest.privacyBits;
 
-        final byte[] rawUid = getRawUidFromIdentity(diiType,
+        final byte[] rawUid = getRawUidFromRawDii(diiType,
                 identity,
                 firstLevelSalt,
                 rotatingSalt123.getSalt());
 
-        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(identity, firstLevelSalt);
+        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromRawDii(identity, firstLevelSalt);
 
         assertAll(
                 () -> assertTrue(advertisingTokenPrivacyBits.isClientSideTokenGenerated(), "Advertising token privacy bits CSTG flag is incorrect"),
@@ -4501,7 +4501,7 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"MultiKeysets", "AddKey", "RotateKey", "DisableActiveKey", "DisableDefaultKeyset"})
     void tokenGenerateRotatingKeysets_GENERATOR(String testRun, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 101;
-        final String emailHash = TokenUtils.getDiiHashString("test@uid2.com");
+        final String emailHash = TokenUtils.getHashedDiiString("test@uid2.com");
         fakeAuth(clientSiteId, Role.GENERATOR);
         MultipleKeysetsTests test = new MultipleKeysetsTests();
         //To read these tests, open the MultipleKeysetsTests() constructor in another window so you can see the keyset contents and validate expectations

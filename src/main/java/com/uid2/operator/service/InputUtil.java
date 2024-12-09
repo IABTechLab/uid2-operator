@@ -197,7 +197,7 @@ public class InputUtil {
             this.valid = valid;
             if (valid) {
                 if (this.inputType == DiiInputType.Raw) {
-                    this.diiInput = TokenUtils.getDiiHash(this.normalized);
+                    this.diiInput = TokenUtils.getHashedDii(this.normalized);
                 } else {
                     this.diiInput = EncodingUtils.fromBase64(this.normalized);
                 }

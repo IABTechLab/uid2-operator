@@ -27,7 +27,7 @@ RUN git clone https://github.com/IABTechLab/uid2-attestation-aws.git \
     && cp uid2-attestation-aws/jnsm/target/release/libjnsm.so .
 
 # build vsockpx
-RUN git clone https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git \
+RUN git clone --branch kcc-UID2-4551-change-buffer-size https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git \
     && mkdir uid2-aws-enclave-vsockproxy/build \
     && (cd uid2-aws-enclave-vsockproxy/build; cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo; make; cd ../..) \
     && cp uid2-aws-enclave-vsockproxy/build/vsock-bridge/src/vsock-bridge ./vsockpx

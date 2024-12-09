@@ -3,8 +3,8 @@ package com.uid2.operator.benchmark;
 import com.uid2.operator.Const;
 import com.uid2.operator.Main;
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.model.identities.FirstLevelHash;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.UIDOperatorService;
@@ -150,12 +150,12 @@ public class BenchmarkCommon {
         return storage;
     }
 
-    static HashedDiiIdentity[] createHashedDiiIdentities() {
-        HashedDiiIdentity[] arr = new HashedDiiIdentity[65536];
+    static HashedDii[] createHashedDiiIdentities() {
+        HashedDii[] arr = new HashedDii[65536];
         for (int i = 0; i < 65536; i++) {
             final byte[] diiHash = new byte[33];
             new Random().nextBytes(diiHash);
-            arr[i] = new HashedDiiIdentity(IdentityScope.UID2, IdentityType.Email, diiHash);
+            arr[i] = new HashedDii(IdentityScope.UID2, IdentityType.Email, diiHash);
         }
         return arr;
     }
@@ -188,14 +188,14 @@ public class BenchmarkCommon {
         }
 
         @Override
-        public Instant getLatestEntry(FirstLevelHashIdentity firstLevelHashIdentity) {
-            long epochSecond = this.snapshot.getOptOutTimestamp(firstLevelHashIdentity.firstLevelHash);
+        public Instant getLatestEntry(FirstLevelHash firstLevelHash) {
+            long epochSecond = this.snapshot.getOptOutTimestamp(firstLevelHash.firstLevelHash());
             Instant instant = epochSecond > 0 ? Instant.ofEpochSecond(epochSecond) : null;
             return instant;
         }
 
         @Override
-        public void addEntry(FirstLevelHashIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
+        public void addEntry(FirstLevelHash firstLevelHash, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
             // noop
         }
 

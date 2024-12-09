@@ -1,7 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.shared.model.SaltEntry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -19,15 +19,15 @@ public interface IUIDOperatorService {
     IdentityMapResponseItem mapHashedDii(IdentityMapRequestItem request);
 
     @Deprecated
-    IdentityMapResponseItem map(HashedDiiIdentity hashedDiiIdentity, Instant asOf);
+    IdentityMapResponseItem map(HashedDii hashedDii, Instant asOf);
 
     List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
 
-    void invalidateTokensAsync(HashedDiiIdentity hashedDiiIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler);
+    void invalidateTokensAsync(HashedDii hashedDii, Instant asOf, Handler<AsyncResult<Instant>> handler);
 
-    boolean advertisingTokenMatches(String advertisingToken, HashedDiiIdentity hashedDiiIdentity, Instant asOf);
+    boolean advertisingTokenMatches(String advertisingToken, HashedDii hashedDii, Instant asOf);
 
-    Instant getLatestOptoutEntry(HashedDiiIdentity hashedDiiIdentity, Instant asOf);
+    Instant getLatestOptoutEntry(HashedDii hashedDii, Instant asOf);
 
     Duration getIdentityExpiryDuration();
 }

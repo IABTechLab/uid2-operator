@@ -2,9 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.IdentityType;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
-
-import java.time.Instant;
+import com.uid2.operator.model.identities.HashedDii;
 
 public class InputUtil {
 
@@ -261,8 +259,8 @@ public class InputUtil {
             return valid;
         }
 
-        public HashedDiiIdentity toHashedDiiIdentity(IdentityScope identityScope) {
-            return new HashedDiiIdentity(
+        public HashedDii toHashedDiiIdentity(IdentityScope identityScope) {
+            return new HashedDii(
                     identityScope,
                     this.identityType,
                     getIdentityInput());

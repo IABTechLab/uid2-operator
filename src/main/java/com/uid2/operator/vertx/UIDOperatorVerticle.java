@@ -4,7 +4,7 @@ import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.TokenGenerateResponse;
 import com.uid2.operator.model.IdentityScope;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
@@ -1152,8 +1152,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (input.isValid()) {
             try {
                 final Instant now = Instant.now();
-                final HashedDiiIdentity hashedDiiIdentity = input.toHashedDiiIdentity(this.identityScope);
-                final Instant result = this.idService.getLatestOptoutEntry(hashedDiiIdentity, now);
+                final HashedDii hashedDii = input.toHashedDiiIdentity(this.identityScope);
+                final Instant result = this.idService.getLatestOptoutEntry(hashedDii, now);
                 long timestamp = result == null ? -1 : result.getEpochSecond();
                 rc.response().setStatusCode(200)
                         .setChunked(true)

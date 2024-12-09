@@ -1,7 +1,7 @@
 package com.uid2.operator.benchmark;
 
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.service.IUIDOperatorService;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -11,7 +11,7 @@ import java.time.Instant;
 
 public class IdentityMapBenchmark {
     private static final IUIDOperatorService uidService;
-    private static final HashedDiiIdentity[] hashedDiiIdentities;
+    private static final HashedDii[] hashedDiiIdentities;
     private static int idx = 0;
 
     static {

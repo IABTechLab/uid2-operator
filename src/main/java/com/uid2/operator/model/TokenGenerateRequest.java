@@ -1,13 +1,13 @@
 package com.uid2.operator.model;
 
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.util.PrivacyBits;
 
 import java.time.Instant;
 
 public final class TokenGenerateRequest {
     public final SourcePublisher sourcePublisher;
-    public final HashedDiiIdentity hashedDiiIdentity;
+    public final HashedDii hashedDii;
     public final OptoutCheckPolicy optoutCheckPolicy;
 
     public final PrivacyBits privacyBits;
@@ -15,12 +15,12 @@ public final class TokenGenerateRequest {
 
     public TokenGenerateRequest(
             SourcePublisher sourcePublisher,
-            HashedDiiIdentity hashedDiiIdentity,
+            HashedDii hashedDii,
             OptoutCheckPolicy tokenGeneratePolicy,
             PrivacyBits privacyBits,
             Instant establishedAt) {
         this.sourcePublisher = sourcePublisher;
-        this.hashedDiiIdentity = hashedDiiIdentity;
+        this.hashedDii = hashedDii;
         this.optoutCheckPolicy = tokenGeneratePolicy;
         this.privacyBits = privacyBits;
         this.establishedAt = establishedAt;
@@ -28,9 +28,9 @@ public final class TokenGenerateRequest {
 
     public TokenGenerateRequest(
             SourcePublisher sourcePublisher,
-            HashedDiiIdentity hashedDiiIdentity,
+            HashedDii hashedDii,
             OptoutCheckPolicy tokenGeneratePolicy) {
-        this(sourcePublisher, hashedDiiIdentity, tokenGeneratePolicy, PrivacyBits.DEFAULT, Instant.now());
+        this(sourcePublisher, hashedDii, tokenGeneratePolicy, PrivacyBits.DEFAULT, Instant.now());
 
     }
 

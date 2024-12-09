@@ -2,7 +2,7 @@ package com.uid2.operator.model;
 
 import java.time.Instant;
 
-import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
+import com.uid2.operator.model.identities.FirstLevelHash;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.model.TokenVersion;
 
@@ -10,17 +10,17 @@ import com.uid2.shared.model.TokenVersion;
 public class TokenRefreshRequest extends VersionedTokenRequest {
     public final OperatorIdentity operatorIdentity;
     public final SourcePublisher sourcePublisher;
-    public final FirstLevelHashIdentity firstLevelHashIdentity;
+    public final FirstLevelHash firstLevelHash;
     // by default, inherited from the previous refresh token's privacy bits
     public final PrivacyBits privacyBits;
 
 
     public TokenRefreshRequest(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
-                               SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity, PrivacyBits privacyBits) {
+                               SourcePublisher sourcePublisher, FirstLevelHash firstLevelHash, PrivacyBits privacyBits) {
         super(version, createdAt, expiresAt);
         this.operatorIdentity = operatorIdentity;
         this.sourcePublisher = sourcePublisher;
-        this.firstLevelHashIdentity = firstLevelHashIdentity;
+        this.firstLevelHash = firstLevelHash;
         this.privacyBits = privacyBits;
     }
 }

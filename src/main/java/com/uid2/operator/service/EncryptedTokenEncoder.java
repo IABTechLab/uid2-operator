@@ -1,8 +1,8 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
-import com.uid2.operator.model.userIdentity.RawUidIdentity;
+import com.uid2.operator.model.identities.FirstLevelHash;
+import com.uid2.operator.model.identities.RawUid;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.shared.Const.Data;
@@ -42,7 +42,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         Buffer b2 = Buffer.buffer();
         b2.appendLong(t.expiresAt.toEpochMilli());
-        encodeSiteIdentityV2(b2, t.sourcePublisher, t.rawUidIdentity, siteKey, t.privacyBits, t.establishedAt);
+        encodeSiteIdentityV2(b2, t.sourcePublisher, t.rawUid, siteKey, t.privacyBits, t.establishedAt);
 
         final byte[] encryptedId = AesCbc.encrypt(b2.getBytes(), masterKey).getPayload();
 
@@ -59,7 +59,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         // this is the refreshedAt field in the spec - but effectively it is the time this advertising token is generated
         // this is a redundant field as it is stored in master payload again, can consider dropping this field in future token version
         sitePayload.appendLong(t.createdAt.toEpochMilli());
-        sitePayload.appendBytes(t.rawUidIdentity.rawUid); // 32 or 33 bytes
+        sitePayload.appendBytes(t.rawUid.rawUid()); // 32 or 33 bytes
 
         final Buffer masterPayload = Buffer.buffer(130);
         masterPayload.appendLong(t.expiresAt.toEpochMilli());
@@ -69,7 +69,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         masterPayload.appendBytes(AesGcm.encrypt(sitePayload.getBytes(), siteKey).getPayload());
 
         final Buffer b = Buffer.buffer(164);
-        b.appendByte(encodeIdentityTypeV3(t.rawUidIdentity.identityScope, t.rawUidIdentity.identityType));
+        b.appendByte(encodeIdentityTypeV3(t.rawUid.identityScope(), t.rawUid.identityType()));
         b.appendByte((byte) t.version.rawVersion);
         b.appendInt(masterKey.getId());
         b.appendBytes(AesGcm.encrypt(masterPayload.getBytes(), masterKey).getPayload());
@@ -129,7 +129,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                 TokenVersion.V2, createdAt, validTill,
                 new OperatorIdentity(0, OperatorType.Service, 0, 0),
                 new SourcePublisher(siteId),
-                new FirstLevelHashIdentity(IdentityScope.UID2, IdentityType.Email, identity,
+                new FirstLevelHash(IdentityScope.UID2, IdentityType.Email, identity,
                         Instant.ofEpochMilli(establishedMillis)),
                 privacyBits);
     }
@@ -164,7 +164,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new TokenRefreshRequest(
                 TokenVersion.V3, createdAt, expiresAt, operatorIdentity, sourcePublisher,
-                new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, establishedAt),
+                new FirstLevelHash(identityScope, identityType, firstLevelHash, establishedAt),
                 privacyBits);
     }
 
@@ -233,7 +233,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                     Instant.ofEpochMilli(expiresMillis),
                     new OperatorIdentity(0, OperatorType.Service, 0, masterKeyId),
                     new SourcePublisher(siteId, siteKeyId, 0),
-                    new RawUidIdentity(IdentityScope.UID2, IdentityType.Email, rawUid),
+                    new RawUid(IdentityScope.UID2, IdentityType.Email, rawUid),
                     privacyBits,
                     Instant.ofEpochMilli(establishedMillis)
             );
@@ -276,7 +276,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new AdvertisingTokenRequest(
                 tokenVersion, createdAt, expiresAt, operatorIdentity, sourcePublisher,
-                new RawUidIdentity(identityScope, identityType, rawUid),
+                new RawUid(identityScope, identityType, rawUid),
                 privacyBits, establishedAt
         );
     }
@@ -312,7 +312,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         // give an extra minute for clients which are trying to refresh tokens close to or at the refresh expiry timestamp
         b.appendLong(t.expiresAt.plusSeconds(60).toEpochMilli());
         b.appendInt(serviceKey.getId());
-        final byte[] encryptedIdentity = encryptIdentityV2(t.sourcePublisher, t.firstLevelHashIdentity, serviceKey,
+        final byte[] encryptedIdentity = encryptIdentityV2(t.sourcePublisher, t.firstLevelHash, serviceKey,
                 t.privacyBits);
         b.appendBytes(encryptedIdentity);
         return b.getBytes();
@@ -325,12 +325,12 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         encodeOperatorIdentityV3(refreshPayload, t.operatorIdentity);
         encodePublisherRequesterV3(refreshPayload, t.sourcePublisher);
         refreshPayload.appendInt(t.privacyBits.getAsInt());
-        refreshPayload.appendLong(t.firstLevelHashIdentity.establishedAt.toEpochMilli());
-        refreshPayload.appendByte(encodeIdentityTypeV3(t.firstLevelHashIdentity.identityScope, t.firstLevelHashIdentity.identityType));
-        refreshPayload.appendBytes(t.firstLevelHashIdentity.firstLevelHash);
+        refreshPayload.appendLong(t.firstLevelHash.establishedAt().toEpochMilli());
+        refreshPayload.appendByte(encodeIdentityTypeV3(t.firstLevelHash.identityScope(), t.firstLevelHash.identityType()));
+        refreshPayload.appendBytes(t.firstLevelHash.firstLevelHash());
 
         final Buffer b = Buffer.buffer(124);
-        b.appendByte(encodeIdentityTypeV3(t.firstLevelHashIdentity.identityScope, t.firstLevelHashIdentity.identityType));
+        b.appendByte(encodeIdentityTypeV3(t.firstLevelHash.identityScope(), t.firstLevelHash.identityType()));
         b.appendByte((byte) t.version.rawVersion);
         b.appendInt(serviceKey.getId());
         b.appendBytes(AesGcm.encrypt(refreshPayload.getBytes(), serviceKey).getPayload());
@@ -338,10 +338,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return b.getBytes();
     }
 
-    private void encodeSiteIdentityV2(Buffer b, SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity,
+    private void encodeSiteIdentityV2(Buffer b, SourcePublisher sourcePublisher, RawUid rawUid,
                                       KeysetKey siteEncryptionKey, PrivacyBits privacyBits, Instant establishedAt) {
         b.appendInt(siteEncryptionKey.getId());
-        final byte[] encryptedIdentity = encryptIdentityV2(sourcePublisher, rawUidIdentity, siteEncryptionKey, privacyBits, establishedAt);
+        final byte[] encryptedIdentity = encryptIdentityV2(sourcePublisher, rawUid, siteEncryptionKey, privacyBits, establishedAt);
         b.appendBytes(encryptedIdentity);
     }
 
@@ -373,15 +373,15 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         return bytesToBase64Token(advertisingTokenBytes, advertisingTokenRequest.version);
     }
 
-    private byte[] encryptIdentityV2(SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity,
+    private byte[] encryptIdentityV2(SourcePublisher sourcePublisher, FirstLevelHash firstLevelHash,
                                      KeysetKey key, PrivacyBits privacyBits) {
-        return encryptIdentityV2(sourcePublisher, firstLevelHashIdentity.firstLevelHash, privacyBits,
-                firstLevelHashIdentity.establishedAt, key);
+        return encryptIdentityV2(sourcePublisher, firstLevelHash.firstLevelHash(), privacyBits,
+                firstLevelHash.establishedAt(), key);
     }
 
-    private byte[] encryptIdentityV2(SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity,
+    private byte[] encryptIdentityV2(SourcePublisher sourcePublisher, RawUid rawUid,
                                      KeysetKey key, PrivacyBits privacyBits, Instant establishedAt) {
-        return encryptIdentityV2(sourcePublisher, rawUidIdentity.rawUid, privacyBits,
+        return encryptIdentityV2(sourcePublisher, rawUid.rawUid(), privacyBits,
                 establishedAt, key);
     }
 

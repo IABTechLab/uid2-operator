@@ -1,7 +1,7 @@
 package com.uid2.operator.benchmark;
 
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -14,7 +14,7 @@ import java.util.List;
 public class TokenEndecBenchmark {
 
     private static final IUIDOperatorService uidService;
-    private static final HashedDiiIdentity[] hashedDiiIdentities;
+    private static final HashedDii[] hashedDiiIdentities;
     private static final SourcePublisher publisher;
     private static final EncryptedTokenEncoder encoder;
     private static final TokenGenerateResponse[] generatedTokens;

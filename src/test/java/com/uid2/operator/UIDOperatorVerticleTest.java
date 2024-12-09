@@ -5,7 +5,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
-import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
+import com.uid2.operator.model.identities.FirstLevelHash;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.*;
@@ -818,7 +818,7 @@ public class UIDOperatorVerticleTest {
         validateAdvertisingToken(advertisingTokenString, getTokenVersion(), getIdentityScope(), identityType);
         AdvertisingTokenRequest advertisingTokenRequest = encoder.decodeAdvertisingToken(advertisingTokenString);
         if (getTokenVersion() == TokenVersion.V4) {
-            assertEquals(identityType, advertisingTokenRequest.rawUidIdentity.identityType);
+            assertEquals(identityType, advertisingTokenRequest.rawUid.identityType());
         }
         return advertisingTokenRequest;
     }
@@ -850,8 +850,8 @@ public class UIDOperatorVerticleTest {
 
     TokenRefreshRequest decodeRefreshToken(EncryptedTokenEncoder encoder, String refreshTokenString, IdentityType identityType) {
         TokenRefreshRequest tokenRefreshRequest = encoder.decodeRefreshToken(refreshTokenString);
-        assertEquals(getIdentityScope(), tokenRefreshRequest.firstLevelHashIdentity.identityScope);
-        assertEquals(identityType, tokenRefreshRequest.firstLevelHashIdentity.identityType);
+        assertEquals(getIdentityScope(), tokenRefreshRequest.firstLevelHash.identityScope());
+        assertEquals(identityType, tokenRefreshRequest.firstLevelHash.identityType());
         return tokenRefreshRequest;
     }
 
@@ -864,7 +864,7 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         // the clock value shouldn't matter here
-        when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
+        when(optOutStore.getLatestEntry(any(FirstLevelHash.class)))
             .thenReturn(now.minus(1, ChronoUnit.HOURS));
 
         JsonObject req = new JsonObject();
@@ -891,7 +891,7 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
         // the clock value shouldn't matter here
-        when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
+        when(optOutStore.getLatestEntry(any(FirstLevelHash.class)))
             .thenReturn(now.minus(1, ChronoUnit.HOURS));
         JsonObject req = new JsonObject();
         JsonArray emails = new JsonArray();
@@ -1171,8 +1171,8 @@ public class UIDOperatorVerticleTest {
                             firstLevelSalt,
                             rotatingSalt123.getSalt());
                     final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(optOutTokenInput.getNormalized(), firstLevelSalt);
-                    assertArrayEquals(rawUid, advertisingTokenRequest.rawUidIdentity.rawUid);
-                    assertArrayEquals(firstLevelHash, tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
+                    assertArrayEquals(rawUid, advertisingTokenRequest.rawUid.rawUid());
+                    assertArrayEquals(firstLevelHash, tokenRefreshRequest.firstLevelHash.firstLevelHash());
 
                     String advertisingTokenString = body.getString("advertising_token");
                     final Instant now = Instant.now();
@@ -1244,7 +1244,7 @@ public class UIDOperatorVerticleTest {
 
         assertEquals(expectedClientSiteId, advertisingTokenRequest.sourcePublisher.siteId);
         assertEquals(expectedClientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
-        assertArrayEquals(expectedRawUidIdentity, advertisingTokenRequest.rawUidIdentity.rawUid);
+        assertArrayEquals(expectedRawUidIdentity, advertisingTokenRequest.rawUid.rawUid());
 
         verifyPrivacyBits(expectedPrivacyBits, advertisingTokenRequest, tokenRefreshRequest);
         verifyFirstLevelHashIdentityAndEstablishedAt(firstLevelHashIdentity, tokenRefreshRequest, identityResponse, advertisingTokenRequest.establishedAt);
@@ -1316,7 +1316,7 @@ public class UIDOperatorVerticleTest {
 
             TokenRefreshRequest firstTokenRefreshRequest = decodeRefreshToken(encoder, bodyJson.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
 
-            assertEquals(firstAdvertisingTokenRequest.establishedAt, firstTokenRefreshRequest.firstLevelHashIdentity.establishedAt);
+            assertEquals(firstAdvertisingTokenRequest.establishedAt, firstTokenRefreshRequest.firstLevelHash.establishedAt());
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
@@ -1416,13 +1416,13 @@ public class UIDOperatorVerticleTest {
                 assertFalse(advertisingTokenRequest.privacyBits.isClientSideTokenGenerated());
                 assertFalse(advertisingTokenRequest.privacyBits.isClientSideTokenOptedOut());
                 assertEquals(clientSiteId, advertisingTokenRequest.sourcePublisher.siteId);
-                assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUidIdentity.rawUid);
+                assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUid.rawUid());
 
                 String refreshTokenStringNew = refreshBody.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
                 TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, refreshTokenStringNew, IdentityType.Email);
                 assertEquals(clientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
-                assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
+                assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHash.firstLevelHash());
 
                 assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
                 assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
@@ -1591,11 +1591,11 @@ public class UIDOperatorVerticleTest {
 
             AdvertisingTokenRequest advertisingTokenRequest = validateAndGetToken(encoder, body, IdentityType.Email);
             assertEquals(clientSiteId, advertisingTokenRequest.sourcePublisher.siteId);
-            assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUidIdentity.rawUid);
+            assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUid.rawUid());
 
             TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
             assertEquals(clientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
-            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
+            assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHash.firstLevelHash());
 
             testContext.completeNow();
         });
@@ -1630,11 +1630,11 @@ public class UIDOperatorVerticleTest {
                     assertFalse(advertisingTokenRequest.privacyBits.isClientSideTokenGenerated());
                     assertFalse(advertisingTokenRequest.privacyBits.isClientSideTokenOptedOut());
                     assertEquals(clientSiteId, advertisingTokenRequest.sourcePublisher.siteId);
-                    assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUidIdentity.rawUid);
+                    assertArrayEquals(getRawUidFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.getSalt()), advertisingTokenRequest.rawUid.rawUid());
 
                     TokenRefreshRequest tokenRefreshRequest = decodeRefreshToken(encoder, body.getString(apiVersion.equals("v2") ? "decrypted_refresh_token" : "refresh_token"), IdentityType.Email);
                     assertEquals(clientSiteId, tokenRefreshRequest.sourcePublisher.siteId);
-                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
+                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), tokenRefreshRequest.firstLevelHash.firstLevelHash());
 
                     assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
                     assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
@@ -2555,11 +2555,11 @@ public class UIDOperatorVerticleTest {
                                                       JsonObject receivedJsonBody,
                                                       Instant expectedEstablishedTime) {
 
-        assertArrayEquals(expectedFirstLevelHash, tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash);
-        assertEquals(expectedEstablishedTime, tokenRefreshRequest.firstLevelHashIdentity.establishedAt);
-        assertTrue(tokenRefreshRequest.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("identity_expires") );
-        assertTrue(tokenRefreshRequest.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("refresh_expires") );
-        assertTrue(tokenRefreshRequest.firstLevelHashIdentity.establishedAt.toEpochMilli() < receivedJsonBody.getLong("refresh_from") );
+        assertArrayEquals(expectedFirstLevelHash, tokenRefreshRequest.firstLevelHash.firstLevelHash());
+        assertEquals(expectedEstablishedTime, tokenRefreshRequest.firstLevelHash.establishedAt());
+        assertTrue(tokenRefreshRequest.firstLevelHash.establishedAt().toEpochMilli() < receivedJsonBody.getLong("identity_expires") );
+        assertTrue(tokenRefreshRequest.firstLevelHash.establishedAt().toEpochMilli() < receivedJsonBody.getLong("refresh_expires") );
+        assertTrue(tokenRefreshRequest.firstLevelHash.establishedAt().toEpochMilli() < receivedJsonBody.getLong("refresh_from") );
     }
 
     @ParameterizedTest
@@ -3101,7 +3101,7 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         // the clock value shouldn't matter here
-        when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
+        when(optOutStore.getLatestEntry(any(FirstLevelHash.class)))
                 .thenReturn(now.minus(1, ChronoUnit.HOURS));
 
         JsonObject req = new JsonObject();
@@ -3132,7 +3132,7 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         // the clock value shouldn't matter here
-        when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
+        when(optOutStore.getLatestEntry(any(FirstLevelHash.class)))
                 .thenReturn(now.minus(1, ChronoUnit.HOURS));
 
         JsonObject req = new JsonObject();
@@ -3173,7 +3173,7 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         // the clock value shouldn't matter here
-        when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
+        when(optOutStore.getLatestEntry(any(FirstLevelHash.class)))
                 .thenReturn(now.minus(1, ChronoUnit.HOURS));
 
         JsonObject req = new JsonObject();
@@ -4064,11 +4064,11 @@ public class UIDOperatorVerticleTest {
         final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
 
         // When we generate the token the user hasn't opted out.
-        when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
+        when(optOutStore.getLatestEntry(any(FirstLevelHash.class)))
                 .thenReturn(null);
 
         final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
-        final ArgumentCaptor<FirstLevelHashIdentity> argumentCaptor = ArgumentCaptor.forClass(FirstLevelHashIdentity.class);
+        final ArgumentCaptor<FirstLevelHash> argumentCaptor = ArgumentCaptor.forClass(FirstLevelHash.class);
 
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -4080,7 +4080,7 @@ public class UIDOperatorVerticleTest {
                 response -> {
                     verify(optOutStore, times(1)).getLatestEntry(argumentCaptor.capture());
                     assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(id, firstLevelSalt),
-                            argumentCaptor.getValue().firstLevelHash);
+                            argumentCaptor.getValue().firstLevelHash());
 
                     assertEquals("success", response.getString("status"));
                     final JsonObject genBody = response.getJsonObject("body");
@@ -4091,7 +4091,7 @@ public class UIDOperatorVerticleTest {
                     assertAreClientSideGeneratedTokens(advertisingTokenRequest, tokenRefreshRequest, clientSideTokenGenerateSiteId, identityType, id);
 
                     // When we refresh the token the user has opted out.
-                    when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
+                    when(optOutStore.getLatestEntry(any(FirstLevelHash.class)))
                         .thenReturn(advertisingTokenRequest.establishedAt.plusSeconds(1));
 
                     sendTokenRefresh("v2", vertx, testContext, genBody.getString("refresh_token"), genBody.getString("refresh_response_key"), 200, refreshRespJson -> {
@@ -4120,11 +4120,11 @@ public class UIDOperatorVerticleTest {
 
         if(optOutExpected)
         {
-            when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
+            when(optOutStore.getLatestEntry(any(FirstLevelHash.class)))
                     .thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
         }
         else { //not expectedOptedOut
-            when(optOutStore.getLatestEntry(any(FirstLevelHashIdentity.class)))
+            when(optOutStore.getLatestEntry(any(FirstLevelHash.class)))
                     .thenReturn(null);
         }
 
@@ -4325,8 +4325,8 @@ public class UIDOperatorVerticleTest {
                 () -> assertEquals(siteId, advertisingTokenRequest.sourcePublisher.siteId, "Advertising token site ID is incorrect"),
                 () -> assertEquals(siteId, tokenRefreshRequest.sourcePublisher.siteId, "Refresh token site ID is incorrect"),
 
-                () -> assertArrayEquals(rawUid, advertisingTokenRequest.rawUidIdentity.rawUid, "Advertising token ID is incorrect"),
-                () -> assertArrayEquals(firstLevelHash, tokenRefreshRequest.firstLevelHashIdentity.firstLevelHash, "Refresh token ID is incorrect")
+                () -> assertArrayEquals(rawUid, advertisingTokenRequest.rawUid.rawUid(), "Advertising token ID is incorrect"),
+                () -> assertArrayEquals(firstLevelHash, tokenRefreshRequest.firstLevelHash.firstLevelHash(), "Refresh token ID is incorrect")
         );
     }
 

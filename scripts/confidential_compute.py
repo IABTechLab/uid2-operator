@@ -20,16 +20,6 @@ class ConfidentialCompute(ABC):
     def __init__(self):
         self.configs: ConfidentialComputeConfig = {}
 
-    @abstractmethod
-    def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
-        """
-        Fetches the secret from a secret store.
-
-        Raises:
-            SecretNotFoundException: If the secret is not found.
-        """
-        pass
-
     def validate_environment(self):
         def validate_url(url_key, environment):
             if environment not in self.configs[url_key]:
@@ -62,12 +52,6 @@ class ConfidentialCompute(ABC):
                     f"Operator key does not match the expected environment ({expected_env})."
                 )
         return True
-    
-    @staticmethod
-    def __resolve_hostname(url: str) -> str:
-        """ Resolves the hostname of a URL to an IP address."""
-        hostname = urlparse(url).netloc
-        return socket.gethostbyname(hostname)
 
     def validate_connectivity(self) -> None:
         """ Validates that the core and opt-out URLs are accessible."""
@@ -84,6 +68,17 @@ class ConfidentialCompute(ABC):
             )
         except Exception as e:
             raise Exception("Failed to reach the URLs.") from e
+        
+    
+    @abstractmethod
+    def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
+        """
+        Fetches the secret from a secret store.
+
+        Raises:
+            SecretNotFoundException: If the secret is not found.
+        """
+        pass
 
     @abstractmethod
     def _setup_auxiliaries(self) -> None:
@@ -100,6 +95,11 @@ class ConfidentialCompute(ABC):
         """ Runs confidential computing."""
         pass
 
+    @staticmethod
+    def __resolve_hostname(url: str) -> str:
+        """ Resolves the hostname of a URL to an IP address."""
+        hostname = urlparse(url).netloc
+        return socket.gethostbyname(hostname)
 
     @staticmethod
     def run_command(command, seperate_process=False):

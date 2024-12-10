@@ -89,7 +89,6 @@ class EC2(ConfidentialCompute):
     def __setup_vsockproxy(self, log_level: int) -> None:
         """
         Sets up the vsock proxy service.
-        TODO: Evaluate adding vsock logging based on log_level here
         """
         thread_count = (multiprocessing.cpu_count() + 1) // 2
         command = [

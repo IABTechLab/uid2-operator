@@ -107,14 +107,26 @@ function run_config_server() {
     ./bin/flask run --host 127.0.0.1 --port 27015 &
 }
 
+function read_debug_mode_config() {
+  DEBUG_MODE=$(aws secretsmanager get-secret-value --secret-id "$UID2_CONFIG_SECRET_KEY" | jq -r '.SecretString' | jq -r '.debug_mode')
+  echo "Secrets Manager debug_mode config is set to $DEBUG_MODE"
+}
+
+
 function run_enclave() {
-    echo "starting enclave..."
-    nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator
+    if [ "$DEBUG_MODE" == "true" ]; then
+      echo "starting enclave... --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator --debug-mode --attach-console"
+      nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator --debug-mode --attach-console
+    else
+      echo "starting enclave... --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator"
+      nitro-cli run-enclave --eif-path $EIF_PATH --memory $MEMORY_MB --cpu-count $CPU_COUNT --enclave-cid $CID --enclave-name uid2operator
+    fi
 }
 
 terminate_old_enclave
 config_aws
 read_allocation
+read_debug_mode_config
 # update_allocation
 setup_vsockproxy
 setup_dante

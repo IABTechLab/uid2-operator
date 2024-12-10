@@ -47,14 +47,14 @@ class EC2(ConfidentialCompute):
             raise RuntimeError(f"Failed to fetch region: {e}")
         
     def __validate_configs(self, secret):
-        required_keys = ["operator_key", "environment", "core_base_url", "optout_base_url"]
+        required_keys = ["api_token", "environment", "core_base_url", "optout_base_url"]
         missing_keys = [key for key in required_keys if key not in secret]
         if missing_keys:
             raise ConfidentialComputeMissingConfigError(missing_keys)
         if "enclave_memory_mb" in secret or "enclave_cpu_count" in secret:
             max_capacity = self.__get_max_capacity()
             for key in ["enclave_memory_mb", "enclave_cpu_count"]:
-                if int(secret.get(key, 0)) >= max_capacity.get(key):
+                if int(secret.get(key, 0)) > max_capacity.get(key):
                     raise ValueError(f"{key} value ({secret.get(key, 0)}) exceeds the maximum allowed ({max_capacity.get(key)}).")
         
     def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
@@ -89,7 +89,6 @@ class EC2(ConfidentialCompute):
     def __setup_vsockproxy(self, log_level: int) -> None:
         """
         Sets up the vsock proxy service.
-        TODO: Evaluate adding vsock logging based on log_level here
         """
         thread_count = (multiprocessing.cpu_count() + 1) // 2
         command = [
@@ -137,8 +136,8 @@ class EC2(ConfidentialCompute):
         self.configs = self._get_secret(self.__get_secret_name_from_userdata())
         log_level = 3 if self.configs["debug_mode"] else 1
         self.__setup_vsockproxy(log_level)
-        self.__run_config_server(log_level)
-        self.__run_socks_proxy(log_level)
+        self.__run_config_server()
+        self.__run_socks_proxy()
         time.sleep(5)  #TODO: Change to while loop if required. 
 
     def _validate_auxiliaries(self) -> None:

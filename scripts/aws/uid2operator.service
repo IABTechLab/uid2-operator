@@ -8,8 +8,8 @@ RemainAfterExit=true
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=uid2operator
-ExecStart=/opt/uid2operator/start.sh
-ExecStop=/opt/uid2operator/stop.sh
+ExecStart=python3 /opt/uid2operator/ec2.py
+ExecStop=python3 /opt/uid2operator/ec2.py -o stop
 
 [Install]
 WantedBy=multi-user.target

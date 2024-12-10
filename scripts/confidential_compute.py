@@ -51,14 +51,14 @@ class ConfidentialCompute(ABC):
                     f"{url_key} is invalid. Ensure {self.configs[url_key]} follows HTTPS, and doesn't have any path specified."
                 )
             
-        def validate_connectivity(self) -> None:
+        def validate_connectivity() -> None:
             """ Validates that the core and opt-out URLs are accessible."""
             try:
                 core_url = self.configs["core_base_url"]
                 optout_url = self.configs["optout_base_url"]
-                core_ip = self.__resolve_hostname(core_url)
+                core_ip = socket.gethostbyname(urlparse(core_url).netloc)
                 requests.get(core_url, timeout=5)
-                optout_ip = self.__resolve_hostname(optout_url)
+                optout_ip = socket.gethostbyname(urlparse(optout_url).netloc)
                 requests.get(optout_url, timeout=5)
             except (requests.ConnectionError, requests.Timeout) as e:
                 raise Exception(
@@ -107,12 +107,6 @@ class ConfidentialCompute(ABC):
     def run_compute(self) -> None:
         """ Runs confidential computing."""
         pass
-
-    @staticmethod
-    def __resolve_hostname(url: str) -> str:
-        """ Resolves the hostname of a URL to an IP address."""
-        hostname = urlparse(url).netloc
-        return socket.gethostbyname(hostname)
 
     @staticmethod
     def run_command(command, seperate_process=False):

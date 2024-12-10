@@ -4,6 +4,10 @@ uid-operator-in:
   service: direct
   listen: vsock://-1:8080
   connect: tcp://127.0.0.1:8080
+  acceptRcvBuf: 25600
+  acceptSndBuf: 25600
+  peerRcvBuf: 25600
+  peerSndBuf: 25600
 
 prometheus-server:
   service: direct

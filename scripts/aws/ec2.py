@@ -46,11 +46,7 @@ class EC2(ConfidentialCompute):
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to fetch region: {e}")
         
-    def __validate_configs(self, secret):
-        required_keys = ["api_token", "environment", "core_base_url", "optout_base_url"]
-        missing_keys = [key for key in required_keys if key not in secret]
-        if missing_keys:
-            raise ConfidentialComputeMissingConfigError(missing_keys)
+    def __validate_ec2_specific_config(self, secret):
         if "enclave_memory_mb" in secret or "enclave_cpu_count" in secret:
             max_capacity = self.__get_max_capacity()
             for key in ["enclave_memory_mb", "enclave_cpu_count"]:
@@ -63,12 +59,12 @@ class EC2(ConfidentialCompute):
         try:
             client = boto3.client("secretsmanager", region_name=region)
         except Exception as e:
-            raise RuntimeError("Please specify AWS secrets as env values, or use IAM instance profile for your instance")
+            raise RuntimeError("Please use IAM instance profile for your instance that has permission to access Secret Manager")
         try:
             secret = json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"])
-            self.__validate_configs(secret)
+            self.__validate_ec2_specific_config(secret)
             return self.__add_defaults(secret)
-        except ClientError as e:
+        except ClientError as _:
             raise SecretNotFoundException(f"{secret_identifier} in {region}")
         
     @staticmethod
@@ -144,7 +140,7 @@ class EC2(ConfidentialCompute):
 
     def _validate_auxiliaries(self) -> None:
         """Validates auxiliary services."""
-        self.validate_operator_key()
+        self.validate_configuration()
         proxy = "socks5://127.0.0.1:3306"
         config_url = "http://127.0.0.1:27015/getConfig"
         try:
@@ -163,7 +159,6 @@ class EC2(ConfidentialCompute):
         """Main execution flow for confidential compute."""
         self._setup_auxiliaries()
         self._validate_auxiliaries()
-        self.validate_connectivity()
         command = [
             "nitro-cli", "run-enclave",
             "--eif-path", "/opt/uid2operator/uid2operator.eif",

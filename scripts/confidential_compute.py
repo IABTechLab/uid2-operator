@@ -20,7 +20,25 @@ class ConfidentialCompute(ABC):
     def __init__(self):
         self.configs: ConfidentialComputeConfig = {}
 
-    def validate_environment(self):
+    def validate_configuration(self):
+        """ Validates the paramters specified through configs/secret manager ."""
+
+        def validate_operator_key():
+            """ Validates the operator key format and its environment alignment."""
+            operator_key = self.configs.get("api_token")
+            if not operator_key:
+                raise ValueError("API token is missing from the configuration.")
+            pattern = r"^(UID2|EUID)-.\-(I|P)-\d+-\*$"
+            if re.match(pattern, operator_key):
+                env = self.configs.get("environment", "").lower()
+                debug_mode = self.configs.get("debug_mode", False)
+                expected_env = "I" if debug_mode or env == "integ" else "P"
+                if operator_key.split("-")[2] != expected_env:
+                    raise ValueError(
+                        f"Operator key does not match the expected environment ({expected_env})."
+                    )
+            return True
+
         def validate_url(url_key, environment):
             """URL should include environment except in prod"""
             if environment != "prod" and environment not in self.configs[url_key]:
@@ -33,6 +51,27 @@ class ConfidentialCompute(ABC):
                     f"{url_key} is invalid. Ensure {self.configs[url_key]} follows HTTPS, and doesn't have any path specified."
                 )
             
+        def validate_connectivity(self) -> None:
+            """ Validates that the core and opt-out URLs are accessible."""
+            try:
+                core_url = self.configs["core_base_url"]
+                optout_url = self.configs["optout_base_url"]
+                core_ip = self.__resolve_hostname(core_url)
+                requests.get(core_url, timeout=5)
+                optout_ip = self.__resolve_hostname(optout_url)
+                requests.get(optout_url, timeout=5)
+            except (requests.ConnectionError, requests.Timeout) as e:
+                raise Exception(
+                    f"Failed to reach required URLs. Consider enabling {core_ip}, {optout_ip} in the egress firewall."
+                )
+            except Exception as e:
+                raise Exception("Failed to reach the URLs.") from e
+            
+        required_keys = ["api_token", "environment", "core_base_url", "optout_base_url"]
+        missing_keys = [key for key in required_keys if key not in self.configs]
+        if missing_keys:
+            raise ConfidentialComputeMissingConfigError(missing_keys)
+            
         environment = self.configs["environment"]
 
         if self.configs.get("debug_mode") and environment == "prod":
@@ -40,41 +79,10 @@ class ConfidentialCompute(ABC):
         
         validate_url("core_base_url", environment)
         validate_url("optout_base_url", environment)
-
-
-    def validate_operator_key(self):
-        """ Validates the operator key format and its environment alignment."""
-        operator_key = self.configs.get("api_token")
-        if not operator_key:
-            raise ValueError("API token is missing from the configuration.")
-        pattern = r"^(UID2|EUID)-.\-(I|P)-\d+-\*$"
-        if re.match(pattern, operator_key):
-            env = self.configs.get("environment", "").lower()
-            debug_mode = self.configs.get("debug_mode", False)
-            expected_env = "I" if debug_mode or env == "integ" else "P"
-            if operator_key.split("-")[2] != expected_env:
-                raise ValueError(
-                    f"Operator key does not match the expected environment ({expected_env})."
-                )
-        return True
-
-    def validate_connectivity(self) -> None:
-        """ Validates that the core and opt-out URLs are accessible."""
-        try:
-            core_url = self.configs["core_base_url"]
-            optout_url = self.configs["optout_base_url"]
-            core_ip = self.__resolve_hostname(core_url)
-            requests.get(core_url, timeout=5)
-            optout_ip = self.__resolve_hostname(optout_url)
-            requests.get(optout_url, timeout=5)
-        except (requests.ConnectionError, requests.Timeout) as e:
-            raise Exception(
-                f"Failed to reach required URLs. Consider enabling {core_ip}, {optout_ip} in the egress firewall."
-            )
-        except Exception as e:
-            raise Exception("Failed to reach the URLs.") from e
+        validate_operator_key()
+        validate_connectivity()
         
-    
+
     @abstractmethod
     def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
         """

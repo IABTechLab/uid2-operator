@@ -72,25 +72,20 @@
 
   - name: Install starter script
     ansible.builtin.copy:
-      src: /tmp/artifacts/start.sh
-      dest: /opt/uid2operator/start.sh
+      src: /tmp/artifacts/ec2.py
+      dest: /opt/uid2operator/ec2.py
       remote_src: yes
 
   - name: Make starter script executable
     ansible.builtin.file:
-      path: /opt/uid2operator/start.sh
+      path: /opt/uid2operator/ec2.py
       mode: '0755'
 
-  - name: Install stopper script
+  - name: Copy confidential_compute script
     ansible.builtin.copy:
-      src: /tmp/artifacts/stop.sh
-      dest: /opt/uid2operator/stop.sh
+      src: /tmp/artifacts/confidential_compute.py
+      dest: /opt/uid2operator/confidential_compute.py
       remote_src: yes
-
-  - name: Make starter script executable
-    ansible.builtin.file:
-      path: /opt/uid2operator/stop.sh
-      mode: '0755'
 
   - name: Install Operator EIF
     ansible.builtin.copy:

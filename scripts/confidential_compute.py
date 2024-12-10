@@ -12,10 +12,6 @@ class ConfidentialComputeConfig(TypedDict):
     core_base_url: str
     optout_base_url: str
     environment: str
-
-class AWSConfidentialComputeConfig(ConfidentialComputeConfig):
-    enclave_memory_mb: int
-    enclave_cpu_count: int
     
 class ConfidentialCompute(ABC):
 

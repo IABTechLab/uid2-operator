@@ -16,7 +16,13 @@ import time
 import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, AWSConfidentialComputeConfig, SecretNotFoundException
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, SecretNotFoundException
+
+
+class AWSConfidentialComputeConfig(ConfidentialComputeConfig):
+    enclave_memory_mb: int
+    enclave_cpu_count: int
+
 
 class EC2(ConfidentialCompute):
 

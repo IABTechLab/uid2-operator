@@ -58,10 +58,12 @@ class EC2(ConfidentialCompute):
                     raise ValueError(f"{key} value ({secret.get(key, 0)}) exceeds the maximum allowed ({max_capacity.get(key)}).")
         
     def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
-        secret_identifier = "uid2-config-stack-tjm-unvalidate-eif-test1"
         """Fetches a secret value from AWS Secrets Manager."""
         region = self.__get_current_region()
-        client = boto3.client("secretsmanager", region_name=region)
+        try:
+            client = boto3.client("secretsmanager", region_name=region)
+        except Exception as e:
+            raise RuntimeError("Please specify AWS secrets as env values, or use IAM instance profile for your instance")
         try:
             secret = json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"])
             self.__validate_configs(secret)

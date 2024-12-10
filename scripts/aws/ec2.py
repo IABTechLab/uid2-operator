@@ -55,6 +55,15 @@ class EC2(ConfidentialCompute):
         
     def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
         """Fetches a secret value from AWS Secrets Manager."""
+
+        def add_defaults(configs: Dict[str, any]) -> ConfidentialComputeConfig:
+            """Adds default values to configuration if missing."""
+            default_capacity = self.__get_max_capacity()
+            configs.setdefault("enclave_memory_mb", default_capacity["enclave_memory_mb"])
+            configs.setdefault("enclave_cpu_count", default_capacity["enclave_cpu_count"])
+            configs.setdefault("debug_mode", False)
+            return configs
+        
         region = self.__get_current_region()
         try:
             client = boto3.client("secretsmanager", region_name=region)
@@ -63,7 +72,7 @@ class EC2(ConfidentialCompute):
         try:
             secret = json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"])
             self.__validate_ec2_specific_config(secret)
-            return self.__add_defaults(secret)
+            return add_defaults(secret)
         except ClientError as _:
             raise SecretNotFoundException(f"{secret_identifier} in {region}")
         
@@ -75,14 +84,6 @@ class EC2(ConfidentialCompute):
             return {"enclave_memory_mb": nitro_config['memory_mib'],  "enclave_cpu_count": nitro_config['cpu_count']}
         except Exception as e:
             raise RuntimeError("/etc/nitro_enclaves/allocator.yaml does not have CPU, memory allocated")
-
-    def __add_defaults(self, configs: Dict[str, any]) -> ConfidentialComputeConfig:
-        """Adds default values to configuration if missing."""
-        default_capacity = self.__get_max_capacity()
-        configs.setdefault("enclave_memory_mb", default_capacity["enclave_memory_mb"])
-        configs.setdefault("enclave_cpu_count", default_capacity["enclave_cpu_count"])
-        configs.setdefault("debug_mode", False)
-        return configs
 
     def __setup_vsockproxy(self, log_level: int) -> None:
         """
@@ -132,6 +133,7 @@ class EC2(ConfidentialCompute):
     def _setup_auxiliaries(self) -> None:
         """Sets up the necessary auxiliary services and configuration."""
         self.configs = self._get_secret(self.__get_secret_name_from_userdata())
+        self.validate_configuration()
         log_level = 3 if self.configs["debug_mode"] else 1
         self.__setup_vsockproxy(log_level)
         self.__run_config_server()
@@ -140,7 +142,6 @@ class EC2(ConfidentialCompute):
 
     def _validate_auxiliaries(self) -> None:
         """Validates auxiliary services."""
-        self.validate_configuration()
         proxy = "socks5://127.0.0.1:3306"
         config_url = "http://127.0.0.1:27015/getConfig"
         try:

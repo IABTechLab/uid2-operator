@@ -40,6 +40,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
@@ -201,7 +202,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final Router router = createRoutesSetup();
         final int port = Const.Port.ServicePortForOperator + Utils.getPortOffset();
-        vertx.createHttpServer()
+        vertx.createHttpServer(new HttpServerOptions().setMaxFormBufferedBytes((int) MAX_REQUEST_BODY_SIZE))
                 .requestHandler(router)
                 .listen(port, result -> {
                     if (result.succeeded()) {
@@ -221,7 +222,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final Router router = Router.router(vertx);
 
         router.allowForward(AllowForwardHeaders.X_FORWARD);
-        router.route().handler(new RequestCapturingHandler());
+        router.route().handler(new RequestCapturingHandler(siteProvider));
         router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js", clientKeyProvider));
         router.route().handler(CorsHandler.create()
                 .addRelativeOrigin(".*.")
@@ -357,6 +358,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId, siteProvider, platformType);
             return;
         }
+        rc.put(com.uid2.shared.Const.RoutingContextData.SiteId, clientSideKeypair.getSiteId());
 
         if(clientSideKeypair.isDisabled()) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.Unauthorized, 401, rc, "Unauthorized",
@@ -568,7 +570,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
         final int clientSiteId = clientKey.getSiteId();
         if (!clientKey.hasValidSiteId()) {
-            ResponseUtil.Warning("invalid_client", 401, rc, "Unexpected client site id " + Integer.toString(clientSiteId));
+            ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidClient, 401, rc, "Unexpected client site id " + Integer.toString(clientSiteId));
             return;
         }
 
@@ -819,13 +821,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
                 } else if (!AuthMiddleware.isAuthenticated(rc)) {
                     // unauthenticated clients get a generic error
-                    ResponseUtil.Warning(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
-                    ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
+                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
                 } else if (r.isExpired()) {
-                    ResponseUtil.Warning(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
                 } else {
-                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
+                    ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
@@ -851,15 +853,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
                 } else if (!AuthMiddleware.isAuthenticated(rc)) {
                     // unauthenticated clients get a generic error
-                    ResponseUtil.Warning(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
-                    ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
+                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
                 } else if (r.isExpired()) {
-                    ResponseUtil.Warning(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
                 } else if (r.noActiveKey()) {
                     SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, new KeyManager.NoActiveKeyException("No active encryption key available"), platformType);
                 } else {
-                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
+                    ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
                 ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
@@ -893,7 +895,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.Success(rc, Boolean.FALSE);
             }
         } catch (ClientInputValidationException cie) {
-            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
+            ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
         } catch (Exception e) {
             LOGGER.error("Unknown error while validating token", e);
             rc.fail(500);
@@ -1119,7 +1121,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
             });
         } else {
-            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
+            ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
         }
     }
 
@@ -1142,7 +1144,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             });
             return promise.future();
         } else {
-            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
+            ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
             return Future.failedFuture("");
         }
     }
@@ -1164,7 +1166,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc.fail(500);
             }
         } else {
-            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
+            ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
         }
     }
 
@@ -1177,7 +1179,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 sinceTimestamp = ld.toInstant(ZoneOffset.UTC);
                 LOGGER.info(String.format("identity bucket endpoint is called with since_timestamp %s and site id %s", ld, AuthMiddleware.getAuthClient(rc).getSiteId()));
             } catch (Exception e) {
-                ResponseUtil.ClientError(rc, "invalid date, must conform to ISO 8601");
+                ResponseUtil.LogInfoAndSend400Response(rc, "invalid date, must conform to ISO 8601");
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
@@ -1194,7 +1196,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.Success(rc, resp);
             }
         } else {
-            ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
+            ResponseUtil.LogInfoAndSend400Response(rc, "missing parameter since_timestamp");
         }
     }
 
@@ -1209,7 +1211,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 sinceTimestamp = ld.toInstant(ZoneOffset.UTC);
                 LOGGER.info(String.format("identity bucket endpoint is called with since_timestamp %s and site id %s", ld, AuthMiddleware.getAuthClient(rc).getSiteId()));
             } catch (Exception e) {
-                ResponseUtil.ClientError(rc, "invalid date, must conform to ISO 8601");
+                ResponseUtil.LogInfoAndSend400Response(rc, "invalid date, must conform to ISO 8601");
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
@@ -1226,7 +1228,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.SuccessV2(rc, resp);
             }
         } else {
-            ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
+            ResponseUtil.LogInfoAndSend400Response(rc, "missing parameter since_timestamp");
         }
     }
 
@@ -1244,7 +1246,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             jsonObject.put("bucket_id", mappedIdentity.bucketId);
             ResponseUtil.Success(rc, jsonObject);
         } catch (Exception e) {
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State", e);
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown State", e);
         }
     }
 
@@ -1358,10 +1360,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private boolean isTokenInputValid(InputUtil.InputVal input, RoutingContext rc) {
         if (input == null) {
             String message = this.phoneSupport ? ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_INPUT_EMAIL_MISSING;
-            ResponseUtil.ClientError(rc, message);
+            ResponseUtil.LogInfoAndSend400Response(rc, message);
             return false;
         } else if (!input.isValid()) {
-            ResponseUtil.ClientError(rc, "Invalid Identifier");
+            ResponseUtil.LogInfoAndSend400Response(rc, "Invalid Identifier");
             return false;
         }
         return true;
@@ -1373,11 +1375,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonArray emailHashes = obj.getJsonArray("email_hash");
         // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
         if (emails == null && emailHashes == null) {
-            ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
+            ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
             return null;
         } else if (emails != null && !emails.isEmpty()) {
             if (emailHashes != null && !emailHashes.isEmpty()) {
-                ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_TWICE);
+                ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_TWICE);
                 return null;
             }
             return createInputList(emails, false);
@@ -1390,7 +1392,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private InputUtil.InputVal[] getIdentityBulkInputV1(RoutingContext rc) {
         final JsonObject obj = rc.body().asJsonObject();
         if(obj.isEmpty()) {
-            ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
+            ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
             return null;
         }
         final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
@@ -1422,7 +1424,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         if (validInputs == 0 || nonEmptyInputs > 1) {
-            ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
+            ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
             return null;
         }
 
@@ -1494,7 +1496,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonObject resp = handleIdentityMapCommon(rc, inputList);
             ResponseUtil.Success(rc, resp);
         } catch (Exception e) {
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping batched identity", e);
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping batched identity", e);
         }
     }
 
@@ -1503,22 +1505,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
             if (inputList == null) {
                 if (this.phoneSupport)
-                    ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
+                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
                 else
-                    ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
+                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
                 return;
             }
 
             JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
             if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
-                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
+                ResponseUtil.LogErrorAndSendResponse(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
                 return;
             }
 
             final JsonObject resp = handleIdentityMapCommon(rc, inputList);
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v2", e);
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v2", e);
         }
     }
 
@@ -1571,11 +1573,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonArray emails = obj.getJsonArray("email");
             final JsonArray emailHashes = obj.getJsonArray("email_hash");
             if (emails == null && emailHashes == null) {
-                ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
+                ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
                 return;
             } else if (emails != null && !emails.isEmpty()) {
                 if (emailHashes != null && !emailHashes.isEmpty()) {
-                    ResponseUtil.ClientError(rc, ERROR_INVALID_INPUT_EMAIL_TWICE);
+                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_TWICE);
                     return;
                 }
                 inputList = createInputList(emails, false);
@@ -1677,16 +1679,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private List<String> parseOptoutStatusRequestPayload(RoutingContext rc) {
         final JsonObject requestObj = (JsonObject) rc.data().get("request");
         if (requestObj == null) {
-            ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Invalid request body");
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Invalid request body");
             return null;
         }
         final JsonArray rawUidsJsonArray = requestObj.getJsonArray("advertising_ids");
         if (rawUidsJsonArray == null) {
-            ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Required Parameter Missing: advertising_ids");
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Required Parameter Missing: advertising_ids");
             return null;
         }
         if (rawUidsJsonArray.size() > optOutStatusMaxRequestSize) {
-            ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Request payload is too large");
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Request payload is too large");
             return null;
         }
         List<String> rawUID2sInputList = new ArrayList<>(rawUidsJsonArray.size());
@@ -1720,7 +1722,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             ResponseUtil.SuccessV2(rc, bodyJsonObj);
             recordOptOutStatusEndpointStats(rc, rawUID2sInput.size(), optedOutJsonArray.size());
         } catch (Exception e) {
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc,
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc,
                     "Unknown error while getting optout status", e);
         }
     }

@@ -4,7 +4,7 @@ import socket
 from urllib.parse import urlparse
 from abc import ABC, abstractmethod
 from typing import TypedDict
-
+import subprocess
 
 class ConfidentialComputeConfig(TypedDict):
     enclave_memory_mb: int
@@ -99,6 +99,19 @@ class ConfidentialCompute(ABC):
     def run_compute(self) -> None:
         """ Runs confidential computing."""
         pass
+
+
+    @staticmethod
+    def run_command(command, seperate_process=False):
+        print(f"Running command: {' '.join(command)}")
+        try:
+            if seperate_process:
+                subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                subprocess.run(command,check=True)
+        except Exception as e:
+            print(f"Failed to run command: {str(e)}")
+            raise RuntimeError (f"Failed to start {' '.join(command)} ")
 
 class ConfidentialComputeMissingConfigError(Exception):
     """Custom exception to handle missing config keys."""

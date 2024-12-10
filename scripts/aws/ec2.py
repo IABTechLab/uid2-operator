@@ -23,18 +23,6 @@ class EC2(ConfidentialCompute):
     def __init__(self):
         super().__init__()
 
-    @staticmethod
-    def run_command(command, seperate_process=False):
-        print(f"Running command: {' '.join(command)}")
-        try:
-            if seperate_process:
-                subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            else:
-                subprocess.run(command,check=True)
-        except Exception as e:
-            print(f"Failed to run command: {str(e)}")
-            raise RuntimeError (f"Failed to start {' '.join(command)} ")
-
     def __get_aws_token(self) -> str:
         """Fetches a temporary AWS EC2 metadata token."""
         try:

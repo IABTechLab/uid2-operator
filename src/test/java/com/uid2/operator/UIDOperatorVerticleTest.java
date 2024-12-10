@@ -13,7 +13,6 @@ import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
-import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Keyset;
@@ -27,9 +26,7 @@ import com.uid2.shared.secret.KeyHashResult;
 import com.uid2.shared.secret.KeyHasher;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
-import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -158,7 +155,7 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.SharingTokenExpiryProp, 60 * 60 * 24 * 30);
 
         config.put("identity_scope", getIdentityScope().toString());
-        config.put("identity_v3", useIdentityV3());
+        config.put("identity_v3", useRawUidV3());
         config.put("client_side_token_generate", true);
         config.put("key_sharing_endpoint_provide_app_names", true);
         config.put("client_side_token_generate_log_invalid_http_origins", true);
@@ -622,23 +619,23 @@ public class UIDOperatorVerticleTest {
     }
 
     private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getRawUid(identityType, identityString, firstLevelSalt, rotatingSalt, getIdentityScope(), useIdentityV3());
+        return getRawUid(identityType, identityString, firstLevelSalt, rotatingSalt, getIdentityScope(), useRawUidV3());
     }
 
-    private static byte[] getRawUid(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt, IdentityScope identityScope, boolean useIdentityV3) {
-        return !useIdentityV3
+    private static byte[] getRawUid(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt, IdentityScope identityScope, boolean useRawUidV3) {
+        return !useRawUidV3
                 ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt)
                 : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt);
     }
 
-    public static byte[] getRawUid(IdentityType identityType, String identityString, IdentityScope identityScope, boolean useIdentityV3) {
-        return !useIdentityV3
+    public static byte[] getRawUid(IdentityType identityType, String identityString, IdentityScope identityScope, boolean useRawUidV3) {
+        return !useRawUidV3
                 ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt123.getSalt())
                 : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt123.getSalt());
     }
 
     private byte[] getAdvertisingIdFromIdentityHash(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return !useIdentityV3()
+        return !useRawUidV3()
                 ? TokenUtils.getAdvertisingIdV2FromIdentityHash(identityString, firstLevelSalt, rotatingSalt)
                 : TokenUtils.getAdvertisingIdV3FromIdentityHash(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt);
     }
@@ -665,7 +662,7 @@ public class UIDOperatorVerticleTest {
 
     protected TokenVersion getTokenVersion() {return TokenVersion.V4;}
 
-    protected boolean useIdentityV3() { return false; }
+    protected boolean useRawUidV3() { return false; }
     protected IdentityScope getIdentityScope() { return IdentityScope.UID2; }
     protected void addAdditionalTokenGenerateParams(JsonObject payload) {}
 
@@ -819,7 +816,7 @@ public class UIDOperatorVerticleTest {
 
         // without useIdentityV3() the assert will be trigger as there's no IdentityType in v4 token generated with
         // a raw UID v2 as old raw UID format doesn't store the identity type (and scope)
-        if (useIdentityV3() && getTokenVersion() == TokenVersion.V4) {
+        if (useRawUidV3() && getTokenVersion() == TokenVersion.V4) {
             assertEquals(identityType, advertisingToken.userIdentity.identityType);
         }
         return advertisingToken;

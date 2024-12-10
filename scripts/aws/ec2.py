@@ -16,7 +16,7 @@ import time
 import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, ConfidentialComputeMissingConfigError, SecretNotFoundException
+from confidential_compute import ConfidentialCompute, AWSConfidentialComputeConfig, SecretNotFoundException
 
 class EC2(ConfidentialCompute):
 
@@ -46,17 +46,17 @@ class EC2(ConfidentialCompute):
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to fetch region: {e}")
         
-    def __validate_ec2_specific_config(self, secret):
+    def __validate_aws_specific_config(self, secret):
         if "enclave_memory_mb" in secret or "enclave_cpu_count" in secret:
             max_capacity = self.__get_max_capacity()
             for key in ["enclave_memory_mb", "enclave_cpu_count"]:
                 if int(secret.get(key, 0)) > max_capacity.get(key):
                     raise ValueError(f"{key} value ({secret.get(key, 0)}) exceeds the maximum allowed ({max_capacity.get(key)}).")
         
-    def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
+    def _get_secret(self, secret_identifier: str) -> AWSConfidentialComputeConfig:
         """Fetches a secret value from AWS Secrets Manager."""
 
-        def add_defaults(configs: Dict[str, any]) -> ConfidentialComputeConfig:
+        def add_defaults(configs: Dict[str, any]) -> AWSConfidentialComputeConfig:
             """Adds default values to configuration if missing."""
             default_capacity = self.__get_max_capacity()
             configs.setdefault("enclave_memory_mb", default_capacity["enclave_memory_mb"])
@@ -71,7 +71,7 @@ class EC2(ConfidentialCompute):
             raise RuntimeError("Please use IAM instance profile for your instance that has permission to access Secret Manager")
         try:
             secret = json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"])
-            self.__validate_ec2_specific_config(secret)
+            self.__validate_aws_specific_config(secret)
             return add_defaults(secret)
         except ClientError as _:
             raise SecretNotFoundException(f"{secret_identifier} in {region}")

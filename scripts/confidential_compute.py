@@ -7,13 +7,15 @@ from typing import TypedDict
 import subprocess
 
 class ConfidentialComputeConfig(TypedDict):
-    enclave_memory_mb: int
-    enclave_cpu_count: int
     debug_mode: bool
     api_token: str
     core_base_url: str
     optout_base_url: str
     environment: str
+
+class AWSConfidentialComputeConfig(ConfidentialComputeConfig):
+    enclave_memory_mb: int
+    enclave_cpu_count: int
     
 class ConfidentialCompute(ABC):
 

@@ -22,19 +22,24 @@ class ConfidentialCompute(ABC):
 
     def validate_environment(self):
         def validate_url(url_key, environment):
-            if environment not in self.configs[url_key]:
+            """URL should include environment except in prod"""
+            if environment != "prod" and environment not in self.configs[url_key]:
                 raise ValueError(
                     f"{url_key} must match the environment. Ensure the URL includes '{environment}'."
                 )
-        
+            parsed_url = urlparse(self.configs[url_key])
+            if parsed_url.scheme != 'https' and parsed_url.path:
+                raise ValueError(
+                    f"{url_key} is invalid. Ensure {self.configs[url_key]} follows HTTPS, and doesn't have any path specified."
+                )
+            
         environment = self.configs["environment"]
 
         if self.configs.get("debug_mode") and environment == "prod":
             raise ValueError("Debug mode cannot be enabled in the production environment.")
         
-        if environment != "prod":
-            validate_url("core_base_url", environment)
-            validate_url("optout_base_url", environment)
+        validate_url("core_base_url", environment)
+        validate_url("optout_base_url", environment)
 
 
     def validate_operator_key(self):

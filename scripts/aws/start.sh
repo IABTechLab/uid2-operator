@@ -81,7 +81,7 @@ function update_allocation() {
 function setup_vsockproxy() {
     VSOCK_PROXY=${VSOCK_PROXY:-/usr/bin/vsockpx}
     VSOCK_CONFIG=${VSOCK_CONFIG:-/etc/uid2operator/proxy.yaml}
-    VSOCK_THREADS=${VSOCK_THREADS:-$(( $(nproc) * 2 )) }
+    VSOCK_THREADS=${VSOCK_THREADS:-$(( ( $(nproc) + 1 ) / 2 )) }
     VSOCK_LOG_LEVEL=${VSOCK_LOG_LEVEL:-3}
     echo "starting vsock proxy at $VSOCK_PROXY with $VSOCK_THREADS worker threads..."
     $VSOCK_PROXY -c $VSOCK_CONFIG --workers $VSOCK_THREADS --log-level $VSOCK_LOG_LEVEL --daemon

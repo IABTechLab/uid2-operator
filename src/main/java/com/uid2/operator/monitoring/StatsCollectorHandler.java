@@ -20,7 +20,9 @@ public class StatsCollectorHandler implements Handler<RoutingContext> {
 
     @Override
     public void handle(RoutingContext routingContext) {
-        assert routingContext != null;
+        if (routingContext == null) {
+            throw new NullPointerException();
+        }
 
         //setAuthClient() has not yet been called, so getAuthClient() would return null. This is resolved by using addBodyEndHandler()
         routingContext.addBodyEndHandler(v -> addStatsMessageToQueue(routingContext));

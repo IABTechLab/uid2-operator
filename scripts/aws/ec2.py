@@ -23,6 +23,18 @@ class EC2(ConfidentialCompute):
     def __init__(self):
         super().__init__()
 
+    @staticmethod
+    def run_command(command, seperate_process=False):
+        print(f"Running command: {' '.join(command)}")
+        try:
+            if seperate_process:
+                subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                subprocess.run(command,check=True)
+        except Exception as e:
+            print(f"Failed to run command: {str(e)}")
+            raise RuntimeError (f"Failed to start {' '.join(command)} ")
+
     def __get_aws_token(self) -> str:
         """Fetches a temporary AWS EC2 metadata token."""
         try:
@@ -51,7 +63,11 @@ class EC2(ConfidentialCompute):
         missing_keys = [key for key in required_keys if key not in secret]
         if missing_keys:
             raise ConfidentialComputeMissingConfigError(missing_keys)
-        
+        if "enclave_memory_mb" in secret or "enclave_cpu_count" in secret:
+            max_capacity = self.__get_max_capacity()
+            for key in ["enclave_memory_mb", "enclave_cpu_count"]:
+                if int(secret.get(key, 0)) >= max_capacity.get(key):
+                    raise ValueError(f"{key} value ({secret.get(key, 0)}) exceeds the maximum allowed ({max_capacity.get(key)}).")
         
     def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
         secret_identifier = "uid2-config-stack-tjm-unvalidate-eif-test1"
@@ -64,22 +80,22 @@ class EC2(ConfidentialCompute):
             return self.__add_defaults(secret)
         except ClientError as e:
             raise SecretNotFoundException(f"{secret_identifier} in {region}")
-
+        
     @staticmethod
-    def __add_defaults(configs: Dict[str, any]) -> ConfidentialComputeConfig:
-        """Adds default values to configuration if missing."""
+    def __get_max_capacity():
         try:
             with open("/etc/nitro_enclaves/allocator.yaml", "r") as file:
                 nitro_config = yaml.safe_load(file)
-            configs.setdefault("enclave_memory_mb", nitro_config['memory_mib'])
-            configs.setdefault("enclave_cpu_count", nitro_config['cpu_count'])
+            return {"enclave_memory_mb": nitro_config['memory_mib'],  "enclave_cpu_count": nitro_config['cpu_count']}
         except Exception as e:
-            raise RuntimeError("/etc/nitro_enclaves/allocator.yaml does not exist/ does not have cpu, memory allocated")
+            raise RuntimeError("/etc/nitro_enclaves/allocator.yaml does not have CPU, memory allocated")
+
+    def __add_defaults(self, configs: Dict[str, any]) -> ConfidentialComputeConfig:
+        """Adds default values to configuration if missing."""
+        default_capacity = self.__get_max_capacity()
+        configs.setdefault("enclave_memory_mb", default_capacity["enclave_memory_mb"])
+        configs.setdefault("enclave_cpu_count", default_capacity["enclave_cpu_count"])
         configs.setdefault("debug_mode", False)
-        #urls are currently not set anywhere and is overridden based on identity scope available only inside docker. Change to passing those through config values.
-        #And these should be validated
-        configs.setdefault("core_base_url", "https://core.uidapi.com" if configs["environment"] == "prod" else "https://core-integ.uidapi.com")
-        configs.setdefault("optout_base_url", "https://optout.uidapi.com" if configs["environment"] == "prod" else "https://optout-integ.uidapi.com")
         return configs
 
     def __setup_vsockproxy(self, log_level: int) -> None:
@@ -92,12 +108,11 @@ class EC2(ConfidentialCompute):
             "/usr/bin/vsockpx", "-c", "/etc/uid2operator/proxy.yaml",
             "--workers", str(thread_count), "--log-level", str(log_level), "--daemon"
         ]
-        subprocess.run(command)
+        self.run_command(command)
 
-    def __run_config_server(self,log_level = None) -> None:
+    def __run_config_server(self) -> None:
         """
         Starts the Flask configuration server.
-        TODO: Based on log level add logging to flask
         """
         os.makedirs("/etc/secret/secret-value", exist_ok=True)
         config_path = "/etc/secret/secret-value/config"
@@ -105,19 +120,14 @@ class EC2(ConfidentialCompute):
             json.dump(self.configs, config_file)
         os.chdir("/opt/uid2operator/config-server")
         command = ["./bin/flask", "run", "--host", "127.0.0.1", "--port", "27015"]
-        try:
-            subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as e:
-            print(f"Failed to start the Flask config server.\n '{' '.join(command)}': {e}")
-            raise RuntimeError ("Failed to start required flask server")
+        self.run_command(command, seperate_process=True)
 
-    def __run_socks_proxy(self, log_level = None) -> None:
+    def __run_socks_proxy(self) -> None:
         """
         Starts the SOCKS proxy service.
-        TODO: Based on log level add logging to sockd
         """
         command = ["sockd", "-D"]
-        subprocess.run(command)
+        self.run_command(command)
 
     def __get_secret_name_from_userdata(self) -> str:
         """Extracts the secret name from EC2 user data."""
@@ -175,7 +185,7 @@ class EC2(ConfidentialCompute):
         ]
         if self.configs["debug_mode"]:
             command += ["--debug-mode", "--attach-console"]
-        subprocess.run(command, check=True)
+        self.run_command(command)
 
     def cleanup(self) -> None:
         """Terminates the Nitro Enclave and auxiliary processes."""
@@ -184,7 +194,7 @@ class EC2(ConfidentialCompute):
             enclaves = json.loads(describe_output)
             enclave_id = enclaves[0].get("EnclaveID") if enclaves else None
             if enclave_id:
-                subprocess.run(["nitro-cli", "terminate-enclave", "--enclave-id", enclave_id])
+                self.run_command(["nitro-cli", "terminate-enclave", "--enclave-id", enclave_id])
                 print(f"Terminated enclave with ID: {enclave_id}")
             else:
                 print("No active enclaves found.")

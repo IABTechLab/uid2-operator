@@ -30,7 +30,24 @@ class ConfidentialCompute(ABC):
         """
         pass
 
-    def validate_operator_key(self) -> bool:
+    def validate_environment(self):
+        def validate_url(url_key, environment):
+            if environment not in self.configs[url_key]:
+                raise ValueError(
+                    f"{url_key} must match the environment. Ensure the URL includes '{environment}'."
+                )
+        
+        environment = self.configs["environment"]
+
+        if self.configs.get("debug_mode") and environment == "prod":
+            raise ValueError("Debug mode cannot be enabled in the production environment.")
+        
+        if environment != "prod":
+            validate_url("core_base_url", environment)
+            validate_url("optout_base_url", environment)
+
+
+    def validate_operator_key(self):
         """ Validates the operator key format and its environment alignment."""
         operator_key = self.configs.get("operator_key")
         if not operator_key:

@@ -414,7 +414,7 @@ public class Main {
     }
 
     private static void setupMetrics(MicrometerMetricsOptions metricOptions) {
-        BackendRegistries.setupBackend(metricOptions);
+        BackendRegistries.setupBackend(metricOptions, null);
 
         MeterRegistry backendRegistry = BackendRegistries.getDefaultNow();
         if (backendRegistry instanceof PrometheusMeterRegistry) {

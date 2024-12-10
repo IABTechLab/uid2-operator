@@ -157,10 +157,7 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.SharingTokenExpiryProp, 60 * 60 * 24 * 30);
 
         config.put("identity_scope", getIdentityScope().toString());
-        config.put("advertising_token_v3", getTokenVersion() == TokenVersion.V3);
-        config.put("advertising_token_v4_percentage", getTokenVersion() == TokenVersion.V4 ? 100 : 0);
-        config.put("site_ids_using_v4_tokens", "");
-        config.put("identity_v3", useIdentityV3());
+        config.put("identity_v3", useRawUidV3());
         config.put("client_side_token_generate", true);
         config.put("key_sharing_endpoint_provide_app_names", true);
         config.put("client_side_token_generate_log_invalid_http_origins", true);
@@ -624,7 +621,7 @@ public class UIDOperatorVerticleTest {
     }
 
     private byte[] getRawUidFromIdentity(DiiType diiType, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getRawUid(diiType, identityString, firstLevelSalt, rotatingSalt, getIdentityScope(), useIdentityV3());
+        return getRawUid(diiType, identityString, firstLevelSalt, rotatingSalt, getIdentityScope(), useRawUidV3());
     }
 
     private static byte[] getRawUid(DiiType diiType, String identityString, String firstLevelSalt, String rotatingSalt, IdentityScope identityScope, boolean useIdentityV3) {
@@ -640,7 +637,7 @@ public class UIDOperatorVerticleTest {
     }
 
     private byte[] getRawUidFromIdentityHash(DiiType diiType, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return !useIdentityV3()
+        return !useRawUidV3()
                 ? TokenUtils.getRawUidV2FromIdentityHash(identityString, firstLevelSalt, rotatingSalt)
                 : TokenUtils.getRawUidV3FromIdentityHash(getIdentityScope(), diiType, identityString, firstLevelSalt, rotatingSalt);
     }
@@ -665,9 +662,9 @@ public class UIDOperatorVerticleTest {
         return req;
     }
 
-    protected TokenVersion getTokenVersion() {return TokenVersion.V2;}
+    protected TokenVersion getTokenVersion() {return TokenVersion.V4;}
 
-    final boolean useIdentityV3() { return getTokenVersion() != TokenVersion.V2; }
+    protected boolean useRawUidV3() { return false; }
     protected IdentityScope getIdentityScope() { return IdentityScope.UID2; }
     protected void addAdditionalTokenGenerateParams(JsonObject payload) {}
 
@@ -818,7 +815,9 @@ public class UIDOperatorVerticleTest {
         final String advertisingTokenString = body.getString("advertising_token");
         validateAdvertisingToken(advertisingTokenString, getTokenVersion(), getIdentityScope(), diiType);
         AdvertisingTokenRequest advertisingTokenRequest = encoder.decodeAdvertisingToken(advertisingTokenString);
-        if (getTokenVersion() == TokenVersion.V4) {
+        // without useIdentityV3() the assert will be trigger as there's no IdentityType in v4 token generated with
+        // a raw UID v2 as old raw UID format doesn't store the identity type (and scope)
+        if (useRawUidV3() && getTokenVersion() == TokenVersion.V4) {
             assertEquals(diiType, advertisingTokenRequest.rawUid.diiType());
         }
         return advertisingTokenRequest;

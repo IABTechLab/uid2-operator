@@ -6,11 +6,11 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.41.0</version>
+    <version>5.43.4</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <vertx.version>4.5.3</vertx.version>
+        <vertx.version>4.5.11</vertx.version>
         <vertx-maven-plugin.version>1.0.22</vertx-maven-plugin.version>
         <junit-jupiter.version>5.11.2</junit-jupiter.version>
         <junit-vintage.version>5.11.2</junit-vintage.version>
@@ -22,7 +22,7 @@
         <enclave-aws.version>2.1.0</enclave-aws.version>
         <enclave-azure.version>2.1.0</enclave-azure.version>
         <enclave-gcp.version>2.1.0</enclave-gcp.version>
-        <uid2-shared.version>7.20.0</uid2-shared.version>
+        <uid2-shared.version>8.0.9</uid2-shared.version>
         <image.version>${project.version}</image.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>

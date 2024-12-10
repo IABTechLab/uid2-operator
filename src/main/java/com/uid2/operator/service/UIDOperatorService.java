@@ -23,8 +23,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.uid2.operator.model.identities.IdentityConst.*;
-import static com.uid2.operator.service.TokenUtils.getSiteIdsUsingV4Tokens;
-
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
     public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
@@ -48,11 +46,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Duration refreshIdentityAfter;
 
     private final OperatorIdentity operatorIdentity;
-    protected final TokenVersion tokenVersionToUseIfNotV4;
-    protected final int advertisingTokenV4Percentage;
-    protected final Set<Integer> siteIdsUsingV4Tokens;
     private final TokenVersion refreshTokenVersion;
-    private final boolean identityV3Enabled;
+    // if we use Raw UID v3 format for the raw UID2/EUIDs generated in this operator
+    private final boolean rawUidV3Enabled;
 
     private final Handler<Boolean> saltRetrievalResponseHandler;
 
@@ -94,12 +90,8 @@ public class UIDOperatorService implements IUIDOperatorService {
             throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
 
-        this.advertisingTokenV4Percentage = config.getInteger("advertising_token_v4_percentage", 0); //0 indicates token v4 will not be used
-        this.siteIdsUsingV4Tokens = getSiteIdsUsingV4Tokens(config.getString("site_ids_using_v4_tokens", ""));
-        this.tokenVersionToUseIfNotV4 = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
-
         this.refreshTokenVersion = TokenVersion.V3;
-        this.identityV3Enabled = config.getBoolean("identity_v3", false);
+        this.rawUidV3Enabled = config.getBoolean("identity_v3", false);
     }
 
     @Override
@@ -241,7 +233,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHash.firstLevelHash());
 
         return new IdentityMapResponseItem(
-                this.identityV3Enabled
+                this.rawUidV3Enabled
                     ? TokenUtils.getRawUidV3(firstLevelHash.identityScope(),
                         firstLevelHash.diiType(), firstLevelHash.firstLevelHash(), rotatingSalt.getSalt())
                     : TokenUtils.getRawUidV2(firstLevelHash.firstLevelHash(), rotatingSalt.getSalt()),
@@ -282,20 +274,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private AdvertisingTokenRequest createAdvertisingTokenRequest(SourcePublisher sourcePublisher, RawUid rawUidIdentity,
                                                                   Instant now, PrivacyBits privacyBits, Instant establishedAt) {
-        TokenVersion tokenVersion;
-        if (siteIdsUsingV4Tokens.contains(sourcePublisher.siteId)) {
-            tokenVersion = TokenVersion.V4;
-        } else {
-            int pseudoRandomNumber = 1;
-            final var rawUid = rawUidIdentity.rawUid();
-            if (rawUid.length > 2)
-            {
-                int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
-                pseudoRandomNumber = (hash % 100) + 1; //1 to 100
-            }
-            tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
-        }
-        return new AdvertisingTokenRequest(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, sourcePublisher, rawUidIdentity,
+        return new AdvertisingTokenRequest(TokenVersion.V4, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, sourcePublisher, rawUidIdentity,
                 privacyBits, establishedAt);
     }
 

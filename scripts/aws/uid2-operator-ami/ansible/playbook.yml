@@ -93,15 +93,11 @@
       dest: /opt/uid2operator/confidential_compute.py
       remote_src: yes
 
-  - name: Install python3-pip
-    dnf:
-      name: python3-pip
-      state: present
-
-  - name: Install dependencies from requirements.txt
-    pip:
+  - name: Create virtualenv for eif init
+    ansible.builtin.pip:
+      virtualenv: /opt/uid2operator/init
       requirements: /opt/uid2operator/requirements.txt
-      state: present
+      virtualenv_command: 'python3 -m venv'
 
   - name: Install Operator EIF
     ansible.builtin.copy:

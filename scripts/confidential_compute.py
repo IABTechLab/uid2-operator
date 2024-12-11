@@ -35,7 +35,9 @@ class ConfidentialCompute(ABC):
                     raise ValueError(
                         f"Operator key does not match the expected environment ({expected_env})."
                     )
-            return True
+                print("Validated operator key matches environment")
+            else:
+                print("Skipping operator key validation")
 
         def validate_url(url_key, environment):
             """URL should include environment except in prod"""
@@ -48,6 +50,8 @@ class ConfidentialCompute(ABC):
                 raise ValueError(
                     f"{url_key} is invalid. Ensure {self.configs[url_key]} follows HTTPS, and doesn't have any path specified."
                 )
+            print(f"Validated {self.configs[url_key]} matches other config parameters")
+            
             
         def validate_connectivity() -> None:
             """ Validates that the core and opt-out URLs are accessible."""
@@ -56,8 +60,10 @@ class ConfidentialCompute(ABC):
                 optout_url = self.configs["optout_base_url"]
                 core_ip = socket.gethostbyname(urlparse(core_url).netloc)
                 requests.get(core_url, timeout=5)
+                print(f"Validated connectivity to {core_url}")
                 optout_ip = socket.gethostbyname(urlparse(optout_url).netloc)
                 requests.get(optout_url, timeout=5)
+                print(f"Validated connectivity to {optout_url}")
             except (requests.ConnectionError, requests.Timeout) as e:
                 raise Exception(
                     f"Failed to reach required URLs. Consider enabling {core_ip}, {optout_ip} in the egress firewall."
@@ -79,6 +85,7 @@ class ConfidentialCompute(ABC):
         validate_url("optout_base_url", environment)
         validate_operator_key()
         validate_connectivity()
+        print("Completed static validation of confidential compute config values")
         
 
     @abstractmethod

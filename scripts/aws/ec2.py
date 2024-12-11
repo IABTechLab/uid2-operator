@@ -54,12 +54,13 @@ class EC2(ConfidentialCompute):
     def __validate_aws_specific_config(self, secret):
         if "enclave_memory_mb" in secret or "enclave_cpu_count" in secret:
             max_capacity = self.__get_max_capacity()
-            
+            min_capacity = {"enclave_memory_mb": 10000, "enclave_cpu_count" : 4 }
             for key in ["enclave_memory_mb", "enclave_cpu_count"]:
                 if int(secret.get(key, 0)) > max_capacity.get(key):
                     raise ValueError(f"{key} value ({secret.get(key, 0)}) exceeds the maximum allowed ({max_capacity.get(key)}).")
+                if min_capacity.get(key) > int(secret.get(key, 10**9)):
+                    raise ValueError(f"{key} value ({secret.get(key, 0)}) needs to be higher than the minimum required ({min_capacity.get(key)}).")
                 
-        
     def _get_secret(self, secret_identifier: str) -> AWSConfidentialComputeConfig:
         """Fetches a secret value from AWS Secrets Manager and adds defaults"""
 

@@ -26,7 +26,7 @@ class ConfidentialCompute(ABC):
             operator_key = self.configs.get("api_token")
             if not operator_key:
                 raise ValueError("API token is missing from the configuration.")
-            pattern = r"^(UID2|EUID)-.\-(I|P)-\d+-\*$"
+            pattern = r"^(UID2|EUID)-.\-(I|P)-\d+-.*$"
             if re.match(pattern, operator_key):
                 env = self.configs.get("environment", "").lower()
                 debug_mode = self.configs.get("debug_mode", False)

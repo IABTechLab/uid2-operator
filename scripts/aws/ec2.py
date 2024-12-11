@@ -145,17 +145,25 @@ class EC2(ConfidentialCompute):
         self.__setup_vsockproxy(log_level)
         self.__run_config_server()
         self.__run_socks_proxy()
-        time.sleep(5)  #TODO: Change to while loop if required. 
 
     def _validate_auxiliaries(self) -> None:
         """Validates connection to flask server direct and through socks proxy."""
         proxy = "socks5://127.0.0.1:3306"
         config_url = "http://127.0.0.1:27015/getConfig"
         try:
-            response = requests.get(config_url)
+            for attempt in range(10):
+                try:
+                    response = requests.get(config_url)
+                    print("Config server is reachable")
+                    break
+                except requests.exceptions.ConnectionError as e:
+                    print(f"Connecting to config server, attempt {attempt + 1} failed with ConnectionError: {e}")
+                time.sleep(1)
+            else:
+                raise RuntimeError(f"Config server unreachable")
             response.raise_for_status()
         except requests.RequestException as e:
-            raise RuntimeError(f"Config server unreachable: {e}")
+            raise RuntimeError(f"Failed to get config from config server: {e}")
         proxies = {"http": proxy, "https": proxy}
         try:
             response = requests.get(config_url, proxies=proxies)

@@ -79,9 +79,9 @@ class EC2(ConfidentialCompute):
         except Exception as e:
             raise RuntimeError("Please use IAM instance profile for your instance that has permission to access Secret Manager")
         try:
-            secret = json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"])
+            secret = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
             self.__validate_aws_specific_config(secret)
-            return add_defaults(secret)
+            return secret
         except ClientError as _:
             raise SecretNotFoundException(f"{secret_identifier} in {region}")
         

@@ -183,7 +183,7 @@ Resources:
       KmsKeyId: !GetAtt KMSKey.Arn
       Name: !Sub 'uid2-config-stack-${AWS::StackName}'
       SecretString: !Sub '{
-          "api_token":"${APIToken}",
+          "operator_key":"${APIToken}",
           "service_instances":6,
           "enclave_cpu_count":6,
           "enclave_memory_mb":24576,

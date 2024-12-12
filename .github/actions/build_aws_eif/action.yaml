@@ -96,8 +96,8 @@ runs:
 
         cp ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt                                       ${ARTIFACTS_OUTPUT_DIR}/
         cp ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt                                       ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/start.sh                                                                                 ${ARTIFACTS_OUTPUT_DIR}/
-        cp ./scripts/aws/stop.sh                                                                                  ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/confidential_compute.py                                                                      ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/ec2.py                                                                                   ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/proxies.host.yaml                                                                        ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/sockd.conf                                                                               ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/uid2operator.service                                                                     ${ARTIFACTS_OUTPUT_DIR}/

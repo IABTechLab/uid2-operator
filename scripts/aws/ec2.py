@@ -196,14 +196,7 @@ class EC2(ConfidentialCompute):
     def cleanup(self) -> None:
         """Terminates the Nitro Enclave and auxiliary processes."""
         try:
-            describe_output = subprocess.check_output(["nitro-cli", "describe-enclaves"], text=True)
-            enclaves = json.loads(describe_output)
-            enclave_id = enclaves[0].get("EnclaveID") if enclaves else None
-            if enclave_id:
-                self.run_command(["nitro-cli", "terminate-enclave", "--enclave-id", enclave_id])
-                print(f"Terminated enclave with ID: {enclave_id}")
-            else:
-                print("No active enclaves found.")
+            self.run_command(["nitro-cli", "terminate-enclave", "--all"])
             self.__kill_auxiliaries()
         except subprocess.SubprocessError as e:
             raise (f"Error during cleanup: {e}")

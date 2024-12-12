@@ -23,6 +23,7 @@ import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
 import com.uid2.shared.store.CloudPath;
+import com.uid2.shared.store.EncryptedRotatingSaltProvider;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.store.reader.*;
 import com.uid2.shared.store.scope.GlobalScope;
@@ -138,7 +139,7 @@ public class Main {
         this.cloudEncryptionKeyProvider = new RotatingCloudEncryptionKeyApiProvider(fsStores, new GlobalScope(new CloudPath(cloudEncryptionKeyMdPath)));
         String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
         String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
-        this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
+        this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)), cloudEncryptionKeyProvider);
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
         this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)), cloudEncryptionKeyProvider);
         String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
@@ -146,7 +147,7 @@ public class Main {
         String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
         this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)), cloudEncryptionKeyProvider);
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
-        this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
+        this.saltProvider = new EncryptedRotatingSaltProvider(fsStores, saltsMdPath, cloudEncryptionKeyProvider);
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
 
         if (this.validateServiceLinks) {

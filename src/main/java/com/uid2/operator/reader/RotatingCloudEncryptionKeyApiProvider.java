@@ -17,13 +17,11 @@ public class RotatingCloudEncryptionKeyApiProvider extends RotatingCloudEncrypti
     private static final Logger LOGGER = LoggerFactory.getLogger(RotatingCloudEncryptionKeyApiProvider.class);
 
     public RotatingCloudEncryptionKeyApiProvider(DownloadCloudStorage fileStreamProvider, StoreScope scope) {
-        super(fileStreamProvider, scope);
-        this.reader = new ApiStoreReader<>(fileStreamProvider, scope, new CloudEncryptionKeyParser(), "cloud_encryption_keys");
+        super(fileStreamProvider, scope, new ApiStoreReader<>(fileStreamProvider, scope, new CloudEncryptionKeyParser(), "cloud_encryption_keys"));
     }
 
     public RotatingCloudEncryptionKeyApiProvider(DownloadCloudStorage fileStreamProvider, StoreScope scope, ApiStoreReader<Map<Integer, CloudEncryptionKey>> reader) {
-        super(fileStreamProvider, scope);
-        this.reader = reader;
+        super(fileStreamProvider, scope, reader);
     }
 
 

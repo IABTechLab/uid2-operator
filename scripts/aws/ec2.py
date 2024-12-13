@@ -22,18 +22,42 @@ class AWSConfidentialComputeConfig(ConfidentialComputeConfig):
     enclave_memory_mb: int
     enclave_cpu_count: int
 
+class AuxiliaryConfig:
+    FLASK_PORT: str = "27015"
+    LOCALHOST: str = "127.0.0.1"
+    AWS_METADATA: str = "169.254.169.254"
+    
+    @classmethod
+    def get_socks_url(cls) -> str:
+        return f"socks5://{cls.LOCALHOST}:3306"
+    
+    @classmethod
+    def get_config_url(cls) -> str:
+        return f"{cls.LOCALHOST}:{cls.FLASK_PORT}/getConfig"
+    
+    @classmethod
+    def get_user_data_url(cls) -> str:
+        return f"http://{cls.AWS_METADATA}/latest/user-data"
+    
+    @classmethod
+    def get_token_url(cls) -> str:
+        return f"http://{cls.AWS_METADATA}/latest/api/token"
+    
+    @classmethod
+    def get_meta_url(cls) -> str:
+        return f"http://{cls.AWS_METADATA}/latest/dynamic/instance-identity/document"
+    
+
 class EC2(ConfidentialCompute):
 
     def __init__(self):
         super().__init__()
-        self.aws_metadata = "169.254.169.254"
 
     def __get_aws_token(self) -> str:
         """Fetches a temporary AWS EC2 metadata token."""
         try:
-            token_url = f"http://{self.aws_metadata}/latest/api/token"
             response = requests.put(
-                token_url, headers={"X-aws-ec2-metadata-token-ttl-seconds": "3600"}, timeout=2
+                AuxiliaryConfig.get_token_url(), headers={"X-aws-ec2-metadata-token-ttl-seconds": "3600"}, timeout=2
             )
             return response.text
         except requests.RequestException as e:
@@ -42,10 +66,9 @@ class EC2(ConfidentialCompute):
     def __get_current_region(self) -> str:
         """Fetches the current AWS region from EC2 instance metadata."""
         token = self.__get_aws_token()
-        metadata_url = f"http://{self.aws_metadata}/latest/dynamic/instance-identity/document"
         headers = {"X-aws-ec2-metadata-token": token}
         try:
-            response = requests.get(metadata_url, headers=headers, timeout=2)
+            response = requests.get(AuxiliaryConfig.get_meta_url(), headers=headers, timeout=2)
             response.raise_for_status()
             return response.json()["region"]
         except requests.RequestException as e:
@@ -114,7 +137,7 @@ class EC2(ConfidentialCompute):
         with open(config_path, 'w') as config_file:
             json.dump(self.configs, config_file)
         os.chdir("/opt/uid2operator/config-server")
-        command = ["./bin/flask", "run", "--host", "127.0.0.1", "--port", "27015"]
+        command = ["./bin/flask", "run", "--host", AuxiliaryConfig.LOCALHOST, "--port", AuxiliaryConfig.FLASK_PORT]
         self.run_command(command, seperate_process=True)
 
     def __run_socks_proxy(self) -> None:
@@ -127,8 +150,7 @@ class EC2(ConfidentialCompute):
     def __get_secret_name_from_userdata(self) -> str:
         """Extracts the secret name from EC2 user data."""
         token = self.__get_aws_token()
-        user_data_url = f"http://{self.aws_metadata}/latest/user-data"
-        response = requests.get(user_data_url, headers={"X-aws-ec2-metadata-token": token})
+        response = requests.get(AuxiliaryConfig.get_user_data_url(), headers={"X-aws-ec2-metadata-token": token})
         user_data = response.text
 
         with open("/opt/uid2operator/identity_scope.txt") as file:
@@ -148,12 +170,10 @@ class EC2(ConfidentialCompute):
 
     def _validate_auxiliaries(self) -> None:
         """Validates connection to flask server direct and through socks proxy."""
-        proxy = "socks5://127.0.0.1:3306"
-        config_url = "http://127.0.0.1:27015/getConfig"
         try:
             for attempt in range(10):
                 try:
-                    response = requests.get(config_url)
+                    response = requests.get(AuxiliaryConfig.get_config_url())
                     print("Config server is reachable")
                     break
                 except requests.exceptions.ConnectionError as e:
@@ -164,22 +184,15 @@ class EC2(ConfidentialCompute):
             response.raise_for_status()
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to get config from config server: {e}")
-        proxies = {"http": proxy, "https": proxy}
+        proxies = {"http": AuxiliaryConfig.get_socks_url(), "https": AuxiliaryConfig.get_socks_url()}
         try:
-            response = requests.get(config_url, proxies=proxies)
+            response = requests.get(AuxiliaryConfig.get_config_url(), proxies=proxies)
             response.raise_for_status()
         except requests.RequestException as e:
             raise RuntimeError(f"Cannot connect to config server via SOCKS proxy: {e}")
         print("Connectivity check to config server passes")
 
-    def run_compute(self) -> None:
-        """Main execution flow for confidential compute."""
-        secret_manager_key = self.__get_secret_name_from_userdata()
-        self.configs = self._get_secret(secret_manager_key)
-        print(f"Fetched configs from {secret_manager_key}")
-        self.validate_configuration()
-        self._setup_auxiliaries()
-        self._validate_auxiliaries()
+    def __run_nitro_enclave(self):
         command = [
             "nitro-cli", "run-enclave",
             "--eif-path", "/opt/uid2operator/uid2operator.eif",
@@ -192,6 +205,16 @@ class EC2(ConfidentialCompute):
             print("Running in debug_mode")
             command += ["--debug-mode", "--attach-console"]
         self.run_command(command)
+
+    def run_compute(self) -> None:
+        """Main execution flow for confidential compute."""
+        secret_manager_key = self.__get_secret_name_from_userdata()
+        self.configs = self._get_secret(secret_manager_key)
+        print(f"Fetched configs from {secret_manager_key}")
+        self.validate_configuration()
+        self._setup_auxiliaries()
+        self._validate_auxiliaries()
+        self.__run_nitro_enclave()
 
     def cleanup(self) -> None:
         """Terminates the Nitro Enclave and auxiliary processes."""

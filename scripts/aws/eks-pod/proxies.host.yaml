@@ -11,8 +11,8 @@ operator-service:
   connect: vsock://42:8080
   acceptRcvBuf: 256000
   acceptSndBuf: 256000
-  peerRcvBuf: 256000
-  peerSndBuf: 256000
+  peerRcvBuf: 25600
+  peerSndBuf: 25600
 
 operator-prometheus:
   service: direct

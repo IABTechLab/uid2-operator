@@ -16,6 +16,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import org.junit.Assert;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Instant;
@@ -86,15 +87,23 @@ public class TokenEncodingTest {
     }
 
     @ParameterizedTest
-    @EnumSource(TokenVersion.class)
-    public void testAdvertisingTokenEncodings(TokenVersion tokenVersion) {
+    @CsvSource({"false, V4", //same as current UID2 prod (as at 2024-12-10)
+            "true, V4", //same as current EUID prod  (as at 2024-12-10)
+            //the following combinations aren't used in any UID2/EUID environments but just testing them regardless
+            "false, V3",
+            "true, V3",
+            "false, V2",
+            "true, V2",
+        }
+    )
+    public void testAdvertisingTokenEncodings(boolean useRawUIDv3, TokenVersion adTokenVersion) {
         final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
 
-        final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, "test@example.com", IdentityScope.UID2, tokenVersion != TokenVersion.V2);
+        final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, "test@example.com", IdentityScope.UID2, useRawUIDv3);
 
         final AdvertisingToken token = new AdvertisingToken(
-            tokenVersion,
+            adTokenVersion,
             now,
             now.plusSeconds(60),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
@@ -103,9 +112,9 @@ public class TokenEncodingTest {
         );
 
         final byte[] encodedBytes = encoder.encode(token, now);
-        final AdvertisingToken decoded = encoder.decodeAdvertisingToken(EncryptedTokenEncoder.bytesToBase64Token(encodedBytes, tokenVersion));
+        final AdvertisingToken decoded = encoder.decodeAdvertisingToken(EncryptedTokenEncoder.bytesToBase64Token(encodedBytes, adTokenVersion));
 
-        assertEquals(tokenVersion, decoded.version);
+        assertEquals(adTokenVersion, decoded.version);
         assertEquals(token.createdAt, decoded.createdAt);
         assertEquals(token.expiresAt, decoded.expiresAt);
         assertTrue(token.userIdentity.matches(decoded.userIdentity));
@@ -114,7 +123,7 @@ public class TokenEncodingTest {
         assertEquals(token.publisherIdentity.siteId, decoded.publisherIdentity.siteId);
 
         Buffer b = Buffer.buffer(encodedBytes);
-        int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 1 : 2); //TODO - extract master key from token should be a helper function
+        int keyId = b.getInt(adTokenVersion == TokenVersion.V2 ? 1 : 2); //TODO - extract master key from token should be a helper function
         assertEquals(Data.MasterKeySiteId, keyManager.getSiteIdFromKeyId(keyId));
     }
 }

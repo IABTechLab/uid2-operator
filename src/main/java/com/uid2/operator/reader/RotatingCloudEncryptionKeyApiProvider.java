@@ -16,41 +16,19 @@ import java.util.*;
 public class RotatingCloudEncryptionKeyApiProvider extends RotatingCloudEncryptionKeyProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(RotatingCloudEncryptionKeyApiProvider.class);
 
-    public ApiStoreReader<Map<Integer, CloudEncryptionKey>> apiStoreReader;
-
     public RotatingCloudEncryptionKeyApiProvider(DownloadCloudStorage fileStreamProvider, StoreScope scope) {
         super(fileStreamProvider, scope);
-        this.apiStoreReader = new ApiStoreReader<>(fileStreamProvider, scope, new CloudEncryptionKeyParser(), "cloud_encryption_keys");
+        this.reader = new ApiStoreReader<>(fileStreamProvider, scope, new CloudEncryptionKeyParser(), "cloud_encryption_keys");
     }
 
-    @Override
-    public JsonObject getMetadata() throws Exception {
-        return apiStoreReader.getMetadata();
+    public RotatingCloudEncryptionKeyApiProvider(DownloadCloudStorage fileStreamProvider, StoreScope scope, ApiStoreReader<Map<Integer, CloudEncryptionKey>> reader) {
+        super(fileStreamProvider, scope);
+        this.reader = reader;
     }
 
-    @Override
-    public CloudPath getMetadataPath() {
-        return apiStoreReader.getMetadataPath();
-    }
-
-    @Override
-    public long loadContent(JsonObject metadata) throws Exception {
-        return apiStoreReader.loadContent(metadata);
-    }
 
     @Override
     public long getVersion(JsonObject metadata) {
         return Instant.now().getEpochSecond();
-    }
-
-    @Override
-    public Map<Integer, CloudEncryptionKey> getAll() {
-        Map<Integer, CloudEncryptionKey> keys = apiStoreReader.getSnapshot();
-        return keys != null ? keys : new HashMap<>();
-    }
-
-    @Override
-    public void loadContent() throws Exception {
-        this.loadContent(this.getMetadata());
     }
 }

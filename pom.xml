@@ -6,7 +6,7 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.42.7-alpha-139-SNAPSHOT</version>
+    <version>6.0.0</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -22,7 +22,7 @@
         <enclave-aws.version>2.1.0</enclave-aws.version>
         <enclave-azure.version>2.1.0</enclave-azure.version>
         <enclave-gcp.version>2.1.0</enclave-gcp.version>
-        <uid2-shared.version>8.0.13-alpha-175-SNAPSHOT</uid2-shared.version>
+        <uid2-shared.version>8.0.14-alpha-176-SNAPSHOT</uid2-shared.version>
         <image.version>${project.version}</image.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>

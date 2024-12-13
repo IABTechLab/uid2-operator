@@ -147,7 +147,7 @@ public class Main {
         String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
         this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)), cloudEncryptionKeyProvider);
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
-        this.saltProvider = new EncryptedRotatingSaltProvider(fsStores, saltsMdPath, cloudEncryptionKeyProvider);
+        this.saltProvider = new EncryptedRotatingSaltProvider(fsStores, cloudEncryptionKeyProvider, new GlobalScope(new CloudPath(saltsMdPath)));
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
 
         if (this.validateServiceLinks) {

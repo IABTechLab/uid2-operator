@@ -1,7 +1,6 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
-import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.ISiteStore;
 import io.vertx.core.http.HttpHeaders;
@@ -64,19 +63,28 @@ public class ResponseUtil {
         rc.data().put("response", json);
     }
 
-    public static void ClientError(RoutingContext rc, String message) {
-        Warning(ResponseStatus.ClientError, 400, rc, message);
+    public static void LogInfoAndSend400Response(RoutingContext rc, String message) {
+        LogInfoAndSendResponse(ResponseStatus.ClientError, 400, rc, message);
     }
 
     public static void SendClientErrorResponseAndRecordStats(String errorStatus, int statusCode, RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, TokenResponseStatsCollector.PlatformType platformType)
     {
-        Warning(errorStatus, statusCode, rc, message);
+        if (ResponseStatus.ClientError.equals(errorStatus) ||
+                ResponseStatus.InvalidAppName.equals(errorStatus) ||
+                ResponseStatus.InvalidHttpOrigin.equals(errorStatus))
+        {
+            LogInfoAndSendResponse(errorStatus, statusCode, rc, message);
+        }
+        else {
+            LogWarningAndSendResponse(errorStatus, statusCode, rc, message);
+        }
+
         recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null, platformType);
     }
 
     public static void SendServerErrorResponseAndRecordStats(RoutingContext rc, String message, Integer siteId, TokenResponseStatsCollector.Endpoint endpoint, TokenResponseStatsCollector.ResponseStatus responseStatus, ISiteStore siteProvider, Exception exception, TokenResponseStatsCollector.PlatformType platformType)
     {
-        Error(ResponseStatus.UnknownError, 500, rc, message, exception);
+        LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, message, exception);
         rc.fail(500);
         recordTokenResponseStats(siteId, endpoint, responseStatus, siteProvider, null, platformType);
     }
@@ -97,62 +105,40 @@ public class ResponseUtil {
         return json;
     }
 
-    public static void Error(String errorStatus, int statusCode, RoutingContext rc, String message) {
-        logError(errorStatus, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+    public static void LogErrorAndSendResponse(String errorStatus, int statusCode, RoutingContext rc, String message) {
+        String msg = ComposeMessage(errorStatus, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+        LOGGER.error(msg);
         final JsonObject json = Response(errorStatus, message);
         rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
     }
 
-    public static void Error(String errorStatus, int statusCode, RoutingContext rc, String message, Exception exception) {
-        logError(errorStatus, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress(), exception);
+    public static void LogErrorAndSendResponse(String errorStatus, int statusCode, RoutingContext rc, String message, Exception exception) {
+        String msg = ComposeMessage(errorStatus, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+        LOGGER.error(msg, exception);
         final JsonObject json = Response(errorStatus, message);
         rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
     }
 
-    public static void Warning(String status, int statusCode, RoutingContext rc, String message) {
-        logWarning(status, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+    public static void LogInfoAndSendResponse(String status, int statusCode, RoutingContext rc, String message) {
+        String msg = ComposeMessage(status, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+        LOGGER.info(msg);
         final JsonObject json = Response(status, message);
         rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());
     }
 
-    private static void logError(String errorStatus, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
-        JsonObject errorJsonObj = JsonObject.of(
-                "errorStatus", errorStatus,
-                "contact", contextReader.getContact(),
-                "siteId", contextReader.getSiteId(),
-                "statusCode", statusCode,
-                "clientAddress", clientAddress,
-                "message", message
-        );
-        final String linkName = contextReader.getLinkName();
-        if (!linkName.isBlank()) {
-            errorJsonObj.put(SecureLinkValidatorService.SERVICE_LINK_NAME, linkName);
-        }
-        final String serviceName = contextReader.getServiceName();
-        if (!serviceName.isBlank()) {
-            errorJsonObj.put(SecureLinkValidatorService.SERVICE_NAME, serviceName);
-        }
-        LOGGER.error("Error response to http request. " + errorJsonObj.encode());
+    public static void LogWarningAndSendResponse(String status, int statusCode, RoutingContext rc, String message) {
+        String msg = ComposeMessage(status, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
+        LOGGER.warn(msg);
+        final JsonObject json = Response(status, message);
+        rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                .end(json.encode());
     }
 
-    private static void logError(String errorStatus, int statusCode, String message, RoutingContextReader contextReader, String clientAddress, Exception exception) {
-        String errorMessage = "Error response to http request. " + JsonObject.of(
-                "errorStatus", errorStatus,
-                "contact", contextReader.getContact(),
-                "siteId", contextReader.getSiteId(),
-                "path", contextReader.getPath(),
-                "statusCode", statusCode,
-                "clientAddress", clientAddress,
-                "message", message
-        ).encode();
-        LOGGER.error(errorMessage, exception);
-    }
-
-    private static void logWarning(String status, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
-        JsonObject warnMessageJsonObject = JsonObject.of(
+    private static String ComposeMessage(String status, int statusCode, String message, RoutingContextReader contextReader, String clientAddress) {
+        JsonObject msgJsonObject = JsonObject.of(
                 "errorStatus", status,
                 "contact", contextReader.getContact(),
                 "siteId", contextReader.getSiteId(),
@@ -165,14 +151,22 @@ public class ResponseUtil {
         final String origin = contextReader.getOrigin();
         if (statusCode >= 400 && statusCode < 500) {
             if (referer != null) {
-                warnMessageJsonObject.put("referer", referer);
+                msgJsonObject.put("referer", referer);
             }
             if (origin != null) {
-                warnMessageJsonObject.put("origin", origin);
+                msgJsonObject.put("origin", origin);
             }
         }
-        String warnMessage = "Warning response to http request. " + warnMessageJsonObject.encode();
-        LOGGER.warn(warnMessage);
+
+        final String linkName = contextReader.getLinkName();
+        if (!linkName.isBlank()) {
+            msgJsonObject.put(SecureLinkValidatorService.SERVICE_LINK_NAME, linkName);
+        }
+        final String serviceName = contextReader.getServiceName();
+        if (!serviceName.isBlank()) {
+            msgJsonObject.put(SecureLinkValidatorService.SERVICE_NAME, serviceName);
+        }
+        return "Response to http request. " + msgJsonObject.encode();
     }
 
     public static class ResponseStatus {
@@ -183,6 +177,7 @@ public class ResponseUtil {
         public static final String InvalidToken = "invalid_token";
         public static final String ExpiredToken = "expired_token";
         public static final String GenericError = "error";
+        public static final String InvalidClient = "invalid_client";
         public static final String UnknownError = "unknown";
         public static final String InsufficientUserConsent = "insufficient_user_consent";
         public static final String InvalidHttpOrigin = "invalid_http_origin";

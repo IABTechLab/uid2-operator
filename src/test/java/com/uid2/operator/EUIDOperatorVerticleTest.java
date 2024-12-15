@@ -19,10 +19,9 @@ public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
     }
 
     @Override
-    protected TokenVersion getTokenVersion() {return TokenVersion.V3;}
-
-    @Override
     protected IdentityScope getIdentityScope() { return IdentityScope.EUID; }
+    @Override
+    protected boolean useRawUidV3() { return true; }
     @Override
     protected void addAdditionalTokenGenerateParams(JsonObject payload) {
         if (payload != null && !payload.containsKey("tcf_consent_string")) {

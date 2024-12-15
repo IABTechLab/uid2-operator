@@ -46,10 +46,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Duration refreshIdentityAfter;
 
     private final OperatorIdentity operatorIdentity;
-    protected final TokenVersion tokenVersionToUseIfNotV4;
-    protected final int advertisingTokenV4Percentage;
     private final TokenVersion refreshTokenVersion;
-    private final boolean identityV3Enabled;
+    // if we use Raw UID v3 format for the raw UID2/EUIDs generated in this operator
+    private final boolean rawUidV3Enabled;
 
     private final Handler<Boolean> saltRetrievalResponseHandler;
 
@@ -91,11 +90,8 @@ public class UIDOperatorService implements IUIDOperatorService {
             throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
 
-        this.advertisingTokenV4Percentage = config.getInteger("advertising_token_v4_percentage", 0); //0 indicates token v4 will not be used
-        this.tokenVersionToUseIfNotV4 = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
-
         this.refreshTokenVersion = TokenVersion.V3;
-        this.identityV3Enabled = config.getBoolean("identity_v3", false);
+        this.rawUidV3Enabled = config.getBoolean("identity_v3", false);
     }
 
     @Override
@@ -235,7 +231,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
 
         return new MappedIdentity(
-                this.identityV3Enabled
+                this.rawUidV3Enabled
                     ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, rotatingSalt.getSalt())
                     : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, rotatingSalt.getSalt()),
                 rotatingSalt.getHashedId());
@@ -267,16 +263,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now) {
-        TokenVersion tokenVersion;
-        int pseudoRandomNumber = 1;
-        final var rawUid = userIdentity.id;
-        if (rawUid.length > 2)
-        {
-            int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
-            pseudoRandomNumber = (hash % 100) + 1; //1 to 100
-        }
-        tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
-        return new AdvertisingToken(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
+        return new AdvertisingToken(TokenVersion.V4, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
     }
 
     static protected class GlobalOptoutResult {

@@ -24,7 +24,6 @@
   "refresh_identity_token_after_seconds": 3600,
   "allow_legacy_api": false,
   "identity_scope": "euid",
-  "advertising_token_v3": true,
   "refresh_token_v3": true,
   "enable_phone_support": true,
   "enable_v1_phone_support": false,

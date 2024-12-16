@@ -84,6 +84,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
+    private final IConfigService configService;
     private final JsonObject config;
     private final boolean clientSideTokenGenerate;
     private final AuthMiddleware auth;
@@ -135,7 +136,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
     public final static String ORIGIN_HEADER = "Origin";
 
-    public UIDOperatorVerticle(JsonObject config,
+    public UIDOperatorVerticle(IConfigService configService, JsonObject config,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
@@ -154,6 +155,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             throw new RuntimeException(e);
         }
+        this.configService = configService;
         this.config = config;
         this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
@@ -236,6 +238,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .allowedHeader("Content-Type"));
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
         router.route("/static/*").handler(StaticHandler.create("static"));
+        router.route().handler(ctx -> {
+            JsonObject curConfig = configService.getConfig();
+            ctx.put("config", curConfig);
+            ctx.next();
+        });
         router.route().failureHandler(new GenericFailureHandler());
 
         final BodyHandler bodyHandler = BodyHandler.create().setHandleFileUploads(false).setBodyLimit(MAX_REQUEST_BODY_SIZE);

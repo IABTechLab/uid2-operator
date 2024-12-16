@@ -31,6 +31,7 @@
   "services_metadata_path": "services/metadata.json",
   "service_links_metadata_path": "service_links/metadata.json",
   "cloud_encryption_keys_metadata_path": "cloud_encryption_keys/metadata.json",
+  "cloud_encryption_keys_refresh_ms": 300000,
   "optout_metadata_path": null,
   "optout_inmem_cache": false,
   "enclave_platform": null,

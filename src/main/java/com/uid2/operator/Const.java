@@ -29,5 +29,8 @@ public class Const extends com.uid2.shared.Const {
         public static final String OptOutStatusMaxRequestSize = "optout_status_max_request_size";
         public static final String MaxInvalidPaths = "logging_limit_max_invalid_paths_per_interval";
         public static final String MaxVersionBucketsPerSite = "logging_limit_max_version_buckets_per_site";
+
+        public static final String CoreConfigUrl = "core_config_url"; //TODO: update when endpoint name finalised
+        public static final String ConfigScanPeriodMs = "config_scan_period_ms";
     }
 }

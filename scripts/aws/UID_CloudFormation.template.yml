@@ -187,7 +187,8 @@ Resources:
           "service_instances":6,
           "enclave_cpu_count":6,
           "enclave_memory_mb":24576,
-          "environment":"${DeployToEnvironment}"
+          "environment":"${DeployToEnvironment}",
+          "core_base_url": "${CoreBaseURL}"
         }'
   WorkerRole:
     Type: 'AWS::IAM::Role'

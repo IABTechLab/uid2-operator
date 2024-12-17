@@ -10,7 +10,6 @@ class ConfidentialComputeConfig(TypedDict):
     debug_mode: bool
     api_token: str
     core_base_url: str
-    optout_base_url: str
     environment: str
     
 class ConfidentialCompute(ABC):
@@ -26,11 +25,12 @@ class ConfidentialCompute(ABC):
             operator_key = self.configs.get("api_token")
             if not operator_key:
                 raise ValueError("API token is missing from the configuration.")
-            pattern = r"^(UID2|EUID)-.\-(I|P)-\d+-.*$"
+            pattern = r"^(UID2|EUID)-.\-(I|P|L)-\d+-.*$"
             if re.match(pattern, operator_key):
                 env = self.configs.get("environment", "").lower()
                 debug_mode = self.configs.get("debug_mode", False)
                 expected_env = "I" if debug_mode or env == "integ" else "P"
+                
                 if operator_key.split("-")[2] != expected_env:
                     raise ValueError(
                         f"Operator key does not match the expected environment ({expected_env})."
@@ -54,24 +54,20 @@ class ConfidentialCompute(ABC):
             
             
         def validate_connectivity() -> None:
-            """ Validates that the core and opt-out URLs are accessible."""
+            """ Validates that the core URL is accessible."""
             try:
                 core_url = self.configs["core_base_url"]
-                optout_url = self.configs["optout_base_url"]
                 core_ip = socket.gethostbyname(urlparse(core_url).netloc)
                 requests.get(core_url, timeout=5)
                 print(f"Validated connectivity to {core_url}")
-                optout_ip = socket.gethostbyname(urlparse(optout_url).netloc)
-                requests.get(optout_url, timeout=5)
-                print(f"Validated connectivity to {optout_url}")
             except (requests.ConnectionError, requests.Timeout) as e:
                 raise Exception(
-                    f"Failed to reach required URLs. Consider enabling {core_ip}, {optout_ip} in the egress firewall."
+                    f"Failed to reach required URLs. Consider enabling {core_ip} in the egress firewall."
                 )
             except Exception as e:
                 raise Exception("Failed to reach the URLs.") from e
             
-        required_keys = ["api_token", "environment", "core_base_url", "optout_base_url"]
+        required_keys = ["api_token", "environment", "core_base_url"]
         missing_keys = [key for key in required_keys if key not in self.configs]
         if missing_keys:
             raise ConfidentialComputeMissingConfigError(missing_keys)
@@ -82,7 +78,6 @@ class ConfidentialCompute(ABC):
             raise ValueError("Debug mode cannot be enabled in the production environment.")
         
         validate_url("core_base_url", environment)
-        validate_url("optout_base_url", environment)
         validate_operator_key()
         validate_connectivity()
         print("Completed static validation of confidential compute config values")

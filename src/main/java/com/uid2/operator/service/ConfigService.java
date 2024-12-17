@@ -11,7 +11,6 @@ import static com.uid2.operator.Const.Config.*;
 public class ConfigService implements IConfigService {
 
     private static volatile ConfigService instance;
-    private JsonObject config;
     private ConfigRetriever configRetriever;
 
 
@@ -36,7 +35,7 @@ public class ConfigService implements IConfigService {
 
     @Override
     public JsonObject getConfig() {
-        return config;
+        return configRetriever.getCachedConfig();
     }
 
     private void initialiseConfigRetriever(Vertx vertx, JsonObject bootstrapConfig) {
@@ -61,13 +60,11 @@ public class ConfigService implements IConfigService {
 
         this.configRetriever.getConfig(ar -> {
             if (ar.succeeded()) {
-                this.config = ar.result();
+                System.out.println("Successfully loaded config");
             } else {
                 System.err.println("Failed to load config: " + ar.cause().getMessage());
             }
         });
-
-        this.configRetriever.listen(change -> this.config = change.getNewConfiguration());
 
     }
 }

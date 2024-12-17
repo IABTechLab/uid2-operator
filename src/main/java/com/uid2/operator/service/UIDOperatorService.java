@@ -52,7 +52,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Handler<Boolean> saltRetrievalResponseHandler;
 
     public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler) {
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, Boolean identityV3Enabled) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
@@ -90,7 +90,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
 
         this.refreshTokenVersion = TokenVersion.V3;
-        this.identityV3Enabled = config.getBoolean("identity_v3", false);
+        this.identityV3Enabled = identityV3Enabled;
     }
 
     @Override

@@ -182,6 +182,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     @Override
     public void start(Promise<Void> startPromise) throws Exception {
+        Boolean identityV3Enabled = this.configService.getConfig().getBoolean("identity_v3", false);
         this.healthComponent.setHealthStatus(false, "still starting");
         this.idService = new UIDOperatorService(
                 this.configService.getConfig(), //TODO
@@ -190,7 +191,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.encoder,
                 this.clock,
                 this.identityScope,
-                this.saltRetrievalResponseHandler
+                this.saltRetrievalResponseHandler,
+                identityV3Enabled
         );
 
         final Router router = createRoutesSetup();

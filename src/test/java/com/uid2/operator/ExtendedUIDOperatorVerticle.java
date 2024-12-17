@@ -2,13 +2,13 @@ package com.uid2.operator;
 
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
+import com.uid2.operator.service.IConfigService;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.store.*;
 import io.vertx.core.Handler;
-import io.vertx.core.json.JsonObject;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -17,7 +17,7 @@ import java.util.Set;
 
 //An extended UIDOperatorVerticle to expose classes for testing purposes
 public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
-    public ExtendedUIDOperatorVerticle(JsonObject config,
+    public ExtendedUIDOperatorVerticle(IConfigService configService,
                                        boolean clientSideTokenGenerate,
                                        ISiteStore siteProvider,
                                        IClientKeyProvider clientKeyProvider,
@@ -29,7 +29,7 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        IStatsCollectorQueue statsCollectorQueue,
                                        SecureLinkValidatorService secureLinkValidationService,
                                        Handler<Boolean> saltRetrievalResponseHandler) {
-        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler);
+        super(configService, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler);
     }
 
     public IUIDOperatorService getIdService() {

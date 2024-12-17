@@ -67,6 +67,7 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static com.uid2.operator.Const.Config.*;
 import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.ResponseUtil.*;
 import static com.uid2.operator.vertx.Endpoints.*;
@@ -85,7 +86,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
     private final IConfigService configService;
-    private final JsonObject config;
     private final boolean clientSideTokenGenerate;
     private final AuthMiddleware auth;
     private final ISiteStore siteProvider;
@@ -117,7 +117,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
     private final Handler<Boolean> saltRetrievalResponseHandler;
-    private final int maxBidstreamLifetimeSeconds;
     private final int allowClockSkewSeconds;
     protected int maxSharingLifetimeSeconds;
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
@@ -136,7 +135,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
     public final static String ORIGIN_HEADER = "Origin";
 
-    public UIDOperatorVerticle(IConfigService configService, JsonObject config,
+    public UIDOperatorVerticle(IConfigService configService,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
@@ -156,7 +155,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             throw new RuntimeException(e);
         }
         this.configService = configService;
-        this.config = config;
         this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -166,6 +164,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
+        JsonObject config = configService.getConfig();
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
         this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
@@ -175,14 +174,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
         this.clientSideTokenGenerateLogInvalidHttpOrigin = config.getBoolean("client_side_token_generate_log_invalid_http_origins", false);
-        final Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-        this.maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
-        if (this.maxBidstreamLifetimeSeconds < identityTokenExpiresAfterSeconds) {
-            LOGGER.error("Max bidstream lifetime seconds ({} seconds) is less than identity token lifetime ({} seconds)", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds);
-            throw new RuntimeException("Max bidstream lifetime seconds is less than identity token lifetime seconds");
-        }
         this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
-        this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
@@ -192,7 +184,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public void start(Promise<Void> startPromise) throws Exception {
         this.healthComponent.setHealthStatus(false, "still starting");
         this.idService = new UIDOperatorService(
-                this.config,
+                this.configService.getConfig(), //TODO
                 this.optOutStore,
                 this.saltProvider,
                 this.encoder,
@@ -240,7 +232,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().handler(ctx -> {
             JsonObject curConfig = configService.getConfig();
-            ctx.put("config", curConfig);
+            ctx.put(Config, curConfig);
             ctx.next();
         });
         router.route().failureHandler(new GenericFailureHandler());
@@ -251,7 +243,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // Static and health check
         router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
 
-        if (this.config.getBoolean(Const.Config.AllowLegacyAPIProp, true)) {
+        if (this.configService.getConfig().getBoolean(Const.Config.AllowLegacyAPIProp, true)) {
             // V1 APIs
             router.get(V1_TOKEN_GENERATE.toString()).handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
             router.get(V1_TOKEN_VALIDATE.toString()).handler(this::handleTokenValidateV1);
@@ -320,6 +312,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private JsonObject getConfigFromRc(RoutingContext rc) {
+        return rc.get(Config);
+    }
 
     private Set<String> getDomainNameListForClientSideTokenGenerate(ClientSideKeypair keypair) {
         Site s = siteProvider.getSite(keypair.getSiteId());
@@ -611,11 +606,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private String getSharingTokenExpirySeconds() {
-        return config.getString(Const.Config.SharingTokenExpiryProp);
-    }
+//    private String getSharingTokenExpirySeconds() {
+//        return config.getString(Const.Config.SharingTokenExpiryProp);
+//    }
 
     public void handleKeysSharing(RoutingContext rc) {
+        JsonObject config = this.getConfigFromRc(rc);
+        Integer maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
+        String sharingTokenExpirySeconds = config.getString(Const.Config.SharingTokenExpiryProp);
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
 
@@ -624,7 +622,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
 
             final JsonObject resp = new JsonObject();
-            addSharingHeaderFields(resp, keyManagerSnapshot, clientKey);
+            addSharingHeaderFields(resp, keyManagerSnapshot, clientKey, maxSharingLifetimeSeconds, sharingTokenExpirySeconds);
 
             final List<KeysetKey> accessibleKeys = getAccessibleKeys(keysetKeyStore, keyManagerSnapshot, clientKey);
 
@@ -669,14 +667,23 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .collect(Collectors.toList());
 
         final JsonObject resp = new JsonObject();
-        addBidstreamHeaderFields(resp);
+
+        JsonObject config = this.getConfigFromRc(rc);
+        Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
+        Integer maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
+        if (maxBidstreamLifetimeSeconds < identityTokenExpiresAfterSeconds) {
+            LOGGER.error("Max bidstream lifetime seconds ({} seconds) is less than identity token lifetime ({} seconds)", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds);
+            throw new RuntimeException("Max bidstream lifetime seconds is less than identity token lifetime seconds");
+        }
+
+        addBidstreamHeaderFields(resp, maxBidstreamLifetimeSeconds);
         resp.put("keys", keysJson);
         addSites(resp, accessibleKeys, keysetMap);
 
         ResponseUtil.SuccessV2(rc, resp);
     }
 
-    private void addBidstreamHeaderFields(JsonObject resp) {
+    private void addBidstreamHeaderFields(JsonObject resp, Integer maxBidstreamLifetimeSeconds) {
         resp.put("max_bidstream_lifetime_seconds", maxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
         addIdentityScopeField(resp);
         addAllowClockSkewSecondsField(resp);
@@ -714,7 +721,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void addSharingHeaderFields(JsonObject resp, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey) {
+    private void addSharingHeaderFields(JsonObject resp, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey, Integer maxSharingLifetimeSeconds, String sharingTokenExpirySeconds) {
         resp.put("caller_site_id", clientKey.getSiteId());
         resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
 
@@ -729,7 +736,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // this is written out as a String, i.e. in the JSON response of key/sharing endpoint, it would show:
         // "token_expiry_seconds" : "2592000"
         // it should be an integer instead, but we can't change it until we confirm that the oldest version of each of our SDKs support this
-        resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
+        resp.put("token_expiry_seconds", sharingTokenExpirySeconds);
 
         if (clientKey.hasRole(Role.SHARER)) {
             resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());

@@ -33,7 +33,7 @@ class AuxiliaryConfig:
     
     @classmethod
     def get_config_url(cls) -> str:
-        return f"{cls.LOCALHOST}:{cls.FLASK_PORT}/getConfig"
+        return f"http://{cls.LOCALHOST}:{cls.FLASK_PORT}/getConfig"
     
     @classmethod
     def get_user_data_url(cls) -> str:

@@ -163,7 +163,7 @@ class EC2(ConfidentialCompute):
 
     def _setup_auxiliaries(self) -> None:
         """Sets up the vsock tunnel, socks proxy and flask server"""
-        log_level = 3 if self.configs["debug_mode"] else 1
+        log_level = 1 if self.configs["debug_mode"] else 3
         self.__setup_vsockproxy(log_level)
         self.__run_config_server()
         self.__run_socks_proxy()

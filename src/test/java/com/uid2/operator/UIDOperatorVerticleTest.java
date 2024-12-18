@@ -4745,7 +4745,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void keySharingKeysets_SHARER_CustomMaxSharingLifetimeSeconds(Vertx vertx, VertxTestContext testContext) {
-        this.uidOperatorVerticle.setMaxSharingLifetimeSeconds(999999);
+        this.config.put(Const.Config.MaxSharingLifetimeProp, 999999);
         keySharingKeysets_SHARER(true, true, vertx, testContext, 999999);
     }
     

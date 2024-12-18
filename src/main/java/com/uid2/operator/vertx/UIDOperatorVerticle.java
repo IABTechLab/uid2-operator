@@ -118,7 +118,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
     private final Handler<Boolean> saltRetrievalResponseHandler;
     private final int allowClockSkewSeconds;
-    protected int maxSharingLifetimeSeconds;
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
     protected boolean keySharingEndpointProvideAppNames;
     protected Instant lastInvalidOriginProcessTime = Instant.now();

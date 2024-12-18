@@ -40,10 +40,6 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
         this.keySharingEndpointProvideAppNames = enable;
     }
 
-    public void setMaxSharingLifetimeSeconds(int maxSharingLifetimeSeconds) {
-        this.maxSharingLifetimeSeconds = maxSharingLifetimeSeconds;
-    }
-
     public void setLastInvalidOriginProcessTime(Instant lastInvalidOriginProcessTime) {
         this.lastInvalidOriginProcessTime = lastInvalidOriginProcessTime;
     }

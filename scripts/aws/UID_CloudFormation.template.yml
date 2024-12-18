@@ -5,6 +5,14 @@ Parameters:
     Description: UID2 API Token
     Type: String
     NoEcho: true
+  CoreBaseURL:
+    Description: CoreBaseURL
+    Type: String
+    NoEcho: true
+  OptoutBaseURL:
+    Description: OptoutBaseURL
+    Type: String
+    NoEcho: true
   DeployToEnvironment:
     Description: Environment to deploy to prod/integ
     Type: String
@@ -65,6 +73,8 @@ Metadata:
         Parameters:
           - APIToken
           - DeployToEnvironment
+          - CoreBaseURL
+          - OptoutBaseURL
       - Label:
           default: Instance Configuration
         Parameters:
@@ -84,6 +94,10 @@ Metadata:
     ParameterLabels:
       APIToken:
         default: OPERATOR_KEY provided by UID2 Administrator.
+      CoreBaseURL:
+        default: CoreBaseURL provided by UID2 Administrator.
+      OptoutBaseURL:
+        default: OptoutBaseURL provided by UID2 Administrator.
       DeployToEnvironment:
         default: UID2 environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
@@ -188,7 +202,8 @@ Resources:
           "enclave_cpu_count":6,
           "enclave_memory_mb":24576,
           "environment":"${DeployToEnvironment}",
-          "core_base_url": "${CoreBaseURL}"
+          "core_base_url": "${CoreBaseURL}",
+          "optout_base_url": "${OptoutBaseURL}"
         }'
   WorkerRole:
     Type: 'AWS::IAM::Role'

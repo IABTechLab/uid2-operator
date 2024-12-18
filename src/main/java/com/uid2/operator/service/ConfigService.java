@@ -1,18 +1,23 @@
 package com.uid2.operator.service;
 
+import com.uid2.operator.Const;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.config.ConfigRetrieverOptions;
 import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.uid2.operator.Const.Config.*;
+import static com.uid2.operator.service.ConfigValidatorUtil.*;
+import static com.uid2.operator.service.UIDOperatorService.*;
 
 public class ConfigService implements IConfigService {
 
     private static volatile ConfigService instance;
     private ConfigRetriever configRetriever;
-
+    private static final Logger logger = LoggerFactory.getLogger(ConfigService.class);
 
     private ConfigService(Vertx vertx, JsonObject bootstrapConfig) {
         this.initialiseConfigRetriever(vertx, bootstrapConfig);
@@ -58,6 +63,8 @@ public class ConfigService implements IConfigService {
 
         this.configRetriever = ConfigRetriever.create(vertx, retrieverOptions);
 
+        this.configRetriever.setConfigurationProcessor(this::configValidationHandler);
+
         this.configRetriever.getConfig(ar -> {
             if (ar.succeeded()) {
                 System.out.println("Successfully loaded config");
@@ -66,5 +73,28 @@ public class ConfigService implements IConfigService {
             }
         });
 
+    }
+
+    private JsonObject configValidationHandler(JsonObject config) {
+        boolean isValid = true;
+        Integer identityExpiresAfter = config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
+        Integer refreshExpiresAfter = config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
+        Integer refreshIdentityAfter = config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
+        Integer maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp);
+
+        isValid &= validateIdentityRefreshTokens(identityExpiresAfter, refreshExpiresAfter, refreshIdentityAfter);
+
+        isValid &= validateBidstreamLifetime(maxBidstreamLifetimeSeconds, identityExpiresAfter);
+
+        if (!isValid) {
+            logger.error("Failed to update config");
+            JsonObject lastConfig = this.getConfig();
+            if (lastConfig == null || lastConfig.isEmpty()) {
+                throw new RuntimeException("Invalid config retrieved and no previous config to revert to");
+            }
+            return lastConfig;
+        }
+
+        return config;
     }
 }

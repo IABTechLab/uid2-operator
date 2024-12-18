@@ -79,16 +79,6 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.refreshExpiresAfter = Duration.ofSeconds(config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
         this.refreshIdentityAfter = Duration.ofSeconds(config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
 
-        if (this.identityExpiresAfter.compareTo(this.refreshExpiresAfter) > 0) {
-            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-        }
-        if (this.refreshIdentityAfter.compareTo(this.identityExpiresAfter) > 0) {
-            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        }
-        if (this.refreshIdentityAfter.compareTo(this.refreshExpiresAfter) > 0) {
-            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        }
-
         this.refreshTokenVersion = TokenVersion.V3;
         this.identityV3Enabled = identityV3Enabled;
     }

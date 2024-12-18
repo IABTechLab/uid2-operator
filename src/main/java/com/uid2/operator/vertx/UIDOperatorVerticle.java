@@ -673,10 +673,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         JsonObject config = this.getConfigFromRc(rc);
         Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         Integer maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
-        if (maxBidstreamLifetimeSeconds < identityTokenExpiresAfterSeconds) {
-            LOGGER.error("Max bidstream lifetime seconds ({} seconds) is less than identity token lifetime ({} seconds)", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds);
-            throw new RuntimeException("Max bidstream lifetime seconds is less than identity token lifetime seconds");
-        }
+
 
         addBidstreamHeaderFields(resp, maxBidstreamLifetimeSeconds);
         resp.put("keys", keysJson);

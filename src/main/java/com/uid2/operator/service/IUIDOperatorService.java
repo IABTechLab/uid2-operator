@@ -11,9 +11,9 @@ import java.util.List;
 
 public interface IUIDOperatorService {
 
-    IdentityTokens generateIdentity(IdentityRequest request);
+    IdentityTokens generateIdentity(IdentityRequest request, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter);
 
-    RefreshResponse refreshIdentity(RefreshToken refreshToken);
+    RefreshResponse refreshIdentity(RefreshToken token, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter);
 
     MappedIdentity mapIdentity(MapRequest request);
 
@@ -27,6 +27,4 @@ public interface IUIDOperatorService {
     boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf);
 
     Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf);
-
-    Duration getIdentityExpiryDuration();
 }

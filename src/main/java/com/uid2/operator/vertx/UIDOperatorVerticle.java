@@ -182,10 +182,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     @Override
     public void start(Promise<Void> startPromise) throws Exception {
-        Boolean identityV3Enabled = this.configService.getConfig().getBoolean("identity_v3", false);
+        Boolean identityV3Enabled = this.configService.getConfig().getBoolean(identityV3, false);
         this.healthComponent.setHealthStatus(false, "still starting");
         this.idService = new UIDOperatorService(
-                this.configService.getConfig(), //TODO
                 this.optOutStore,
                 this.saltProvider,
                 this.encoder,
@@ -337,6 +336,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body;
+
+        JsonObject config = this.getConfigFromRc(rc);
+
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
         try {
             body = rc.body().asJsonObject();
@@ -474,7 +480,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     new IdentityRequest(
                             new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                             input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
-                            OptoutCheckPolicy.RespectOptOut));
+                            OptoutCheckPolicy.RespectOptOut),
+                    refreshIdentityAfter,
+                    refreshExpiresAfter,
+                    identityExpiresAfter);
         } catch (KeyManager.NoActiveKeyException e){
             SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, e, platformType);
             return;
@@ -825,6 +834,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         }
 
+        JsonObject config = this.getConfigFromRc(rc);
+
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+
         try {
             final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
             siteId = rc.get(Const.RoutingContextData.SiteId);
@@ -843,7 +856,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
             } else {
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
             }
 
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, r, platformType);
@@ -855,6 +868,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenRefreshV2(RoutingContext rc) {
         Integer siteId = null;
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
+
+        JsonObject config = this.getConfigFromRc(rc);
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         try {
             platformType = getPlatformType(rc);
             String tokenStr = (String) rc.data().get("request");
@@ -877,7 +893,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
             } else {
                 ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, r, platformType);
         } catch (Exception e) {
@@ -948,6 +964,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenGenerateV1(RoutingContext rc) {
         final int siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
+
+        JsonObject config = this.getConfigFromRc(rc);
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+
         try {
             final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
             platformType = getPlatformType(rc);
@@ -956,7 +978,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                OptoutCheckPolicy.defaultPolicy()));
+                                OptoutCheckPolicy.defaultPolicy()),
+                        refreshIdentityAfter,
+                        refreshExpiresAfter,
+                        identityExpiresAfter);
 
                 ResponseUtil.Success(rc, toJsonV1(t));
                 recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
@@ -969,6 +994,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenGenerateV2(RoutingContext rc) {
         final Integer siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
+
+        JsonObject config = this.getConfigFromRc(rc);
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+
         try {
             JsonObject req = (JsonObject) rc.data().get("request");
             platformType = getPlatformType(rc);
@@ -1009,7 +1040,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                OptoutCheckPolicy.respectOptOut()));
+                                OptoutCheckPolicy.respectOptOut()),
+                        refreshIdentityAfter,
+                        refreshExpiresAfter,
+                        identityExpiresAfter);
 
                 if (t.isEmptyToken()) {
                     if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
@@ -1025,7 +1059,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                 new IdentityRequest(
                                         new PublisherIdentity(siteId, 0, 0),
                                         optOutTokenInput.toUserIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
-                                        OptoutCheckPolicy.DoNotRespect));
+                                        OptoutCheckPolicy.DoNotRespect),
+                                refreshIdentityAfter,
+                                refreshExpiresAfter,
+                                identityExpiresAfter);
 
                         ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, optOutTokens.getAdvertisingTokenVersion(), platformType);
@@ -1050,6 +1087,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenGenerate(RoutingContext rc) {
         final InputUtil.InputVal input = this.getTokenInput(rc);
         Integer siteId = null;
+
+        JsonObject config = this.getConfigFromRc(rc);
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+
+
         if (input == null) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, ERROR_INVALID_INPUT_EMAIL_MISSING, siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
             return;
@@ -1065,7 +1109,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     new IdentityRequest(
                             new PublisherIdentity(siteId, 0, 0),
                             input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                            OptoutCheckPolicy.defaultPolicy()));
+                            OptoutCheckPolicy.defaultPolicy()),
+                    refreshIdentityAfter,
+                    refreshExpiresAfter,
+                    identityExpiresAfter);
 
             recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), TokenResponseStatsCollector.PlatformType.Other);
             sendJsonResponse(rc, toJson(t));
@@ -1083,6 +1130,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
+        JsonObject config = this.getConfigFromRc(rc);
+
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+
         try {
             final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
 
@@ -1090,7 +1141,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             siteId = rc.get(Const.RoutingContextData.SiteId);
             if (r.isRefreshed()) {
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, r, TokenResponseStatsCollector.PlatformType.Other);
         } catch (Exception e) {
@@ -1797,7 +1848,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         recordRefreshTokenVersionCount(String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)), this.getRefreshTokenVersion(tokenStr));
 
-        return this.idService.refreshIdentity(refreshToken);
+        JsonObject config = this.getConfigFromRc(rc);
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+
+        return this.idService.refreshIdentity(refreshToken, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
     }
 
     public static String getSiteName(ISiteStore siteStore, Integer siteId) {
@@ -1823,7 +1879,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return origin != null ? TokenResponseStatsCollector.PlatformType.HasOriginHeader : TokenResponseStatsCollector.PlatformType.Other;
     }
 
-    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader) {
+    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader, Duration identityExpiresAfter) {
         DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(new Tuple.Tuple2<>(apiContact, hasOriginHeader), k ->
                 DistributionSummary
                         .builder("uid2.token_refresh_duration_seconds")
@@ -1836,7 +1892,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         );
         ds.record(durationSinceLastRefresh.getSeconds());
 
-        boolean isExpired = durationSinceLastRefresh.compareTo(this.idService.getIdentityExpiryDuration()) > 0;
+        boolean isExpired = durationSinceLastRefresh.compareTo(identityExpiresAfter) > 0;
         Counter c = _advertisingTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), hasOriginHeader, isExpired), k ->
                 Counter
                         .builder("uid2.advertising_token_expired_on_refresh")

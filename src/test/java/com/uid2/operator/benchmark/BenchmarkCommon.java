@@ -41,6 +41,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
+import static com.uid2.operator.Const.Config.identityV3;
+
 public class BenchmarkCommon {
 
      static IUIDOperatorService createUidOperatorService() throws Exception {
@@ -59,6 +61,27 @@ public class BenchmarkCommon {
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
 
+         final JsonObject config = getConfig();
+
+         final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+        final List<String> optOutPartitionFiles = new ArrayList<>();
+        final ICloudStorage optOutLocalStorage = make1mOptOutEntryStorage(
+                saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
+                /* out */ optOutPartitionFiles);
+        final IOptOutStore optOutStore = new StaticOptOutStore(optOutLocalStorage, make1mOptOutEntryConfig(), optOutPartitionFiles);
+
+        return new UIDOperatorService(
+                optOutStore,
+                saltProvider,
+                tokenEncoder,
+                Clock.systemUTC(),
+                IdentityScope.UID2,
+                null,
+                config.getBoolean(identityV3)
+        );
+    }
+
+    public static JsonObject getConfig() {
         final int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
         final int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
         final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
@@ -67,23 +90,7 @@ public class BenchmarkCommon {
         config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-
-        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
-        final List<String> optOutPartitionFiles = new ArrayList<>();
-        final ICloudStorage optOutLocalStorage = make1mOptOutEntryStorage(
-                saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
-                /* out */ optOutPartitionFiles);
-        final IOptOutStore optOutStore = new StaticOptOutStore(optOutLocalStorage, make1mOptOutEntryConfig(), optOutPartitionFiles);
-
-        return new UIDOperatorService(
-                config,
-                optOutStore,
-                saltProvider,
-                tokenEncoder,
-                Clock.systemUTC(),
-                IdentityScope.UID2,
-                null
-        );
+        return config;
     }
 
     static EncryptedTokenEncoder createTokenEncoder() throws Exception {

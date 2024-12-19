@@ -21,7 +21,7 @@ class ConfidentialCompute(ABC):
 
     def validate_configuration(self):
         """ Validates the paramters specified through configs/secret manager ."""
-
+        print("Validating configurations provided")
         def validate_operator_key():
             """ Validates the operator key format and its environment alignment."""
             operator_key = self.configs.get("api_token")

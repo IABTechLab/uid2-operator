@@ -168,9 +168,11 @@ class EC2(ConfidentialCompute):
         self.__setup_vsockproxy(log_level)
         self.__run_config_server()
         self.__run_socks_proxy()
+        print("Finished setting up auxilaries")
 
     def _validate_auxiliaries(self) -> None:
         """Validates connection to flask server direct and through socks proxy."""
+        print("Validating auxilaries")
         try:
             for attempt in range(10):
                 try:
@@ -212,7 +214,8 @@ class EC2(ConfidentialCompute):
         secret_manager_key = self.__get_secret_name_from_userdata()
         self.configs = self._get_secret(secret_manager_key)
         print(f"Fetched configs from {secret_manager_key}")
-        self.configs.get("skip_validations", False) and self.validate_configuration()
+        if not self.configs.get("skip_validations"):
+            self.validate_configuration()
         self._setup_auxiliaries()
         self._validate_auxiliaries()
         self.__run_nitro_enclave()
@@ -251,5 +254,5 @@ if __name__ == "__main__":
         else:
             ec2.run_compute()
     except Exception as e:
-        print("Failed starting up Confidential Compute")
+        print("Failed starting up Confidential Compute. Please contact uid2", e)
            

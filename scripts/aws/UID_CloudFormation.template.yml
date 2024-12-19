@@ -15,8 +15,8 @@ Parameters:
     NoEcho: true
   SkipValidations:
     Description: SkipValidations on starting enclave
-    Type: boolean
-    Default: false
+    Type: String
+    Default: "false"
   DeployToEnvironment:
     Description: Environment to deploy to prod/integ
     Type: String

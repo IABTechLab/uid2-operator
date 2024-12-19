@@ -265,6 +265,8 @@ public class Main {
     }
 
     private void run() throws Exception {
+        this.createVertxInstancesMetric();
+        this.createVertxEventLoopsMetric();
         Supplier<Verticle> operatorVerticleSupplier = () -> {
             UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
             return verticle;
@@ -465,6 +467,18 @@ public class Main {
                 .description("application version and status")
                 .tags("version", version)
                 .register(globalRegistry);
+    }
+
+    private void createVertxInstancesMetric() {
+        Gauge.builder("uid2.operator.vertx_service_instances", () -> config.getInteger("service_instances"))
+                .description("gauge for number of vertx service instances requested")
+                .register(Metrics.globalRegistry);
+    }
+
+    private void createVertxEventLoopsMetric() {
+        Gauge.builder("uid2.operator.vertx_event_loop_threads", () -> VertxOptions.DEFAULT_EVENT_LOOP_POOL_SIZE)
+                .description("gauge for number of vertx event loop threads")
+                .register(Metrics.globalRegistry);
     }
 
     private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {

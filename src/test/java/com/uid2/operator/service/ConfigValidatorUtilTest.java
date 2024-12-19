@@ -29,4 +29,31 @@ public class ConfigValidatorUtilTest {
         assertTrue(ConfigValidatorUtil.validateBidstreamLifetime(10, 5));
         assertTrue(ConfigValidatorUtil.validateBidstreamLifetime(10, 10));
     }
+
+    @Test
+    void testValidateIdentityRefreshTokensWithNullValues() {
+        // identityExpiresAfter is null
+        assertFalse(ConfigValidatorUtil.validateIdentityRefreshTokens(null, 10, 5));
+
+        // refreshExpiresAfter is null
+        assertFalse(ConfigValidatorUtil.validateIdentityRefreshTokens(10, null, 5));
+
+        // refreshIdentityAfter is null
+        assertFalse(ConfigValidatorUtil.validateIdentityRefreshTokens(10, 5, null));
+
+        // all values are null
+        assertFalse(ConfigValidatorUtil.validateIdentityRefreshTokens(null, null, null));
+    }
+
+    @Test
+    void testValidateBidstreamLifetimeWithNullValues() {
+        // maxBidstreamLifetimeSeconds is null
+        assertFalse(ConfigValidatorUtil.validateBidstreamLifetime(null, 10));
+
+        // identityTokenExpiresAfterSeconds is null
+        assertFalse(ConfigValidatorUtil.validateBidstreamLifetime(10, null));
+
+        // both values are null
+        assertFalse(ConfigValidatorUtil.validateBidstreamLifetime(null, null));
+    }
 }

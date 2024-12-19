@@ -203,7 +203,7 @@ class EC2(ConfidentialCompute):
             "--enclave-cid", "42",
             "--enclave-name", "uid2operator"
         ]
-        if self.configs('debug_mode', True): #E2E override
+        if self.configs.get('debug_mode', True): #E2E override
             print("Running in debug_mode")
             command += ["--debug-mode", "--attach-console"]
         self.run_command(command)

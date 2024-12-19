@@ -44,13 +44,15 @@ public class ConfigService implements IConfigService {
     }
 
     private void initialiseConfigRetriever(Vertx vertx, JsonObject bootstrapConfig) {
-        String configUrl = bootstrapConfig.getString(CoreConfigUrl);
+        String configPath = bootstrapConfig.getString(CoreConfigPath);
+
 
         ConfigStoreOptions httpStore = new ConfigStoreOptions()
                 .setType("http")
                 .setConfig(new JsonObject()
-                        .put("url", configUrl)
-                        .put("method", "GET"));
+                        .put("host", "127.0.0.1")
+                        .put("port", Const.Port.ServicePortForCore)
+                        .put("path", configPath));
 
         ConfigStoreOptions bootstrapStore = new ConfigStoreOptions()
                 .setType("json")
@@ -70,6 +72,7 @@ public class ConfigService implements IConfigService {
                 System.out.println("Successfully loaded config");
             } else {
                 System.err.println("Failed to load config: " + ar.cause().getMessage());
+                logger.error("Failed to load config");
             }
         });
 

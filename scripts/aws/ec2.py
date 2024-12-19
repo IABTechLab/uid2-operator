@@ -100,7 +100,8 @@ class EC2(ConfidentialCompute):
         try:
             client = boto3.client("secretsmanager", region_name=region)
         except Exception as e:
-            raise RuntimeError("Please use IAM instance profile for your instance that has permission to access Secret Manager")
+            # MissingInstanceProfile
+            raise RuntimeError("Please use IAM instance profile for your instance and make sure that has permission to access Secret Manager")
         try:
             secret = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
             self.__validate_aws_specific_config(secret)
@@ -211,7 +212,7 @@ class EC2(ConfidentialCompute):
         secret_manager_key = self.__get_secret_name_from_userdata()
         self.configs = self._get_secret(secret_manager_key)
         print(f"Fetched configs from {secret_manager_key}")
-        self.validate_configuration()
+        self.configs.get("skip_validations", False) and self.validate_configuration()
         self._setup_auxiliaries()
         self._validate_auxiliaries()
         self.__run_nitro_enclave()
@@ -244,8 +245,11 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--operation", choices=["stop", "start"], default="start", help="Operation to perform.")
     args = parser.parse_args()
     ec2 = EC2()
-    if args.operation == "stop":
-        ec2.cleanup()
-    else:
-        ec2.run_compute()
+    try:
+        if args.operation == "stop":
+            ec2.cleanup()
+        else:
+            ec2.run_compute()
+    except Exception as e:
+        print("Failed starting up Confidential Compute")
            

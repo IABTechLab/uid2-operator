@@ -97,7 +97,7 @@
     ansible.builtin.pip:
       virtualenv: /opt/uid2operator/init
       requirements: /opt/uid2operator/requirements.txt
-      virtualenv_command: 'python3 -m venv'
+      virtualenv_command: 'python3.11 -m venv'
 
   - name: Install Operator EIF
     ansible.builtin.copy:

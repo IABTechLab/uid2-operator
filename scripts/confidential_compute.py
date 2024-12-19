@@ -3,14 +3,16 @@ import re
 import socket
 from urllib.parse import urlparse
 from abc import ABC, abstractmethod
-from typing import TypedDict
+from typing import TypedDict, NotRequired, get_type_hints
 import subprocess
 
 class ConfidentialComputeConfig(TypedDict):
-    debug_mode: bool
     api_token: str
     core_base_url: str
+    optout_base_url: str
     environment: str
+    skip_validations: NotRequired[bool]
+    debug_mode: NotRequired[bool]
     
 class ConfidentialCompute(ABC):
 
@@ -61,16 +63,16 @@ class ConfidentialCompute(ABC):
                 requests.get(core_url, timeout=5)
                 print(f"Validated connectivity to {core_url}")
             except (requests.ConnectionError, requests.Timeout) as e:
-                raise Exception(
+                raise RuntimeError(
                     f"Failed to reach required URLs. Consider enabling {core_ip} in the egress firewall."
                 )
             except Exception as e:
                 raise Exception("Failed to reach the URLs.") from e
-            
-        required_keys = ["api_token", "environment", "core_base_url"]
+        type_hints = get_type_hints(ConfidentialComputeConfig, include_extras=True)
+        required_keys = [field for field, hint in type_hints.items() if "NotRequired" not in str(hint)]
         missing_keys = [key for key in required_keys if key not in self.configs]
         if missing_keys:
-            raise ConfidentialComputeMissingConfigError(missing_keys)
+            raise MissingConfigError(missing_keys)
             
         environment = self.configs["environment"]
 
@@ -78,6 +80,7 @@ class ConfidentialCompute(ABC):
             raise ValueError("Debug mode cannot be enabled in the production environment.")
         
         validate_url("core_base_url", environment)
+        validate_url("optout_base_url", environment)
         validate_operator_key()
         validate_connectivity()
         print("Completed static validation of confidential compute config values")
@@ -120,11 +123,11 @@ class ConfidentialCompute(ABC):
             print(f"Failed to run command: {str(e)}")
             raise RuntimeError (f"Failed to start {' '.join(command)} ")
 
-class ConfidentialComputeMissingConfigError(Exception):
+class MissingConfigError(Exception):
     """Custom exception to handle missing config keys."""
     def __init__(self, missing_keys):
         self.missing_keys = missing_keys
-        self.message = f"Missing configuration keys: {', '.join(missing_keys)}"
+        self.message = f"\n Missing configuration keys: {', '.join(missing_keys)} \n"
         super().__init__(self.message)
 
 class SecretNotFoundException(Exception):

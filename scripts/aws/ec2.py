@@ -16,7 +16,7 @@ import time
 import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, SecretNotFoundException
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, SecretNotFoundException, ConfidentialComputeStartupException
 
 class AWSConfidentialComputeConfig(ConfidentialComputeConfig):
     enclave_memory_mb: int
@@ -100,8 +100,7 @@ class EC2(ConfidentialCompute):
         try:
             client = boto3.client("secretsmanager", region_name=region)
         except Exception as e:
-            # MissingInstanceProfile
-            raise RuntimeError("Please use IAM instance profile for your instance and make sure that has permission to access Secret Manager")
+            raise RuntimeError("Please use IAM instance profile for your instance and make sure that has permission to access Secret Manager", e)
         try:
             secret = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
             self.__validate_aws_specific_config(secret)
@@ -204,7 +203,7 @@ class EC2(ConfidentialCompute):
             "--enclave-cid", "42",
             "--enclave-name", "uid2operator"
         ]
-        if self.configs["debug_mode"]:
+        if self.configs('debug_mode', True): #E2E override
             print("Running in debug_mode")
             command += ["--debug-mode", "--attach-console"]
         self.run_command(command)
@@ -247,12 +246,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Manage EC2-based confidential compute workflows.")
     parser.add_argument("-o", "--operation", choices=["stop", "start"], default="start", help="Operation to perform.")
     args = parser.parse_args()
-    ec2 = EC2()
     try:
+        ec2 = EC2()
         if args.operation == "stop":
             ec2.cleanup()
         else:
             ec2.run_compute()
+    except ConfidentialComputeStartupException as e:
+        print("Failed starting up Confidential Compute. Please find the error code and documentation", e)
     except Exception as e:
-        print("Failed starting up Confidential Compute. Please contact uid2", e)
+         print("Unknown failure while starting up Confidential Compute. Please contact UID support team with this log", e)
            

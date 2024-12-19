@@ -122,16 +122,20 @@ class ConfidentialCompute(ABC):
         except Exception as e:
             print(f"Failed to run command: {str(e)}")
             raise RuntimeError (f"Failed to start {' '.join(command)} ")
+        
+class ConfidentialComputeStartupException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
-class MissingConfigError(Exception):
+class MissingConfigError(ConfidentialComputeStartupException):
     """Custom exception to handle missing config keys."""
     def __init__(self, missing_keys):
         self.missing_keys = missing_keys
         self.message = f"\n Missing configuration keys: {', '.join(missing_keys)} \n"
         super().__init__(self.message)
 
-class SecretNotFoundException(Exception):
+class SecretNotFoundException(ConfidentialComputeStartupException):
     """Custom exception if secret manager is not found"""
     def __init__(self, name):
-        self.message = f"Secret manager not found - {name}"
+        self.message = f"Secret manager not found - {name}. Please check if secret exist and the Instance Profile has permission to read it"
         super().__init__(self.message)

@@ -13,6 +13,10 @@ Parameters:
     Description: OptoutBaseURL
     Type: String
     NoEcho: true
+  SkipValidations:
+    Description: SkipValidations on starting enclave
+    Type: boolean
+    Default: false
   DeployToEnvironment:
     Description: Environment to deploy to prod/integ
     Type: String
@@ -100,6 +104,8 @@ Metadata:
         default: CoreBaseURL
       OptoutBaseURL:
         default: OptoutBaseURL
+      SkipValidations:
+        default: Skip configuration validation before starting enclave
       InstanceType:
         default: Instance Type for EC2. Minimum 4 vCPUs needed. M5, M5a, M5n, M6i and R6i Instance types are tested. Choose 2xlarge or 4xlarge.
       SSHKeyName:
@@ -175,7 +181,8 @@ Resources:
           "enclave_memory_mb":24576,
           "environment":"${DeployToEnvironment}",
           "core_base_url": "${CoreBaseURL}"
-          "optout_base_url": "${OptoutBaseURL}"
+          "optout_base_url": "${OptoutBaseURL}",
+          "skip_validations": "${SkipValidations}"
         }'
   WorkerRole:
     Type: 'AWS::IAM::Role'

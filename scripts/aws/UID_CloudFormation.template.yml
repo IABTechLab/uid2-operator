@@ -13,6 +13,10 @@ Parameters:
     Description: OptoutBaseURL
     Type: String
     NoEcho: true
+  SkipValidations:
+    Description: SkipValidations on starting enclave
+    Type: boolean
+    Default: false
   DeployToEnvironment:
     Description: Environment to deploy to prod/integ
     Type: String
@@ -75,6 +79,7 @@ Metadata:
           - DeployToEnvironment
           - CoreBaseURL
           - OptoutBaseURL
+          - SkipValidations
       - Label:
           default: Instance Configuration
         Parameters:
@@ -98,6 +103,8 @@ Metadata:
         default: CoreBaseURL provided by UID2 Administrator.
       OptoutBaseURL:
         default: OptoutBaseURL provided by UID2 Administrator.
+      SkipValidations:
+        default: Skip configuration validation before starting enclave
       DeployToEnvironment:
         default: UID2 environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
@@ -203,7 +210,8 @@ Resources:
           "enclave_memory_mb":24576,
           "environment":"${DeployToEnvironment}",
           "core_base_url": "${CoreBaseURL}",
-          "optout_base_url": "${OptoutBaseURL}"
+          "optout_base_url": "${OptoutBaseURL}",
+          "skip_validations": "${SkipValidations}"
         }'
   WorkerRole:
     Type: 'AWS::IAM::Role'

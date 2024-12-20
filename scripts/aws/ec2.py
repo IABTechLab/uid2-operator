@@ -213,7 +213,9 @@ class EC2(ConfidentialCompute):
         secret_manager_key = self.__get_secret_name_from_userdata()
         self.configs = self._get_secret(secret_manager_key)
         print(f"Fetched configs from {secret_manager_key}")
+        print(self.configs)
         if not self.configs.get("skip_validations"):
+            print("Doing validations")
             self.validate_configuration()
         self._setup_auxiliaries()
         self._validate_auxiliaries()

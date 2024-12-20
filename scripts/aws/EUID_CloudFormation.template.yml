@@ -90,8 +90,6 @@ Metadata:
         default: OPERATOR_KEY provided by EUID Administrator.
       DeployToEnvironment:
         default: EUID environment to deploy to. Prod - production; Integ - integration test.
-      SkipValidations:
-        default: Skip configuration validation before starting enclave
       InstanceType:
         default: Instance Type for EC2. Minimum 4 vCPUs needed. M5, M5a, M5n, M6i and R6i Instance types are tested. Choose 2xlarge or 4xlarge.
       SSHKeyName:

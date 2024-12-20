@@ -69,7 +69,6 @@ Metadata:
         Parameters:
           - APIToken
           - DeployToEnvironment
-          - SkipValidations
       - Label:
           default: Instance Configuration
         Parameters:

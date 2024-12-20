@@ -5,10 +5,6 @@ Parameters:
     Description: UID2 API Token
     Type: String
     NoEcho: true
-  SkipValidations:
-    Description: SkipValidations on starting enclave
-    Type: String
-    Default: "false"
   DeployToEnvironment:
     Description: Environment to deploy to prod/integ
     Type: String
@@ -88,8 +84,6 @@ Metadata:
     ParameterLabels:
       APIToken:
         default: OPERATOR_KEY provided by UID2 Administrator.
-      SkipValidations:
-        default: Skip configuration validation before starting enclave
       DeployToEnvironment:
         default: UID2 environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
@@ -204,7 +198,6 @@ Resources:
           - ', "enclave_cpu_count": 6'
           - ', "enclave_memory_mb": 24576'
           - ', "environment": "${DeployToEnvironment}"'
-          - ', "skip_validations": "${SkipValidations}"'
           - '}'
   WorkerRole:
     Type: 'AWS::IAM::Role'

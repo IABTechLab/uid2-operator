@@ -5,10 +5,6 @@ Parameters:
     Description: EUID API Token
     Type: String
     NoEcho: true
-  SkipValidations:
-    Description: SkipValidations on starting enclave
-    Type: String
-    Default: "false"
   DeployToEnvironment:
     Description: Environment to deploy to prod/integ
     Type: String
@@ -170,7 +166,6 @@ Resources:
           - ', "enclave_cpu_count": 6'
           - ', "enclave_memory_mb": 24576'
           - ', "environment": "${DeployToEnvironment}"'
-          - ', "skip_validations": "${SkipValidations}"'
           - '}'
   WorkerRole:
     Type: 'AWS::IAM::Role'

@@ -167,11 +167,11 @@ class EC2(ConfidentialCompute):
         self.__setup_vsockproxy(log_level)
         self.__run_config_server()
         self.__run_socks_proxy()
-        print("Finished setting up auxilaries")
+        print("Finished setting up all auxiliaries")
 
     def _validate_auxiliaries(self) -> None:
         """Validates connection to flask server direct and through socks proxy."""
-        print("Validating auxilaries")
+        print("Validating auxiliaries")
         try:
             for attempt in range(10):
                 try:
@@ -203,10 +203,10 @@ class EC2(ConfidentialCompute):
             "--enclave-cid", "42",
             "--enclave-name", "uid2operator"
         ]
-        if True: #E2E override
+        if self.configs.get('debug_mode', False):
             print("Running in debug_mode")
             command += ["--debug-mode", "--attach-console"]
-        self.run_command(command)
+        self.run_command(command, seperate_process=True)
 
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""
@@ -228,7 +228,7 @@ class EC2(ConfidentialCompute):
             raise (f"Error during cleanup: {e}")
 
     def __kill_auxiliaries(self) -> None:
-        """Kills a process by its name."""
+        """Kills all auxiliary processes spawned."""
         try:
             for process_name in ["vsockpx", "sockd", "flask"]:
                 result = subprocess.run(["pgrep", "-f", process_name], stdout=subprocess.PIPE, text=True, check=False)

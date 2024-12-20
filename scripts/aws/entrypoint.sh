@@ -100,7 +100,10 @@ fi
 cd /app
 
 # -- start operator
+echo "Printing configs before Java application..."
+cat /app/conf/config-final.json
 echo "Starting Java application..."
+
 java \
   -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
   -Djava.security.egd=file:/dev/./urandom \

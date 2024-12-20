@@ -5,14 +5,6 @@ Parameters:
     Description: EUID API Token
     Type: String
     NoEcho: true
-  CoreBaseURL:
-    Description: CoreBaseURL
-    Type: String
-    NoEcho: true
-  OptoutBaseURL:
-    Description: OptoutBaseURL
-    Type: String
-    NoEcho: true
   SkipValidations:
     Description: SkipValidations on starting enclave
     Type: String
@@ -77,8 +69,6 @@ Metadata:
         Parameters:
           - APIToken
           - DeployToEnvironment
-          - CoreBaseURL
-          - OptoutBaseURL
       - Label:
           default: Instance Configuration
         Parameters:
@@ -100,10 +90,6 @@ Metadata:
         default: OPERATOR_KEY provided by EUID Administrator.
       DeployToEnvironment:
         default: EUID environment to deploy to. Prod - production; Integ - integration test.
-      CoreBaseURL:
-        default: CoreBaseURL
-      OptoutBaseURL:
-        default: OptoutBaseURL
       SkipValidations:
         default: Skip configuration validation before starting enclave
       InstanceType:
@@ -174,16 +160,20 @@ Resources:
       Description: EUID Token
       KmsKeyId: !GetAtt KMSKey.Arn
       Name: !Sub 'euid-config-stack-${AWS::StackName}'
-      SecretString: !Sub '{
-          "api_token":"${APIToken}",
-          "service_instances":6,
-          "enclave_cpu_count":6,
-          "enclave_memory_mb":24576,
-          "environment":"${DeployToEnvironment}",
-          "core_base_url": "${CoreBaseURL}"
-          "optout_base_url": "${OptoutBaseURL}",
-          "skip_validations": "${SkipValidations}"
-        }'
+      SecretString: !Join
+        - ''
+        - - '{'
+          - '"core_base_url": '
+          - !If [IsIntegEnvironment, 'https://core.integ.euid.eu', 'https://core.prod.euid.eu']
+          - '"optout_base_url": '
+          - !If [IsIntegEnvironment, 'https://optout.integ.euid.eu', 'https://optout.prod.euid.eu']
+          - ', "api_token": "${APIToken}"'
+          - ', "service_instances": 6'
+          - ', "enclave_cpu_count": 6'
+          - ', "enclave_memory_mb": 24576'
+          - ', "environment": "${DeployToEnvironment}"'
+          - ', "skip_validations": "${SkipValidations}"'
+          - '}'
   WorkerRole:
     Type: 'AWS::IAM::Role'
     Properties:

@@ -5,14 +5,6 @@ Parameters:
     Description: UID2 API Token
     Type: String
     NoEcho: true
-  CoreBaseURL:
-    Description: CoreBaseURL
-    Type: String
-    NoEcho: true
-  OptoutBaseURL:
-    Description: OptoutBaseURL
-    Type: String
-    NoEcho: true
   SkipValidations:
     Description: SkipValidations on starting enclave
     Type: String
@@ -77,8 +69,6 @@ Metadata:
         Parameters:
           - APIToken
           - DeployToEnvironment
-          - CoreBaseURL
-          - OptoutBaseURL
           - SkipValidations
       - Label:
           default: Instance Configuration
@@ -99,10 +89,6 @@ Metadata:
     ParameterLabels:
       APIToken:
         default: OPERATOR_KEY provided by UID2 Administrator.
-      CoreBaseURL:
-        default: CoreBaseURL provided by UID2 Administrator.
-      OptoutBaseURL:
-        default: OptoutBaseURL provided by UID2 Administrator.
       SkipValidations:
         default: Skip configuration validation before starting enclave
       DeployToEnvironment:
@@ -167,6 +153,10 @@ Mappings:
       AMI: ami-xxxxxxxxxxxxxxxxx
     af-south-1:
       AMI: ami-xxxxxxxxxxxxxxxxx
+Conditions:
+  IsIntegEnvironment: !Equals
+    - !Ref DeployToEnvironment
+    - integ
 Resources:
   KMSKey:
     Type: AWS::KMS::Key
@@ -203,16 +193,20 @@ Resources:
       Description: UID2 Token
       KmsKeyId: !GetAtt KMSKey.Arn
       Name: !Sub 'uid2-config-stack-${AWS::StackName}'
-      SecretString: !Sub '{
-          "api_token":"${APIToken}",
-          "service_instances":6,
-          "enclave_cpu_count":6,
-          "enclave_memory_mb":24576,
-          "environment":"${DeployToEnvironment}",
-          "core_base_url": "${CoreBaseURL}",
-          "optout_base_url": "${OptoutBaseURL}",
-          "skip_validations": "${SkipValidations}"
-        }'
+      SecretString: !Join
+        - ''
+        - - '{'
+          - '"core_base_url": '
+          - !If [IsIntegEnvironment, 'https://core-integ.uidapi.com', 'https://core.uidapi.com']
+          - '"optout_base_url": '
+          - !If [IsIntegEnvironment, 'https://optout-integ.uidapi.com', 'https://optout.uidapi.com']
+          - ', "api_token": "${APIToken}"'
+          - ', "service_instances": 6'
+          - ', "enclave_cpu_count": 6'
+          - ', "enclave_memory_mb": 24576'
+          - ', "environment": "${DeployToEnvironment}"'
+          - ', "skip_validations": "${SkipValidations}"'
+          - '}'
   WorkerRole:
     Type: 'AWS::IAM::Role'
     Properties:

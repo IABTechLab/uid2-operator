@@ -253,7 +253,7 @@ if __name__ == "__main__":
         else:
             ec2.run_compute()
     except ConfidentialComputeStartupException as e:
-        print("Failed starting up Confidential Compute. Please find the error code and documentation", e)
+        print("Failed starting up Confidential Compute. Please checks the logs for errors and retry \n", e)
     except Exception as e:
-         print("Unknown failure while starting up Confidential Compute. Please contact UID support team with this log", e)
+         print("Unknown failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
            

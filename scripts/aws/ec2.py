@@ -229,8 +229,8 @@ class EC2(ConfidentialCompute):
 
     def __kill_auxiliaries(self) -> None:
         """Kills all auxiliary processes spawned."""
-        try:
-            for process_name in ["vsockpx", "sockd", "flask"]:
+        for process_name in ["vsockpx", "sockd", "flask"]:
+            try:
                 result = subprocess.run(["pgrep", "-f", process_name], stdout=subprocess.PIPE, text=True, check=False)
                 if result.stdout.strip():
                     for pid in result.stdout.strip().split("\n"):
@@ -238,8 +238,8 @@ class EC2(ConfidentialCompute):
                     print(f"Killed process '{process_name}'.")
                 else:
                     print(f"No process named '{process_name}' found.")
-        except Exception as e:
-            print(f"Error killing process '{process_name}': {e}")
+            except Exception as e:
+                print(f"Error killing process '{process_name}': {e}")
 
 
 if __name__ == "__main__":

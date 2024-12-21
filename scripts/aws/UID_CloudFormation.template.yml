@@ -191,13 +191,17 @@ Resources:
         - - '{'
           - '"core_base_url": '
           - !If [IsIntegEnvironment, 'https://core-integ.uidapi.com', 'https://core.uidapi.com']
-          - '"optout_base_url": '
+          - ', "optout_base_url": '
           - !If [IsIntegEnvironment, 'https://optout-integ.uidapi.com', 'https://optout.uidapi.com']
-          - ', "api_token": "${APIToken}"'
+          - ', "api_token": "'
+          - Ref: APIToken
+          - '"'
           - ', "service_instances": 6'
           - ', "enclave_cpu_count": 6'
           - ', "enclave_memory_mb": 24576'
-          - ', "environment": "${DeployToEnvironment}"'
+          - ', "environment": "'
+          - Ref: DeployToEnvironment
+          - '"'
           - '}'
   WorkerRole:
     Type: 'AWS::IAM::Role'

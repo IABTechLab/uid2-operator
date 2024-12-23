@@ -76,6 +76,9 @@ class ConfidentialCompute(ABC):
             
         environment = self.configs["environment"]
 
+        if environment not in ["integ", "prod"]:
+            raise ValueError("Environment must be either prod/integ. It is currently set to", environment)
+
         if self.configs.get("debug_mode") and environment == "prod":
             raise ValueError("Debug mode cannot be enabled in the production environment.")
         

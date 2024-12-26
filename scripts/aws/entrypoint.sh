@@ -101,6 +101,7 @@ cd /app
 
 # -- start operator
 echo "Starting Java application..."
+
 java \
   -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
   -Djava.security.egd=file:/dev/./urandom \

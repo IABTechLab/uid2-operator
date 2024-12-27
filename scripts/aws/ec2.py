@@ -105,7 +105,7 @@ class EC2(ConfidentialCompute):
         except NoCredentialsError as _:
             raise MissingInstanceProfile(self.__class__.__name__)
         except ClientError as _:
-            raise ConfigNotFound(self.__class__.__name__, f"{secret_identifier} in {region}")
+            raise ConfigNotFound(self.__class__.__name__, f"Secret Manager {secret_identifier} in {region}")
         
     @staticmethod
     def __get_max_capacity():

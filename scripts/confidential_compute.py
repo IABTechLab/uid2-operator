@@ -15,41 +15,38 @@ class ConfidentialComputeConfig(TypedDict):
     debug_mode: NotRequired[bool]
 
 class ConfidentialComputeStartupException(Exception):
-    def __init__(self, message, env):
+    def __init__(self, error_name, provider, extra_message):
         urls = {
             "EC2": "https://unifiedid.com/docs/guides/operator-guide-aws-marketplace#uid2-operator-error-codes",
             "Azure": "https://unifiedid.com/docs/guides/operator-guide-azure-enclave#uid2-operator-error-codes",
             "GCP": "https://unifiedid.com/docs/guides/operator-private-gcp-confidential-space#uid2-operator-error-codes",
         }
-        url = urls.get(env)
-        super().__init__(f"{message} \n Visit {url} for more details")
+        url = urls.get(provider)
+        super().__init__(f"{error_name} \n" + (extra_message if extra_message else "") + f" \n Visit {url} for more details")
 
 class MissingInstanceProfile(ConfidentialComputeStartupException):
-    def __init__(self, env):
-        super().__init__(f"E01: {self.__class__.__name__}", env)
+    def __init__(self, cls):
+        super().__init__(error_name=f"E01: {self.__class__.__name__}", provider=cls)
 
 class ConfigNotFound(ConfidentialComputeStartupException):
-    def __init__(self, env, message = None):
-        super().__init__(f"E02: {self.__class__.__name__}"+ (f": {message}" if message else ""), env)
+    def __init__(self, cls, message = None):
+        super().__init__(error_name=f"E02: {self.__class__.__name__}", provider=cls, extra_message=message)
 
 class MissingConfig(ConfidentialComputeStartupException):
-    def __init__(self, env, missing_keys):
-        self.missing_keys = missing_keys
-        self.message = f"E03: {self.__class__.__name__} \n Missing configuration keys: {', '.join(missing_keys)} \n"
-        super().__init__(self.message, env)
+    def __init__(self, cls, missing_keys):
+        super().__init__(error_name=f"E03: {self.__class__.__name__}", provider=cls, extra_message=', '.join(missing_keys))
 
 class InvalidConfigValue(ConfidentialComputeStartupException):
-    def __init__(self, env, config_key = None):
-        super().__init__(f"E04: {self.__class__.__name__} " + (f": {config_key}" if config_key else ""), env)
+    def __init__(self, cls, config_key = None):
+        super().__init__(error_name=f"E04: {self.__class__.__name__} " , provider=cls, extra_message=config_key)
 
 class InvalidOperatorKey(ConfidentialComputeStartupException):
-    def __init__(self, env):
-        super().__init__(f"E05: {self.__class__.__name__}", env)
+    def __init__(self, cls):
+        super().__init__(error_name=f"E05: {self.__class__.__name__}", provider=cls)
 
 class UID2ServicesUnreachable(ConfidentialComputeStartupException):
-    def __init__(self, env, ip=None):
-        super().__init__(f"E06: {self.__class__.__name__}" + (f": {ip}" if ip else ""), env)
-
+    def __init__(self, cls, ip=None):
+        super().__init__(error_name=f"E06: {self.__class__.__name__}", provider=cls, extra_message=ip)
     
 class ConfidentialCompute(ABC):
 

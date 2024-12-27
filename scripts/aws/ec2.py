@@ -9,7 +9,7 @@ import multiprocessing
 import requests
 import signal
 import argparse
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, NoCredentialsError
 from typing import Dict
 import sys
 import time
@@ -97,14 +97,13 @@ class EC2(ConfidentialCompute):
         
         region = self.__get_current_region()
         print(f"Running in {region}")
-        try:
-            client = boto3.client("secretsmanager", region_name=region)
-        except Exception as e:
-            raise MissingInstanceProfile(self.__class__.__name__)
+        client = boto3.client("secretsmanager", region_name=region)
         try:
             secret = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
             self.__validate_aws_specific_config(secret)
             return secret
+        except NoCredentialsError as _:
+            raise MissingInstanceProfile(self.__class__.__name__)
         except ClientError as _:
             raise ConfigNotFound(self.__class__.__name__, f"{secret_identifier} in {region}")
         

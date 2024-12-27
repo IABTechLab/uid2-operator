@@ -22,7 +22,7 @@ class ConfidentialComputeStartupException(Exception):
             "GCP": "https://unifiedid.com/docs/guides/operator-private-gcp-confidential-space#uid2-operator-error-codes",
         }
         url = urls.get(provider)
-        super().__init__(f"{error_name} \n" + (extra_message if extra_message else "") + f" \n Visit {url} for more details")
+        super().__init__(f"{error_name} \n" + (extra_message if extra_message else "") + f"\nVisit {url} for more details")
 
 class MissingInstanceProfile(ConfidentialComputeStartupException):
     def __init__(self, cls):

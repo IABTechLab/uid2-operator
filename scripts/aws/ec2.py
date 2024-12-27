@@ -16,7 +16,7 @@ import time
 import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, SecretNotFoundException, ConfidentialComputeStartupException
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingInstanceProfile, ConfigNotFound, InvalidConfigValue, ConfidentialComputeStartupException
 
 class AWSConfidentialComputeConfig(ConfidentialComputeConfig):
     enclave_memory_mb: int
@@ -61,7 +61,7 @@ class EC2(ConfidentialCompute):
             )
             return response.text
         except requests.RequestException as e:
-            raise RuntimeError(f"Failed to fetch aws token: {e}")
+            raise RuntimeError(f"Failed to fetch AWS token: {e}")
 
     def __get_current_region(self) -> str:
         """Fetches the current AWS region from EC2 instance metadata."""
@@ -100,13 +100,13 @@ class EC2(ConfidentialCompute):
         try:
             client = boto3.client("secretsmanager", region_name=region)
         except Exception as e:
-            raise RuntimeError("Please use IAM instance profile for your instance and make sure that has permission to access Secret Manager", e)
+            raise MissingInstanceProfile(self.__class__.__name__)
         try:
             secret = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
             self.__validate_aws_specific_config(secret)
             return secret
         except ClientError as _:
-            raise SecretNotFoundException(f"{secret_identifier} in {region}")
+            raise ConfigNotFound(self.__class__.__name__, f"{secret_identifier} in {region}")
         
     @staticmethod
     def __get_max_capacity():
@@ -255,5 +255,5 @@ if __name__ == "__main__":
     except ConfidentialComputeStartupException as e:
         print("Failed starting up Confidential Compute. Please checks the logs for errors and retry \n", e)
     except Exception as e:
-         print("Unknown failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
+         print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
            

@@ -15,7 +15,7 @@ class ConfidentialComputeConfig(TypedDict):
     debug_mode: NotRequired[bool]
 
 class ConfidentialComputeStartupException(Exception):
-    def __init__(self, error_name, provider, extra_message):
+    def __init__(self, error_name, provider, extra_message=None):
         urls = {
             "EC2": "https://unifiedid.com/docs/guides/operator-guide-aws-marketplace#uid2-operator-error-codes",
             "Azure": "https://unifiedid.com/docs/guides/operator-guide-azure-enclave#uid2-operator-error-codes",

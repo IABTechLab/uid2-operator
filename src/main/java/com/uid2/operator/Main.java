@@ -8,9 +8,7 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
-import com.uid2.operator.service.ConfigService;
-import com.uid2.operator.service.SecureLinkValidatorService;
-import com.uid2.operator.service.ShutdownService;
+import com.uid2.operator.service.*;
 import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.store.CloudSyncOptOutStore;
@@ -38,6 +36,7 @@ import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
+import io.vertx.config.ConfigRetriever;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.impl.HttpUtils;
@@ -266,41 +265,49 @@ public class Main {
     }
 
     private void run() throws Exception {
-        ConfigService configService = ConfigService.getInstance(vertx, config);
+        ConfigRetrieverFactory configRetrieverFactory = new ConfigRetrieverFactory();
+        ConfigRetriever configRetriever = configRetrieverFactory.create(vertx, config);
 
-        Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
-            return verticle;
-        };
+        ConfigService.create(configRetriever).compose(configService -> {
 
-        DeploymentOptions options = new DeploymentOptions();
-        int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
-        options.setInstances(svcInstances);
+            Supplier<Verticle> operatorVerticleSupplier = () -> {
+                UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
+                return verticle;
+            };
 
-        Promise<Void> compositePromise = Promise.promise();
-        List<Future> fs = new ArrayList<>();
-        fs.add(createAndDeployStatsCollector());
-        fs.add(createStoreVerticles());
+            DeploymentOptions options = new DeploymentOptions();
+            int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
+            options.setInstances(svcInstances);
 
-        CompositeFuture.all(fs).onComplete(ar -> {
-            if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
-            else compositePromise.complete();
-        });
+            Promise<Void> compositePromise = Promise.promise();
+            List<Future> fs = new ArrayList<>();
+            fs.add(createAndDeployStatsCollector());
+            try {
+                fs.add(createStoreVerticles());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
 
-        compositePromise.future()
-            .compose(v -> {
-                metrics.setup();
-                vertx.setPeriodic(60000, id -> metrics.update());
-
-                Promise<String> promise = Promise.promise();
-                vertx.deployVerticle(operatorVerticleSupplier, options, promise);
-                return promise.future();
-            })
-            .onFailure(t -> {
-                LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
-                vertx.close();
-                System.exit(1);
+            CompositeFuture.all(fs).onComplete(ar -> {
+                if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
+                else compositePromise.complete();
             });
+
+            return compositePromise.future()
+                    .compose(v -> {
+                        metrics.setup();
+                        vertx.setPeriodic(60000, id -> metrics.update());
+
+                        Promise<String> promise = Promise.promise();
+                        vertx.deployVerticle(operatorVerticleSupplier, options, promise);
+                        return promise.future();
+                    })
+                    .onFailure(t -> {
+                        LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
+                        vertx.close();
+                        System.exit(1);
+                    });
+        });
     }
 
     private Future<Void> createStoreVerticles() throws Exception {

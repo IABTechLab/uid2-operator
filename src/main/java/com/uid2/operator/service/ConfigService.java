@@ -2,80 +2,47 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.Const;
 import io.vertx.config.ConfigRetriever;
-import io.vertx.config.ConfigRetrieverOptions;
-import io.vertx.config.ConfigStoreOptions;
-import io.vertx.core.Vertx;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.uid2.operator.Const.Config.*;
 import static com.uid2.operator.service.ConfigValidatorUtil.*;
 import static com.uid2.operator.service.UIDOperatorService.*;
 
 public class ConfigService implements IConfigService {
 
-    private static volatile ConfigService instance;
     private ConfigRetriever configRetriever;
     private static final Logger logger = LoggerFactory.getLogger(ConfigService.class);
 
-    private ConfigService(Vertx vertx, JsonObject bootstrapConfig) {
-        this.initialiseConfigRetriever(vertx, bootstrapConfig);
+    private ConfigService(ConfigRetriever configRetriever) {
+        this.configRetriever = configRetriever;
+        this.configRetriever.setConfigurationProcessor(this::configValidationHandler);
     }
 
-    public static ConfigService getInstance(Vertx vertx, JsonObject bootstrapConfig) {
-        ConfigService configService = instance;
+    public static Future<ConfigService> create(ConfigRetriever configRetriever) {
+        Promise<ConfigService> promise = Promise.promise();
 
-        if (configService == null) {
-            synchronized (ConfigService.class) {
-                configService = instance;
-                if (configService == null) {
-                    instance = configService = new ConfigService(vertx, bootstrapConfig);
-                }
+        ConfigService instance = new ConfigService(configRetriever);
+
+        configRetriever.getConfig(ar -> {
+            if (ar.succeeded()) {
+                System.out.println("Successfully loaded config");
+                promise.complete(instance);
+            } else {
+                System.err.println("Failed to load config: " + ar.cause().getMessage());
+                logger.error("Failed to load config{}", ar.cause().getMessage());
+                promise.fail(ar.cause());
             }
-        }
+        });
 
-        return configService;
+        return promise.future();
     }
 
     @Override
     public JsonObject getConfig() {
         return configRetriever.getCachedConfig();
-    }
-
-    private void initialiseConfigRetriever(Vertx vertx, JsonObject bootstrapConfig) {
-        String configPath = bootstrapConfig.getString(CoreConfigPath);
-
-
-        ConfigStoreOptions httpStore = new ConfigStoreOptions()
-                .setType("http")
-                .setConfig(new JsonObject()
-                        .put("host", "127.0.0.1")
-                        .put("port", Const.Port.ServicePortForCore)
-                        .put("path", configPath));
-
-        ConfigStoreOptions bootstrapStore = new ConfigStoreOptions()
-                .setType("json")
-                .setConfig(bootstrapConfig);
-
-        ConfigRetrieverOptions retrieverOptions = new ConfigRetrieverOptions()
-                .setScanPeriod(bootstrapConfig.getLong(ConfigScanPeriodMs))
-                .addStore(bootstrapStore)
-                .addStore(httpStore);
-
-        this.configRetriever = ConfigRetriever.create(vertx, retrieverOptions);
-
-        this.configRetriever.setConfigurationProcessor(this::configValidationHandler);
-
-        this.configRetriever.getConfig(ar -> {
-            if (ar.succeeded()) {
-                System.out.println("Successfully loaded config");
-            } else {
-                System.err.println("Failed to load config: " + ar.cause().getMessage());
-                logger.error("Failed to load config");
-            }
-        });
-
     }
 
     private JsonObject configValidationHandler(JsonObject config) {

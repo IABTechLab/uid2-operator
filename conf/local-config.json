@@ -36,5 +36,6 @@
   "key_sharing_endpoint_provide_app_names": true,
   "client_side_token_generate_log_invalid_http_origins": true,
   "salts_expired_shutdown_hours": 12,
-  "operator_type": "public"
+  "operator_type": "public",
+  "remote_config_feature_flag": true
 }

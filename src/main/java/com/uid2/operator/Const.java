@@ -34,5 +34,6 @@ public class Const extends com.uid2.shared.Const {
         public static final String ConfigScanPeriodMs = "config_scan_period_ms";
         public static final String Config = "config";
         public static final String identityV3 = "identity_v3";
+        public static final String RemoteConfigFeatureFlag = "remote_config_feature_flag";
     }
 }

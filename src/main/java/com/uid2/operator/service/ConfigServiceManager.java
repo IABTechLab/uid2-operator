@@ -20,7 +20,7 @@ public class ConfigServiceManager {
         this.currentConfigService = useDynamicConfig ? dynamicConfigService : staticConfigService;
     }
 
-    public Future<ConfigServiceManager> create(Vertx vertx, JsonObject bootstrapConfig, boolean useDynamicConfig) {
+    public static Future<ConfigServiceManager> create(Vertx vertx, JsonObject bootstrapConfig, boolean useDynamicConfig) {
         Promise<ConfigServiceManager> promise = Promise.promise();
 
         StaticConfigService staticConfigService = new StaticConfigService(bootstrapConfig);

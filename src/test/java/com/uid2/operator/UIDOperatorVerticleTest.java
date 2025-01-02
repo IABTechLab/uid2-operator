@@ -114,6 +114,7 @@ public class UIDOperatorVerticleTest {
     @Mock private Clock clock;
     @Mock private IStatsCollectorQueue statsCollectorQueue;
     @Mock private OperatorShutdownHandler shutdownHandler;
+    @Mock private IConfigService configService;
 
     private SimpleMeterRegistry registry;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
@@ -131,8 +132,9 @@ public class UIDOperatorVerticleTest {
         if(testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
         }
+        when(configService.getConfig()).thenReturn(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configService, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse);
 
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 
@@ -4743,7 +4745,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void keySharingKeysets_SHARER_CustomMaxSharingLifetimeSeconds(Vertx vertx, VertxTestContext testContext) {
-        this.uidOperatorVerticle.setMaxSharingLifetimeSeconds(999999);
+        this.config.put(Const.Config.MaxSharingLifetimeProp, 999999);
         keySharingKeysets_SHARER(true, true, vertx, testContext, 999999);
     }
     

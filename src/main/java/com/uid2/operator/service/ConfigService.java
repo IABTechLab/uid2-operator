@@ -13,7 +13,7 @@ import static com.uid2.operator.service.UIDOperatorService.*;
 
 public class ConfigService implements IConfigService {
 
-    private ConfigRetriever configRetriever;
+    private final ConfigRetriever configRetriever;
     private static final Logger logger = LoggerFactory.getLogger(ConfigService.class);
 
     private ConfigService(ConfigRetriever configRetriever) {
@@ -32,7 +32,7 @@ public class ConfigService implements IConfigService {
                 promise.complete(instance);
             } else {
                 System.err.println("Failed to load config: " + ar.cause().getMessage());
-                logger.error("Failed to load config{}", ar.cause().getMessage());
+                logger.error("Failed to load config: {}", ar.cause().getMessage());
                 promise.fail(ar.cause());
             }
         });
@@ -50,7 +50,7 @@ public class ConfigService implements IConfigService {
         Integer identityExpiresAfter = config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         Integer refreshExpiresAfter = config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         Integer refreshIdentityAfter = config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        Integer maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp);
+        Integer maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityExpiresAfter);
 
         isValid &= validateIdentityRefreshTokens(identityExpiresAfter, refreshExpiresAfter, refreshIdentityAfter);
 

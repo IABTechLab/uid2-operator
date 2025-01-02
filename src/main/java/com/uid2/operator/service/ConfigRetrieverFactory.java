@@ -17,6 +17,7 @@ public class ConfigRetrieverFactory {
 
         ConfigStoreOptions httpStore = new ConfigStoreOptions()
                 .setType("http")
+                .setOptional(true)
                 .setConfig(new JsonObject()
                         .put("host", "127.0.0.1")
                         .put("port", Const.Port.ServicePortForCore)

@@ -2,41 +2,14 @@
 #
 # This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
-function wait_for_sidecar() {
-  url="http://169.254.169.254/ping"
-  delay=1
-  max_retries=15
-
-  while true; do
-    if wget -q --spider --tries=1 --timeout 5 "$url" > /dev/null; then
-      echo "side car started"
-      break
-    else
-      echo "side car not started. Retrying in $delay seconds..."
-      sleep $delay
-      if [ $delay -gt $max_retries ]; then
-        echo "side car failed to start"
-        break
-      fi
-      delay=$((delay + 1))
-    fi
-  done
-}
 
 TMP_FINAL_CONFIG="/tmp/final-config.tmp"
 
-if [ -z "${VAULT_NAME}" ]; then
-  echo "VAULT_NAME cannot be empty"
-  exit 1
-fi
-
-if [ -z "${OPERATOR_KEY_SECRET_NAME}" ]; then
-  echo "OPERATOR_KEY_SECRET_NAME cannot be empty"
-  exit 1
-fi
+create azure.py implementing confidential_compute.py that does all validations. 
 
 export azure_vault_name="${VAULT_NAME}"
 export azure_secret_name="${OPERATOR_KEY_SECRET_NAME}"
+
 
 # -- locate config file
 if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then

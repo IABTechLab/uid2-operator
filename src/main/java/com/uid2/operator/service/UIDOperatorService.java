@@ -43,7 +43,8 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private final OperatorIdentity operatorIdentity;
     private final TokenVersion refreshTokenVersion;
-    private final boolean identityV3Enabled;
+    // if we use Raw UID v3 format for the raw UID2/EUIDs generated in this operator
+    private final boolean rawUidV3Enabled;
 
     private final Handler<Boolean> saltRetrievalResponseHandler;
 
@@ -72,7 +73,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
         this.refreshTokenVersion = TokenVersion.V3;
-        this.identityV3Enabled = identityV3Enabled;
+        this.rawUidV3Enabled = identityV3Enabled;
     }
 
     @Override
@@ -207,7 +208,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
 
         return new MappedIdentity(
-                this.identityV3Enabled
+                this.rawUidV3Enabled
                     ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, rotatingSalt.getSalt())
                     : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, rotatingSalt.getSalt()),
                 rotatingSalt.getHashedId());

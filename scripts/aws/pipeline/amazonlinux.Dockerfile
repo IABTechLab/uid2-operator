@@ -5,7 +5,7 @@ RUN yum -y update
     # systemd is not a hard requirement for Amazon ECS Anywhere, but the installation script currently only supports systemd to run.
     # Amazon ECS Anywhere can be used without systemd, if you set up your nodes and register them into your ECS cluster **without** the installation script.
 RUN yum -y groupinstall "Development Tools"
-RUN yum -y install systemd vim-common wget git tar
+RUN yum -y install systemd vim-common wget git tar go
 RUN yum clean all
 
 RUN yum -y install cmake cmake3

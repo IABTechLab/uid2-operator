@@ -31,3 +31,10 @@ RUN git clone https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git \
     && mkdir uid2-aws-enclave-vsockproxy/build \
     && (cd uid2-aws-enclave-vsockproxy/build; cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo; make; cd ../..) \
     && cp uid2-aws-enclave-vsockproxy/build/vsock-bridge/src/vsock-bridge ./vsockpx
+
+RUN git clone https://github.com/containers/gvisor-tap-vsock.git \
+    && cd gvisor-tap-vsock \
+    && make \
+    && cd .. \
+    && cp gvisor-tap-vsock/bin/gvproxy ./gvproxy \
+    && cp gvisor-tap-vsock/bin/gvforwarder ./gvforwarder

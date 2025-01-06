@@ -27,7 +27,7 @@ RUN echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee -a /e
     && apt-key del 6694369F 
 RUN pip3 install boto3==1.16.9
 
-COPY gvforwarder /app
+COPY ./gvforwarder /app
 RUN wget https://www.busybox.net/downloads/binaries/1.35.0-i686-linux-musl/busybox_UDHCPC
 RUN mv busybox_UDHCPC /usr/bin/udhcpc
 RUN chmod 755 /usr/bin/udhcpc

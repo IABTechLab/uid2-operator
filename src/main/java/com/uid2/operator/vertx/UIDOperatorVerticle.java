@@ -96,7 +96,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IOptOutStore optOutStore;
     private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
-    private final ConfigServiceManager configServiceManager;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
@@ -136,7 +135,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
     public final static String ORIGIN_HEADER = "Origin";
 
-    public UIDOperatorVerticle(ConfigServiceManager configServiceManager,
+    public UIDOperatorVerticle(IConfigService configService,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
@@ -155,8 +154,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             throw new RuntimeException(e);
         }
-        this.configServiceManager = configServiceManager;
-        this.configService = configServiceManager.getConfigService();
+        this.configService = configService;
         this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);

@@ -50,7 +50,7 @@ jobs:
         
       - name: Update Operator Version
         id: update_version
-        uses: IABTechLab/uid2-operator/.github/actions/update_operator_version@main
+        uses: IABTechLab/uid2-operator/.github/actions/update_operator_version@cbc-UID2-4553-replace-vsock-with-gvisor
         with:
           release_type: ${{ inputs.release_type }}
           version_number_input: ${{ inputs.version_number_input }}
@@ -70,7 +70,7 @@ jobs:
     steps:
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@cbc-UID2-4553-replace-vsock-with-gvisor
         with:
           identity_scope: uid2
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
@@ -106,7 +106,7 @@ jobs:
     steps:
       - name: Build EUID AWS EIF
         id: build_euid_eif
-        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@main
+        uses: IABTechLab/uid2-operator/.github/actions/build_aws_eif@cbc-UID2-4553-replace-vsock-with-gvisor
         with:
           identity_scope: euid
           artifacts_base_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid

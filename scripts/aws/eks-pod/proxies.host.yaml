@@ -5,11 +5,6 @@ socks5h-proxy:
   listen: vsock://-1:3305
   connect: tcp://127.0.0.1:3306
 
-operator-service:
-  service: direct
-  listen: tcp://0.0.0.0:80
-  connect: vsock://42:8080
-
 operator-prometheus:
   service: direct
   listen: tcp://0.0.0.0:9080

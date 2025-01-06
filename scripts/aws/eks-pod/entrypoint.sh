@@ -32,6 +32,8 @@ function setup_vsockproxy() {
     echo "starting vsock proxy at $VSOCK_PROXY with $VSOCK_THREADS worker threads..."
     $VSOCK_PROXY -c $VSOCK_CONFIG --workers $VSOCK_THREADS --log-level $VSOCK_LOG_LEVEL --daemon
     echo "vsock proxy now running in background."
+
+    gvproxy -listen vsock://:1024 -listen unix:///tmp/network.sock
 }
 
 function setup_dante() {

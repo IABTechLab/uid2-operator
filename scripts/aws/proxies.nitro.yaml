@@ -1,10 +1,4 @@
 ---
-
-uid-operator-in:
-  service: direct
-  listen: vsock://-1:8080
-  connect: tcp://127.0.0.1:8080
-
 prometheus-server:
   service: direct
   listen: vsock://-1:9080

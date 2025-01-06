@@ -18,6 +18,10 @@ ifconfig lo 127.0.0.1
 echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
+# -- gvisor forwarder
+echo "nameserver 192.168.127.1" > /etc/resolv.conf
+gvforwarder -url vsock://3:1024/connect
+
 # -- load config from identity service
 echo "Loading config from identity service via proxy..."
 

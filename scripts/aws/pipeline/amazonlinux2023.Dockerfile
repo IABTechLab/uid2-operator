@@ -32,7 +32,7 @@ RUN git clone https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git \
     && cp uid2-aws-enclave-vsockproxy/build/vsock-bridge/src/vsock-bridge ./vsockpx \
     && rm -rf uid2-aws-enclave-vsockproxy
 
-RUN git clone clone https://github.com/containers/gvisor-tap-vsock.git \
+RUN git clone https://github.com/containers/gvisor-tap-vsock.git \
     && cd gvisor-tap-vsock \
     && make \
     && cd .. \

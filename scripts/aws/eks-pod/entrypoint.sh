@@ -34,6 +34,7 @@ function setup_vsockproxy() {
     echo "vsock proxy now running in background."
 
     gvproxy -listen vsock://:1024 -listen unix:///tmp/network.sock
+    curl  --unix-socket /tmp/network.sock http:/unix/services/forwarder/expose -X POST -d '{"local":":80","remote":"192.168.127.2:80"}'
 }
 
 function setup_dante() {

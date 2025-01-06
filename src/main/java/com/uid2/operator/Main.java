@@ -203,7 +203,16 @@ public class Main {
         }
 
         Vertx vertx = createVertx();
-        VertxUtils.createConfigRetriever(vertx).getConfig(ar -> {
+        ConfigRetriever configRetriever = VertxUtils.createConfigRetriever(vertx);
+
+        configRetriever.listen(configChange -> {
+            JsonObject newConfig = configChange.getNewConfiguration();
+            boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
+
+            vertx.eventBus().publish(Const.Config.RemoteConfigFlagEventBus, useDynamicConfig);
+        });
+
+        configRetriever.getConfig(ar -> {
             if (ar.failed()) {
                 LOGGER.error("Unable to read config: " + ar.cause().getMessage(), ar.cause());
                 return;
@@ -264,15 +273,16 @@ public class Main {
         }
     }
 
-    private void run() throws Exception {
+    private void run() {
         this.createVertxInstancesMetric();
         this.createVertxEventLoopsMetric();
 
         ConfigServiceManager.create(vertx, config, config.getBoolean(Const.Config.RemoteConfigFeatureFlag, true)).compose(configServiceManager -> {
-        Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configServiceManager, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
-            return verticle;
-        };
+            IConfigService configService = configServiceManager.getDelegatingConfigService();
+            Supplier<Verticle> operatorVerticleSupplier = () -> {
+                UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
+                return verticle;
+            };
 
             DeploymentOptions options = new DeploymentOptions();
             int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
@@ -296,7 +306,6 @@ public class Main {
                     .compose(v -> {
                         metrics.setup();
                         vertx.setPeriodic(60000, id -> metrics.update());
-
                         Promise<String> promise = Promise.promise();
                         vertx.deployVerticle(operatorVerticleSupplier, options, promise);
                         return promise.future();

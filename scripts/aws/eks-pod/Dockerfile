@@ -10,6 +10,7 @@ ARG SYSLOG_NG_LOGROTATE_RPM="syslog-ng-logrotate-4.7.1.104.gcc5a7d9-1.amzn2023.x
 COPY ./sockd /home/
 COPY ./sockd_eks.conf /etc/sockd.conf
 COPY ./vsockpx /home
+COPY ./gvproxy /home
 COPY ./${IVYKIS_RPM} /home/syslog-ng/
 COPY ./${LIBNET_RPM} /home/syslog-ng/
 COPY ./${PUBKEY} /home/syslog-ng/

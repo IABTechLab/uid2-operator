@@ -33,7 +33,7 @@ function setup_vsockproxy() {
     $VSOCK_PROXY -c $VSOCK_CONFIG --workers $VSOCK_THREADS --log-level $VSOCK_LOG_LEVEL --daemon
     echo "vsock proxy now running in background."
 
-    gvproxy -listen vsock://:1024 -listen unix:///tmp/network.sock
+    /home/gvproxy -listen vsock://:1024 -listen unix:///tmp/network.sock
     curl  --unix-socket /tmp/network.sock http:/unix/services/forwarder/expose -X POST -d '{"local":":80","remote":"192.168.127.2:80"}'
 }
 

@@ -136,6 +136,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static String ORIGIN_HEADER = "Origin";
 
     public UIDOperatorVerticle(IConfigService configService,
+                               JsonObject config,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
@@ -164,7 +165,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
-        JsonObject config = configService.getConfig();
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
         this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);

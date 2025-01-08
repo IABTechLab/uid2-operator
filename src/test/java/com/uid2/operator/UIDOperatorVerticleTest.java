@@ -134,7 +134,7 @@ public class UIDOperatorVerticleTest {
         }
         when(configService.getConfig()).thenReturn(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configService, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configService, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse);
 
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 

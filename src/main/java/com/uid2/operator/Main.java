@@ -8,7 +8,6 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
-import com.uid2.operator.reader.RotatingCloudEncryptionKeyApiProvider;
 import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.vertx.Endpoints;
@@ -23,7 +22,6 @@ import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
 import com.uid2.shared.store.CloudPath;
-import com.uid2.shared.store.EncryptedRotatingSaltProvider;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.store.reader.*;
 import com.uid2.shared.store.scope.GlobalScope;
@@ -84,7 +82,6 @@ public class Main {
     private IStatsCollectorQueue _statsCollectorQueue;
     private RotatingServiceStore serviceProvider;
     private RotatingServiceLinkStore serviceLinkProvider;
-    private RotatingCloudEncryptionKeyApiProvider cloudEncryptionKeyProvider;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -136,19 +133,17 @@ public class Main {
             this.fsOptOut = configureCloudOptOutStore();
         }
 
-        String cloudEncryptionKeyMdPath = this.config.getString(Const.Config.CloudEncryptionKeysMetadataPathProp);
-        this.cloudEncryptionKeyProvider = new RotatingCloudEncryptionKeyApiProvider(fsStores, new GlobalScope(new CloudPath(cloudEncryptionKeyMdPath)));
         String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
         String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
-        this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)), cloudEncryptionKeyProvider);
+        this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
         String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
-        this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)), cloudEncryptionKeyProvider);
+        this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
         String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
-        this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)), cloudEncryptionKeyProvider);
+        this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)));
         String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
-        this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)), cloudEncryptionKeyProvider);
+        this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
-        this.saltProvider = new EncryptedRotatingSaltProvider(fsStores, cloudEncryptionKeyProvider, new GlobalScope(new CloudPath(saltsMdPath)));
+        this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
 
         if (this.validateServiceLinks) {
@@ -158,7 +153,7 @@ public class Main {
             this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
         }
 
-        this.siteProvider = clientSideTokenGenerate ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath)), cloudEncryptionKeyProvider) : null;
+        this.siteProvider = clientSideTokenGenerate ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath))) : null;
 
         if (useStorageMock && coreAttestUrl == null) {
             if (clientSideTokenGenerate) {
@@ -169,7 +164,6 @@ public class Main {
             this.saltProvider.loadContent();
             this.keysetProvider.loadContent();
             this.keysetKeyStore.loadContent();
-            this.cloudEncryptionKeyProvider.loadContent();
 
             if (this.validateServiceLinks) {
                 this.serviceProvider.loadContent();
@@ -311,8 +305,6 @@ public class Main {
 
     private Future<Void> createStoreVerticles() throws Exception {
         // load metadatas for the first time
-        cloudEncryptionKeyProvider.loadContent();
-
         if (clientSideTokenGenerate) {
             siteProvider.getMetadata();
             clientSideKeypairProvider.getMetadata();
@@ -341,7 +333,6 @@ public class Main {
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
-        fs.add(createAndDeployRotatingStoreVerticle("cloud_encryption_keys", cloudEncryptionKeyProvider, "cloud_encryption_keys_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {

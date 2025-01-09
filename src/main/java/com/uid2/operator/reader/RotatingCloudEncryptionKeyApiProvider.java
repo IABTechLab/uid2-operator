@@ -27,6 +27,7 @@ public class RotatingCloudEncryptionKeyApiProvider extends RotatingCloudEncrypti
 
     @Override
     public long getVersion(JsonObject metadata) {
+        // Since we are pulling from an api not a data file, we use the epoch time we got the keys as the version
         return Instant.now().getEpochSecond();
     }
 }

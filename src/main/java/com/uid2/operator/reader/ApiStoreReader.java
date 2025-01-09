@@ -36,7 +36,7 @@ public class ApiStoreReader<T> extends ScopedStoreReader<T> {
         try {
             JsonArray dataArray = contents.getJsonArray(dataType);
             if (dataArray == null) {
-                throw new IllegalArgumentException("No array found in the contents");
+                throw new IllegalArgumentException(String.format("No array of type: %s, found in the contents", dataType));
             }
 
             String jsonString = dataArray.toString();

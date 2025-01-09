@@ -61,7 +61,7 @@ import static org.mockito.Mockito.when;
             JsonObject contents = new JsonObject();
             assertThatThrownBy(() -> reader.loadContent(contents))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("No array found in the contents");
+                    .hasMessageContaining("No array of type: test-data-type, found in the contents");
         }
 
         @Test

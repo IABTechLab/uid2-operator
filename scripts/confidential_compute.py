@@ -111,12 +111,9 @@ class ConfidentialCompute(ABC):
         print("Completed static validation of confidential compute config values")
         
     @abstractmethod
-    def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
+    def _set_secret(self, secret_identifier: str) -> None:
         """
         Fetches the secret from a secret store.
-
-        Raises:
-            SecretNotFoundException: If the secret is not found.
         """
         pass
 

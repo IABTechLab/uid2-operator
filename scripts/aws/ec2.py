@@ -51,7 +51,8 @@ class AuxiliaryConfig:
 class EC2(ConfidentialCompute):
 
     def __init__(self):
-        super().__init__()
+        self.configs: AWSConfidentialComputeConfig = {}
+
 
     def __get_aws_token(self) -> str:
         """Fetches a temporary AWS EC2 metadata token."""
@@ -74,34 +75,32 @@ class EC2(ConfidentialCompute):
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to fetch region: {e}")
         
-    def __validate_aws_specific_config(self, secret):
-        if "enclave_memory_mb" in secret or "enclave_cpu_count" in secret:
+    def __validate_aws_specific_config(self):
+        if "enclave_memory_mb" in self.configs or "enclave_cpu_count" in self.configs:
             max_capacity = self.__get_max_capacity()
             min_capacity = {"enclave_memory_mb": 11000, "enclave_cpu_count" : 2 }
             for key in ["enclave_memory_mb", "enclave_cpu_count"]:
-                if int(secret.get(key, 0)) > max_capacity.get(key):
-                    raise ValueError(f"{key} value ({secret.get(key, 0)}) exceeds the maximum allowed ({max_capacity.get(key)}).")
-                if min_capacity.get(key) > int(secret.get(key, 10**9)):
-                    raise ValueError(f"{key} value ({secret.get(key, 0)}) needs to be higher than the minimum required ({min_capacity.get(key)}).")
+                if int(self.configs.get(key, 0)) > max_capacity.get(key):
+                    raise ValueError(f"{key} value ({self.configs.get(key, 0)}) exceeds the maximum allowed ({max_capacity.get(key)}).")
+                if min_capacity.get(key) > int(self.configs.get(key, 10**9)):
+                    raise ValueError(f"{key} value ({self.configs.get(key, 0)}) needs to be higher than the minimum required ({min_capacity.get(key)}).")
                 
-    def _get_secret(self, secret_identifier: str) -> AWSConfidentialComputeConfig:
+    def _set_secret(self, secret_identifier: str) -> None:
         """Fetches a secret value from AWS Secrets Manager and adds defaults"""
 
-        def add_defaults(configs: Dict[str, any]) -> AWSConfidentialComputeConfig:
+        def add_defaults(configs: Dict[str, any]) ->  None:
             """Adds default values to configuration if missing."""
             default_capacity = self.__get_max_capacity()
             configs.setdefault("enclave_memory_mb", default_capacity["enclave_memory_mb"])
             configs.setdefault("enclave_cpu_count", default_capacity["enclave_cpu_count"])
             configs.setdefault("debug_mode", False)
-            return configs
         
         region = self.__get_current_region()
         print(f"Running in {region}")
         client = boto3.client("secretsmanager", region_name=region)
         try:
-            secret = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
-            self.__validate_aws_specific_config(secret)
-            return secret
+            add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
+            self.__validate_aws_specific_config()
         except NoCredentialsError as _:
             raise MissingInstanceProfile(self.__class__.__name__)
         except ClientError as _:
@@ -210,7 +209,7 @@ class EC2(ConfidentialCompute):
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""
         secret_manager_key = self.__get_secret_name_from_userdata()
-        self.configs = self._get_secret(secret_manager_key)
+        self._set_secret(secret_manager_key)
         print(f"Fetched configs from {secret_manager_key}")
         if not self.configs.get("skip_validations"):
             self.validate_configuration()

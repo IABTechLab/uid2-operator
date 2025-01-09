@@ -118,6 +118,10 @@ Mappings:
       AMI: ami-xxxxxxxxxxxxxxxxx
     eu-north-1:
       AMI: ami-xxxxxxxxxxxxxxxxx
+Conditions:
+  IsIntegEnvironment: !Equals
+    - !Ref DeployToEnvironment
+    - integ
 Resources:
   KMSKey:
     Type: AWS::KMS::Key
@@ -154,13 +158,23 @@ Resources:
       Description: EUID Token
       KmsKeyId: !GetAtt KMSKey.Arn
       Name: !Sub 'euid-config-stack-${AWS::StackName}'
-      SecretString: !Sub '{
-          "api_token":"${APIToken}",
-          "service_instances":6,
-          "enclave_cpu_count":6,
-          "enclave_memory_mb":24576,
-          "environment":"${DeployToEnvironment}"
-        }'
+      SecretString: !Join
+        - ''
+        - - '{'
+          - '"core_base_url": '
+          - !If [IsIntegEnvironment, 'https://core.integ.euid.eu', 'https://core.prod.euid.eu']
+          - ', "optout_base_url": '
+          - !If [IsIntegEnvironment, 'https://optout.integ.euid.eu', 'https://optout.prod.euid.eu']
+          - ', "api_token": "'
+          - Ref: APIToken
+          - '"'
+          - ', "service_instances": 6'
+          - ', "enclave_cpu_count": 6'
+          - ', "enclave_memory_mb": 24576'
+          - ', "environment": "'
+          - Ref: DeployToEnvironment
+          - '"'
+          - '}'
   WorkerRole:
     Type: 'AWS::IAM::Role'
     Properties:

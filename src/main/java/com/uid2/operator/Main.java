@@ -27,6 +27,7 @@ import com.uid2.shared.store.EncryptedRotatingSaltProvider;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.store.reader.*;
 import com.uid2.shared.store.scope.GlobalScope;
+import com.uid2.shared.util.HTTPPathMetricFilter;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
 import com.uid2.shared.vertx.RotatingStoreVerticle;
@@ -271,6 +272,8 @@ public class Main {
     }
 
     private void run() throws Exception {
+        this.createVertxInstancesMetric();
+        this.createVertxEventLoopsMetric();
         Supplier<Verticle> operatorVerticleSupplier = () -> {
             UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
             return verticle;
@@ -434,14 +437,8 @@ public class Main {
             prometheusRegistry.config()
                 // providing common renaming for prometheus metric, e.g. "hello.world" to "hello_world"
                 .meterFilter(new PrometheusRenameFilter())
-                .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), actualPath -> {
-                    try {
-                        String normalized = HttpUtils.normalizePath(actualPath).split("\\?")[0];
-                        return Endpoints.pathSet().contains(normalized) ? normalized : "/unknown";
-                    } catch (IllegalArgumentException e) {
-                        return actualPath;
-                    }
-                }))
+                .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(),
+                        actualPath -> HTTPPathMetricFilter.filterPath(actualPath, Endpoints.pathSet())))
                 // Don't record metrics for 404s.
                 .meterFilter(MeterFilter.deny(id ->
                     id.getName().startsWith(MetricsDomain.HTTP_SERVER.getPrefix()) &&
@@ -474,6 +471,18 @@ public class Main {
                 .description("application version and status")
                 .tags("version", version)
                 .register(globalRegistry);
+    }
+
+    private void createVertxInstancesMetric() {
+        Gauge.builder("uid2.vertx_service_instances", () -> config.getInteger("service_instances"))
+                .description("gauge for number of vertx service instances requested")
+                .register(Metrics.globalRegistry);
+    }
+
+    private void createVertxEventLoopsMetric() {
+        Gauge.builder("uid2.vertx_event_loop_threads", () -> VertxOptions.DEFAULT_EVENT_LOOP_POOL_SIZE)
+                .description("gauge for number of vertx event loop threads")
+                .register(Metrics.globalRegistry);
     }
 
     private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {

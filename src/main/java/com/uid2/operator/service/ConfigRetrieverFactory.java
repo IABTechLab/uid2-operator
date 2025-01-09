@@ -23,13 +23,8 @@ public class ConfigRetrieverFactory {
                         .put("port", Const.Port.ServicePortForCore)
                         .put("path", configPath));
 
-        ConfigStoreOptions bootstrapStore = new ConfigStoreOptions()
-                .setType("json")
-                .setConfig(bootstrapConfig);
-
         ConfigRetrieverOptions retrieverOptions = new ConfigRetrieverOptions()
                 .setScanPeriod(bootstrapConfig.getLong(ConfigScanPeriodMs))
-                .addStore(bootstrapStore)
                 .addStore(httpStore);
 
         return ConfigRetriever.create(vertx, retrieverOptions);

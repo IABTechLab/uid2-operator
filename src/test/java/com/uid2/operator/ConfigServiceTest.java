@@ -2,7 +2,10 @@ package com.uid2.operator;
 
 import com.uid2.operator.service.ConfigRetrieverFactory;
 import com.uid2.operator.service.ConfigService;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.config.ConfigRetriever;
@@ -45,43 +48,44 @@ class ConfigServiceTest {
         vertx.close();
     }
 
-    void startMockServer(VertxTestContext testContext, JsonObject config) {
+    private Future<Void> startMockServer(JsonObject config) {
         if (server != null) {
             server.close();
         }
 
+        Promise<Void> promise = Promise.promise();
+
         Router router = Router.router(vertx);
         router.route().handler(BodyHandler.create());
         router.get("/config").handler(ctx -> ctx.response()
-                .putHeader("content-type", "application/json")
+                .putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(config.encode()));
 
         server = vertx.createHttpServer()
                 .requestHandler(router)
                 .listen(Const.Port.ServicePortForCore,"127.0.0.1", http -> {
-                    if (!http.succeeded()) {
-                        testContext.failNow(http.cause());
+                    if (http.succeeded()) {
+                        promise.complete();
+                    } else {
+                        promise.fail(http.cause());
                     }
                 });
+
+        return promise.future();
     }
 
     @Test
     void testGetConfig(VertxTestContext testContext) {
-        JsonObject httpStoreConfig = new JsonObject().put("http", "value");
-        this.startMockServer(testContext, httpStoreConfig);
-        ConfigService.create(configRetriever).onComplete(ar -> {
-            if (ar.succeeded()) {
-                ConfigService configService = ar.result();
-                JsonObject retrievedConfig = configService.getConfig();
-                assertNotNull(retrievedConfig, "Config retriever should initialise without error");
-                assertTrue(retrievedConfig.fieldNames().containsAll(bootstrapConfig.fieldNames()), "Retrieved config should contain all keys in bootstrap config");
-                assertTrue(retrievedConfig.fieldNames().containsAll(httpStoreConfig.fieldNames()), "Retrieved config should contain all keys in http store config");
-                testContext.completeNow();
-            } else {
-                testContext.failNow(ar.cause());
-            }
-        });
-
+        JsonObject httpStoreConfig = bootstrapConfig;
+        startMockServer(httpStoreConfig)
+                .compose(v -> ConfigService.create(configRetriever))
+                .compose(configService -> {
+                    JsonObject retrievedConfig = configService.getConfig();
+                    assertNotNull(retrievedConfig, "Config retriever should initialise without error");
+                    assertTrue(retrievedConfig.fieldNames().containsAll(httpStoreConfig.fieldNames()), "Retrieved config should contain all keys in http store config");
+                    return Future.succeededFuture();
+                })
+                .onComplete(testContext.succeedingThenComplete());
     }
 
     @Test
@@ -92,18 +96,14 @@ class ConfigServiceTest {
         JsonObject invalidConfig = new JsonObject()
                 .put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 1000)
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 2000);
-        this.startMockServer(testContext, invalidConfig);
-        ConfigService.create(spyRetriever).onComplete(ar -> {
-           if (ar.succeeded()) {
-               reset(spyRetriever);
-               ConfigService configService = ar.result();
-               assertEquals(lastConfig, configService.getConfig(), "Invalid config not reverted to previous config");
-               testContext.completeNow();
-           }
-           else {
-               testContext.failNow(ar.cause());
-           }
-        });
+        startMockServer(invalidConfig)
+                .compose(v -> ConfigService.create(spyRetriever))
+                .compose(configService -> {
+                    reset(spyRetriever);
+                    assertEquals(lastConfig, configService.getConfig(), "Invalid config not reverted to previous config");
+                    return Future.succeededFuture();
+                })
+                .onComplete(testContext.succeedingThenComplete());
     }
 
     @Test
@@ -111,17 +111,15 @@ class ConfigServiceTest {
         JsonObject invalidConfig = new JsonObject()
                 .put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 1000)
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 2000);
-        this.startMockServer(testContext, invalidConfig);
-        ConfigService.create(configRetriever).onComplete(ar -> {
-            if (ar.succeeded()) {
-                testContext.failNow(new RuntimeException("Expected a RuntimeException but the creation succeeded"));
-            }
-            else {
-                assertThrows(RuntimeException.class, () -> {
-                    throw ar.cause();
-                });
-                testContext.completeNow();
-            }
-        });
+        startMockServer(invalidConfig)
+                .compose(v -> ConfigService.create(configRetriever))
+                .compose(configService -> Future.failedFuture(new RuntimeException("Expected a RuntimeException but the creation succeeded")))
+                .recover(throwable -> {
+                    assertThrows(RuntimeException.class, () -> {
+                        throw throwable;
+                    });
+                    return Future.succeededFuture();
+                })
+                .onComplete(testContext.succeedingThenComplete());
     }
 }

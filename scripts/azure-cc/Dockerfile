@@ -35,7 +35,7 @@ COPY ./target/${JAR_NAME}-${JAR_VERSION}-static.tar.gz /app/static.tar.gz
 COPY ./conf/*.json /app/conf/
 COPY ./conf/*.xml /app/conf/
 COPY ./azureEntryPoint.py /app
-COPY ./confidential_compute.py /app
+COPY ../confidential_compute.py /app
 
 # Extract and clean up tar.gz
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && \

@@ -52,4 +52,4 @@ RUN adduser -D uid2-operator && \
 USER uid2-operator
 
 # Run the Python entry point
-CMD ["python3", "-c", "print('Starting azureEntryPoint.py'); exec(open('/app/azureEntryPoint.py').read())"]
+CMD ["python3", "/app/azureEntryPoint.py"]

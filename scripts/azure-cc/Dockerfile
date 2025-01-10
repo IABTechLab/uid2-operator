@@ -39,15 +39,15 @@ COPY ./conf/*.xml /app/conf/
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && \
     rm -f /app/static.tar.gz
 
-# Create and configure non-root user
-RUN adduser -D uid2-operator && \
-    mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && \
-    chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
-
 COPY ./azureEntryPoint.py /app
 COPY ./confidential_compute.py /app
 RUN chmod a+x /app/azureEntryPoint.py
 RUN chmod a+x /app/confidential_compute.py
+
+# Create and configure non-root user
+RUN adduser -D uid2-operator && \
+    mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && \
+    chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
 
 # Switch to non-root user
 USER uid2-operator

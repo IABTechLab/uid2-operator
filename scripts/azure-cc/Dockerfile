@@ -41,8 +41,7 @@ RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && \
 
 COPY ./azureEntryPoint.py /app
 COPY ./confidential_compute.py /app
-RUN chmod a+x /app/azureEntryPoint.py
-RUN chmod a+x /app/confidential_compute.py
+RUN chmod a+x /app/*.py
 
 # Create and configure non-root user
 RUN adduser -D uid2-operator && \
@@ -51,8 +50,6 @@ RUN adduser -D uid2-operator && \
 
 # Switch to non-root user
 USER uid2-operator
-    
-RUN echo "Start azureEntryPoint.py"
 
 # Run the Python entry point
 CMD ["python3", "/app/azureEntryPoint.py"]

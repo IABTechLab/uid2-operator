@@ -28,16 +28,12 @@ ENV IMAGE_VERSION=${IMAGE_VERSION}
 ENV REGION=default
 ENV LOKI_HOSTNAME=loki
 
-RUN ls ../
-
 # Copy application files
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-static.tar.gz /app/static.tar.gz
 COPY ./conf/*.json /app/conf/
 COPY ./conf/*.xml /app/conf/
-COPY ./azureEntryPoint.py /app
-COPY ./confidential_compute.py /app
 
 # Extract and clean up tar.gz
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && \
@@ -48,8 +44,15 @@ RUN adduser -D uid2-operator && \
     mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && \
     chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
 
+COPY ./azureEntryPoint.py /app
+COPY ./confidential_compute.py /app
+RUN chmod a+x /app/azureEntryPoint.py
+RUN chmod a+x /app/confidential_compute.py
+
 # Switch to non-root user
 USER uid2-operator
+    
+RUN echo "Start azureEntryPoint.py"
 
 # Run the Python entry point
 CMD ["python3", "/app/azureEntryPoint.py"]

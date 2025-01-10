@@ -179,6 +179,7 @@ class AzureEntryPoint(ConfidentialCompute):
         pass
 
 if __name__ == "__main__":
+    print("Start AzureEntryPoint")
     try:
         operator = AzureEntryPoint()
         operator.run_compute()

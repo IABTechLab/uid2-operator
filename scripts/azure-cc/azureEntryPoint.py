@@ -121,6 +121,8 @@ class AzureEntryPoint(ConfidentialCompute):
         self.run_command(java_command, seperate_process=False)
 
     def __wait_for_sidecar(self):
+        logging.info("Waiting for sidecar ...")
+
         url = "http://169.254.169.254/ping"
         delay = 1
         max_retries = 15
@@ -148,7 +150,6 @@ class AzureEntryPoint(ConfidentialCompute):
         self.__set_baseurls()
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
-        
         self.__wait_for_sidecar()
         self.__run_operator()
 
@@ -167,7 +168,6 @@ if __name__ == "__main__":
     try:
         operator = AzureEntryPoint()
         operator.run_compute()
-
     except ConfidentialComputeStartupException as e:
         logging.error(f"Failed starting up Azure Confidential Compute. Please checks the logs for errors and retry {e}")
     except Exception as e:

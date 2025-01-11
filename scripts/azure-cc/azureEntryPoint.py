@@ -7,6 +7,7 @@ from typing import Dict
 import sys
 import shutil
 import requests
+import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingConfig, ConfidentialComputeStartupException 
@@ -179,6 +180,11 @@ class AzureEntryPoint(ConfidentialCompute):
         pass
 
 if __name__ == "__main__":
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info("Test python logger")
+
     print("Start AzureEntryPoint")
     try:
         operator = AzureEntryPoint()

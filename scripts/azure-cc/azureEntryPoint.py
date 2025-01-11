@@ -36,25 +36,6 @@ class AzureEntryPoint(ConfidentialCompute):
         if AzureEntryPoint.env_name is None:
             raise MissingConfig(self.__class__.__name__, ["DEPLOYMENT_ENVIRONMENT"])        
         logging.info("Env variables validation success")
-        
-    def __wait_for_sidecar():
-        url = "http://169.254.169.254/ping"
-        delay = 2
-        max_retries = 15
-
-        while True:
-            try:
-                response = requests.get(url, timeout=5)
-                if response.status_code == 200:
-                    logging.info("Sidecar started")
-                    break
-            except requests.RequestException:
-                logging.info(f"Sidecar not started. Retrying in {delay} seconds...")
-                time.sleep(delay)
-                if delay > max_retries:
-                    logging.error("Sidecar failed to start")
-                    break
-                delay += 1
     
     def __set_environment(self):
         self.configs["environment"] = AzureEntryPoint.env_name

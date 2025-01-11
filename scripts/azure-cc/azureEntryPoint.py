@@ -35,7 +35,7 @@ class AzureEntryPoint(ConfidentialCompute):
             raise MissingConfig(self.__class__.__name__, ["OPERATOR_KEY_SECRET_NAME"])        
         if AzureEntryPoint.env_name is None:
             raise MissingConfig(self.__class__.__name__, ["DEPLOYMENT_ENVIRONMENT"])        
-        print("Env variables validation success")
+        logging.info("Env variables validation success")
         
     def __wait_for_sidecar():
         url = "http://169.254.169.254/ping"
@@ -46,13 +46,13 @@ class AzureEntryPoint(ConfidentialCompute):
             try:
                 response = requests.get(url, timeout=5)
                 if response.status_code == 200:
-                    print("Sidecar started")
+                    logging.info("Sidecar started")
                     break
             except requests.RequestException:
-                print(f"Sidecar not started. Retrying in {delay} seconds...")
+                logging.info(f"Sidecar not started. Retrying in {delay} seconds...")
                 time.sleep(delay)
                 if delay > max_retries:
-                    print("Sidecar failed to start")
+                    logging.error("Sidecar failed to start")
                     break
                 delay += 1
     
@@ -69,39 +69,39 @@ class AzureEntryPoint(ConfidentialCompute):
             self.configs["api_token"] = secret.value
 
         except CredentialUnavailableError as auth_error:
-            print(f"Read operator key, authentication error: {auth_error}")
+            logging.error(f"Read operator key, authentication error: {auth_error}")
             raise
 
         except ResourceNotFoundError as not_found_error:
-            print(f"Read operator key, secret not found: {AzureEntryPoint.secret_name}. Error: {not_found_error}")
+            logging.error(f"Read operator key, secret not found: {AzureEntryPoint.secret_name}. Error: {not_found_error}")
             raise
 
         except HttpResponseError as http_error:
-            print(f"Read operator key, HTTP error occurred: {http_error}")
+            logging.error(f"Read operator key, HTTP error occurred: {http_error}")
             raise
 
         except Exception as e:
-            print(f"Read operator key, an unexpected error occurred: {e}")
+            logging.error(f"Read operator key, an unexpected error occurred: {e}")
             raise
 
     def __create_final_config(self):      
         TARGET_CONFIG = f"/app/conf/{AzureEntryPoint.env_name}-uid2-config.json"
         if not os.path.isfile(TARGET_CONFIG):
-            print(f"Unrecognized config {TARGET_CONFIG}")
+            logging.error(f"Unrecognized config {TARGET_CONFIG}")
             sys.exit(1)
 
         FINAL_CONFIG = "/tmp/final-config.json"
-        print(f"-- copying {TARGET_CONFIG} to {FINAL_CONFIG}")
+        logging.info(f"-- copying {TARGET_CONFIG} to {FINAL_CONFIG}")
         try:
             shutil.copy(TARGET_CONFIG, FINAL_CONFIG)
         except IOError as e:
-            print(f"Failed to create {FINAL_CONFIG} with error: {e}")
+            logging.error(f"Failed to create {FINAL_CONFIG} with error: {e}")
             sys.exit(1)
 
         CORE_BASE_URL = os.getenv("CORE_BASE_URL")
         OPTOUT_BASE_URL = os.getenv("OPTOUT_BASE_URL")
         if CORE_BASE_URL and OPTOUT_BASE_URL and AzureEntryPoint.env_name != 'prod':
-            print(f"-- replacing URLs by {CORE_BASE_URL} and {OPTOUT_BASE_URL}")
+            logging.info(f"-- replacing URLs by {CORE_BASE_URL} and {OPTOUT_BASE_URL}")
             with open(FINAL_CONFIG, "r") as file:
                 config = file.read()
 
@@ -112,7 +112,7 @@ class AzureEntryPoint(ConfidentialCompute):
                 file.write(config)
 
         with open(FINAL_CONFIG, "r") as file:
-            print(file.read())
+            logging.info(file.read())
     
     def __set_baseurls(self):
         final_config="/tmp/final-config.json"
@@ -136,7 +136,7 @@ class AzureEntryPoint(ConfidentialCompute):
             f"-Dvertx-config-path={AzureEntryPoint.FINAL_CONFIG}",
             f"-jar {AzureEntryPoint.jar_name}-{AzureEntryPoint.jar_version}.jar"
         ]
-        print("-- starting java operator application")
+        logging.info("-- starting java operator application")
         self.run_command(java_command, seperate_process=False)
 
     def __wait_for_sidecar(self):
@@ -148,13 +148,13 @@ class AzureEntryPoint(ConfidentialCompute):
             try:
                 response = requests.get(url, timeout=5)
                 if response.status_code == 200:
-                    print("Sidecar started")
+                    logging.info("Sidecar started")
                     return
             except requests.RequestException:
-                print(f"Sidecar not started. Retrying in {delay} seconds...")
+                logging.info(f"Sidecar not started. Retrying in {delay} seconds...")
                 time.sleep(delay)
                 if delay > max_retries:
-                    print("Sidecar failed to start")
+                    logging.error("Sidecar failed to start")
                     break
                 delay += 1
 
@@ -182,15 +182,12 @@ class AzureEntryPoint(ConfidentialCompute):
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    logger.info("Test python logger")
-
-    print("Start AzureEntryPoint")
+    logging.info("Start AzureEntryPoint")
     try:
         operator = AzureEntryPoint()
         operator.run_compute()
 
     except ConfidentialComputeStartupException as e:
-        print("Failed starting up Azure Confidential Compute. Please checks the logs for errors and retry \n", e)
+        logging.error(f"Failed starting up Azure Confidential Compute. Please checks the logs for errors and retry {e}")
     except Exception as e:
-         print("Unexpected failure while starting up Azure Confidential Compute. Please contact UID support team with this log \n ", e)          
+        logging.error(f"Unexpected failure while starting up Azure Confidential Compute. Please contact UID support team with this log {e} ")          

@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from abc import ABC, abstractmethod
 from typing import TypedDict, NotRequired, get_type_hints
 import subprocess
+import logging
 
 class ConfidentialComputeConfig(TypedDict):
     api_token: str
@@ -55,7 +56,7 @@ class ConfidentialCompute(ABC):
 
     def validate_configuration(self):
         """ Validates the paramters specified through configs/secret manager ."""
-        print("Validating configurations provided")
+        logging.info("Validating configurations provided")
         def validate_operator_key():
             """ Validates the operator key format and its environment alignment."""
             operator_key = self.configs.get("api_token")
@@ -66,9 +67,9 @@ class ConfidentialCompute(ABC):
                 expected_env = "I" if debug_mode or env == "integ" else "P"
                 if operator_key.split("-")[2] != expected_env:
                     raise InvalidOperatorKey(self.__class__.__name__)
-                print("Validated operator key matches environment")
+                logging.info("Validated operator key matches environment")
             else:
-                print("Skipping operator key validation")
+                logging.info("Skipping operator key validation")
 
         def validate_url(url_key, environment):
             """URL should include environment except in prod"""
@@ -77,7 +78,7 @@ class ConfidentialCompute(ABC):
             parsed_url = urlparse(self.configs[url_key])
             if parsed_url.scheme != 'https' and parsed_url.path:
                 raise InvalidConfigValue(self.__class__.__name__, url_key)
-            print(f"Validated {self.configs[url_key]} matches other config parameters")
+            logging.info(f"Validated {self.configs[url_key]} matches other config parameters")
             
         def validate_connectivity() -> None:
             """ Validates that the core URL is accessible."""
@@ -85,7 +86,7 @@ class ConfidentialCompute(ABC):
                 core_url = self.configs["core_base_url"]
                 core_ip = socket.gethostbyname(urlparse(core_url).netloc)
                 requests.get(core_url, timeout=5)
-                print(f"Validated connectivity to {core_url}")
+                logging.info(f"Validated connectivity to {core_url}")
             except (requests.ConnectionError, requests.Timeout) as e:
                 raise UID2ServicesUnreachable(self.__class__.__name__, core_ip)
             except Exception as e:
@@ -108,7 +109,7 @@ class ConfidentialCompute(ABC):
         validate_url("optout_base_url", environment)
         validate_operator_key()
         validate_connectivity()
-        print("Completed static validation of confidential compute config values")
+        logging.info("Completed static validation of confidential compute config values")
         
     @abstractmethod
     def _set_secret(self, secret_identifier: str) -> None:
@@ -134,12 +135,12 @@ class ConfidentialCompute(ABC):
 
     @staticmethod
     def run_command(command, seperate_process=False):
-        print(f"Running command: {' '.join(command)}")
+        logging.info(f"Running command: {' '.join(command)}")
         try:
             if seperate_process:
                 subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             else:
                 subprocess.run(command,check=True)
         except Exception as e:
-            print(f"Failed to run command: {str(e)}")
+            logging.error(f"Failed to run command: {e}")
             raise RuntimeError (f"Failed to start {' '.join(command)} ")

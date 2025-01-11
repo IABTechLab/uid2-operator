@@ -133,11 +133,11 @@ class AzureEntryPoint(ConfidentialCompute):
                 if response.status_code == 200:
                     logging.info("Sidecar started")
                     return
-            except requests.RequestException:
+            except Exception as e:
                 logging.info(f"Sidecar not started. Retrying in {delay} seconds...")
                 time.sleep(delay)
                 if delay > max_retries:
-                    logging.error("Sidecar failed to start")
+                    logging.error(f"Sidecar failed to start {e}")
                     break
                 delay += 1
 

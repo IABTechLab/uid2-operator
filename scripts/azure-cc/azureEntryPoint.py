@@ -133,16 +133,20 @@ class AzureEntryPoint(ConfidentialCompute):
                 if response.status_code == 200:
                     logging.info("Sidecar started")
                     return
+                else:
+                    error_msg = f"Unexpected status code: {response.status_code}, response: {response.text}"
+                    raise Exception(error_msg)
             except Exception as e:
-                logging.info(f"Sidecar not started. Retrying in {delay} seconds...")
-                time.sleep(delay)
                 if delay > max_retries:
-                    logging.error(f"Sidecar failed to start {e}")
-                    break
+                    logging.error(f"Sidecar failed to start {e} after {delay} retries")
+                    sys.exit(1)
+                logging.info(f"Sidecar not started. Retrying in {delay} seconds... {e}")
+                time.sleep(delay)
                 delay += 1
 
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""
+        self.__wait_for_sidecar()
         self.__check_env_variables()
         self._set_secret()
         self.__set_environment()

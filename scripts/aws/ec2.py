@@ -136,7 +136,7 @@ class EC2(ConfidentialCompute):
             json.dump(self.configs, config_file)
         os.chdir("/opt/uid2operator/config-server")
         command = ["./bin/flask", "run", "--host", AuxiliaryConfig.LOCALHOST, "--port", AuxiliaryConfig.FLASK_PORT]
-        self.run_command(command, seperate_process=True)
+        self.run_command(command, separate_process=True)
 
     def __run_socks_proxy(self) -> None:
         """
@@ -204,7 +204,7 @@ class EC2(ConfidentialCompute):
         if self.configs.get('debug_mode', False):
             print("Running in debug_mode")
             command += ["--debug-mode", "--attach-console"]
-        self.run_command(command, seperate_process=True)
+        self.run_command(command, separate_process=True)
 
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""

@@ -71,33 +71,31 @@ class AzureEntryPoint(ConfidentialCompute):
             logging.error(f"Unrecognized config {TARGET_CONFIG}")
             sys.exit(1)
 
-        FINAL_CONFIG = "/tmp/final-config.json"
-        logging.info(f"-- copying {TARGET_CONFIG} to {FINAL_CONFIG}")
+        logging.info(f"-- copying {TARGET_CONFIG} to {AzureEntryPoint.FINAL_CONFIG}")
         try:
-            shutil.copy(TARGET_CONFIG, FINAL_CONFIG)
+            shutil.copy(TARGET_CONFIG, AzureEntryPoint.FINAL_CONFIG)
         except IOError as e:
-            logging.error(f"Failed to create {FINAL_CONFIG} with error: {e}")
+            logging.error(f"Failed to create {AzureEntryPoint.FINAL_CONFIG} with error: {e}")
             sys.exit(1)
 
         CORE_BASE_URL = os.getenv("CORE_BASE_URL")
         OPTOUT_BASE_URL = os.getenv("OPTOUT_BASE_URL")
         if CORE_BASE_URL and OPTOUT_BASE_URL and AzureEntryPoint.env_name != 'prod':
             logging.info(f"-- replacing URLs by {CORE_BASE_URL} and {OPTOUT_BASE_URL}")
-            with open(FINAL_CONFIG, "r") as file:
+            with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
                 config = file.read()
 
             config = config.replace("https://core-integ.uidapi.com", CORE_BASE_URL)
             config = config.replace("https://optout-integ.uidapi.com", OPTOUT_BASE_URL)
 
-            with open(FINAL_CONFIG, "w") as file:
+            with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
                 file.write(config)
 
-        with open(FINAL_CONFIG, "r") as file:
+        with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
             logging.info(file.read())
     
     def __set_baseurls(self):
-        final_config="/tmp/final-config.json"
-        with open(final_config, "r") as file:
+        with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
             jdata = json.load(file)
             self.configs["core_base_url"] = jdata["core_attest_url"]
             self.configs["optout_base_url"] = jdata["optout_api_uri"]
@@ -115,10 +113,11 @@ class AzureEntryPoint(ConfidentialCompute):
             "-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory",
             "-Dlogback.configurationFile=/app/conf/logback.xml",
             f"-Dvertx-config-path={AzureEntryPoint.FINAL_CONFIG}",
-            f"-jar {AzureEntryPoint.jar_name}-{AzureEntryPoint.jar_version}.jar"
+            "-jar", 
+            f"{AzureEntryPoint.jar_name}-{AzureEntryPoint.jar_version}.jar"
         ]
         logging.info("-- starting java operator application")
-        self.run_command(java_command, seperate_process=False)
+        self.run_command(java_command, separate_process=False)
 
     def __wait_for_sidecar(self):
         logging.info("Waiting for sidecar ...")
@@ -138,7 +137,7 @@ class AzureEntryPoint(ConfidentialCompute):
                     raise Exception(error_msg)
             except Exception as e:
                 if delay > max_retries:
-                    logging.error(f"Sidecar failed to start after {delay} retries with error {e}")
+                    logging.error(f"Sidecar failed to start after {delay} retries with error {e}", exc_info=True)
                     sys.exit(1)
                 logging.info(f"Sidecar not started. Retrying in {delay} seconds... {e}")
                 time.sleep(delay)
@@ -173,6 +172,6 @@ if __name__ == "__main__":
         operator = AzureEntryPoint()
         operator.run_compute()
     except ConfidentialComputeStartupException as e:
-        logging.error(f"Failed starting up Azure Confidential Compute. Please checks the logs for errors and retry {e}")
+        logging.error(f"Failed starting up Azure Confidential Compute. Please checks the logs for errors and retry {e}", exc_info=True)
     except Exception as e:
-        logging.error(f"Unexpected failure while starting up Azure Confidential Compute. Please contact UID support team with this log {e} ")          
+        logging.error(f"Unexpected failure while starting up Azure Confidential Compute. Please contact UID support team with this log {e}", exc_info=True)          

@@ -134,13 +134,13 @@ class ConfidentialCompute(ABC):
         pass
 
     @staticmethod
-    def run_command(command, seperate_process=False):
+    def run_command(command, separate_process=False):
         logging.info(f"Running command: {' '.join(command)}")
         try:
-            if seperate_process:
+            if separate_process:
                 subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             else:
                 subprocess.run(command,check=True)
         except Exception as e:
-            logging.error(f"Failed to run command: {e}")
+            logging.error(f"Failed to run command: {e}", exc_info=True)
             raise RuntimeError (f"Failed to start {' '.join(command)} ")

@@ -43,9 +43,6 @@ COPY ./azureEntryPoint.py /app
 COPY ./confidential_compute.py /app
 RUN chmod a+x /app/*.py
 
-COPY ./azureEntryPoint.sh /app/
-RUN chmod a+x /app/azureEntryPoint.sh
-
 # Create and configure non-root user
 RUN adduser -D uid2-operator && \
     mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && \
@@ -55,4 +52,4 @@ RUN adduser -D uid2-operator && \
 USER uid2-operator
 
 # Run the Python entry point
-CMD ["/app/azureEntryPoint.sh"]
+CMD python3 /app/azureEntryPoint.py

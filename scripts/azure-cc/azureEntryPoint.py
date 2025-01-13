@@ -7,6 +7,7 @@ from typing import Dict
 import sys
 import shutil
 import requests
+import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingConfig, ConfidentialComputeStartupException 
@@ -34,26 +35,7 @@ class AzureEntryPoint(ConfidentialCompute):
             raise MissingConfig(self.__class__.__name__, ["OPERATOR_KEY_SECRET_NAME"])        
         if AzureEntryPoint.env_name is None:
             raise MissingConfig(self.__class__.__name__, ["DEPLOYMENT_ENVIRONMENT"])        
-        print("Env variables validation success")
-        
-    def __wait_for_sidecar():
-        url = "http://169.254.169.254/ping"
-        delay = 2
-        max_retries = 15
-
-        while True:
-            try:
-                response = requests.get(url, timeout=5)
-                if response.status_code == 200:
-                    print("Sidecar started")
-                    break
-            except requests.RequestException:
-                print(f"Sidecar not started. Retrying in {delay} seconds...")
-                time.sleep(delay)
-                if delay > max_retries:
-                    print("Sidecar failed to start")
-                    break
-                delay += 1
+        logging.info("Env variables validation success")
     
     def __set_environment(self):
         self.configs["environment"] = AzureEntryPoint.env_name
@@ -68,54 +50,52 @@ class AzureEntryPoint(ConfidentialCompute):
             self.configs["api_token"] = secret.value
 
         except CredentialUnavailableError as auth_error:
-            print(f"Read operator key, authentication error: {auth_error}")
+            logging.error(f"Read operator key, authentication error: {auth_error}")
             raise
 
         except ResourceNotFoundError as not_found_error:
-            print(f"Read operator key, secret not found: {AzureEntryPoint.secret_name}. Error: {not_found_error}")
+            logging.error(f"Read operator key, secret not found: {AzureEntryPoint.secret_name}. Error: {not_found_error}")
             raise
 
         except HttpResponseError as http_error:
-            print(f"Read operator key, HTTP error occurred: {http_error}")
+            logging.error(f"Read operator key, HTTP error occurred: {http_error}")
             raise
 
         except Exception as e:
-            print(f"Read operator key, an unexpected error occurred: {e}")
+            logging.error(f"Read operator key, an unexpected error occurred: {e}")
             raise
 
     def __create_final_config(self):      
         TARGET_CONFIG = f"/app/conf/{AzureEntryPoint.env_name}-uid2-config.json"
         if not os.path.isfile(TARGET_CONFIG):
-            print(f"Unrecognized config {TARGET_CONFIG}")
+            logging.error(f"Unrecognized config {TARGET_CONFIG}")
             sys.exit(1)
 
-        FINAL_CONFIG = "/tmp/final-config.json"
-        print(f"-- copying {TARGET_CONFIG} to {FINAL_CONFIG}")
+        logging.info(f"-- copying {TARGET_CONFIG} to {AzureEntryPoint.FINAL_CONFIG}")
         try:
-            shutil.copy(TARGET_CONFIG, FINAL_CONFIG)
+            shutil.copy(TARGET_CONFIG, AzureEntryPoint.FINAL_CONFIG)
         except IOError as e:
-            print(f"Failed to create {FINAL_CONFIG} with error: {e}")
+            logging.error(f"Failed to create {AzureEntryPoint.FINAL_CONFIG} with error: {e}")
             sys.exit(1)
 
         CORE_BASE_URL = os.getenv("CORE_BASE_URL")
         OPTOUT_BASE_URL = os.getenv("OPTOUT_BASE_URL")
         if CORE_BASE_URL and OPTOUT_BASE_URL and AzureEntryPoint.env_name != 'prod':
-            print(f"-- replacing URLs by {CORE_BASE_URL} and {OPTOUT_BASE_URL}")
-            with open(FINAL_CONFIG, "r") as file:
+            logging.info(f"-- replacing URLs by {CORE_BASE_URL} and {OPTOUT_BASE_URL}")
+            with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
                 config = file.read()
 
             config = config.replace("https://core-integ.uidapi.com", CORE_BASE_URL)
             config = config.replace("https://optout-integ.uidapi.com", OPTOUT_BASE_URL)
 
-            with open(FINAL_CONFIG, "w") as file:
+            with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
                 file.write(config)
 
-        with open(FINAL_CONFIG, "r") as file:
-            print(file.read())
+        with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
+            logging.info(file.read())
     
     def __set_baseurls(self):
-        final_config="/tmp/final-config.json"
-        with open(final_config, "r") as file:
+        with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
             jdata = json.load(file)
             self.configs["core_base_url"] = jdata["core_attest_url"]
             self.configs["optout_base_url"] = jdata["optout_api_uri"]
@@ -133,12 +113,15 @@ class AzureEntryPoint(ConfidentialCompute):
             "-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory",
             "-Dlogback.configurationFile=/app/conf/logback.xml",
             f"-Dvertx-config-path={AzureEntryPoint.FINAL_CONFIG}",
-            f"-jar {AzureEntryPoint.jar_name}-{AzureEntryPoint.jar_version}.jar"
+            "-jar", 
+            f"{AzureEntryPoint.jar_name}-{AzureEntryPoint.jar_version}.jar"
         ]
-        print("-- starting java operator application")
-        self.run_command(java_command, seperate_process=False)
+        logging.info("-- starting java operator application")
+        self.run_command(java_command, separate_process=False)
 
     def __wait_for_sidecar(self):
+        logging.info("Waiting for sidecar ...")
+
         url = "http://169.254.169.254/ping"
         delay = 1
         max_retries = 15
@@ -146,15 +129,18 @@ class AzureEntryPoint(ConfidentialCompute):
         while True:
             try:
                 response = requests.get(url, timeout=5)
-                if response.status_code == 200:
-                    print("Sidecar started")
+                if response.status_code in [200, 204]:
+                    logging.info("Sidecar started")
                     return
-            except requests.RequestException:
-                print(f"Sidecar not started. Retrying in {delay} seconds...")
-                time.sleep(delay)
+                else:
+                    error_msg = f"Unexpected status code: {response.status_code}, response: {response.text}"
+                    raise Exception(error_msg)
+            except Exception as e:
                 if delay > max_retries:
-                    print("Sidecar failed to start")
-                    break
+                    logging.error(f"Sidecar failed to start after {delay} retries with error {e}", exc_info=True)
+                    sys.exit(1)
+                logging.info(f"Sidecar not started. Retrying in {delay} seconds... {e}")
+                time.sleep(delay)
                 delay += 1
 
     def run_compute(self) -> None:
@@ -166,7 +152,6 @@ class AzureEntryPoint(ConfidentialCompute):
         self.__set_baseurls()
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
-        
         self.__wait_for_sidecar()
         self.__run_operator()
 
@@ -179,11 +164,13 @@ class AzureEntryPoint(ConfidentialCompute):
         pass
 
 if __name__ == "__main__":
+
+    logging.basicConfig(level=logging.INFO)
+    logging.info("Start AzureEntryPoint")
     try:
         operator = AzureEntryPoint()
         operator.run_compute()
-
     except ConfidentialComputeStartupException as e:
-        print("Failed starting up Azure Confidential Compute. Please checks the logs for errors and retry \n", e)
+        logging.error(f"Failed starting up Azure Confidential Compute. Please checks the logs for errors and retry {e}", exc_info=True)
     except Exception as e:
-         print("Unexpected failure while starting up Azure Confidential Compute. Please contact UID support team with this log \n ", e)          
+        logging.error(f"Unexpected failure while starting up Azure Confidential Compute. Please contact UID support team with this log {e}", exc_info=True)          

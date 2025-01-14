@@ -11,9 +11,8 @@ import static com.uid2.operator.Const.Config.ConfigScanPeriodMs;
 import static com.uid2.operator.Const.Config.CoreConfigPath;
 
 public class ConfigRetrieverFactory {
-    public ConfigRetriever create(Vertx vertx, JsonObject bootstrapConfig) {
+    public ConfigRetriever createHttpRetriever(Vertx vertx, JsonObject bootstrapConfig) {
         String configPath = bootstrapConfig.getString(CoreConfigPath);
-
 
         ConfigStoreOptions httpStore = new ConfigStoreOptions()
                 .setType("http")
@@ -26,6 +25,32 @@ public class ConfigRetrieverFactory {
         ConfigRetrieverOptions retrieverOptions = new ConfigRetrieverOptions()
                 .setScanPeriod(bootstrapConfig.getLong(ConfigScanPeriodMs))
                 .addStore(httpStore);
+
+        return ConfigRetriever.create(vertx, retrieverOptions);
+    }
+
+    public ConfigRetriever createJsonRetriever(Vertx vertx, JsonObject config) {
+        ConfigStoreOptions jsonStore = new ConfigStoreOptions()
+                .setType("json")
+                .setConfig(config);
+
+        ConfigRetrieverOptions retrieverOptions = new ConfigRetrieverOptions()
+                .setScanPeriod(-1)
+                .addStore(jsonStore);
+
+
+        return ConfigRetriever.create(vertx, retrieverOptions);
+    }
+
+    public ConfigRetriever createFileRetriever(Vertx vertx, String path) {
+        ConfigStoreOptions fileStore = new ConfigStoreOptions()
+                .setType("file")
+                .setConfig(new JsonObject()
+                        .put("path", path)
+                        .put("format", "json"));
+
+        ConfigRetrieverOptions retrieverOptions = new ConfigRetrieverOptions()
+                .addStore(fileStore);
 
         return ConfigRetriever.create(vertx, retrieverOptions);
     }

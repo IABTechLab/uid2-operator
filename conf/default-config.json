@@ -36,6 +36,6 @@
   "failure_shutdown_wait_hours": 120,
   "sharing_token_expiry_seconds": 2592000,
   "operator_type": "public",
-  "core_config_path": "/config",
+  "core_config_path": "/operator/config",
   "config_scan_period_ms": 300000
 }

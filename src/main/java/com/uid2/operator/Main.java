@@ -205,13 +205,6 @@ public class Main {
         Vertx vertx = createVertx();
         ConfigRetriever configRetriever = VertxUtils.createConfigRetriever(vertx);
 
-        configRetriever.listen(configChange -> {
-            JsonObject newConfig = configChange.getNewConfiguration();
-            boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
-
-            vertx.eventBus().publish(Const.Config.RemoteConfigFlagEventBus, useDynamicConfig);
-        });
-
         configRetriever.getConfig(ar -> {
             if (ar.failed()) {
                 LOGGER.error("Unable to read config: " + ar.cause().getMessage(), ar.cause());
@@ -277,45 +270,80 @@ public class Main {
         this.createVertxInstancesMetric();
         this.createVertxEventLoopsMetric();
 
-        ConfigServiceManager.create(vertx, config, config.getBoolean(Const.Config.RemoteConfigFeatureFlag, true)).compose(configServiceManager -> {
-            IConfigService configService = configServiceManager.getDelegatingConfigService();
-            Supplier<Verticle> operatorVerticleSupplier = () -> {
-                UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
-                return verticle;
-            };
+        ConfigRetrieverFactory configRetrieverFactory = new ConfigRetrieverFactory();
+        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.createHttpRetriever(vertx, config);
+        ConfigRetriever staticConfigRetriever = configRetrieverFactory.createJsonRetriever(vertx, config);
 
-            DeploymentOptions options = new DeploymentOptions();
-            int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
-            options.setInstances(svcInstances);
+        Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
+        Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
 
-            Promise<Void> compositePromise = Promise.promise();
-            List<Future> fs = new ArrayList<>();
-            fs.add(createAndDeployStatsCollector());
-            try {
-                fs.add(createStoreVerticles());
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        ConfigRetriever featureFlagConfigRetriever = configRetrieverFactory.createFileRetriever(
+                vertx,
+                config.getString(Const.Config.RemoteConfigFlagConfigMapPath, "conf/local-config.json")
+        );
 
-            CompositeFuture.all(fs).onComplete(ar -> {
-                if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
-                else compositePromise.complete();
-            });
+        Future<JsonObject> featureFlagFuture = featureFlagConfigRetriever.getConfig();
 
-            return compositePromise.future()
-                    .compose(v -> {
-                        metrics.setup();
-                        vertx.setPeriodic(60000, id -> metrics.update());
-                        Promise<String> promise = Promise.promise();
-                        vertx.deployVerticle(operatorVerticleSupplier, options, promise);
-                        return promise.future();
-                    })
-                    .onFailure(t -> {
-                        LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
-                        vertx.close();
-                        System.exit(1);
+        Future.all(dynamicConfigFuture, staticConfigFuture, featureFlagFuture)
+                .compose(configServiceManagerCompositeFuture -> {
+                    ConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
+                    ConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
+                    JsonObject featureFlagConfig = configServiceManagerCompositeFuture.resultAt(2);
+
+                    boolean featureFlag = featureFlagConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
+
+                    ConfigServiceManager configServiceManager = new ConfigServiceManager(vertx, dynamicConfigService, staticConfigService, featureFlag);
+
+                    featureFlagConfigRetriever.listen(change -> {
+                        JsonObject newConfig = change.getNewConfiguration();
+                        boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
+                        configServiceManager.updateConfigService(useDynamicConfig).onComplete(update -> {
+                            if (update.succeeded()) {
+                                LOGGER.info("Remote config feature flag toggled successfully");
+                            } else {
+                                LOGGER.error("Failed to toggle remote config feature flag: " + update.cause());
+                            }
+                        });
                     });
-        });
+
+                    IConfigService configService = configServiceManager.getDelegatingConfigService();
+                    Supplier<Verticle> operatorVerticleSupplier = () -> {
+                        UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
+                        return verticle;
+                    };
+
+                    DeploymentOptions options = new DeploymentOptions();
+                    int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
+                    options.setInstances(svcInstances);
+
+                    Promise<Void> compositePromise = Promise.promise();
+                    List<Future> fs = new ArrayList<>();
+                    fs.add(createAndDeployStatsCollector());
+                    try {
+                        fs.add(createStoreVerticles());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    CompositeFuture.all(fs).onComplete(ar -> {
+                        if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
+                        else compositePromise.complete();
+                    });
+
+                    return compositePromise.future()
+                            .compose(v -> {
+                                metrics.setup();
+                                vertx.setPeriodic(60000, id -> metrics.update());
+                                Promise<String> promise = Promise.promise();
+                                vertx.deployVerticle(operatorVerticleSupplier, options, promise);
+                                return promise.future();
+                            })
+                            .onFailure(t -> {
+                                LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
+                                vertx.close();
+                                System.exit(1);
+                            });
+                });
     }
 
     private Future<Void> createStoreVerticles() throws Exception {

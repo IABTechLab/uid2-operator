@@ -25,26 +25,29 @@ import static org.mockito.Mockito.*;
 class ConfigServiceTest {
     private Vertx vertx;
     private JsonObject bootstrapConfig;
-    private ConfigRetriever configRetriever;
     private HttpServer server;
+    private ConfigRetrieverFactory configRetrieverFactory;
 
     @BeforeEach
     void setUp() {
         vertx = Vertx.vertx();
         bootstrapConfig = new JsonObject()
-                .put(CoreConfigPath, "/config")
+                .put(CoreConfigPath, "/operator/config")
                 .put(ConfigScanPeriodMs, 300000)
                 .put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 3600)
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 7200)
                 .put(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, 1800)
                 .put(MaxBidstreamLifetimeSecondsProp, 7200);
 
-        ConfigRetrieverFactory configRetrieverFactory = new ConfigRetrieverFactory();
-        configRetriever = configRetrieverFactory.create(vertx, bootstrapConfig);
+        configRetrieverFactory = new ConfigRetrieverFactory();
+
     }
 
     @AfterEach
     void tearDown() {
+        if (server != null) {
+            server.close();
+        }
         vertx.close();
     }
 
@@ -57,7 +60,7 @@ class ConfigServiceTest {
 
         Router router = Router.router(vertx);
         router.route().handler(BodyHandler.create());
-        router.get("/config").handler(ctx -> ctx.response()
+        router.get("/operator/config").handler(ctx -> ctx.response()
                 .putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(config.encode()));
 
@@ -76,6 +79,7 @@ class ConfigServiceTest {
 
     @Test
     void testGetConfig(VertxTestContext testContext) {
+        ConfigRetriever configRetriever = configRetrieverFactory.createHttpRetriever(vertx, bootstrapConfig);
         JsonObject httpStoreConfig = bootstrapConfig;
         startMockServer(httpStoreConfig)
                 .compose(v -> ConfigService.create(configRetriever))
@@ -91,13 +95,12 @@ class ConfigServiceTest {
     @Test
     void testInvalidConfigRevertsToPrevious(VertxTestContext testContext) {
         JsonObject lastConfig = new JsonObject().put("previous", "config");
-        ConfigRetriever spyRetriever = spy(configRetriever);
-        when(spyRetriever.getCachedConfig()).thenReturn(lastConfig);
         JsonObject invalidConfig = new JsonObject()
                 .put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 1000)
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 2000);
-        startMockServer(invalidConfig)
-                .compose(v -> ConfigService.create(spyRetriever))
+        ConfigRetriever spyRetriever = spy(configRetrieverFactory.createJsonRetriever(vertx, invalidConfig));
+        when(spyRetriever.getCachedConfig()).thenReturn(lastConfig);
+        ConfigService.create(spyRetriever)
                 .compose(configService -> {
                     reset(spyRetriever);
                     assertEquals(lastConfig, configService.getConfig(), "Invalid config not reverted to previous config");
@@ -111,15 +114,13 @@ class ConfigServiceTest {
         JsonObject invalidConfig = new JsonObject()
                 .put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 1000)
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 2000);
-        startMockServer(invalidConfig)
-                .compose(v -> ConfigService.create(configRetriever))
-                .compose(configService -> Future.failedFuture(new RuntimeException("Expected a RuntimeException but the creation succeeded")))
-                .recover(throwable -> {
-                    assertThrows(RuntimeException.class, () -> {
-                        throw throwable;
-                    });
-                    return Future.succeededFuture();
-                })
-                .onComplete(testContext.succeedingThenComplete());
+        ConfigRetriever configRetriever = configRetrieverFactory.createJsonRetriever(vertx, invalidConfig);
+        ConfigService.create(configRetriever)
+                .onComplete(testContext.failing(throwable -> {
+                   assertThrows(RuntimeException.class, () -> {
+                       throw throwable;
+                   }, "Expected a RuntimeException but the creation succeeded");
+                   testContext.completeNow();
+                }));
     }
 }

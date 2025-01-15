@@ -1,26 +1,31 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.Const;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.config.ConfigRetrieverOptions;
 import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 import static com.uid2.operator.Const.Config.ConfigScanPeriodMs;
 import static com.uid2.operator.Const.Config.CoreConfigPath;
 
 public class ConfigRetrieverFactory {
-    public ConfigRetriever createHttpRetriever(Vertx vertx, JsonObject bootstrapConfig) {
+    public ConfigRetriever createRemoteConfigRetriever(Vertx vertx, JsonObject bootstrapConfig, String operatorKey) throws URISyntaxException {
         String configPath = bootstrapConfig.getString(CoreConfigPath);
+        URI uri = new URI(configPath);
 
         ConfigStoreOptions httpStore = new ConfigStoreOptions()
                 .setType("http")
                 .setOptional(true)
                 .setConfig(new JsonObject()
-                        .put("host", "127.0.0.1")
-                        .put("port", Const.Port.ServicePortForCore)
-                        .put("path", configPath));
+                        .put("host", uri.getHost())
+                        .put("port", uri.getPort())
+                        .put("path", uri.getPath())
+                        .put("headers", new JsonObject()
+                                .put("Authorization", "Bearer " + operatorKey)));
 
         ConfigRetrieverOptions retrieverOptions = new ConfigRetrieverOptions()
                 .setScanPeriod(bootstrapConfig.getLong(ConfigScanPeriodMs))

@@ -266,12 +266,12 @@ public class Main {
         }
     }
 
-    private void run() {
+    private void run() throws Exception {
         this.createVertxInstancesMetric();
         this.createVertxEventLoopsMetric();
 
         ConfigRetrieverFactory configRetrieverFactory = new ConfigRetrieverFactory();
-        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.createHttpRetriever(vertx, config);
+        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.createRemoteConfigRetriever(vertx, config, this.createOperatorKeyRetriever().retrieve());
         ConfigRetriever staticConfigRetriever = configRetrieverFactory.createJsonRetriever(vertx, config);
 
         Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);

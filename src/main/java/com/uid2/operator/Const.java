@@ -30,7 +30,7 @@ public class Const extends com.uid2.shared.Const {
         public static final String MaxInvalidPaths = "logging_limit_max_invalid_paths_per_interval";
         public static final String MaxVersionBucketsPerSite = "logging_limit_max_version_buckets_per_site";
 
-        public static final String CoreConfigPath = "core_config_path";
+        public static final String CoreConfigPath = "core_operator_config_path";
         public static final String ConfigScanPeriodMs = "config_scan_period_ms";
         public static final String Config = "config";
         public static final String identityV3 = "identity_v3";

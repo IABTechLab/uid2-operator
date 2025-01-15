@@ -16,6 +16,8 @@ import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.net.URISyntaxException;
+
 import static com.uid2.operator.Const.Config.*;
 import static com.uid2.operator.service.UIDOperatorService.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,7 +34,7 @@ class ConfigServiceTest {
     void setUp() {
         vertx = Vertx.vertx();
         bootstrapConfig = new JsonObject()
-                .put(CoreConfigPath, "/operator/config")
+                .put(CoreConfigPath, "http://localhost:8088/operator/config")
                 .put(ConfigScanPeriodMs, 300000)
                 .put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 3600)
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 7200)
@@ -78,8 +80,8 @@ class ConfigServiceTest {
     }
 
     @Test
-    void testGetConfig(VertxTestContext testContext) {
-        ConfigRetriever configRetriever = configRetrieverFactory.createHttpRetriever(vertx, bootstrapConfig);
+    void testGetConfig(VertxTestContext testContext) throws URISyntaxException {
+        ConfigRetriever configRetriever = configRetrieverFactory.createRemoteConfigRetriever(vertx, bootstrapConfig, "");
         JsonObject httpStoreConfig = bootstrapConfig;
         startMockServer(httpStoreConfig)
                 .compose(v -> ConfigService.create(configRetriever))

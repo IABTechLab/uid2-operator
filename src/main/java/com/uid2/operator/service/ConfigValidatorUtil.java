@@ -3,6 +3,7 @@ package com.uid2.operator.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.uid2.operator.Const.Config.MaxBidstreamLifetimeSecondsProp;
 import static com.uid2.operator.service.UIDOperatorService.*;
 
 public class ConfigValidatorUtil {
@@ -12,36 +13,40 @@ public class ConfigValidatorUtil {
     public static Boolean validateIdentityRefreshTokens(Integer identityExpiresAfter, Integer refreshExpiresAfter, Integer refreshIdentityAfter) {
         boolean isValid = true;
 
-        if (identityExpiresAfter == null || refreshExpiresAfter == null || refreshIdentityAfter == null) {
+        if (areValuesNull(identityExpiresAfter, refreshExpiresAfter, refreshIdentityAfter)) {
             logger.error(VALUES_ARE_NULL);
             return false;
         }
 
 
-        if (identityExpiresAfter > refreshExpiresAfter) {
+        if (refreshExpiresAfter < identityExpiresAfter) {
             logger.error(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
             isValid = false;
         }
-        if (refreshIdentityAfter > identityExpiresAfter) {
+        if (identityExpiresAfter < refreshIdentityAfter) {
             logger.error(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
             isValid = false;
         }
-        if (refreshIdentityAfter > refreshExpiresAfter) {
+        if (refreshExpiresAfter < refreshIdentityAfter) {
             logger.error(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         }
         return isValid;
     }
 
     public static Boolean validateBidstreamLifetime(Integer maxBidstreamLifetimeSeconds, Integer identityTokenExpiresAfterSeconds) {
-        if (maxBidstreamLifetimeSeconds == null || identityTokenExpiresAfterSeconds == null) {
-            logger.error(VALUES_ARE_NULL);
-            return false;
-        }
-
         if (maxBidstreamLifetimeSeconds < identityTokenExpiresAfterSeconds) {
-            logger.error("Max bidstream lifetime seconds ({} seconds) is less than identity token lifetime ({} seconds)", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds);
+            logger.error(MaxBidstreamLifetimeSecondsProp + " must be >= " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
             return false;
         }
         return true;
+    }
+
+    private static boolean areValuesNull(Integer... values) {
+        for (Integer value : values) {
+            if (value == null) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -28,10 +28,9 @@ public class ConfigService implements IConfigService {
 
         configRetriever.getConfig(ar -> {
             if (ar.succeeded()) {
-                System.out.println("Successfully loaded config");
+                logger.info("Successfully loaded config");
                 promise.complete(instance);
             } else {
-                System.err.println("Failed to load config: " + ar.cause().getMessage());
                 logger.error("Failed to load config: {}", ar.cause().getMessage());
                 promise.fail(ar.cause());
             }
@@ -65,6 +64,7 @@ public class ConfigService implements IConfigService {
             return lastConfig;
         }
 
+        logger.info("Successfully updated config");
         return config;
     }
 }

@@ -271,40 +271,41 @@ public class Main {
         this.createVertxEventLoopsMetric();
 
         ConfigRetrieverFactory configRetrieverFactory = new ConfigRetrieverFactory();
-        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.createRemoteConfigRetriever(vertx, config, this.createOperatorKeyRetriever().retrieve());
         ConfigRetriever staticConfigRetriever = configRetrieverFactory.createJsonRetriever(vertx, config);
-
-        Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
+        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.createRemoteConfigRetriever(vertx, config, this.createOperatorKeyRetriever().retrieve());
         Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
+        Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
 
         ConfigRetriever featureFlagConfigRetriever = configRetrieverFactory.createFileRetriever(
                 vertx,
-                config.getString(Const.Config.RemoteConfigFlagConfigMapPath, "conf/local-config.json")
+                "conf/remote-config-feat-flag/remote-config-feat-flag.json"
         );
-
         Future<JsonObject> featureFlagFuture = featureFlagConfigRetriever.getConfig();
 
-        Future.all(dynamicConfigFuture, staticConfigFuture, featureFlagFuture)
+        featureFlagFuture.compose(featureFlagConfig -> {
+                    boolean featureFlag = featureFlagConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
+                    // use static config if dynamic config fails and feature flag toggled off
+                    return dynamicConfigFuture
+                            .recover(throwable -> {
+                                if (!featureFlag) {
+                                    LOGGER.warn("Dynamic config service creation failed: " + throwable.getMessage());
+                                    return staticConfigFuture;
+                                } else {
+                                    return Future.failedFuture(new Exception("Dynamic config service creation failed and feature flag is enabled: " + throwable.getMessage()));
+                                }
+                            })
+                            .compose(dynamicConfigService -> Future.all(Future.succeededFuture(dynamicConfigService), staticConfigFuture));
+                })
                 .compose(configServiceManagerCompositeFuture -> {
                     ConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
                     ConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
-                    JsonObject featureFlagConfig = configServiceManagerCompositeFuture.resultAt(2);
 
-                    boolean featureFlag = featureFlagConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
+                    boolean featureFlag = featureFlagConfigRetriever.getCachedConfig().getBoolean(Const.Config.RemoteConfigFeatureFlag, false);
 
-                    ConfigServiceManager configServiceManager = new ConfigServiceManager(vertx, dynamicConfigService, staticConfigService, featureFlag);
+                    ConfigServiceManager configServiceManager = new ConfigServiceManager(
+                            vertx, dynamicConfigService, staticConfigService, featureFlag);
 
-                    featureFlagConfigRetriever.listen(change -> {
-                        JsonObject newConfig = change.getNewConfiguration();
-                        boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
-                        configServiceManager.updateConfigService(useDynamicConfig).onComplete(update -> {
-                            if (update.succeeded()) {
-                                LOGGER.info("Remote config feature flag toggled successfully");
-                            } else {
-                                LOGGER.error("Failed to toggle remote config feature flag: " + update.cause());
-                            }
-                        });
-                    });
+                    setupFeatureFlagListener(configServiceManager, featureFlagConfigRetriever);
 
                     IConfigService configService = configServiceManager.getDelegatingConfigService();
                     Supplier<Verticle> operatorVerticleSupplier = () -> {
@@ -344,6 +345,20 @@ public class Main {
                                 System.exit(1);
                             });
                 });
+    }
+
+    private void setupFeatureFlagListener(ConfigServiceManager manager, ConfigRetriever retriever) {
+        retriever.listen(change -> {
+            JsonObject newConfig = change.getNewConfiguration();
+            boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
+            manager.updateConfigService(useDynamicConfig).onComplete(update -> {
+                if (update.succeeded()) {
+                    LOGGER.info("Remote config feature flag toggled successfully");
+                } else {
+                    LOGGER.error("Failed to toggle remote config feature flag: " + update.cause());
+                }
+            });
+        });
     }
 
     private Future<Void> createStoreVerticles() throws Exception {

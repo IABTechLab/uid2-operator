@@ -37,22 +37,13 @@ build/make_config.py: ./scripts/aws/make_config.py
 
 .PHONY: build_configs
 
-build_configs: build/conf/default-config.json build/conf/prod-uid2-config.json build/conf/integ-uid2-config.json build/conf/prod-euid-config.json build/conf/integ-euid-config.json build/conf/logback.xml build/conf/logback-debug.xml
+build_configs: build/conf/default-config.json build/conf/uid2-config.json build/conf/logback.xml build/conf/logback-debug.xml
 
 build/conf/default-config.json: build_artifacts ./scripts/aws/conf/default-config.json
 	cp ./scripts/aws/conf/default-config.json ./build/conf/
 
-build/conf/prod-uid2-config.json: build_artifacts ./scripts/aws/conf/prod-uid2-config.json
-	cp ./scripts/aws/conf/prod-uid2-config.json ./build/conf/
-
-build/conf/prod-euid-config.json: build_artifacts ./scripts/aws/conf/prod-euid-config.json
-	cp ./scripts/aws/conf/prod-euid-config.json ./build/conf/
-
-build/conf/integ-uid2-config.json: build_artifacts ./scripts/aws/conf/integ-uid2-config.json
-	cp ./scripts/aws/conf/integ-uid2-config.json ./build/conf/
-
-build/conf/integ-euid-config.json: build_artifacts ./scripts/aws/conf/integ-euid-config.json
-	cp ./scripts/aws/conf/integ-euid-config.json ./build/conf/
+build/conf/uid2-config.json: build_artifacts ./scripts/aws/conf/uid2-config.json
+	cp ./scripts/aws/conf/uid2-config.json ./build/conf/
 
 build/conf/logback.xml: build_artifacts ./scripts/aws/conf/logback.xml
 	cp ./scripts/aws/conf/logback.xml ./build/conf/

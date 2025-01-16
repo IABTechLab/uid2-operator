@@ -13,6 +13,40 @@ class ConfidentialComputeConfig(TypedDict):
     environment: str
     skip_validations: NotRequired[bool]
     debug_mode: NotRequired[bool]
+
+class ConfidentialComputeStartupException(Exception):
+    def __init__(self, error_name, provider, extra_message=None):
+        urls = {
+            "EC2": "https://unifiedid.com/docs/guides/operator-guide-aws-marketplace#uid2-operator-error-codes",
+            "Azure": "https://unifiedid.com/docs/guides/operator-guide-azure-enclave#uid2-operator-error-codes",
+            "GCP": "https://unifiedid.com/docs/guides/operator-private-gcp-confidential-space#uid2-operator-error-codes",
+        }
+        url = urls.get(provider)
+        super().__init__(f"{error_name}\n" + (extra_message if extra_message else "") + f"\nVisit {url} for more details")
+
+class MissingInstanceProfile(ConfidentialComputeStartupException):
+    def __init__(self, cls):
+        super().__init__(error_name=f"E01: {self.__class__.__name__}", provider=cls)
+
+class ConfigNotFound(ConfidentialComputeStartupException):
+    def __init__(self, cls, message = None):
+        super().__init__(error_name=f"E02: {self.__class__.__name__}", provider=cls, extra_message=message)
+
+class MissingConfig(ConfidentialComputeStartupException):
+    def __init__(self, cls, missing_keys):
+        super().__init__(error_name=f"E03: {self.__class__.__name__}", provider=cls, extra_message=', '.join(missing_keys))
+
+class InvalidConfigValue(ConfidentialComputeStartupException):
+    def __init__(self, cls, config_key = None):
+        super().__init__(error_name=f"E04: {self.__class__.__name__} " , provider=cls, extra_message=config_key)
+
+class InvalidOperatorKey(ConfidentialComputeStartupException):
+    def __init__(self, cls):
+        super().__init__(error_name=f"E05: {self.__class__.__name__}", provider=cls)
+
+class UID2ServicesUnreachable(ConfidentialComputeStartupException):
+    def __init__(self, cls, ip=None):
+        super().__init__(error_name=f"E06: {self.__class__.__name__}", provider=cls, extra_message=ip)
     
 class ConfidentialCompute(ABC):
 
@@ -25,18 +59,13 @@ class ConfidentialCompute(ABC):
         def validate_operator_key():
             """ Validates the operator key format and its environment alignment."""
             operator_key = self.configs.get("api_token")
-            if not operator_key:
-                raise ValueError("API token is missing from the configuration.")
             pattern = r"^(UID2|EUID)-.\-(I|P|L)-\d+-.*$"
             if re.match(pattern, operator_key):
                 env = self.configs.get("environment", "").lower()
                 debug_mode = self.configs.get("debug_mode", False)
                 expected_env = "I" if debug_mode or env == "integ" else "P"
-                
                 if operator_key.split("-")[2] != expected_env:
-                    raise ValueError(
-                        f"Operator key does not match the expected environment ({expected_env})."
-                    )
+                    raise InvalidOperatorKey(self.__class__.__name__)
                 print("Validated operator key matches environment")
             else:
                 print("Skipping operator key validation")
@@ -44,16 +73,11 @@ class ConfidentialCompute(ABC):
         def validate_url(url_key, environment):
             """URL should include environment except in prod"""
             if environment != "prod" and environment not in self.configs[url_key]:
-                raise ValueError(
-                    f"{url_key} must match the environment. Ensure the URL includes '{environment}'."
-                )
+                raise InvalidConfigValue(self.__class__.__name__, url_key)
             parsed_url = urlparse(self.configs[url_key])
             if parsed_url.scheme != 'https' and parsed_url.path:
-                raise ValueError(
-                    f"{url_key} is invalid. Ensure {self.configs[url_key]} follows HTTPS, and doesn't have any path specified."
-                )
+                raise InvalidConfigValue(self.__class__.__name__, url_key)
             print(f"Validated {self.configs[url_key]} matches other config parameters")
-            
             
         def validate_connectivity() -> None:
             """ Validates that the core URL is accessible."""
@@ -63,24 +87,22 @@ class ConfidentialCompute(ABC):
                 requests.get(core_url, timeout=5)
                 print(f"Validated connectivity to {core_url}")
             except (requests.ConnectionError, requests.Timeout) as e:
-                raise RuntimeError(
-                    f"Failed to reach required URLs. Consider enabling {core_ip} in the egress firewall."
-                )
+                raise UID2ServicesUnreachable(self.__class__.__name__, core_ip)
             except Exception as e:
-                raise Exception("Failed to reach the URLs.") from e
+                raise UID2ServicesUnreachable(self.__class__.__name__)
+            
         type_hints = get_type_hints(ConfidentialComputeConfig, include_extras=True)
         required_keys = [field for field, hint in type_hints.items() if "NotRequired" not in str(hint)]
         missing_keys = [key for key in required_keys if key not in self.configs]
         if missing_keys:
-            raise MissingConfigError(missing_keys)
-            
+            raise MissingConfig(self.__class__.__name__, missing_keys)
+        
         environment = self.configs["environment"]
-
         if environment not in ["integ", "prod"]:
-            raise ValueError("Environment must be either prod/integ. It is currently set to", environment)
+            raise InvalidConfigValue(self.__class__.__name__, "environment")
 
         if self.configs.get("debug_mode") and environment == "prod":
-            raise ValueError("Debug mode cannot be enabled in the production environment.")
+            raise InvalidConfigValue(self.__class__.__name__, "debug_mode")
         
         validate_url("core_base_url", environment)
         validate_url("optout_base_url", environment)
@@ -88,7 +110,6 @@ class ConfidentialCompute(ABC):
         validate_connectivity()
         print("Completed static validation of confidential compute config values")
         
-
     @abstractmethod
     def _get_secret(self, secret_identifier: str) -> ConfidentialComputeConfig:
         """
@@ -125,20 +146,3 @@ class ConfidentialCompute(ABC):
         except Exception as e:
             print(f"Failed to run command: {str(e)}")
             raise RuntimeError (f"Failed to start {' '.join(command)} ")
-        
-class ConfidentialComputeStartupException(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
-class MissingConfigError(ConfidentialComputeStartupException):
-    """Custom exception to handle missing config keys."""
-    def __init__(self, missing_keys):
-        self.missing_keys = missing_keys
-        self.message = f"\n Missing configuration keys: {', '.join(missing_keys)} \n"
-        super().__init__(self.message)
-
-class SecretNotFoundException(ConfidentialComputeStartupException):
-    """Custom exception if secret manager is not found"""
-    def __init__(self, name):
-        self.message = f"Secret manager not found - {name}. Please check if secret exist and the Instance Profile has permission to read it"
-        super().__init__(self.message)

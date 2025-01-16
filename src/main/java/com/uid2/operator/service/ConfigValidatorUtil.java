@@ -18,7 +18,6 @@ public class ConfigValidatorUtil {
             return false;
         }
 
-
         if (refreshExpiresAfter < identityExpiresAfter) {
             logger.error(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
             isValid = false;
@@ -34,6 +33,10 @@ public class ConfigValidatorUtil {
     }
 
     public static Boolean validateBidstreamLifetime(Integer maxBidstreamLifetimeSeconds, Integer identityTokenExpiresAfterSeconds) {
+        if (areValuesNull(maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds)) {
+            logger.error(VALUES_ARE_NULL);
+            return false;
+        }
         if (maxBidstreamLifetimeSeconds < identityTokenExpiresAfterSeconds) {
             logger.error(MaxBidstreamLifetimeSecondsProp + " must be >= " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
             return false;

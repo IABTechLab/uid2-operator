@@ -43,12 +43,28 @@ build_parameterized_config() {
 }
 
 build_operator_config() {
-  DEFAULT_CONFIG="/app/conf/uid2-config.json"
   CORE_BASE_URL=$(jq -r ".core_base_url" < "${PARAMETERIZED_CONFIG}")
   OPTOUT_BASE_URL=$(jq -r ".optout_base_url" < "${PARAMETERIZED_CONFIG}")
+  DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${OPERATOR_CONFIG}")
+  DEBUG_MODE=$(jq -r ".debug_mode" < "${OPERATOR_CONFIG}")
 
+  if [[ "$DEPLOYMENT_ENVIRONMENT" == "prod" ]]; then
+    if [[ "${IDENTITY_SCOPE}" == "UID2" ]]; then
+      CORE_BASE_URL="https://core-prod.uidapi.com"
+      OPTOUT_BASE_URL="https://optout-prod.uidapi.com"
+    else
+      CORE_BASE_URL="https://core.prod.euid.eu"
+      OPTOUT_BASE_URL="https://core-prod.uidapi.com"
+    fi
+    if [[ "$DEPLOYMENT_ENVIRONMENT" == "prod" ]]; then
+      echo "Cannot run in DEBUG_MODE in production environment. Exiting."
+      exit 1
+    fi
+  fi
+
+  DEFAULT_CONFIG="/app/conf/uid2-config.json"
+  
   jq -s '.[0] * .[1]' "${DEFAULT_CONFIG}" "${PARAMETERIZED_CONFIG}" > "${OPERATOR_CONFIG}"
-
   echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
   sed -i "s#https://core.uidapi.com#${CORE_BASE_URL}#g" ${OPERATOR_CONFIG}
   sed -i "s#https://optout.uidapi.com#${OPTOUT_BASE_URL}#g" ${OPERATOR_CONFIG}
@@ -58,14 +74,9 @@ build_parameterized_config
 build_operator_config
 
 DEBUG_MODE=$(jq -r ".debug_mode" < "${OPERATOR_CONFIG}")
-DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${OPERATOR_CONFIG}")
 LOGBACK_CONF="./conf/logback.xml"
 
 if [[ "$DEBUG_MODE" == "true" ]]; then
-  if [[ "$DEPLOYMENT_ENVIRONMENT" == "prod" ]]; then
-    echo "Cannot run in DEBUG_MODE in production environment. Exiting."
-    exit 1
-  fi
   LOGBACK_CONF="./conf/logback-debug.xml"
 fi
 

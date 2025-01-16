@@ -32,7 +32,6 @@ build_parameterized_config() {
       exit 1
     fi
   done
-  # We do this logic differently in each implementation. In GCP in Java code, in Azure in MAA attestation, in AWS it was in make_config.py
   FILTER=$(printf '. | {')
   for key in "${REQUIRED_KEYS[@]}"; do
     FILTER+="$key: .${key}, "
@@ -63,7 +62,7 @@ build_operator_config() {
   fi
 
   DEFAULT_CONFIG="/app/conf/uid2-config.json"
-  
+
   jq -s '.[0] * .[1]' "${DEFAULT_CONFIG}" "${PARAMETERIZED_CONFIG}" > "${OPERATOR_CONFIG}"
   echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
   sed -i "s#https://core.uidapi.com#${CORE_BASE_URL}#g" ${OPERATOR_CONFIG}

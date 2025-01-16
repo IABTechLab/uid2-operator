@@ -1,6 +1,8 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.Const;
+import com.uid2.shared.health.HealthComponent;
+import com.uid2.shared.health.HealthManager;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -15,10 +17,13 @@ public class ConfigService implements IConfigService {
 
     private final ConfigRetriever configRetriever;
     private static final Logger logger = LoggerFactory.getLogger(ConfigService.class);
+    private final HealthComponent healthComponent = HealthManager.instance.registerComponent("config-service");
+
 
     private ConfigService(ConfigRetriever configRetriever) {
         this.configRetriever = configRetriever;
         this.configRetriever.setConfigurationProcessor(this::configValidationHandler);
+        this.healthComponent.setHealthStatus(false, "config not yet retrieved");
     }
 
     public static Future<ConfigService> create(ConfigRetriever configRetriever) {
@@ -28,11 +33,12 @@ public class ConfigService implements IConfigService {
 
         configRetriever.getConfig(ar -> {
             if (ar.succeeded()) {
-                System.out.println("Successfully loaded config");
+                logger.info("Successfully loaded config");
+                instance.healthComponent.setHealthStatus(true, "config retrieved successfully");
                 promise.complete(instance);
             } else {
-                System.err.println("Failed to load config: " + ar.cause().getMessage());
                 logger.error("Failed to load config: {}", ar.cause().getMessage());
+                instance.healthComponent.setHealthStatus(false, "failed to load initial config");
                 promise.fail(ar.cause());
             }
         });

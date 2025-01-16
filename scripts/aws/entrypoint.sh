@@ -44,8 +44,8 @@ build_parameterized_config() {
 build_operator_config() {
   CORE_BASE_URL=$(jq -r ".core_base_url" < "${PARAMETERIZED_CONFIG}")
   OPTOUT_BASE_URL=$(jq -r ".optout_base_url" < "${PARAMETERIZED_CONFIG}")
-  DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${OPERATOR_CONFIG}")
-  DEBUG_MODE=$(jq -r ".debug_mode" < "${OPERATOR_CONFIG}")
+  DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${PARAMETERIZED_CONFIG}")
+  DEBUG_MODE=$(jq -r ".debug_mode" < "${PARAMETERIZED_CONFIG}")
 
   if [[ "$DEPLOYMENT_ENVIRONMENT" == "prod" ]]; then
     if [[ "${IDENTITY_SCOPE}" == "UID2" ]]; then

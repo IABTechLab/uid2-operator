@@ -49,8 +49,10 @@ class GCP(ConfidentialCompute):
         shutil.copy(target_config, destination)
         with open(destination, 'r') as file:
             config = file.read()
-        config = config.replace("https://core-integ.uidapi.com", self.configs.get("core_base_url"))
-        config = config.replace("https://optout-integ.uidapi.com", self.configs.get("optout_base_url"))
+        config = config.replace("https://core.uidapi.com", self.configs.get("core_base_url"))
+        config = config.replace("https://optout.uidapi.com", self.configs.get("optout_base_url"))
+        print(config)
+        print("writing yo ", destination)
         with open(destination, 'w') as file:
             file.write(config)
 

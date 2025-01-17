@@ -37,4 +37,4 @@ RUN chmod a+x /app/gcp.py
 
 RUN mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && mkdir -p /app && chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
 
-CMD ["/app/gcp.py"]
+CMD ["/venv/bin/python", "/app/gcp.py"]

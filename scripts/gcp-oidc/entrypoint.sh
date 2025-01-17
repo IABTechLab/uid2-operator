@@ -53,6 +53,8 @@ sed -i "s#https://optout.uidapi.com#${OPTOUT_BASE_URL}#g" ${FINAL_CONFIG}
 
 cat $FINAL_CONFIG
 
+exit 1
+
 # -- start operator
 echo "-- starting java application"
 java \

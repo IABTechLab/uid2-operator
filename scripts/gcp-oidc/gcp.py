@@ -42,7 +42,6 @@ class GCP(ConfidentialCompute):
         except NotFound:
             raise ConfigNotFound(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
         config["api_token"] = secret_value
-        config["skip_validations"] = True #temp: to run e2e before modifying shared-actions
         return config
     
     def __populate_operator_config(self, destination):

@@ -42,10 +42,11 @@ class GCP(ConfidentialCompute):
         except NotFound:
             raise ConfigNotFound(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
         config["api_token"] = secret_value
-        os.environ["gcp_secret_version_name"] = os.getenv("API_TOKEN_SECRET_NAME") # ideally add to config? 
+        os.environ["gcp_secret_version_name"] = os.getenv("API_TOKEN_SECRET_NAME") # ideally add to config?
         return config
     
     def __populate_operator_config(self, destination):
+        #Add gcp_secret_version_name here?
         target_config = f"/app/conf/uid2-config.json"
         shutil.copy(target_config, destination)
         with open(destination, 'r') as file:
@@ -69,7 +70,6 @@ class GCP(ConfidentialCompute):
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
         config_locaton = "/tmp/final-config.json"
-        gcp_secret_version_name
         self.__populate_operator_config(config_locaton)
         java_command = [
             "java",

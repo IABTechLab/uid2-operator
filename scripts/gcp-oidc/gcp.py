@@ -42,6 +42,7 @@ class GCP(ConfidentialCompute):
         except NotFound:
             raise ConfigNotFound(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
         config["api_token"] = secret_value
+        os.environ["gcp_secret_version_name"] = os.getenv("API_TOKEN_SECRET_NAME") # ideally add to config? 
         return config
     
     def __populate_operator_config(self, destination):
@@ -51,8 +52,6 @@ class GCP(ConfidentialCompute):
             config = file.read()
         config = config.replace("https://core.uidapi.com", self.configs.get("core_base_url"))
         config = config.replace("https://optout.uidapi.com", self.configs.get("optout_base_url"))
-        print(config)
-        print("writing yo ", destination)
         with open(destination, 'w') as file:
             file.write(config)
 
@@ -70,6 +69,7 @@ class GCP(ConfidentialCompute):
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
         config_locaton = "/tmp/final-config.json"
+        gcp_secret_version_name
         self.__populate_operator_config(config_locaton)
         java_command = [
             "java",

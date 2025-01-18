@@ -66,7 +66,7 @@ class ConfidentialCompute(ABC):
                 expected_env = "I" if debug_mode or env == "integ" else "P"
                 if operator_key.split("-")[2] != expected_env:
                     raise InvalidOperatorKey(self.__class__.__name__)
-                print("Validated operator key matches environment")
+                print("Validated operator key matches environment ",operator_key)
             else:
                 print("Skipping operator key validation")
 

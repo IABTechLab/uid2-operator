@@ -34,7 +34,7 @@ class GCP(ConfidentialCompute):
             raise MissingConfig(self.__class__.__name__, ["API_TOKEN_SECRET_NAME"])
         try:
             client = secretmanager.SecretManagerServiceClient()
-            secret_version_name = f"projects/{default()[1]}/secrets/ian-secret-operator-key/versions/latest"
+            secret_version_name = f"projects/{default()[1]}/secrets/{os.getenv("API_TOKEN_SECRET_NAME")}/versions/latest"
             response = client.access_secret_version(name=secret_version_name)
             secret_value = response.payload.data.decode("UTF-8")
         except PermissionDenied or DefaultCredentialsError :
@@ -42,12 +42,10 @@ class GCP(ConfidentialCompute):
         except NotFound:
             raise ConfigNotFound(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
         config["api_token"] = secret_value
-        os.environ["gcp_secret_version_name"] = os.getenv("API_TOKEN_SECRET_NAME") # ideally add to config?
         return config
     
     def __populate_operator_config(self, destination):
-        #Add gcp_secret_version_name here?
-        target_config = f"/app/conf/uid2-config.json"
+        target_config = f"/app/conf/{self.configs["environment"].lower()}-config.json"
         shutil.copy(target_config, destination)
         with open(destination, 'r') as file:
             config = file.read()
@@ -71,6 +69,7 @@ class GCP(ConfidentialCompute):
             self.validate_configuration()
         config_locaton = "/tmp/final-config.json"
         self.__populate_operator_config(config_locaton)
+        os.environ["gcp_secret_version_name"] = os.getenv("API_TOKEN_SECRET_NAME")
         java_command = [
             "java",
             "-XX:MaxRAMPercentage=95", 

@@ -34,7 +34,7 @@ class GCP(ConfidentialCompute):
             raise MissingConfig(self.__class__.__name__, ["API_TOKEN_SECRET_NAME"])
         try:
             client = secretmanager.SecretManagerServiceClient()
-            secret_version_name = f"{os.getenv("API_TOKEN_SECRET_NAME")}/versions/latest"
+            secret_version_name = f"{os.getenv("API_TOKEN_SECRET_NAME")}"
             response = client.access_secret_version(name=secret_version_name)
             secret_value = response.payload.data.decode("UTF-8")
         except PermissionDenied or DefaultCredentialsError :

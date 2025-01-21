@@ -22,7 +22,17 @@ public class ConfigService implements IConfigService {
 
     private ConfigService(ConfigRetriever configRetriever) {
         this.configRetriever = configRetriever;
-        this.configRetriever.setConfigurationProcessor(this::configValidationHandler);
+        this.configRetriever.setConfigurationProcessor(json -> {
+            JsonObject validJson = configValidationHandler(json);
+            this.healthComponent.setHealthStatus(true, "config retrieved successfully");
+            return validJson;
+        });
+        this.configRetriever.configStream()
+                .exceptionHandler(e -> {
+                    logger.warn("Exception occurred while retrieving configuration: ", e);
+                    this.healthComponent.setHealthStatus(false, "failed to retrieve config");
+                });
+
         this.healthComponent.setHealthStatus(false, "config not yet retrieved");
     }
 

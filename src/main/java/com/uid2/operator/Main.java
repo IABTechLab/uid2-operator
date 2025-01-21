@@ -40,7 +40,6 @@ import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.http.impl.HttpUtils;
 import io.vertx.core.json.JsonObject;
 import io.vertx.micrometer.*;
 import io.vertx.micrometer.backends.BackendRegistries;
@@ -279,7 +278,7 @@ public class Main {
 
         ConfigRetriever featureFlagConfigRetriever = configRetrieverFactory.createFileRetriever(
                 vertx,
-                "conf/remote-config-feat-flag/remote-config-feat-flag.json"
+                "conf/feat-flag/feat-flag.json"
         );
         Future<JsonObject> featureFlagFuture = featureFlagConfigRetriever.getConfig();
 
@@ -289,10 +288,10 @@ public class Main {
                     return dynamicConfigFuture
                             .recover(throwable -> {
                                 if (!featureFlag) {
-                                    LOGGER.warn("Dynamic config service creation failed: " + throwable.getMessage());
+                                    LOGGER.warn("Dynamic config service creation failed: ", throwable);
                                     return staticConfigFuture;
                                 } else {
-                                    return Future.failedFuture(new Exception("Dynamic config service creation failed and feature flag is enabled: " + throwable.getMessage()));
+                                    return Future.failedFuture(new Exception("Dynamic config service creation failed and feature flag is enabled: ", throwable));
                                 }
                             })
                             .compose(dynamicConfigService -> Future.all(Future.succeededFuture(dynamicConfigService), staticConfigFuture));

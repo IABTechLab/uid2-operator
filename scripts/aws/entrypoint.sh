@@ -79,6 +79,7 @@ build_operator_config() {
   
 }
 
+setup_auxiliaries
 build_parameterized_config
 build_operator_config
 

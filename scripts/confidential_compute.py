@@ -25,8 +25,8 @@ class ConfidentialComputeStartupException(Exception):
         super().__init__(f"{error_name}\n" + (extra_message if extra_message else "") + f"\nVisit {url} for more details")
 
 class MissingInstanceProfile(ConfidentialComputeStartupException):
-    def __init__(self, cls):
-        super().__init__(error_name=f"E01: {self.__class__.__name__}", provider=cls)
+    def __init__(self, cls, message = None):
+        super().__init__(error_name=f"E01: {self.__class__.__name__}", provider=cls, extra_message=message)
 
 class ConfigNotFound(ConfidentialComputeStartupException):
     def __init__(self, cls, message = None):

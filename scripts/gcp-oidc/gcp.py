@@ -37,8 +37,8 @@ class GCP(ConfidentialCompute):
             secret_version_name = f"{os.getenv("API_TOKEN_SECRET_NAME")}"
             response = client.access_secret_version(name=secret_version_name)
             secret_value = response.payload.data.decode("UTF-8")
-        except PermissionDenied or DefaultCredentialsError :
-            raise MissingInstanceProfile(self.__class__.__name__)
+        except (PermissionDenied, DefaultCredentialsError) as e:
+            raise MissingInstanceProfile(self.__class__.__name__, str(e))
         except NotFound:
             raise ConfigNotFound(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
         config["api_token"] = secret_value

@@ -7,21 +7,24 @@ LOG_FILE="/home/start.txt"
 set -x
 exec &> >(tee -a "$LOG_FILE")
 
-set -o pipefail
-ulimit -n 65536
-
-# -- setup loopback device
-echo "Setting up loopback device..."
-ifconfig lo 127.0.0.1
-
-# -- start vsock proxy
-echo "Starting vsock proxy..."
-/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
-
-/usr/sbin/syslog-ng --verbose
-
 PARAMETERIZED_CONFIG="/app/conf/config-overrides.json"
 OPERATOR_CONFIG="/tmp/final-config.json"
+
+setup_auxiliaries() {
+  set -o pipefail
+  ulimit -n 65536
+
+  # -- setup loopback device
+  echo "Setting up loopback device..."
+  ifconfig lo 127.0.0.1
+
+  # -- start vsock proxy
+  echo "Starting vsock proxy..."
+  /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
+
+  /usr/sbin/syslog-ng --verbose
+}
+
 
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
@@ -47,26 +50,33 @@ build_operator_config() {
   DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${PARAMETERIZED_CONFIG}")
   DEBUG_MODE=$(jq -r ".debug_mode" < "${PARAMETERIZED_CONFIG}")
 
+  IDENTITY_SCOPE_LOWER=$(echo "${IDENTITY_SCOPE}" | tr '[:upper:]' '[:lower:]')
+  DEPLOYMENT_ENVIRONMENT_LOWER=$(echo "${DEPLOYMENT_ENVIRONMENT}" | tr '[:upper:]' '[:lower:]')
+  DEFAULT_CONFIG="/app/conf/${IDENTITY_SCOPE_LOWER}-${DEPLOYMENT_ENVIRONMENT_LOWER}-config.json"
+
+  jq -s '.[0] * .[1]' "${DEFAULT_CONFIG}" "${PARAMETERIZED_CONFIG}" > "${OPERATOR_CONFIG}"
+
   if [[ "$DEPLOYMENT_ENVIRONMENT" == "prod" ]]; then
-    if [[ "${IDENTITY_SCOPE}" == "UID2" ]]; then
-      CORE_BASE_URL="https://core-prod.uidapi.com"
-      OPTOUT_BASE_URL="https://optout-prod.uidapi.com"
-    else
-      CORE_BASE_URL="https://core.prod.euid.eu"
-      OPTOUT_BASE_URL="https://core-prod.uidapi.com"
-    fi
-    if [[ "$DEPLOYMENT_ENVIRONMENT" == "prod" ]]; then
+    if [[ "$DEBUG_MODE" == "true" ]]; then
       echo "Cannot run in DEBUG_MODE in production environment. Exiting."
       exit 1
     fi
   fi
 
-  DEFAULT_CONFIG="/app/conf/uid2-config.json"
+  #TODO: Remove below logic after remote config management is implemented
 
-  jq -s '.[0] * .[1]' "${DEFAULT_CONFIG}" "${PARAMETERIZED_CONFIG}" > "${OPERATOR_CONFIG}"
-  echo "-- replacing URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}"
-  sed -i "s#https://core.uidapi.com#${CORE_BASE_URL}#g" ${OPERATOR_CONFIG}
-  sed -i "s#https://optout.uidapi.com#${OPTOUT_BASE_URL}#g" ${OPERATOR_CONFIG}
+  if [[ "$DEPLOYMENT_ENVIRONMENT" != "prod" ]]; then
+    #Allow override of base URL in non-prod environments
+    CORE_PATTERN="https://core.*uidapi.com"
+    OPTOUT_PATTERN="https://optout.*uidapi.com"
+    if [[ "$DEPLOYMENT_ENVIRONMENT" == "euid" ]]; then
+      CORE_PATTERN="https://core.*euid.eu"
+      OPTOUT_PATTERN="https://optout.*euid.eu"
+    fi
+    sed -i "s#${CORE_PATTERN}#${CORE_BASE_URL}#g" "${OPERATOR_CONFIG}"
+    sed -i "s#${OPTOUT_PATTERN}#${OPTOUT_BASE_URL}#g" "${OPERATOR_CONFIG}"
+  fi
+  
 }
 
 build_parameterized_config

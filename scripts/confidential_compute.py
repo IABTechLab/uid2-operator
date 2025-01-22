@@ -18,9 +18,9 @@ class ConfidentialComputeConfig(TypedDict):
 class ConfidentialComputeStartupException(Exception):
     def __init__(self, error_name, provider, extra_message=None):
         urls = {
-            "EC2": "https://unifiedid.com/docs/guides/operator-guide-aws-marketplace#uid2-operator-error-codes",
-            "Azure": "https://unifiedid.com/docs/guides/operator-guide-azure-enclave#uid2-operator-error-codes",
-            "GCPEntrypoint": "https://unifiedid.com/docs/guides/operator-private-gcp-confidential-space#uid2-operator-error-codes",
+            "EC2EntryPoint": "https://unifiedid.com/docs/guides/operator-guide-aws-marketplace#uid2-operator-error-codes",
+            "AzureEntryPoint": "https://unifiedid.com/docs/guides/operator-guide-azure-enclave#uid2-operator-error-codes",
+            "GCPEntryPoint": "https://unifiedid.com/docs/guides/operator-private-gcp-confidential-space#uid2-operator-error-codes",
         }
         url = urls.get(provider)
         super().__init__(f"{error_name}\n" + (extra_message if extra_message else "") + f"\nVisit {url} for more details")
@@ -48,7 +48,11 @@ class InvalidOperatorKey(ConfidentialComputeStartupException):
 class UID2ServicesUnreachable(ConfidentialComputeStartupException):
     def __init__(self, cls, ip=None):
         super().__init__(error_name=f"E06: {self.__class__.__name__}", provider=cls, extra_message=ip)
-    
+
+class AuxiliariesException(ConfidentialComputeStartupException):
+    def __init__(self, cls, inner_message = None):
+        super().__init__(error_name=f"E07: {self.__class__.__name__}", provider=cls, extra_message=inner_message)
+
 class ConfidentialCompute(ABC):
 
     def __init__(self):
@@ -112,9 +116,9 @@ class ConfidentialCompute(ABC):
         logging.info("Completed static validation of confidential compute config values")
         
     @abstractmethod
-    def _set_secret(self, secret_identifier: str) -> None:
+    def _set_confidential_config(self, secret_identifier: str) -> None:
         """
-        Fetches the secret from a secret store.
+        Set ConfidentialComputeConfig
         """
         pass
 

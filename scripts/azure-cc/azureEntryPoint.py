@@ -10,10 +10,9 @@ import requests
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingConfig, ConfidentialComputeStartupException 
-from azure.identity import DefaultAzureCredential, CredentialUnavailableError
+from confidential_compute import ConfidentialCompute, MissingConfig, MissingInstanceProfile, AuxiliariesException, ConfidentialComputeStartupException 
+from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from azure.core.exceptions import ResourceNotFoundError, HttpResponseError
 
 class AzureEntryPoint(ConfidentialCompute):
   
@@ -29,41 +28,14 @@ class AzureEntryPoint(ConfidentialCompute):
         super().__init__()
 
     def __check_env_variables(self):
+        # Check essential env variables
         if AzureEntryPoint.kv_name is None:
             raise MissingConfig(self.__class__.__name__, ["VAULT_NAME"])        
         if AzureEntryPoint.secret_name is None:
             raise MissingConfig(self.__class__.__name__, ["OPERATOR_KEY_SECRET_NAME"])        
         if AzureEntryPoint.env_name is None:
             raise MissingConfig(self.__class__.__name__, ["DEPLOYMENT_ENVIRONMENT"])        
-        logging.info("Env variables validation success")
-    
-    def __set_environment(self):
-        self.configs["environment"] = AzureEntryPoint.env_name
-
-    def _set_secret(self, secret_identifier: str = None):
-        try:
-            credential = DefaultAzureCredential()
-            kv_URL = f"https://{AzureEntryPoint.kv_name}.vault.azure.net"
-            secret_client = SecretClient(vault_url=kv_URL, credential=credential)
-            secret = secret_client.get_secret(AzureEntryPoint.secret_name)
-            # print(f"Secret Value: {secret.value}")
-            self.configs["api_token"] = secret.value
-
-        except CredentialUnavailableError as auth_error:
-            logging.error(f"Read operator key, authentication error: {auth_error}")
-            raise
-
-        except ResourceNotFoundError as not_found_error:
-            logging.error(f"Read operator key, secret not found: {AzureEntryPoint.secret_name}. Error: {not_found_error}")
-            raise
-
-        except HttpResponseError as http_error:
-            logging.error(f"Read operator key, HTTP error occurred: {http_error}")
-            raise
-
-        except Exception as e:
-            logging.error(f"Read operator key, an unexpected error occurred: {e}")
-            raise
+        logging.info("Environment variables validation success")
 
     def __create_final_config(self):      
         TARGET_CONFIG = f"/app/conf/{AzureEntryPoint.env_name}-uid2-config.json"
@@ -93,12 +65,36 @@ class AzureEntryPoint(ConfidentialCompute):
 
         with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
             logging.info(file.read())
-    
-    def __set_baseurls(self):
+
+    def __set_base_urls(self):
         with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
             jdata = json.load(file)
             self.configs["core_base_url"] = jdata["core_attest_url"]
             self.configs["optout_base_url"] = jdata["optout_api_uri"]
+
+    def __set_api_token(self):
+        try:
+            credential = DefaultAzureCredential()
+            kv_URL = f"https://{AzureEntryPoint.kv_name}.vault.azure.net"
+            secret_client = SecretClient(vault_url=kv_URL, credential=credential)
+            secret = secret_client.get_secret(AzureEntryPoint.secret_name)
+            # print(f"Secret Value: {secret.value}")
+            self.configs["api_token"] = secret.value
+
+        except Exception as e:
+            errormsg = f"Read operator key, an unexpected error occurred: {e}"
+            logging.error(errormsg)
+            raise MissingInstanceProfile(self.__class__.__name__, errormsg)
+
+    def _set_confidential_config(self, secret_identifier: str = None):
+        self.configs["skip_validations"] = os.getenv("SKIP_VALIDATIONS", "false").lower() == "true"
+        self.configs["debug_mode"] = os.getenv("DEBUG_MODE", "false").lower() == "true"
+        self.configs["environment"] = AzureEntryPoint.env_name
+
+        # set self.configs["api_token"]
+        self.__set_api_token()
+        # set base urls from final config file
+        self.__set_base_urls()
 
     def __run_operator(self):
 
@@ -119,48 +115,48 @@ class AzureEntryPoint(ConfidentialCompute):
         logging.info("-- starting java operator application")
         self.run_command(java_command, separate_process=False)
 
-    def __wait_for_sidecar(self):
+    def _validate_auxiliaries(self):
         logging.info("Waiting for sidecar ...")
 
-        url = "http://169.254.169.254/ping"
+        MAX_RETRIES = 15
+        PING_URL = "http://169.254.169.254/ping"
         delay = 1
-        max_retries = 15
 
-        while True:
+        for attempt in range(1, MAX_RETRIES + 1):
             try:
-                response = requests.get(url, timeout=5)
+                response = requests.get(PING_URL, timeout=5)
                 if response.status_code in [200, 204]:
-                    logging.info("Sidecar started")
+                    logging.info("Sidecar started successfully.")
                     return
                 else:
-                    error_msg = f"Unexpected status code: {response.status_code}, response: {response.text}"
-                    raise Exception(error_msg)
+                    logging.warning(
+                        f"Attempt {attempt}: Unexpected status code {response.status_code}. Response: {response.text}"
+                    )
             except Exception as e:
-                if delay > max_retries:
-                    logging.error(f"Sidecar failed to start after {delay} retries with error {e}", exc_info=True)
-                    sys.exit(1)
-                logging.info(f"Sidecar not started. Retrying in {delay} seconds... {e}")
-                time.sleep(delay)
-                delay += 1
+                logging.info(f"Attempt {attempt}: Error during request - {e}")
+
+            if attempt == MAX_RETRIES:
+                logging.error(
+                    f"Sidecar failed to start after {MAX_RETRIES} attempts. Exiting."
+                )
+                raise AuxiliariesException(self.__class__.__name__)
+
+            logging.info(f"Retrying in {delay} seconds... (Attempt {attempt}/{MAX_RETRIES})")
+            time.sleep(delay)
+            delay += 1
 
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""
         self.__check_env_variables()
-        self._set_secret()
-        self.__set_environment()
         self.__create_final_config()
-        self.__set_baseurls()
+        self._set_confidential_config()
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
-        self.__wait_for_sidecar()
+        self._setup_auxiliaries()
         self.__run_operator()
 
     def _setup_auxiliaries(self) -> None:
-        """ Sets up auxiliary processes required for confidential computing. """
-        pass
-
-    def _validate_auxiliaries(self) -> None:
-        """ Validates auxiliary services are running."""
+        """ setup auxiliary services are running."""
         pass
 
 if __name__ == "__main__":

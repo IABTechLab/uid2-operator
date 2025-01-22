@@ -48,11 +48,10 @@ class AuxiliaryConfig:
         return f"http://{cls.AWS_METADATA}/latest/dynamic/instance-identity/document"
     
 
-class EC2(ConfidentialCompute):
+class EC2EntryPoint(ConfidentialCompute):
 
     def __init__(self):
         self.configs: AWSConfidentialComputeConfig = {}
-
 
     def __get_aws_token(self) -> str:
         """Fetches a temporary AWS EC2 metadata token."""
@@ -85,7 +84,7 @@ class EC2(ConfidentialCompute):
                 if min_capacity.get(key) > int(self.configs.get(key, 10**9)):
                     raise ValueError(f"{key} value ({self.configs.get(key, 0)}) needs to be higher than the minimum required ({min_capacity.get(key)}).")
                 
-    def _set_secret(self, secret_identifier: str) -> None:
+    def _set_confidential_config(self, secret_identifier: str) -> None:
         """Fetches a secret value from AWS Secrets Manager and adds defaults"""
 
         def add_defaults(configs: Dict[str, any]) ->  None:
@@ -209,7 +208,7 @@ class EC2(ConfidentialCompute):
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""
         secret_manager_key = self.__get_secret_name_from_userdata()
-        self._set_secret(secret_manager_key)
+        self._set_confidential_config(secret_manager_key)
         print(f"Fetched configs from {secret_manager_key}")
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
@@ -245,7 +244,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--operation", choices=["stop", "start"], default="start", help="Operation to perform.")
     args = parser.parse_args()
     try:
-        ec2 = EC2()
+        ec2 = EC2EntryPoint()
         if args.operation == "stop":
             ec2.cleanup()
         else:
@@ -253,5 +252,5 @@ if __name__ == "__main__":
     except ConfidentialComputeStartupException as e:
         print("Failed starting up Confidential Compute. Please checks the logs for errors and retry \n", e)
     except Exception as e:
-         print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
+        print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
            

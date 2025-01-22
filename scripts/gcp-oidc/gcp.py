@@ -12,12 +12,13 @@ from google.api_core.exceptions import PermissionDenied, NotFound
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingConfig, ConfigNotFound, MissingInstanceProfile, ConfidentialComputeStartupException
 
-class GCPEntrypoint(ConfidentialCompute):
+class GCPEntryPoint(ConfidentialCompute):
 
     def __init__(self):
         super().__init__()
 
-    def _get_secret(self, secret_identifier=None) -> ConfidentialComputeConfig:
+    def _set_confidential_config(self, secret_identifier=None) -> None:
+        
         keys_mapping = {
             "core_base_url": "CORE_BASE_URL",
             "optout_base_url": "OPTOUT_BASE_URL",
@@ -25,7 +26,7 @@ class GCPEntrypoint(ConfidentialCompute):
             "skip_validations": "SKIP_VALIDATIONS",
             "debug_mode": "DEBUG_MODE",
         }
-        config: ConfidentialComputeConfig = {
+        self.config = {
             key: (os.environ[env_var].lower() == "true" if key in ["skip_validations", "debug_mode"] else os.environ[env_var])
             for key, env_var in keys_mapping.items() if env_var in os.environ
         }
@@ -63,7 +64,7 @@ class GCPEntrypoint(ConfidentialCompute):
         pass
 
     def run_compute(self) -> None:
-        self.configs = self._get_secret('read_from_env_vars')
+        self._set_confidential_config()
         print(f"Fetched configs")
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
@@ -86,7 +87,7 @@ class GCPEntrypoint(ConfidentialCompute):
 
 if __name__ == "__main__":
     try:
-        gcp = GCP()
+        gcp = GCPEntryPoint()
         gcp.run_compute()
     except ConfidentialComputeStartupException as e:
         print("Failed starting up Confidential Compute. Please checks the logs for errors and retry \n", e)

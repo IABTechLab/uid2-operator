@@ -75,7 +75,7 @@ fi
 cat $FINAL_CONFIG
 
 # delay the start of the operator until the side car has started correctly
-wait_for_sidecar
+# wait_for_sidecar
 
 # -- start operator
 echo "-- starting java application"

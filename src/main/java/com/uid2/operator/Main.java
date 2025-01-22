@@ -24,6 +24,7 @@ import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.RotatingSaltProvider;
 import com.uid2.shared.store.reader.*;
 import com.uid2.shared.store.scope.GlobalScope;
+import com.uid2.shared.util.HTTPPathMetricFilter;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
 import com.uid2.shared.vertx.RotatingStoreVerticle;
@@ -39,7 +40,6 @@ import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.http.impl.HttpUtils;
 import io.vertx.core.json.JsonObject;
 import io.vertx.micrometer.*;
 import io.vertx.micrometer.backends.BackendRegistries;
@@ -57,6 +57,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
+import static com.uid2.operator.Const.Config.ConfigScanPeriodMs;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {
@@ -271,40 +272,36 @@ public class Main {
         this.createVertxEventLoopsMetric();
 
         ConfigRetrieverFactory configRetrieverFactory = new ConfigRetrieverFactory();
-        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.createRemoteConfigRetriever(vertx, config, this.createOperatorKeyRetriever().retrieve());
-        ConfigRetriever staticConfigRetriever = configRetrieverFactory.createJsonRetriever(vertx, config);
-
+        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.create(vertx, config.getJsonObject("runtime_config_store"), this.createOperatorKeyRetriever().retrieve());
         Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
-        Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
 
-        ConfigRetriever featureFlagConfigRetriever = configRetrieverFactory.createFileRetriever(
+        ConfigRetriever featureFlagConfigRetriever = configRetrieverFactory.create(
                 vertx,
-                config.getString(Const.Config.RemoteConfigFlagConfigMapPath, "conf/local-config.json")
+                new JsonObject()
+                        .put("type", "file")
+                        .put("config", new JsonObject()
+                                .put("path", "conf/feat-flag/feat-flag.json")
+                                .put("format", "json"))
+                        .put(ConfigScanPeriodMs, 60000),
+                ""
         );
 
-        Future<JsonObject> featureFlagFuture = featureFlagConfigRetriever.getConfig();
-
-        Future.all(dynamicConfigFuture, staticConfigFuture, featureFlagFuture)
+        featureFlagConfigRetriever.getConfig().compose(featureFlagConfig -> {
+                    JsonObject remoteConfigJson = featureFlagConfig.getJsonObject("remote_config");
+                    JsonObject featureFlagBootstrapConfig = remoteConfigJson.getJsonObject("runtime_config_store");
+                    ConfigRetriever staticConfigRetriever = configRetrieverFactory.create(vertx, featureFlagBootstrapConfig, "");
+                    return Future.all(dynamicConfigFuture, ConfigService.create(staticConfigRetriever));
+                })
                 .compose(configServiceManagerCompositeFuture -> {
                     ConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
                     ConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
-                    JsonObject featureFlagConfig = configServiceManagerCompositeFuture.resultAt(2);
 
-                    boolean featureFlag = featureFlagConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
+                    boolean featureFlag = featureFlagConfigRetriever.getCachedConfig().getJsonObject("remote_config").getBoolean(Const.Config.RemoteConfigFeatureFlag, false);
 
-                    ConfigServiceManager configServiceManager = new ConfigServiceManager(vertx, dynamicConfigService, staticConfigService, featureFlag);
+                    ConfigServiceManager configServiceManager = new ConfigServiceManager(
+                            vertx, dynamicConfigService, staticConfigService, featureFlag);
 
-                    featureFlagConfigRetriever.listen(change -> {
-                        JsonObject newConfig = change.getNewConfiguration();
-                        boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
-                        configServiceManager.updateConfigService(useDynamicConfig).onComplete(update -> {
-                            if (update.succeeded()) {
-                                LOGGER.info("Remote config feature flag toggled successfully");
-                            } else {
-                                LOGGER.error("Failed to toggle remote config feature flag: " + update.cause());
-                            }
-                        });
-                    });
+                    setupFeatureFlagListener(configServiceManager, featureFlagConfigRetriever);
 
                     IConfigService configService = configServiceManager.getDelegatingConfigService();
                     Supplier<Verticle> operatorVerticleSupplier = () -> {
@@ -344,6 +341,20 @@ public class Main {
                                 System.exit(1);
                             });
                 });
+    }
+
+    private void setupFeatureFlagListener(ConfigServiceManager manager, ConfigRetriever retriever) {
+        retriever.listen(change -> {
+            JsonObject newConfig = change.getNewConfiguration();
+            boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
+            manager.updateConfigService(useDynamicConfig).onComplete(update -> {
+                if (update.succeeded()) {
+                    LOGGER.info("Remote config feature flag toggled successfully");
+                } else {
+                    LOGGER.error("Failed to toggle remote config feature flag: " + update.cause());
+                }
+            });
+        });
     }
 
     private Future<Void> createStoreVerticles() throws Exception {
@@ -471,14 +482,8 @@ public class Main {
             prometheusRegistry.config()
                 // providing common renaming for prometheus metric, e.g. "hello.world" to "hello_world"
                 .meterFilter(new PrometheusRenameFilter())
-                .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), actualPath -> {
-                    try {
-                        String normalized = HttpUtils.normalizePath(actualPath).split("\\?")[0];
-                        return Endpoints.pathSet().contains(normalized) ? normalized : "/unknown";
-                    } catch (IllegalArgumentException e) {
-                        return actualPath;
-                    }
-                }))
+                .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(),
+                        actualPath -> HTTPPathMetricFilter.filterPath(actualPath, Endpoints.pathSet())))
                 // Don't record metrics for 404s.
                 .meterFilter(MeterFilter.deny(id ->
                     id.getName().startsWith(MetricsDomain.HTTP_SERVER.getPrefix()) &&

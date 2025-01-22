@@ -81,6 +81,7 @@ public class ConfigService implements IConfigService {
             return lastConfig;
         }
 
+        logger.info("Successfully updated config");
         return config;
     }
 }

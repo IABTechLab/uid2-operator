@@ -96,6 +96,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IOptOutStore optOutStore;
     private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
+    private final Boolean allowLegacyAPI;
+    private final Boolean identityV3Enabled;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
@@ -133,6 +135,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final String ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_MISSING = "Required Parameter Missing: exactly one of email or email_hash must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
+    public static final String Config = "config";
     public final static String ORIGIN_HEADER = "Origin";
 
     public UIDOperatorVerticle(IConfigService configService,
@@ -178,11 +181,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
+        this.allowLegacyAPI = config.getBoolean(Const.Config.AllowLegacyAPIProp, true);
+        this.identityV3Enabled = config.getBoolean(IdentityV3, false);
     }
 
     @Override
     public void start(Promise<Void> startPromise) throws Exception {
-        Boolean identityV3Enabled = this.configService.getConfig().getBoolean(identityV3, false);
         this.healthComponent.setHealthStatus(false, "still starting");
         this.idService = new UIDOperatorService(
                 this.optOutStore,
@@ -191,7 +195,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.clock,
                 this.identityScope,
                 this.saltRetrievalResponseHandler,
-                identityV3Enabled
+                this.identityV3Enabled
         );
 
         final Router router = createRoutesSetup();
@@ -244,7 +248,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // Static and health check
         router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
 
-        if (this.configService.getConfig().getBoolean(Const.Config.AllowLegacyAPIProp, true)) {
+        if (this.allowLegacyAPI) {
             // V1 APIs
             router.get(V1_TOKEN_GENERATE.toString()).handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
             router.get(V1_TOKEN_VALIDATE.toString()).handler(this::handleTokenValidateV1);
@@ -616,10 +620,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             rc.fail(500);
         }
     }
-
-//    private String getSharingTokenExpirySeconds() {
-//        return config.getString(Const.Config.SharingTokenExpiryProp);
-//    }
 
     public void handleKeysSharing(RoutingContext rc) {
         JsonObject config = this.getConfigFromRc(rc);

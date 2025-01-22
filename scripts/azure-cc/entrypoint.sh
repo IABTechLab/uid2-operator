@@ -1,9 +1,10 @@
-#!/bin/sh
-#
-# This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
+!/bin/sh
+
+This script must be compatible with Ash (provided in eclipse-temurin Docker image) and Bash
 
 function wait_for_sidecar() {
-  url="http://169.254.169.254/ping"
+  # url="http://169.254.169.254/ping"
+  url="http://localhost:9000/status"
   delay=1
   max_retries=15
 
@@ -21,6 +22,10 @@ function wait_for_sidecar() {
       delay=$((delay + 1))
     fi
   done
+}
+
+function wait_for_sidecar() {
+  kubectl wait --for=condition=ready pod -l app=uid --timeout=60s
 }
 
 TMP_FINAL_CONFIG="/tmp/final-config.tmp"

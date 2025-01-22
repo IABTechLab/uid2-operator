@@ -29,7 +29,7 @@ class MissingInstanceProfile(ConfidentialComputeStartupException):
     def __init__(self, cls, message = None):
         super().__init__(error_name=f"E01: {self.__class__.__name__}", provider=cls, extra_message=message)
 
-class ConfigNotFound(ConfidentialComputeStartupException):
+class ApiTokenNotFound(ConfidentialComputeStartupException):
     def __init__(self, cls, message = None):
         super().__init__(error_name=f"E02: {self.__class__.__name__}", provider=cls, extra_message=message)
 
@@ -52,6 +52,10 @@ class UID2ServicesUnreachable(ConfidentialComputeStartupException):
 class AuxiliariesException(ConfidentialComputeStartupException):
     def __init__(self, cls, inner_message = None):
         super().__init__(error_name=f"E07: {self.__class__.__name__}", provider=cls, extra_message=inner_message)
+
+class SecretAccessDenied(ConfidentialComputeStartupException):
+    def __init__(self, cls, message = None):
+        super().__init__(error_name=f"E08: {self.__class__.__name__}", provider=cls, extra_message=message)
 
 class ConfidentialCompute(ABC):
 

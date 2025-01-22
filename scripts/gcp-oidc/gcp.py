@@ -10,7 +10,7 @@ from google.auth.exceptions import DefaultCredentialsError
 from google.api_core.exceptions import PermissionDenied, NotFound
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingConfig, ConfigNotFound, MissingInstanceProfile, ConfidentialComputeStartupException
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingConfig, ApiTokenNotFound, SecretAccessDenied, ConfidentialComputeStartupException
 
 class GCPEntryPoint(ConfidentialCompute):
 
@@ -39,11 +39,10 @@ class GCPEntryPoint(ConfidentialCompute):
             response = client.access_secret_version(name=secret_version_name)
             secret_value = response.payload.data.decode("UTF-8")
         except (PermissionDenied, DefaultCredentialsError) as e:
-            raise MissingInstanceProfile(self.__class__.__name__, str(e))
+            raise SecretAccessDenied(self.__class__.__name__, str(e))
         except NotFound:
-            raise ConfigNotFound(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
-        config["api_token"] = secret_value
-        return config
+            raise ApiTokenNotFound(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
+        self.config["api_token"] = secret_value
     
     def __populate_operator_config(self, destination):
         target_config = f"/app/conf/{self.configs["environment"].lower()}-config.json"
@@ -92,5 +91,5 @@ if __name__ == "__main__":
     except ConfidentialComputeStartupException as e:
         print("Failed starting up Confidential Compute. Please checks the logs for errors and retry \n", e)
     except Exception as e:
-         print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
+        print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
            

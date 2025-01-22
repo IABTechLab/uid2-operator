@@ -10,9 +10,10 @@ import requests
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, MissingConfig, MissingInstanceProfile, AuxiliariesException, ConfidentialComputeStartupException 
-from azure.identity import DefaultAzureCredential
+from confidential_compute import ConfidentialCompute, MissingConfig, MissingInstanceProfile, AuxiliariesException, SecretAccessDenied, ApiTokenNotFound, ConfidentialComputeStartupException 
 from azure.keyvault.secrets import SecretClient
+from azure.identity import DefaultAzureCredential, CredentialUnavailableError
+from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError
 
 class AzureEntryPoint(ConfidentialCompute):
   
@@ -81,10 +82,13 @@ class AzureEntryPoint(ConfidentialCompute):
             # print(f"Secret Value: {secret.value}")
             self.configs["api_token"] = secret.value
 
-        except Exception as e:
-            errormsg = f"Read operator key, an unexpected error occurred: {e}"
-            logging.error(errormsg)
-            raise MissingInstanceProfile(self.__class__.__name__, errormsg)
+        except (CredentialUnavailableError, ClientAuthenticationError) as auth_error:
+            logging.error(f"Read operator key, authentication error: {auth_error}")
+            raise SecretAccessDenied(self.__class__.__name__, str(auth_error))
+        except ResourceNotFoundError as not_found_error:
+            logging.error(f"Read operator key, secret not found: {AzureEntryPoint.secret_name}. Error: {not_found_error}")
+            raise ApiTokenNotFound(self.__class__.__name__, str(not_found_error))
+        
 
     def _set_confidential_config(self, secret_identifier: str = None):
         self.configs["skip_validations"] = os.getenv("SKIP_VALIDATIONS", "false").lower() == "true"

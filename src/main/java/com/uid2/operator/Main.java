@@ -57,6 +57,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
+import static com.uid2.operator.Const.Config.ConfigScanPeriodMs;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {
@@ -271,36 +272,31 @@ public class Main {
         this.createVertxEventLoopsMetric();
 
         ConfigRetrieverFactory configRetrieverFactory = new ConfigRetrieverFactory();
-        ConfigRetriever staticConfigRetriever = configRetrieverFactory.createJsonRetriever(vertx, config);
-        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.createRemoteConfigRetriever(vertx, config, this.createOperatorKeyRetriever().retrieve());
-        Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
+        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.create(vertx, config.getJsonObject("runtime_config_store"), this.createOperatorKeyRetriever().retrieve());
         Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
 
-        ConfigRetriever featureFlagConfigRetriever = configRetrieverFactory.createFileRetriever(
+        ConfigRetriever featureFlagConfigRetriever = configRetrieverFactory.create(
                 vertx,
-                "conf/feat-flag/feat-flag.json"
+                new JsonObject()
+                        .put("type", "file")
+                        .put("config", new JsonObject()
+                                .put("path", "conf/feat-flag/feat-flag.json")
+                                .put("format", "json"))
+                        .put(ConfigScanPeriodMs, 60000),
+                ""
         );
-        Future<JsonObject> featureFlagFuture = featureFlagConfigRetriever.getConfig();
 
-        featureFlagFuture.compose(featureFlagConfig -> {
-                    boolean featureFlag = featureFlagConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
-                    // use static config if dynamic config fails and feature flag toggled off
-                    return dynamicConfigFuture
-                            .recover(throwable -> {
-                                if (!featureFlag) {
-                                    LOGGER.warn("Dynamic config service creation failed: ", throwable);
-                                    return staticConfigFuture;
-                                } else {
-                                    return Future.failedFuture(new Exception("Dynamic config service creation failed and feature flag is enabled: ", throwable));
-                                }
-                            })
-                            .compose(dynamicConfigService -> Future.all(Future.succeededFuture(dynamicConfigService), staticConfigFuture));
+        featureFlagConfigRetriever.getConfig().compose(featureFlagConfig -> {
+                    JsonObject remoteConfigJson = featureFlagConfig.getJsonObject("remote_config");
+                    JsonObject featureFlagBootstrapConfig = remoteConfigJson.getJsonObject("runtime_config_store");
+                    ConfigRetriever staticConfigRetriever = configRetrieverFactory.create(vertx, featureFlagBootstrapConfig, "");
+                    return Future.all(dynamicConfigFuture, ConfigService.create(staticConfigRetriever));
                 })
                 .compose(configServiceManagerCompositeFuture -> {
                     ConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
                     ConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
 
-                    boolean featureFlag = featureFlagConfigRetriever.getCachedConfig().getBoolean(Const.Config.RemoteConfigFeatureFlag, false);
+                    boolean featureFlag = featureFlagConfigRetriever.getCachedConfig().getJsonObject("remote_config").getBoolean(Const.Config.RemoteConfigFeatureFlag, false);
 
                     ConfigServiceManager configServiceManager = new ConfigServiceManager(
                             vertx, dynamicConfigService, staticConfigService, featureFlag);

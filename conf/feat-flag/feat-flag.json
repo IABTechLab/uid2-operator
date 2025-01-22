@@ -1,3 +1,15 @@
 {
-  "remote_config_feature_flag": false
+  "remote_config": {
+    "enabled": true,
+    "runtime_config_store": {
+      "type": "json",
+      "config": {
+        "identity_token_expires_after_seconds": 3600,
+        "refresh_token_expires_after_seconds": 86400,
+        "refresh_identity_token_after_seconds": 900,
+        "sharing_token_expiry_seconds": 2592000
+      },
+      "config_scan_period_ms": -1
+    }
+  }
 }

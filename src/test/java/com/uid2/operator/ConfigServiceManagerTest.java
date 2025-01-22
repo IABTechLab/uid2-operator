@@ -24,8 +24,6 @@ public class ConfigServiceManagerTest {
     @BeforeEach
     void setUp(Vertx vertx) {
         bootstrapConfig = new JsonObject()
-                .put(CoreConfigPath, "/operator/config")
-                .put(ConfigScanPeriodMs, 300000)
                 .put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 3600)
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 7200)
                 .put(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, 1800)

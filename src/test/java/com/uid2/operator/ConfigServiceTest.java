@@ -38,13 +38,14 @@ class ConfigServiceTest {
                         .put("host", "localhost")
                         .put("port", 8088)
                         .put("path", "/operator/config"))
-                .put(ConfigScanPeriodMs, 300000);
+                .put(ConfigScanPeriodMsProp, 300000);
 
         runtimeConfig = new JsonObject()
                 .put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 3600)
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 7200)
                 .put(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, 1800)
-                .put(MaxBidstreamLifetimeSecondsProp, 7200);
+                .put(MaxBidstreamLifetimeSecondsProp, 7200)
+                .put(SharingTokenExpiryProp, 3600);
 
         configRetrieverFactory = new ConfigRetrieverFactory();
 
@@ -108,7 +109,7 @@ class ConfigServiceTest {
         JsonObject jsonBootstrapConfig = new JsonObject()
                 .put("type", "json")
                 .put("config", invalidConfig)
-                .put(ConfigScanPeriodMs, -1);
+                .put(ConfigScanPeriodMsProp, -1);
         ConfigRetriever spyRetriever = spy(configRetrieverFactory.create(vertx, jsonBootstrapConfig, ""));
         when(spyRetriever.getCachedConfig()).thenReturn(lastConfig);
         ConfigService.create(spyRetriever)
@@ -128,7 +129,7 @@ class ConfigServiceTest {
         JsonObject jsonBootstrapConfig = new JsonObject()
                 .put("type", "json")
                 .put("config", invalidConfig)
-                .put(ConfigScanPeriodMs, -1);
+                .put(ConfigScanPeriodMsProp, -1);
         ConfigRetriever configRetriever = configRetrieverFactory.create(vertx, jsonBootstrapConfig, "");
         ConfigService.create(configRetriever)
                 .onComplete(testContext.failing(throwable -> {

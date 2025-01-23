@@ -182,7 +182,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
         this.allowLegacyAPI = config.getBoolean(Const.Config.AllowLegacyAPIProp, true);
-        this.identityV3Enabled = config.getBoolean(IdentityV3, false);
+        this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
     }
 
     @Override

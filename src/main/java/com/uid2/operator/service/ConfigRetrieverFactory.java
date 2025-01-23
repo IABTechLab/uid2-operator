@@ -6,7 +6,7 @@ import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
-import static com.uid2.operator.Const.Config.ConfigScanPeriodMs;
+import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
 
 public class ConfigRetrieverFactory {
     public ConfigRetriever create(Vertx vertx, JsonObject bootstrapConfig, String operatorKey) {
@@ -22,7 +22,7 @@ public class ConfigRetrieverFactory {
                 .setConfig(storeConfig);
 
         ConfigRetrieverOptions retrieverOptions = new ConfigRetrieverOptions()
-                .setScanPeriod(bootstrapConfig.getLong(ConfigScanPeriodMs))
+                .setScanPeriod(bootstrapConfig.getLong(ConfigScanPeriodMsProp))
                 .addStore(storeOptions);
 
         return ConfigRetriever.create(vertx, retrieverOptions);

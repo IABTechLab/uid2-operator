@@ -92,6 +92,7 @@ jobs:
           echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
           echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
           cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
+          cp scripts/confidential_compute.py ${{ env.DOCKER_CONTEXT_PATH }}/
 
       - name: Log in to the Docker container registry
         uses: docker/login-action@v3

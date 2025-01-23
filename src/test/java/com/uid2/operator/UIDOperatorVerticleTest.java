@@ -157,7 +157,7 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.SharingTokenExpiryProp, 60 * 60 * 24 * 30);
 
         config.put("identity_scope", getIdentityScope().toString());
-        config.put(Const.Config.IdentityV3Prop, useRawUidV3());
+        config.put(Const.Config.IdentityV3, useRawUidV3());
         config.put("client_side_token_generate", true);
         config.put("key_sharing_endpoint_provide_app_names", true);
         config.put("client_side_token_generate_log_invalid_http_origins", true);

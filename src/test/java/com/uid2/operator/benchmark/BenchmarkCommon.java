@@ -41,7 +41,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
-import static com.uid2.operator.Const.Config.IdentityV3Prop;
+import static com.uid2.operator.Const.Config.IdentityV3;
 
 public class BenchmarkCommon {
 
@@ -77,7 +77,7 @@ public class BenchmarkCommon {
                 Clock.systemUTC(),
                 IdentityScope.UID2,
                 null,
-                config.getBoolean(IdentityV3Prop)
+                config.getBoolean(IdentityV3)
         );
     }
 

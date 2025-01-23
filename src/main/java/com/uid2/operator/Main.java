@@ -57,7 +57,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
-import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
+import static com.uid2.operator.Const.Config.ConfigScanPeriodMs;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {
@@ -282,7 +282,7 @@ public class Main {
                         .put("config", new JsonObject()
                                 .put("path", "conf/feat-flag/feat-flag.json")
                                 .put("format", "json"))
-                        .put(ConfigScanPeriodMsProp, 60000),
+                        .put(ConfigScanPeriodMs, 60000),
                 ""
         );
 
@@ -296,7 +296,7 @@ public class Main {
                     ConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
                     ConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
 
-                    boolean featureFlag = featureFlagConfigRetriever.getCachedConfig().getJsonObject("remote_config").getBoolean(Const.Config.RemoteConfigFeatureFlagProp, false);
+                    boolean featureFlag = featureFlagConfigRetriever.getCachedConfig().getJsonObject("remote_config").getBoolean(Const.Config.RemoteConfigFeatureFlag, false);
 
                     ConfigServiceManager configServiceManager = new ConfigServiceManager(
                             vertx, dynamicConfigService, staticConfigService, featureFlag);
@@ -346,7 +346,7 @@ public class Main {
     private void setupFeatureFlagListener(ConfigServiceManager manager, ConfigRetriever retriever) {
         retriever.listen(change -> {
             JsonObject newConfig = change.getNewConfiguration();
-            boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlagProp, true);
+            boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
             manager.updateConfigService(useDynamicConfig).onComplete(update -> {
                 if (update.succeeded()) {
                     LOGGER.info("Remote config feature flag toggled successfully");

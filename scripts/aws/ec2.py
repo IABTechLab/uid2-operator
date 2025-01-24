@@ -16,7 +16,7 @@ import time
 import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingInstanceProfile, ApiTokenNotFound, InvalidConfigValue, ConfidentialComputeStartupException
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingInstanceProfile, OperatorKeyNotFound, InvalidConfigValue, ConfidentialComputeStartupException
 
 class AWSConfidentialComputeConfig(ConfidentialComputeConfig):
     enclave_memory_mb: int
@@ -103,7 +103,7 @@ class EC2EntryPoint(ConfidentialCompute):
         except NoCredentialsError as _:
             raise MissingInstanceProfile(self.__class__.__name__)
         except ClientError as _:
-            raise ApiTokenNotFound(self.__class__.__name__, f"Secret Manager {secret_identifier} in {region}")
+            raise OperatorKeyNotFound(self.__class__.__name__, f"Secret Manager {secret_identifier} in {region}")
         
     @staticmethod
     def __get_max_capacity():

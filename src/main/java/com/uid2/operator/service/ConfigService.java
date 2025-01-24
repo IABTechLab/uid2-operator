@@ -10,6 +10,8 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static com.uid2.operator.service.ConfigValidatorUtil.*;
 import static com.uid2.operator.service.UIDOperatorService.*;
 
@@ -18,19 +20,23 @@ public class ConfigService implements IConfigService {
     private final ConfigRetriever configRetriever;
     private static final Logger logger = LoggerFactory.getLogger(ConfigService.class);
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("config-service");
-
+    private static final int MAX_FAILURE_COUNT = 3;
+    private final AtomicInteger failedRetrievalCount = new AtomicInteger(0);
 
     private ConfigService(ConfigRetriever configRetriever) {
         this.configRetriever = configRetriever;
         this.configRetriever.setConfigurationProcessor(json -> {
             JsonObject validJson = configValidationHandler(json);
+            failedRetrievalCount.set(0);
             this.healthComponent.setHealthStatus(true, "config retrieved successfully");
             return validJson;
         });
         this.configRetriever.configStream()
                 .exceptionHandler(e -> {
                     logger.warn("Exception occurred while retrieving configuration: ", e);
-                    this.healthComponent.setHealthStatus(false, "failed to retrieve config");
+                    if (failedRetrievalCount.incrementAndGet() == MAX_FAILURE_COUNT) {
+                        this.healthComponent.setHealthStatus(false, String.format("failed to retrieve config after %d consecutive attempts", MAX_FAILURE_COUNT));
+                    }
                 });
 
         this.healthComponent.setHealthStatus(false, "config not yet retrieved");

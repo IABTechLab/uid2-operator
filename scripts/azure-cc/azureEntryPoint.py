@@ -10,7 +10,7 @@ import requests
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, MissingConfig, MissingInstanceProfile, AuxiliariesException, SecretAccessDenied, ApiTokenNotFound, ConfidentialComputeStartupException 
+from confidential_compute import ConfidentialCompute, MissingConfig, MissingInstanceProfile, AuxiliariesException, OperatorKeyAccessDenied, OperatorKeyNotFound, ConfidentialComputeStartupException 
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential, CredentialUnavailableError
 from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError
@@ -73,21 +73,21 @@ class AzureEntryPoint(ConfidentialCompute):
             self.configs["core_base_url"] = jdata["core_attest_url"]
             self.configs["optout_base_url"] = jdata["optout_api_uri"]
 
-    def __set_api_token(self):
+    def __set_operator_key(self):
         try:
             credential = DefaultAzureCredential()
             kv_URL = f"https://{AzureEntryPoint.kv_name}.vault.azure.net"
             secret_client = SecretClient(vault_url=kv_URL, credential=credential)
             secret = secret_client.get_secret(AzureEntryPoint.secret_name)
             # print(f"Secret Value: {secret.value}")
-            self.configs["api_token"] = secret.value
+            self.configs["operator_key"] = secret.value
 
         except (CredentialUnavailableError, ClientAuthenticationError) as auth_error:
             logging.error(f"Read operator key, authentication error: {auth_error}")
-            raise SecretAccessDenied(self.__class__.__name__, str(auth_error))
+            raise OperatorKeyAccessDenied(self.__class__.__name__, str(auth_error))
         except ResourceNotFoundError as not_found_error:
             logging.error(f"Read operator key, secret not found: {AzureEntryPoint.secret_name}. Error: {not_found_error}")
-            raise ApiTokenNotFound(self.__class__.__name__, str(not_found_error))
+            raise OperatorKeyNotFound(self.__class__.__name__, str(not_found_error))
         
 
     def _set_confidential_config(self, secret_identifier: str = None):
@@ -95,8 +95,8 @@ class AzureEntryPoint(ConfidentialCompute):
         self.configs["debug_mode"] = os.getenv("DEBUG_MODE", "false").lower() == "true"
         self.configs["environment"] = AzureEntryPoint.env_name
 
-        # set self.configs["api_token"]
-        self.__set_api_token()
+        # set self.configs["operator_key"]
+        self.__set_operator_key()
         # set base urls from final config file
         self.__set_base_urls()
 

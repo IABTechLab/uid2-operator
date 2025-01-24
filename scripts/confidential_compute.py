@@ -8,7 +8,7 @@ import subprocess
 import logging
 
 class ConfidentialComputeConfig(TypedDict):
-    api_token: str
+    operator_key: str
     core_base_url: str
     optout_base_url: str
     environment: str
@@ -29,7 +29,7 @@ class MissingInstanceProfile(ConfidentialComputeStartupException):
     def __init__(self, cls, message = None):
         super().__init__(error_name=f"E01: {self.__class__.__name__}", provider=cls, extra_message=message)
 
-class ApiTokenNotFound(ConfidentialComputeStartupException):
+class OperatorKeyNotFound(ConfidentialComputeStartupException):
     def __init__(self, cls, message = None):
         super().__init__(error_name=f"E02: {self.__class__.__name__}", provider=cls, extra_message=message)
 
@@ -53,7 +53,7 @@ class AuxiliariesException(ConfidentialComputeStartupException):
     def __init__(self, cls, inner_message = None):
         super().__init__(error_name=f"E07: {self.__class__.__name__}", provider=cls, extra_message=inner_message)
 
-class SecretAccessDenied(ConfidentialComputeStartupException):
+class OperatorKeyAccessDenied(ConfidentialComputeStartupException):
     def __init__(self, cls, message = None):
         super().__init__(error_name=f"E08: {self.__class__.__name__}", provider=cls, extra_message=message)
 
@@ -67,7 +67,7 @@ class ConfidentialCompute(ABC):
         logging.info("Validating configurations provided")
         def validate_operator_key():
             """ Validates the operator key format and its environment alignment."""
-            operator_key = self.configs.get("api_token")
+            operator_key = self.configs.get("operator_key")
             pattern = r"^(UID2|EUID)-.\-(I|P|L)-\d+-.*$"
             if re.match(pattern, operator_key):
                 env = self.configs.get("environment", "").lower()

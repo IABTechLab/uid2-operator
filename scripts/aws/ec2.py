@@ -21,6 +21,8 @@ from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig,
 class AWSConfidentialComputeConfig(ConfidentialComputeConfig):
     enclave_memory_mb: int
     enclave_cpu_count: int
+    core_api_token: str
+    optout_api_token: str
 
 class AuxiliaryConfig:
     FLASK_PORT: str = "27015"
@@ -93,6 +95,8 @@ class EC2EntryPoint(ConfidentialCompute):
             configs.setdefault("enclave_memory_mb", default_capacity["enclave_memory_mb"])
             configs.setdefault("enclave_cpu_count", default_capacity["enclave_cpu_count"])
             configs.setdefault("debug_mode", False)
+            configs.setdefault("core_api_token", configs.get("api_token", ""))
+            configs.setdefault("optout_api_token", configs.get("api_token", ""))
         
         region = self.__get_current_region()
         print(f"Running in {region}")

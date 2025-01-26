@@ -16,7 +16,7 @@ import time
 import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingInstanceProfile, ConfigNotFound, InvalidConfigValue, ConfidentialComputeStartupException
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingInstanceProfile, OperatorKeyNotFound, InvalidConfigValue, ConfidentialComputeStartupException
 
 class AWSConfidentialComputeConfig(ConfidentialComputeConfig):
     enclave_memory_mb: int
@@ -48,10 +48,10 @@ class AuxiliaryConfig:
         return f"http://{cls.AWS_METADATA}/latest/dynamic/instance-identity/document"
     
 
-class EC2(ConfidentialCompute):
+class EC2EntryPoint(ConfidentialCompute):
 
     def __init__(self):
-        super().__init__()
+        self.configs: AWSConfidentialComputeConfig = {}
 
     def __get_aws_token(self) -> str:
         """Fetches a temporary AWS EC2 metadata token."""
@@ -74,38 +74,36 @@ class EC2(ConfidentialCompute):
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to fetch region: {e}")
         
-    def __validate_aws_specific_config(self, secret):
-        if "enclave_memory_mb" in secret or "enclave_cpu_count" in secret:
+    def __validate_aws_specific_config(self):
+        if "enclave_memory_mb" in self.configs or "enclave_cpu_count" in self.configs:
             max_capacity = self.__get_max_capacity()
             min_capacity = {"enclave_memory_mb": 11000, "enclave_cpu_count" : 2 }
             for key in ["enclave_memory_mb", "enclave_cpu_count"]:
-                if int(secret.get(key, 0)) > max_capacity.get(key):
-                    raise ValueError(f"{key} value ({secret.get(key, 0)}) exceeds the maximum allowed ({max_capacity.get(key)}).")
-                if min_capacity.get(key) > int(secret.get(key, 10**9)):
-                    raise ValueError(f"{key} value ({secret.get(key, 0)}) needs to be higher than the minimum required ({min_capacity.get(key)}).")
+                if int(self.configs.get(key, 0)) > max_capacity.get(key):
+                    raise ValueError(f"{key} value ({self.configs.get(key, 0)}) exceeds the maximum allowed ({max_capacity.get(key)}).")
+                if min_capacity.get(key) > int(self.configs.get(key, 10**9)):
+                    raise ValueError(f"{key} value ({self.configs.get(key, 0)}) needs to be higher than the minimum required ({min_capacity.get(key)}).")
                 
-    def _get_secret(self, secret_identifier: str) -> AWSConfidentialComputeConfig:
+    def _set_confidential_config(self, secret_identifier: str) -> None:
         """Fetches a secret value from AWS Secrets Manager and adds defaults"""
 
-        def add_defaults(configs: Dict[str, any]) -> AWSConfidentialComputeConfig:
+        def add_defaults(configs: Dict[str, any]) ->  None:
             """Adds default values to configuration if missing."""
             default_capacity = self.__get_max_capacity()
             configs.setdefault("enclave_memory_mb", default_capacity["enclave_memory_mb"])
             configs.setdefault("enclave_cpu_count", default_capacity["enclave_cpu_count"])
             configs.setdefault("debug_mode", False)
-            return configs
         
         region = self.__get_current_region()
         print(f"Running in {region}")
         client = boto3.client("secretsmanager", region_name=region)
         try:
-            secret = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
-            self.__validate_aws_specific_config(secret)
-            return secret
+            add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
+            self.__validate_aws_specific_config()
         except NoCredentialsError as _:
             raise MissingInstanceProfile(self.__class__.__name__)
         except ClientError as _:
-            raise ConfigNotFound(self.__class__.__name__, f"Secret Manager {secret_identifier} in {region}")
+            raise OperatorKeyNotFound(self.__class__.__name__, f"Secret Manager {secret_identifier} in {region}")
         
     @staticmethod
     def __get_max_capacity():
@@ -137,7 +135,7 @@ class EC2(ConfidentialCompute):
             json.dump(self.configs, config_file)
         os.chdir("/opt/uid2operator/config-server")
         command = ["./bin/flask", "run", "--host", AuxiliaryConfig.LOCALHOST, "--port", AuxiliaryConfig.FLASK_PORT]
-        self.run_command(command, seperate_process=True)
+        self.run_command(command, separate_process=True)
 
     def __run_socks_proxy(self) -> None:
         """
@@ -205,12 +203,12 @@ class EC2(ConfidentialCompute):
         if self.configs.get('debug_mode', False):
             print("Running in debug_mode")
             command += ["--debug-mode", "--attach-console"]
-        self.run_command(command, seperate_process=True)
+        self.run_command(command, separate_process=True)
 
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""
         secret_manager_key = self.__get_secret_name_from_userdata()
-        self.configs = self._get_secret(secret_manager_key)
+        self._set_confidential_config(secret_manager_key)
         print(f"Fetched configs from {secret_manager_key}")
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
@@ -246,7 +244,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--operation", choices=["stop", "start"], default="start", help="Operation to perform.")
     args = parser.parse_args()
     try:
-        ec2 = EC2()
+        ec2 = EC2EntryPoint()
         if args.operation == "stop":
             ec2.cleanup()
         else:
@@ -254,5 +252,5 @@ if __name__ == "__main__":
     except ConfidentialComputeStartupException as e:
         print("Failed starting up Confidential Compute. Please checks the logs for errors and retry \n", e)
     except Exception as e:
-         print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
+        print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
            

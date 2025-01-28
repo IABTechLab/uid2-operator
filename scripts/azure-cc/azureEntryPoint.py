@@ -172,5 +172,6 @@ if __name__ == "__main__":
         operator.run_compute()
     except ConfidentialComputeStartupException as e:
         logging.error(f"Failed starting up Azure Confidential Compute. Please checks the logs for errors and retry {e}", exc_info=True)
+        time.sleep(100)
     except Exception as e:
         logging.error(f"Unexpected failure while starting up Azure Confidential Compute. Please contact UID support team with this log {e}", exc_info=True)          

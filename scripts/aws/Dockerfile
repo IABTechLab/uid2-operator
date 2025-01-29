@@ -34,7 +34,7 @@ COPY ./vsockpx            /app/
 COPY ./entrypoint.sh      /app/
 COPY ./proxies.nitro.yaml /app/
 COPY ./conf/default-config.json    /app/conf/
-COPY ./conf/uid2-config.json  /app/conf/
+COPY ./conf/*.json  /app/conf/
 COPY ./conf/*.xml                  /app/conf/
 COPY ./syslog-ng-client.conf       /etc/syslog-ng/syslog-ng.conf
 

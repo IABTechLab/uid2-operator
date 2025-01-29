@@ -28,13 +28,22 @@ euidoperator.eif: build_artifacts build_configs build/proxies.nitro.yaml build/s
 
 .PHONY: build_configs
 
-build_configs: build/conf/default-config.json build/conf/uid2-config.json build/conf/logback.xml build/conf/logback-debug.xml
+build_configs: build/conf/default-config.json build/conf/euid-integ-config.json build/conf/euid-prod-config.json build/conf/uid2-integ-config.json build/conf/uid2-prod-config.json build/conf/logback.xml build/conf/logback-debug.xml
 
 build/conf/default-config.json: build_artifacts ./scripts/aws/conf/default-config.json
 	cp ./scripts/aws/conf/default-config.json ./build/conf/
 
-build/conf/uid2-config.json: build_artifacts ./scripts/aws/conf/uid2-config.json
-	cp ./scripts/aws/conf/uid2-config.json ./build/conf/
+build/conf/euid-integ-config.json: build_artifacts ./scripts/aws/conf/euid-integ-config.json
+	cp ./scripts/aws/conf/euid-integ-config.json ./build/conf/
+
+build/conf/euid-prod-config.json: build_artifacts ./scripts/aws/conf/euid-prod-config.json
+	cp ./scripts/aws/conf/euid-prod-config.json ./build/conf/
+
+build/conf/uid2-integ-config.json: build_artifacts ./scripts/aws/conf/uid2-integ-config.json
+	cp ./scripts/aws/conf/uid2-integ-config.json ./build/conf/
+
+build/conf/uid2-prod-config.json: build_artifacts ./scripts/aws/conf/uid2-prod-config.json
+	cp ./scripts/aws/conf/uid2-prod-config.json ./build/conf/
 
 build/conf/logback.xml: build_artifacts ./scripts/aws/conf/logback.xml
 	cp ./scripts/aws/conf/logback.xml ./build/conf/

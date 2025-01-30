@@ -208,7 +208,7 @@ class EC2EntryPoint(ConfidentialCompute):
         if self.configs.get('debug_mode', False):
             print("Running in debug_mode")
             command += ["--debug-mode", "--attach-console"]
-        self.run_command(command, separate_process=True)
+        self.run_command(command, separate_process=False)
 
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""

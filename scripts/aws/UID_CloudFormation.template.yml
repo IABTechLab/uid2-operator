@@ -193,7 +193,7 @@ Resources:
           - !If [IsIntegEnvironment, 'https://core-integ.uidapi.com', 'https://core.uidapi.com']
           - ', "optout_base_url": '
           - !If [IsIntegEnvironment, 'https://optout-integ.uidapi.com', 'https://optout.uidapi.com']
-          - ', "api_token": "'
+          - ', "operator_key": "'
           - Ref: APIToken
           - '"'
           - ', "service_instances": 6'

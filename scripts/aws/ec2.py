@@ -53,7 +53,7 @@ class AuxiliaryConfig:
 class EC2EntryPoint(ConfidentialCompute):
 
     def __init__(self):
-        self.configs: AWSConfidentialComputeConfig = {}
+        super().__init__()
 
     def __get_aws_token(self) -> str:
         """Fetches a temporary AWS EC2 metadata token."""
@@ -89,7 +89,7 @@ class EC2EntryPoint(ConfidentialCompute):
     def _set_confidential_config(self, secret_identifier: str) -> None:
         """Fetches a secret value from AWS Secrets Manager and adds defaults"""
 
-        def add_defaults(configs: Dict[str, any]) ->  None:
+        def add_defaults(configs: Dict[str, any]) ->  AWSConfidentialComputeConfig:
             """Adds default values to configuration if missing."""
             default_capacity = self.__get_max_capacity()
             configs.setdefault("enclave_memory_mb", default_capacity["enclave_memory_mb"])
@@ -97,12 +97,13 @@ class EC2EntryPoint(ConfidentialCompute):
             configs.setdefault("debug_mode", False)
             configs.setdefault("core_api_token", configs.get("api_token", ""))
             configs.setdefault("optout_api_token", configs.get("api_token", ""))
+            return configs
         
         region = self.__get_current_region()
         print(f"Running in {region}")
         client = boto3.client("secretsmanager", region_name=region)
         try:
-            add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
+            self.configs = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
             self.__validate_aws_specific_config()
         except NoCredentialsError as _:
             raise MissingInstanceProfile(self.__class__.__name__)

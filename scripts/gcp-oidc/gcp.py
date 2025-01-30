@@ -26,7 +26,7 @@ class GCPEntryPoint(ConfidentialCompute):
             "skip_validations": "SKIP_VALIDATIONS",
             "debug_mode": "DEBUG_MODE",
         }
-        self.config = {
+        self.configs = {
             key: (os.environ[env_var].lower() == "true" if key in ["skip_validations", "debug_mode"] else os.environ[env_var])
             for key, env_var in keys_mapping.items() if env_var in os.environ
         }
@@ -42,7 +42,7 @@ class GCPEntryPoint(ConfidentialCompute):
             raise OperatorKeyAccessDenied(self.__class__.__name__, str(e))
         except NotFound:
             raise OperatorKeyNotFound(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
-        self.config["operator_key"] = secret_value
+        self.configs["operator_key"] = secret_value
     
     def __populate_operator_config(self, destination):
         target_config = f"/app/conf/{self.configs["environment"].lower()}-config.json"

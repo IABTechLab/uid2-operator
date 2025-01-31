@@ -4,7 +4,7 @@ import io.vertx.core.json.JsonObject;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-public class DelegatingConfigService implements IConfigService{
+public class DelegatingConfigService implements IConfigService {
     private final AtomicReference<IConfigService> activeConfigService;
 
     public DelegatingConfigService(IConfigService initialConfigService) {

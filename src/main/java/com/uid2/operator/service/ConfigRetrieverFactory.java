@@ -9,7 +9,7 @@ import io.vertx.core.json.JsonObject;
 import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
 
 public class ConfigRetrieverFactory {
-    public ConfigRetriever create(Vertx vertx, JsonObject bootstrapConfig, String operatorKey) {
+    public static ConfigRetriever create(Vertx vertx, JsonObject bootstrapConfig, String operatorKey) {
         String type = bootstrapConfig.getString("type");
         JsonObject storeConfig = bootstrapConfig.getJsonObject("config");
         if (type.equals("http")) {

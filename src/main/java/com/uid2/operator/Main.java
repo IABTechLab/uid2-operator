@@ -267,43 +267,73 @@ public class Main {
         }
     }
 
-    private void run() throws Exception {
-        this.createVertxInstancesMetric();
-        this.createVertxEventLoopsMetric();
+    private Future<IConfigService> initialiseConfigService() throws Exception {
+        Promise<IConfigService> promise = Promise.promise();
 
-        ConfigRetrieverFactory configRetrieverFactory = new ConfigRetrieverFactory();
-        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.create(vertx, config.getJsonObject("runtime_config_store"), this.createOperatorKeyRetriever().retrieve());
+        ConfigRetriever dynamicConfigRetriever = ConfigRetrieverFactory.create(
+                vertx,
+                config.getJsonObject("runtime_config_store"),
+                this.createOperatorKeyRetriever().retrieve()
+        );
         Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
 
-        ConfigRetriever featureFlagConfigRetriever = configRetrieverFactory.create(
+        ConfigRetriever featureFlagConfigRetriever = ConfigRetrieverFactory.create(
                 vertx,
                 new JsonObject()
                         .put("type", "file")
                         .put("config", new JsonObject()
                                 .put("path", "conf/feat-flag/feat-flag.json")
                                 .put("format", "json"))
-                        .put(ConfigScanPeriodMsProp, 60000),
+                        .put(ConfigScanPeriodMsProp, 10000),
                 ""
         );
 
-        featureFlagConfigRetriever.getConfig().compose(featureFlagConfig -> {
+        featureFlagConfigRetriever.getConfig()
+                .compose(featureFlagConfig -> {
+                    if (featureFlagConfig == null) {
+                        return Future.failedFuture(new RuntimeException("Feature flag config is null"));
+                    }
+
                     JsonObject remoteConfigJson = featureFlagConfig.getJsonObject("remote_config");
                     JsonObject featureFlagBootstrapConfig = remoteConfigJson.getJsonObject("runtime_config_store");
-                    ConfigRetriever staticConfigRetriever = configRetrieverFactory.create(vertx, featureFlagBootstrapConfig, "");
-                    return Future.all(dynamicConfigFuture, ConfigService.create(staticConfigRetriever));
+
+                    ConfigRetriever staticConfigRetriever = ConfigRetrieverFactory.create(vertx, featureFlagBootstrapConfig, "");
+                    Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
+
+                    return Future.all(dynamicConfigFuture, staticConfigFuture);
                 })
-                .compose(configServiceManagerCompositeFuture -> {
-                    ConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
-                    ConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
+                .onComplete(ar -> {
+                    if (ar.succeeded()) {
+                        CompositeFuture configServiceManagerCompositeFuture = ar.result();
+                        IConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
+                        IConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
 
-                    boolean featureFlag = featureFlagConfigRetriever.getCachedConfig().getJsonObject("remote_config").getBoolean(Const.Config.RemoteConfigFeatureFlagProp, false);
+                        boolean remoteConfigFeatureFlag = featureFlagConfigRetriever.getCachedConfig()
+                                .getJsonObject("remote_config")
+                                .getBoolean(Const.Config.RemoteConfigFeatureFlagProp, false);
 
-                    ConfigServiceManager configServiceManager = new ConfigServiceManager(
-                            vertx, dynamicConfigService, staticConfigService, featureFlag);
+                        ConfigServiceManager configServiceManager = new ConfigServiceManager(
+                                vertx, dynamicConfigService, staticConfigService, remoteConfigFeatureFlag);
 
-                    setupFeatureFlagListener(configServiceManager, featureFlagConfigRetriever);
+                        setupFeatureFlagListener(configServiceManager, featureFlagConfigRetriever);
 
-                    IConfigService configService = configServiceManager.getDelegatingConfigService();
+                        IConfigService configService = configServiceManager.getDelegatingConfigService();
+                        promise.complete(configService);
+                    } else {
+                        LOGGER.error("Failed to initialise ConfigService: ", ar.cause());
+                        promise.fail(ar.cause());
+                    }
+                });
+        return promise.future();
+    }
+
+    private void run() throws Exception {
+        this.createVertxInstancesMetric();
+        this.createVertxEventLoopsMetric();
+
+        this.initialiseConfigService()
+                .compose(configService -> {
+
                     Supplier<Verticle> operatorVerticleSupplier = () -> {
                         UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
                         return verticle;

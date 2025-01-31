@@ -27,7 +27,6 @@ class ConfigServiceTest {
     private JsonObject bootstrapConfig;
     private JsonObject runtimeConfig;
     private HttpServer server;
-    private ConfigRetrieverFactory configRetrieverFactory;
 
     @BeforeEach
     void setUp() {
@@ -46,8 +45,6 @@ class ConfigServiceTest {
                 .put(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, 1800)
                 .put(MaxBidstreamLifetimeSecondsProp, 7200)
                 .put(SharingTokenExpiryProp, 3600);
-
-        configRetrieverFactory = new ConfigRetrieverFactory();
 
     }
 
@@ -87,7 +84,7 @@ class ConfigServiceTest {
 
     @Test
     void testGetConfig(VertxTestContext testContext) {
-        ConfigRetriever configRetriever = configRetrieverFactory.create(vertx, bootstrapConfig, "");
+        ConfigRetriever configRetriever = ConfigRetrieverFactory.create(vertx, bootstrapConfig, "");
         JsonObject httpStoreConfig = runtimeConfig;
         startMockServer(httpStoreConfig)
                 .compose(v -> ConfigService.create(configRetriever))
@@ -110,7 +107,7 @@ class ConfigServiceTest {
                 .put("type", "json")
                 .put("config", invalidConfig)
                 .put(ConfigScanPeriodMsProp, -1);
-        ConfigRetriever spyRetriever = spy(configRetrieverFactory.create(vertx, jsonBootstrapConfig, ""));
+        ConfigRetriever spyRetriever = spy(ConfigRetrieverFactory.create(vertx, jsonBootstrapConfig, ""));
         when(spyRetriever.getCachedConfig()).thenReturn(lastConfig);
         ConfigService.create(spyRetriever)
                 .compose(configService -> {
@@ -130,7 +127,7 @@ class ConfigServiceTest {
                 .put("type", "json")
                 .put("config", invalidConfig)
                 .put(ConfigScanPeriodMsProp, -1);
-        ConfigRetriever configRetriever = configRetrieverFactory.create(vertx, jsonBootstrapConfig, "");
+        ConfigRetriever configRetriever = ConfigRetrieverFactory.create(vertx, jsonBootstrapConfig, "");
         ConfigService.create(configRetriever)
                 .onComplete(testContext.failing(throwable -> {
                    assertThrows(RuntimeException.class, () -> {

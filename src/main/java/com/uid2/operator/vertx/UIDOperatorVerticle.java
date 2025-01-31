@@ -96,8 +96,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IOptOutStore optOutStore;
     private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
-    private final Boolean allowLegacyAPI;
-    private final Boolean identityV3Enabled;
+    private final boolean allowLegacyAPI;
+    private final boolean identityV3Enabled;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();

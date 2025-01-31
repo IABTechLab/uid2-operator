@@ -26,6 +26,7 @@ public class ConfigService implements IConfigService {
 
         ConfigService instance = new ConfigService(configRetriever);
 
+        // Prevent dependent classes from attempting to access configuration before it has been retrieved.
         configRetriever.getConfig(ar -> {
             if (ar.succeeded()) {
                 logger.info("Successfully loaded config");

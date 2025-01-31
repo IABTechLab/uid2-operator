@@ -49,7 +49,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Handler<Boolean> saltRetrievalResponseHandler;
 
     public UIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, Boolean identityV3Enabled) {
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
@@ -76,8 +76,21 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.rawUidV3Enabled = identityV3Enabled;
     }
 
+    private void validateTokenDurations(Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        if (identityExpiresAfter.compareTo(refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
+        }
+        if (refreshIdentityAfter.compareTo(identityExpiresAfter) > 0) {
+            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
+        }
+        if (refreshIdentityAfter.compareTo(refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
+        }
+    }
+
     @Override
     public IdentityTokens generateIdentity(IdentityRequest request, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        this.validateTokenDurations(refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.userIdentity.id, now);
         final UserIdentity firstLevelHashIdentity = new UserIdentity(
@@ -93,6 +106,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     @Override
     public RefreshResponse refreshIdentity(RefreshToken token, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        this.validateTokenDurations(refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
         // should not be possible as different scopes should be using different keys, but just in case
         if (token.userIdentity.identityScope != this.identityScope) {
             return RefreshResponse.Invalid;

@@ -28,7 +28,7 @@ setup_auxiliaries() {
 
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
-  REQUIRED_KEYS=("optout_base_url" "core_base_url" "api_token" "environment")
+  REQUIRED_KEYS=("optout_base_url" "core_base_url" "core_api_token" "optout_api_token" "environment")
   for key in "${REQUIRED_KEYS[@]}"; do
     if ! jq -e "has(\"${key}\")" "${PARAMETERIZED_CONFIG}" > /dev/null; then
       echo "Error: Key '${key}' is missing. Please add it to flask config server"

@@ -92,11 +92,12 @@ class EC2EntryPoint(ConfidentialCompute):
         def add_defaults(configs: Dict[str, any]) ->  AWSConfidentialComputeConfig:
             """Adds default values to configuration if missing."""
             default_capacity = self.__get_max_capacity()
+            configs.setdefault("operator_key", configs.get("api_token"))
             configs.setdefault("enclave_memory_mb", default_capacity["enclave_memory_mb"])
             configs.setdefault("enclave_cpu_count", default_capacity["enclave_cpu_count"])
             configs.setdefault("debug_mode", False)
-            configs.setdefault("core_api_token", configs.get("api_token", ""))
-            configs.setdefault("optout_api_token", configs.get("api_token", ""))
+            configs.setdefault("core_api_token", configs.get("operator_key", ""))
+            configs.setdefault("optout_api_token", configs.get("operator_key", ""))
             return configs
         
         region = self.__get_current_region()

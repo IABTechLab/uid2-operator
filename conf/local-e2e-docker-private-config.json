@@ -11,9 +11,6 @@
   "keysets_metadata_path": "http://core:8088/key/keyset/refresh",
   "keyset_keys_metadata_path": "http://core:8088/key/keyset-keys/refresh",
   "salts_metadata_path": "http://core:8088/salt/refresh",
-  "identity_token_expires_after_seconds": 3600,
-  "refresh_token_expires_after_seconds": 86400,
-  "refresh_identity_token_after_seconds": 900,
   "refresh_token_v3": true,
   "identity_v3": false,
   "identity_scope": "uid2",
@@ -27,5 +24,14 @@
   "optout_delta_rotate_interval": 60,
   "cloud_refresh_interval": 30,
   "salts_expired_shutdown_hours": 12,
-  "operator_type": "private"
+  "operator_type": "private",
+  "runtime_config_store": {
+    "type": "http",
+    "config" : {
+      "host": "core",
+      "port": 8088,
+      "path": "/operator/config"
+    },
+    "config_scan_period_ms": 300000
+  }
 }

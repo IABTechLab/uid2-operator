@@ -31,12 +31,8 @@
   "optout_metadata_path": null,
   "enclave_platform": "gcp-oidc",
   "optout_inmem_cache": true,
-  "identity_token_expires_after_seconds": 86400,
-  "refresh_token_expires_after_seconds": 2592000,
-  "refresh_identity_token_after_seconds": 3600,
   "allow_legacy_api": false,
   "failure_shutdown_wait_hours": 120,
-  "sharing_token_expiry_seconds": 2592000,
   "validate_service_links": false,
   "operator_type": "private"
 }

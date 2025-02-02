@@ -13,14 +13,10 @@
   "salts_metadata_path": "http://localhost:8088/salt/refresh",
   "services_metadata_path": "http://localhost:8088/services/refresh",
   "service_links_metadata_path": "http://localhost:8088/service_links/refresh",
-  "identity_token_expires_after_seconds": 3600,
-  "refresh_token_expires_after_seconds": 86400,
-  "refresh_identity_token_after_seconds": 900,
   "refresh_token_v3": true,
   "identity_v3": false,
   "identity_scope": "uid2",
   "enable_v2_encryption": true,
-  "sharing_token_expiry_seconds": 2592000,
   "cloud_download_threads": 8,
   "cloud_upload_threads": 2,
   "cloud_refresh_interval": 60,
@@ -38,6 +34,14 @@
   "client_side_token_generate_domain_name_check_enabled": false,
   "client_side_token_generate_log_invalid_http_origins": true,
   "salts_expired_shutdown_hours": 12,
-  "operator_type": "private"
-
+  "operator_type": "private",
+  "runtime_config_store": {
+    "type": "http",
+    "config" : {
+      "host": "localhost",
+      "port": 8088,
+      "path": "/operator/config"
+    },
+    "config_scan_period_ms": 300000
+  }
 }

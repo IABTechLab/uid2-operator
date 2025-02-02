@@ -10,5 +10,15 @@
   "optout_metadata_path": "https://optout.uidapi.com/optout/refresh",
   "core_attest_url": "https://core.uidapi.com/attest",
   "optout_api_uri": "https://optout.uidapi.com/optout/replicate",
-  "optout_s3_folder": "uid-optout-integ/"
+  "optout_s3_folder": "uid-optout-integ/",
+  "runtime_config_store": {
+    "type": "http",
+    "config" : {
+      "host": "core.uidapi.com",
+      "port": 443,
+      "ssl": true,
+      "path": "/operator/config"
+    },
+    "config_scan_period_ms": 300000
+  }
 }

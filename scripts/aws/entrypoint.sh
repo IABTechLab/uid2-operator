@@ -7,93 +7,87 @@ LOG_FILE="/home/start.txt"
 set -x
 exec &> >(tee -a "$LOG_FILE")
 
-set -o pipefail
-ulimit -n 65536
+PARAMETERIZED_CONFIG="/app/conf/config-overrides.json"
+OPERATOR_CONFIG="/tmp/final-config.json"
 
-# -- setup loopback device
-echo "Setting up loopback device..."
-ifconfig lo 127.0.0.1
+setup_auxiliaries() {
+  set -o pipefail
+  ulimit -n 65536
 
-# -- start vsock proxy
-echo "Starting vsock proxy..."
-/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
+  # -- setup loopback device
+  echo "Setting up loopback device..."
+  ifconfig lo 127.0.0.1
 
-# -- load config from identity service
-echo "Loading config from identity service via proxy..."
+  # -- start vsock proxy
+  echo "Starting vsock proxy..."
+  /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
-#wait for config service, then download config
-OVERRIDES_CONFIG="/app/conf/config-overrides.json"
+  /usr/sbin/syslog-ng --verbose
+}
 
-RETRY_COUNT=0
-MAX_RETRY=20
-until curl -s -f -o "${OVERRIDES_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
-do
-  echo "Waiting for config service to be available"
-  RETRY_COUNT=$(( RETRY_COUNT + 1))
-  if [ $RETRY_COUNT -gt $MAX_RETRY ]; then
-      echo "Config Server did not return a response. Exiting"
+
+build_parameterized_config() {
+  curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
+  REQUIRED_KEYS=("optout_base_url" "core_base_url" "core_api_token" "optout_api_token" "environment")
+  for key in "${REQUIRED_KEYS[@]}"; do
+    if ! jq -e "has(\"${key}\")" "${PARAMETERIZED_CONFIG}" > /dev/null; then
+      echo "Error: Key '${key}' is missing. Please add it to flask config server"
       exit 1
-  fi
-  sleep 2
-done
+    fi
+  done
+  FILTER=$(printf '. | {')
+  for key in "${REQUIRED_KEYS[@]}"; do
+    FILTER+="$key: .${key}, "
+  done
+  FILTER+="debug_mode: .debug_mode, "
+  FILTER=${FILTER%, }'}'
+  jq "${FILTER}" "${PARAMETERIZED_CONFIG}" > "${PARAMETERIZED_CONFIG}.tmp" && mv "${PARAMETERIZED_CONFIG}.tmp" "${PARAMETERIZED_CONFIG}"
+}
 
-DEBUG_MODE=$(jq -r ".debug_mode" < "${OVERRIDES_CONFIG}")
+build_operator_config() {
+  CORE_BASE_URL=$(jq -r ".core_base_url" < "${PARAMETERIZED_CONFIG}")
+  OPTOUT_BASE_URL=$(jq -r ".optout_base_url" < "${PARAMETERIZED_CONFIG}")
+  DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${PARAMETERIZED_CONFIG}")
+  DEBUG_MODE=$(jq -r ".debug_mode" < "${PARAMETERIZED_CONFIG}")
+
+  IDENTITY_SCOPE_LOWER=$(echo "${IDENTITY_SCOPE}" | tr '[:upper:]' '[:lower:]')
+  DEPLOYMENT_ENVIRONMENT_LOWER=$(echo "${DEPLOYMENT_ENVIRONMENT}" | tr '[:upper:]' '[:lower:]')
+  DEFAULT_CONFIG="/app/conf/${IDENTITY_SCOPE_LOWER}-${DEPLOYMENT_ENVIRONMENT_LOWER}-config.json"
+
+  jq -s '.[0] * .[1]' "${DEFAULT_CONFIG}" "${PARAMETERIZED_CONFIG}" > "${OPERATOR_CONFIG}"
+
+  if [[ "$DEPLOYMENT_ENVIRONMENT" == "prod" ]]; then
+    if [[ "$DEBUG_MODE" == "true" ]]; then
+      echo "Cannot run in DEBUG_MODE in production environment. Exiting."
+      exit 1
+    fi
+  fi
+
+  #TODO: Remove below logic after remote config management is implemented
+
+  if [[ "$DEPLOYMENT_ENVIRONMENT" != "prod" ]]; then
+    #Allow override of base URL in non-prod environments
+    CORE_PATTERN="https://core.*uidapi.com"
+    OPTOUT_PATTERN="https://optout.*uidapi.com"
+    if [[ "$DEPLOYMENT_ENVIRONMENT" == "euid" ]]; then
+      CORE_PATTERN="https://core.*euid.eu"
+      OPTOUT_PATTERN="https://optout.*euid.eu"
+    fi
+    sed -i "s#${CORE_PATTERN}#${CORE_BASE_URL}#g" "${OPERATOR_CONFIG}"
+    sed -i "s#${OPTOUT_PATTERN}#${OPTOUT_BASE_URL}#g" "${OPERATOR_CONFIG}"
+  fi
+  
+}
+
+setup_auxiliaries
+build_parameterized_config
+build_operator_config
+
+DEBUG_MODE=$(jq -r ".debug_mode" < "${OPERATOR_CONFIG}")
+LOGBACK_CONF="./conf/logback.xml"
 
 if [[ "$DEBUG_MODE" == "true" ]]; then
   LOGBACK_CONF="./conf/logback-debug.xml"
-else
-  LOGBACK_CONF="./conf/logback.xml"
-  # -- setup syslog-ng
-  echo "Starting syslog-ng..."
-  /usr/sbin/syslog-ng --verbose
-fi
-
-# check the config is valid. Querying for a known missing element (empty) makes jq parse the file, but does not echo the results
-if jq empty "${OVERRIDES_CONFIG}"; then
-    echo "Identity service returned valid config"
-else
-    echo "Failed to get a valid config from identity service"
-    exit 1
-fi
-
-export DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${OVERRIDES_CONFIG}")
-export CORE_BASE_URL=$(jq -r ".core_base_url" < "${OVERRIDES_CONFIG}")
-export OPTOUT_BASE_URL=$(jq -r ".optout_base_url" < "${OVERRIDES_CONFIG}")
-echo "DEPLOYMENT_ENVIRONMENT=${DEPLOYMENT_ENVIRONMENT}"
-if [ -z "${DEPLOYMENT_ENVIRONMENT}" ]; then
-  echo "DEPLOYMENT_ENVIRONMENT cannot be empty"
-  exit 1
-fi
-if [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "integ" ]; then
-  echo "Unrecognized DEPLOYMENT_ENVIRONMENT ${DEPLOYMENT_ENVIRONMENT}"
-  exit 1
-fi
-
-echo "Loading config final..."
-export FINAL_CONFIG="/app/conf/config-final.json"
-if [ "${IDENTITY_SCOPE}" = "UID2" ]; then
-  python3 /app/make_config.py /app/conf/prod-uid2-config.json /app/conf/integ-uid2-config.json ${OVERRIDES_CONFIG} "$(nproc)" > ${FINAL_CONFIG}
-elif [ "${IDENTITY_SCOPE}" = "EUID" ]; then
-  python3 /app/make_config.py /app/conf/prod-euid-config.json /app/conf/integ-euid-config.json ${OVERRIDES_CONFIG} "$(nproc)" > ${FINAL_CONFIG}
-else
-  echo "Unrecognized IDENTITY_SCOPE ${IDENTITY_SCOPE}"
-  exit 1
-fi
-
-# -- replace base URLs if both CORE_BASE_URL and OPTOUT_BASE_URL are provided
-# -- using hardcoded domains is fine because they should not be changed frequently
-if [ -n "${CORE_BASE_URL}" ] && [ "${CORE_BASE_URL}" != "null" ] && [ -n "${OPTOUT_BASE_URL}" ] && [ "${OPTOUT_BASE_URL}" != "null" ] && [ "${DEPLOYMENT_ENVIRONMENT}" != "prod" ]; then
-    echo "Replacing core and optout URLs by ${CORE_BASE_URL} and ${OPTOUT_BASE_URL}..."
-
-    sed -i "s#https://core-integ.uidapi.com#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
-    sed -i "s#https://core-prod.uidapi.com#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
-    sed -i "s#https://core.integ.euid.eu#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
-    sed -i "s#https://core.prod.euid.eu#${CORE_BASE_URL}#g" "${FINAL_CONFIG}"
-
-    sed -i "s#https://optout-integ.uidapi.com#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
-    sed -i "s#https://optout-prod.uidapi.com#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
-    sed -i "s#https://optout.integ.euid.eu#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
-    sed -i "s#https://optout.prod.euid.eu#${OPTOUT_BASE_URL}#g" "${FINAL_CONFIG}"
 fi
 
 # -- set pwd to /app so we can find default configs
@@ -106,7 +100,7 @@ java \
   -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
   -Djava.security.egd=file:/dev/./urandom \
   -Djava.library.path=/app/lib \
-  -Dvertx-config-path="${FINAL_CONFIG}" \
+  -Dvertx-config-path="${OPERATOR_CONFIG}" \
   -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
   -Dlogback.configurationFile=${LOGBACK_CONF} \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \

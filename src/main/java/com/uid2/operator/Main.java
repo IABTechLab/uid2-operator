@@ -277,6 +277,17 @@ public class Main {
         );
         Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
 
+        ConfigRetriever staticConfigRetriever = ConfigRetrieverFactory.create(
+                vertx,
+                new JsonObject()
+                        .put("type", "json")
+                        .put("config", config)
+                        .put(ConfigScanPeriodMsProp, -1),
+                ""
+        );
+
+        Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
+
         ConfigRetriever featureFlagConfigRetriever = ConfigRetrieverFactory.create(
                 vertx,
                 new JsonObject()
@@ -288,27 +299,17 @@ public class Main {
                 ""
         );
 
-        featureFlagConfigRetriever.getConfig()
-                .compose(featureFlagConfig -> {
-                    if (featureFlagConfig == null) {
-                        return Future.failedFuture(new RuntimeException("Feature flag config is null"));
-                    }
 
-                    JsonObject remoteConfigJson = featureFlagConfig.getJsonObject("remote_config");
-                    JsonObject featureFlagBootstrapConfig = remoteConfigJson.getJsonObject("runtime_config_store");
 
-                    ConfigRetriever staticConfigRetriever = ConfigRetrieverFactory.create(vertx, featureFlagBootstrapConfig, "");
-                    Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
-
-                    return Future.all(dynamicConfigFuture, staticConfigFuture);
-                })
+        Future.all(dynamicConfigFuture, staticConfigFuture, featureFlagConfigRetriever.getConfig())
                 .onComplete(ar -> {
                     if (ar.succeeded()) {
                         CompositeFuture configServiceManagerCompositeFuture = ar.result();
                         IConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
                         IConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
+                        JsonObject featureFlagConfig = configServiceManagerCompositeFuture.resultAt(2);
 
-                        boolean remoteConfigFeatureFlag = featureFlagConfigRetriever.getCachedConfig()
+                        boolean remoteConfigFeatureFlag = featureFlagConfig
                                 .getJsonObject("remote_config")
                                 .getBoolean(Const.Config.RemoteConfigFeatureFlagProp, false);
 

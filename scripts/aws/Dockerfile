@@ -37,6 +37,7 @@ COPY ./conf/default-config.json    /app/conf/
 COPY ./conf/*.json  /app/conf/
 COPY ./conf/*.xml                  /app/conf/
 COPY ./syslog-ng-client.conf       /etc/syslog-ng/syslog-ng.conf
+COPY ./conf/feat-flag/feat-flag.json    /app/conf/feat-flag/
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh
 

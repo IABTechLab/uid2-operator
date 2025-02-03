@@ -114,6 +114,7 @@ public class UIDOperatorVerticleTest {
     @Mock private Clock clock;
     @Mock private IStatsCollectorQueue statsCollectorQueue;
     @Mock private OperatorShutdownHandler shutdownHandler;
+    @Mock private IConfigService configService;
 
     private SimpleMeterRegistry registry;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
@@ -131,8 +132,9 @@ public class UIDOperatorVerticleTest {
         if(testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
         }
+        when(configService.getConfig()).thenReturn(config);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configService, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse);
 
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 
@@ -155,7 +157,7 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.SharingTokenExpiryProp, 60 * 60 * 24 * 30);
 
         config.put("identity_scope", getIdentityScope().toString());
-        config.put("identity_v3", useRawUidV3());
+        config.put(Const.Config.IdentityV3Prop, useRawUidV3());
         config.put("client_side_token_generate", true);
         config.put("key_sharing_endpoint_provide_app_names", true);
         config.put("client_side_token_generate_log_invalid_http_origins", true);
@@ -4743,7 +4745,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void keySharingKeysets_SHARER_CustomMaxSharingLifetimeSeconds(Vertx vertx, VertxTestContext testContext) {
-        this.uidOperatorVerticle.setMaxSharingLifetimeSeconds(999999);
+        this.config.put(Const.Config.MaxSharingLifetimeProp, 999999);
         keySharingKeysets_SHARER(true, true, vertx, testContext, 999999);
     }
     
@@ -5088,4 +5090,94 @@ public class UIDOperatorVerticleTest {
             testContext.completeNow();
         });
     }
+
+    @Test
+    void tokenGenerateRespectsConfigValues(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", emailAddress);
+
+        Duration newIdentityExpiresAfter = Duration.ofMinutes(20);
+        Duration newRefreshExpiresAfter = Duration.ofMinutes(30);
+        Duration newRefreshIdentityAfter = Duration.ofMinutes(10);
+
+        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toSeconds());
+        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toSeconds());
+        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toSeconds());
+
+        sendTokenGenerate("v2", vertx,
+                null, v2Payload, 200,
+                respJson -> {
+                    testContext.verify(() -> {
+                        JsonObject body = respJson.getJsonObject("body");
+                        assertNotNull(body);
+                        assertEquals(now.plusMillis(newIdentityExpiresAfter.toMillis()).toEpochMilli(), body.getLong("identity_expires"));
+                        assertEquals(now.plusMillis(newRefreshExpiresAfter.toMillis()).toEpochMilli(), body.getLong("refresh_expires"));
+                        assertEquals(now.plusMillis(newRefreshIdentityAfter.toMillis()).toEpochMilli(), body.getLong("refresh_from"));
+                    });
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void keySharingRespectsConfigValues(Vertx vertx, VertxTestContext testContext) {
+        int newSharingTokenExpiry = config.getInteger(Const.Config.SharingTokenExpiryProp) + 1;
+        int newMaxSharingLifetimeSeconds = config.getInteger(Const.Config.SharingTokenExpiryProp) + 1;
+
+        config.put(Const.Config.SharingTokenExpiryProp, newSharingTokenExpiry);
+        config.put(Const.Config.MaxSharingLifetimeProp, newMaxSharingLifetimeSeconds);
+
+        String apiVersion = "v2";
+        int siteId = 5;
+        fakeAuth(siteId, Role.SHARER);
+        Keyset[] keysets = {
+                new Keyset(MasterKeysetId, MasterKeySiteId, "test", null, now.getEpochSecond(), true, true),
+                new Keyset(10, 5, "siteKeyset", null, now.getEpochSecond(), true, true),
+        };
+        KeysetKey[] encryptionKeys = {
+                new KeysetKey(101, "master key".getBytes(), now, now, now.plusSeconds(10), MasterKeysetId),
+                new KeysetKey(102, "site key".getBytes(), now, now, now.plusSeconds(10), 10),
+        };
+        MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
+        setupSiteDomainAndAppNameMock(true, false, 101, 102, 103, 104, 105);
+        send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
+            testContext.verify(() -> {
+                JsonObject body = respJson.getJsonObject("body");
+                assertNotNull(body);
+                assertEquals(newSharingTokenExpiry, Integer.parseInt(body.getString("token_expiry_seconds")));
+                assertEquals(newMaxSharingLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds(), body.getLong(Const.Config.MaxSharingLifetimeProp));
+            });
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void keyBidstreamRespectsConfigValues(Vertx vertx, VertxTestContext testContext) {
+        int newMaxBidstreamLifetimeSeconds = 999999;
+        config.put(Const.Config.MaxBidstreamLifetimeSecondsProp, newMaxBidstreamLifetimeSeconds);
+
+        final String apiVersion = "v2";
+        final KeyDownloadEndpoint endpoint = KeyDownloadEndpoint.BIDSTREAM;
+
+        final int clientSiteId = 101;
+        fakeAuth(clientSiteId, Role.ID_READER);
+
+        // Required, sets up mock keys.
+        new MultipleKeysetsTests();
+
+        send(apiVersion, vertx, apiVersion + endpoint.getPath(), true, null, null, 200, respJson -> {
+            testContext.verify(() -> {
+                JsonObject body = respJson.getJsonObject("body");
+                assertNotNull(body);
+                assertEquals(newMaxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds(), body.getLong(Const.Config.MaxBidstreamLifetimeSecondsProp));
+            });
+            testContext.completeNow();
+        });
+    }
+
 }

@@ -7,6 +7,7 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,10 +39,15 @@ public class TokenEndecBenchmark {
         List<IdentityTokens> tokens = new ArrayList<>();
         for (int i = 0; i < userIdentities.length; i++) {
             tokens.add(
-                    uidService.generateIdentity(new IdentityRequest(
-                            publisher,
-                            userIdentities[i],
-                            OptoutCheckPolicy.DoNotRespect)));
+                    uidService.generateIdentity(
+                            new IdentityRequest(
+                                    publisher,
+                                    userIdentities[i],
+                                    OptoutCheckPolicy.DoNotRespect),
+                            Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                            Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                            Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS))
+            );
         }
         return tokens.toArray(new IdentityTokens[tokens.size()]);
     }
@@ -50,9 +56,13 @@ public class TokenEndecBenchmark {
     @BenchmarkMode(Mode.Throughput)
     public IdentityTokens TokenGenerationBenchmark() {
         return uidService.generateIdentity(new IdentityRequest(
-                publisher,
-                userIdentities[(idx++) & 65535],
-                OptoutCheckPolicy.DoNotRespect));
+                        publisher,
+                        userIdentities[(idx++) & 65535],
+                        OptoutCheckPolicy.DoNotRespect),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)
+        );
     }
 
     @Benchmark
@@ -60,6 +70,10 @@ public class TokenEndecBenchmark {
     public RefreshResponse TokenRefreshBenchmark() {
         return uidService.refreshIdentity(
                 encoder.decodeRefreshToken(
-                        generatedTokens[(idx++) & 65535].getRefreshToken()));
+                        generatedTokens[(idx++) & 65535].getRefreshToken()),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)
+        );
     }
 }

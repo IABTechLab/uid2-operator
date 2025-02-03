@@ -22,5 +22,15 @@
   "identity_token_expires_after_seconds": 259200,
   "refresh_token_expires_after_seconds": 2592000,
   "refresh_identity_token_after_seconds": 3600,
-  "allow_legacy_api": false
+  "allow_legacy_api": false,
+  "runtime_config_store": {
+    "type": "http",
+    "config" : {
+      "host": "core-prod.uidapi.com",
+      "port": 443,
+      "ssl": true,
+      "path": "/operator/config"
+    },
+    "config_scan_period_ms": 300000
+  }
 }

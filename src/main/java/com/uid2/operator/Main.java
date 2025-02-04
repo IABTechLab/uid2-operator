@@ -486,6 +486,7 @@ public class Main {
     private AttestationResponseHandler getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
         String enclavePlatform = this.config.getString(Const.Config.EnclavePlatformProp);
         String operatorType = this.config.getString(Const.Config.OperatorTypeProp, "");
+        String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
 
         IAttestationProvider attestationProvider;
         switch (enclavePlatform) {
@@ -508,7 +509,10 @@ public class Main {
                 break;
             case "azure-cc":
                 LOGGER.info("creating uid core client with azure cc attestation protocol");
-                String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
+                attestationProvider = AttestationFactory.getAzureCCAttestation(maaServerBaseUrl);
+                break;
+            case "azure-cc-aks":
+                LOGGER.info("creating uid core client with azure cc aks attestation protocol");
                 attestationProvider = AttestationFactory.getAzureCCAttestation(maaServerBaseUrl);
                 break;
             default:

@@ -122,6 +122,10 @@
                 {
                   "name": "DEPLOYMENT_ENVIRONMENT",
                   "value": "[parameters('deploymentEnvironment')]"
+                },
+                {
+                  "name": "SKIP_VALIDATIONS",
+                  "value": "[parameters('skipValidations')]"
                 }
               ]
             }

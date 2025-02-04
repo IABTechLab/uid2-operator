@@ -8,12 +8,12 @@ import sys
 import shutil
 import requests
 import logging
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, MissingConfig, MissingInstanceProfile, AuxiliariesException, OperatorKeyAccessDenied, OperatorKeyNotFound, ConfidentialComputeStartupException 
+from urllib.parse import urlparse
+from confidential_compute import ConfidentialCompute, ConfigurationMissingError, OperatorKeyPermissionError, OperatorKeyNotFoundError, ConfidentialComputeStartupError , AuxiliaryProcessError
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential, CredentialUnavailableError
 from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class AzureEntryPoint(ConfidentialCompute):
   
@@ -31,11 +31,11 @@ class AzureEntryPoint(ConfidentialCompute):
     def __check_env_variables(self):
         # Check essential env variables
         if AzureEntryPoint.kv_name is None:
-            raise MissingConfig(self.__class__.__name__, ["VAULT_NAME"])        
+            raise ConfigurationMissingError(self.__class__.__name__, ["VAULT_NAME"])        
         if AzureEntryPoint.secret_name is None:
-            raise MissingConfig(self.__class__.__name__, ["OPERATOR_KEY_SECRET_NAME"])        
+            raise ConfigurationMissingError(self.__class__.__name__, ["OPERATOR_KEY_SECRET_NAME"])        
         if AzureEntryPoint.env_name is None:
-            raise MissingConfig(self.__class__.__name__, ["DEPLOYMENT_ENVIRONMENT"])        
+            raise ConfigurationMissingError(self.__class__.__name__, ["DEPLOYMENT_ENVIRONMENT"])        
         logging.info("Environment variables validation success")
 
     def __create_final_config(self):      
@@ -53,13 +53,14 @@ class AzureEntryPoint(ConfidentialCompute):
 
         CORE_BASE_URL = os.getenv("CORE_BASE_URL")
         OPTOUT_BASE_URL = os.getenv("OPTOUT_BASE_URL")
+        
         if CORE_BASE_URL and OPTOUT_BASE_URL and AzureEntryPoint.env_name != 'prod':
             logging.info(f"-- replacing URLs by {CORE_BASE_URL} and {OPTOUT_BASE_URL}")
             with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
                 config = file.read()
 
-            config = config.replace("https://core-integ.uidapi.com", CORE_BASE_URL)
-            config = config.replace("https://optout-integ.uidapi.com", OPTOUT_BASE_URL)
+            config = config.replace("core-integ.uidapi.com", urlparse(CORE_BASE_URL).netloc)
+            config = config.replace("optout-integ.uidapi.com", urlparse(OPTOUT_BASE_URL).netloc)
 
             with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
                 file.write(config)
@@ -84,10 +85,10 @@ class AzureEntryPoint(ConfidentialCompute):
 
         except (CredentialUnavailableError, ClientAuthenticationError) as auth_error:
             logging.error(f"Read operator key, authentication error: {auth_error}")
-            raise OperatorKeyAccessDenied(self.__class__.__name__, str(auth_error))
+            raise OperatorKeyPermissionError(self.__class__.__name__, str(auth_error))
         except ResourceNotFoundError as not_found_error:
             logging.error(f"Read operator key, secret not found: {AzureEntryPoint.secret_name}. Error: {not_found_error}")
-            raise OperatorKeyNotFound(self.__class__.__name__, str(not_found_error))
+            raise OperatorKeyNotFoundError(self.__class__.__name__, str(not_found_error))
         
 
     def _set_confidential_config(self, secret_identifier: str = None):
@@ -143,7 +144,7 @@ class AzureEntryPoint(ConfidentialCompute):
                 logging.error(
                     f"Sidecar failed to start after {MAX_RETRIES} attempts. Exiting."
                 )
-                raise AuxiliariesException(self.__class__.__name__)
+                raise AuxiliaryProcessError(self.__class__.__name__)
 
             logging.info(f"Retrying in {delay} seconds... (Attempt {attempt}/{MAX_RETRIES})")
             time.sleep(delay)
@@ -170,7 +171,7 @@ if __name__ == "__main__":
     try:
         operator = AzureEntryPoint()
         operator.run_compute()
-    except ConfidentialComputeStartupException as e:
+    except ConfidentialComputeStartupError as e:
         logging.error(f"Failed starting up Azure Confidential Compute. Please checks the logs for errors and retry {e}", exc_info=True)
     except Exception as e:
         logging.error(f"Unexpected failure while starting up Azure Confidential Compute. Please contact UID support team with this log {e}", exc_info=True)          

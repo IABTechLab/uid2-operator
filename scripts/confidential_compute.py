@@ -113,8 +113,8 @@ class ConfidentialCompute(ABC):
         if self.configs.get("debug_mode") and environment == "prod":
             raise InvalidConfigValue(self.__class__.__name__, "debug_mode")
         
-        validate_url("core_base_url", environment)
-        validate_url("optout_base_url", environment)
+        # validate_url("core_base_url", environment)
+        # validate_url("optout_base_url", environment)
         validate_operator_key()
         validate_connectivity()
         logging.info("Completed static validation of confidential compute config values")

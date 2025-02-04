@@ -1,0 +1,84 @@
+{
+    "bindings": [
+      {
+        "members": [
+          "serviceAccount:uid2-core-confidential-integ@uid2-316818.iam.gserviceaccount.com",
+          "serviceAccount:uid2-core-confidential-prod@uid2-316818.iam.gserviceaccount.com"
+        ],
+        "role": "projects/uid2-developer-project/roles/CustomRole"
+      },
+      {
+        "members": [
+          "serviceAccount:service-172737211968@gcp-sa-artifactregistry.iam.gserviceaccount.com"
+        ],
+        "role": "roles/artifactregistry.serviceAgent"
+      },
+      {
+        "members": [
+          "user:katherine.chen@unifiedid.com"
+        ],
+        "role": "roles/compute.instanceAdmin.v1"
+      },
+      {
+        "members": [
+          "serviceAccount:service-172737211968@compute-system.iam.gserviceaccount.com"
+        ],
+        "role": "roles/compute.serviceAgent"
+      },
+      {
+        "members": [
+          "serviceAccount:ian-test-gcloud@uid2-developer-project.iam.gserviceaccount.com",
+          "serviceAccount:ian-test-service-acc-integ@uid2-developer-project.iam.gserviceaccount.com",
+          "serviceAccount:tjm-tf-test-integ-2@uid2-developer-project.iam.gserviceaccount.com"
+        ],
+        "role": "roles/confidentialcomputing.workloadUser"
+      },
+      {
+        "members": [
+          "serviceAccount:172737211968-compute@developer.gserviceaccount.com",
+          "serviceAccount:172737211968@cloudservices.gserviceaccount.com"
+        ],
+        "role": "roles/editor"
+      },
+      {
+        "members": [
+          "user:katherine.chen@unifiedid.com"
+        ],
+        "role": "roles/iap.tunnelResourceAccessor"
+      },
+      {
+        "members": [
+          "serviceAccount:ian-test-gcloud@uid2-developer-project.iam.gserviceaccount.com",
+          "serviceAccount:ian-test-service-acc-integ@uid2-developer-project.iam.gserviceaccount.com",
+          "serviceAccount:tjm-tf-test-integ-2@uid2-developer-project.iam.gserviceaccount.com"
+        ],
+        "role": "roles/logging.logWriter"
+      },
+      {
+        "members": [
+          "serviceAccount:service-172737211968@gcp-sa-networkmanagement.iam.gserviceaccount.com"
+        ],
+        "role": "roles/networkmanagement.serviceAgent"
+      },
+      {
+        "members": [
+          "group:developer@unifiedid.com",
+          "group:infra-admin@unifiedid.com",
+          "serviceAccount:github@uid2-cicd.iam.gserviceaccount.com",
+          "user:abu.abraham@unifiedid.com",
+          "user:unifiedid-admin@unifiedid.com"
+        ],
+        "role": "roles/owner"
+      },
+      {
+        "members": [
+          "serviceAccount:ian-test-gcloud@uid2-developer-project.iam.gserviceaccount.com",
+          "serviceAccount:ian-test-service-acc-integ@uid2-developer-project.iam.gserviceaccount.com",
+          "serviceAccount:tjm-tf-test-integ-2@uid2-developer-project.iam.gserviceaccount.com"
+        ],
+        "role": "roles/secretmanager.secretAccessor"
+      }
+    ],
+    "etag": "BwYd5Mkrbbw=",
+    "version": 1
+  }

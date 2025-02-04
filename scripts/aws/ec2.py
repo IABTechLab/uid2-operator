@@ -16,7 +16,7 @@ import time
 import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingInstanceProfile, OperatorKeyNotFound, InvalidConfigValue, ConfidentialComputeStartupException
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, InstanceProfileMissingError, OperatorKeyNotFoundError, ConfigurationValueError, ConfidentialComputeStartupError
 
 class AWSConfidentialComputeConfig(ConfidentialComputeConfig):
     enclave_memory_mb: int
@@ -79,13 +79,11 @@ class EC2EntryPoint(ConfidentialCompute):
     def __validate_aws_specific_config(self):
         if "enclave_memory_mb" in self.configs or "enclave_cpu_count" in self.configs:
             max_capacity = self.__get_max_capacity()
-            min_capacity = {"enclave_memory_mb": 11000, "enclave_cpu_count" : 2 }
-            for key in ["enclave_memory_mb", "enclave_cpu_count"]:
-                if int(self.configs.get(key, 0)) > max_capacity.get(key):
-                    raise ValueError(f"{key} value ({self.configs.get(key, 0)}) exceeds the maximum allowed ({max_capacity.get(key)}).")
-                if min_capacity.get(key) > int(self.configs.get(key, 10**9)):
-                    raise ValueError(f"{key} value ({self.configs.get(key, 0)}) needs to be higher than the minimum required ({min_capacity.get(key)}).")
-                
+            if self.configs.get('enclave_memory_mb') < 11000 or self.configs.get('enclave_memory_mb') > max_capacity.get('enclave_memory_mb'):
+                raise ConfigurationValueError(self.__class__.__name__, f"enclave_memory_mb must be in range 11000 and {max_capacity.get('enclave_memory_mb')}")
+            if self.configs.get('enclave_cpu_count') < 2 or self.configs.get('enclave_cpu_count') > max_capacity.get('enclave_cpu_count'):
+                raise ConfigurationValueError(self.__class__.__name__, f"enclave_cpu_count must be in range 2 and {max_capacity.get('enclave_cpu_count')}")
+        
     def _set_confidential_config(self, secret_identifier: str) -> None:
         """Fetches a secret value from AWS Secrets Manager and adds defaults"""
 
@@ -107,9 +105,9 @@ class EC2EntryPoint(ConfidentialCompute):
             self.configs = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
             self.__validate_aws_specific_config()
         except NoCredentialsError as _:
-            raise MissingInstanceProfile(self.__class__.__name__)
+            raise InstanceProfileMissingError(self.__class__.__name__)
         except ClientError as _:
-            raise OperatorKeyNotFound(self.__class__.__name__, f"Secret Manager {secret_identifier} in {region}")
+            raise OperatorKeyNotFoundError(self.__class__.__name__, f"Secret Manager {secret_identifier} in {region}")
         
     @staticmethod
     def __get_max_capacity():
@@ -255,7 +253,7 @@ if __name__ == "__main__":
             ec2.cleanup()
         else:
             ec2.run_compute()
-    except ConfidentialComputeStartupException as e:
+    except ConfidentialComputeStartupError as e:
         print("Failed starting up Confidential Compute. Please checks the logs for errors and retry \n", e)
     except Exception as e:
         print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)

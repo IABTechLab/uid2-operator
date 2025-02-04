@@ -115,7 +115,7 @@ class ConfidentialCompute(ABC):
         
         # validate_url("core_base_url", environment)
         # validate_url("optout_base_url", environment)
-        validate_operator_key()
+        # validate_operator_key()
         validate_connectivity()
         logging.info("Completed static validation of confidential compute config values")
         

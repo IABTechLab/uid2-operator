@@ -377,12 +377,12 @@ public class Main {
     private void setupFeatureFlagListener(ConfigServiceManager manager, ConfigRetriever retriever) {
         retriever.listen(change -> {
             JsonObject newConfig = change.getNewConfiguration();
-            boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlagProp, true);
+            boolean useDynamicConfig = newConfig.getJsonObject("remote_config").getBoolean("enabled", true);
             manager.updateConfigService(useDynamicConfig).onComplete(update -> {
                 if (update.succeeded()) {
                     LOGGER.info("Remote config feature flag toggled successfully");
                 } else {
-                    LOGGER.error("Failed to toggle remote config feature flag: " + update.cause());
+                    LOGGER.error("Failed to toggle remote config feature flag: ", update.cause());
                 }
             });
         });

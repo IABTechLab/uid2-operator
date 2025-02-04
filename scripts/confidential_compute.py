@@ -49,10 +49,6 @@ class UID2ServicesUnreachableError(ConfidentialComputeStartupError):
     def __init__(self, cls, ip=None):
         super().__init__(error_name=f"E06: {self.__class__.__name__}", provider=cls, extra_message=ip)
 
-class AuxiliaryProcessError(ConfidentialComputeStartupError):
-    def __init__(self, cls, inner_message = None):
-        super().__init__(error_name=f"E07: {self.__class__.__name__}", provider=cls, extra_message=inner_message)
-
 class OperatorKeyPermissionError(ConfidentialComputeStartupError):
     def __init__(self, cls, message = None):
         super().__init__(error_name=f"E08: {self.__class__.__name__}", provider=cls, extra_message=message)

@@ -54,6 +54,16 @@
       "metadata": {
         "description": "Operator Key"
       }
+    },
+    "skipValidations": {
+      "type": "string",
+      "metadata": {
+        "description": "Whether to skip pre-init validations"
+      },
+      "allowedValues": [
+        "true",
+        "false"
+      ]
     }
   },
   "variables": {

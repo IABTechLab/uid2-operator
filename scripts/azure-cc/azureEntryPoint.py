@@ -9,7 +9,7 @@ import shutil
 import requests
 import logging
 from urllib.parse import urlparse
-from confidential_compute import ConfidentialCompute, ConfigurationMissingError, OperatorKeyPermissionError, OperatorKeyNotFoundError, ConfidentialComputeStartupError , AuxiliaryProcessError
+from confidential_compute import ConfidentialCompute, ConfigurationMissingError, OperatorKeyPermissionError, OperatorKeyNotFoundError, ConfidentialComputeStartupError
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential, CredentialUnavailableError
 from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError
@@ -141,10 +141,7 @@ class AzureEntryPoint(ConfidentialCompute):
                 logging.info(f"Attempt {attempt}: Error during request - {e}")
 
             if attempt == MAX_RETRIES:
-                logging.error(
-                    f"Sidecar failed to start after {MAX_RETRIES} attempts. Exiting."
-                )
-                raise AuxiliaryProcessError(self.__class__.__name__)
+                raise RuntimeError(f"Unable to detect sidecar running after {MAX_RETRIES} attempts. Exiting.")
 
             logging.info(f"Retrying in {delay} seconds... (Attempt {attempt}/{MAX_RETRIES})")
             time.sleep(delay)

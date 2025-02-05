@@ -150,9 +150,9 @@ class ConfigServiceTest {
         JsonObject jsonBootstrapConfig = new JsonObject()
                 .put("type", "json")
                 .put("config", runtimeConfig)
-                .put(ConfigScanPeriodMs, -1);
+                .put(ConfigScanPeriodMsProp, -1);
 
-        ConfigRetriever mockRetriever = spy(configRetrieverFactory.create(vertx, jsonBootstrapConfig, ""));
+        ConfigRetriever mockRetriever = spy(ConfigRetrieverFactory.create(vertx, jsonBootstrapConfig, ""));
         ReadStream<JsonObject> mockStream = mock(ReadStream.class);
 
         when(mockRetriever.configStream()).thenReturn(mockStream);

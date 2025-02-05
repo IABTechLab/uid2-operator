@@ -53,6 +53,8 @@ class GCPEntryPoint(ConfidentialCompute):
         config = config.replace("optout.uidapi.com", urlparse(self.configs.get("optout_base_url")).netloc)
         with open(destination, 'w') as file:
             file.write(config)
+        print("Abu additional logging")
+        print(config)
 
     def _setup_auxiliaries(self) -> None:
         """ No Auxiliariy service required for GCP Confidential compute. """

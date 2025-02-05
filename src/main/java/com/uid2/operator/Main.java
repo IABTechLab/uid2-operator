@@ -296,7 +296,7 @@ public class Main {
             try {
                 String fileContents = new String(Files.readAllBytes(Paths.get(featureFlagFilePath)), StandardCharsets.UTF_8);
                 LOGGER.info("Feature flag file contents: {}", fileContents);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 LOGGER.error("Failed to read feature flag file: ", e);
             }
         } else {

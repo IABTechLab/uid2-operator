@@ -47,6 +47,7 @@ public class ConfigService implements IConfigService {
 
         ConfigService instance = new ConfigService(configRetriever);
 
+        // Prevent dependent classes from attempting to access configuration before it has been retrieved.
         configRetriever.getConfig(ar -> {
             if (ar.succeeded()) {
                 logger.info("Successfully loaded config");
@@ -73,10 +74,13 @@ public class ConfigService implements IConfigService {
         Integer refreshExpiresAfter = config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         Integer refreshIdentityAfter = config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         Integer maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityExpiresAfter);
+        Integer sharingTokenExpiry = config.getInteger(Const.Config.SharingTokenExpiryProp);
 
         isValid &= validateIdentityRefreshTokens(identityExpiresAfter, refreshExpiresAfter, refreshIdentityAfter);
 
         isValid &= validateBidstreamLifetime(maxBidstreamLifetimeSeconds, identityExpiresAfter);
+
+        isValid &= validateSharingTokenExpiry(sharingTokenExpiry);
 
         if (!isValid) {
             logger.error("Failed to update config");

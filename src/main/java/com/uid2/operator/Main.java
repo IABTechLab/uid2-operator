@@ -57,7 +57,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
-import static com.uid2.operator.Const.Config.ConfigScanPeriodMs;
+import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {
@@ -267,43 +267,74 @@ public class Main {
         }
     }
 
-    private void run() throws Exception {
-        this.createVertxInstancesMetric();
-        this.createVertxEventLoopsMetric();
+    private Future<IConfigService> initialiseConfigService() throws Exception {
+        Promise<IConfigService> promise = Promise.promise();
 
-        ConfigRetrieverFactory configRetrieverFactory = new ConfigRetrieverFactory();
-        ConfigRetriever dynamicConfigRetriever = configRetrieverFactory.create(vertx, config.getJsonObject("runtime_config_store"), this.createOperatorKeyRetriever().retrieve());
+        ConfigRetriever dynamicConfigRetriever = ConfigRetrieverFactory.create(
+                vertx,
+                config.getJsonObject("runtime_config_store"),
+                this.createOperatorKeyRetriever().retrieve()
+        );
         Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
 
-        ConfigRetriever featureFlagConfigRetriever = configRetrieverFactory.create(
+        ConfigRetriever staticConfigRetriever = ConfigRetrieverFactory.create(
+                vertx,
+                new JsonObject()
+                        .put("type", "json")
+                        .put("config", config)
+                        .put(ConfigScanPeriodMsProp, -1),
+                ""
+        );
+
+        Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
+
+        ConfigRetriever featureFlagConfigRetriever = ConfigRetrieverFactory.create(
                 vertx,
                 new JsonObject()
                         .put("type", "file")
                         .put("config", new JsonObject()
                                 .put("path", "conf/feat-flag/feat-flag.json")
                                 .put("format", "json"))
-                        .put(ConfigScanPeriodMs, 60000),
+                        .put(ConfigScanPeriodMsProp, 10000),
                 ""
         );
 
-        featureFlagConfigRetriever.getConfig().compose(featureFlagConfig -> {
-                    JsonObject remoteConfigJson = featureFlagConfig.getJsonObject("remote_config");
-                    JsonObject featureFlagBootstrapConfig = remoteConfigJson.getJsonObject("runtime_config_store");
-                    ConfigRetriever staticConfigRetriever = configRetrieverFactory.create(vertx, featureFlagBootstrapConfig, "");
-                    return Future.all(dynamicConfigFuture, ConfigService.create(staticConfigRetriever));
-                })
-                .compose(configServiceManagerCompositeFuture -> {
-                    ConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
-                    ConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
 
-                    boolean featureFlag = featureFlagConfigRetriever.getCachedConfig().getJsonObject("remote_config").getBoolean(Const.Config.RemoteConfigFeatureFlag, false);
 
-                    ConfigServiceManager configServiceManager = new ConfigServiceManager(
-                            vertx, dynamicConfigService, staticConfigService, featureFlag);
+        Future.all(dynamicConfigFuture, staticConfigFuture, featureFlagConfigRetriever.getConfig())
+                .onComplete(ar -> {
+                    if (ar.succeeded()) {
+                        CompositeFuture configServiceManagerCompositeFuture = ar.result();
+                        IConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
+                        IConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
+                        JsonObject featureFlagConfig = configServiceManagerCompositeFuture.resultAt(2);
 
-                    setupFeatureFlagListener(configServiceManager, featureFlagConfigRetriever);
+                        boolean remoteConfigFeatureFlag = featureFlagConfig
+                                .getJsonObject("remote_config")
+                                .getBoolean(Const.Config.RemoteConfigFeatureFlagProp, false);
 
-                    IConfigService configService = configServiceManager.getDelegatingConfigService();
+                        ConfigServiceManager configServiceManager = new ConfigServiceManager(
+                                vertx, dynamicConfigService, staticConfigService, remoteConfigFeatureFlag);
+
+                        setupFeatureFlagListener(configServiceManager, featureFlagConfigRetriever);
+
+                        IConfigService configService = configServiceManager.getDelegatingConfigService();
+                        promise.complete(configService);
+                    } else {
+                        LOGGER.error("Failed to initialise ConfigService: ", ar.cause());
+                        promise.fail(ar.cause());
+                    }
+                });
+        return promise.future();
+    }
+
+    private void run() throws Exception {
+        this.createVertxInstancesMetric();
+        this.createVertxEventLoopsMetric();
+
+        this.initialiseConfigService()
+                .compose(configService -> {
+
                     Supplier<Verticle> operatorVerticleSupplier = () -> {
                         UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
                         return verticle;
@@ -346,7 +377,7 @@ public class Main {
     private void setupFeatureFlagListener(ConfigServiceManager manager, ConfigRetriever retriever) {
         retriever.listen(change -> {
             JsonObject newConfig = change.getNewConfiguration();
-            boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlag, true);
+            boolean useDynamicConfig = newConfig.getBoolean(Const.Config.RemoteConfigFeatureFlagProp, true);
             manager.updateConfigService(useDynamicConfig).onComplete(update -> {
                 if (update.succeeded()) {
                     LOGGER.info("Remote config feature flag toggled successfully");

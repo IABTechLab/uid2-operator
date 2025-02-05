@@ -31,16 +31,13 @@ COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NA
 COPY ./static             /app/static
 COPY ./libjnsm.so         /app/lib/
 COPY ./vsockpx            /app/
-COPY ./make_config.py     /app/
 COPY ./entrypoint.sh      /app/
 COPY ./proxies.nitro.yaml /app/
 COPY ./conf/default-config.json    /app/conf/
-COPY ./conf/prod-uid2-config.json  /app/conf/
-COPY ./conf/integ-uid2-config.json /app/conf/
-COPY ./conf/prod-euid-config.json  /app/conf/
-COPY ./conf/integ-euid-config.json /app/conf/
+COPY ./conf/*.json  /app/conf/
 COPY ./conf/*.xml                  /app/conf/
 COPY ./syslog-ng-client.conf       /etc/syslog-ng/syslog-ng.conf
+COPY ./conf/feat-flag/feat-flag.json    /app/conf/feat-flag/
 
 RUN chmod +x /app/vsockpx && chmod +x /app/entrypoint.sh
 

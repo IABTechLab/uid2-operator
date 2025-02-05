@@ -43,6 +43,6 @@
       "path": "conf/runtime-config-defaults.json",
       "format": "json"
     },
-    "config_scan_period_ms": -1
+    "config_scan_period_ms": 5000
   }
 }

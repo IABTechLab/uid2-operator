@@ -157,7 +157,7 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.SharingTokenExpiryProp, 60 * 60 * 24 * 30);
 
         config.put("identity_scope", getIdentityScope().toString());
-        config.put(Const.Config.IdentityV3, useRawUidV3());
+        config.put(Const.Config.IdentityV3Prop, useRawUidV3());
         config.put("client_side_token_generate", true);
         config.put("key_sharing_endpoint_provide_app_names", true);
         config.put("client_side_token_generate_log_invalid_http_origins", true);
@@ -5099,7 +5099,6 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
 
-        String v1Param = "email=" + emailAddress;
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", emailAddress);
 
@@ -5107,27 +5106,22 @@ public class UIDOperatorVerticleTest {
         Duration newRefreshExpiresAfter = Duration.ofMinutes(30);
         Duration newRefreshIdentityAfter = Duration.ofMinutes(10);
 
-        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toMillis() / 1000);
-        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toMillis() / 1000);
-        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toMillis() / 1000);
-        when(configService.getConfig()).thenReturn(config);
+        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toSeconds());
+        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toSeconds());
+        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toSeconds());
 
-        try {
-            sendTokenGenerate("v2", vertx,
-                    v1Param, v2Payload, 200,
-                    respJson -> {
+        sendTokenGenerate("v2", vertx,
+                null, v2Payload, 200,
+                respJson -> {
+                    testContext.verify(() -> {
                         JsonObject body = respJson.getJsonObject("body");
-                        testContext.verify(() -> {
-                            assertNotNull(body);
-                            assertEquals(now.plusMillis(newIdentityExpiresAfter.toMillis()).toEpochMilli(), body.getLong("identity_expires"));
-                            assertEquals(now.plusMillis(newRefreshExpiresAfter.toMillis()).toEpochMilli(), body.getLong("refresh_expires"));
-                            assertEquals(now.plusMillis(newRefreshIdentityAfter.toMillis()).toEpochMilli(), body.getLong("refresh_from"));
-                        });
-                        testContext.completeNow();
+                        assertNotNull(body);
+                        assertEquals(now.plusMillis(newIdentityExpiresAfter.toMillis()).toEpochMilli(), body.getLong("identity_expires"));
+                        assertEquals(now.plusMillis(newRefreshExpiresAfter.toMillis()).toEpochMilli(), body.getLong("refresh_expires"));
+                        assertEquals(now.plusMillis(newRefreshIdentityAfter.toMillis()).toEpochMilli(), body.getLong("refresh_from"));
                     });
-        } catch (Exception e) {
-            testContext.failNow(e);
-        }
+                    testContext.completeNow();
+                });
     }
 
     @Test
@@ -5152,9 +5146,8 @@ public class UIDOperatorVerticleTest {
         MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
         setupSiteDomainAndAppNameMock(true, false, 101, 102, 103, 104, 105);
         send(apiVersion, vertx, apiVersion + "/key/sharing", true, null, null, 200, respJson -> {
-
-            JsonObject body = respJson.getJsonObject("body");
             testContext.verify(() -> {
+                JsonObject body = respJson.getJsonObject("body");
                 assertNotNull(body);
                 assertEquals(newSharingTokenExpiry, Integer.parseInt(body.getString("token_expiry_seconds")));
                 assertEquals(newMaxSharingLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds(), body.getLong(Const.Config.MaxSharingLifetimeProp));
@@ -5178,8 +5171,8 @@ public class UIDOperatorVerticleTest {
         new MultipleKeysetsTests();
 
         send(apiVersion, vertx, apiVersion + endpoint.getPath(), true, null, null, 200, respJson -> {
-            JsonObject body = respJson.getJsonObject("body");
             testContext.verify(() -> {
+                JsonObject body = respJson.getJsonObject("body");
                 assertNotNull(body);
                 assertEquals(newMaxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds(), body.getLong(Const.Config.MaxBidstreamLifetimeSecondsProp));
             });

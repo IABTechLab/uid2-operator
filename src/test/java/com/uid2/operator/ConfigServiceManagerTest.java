@@ -28,7 +28,7 @@ public class ConfigServiceManagerTest {
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 7200)
                 .put(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, 1800)
                 .put(MaxBidstreamLifetimeSecondsProp, 7200);
-        staticConfig = new JsonObject(bootstrapConfig.toString())
+        staticConfig = bootstrapConfig.copy()
                 .put(MaxBidstreamLifetimeSecondsProp, 7201);
 
         IConfigService dynamicConfigService = mock(IConfigService.class);

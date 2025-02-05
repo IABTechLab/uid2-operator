@@ -3,7 +3,6 @@ package com.uid2.operator.benchmark;
 import com.uid2.operator.model.*;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
-import io.vertx.core.json.JsonObject;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
@@ -11,8 +10,6 @@ import org.openjdk.jmh.annotations.Mode;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.uid2.operator.service.UIDOperatorService.*;
 
 public class TokenEndecBenchmark {
 
@@ -22,7 +19,6 @@ public class TokenEndecBenchmark {
     private static final EncryptedTokenEncoder encoder;
     private static final IdentityTokens[] generatedTokens;
     private static int idx = 0;
-    private static final JsonObject config;
 
     static {
         try {
@@ -34,7 +30,6 @@ public class TokenEndecBenchmark {
             if (generatedTokens.length < 65536 || userIdentities.length < 65536) {
                 throw new IllegalStateException("must create more than 65535 test candidates.");
             }
-            config = BenchmarkCommon.getConfig();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -46,12 +41,13 @@ public class TokenEndecBenchmark {
             tokens.add(
                     uidService.generateIdentity(
                             new IdentityRequest(
-                                publisher,
-                                userIdentities[i],
-                                OptoutCheckPolicy.DoNotRespect),
-                            Duration.ofSeconds(config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS)),
-                            Duration.ofSeconds(config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS)),
-                            Duration.ofSeconds(config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS))));
+                                    publisher,
+                                    userIdentities[i],
+                                    OptoutCheckPolicy.DoNotRespect),
+                            Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                            Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                            Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS))
+            );
         }
         return tokens.toArray(new IdentityTokens[tokens.size()]);
     }
@@ -60,12 +56,13 @@ public class TokenEndecBenchmark {
     @BenchmarkMode(Mode.Throughput)
     public IdentityTokens TokenGenerationBenchmark() {
         return uidService.generateIdentity(new IdentityRequest(
-                publisher,
-                userIdentities[(idx++) & 65535],
-                OptoutCheckPolicy.DoNotRespect),
-                Duration.ofSeconds(config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS)),
-                Duration.ofSeconds(config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS)),
-                Duration.ofSeconds(config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)));
+                        publisher,
+                        userIdentities[(idx++) & 65535],
+                        OptoutCheckPolicy.DoNotRespect),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)
+        );
     }
 
     @Benchmark
@@ -74,8 +71,9 @@ public class TokenEndecBenchmark {
         return uidService.refreshIdentity(
                 encoder.decodeRefreshToken(
                         generatedTokens[(idx++) & 65535].getRefreshToken()),
-                Duration.ofSeconds(config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS)),
-                Duration.ofSeconds(config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS)),
-                Duration.ofSeconds(config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)));
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)
+        );
     }
 }

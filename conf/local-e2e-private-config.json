@@ -38,6 +38,14 @@
   "client_side_token_generate_domain_name_check_enabled": false,
   "client_side_token_generate_log_invalid_http_origins": true,
   "salts_expired_shutdown_hours": 12,
-  "operator_type": "private"
-
+  "operator_type": "private",
+  "runtime_config_store": {
+    "type": "http",
+    "config" : {
+      "host": "localhost",
+      "port": 8088,
+      "path": "/operator/config"
+    },
+    "config_scan_period_ms": 300000
+  }
 }

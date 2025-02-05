@@ -96,8 +96,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IOptOutStore optOutStore;
     private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
-    private final Boolean allowLegacyAPI;
-    private final Boolean identityV3Enabled;
+    private final boolean allowLegacyAPI;
+    private final boolean identityV3Enabled;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
@@ -135,7 +135,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final String ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_MISSING = "Required Parameter Missing: exactly one of email or email_hash must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
-    public static final String Config = "config";
+    private static final String RC_CONFIG_KEY = "remote-config";
     public final static String ORIGIN_HEADER = "Origin";
 
     public UIDOperatorVerticle(IConfigService configService,
@@ -182,7 +182,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
         this.allowLegacyAPI = config.getBoolean(Const.Config.AllowLegacyAPIProp, true);
-        this.identityV3Enabled = config.getBoolean(IdentityV3, false);
+        this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
     }
 
     @Override
@@ -237,7 +237,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().handler(ctx -> {
             JsonObject curConfig = configService.getConfig();
-            ctx.put(Config, curConfig);
+            ctx.put(RC_CONFIG_KEY, curConfig);
             ctx.next();
         });
         router.route().failureHandler(new GenericFailureHandler());
@@ -318,7 +318,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private JsonObject getConfigFromRc(RoutingContext rc) {
-        return rc.get(Config);
+        return rc.get(RC_CONFIG_KEY);
     }
 
     private Set<String> getDomainNameListForClientSideTokenGenerate(ClientSideKeypair keypair) {
@@ -623,8 +623,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     public void handleKeysSharing(RoutingContext rc) {
         JsonObject config = this.getConfigFromRc(rc);
-        Integer maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
-        String sharingTokenExpirySeconds = config.getString(Const.Config.SharingTokenExpiryProp);
+        int sharingTokenExpirySeconds = config.getInteger(Const.Config.SharingTokenExpiryProp);
+        int maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, sharingTokenExpirySeconds);
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
 
@@ -681,7 +681,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         JsonObject config = this.getConfigFromRc(rc);
         Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-        Integer maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
+        int maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
 
 
         addBidstreamHeaderFields(resp, maxBidstreamLifetimeSeconds);
@@ -691,7 +691,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         ResponseUtil.SuccessV2(rc, resp);
     }
 
-    private void addBidstreamHeaderFields(JsonObject resp, Integer maxBidstreamLifetimeSeconds) {
+    private void addBidstreamHeaderFields(JsonObject resp, int maxBidstreamLifetimeSeconds) {
         resp.put("max_bidstream_lifetime_seconds", maxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
         addIdentityScopeField(resp);
         addAllowClockSkewSecondsField(resp);
@@ -729,7 +729,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void addSharingHeaderFields(JsonObject resp, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey, Integer maxSharingLifetimeSeconds, String sharingTokenExpirySeconds) {
+    private void addSharingHeaderFields(JsonObject resp, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey, int maxSharingLifetimeSeconds, int sharingTokenExpirySeconds) {
         resp.put("caller_site_id", clientKey.getSiteId());
         resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
 
@@ -744,7 +744,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // this is written out as a String, i.e. in the JSON response of key/sharing endpoint, it would show:
         // "token_expiry_seconds" : "2592000"
         // it should be an integer instead, but we can't change it until we confirm that the oldest version of each of our SDKs support this
-        resp.put("token_expiry_seconds", sharingTokenExpirySeconds);
+        resp.put("token_expiry_seconds", String.valueOf(sharingTokenExpirySeconds));
 
         if (clientKey.hasRole(Role.SHARER)) {
             resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());

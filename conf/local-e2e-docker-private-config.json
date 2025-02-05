@@ -27,5 +27,14 @@
   "optout_delta_rotate_interval": 60,
   "cloud_refresh_interval": 30,
   "salts_expired_shutdown_hours": 12,
-  "operator_type": "private"
+  "operator_type": "private",
+  "runtime_config_store": {
+    "type": "http",
+    "config" : {
+      "host": "core",
+      "port": 8088,
+      "path": "/operator/config"
+    },
+    "config_scan_period_ms": 300000
+  }
 }

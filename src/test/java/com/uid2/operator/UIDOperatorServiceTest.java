@@ -22,7 +22,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static com.uid2.operator.Const.Config.IdentityV3;
+import static com.uid2.operator.Const.Config.IdentityV3Prop;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -57,7 +57,7 @@ public class UIDOperatorServiceTest {
     final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
 
     class ExtendedUIDOperatorService extends UIDOperatorService {
-        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, Boolean identityV3Enabled) {
+        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled) {
             super(optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler, identityV3Enabled);
         }
     }
@@ -91,7 +91,7 @@ public class UIDOperatorServiceTest {
         uid2Config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        uid2Config.put(IdentityV3, false);
+        uid2Config.put(IdentityV3Prop, false);
 
         uid2Service = new ExtendedUIDOperatorService(
                 optOutStore,
@@ -100,14 +100,14 @@ public class UIDOperatorServiceTest {
                 this.clock,
                 IdentityScope.UID2,
                 this.shutdownHandler::handleSaltRetrievalResponse,
-                uid2Config.getBoolean(IdentityV3)
+                uid2Config.getBoolean(IdentityV3Prop)
         );
 
         euidConfig = new JsonObject();
         euidConfig.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         euidConfig.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         euidConfig.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        euidConfig.put(IdentityV3, true);
+        euidConfig.put(IdentityV3Prop, true);
 
         euidService = new ExtendedUIDOperatorService(
                 optOutStore,
@@ -116,7 +116,7 @@ public class UIDOperatorServiceTest {
                 this.clock,
                 IdentityScope.EUID,
                 this.shutdownHandler::handleSaltRetrievalResponse,
-                euidConfig.getBoolean(IdentityV3)
+                euidConfig.getBoolean(IdentityV3Prop)
         );
     }
 
@@ -783,7 +783,7 @@ public class UIDOperatorServiceTest {
                 this.clock,
                 IdentityScope.UID2,
                 this.shutdownHandler::handleSaltRetrievalResponse,
-                uid2Config.getBoolean(IdentityV3)
+                uid2Config.getBoolean(IdentityV3Prop)
         );
 
         UIDOperatorService euidService = new UIDOperatorService(
@@ -793,7 +793,7 @@ public class UIDOperatorServiceTest {
                 this.clock,
                 IdentityScope.EUID,
                 this.shutdownHandler::handleSaltRetrievalResponse,
-                euidConfig.getBoolean(IdentityV3)
+                euidConfig.getBoolean(IdentityV3Prop)
         );
 
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);

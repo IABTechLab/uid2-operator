@@ -22,6 +22,9 @@
     },
     "deploymentEnvironment": {
       "value": "integ"
+    },
+    "skipValidations": {
+      "value": "false"
     }
   }
 }

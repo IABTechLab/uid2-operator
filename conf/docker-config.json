@@ -37,6 +37,13 @@
   "enclave_platform": null,
   "failure_shutdown_wait_hours": 120,
   "salts_expired_shutdown_hours": 12,
-  "operator_type": "public"
-
+  "operator_type": "public",
+  "runtime_config_store": {
+    "type": "file",
+    "config" : {
+      "path": "conf/runtime-config-defaults.json",
+      "format": "json"
+    },
+    "config_scan_period_ms": 5000
+  }
 }

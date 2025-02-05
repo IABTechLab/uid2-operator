@@ -323,20 +323,20 @@
             
         Future<IConfigService> loggedDynamicConfigFuture = dynamicConfigFuture.map(config -> (IConfigService) config)
     .otherwise(ex -> {
-        LOGGER.error("dynamicConfigFuture failed: ", ex);
-        throw ex;
+        LOGGER.error("ABU dynamicConfigFuture failed: ", ex);
+        return null;
     });
 
 Future<IConfigService> loggedStaticConfigFuture = staticConfigFuture.map(config -> (IConfigService) config)
     .otherwise(ex -> {
-        LOGGER.error("staticConfigFuture failed: ", ex);
-        throw ex;
+        LOGGER.error("ABU staticConfigFuture failed: ", ex);
+        return null;
     });
 
 Future<JsonObject> loggedFeatureFlagConfigFuture = featureFlagConfigRetriever.getConfig()
     .otherwise(ex -> {
-        LOGGER.error("featureFlagConfigFuture failed: ", ex);
-        throw ex;
+        LOGGER.error("ABU featureFlagConfigFuture failed: ", ex);
+        return new JsonObject();
     });
 
         

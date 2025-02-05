@@ -50,6 +50,7 @@ import software.amazon.awssdk.utils.Pair;
 import javax.management.*;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Duration;
@@ -286,7 +287,24 @@ public class Main {
                 ""
         );
 
+        String featureFlagFilePath = "conf/feat-flag/feat-flag.json";
+
+        // Check if file exists and log contents
+        LOGGER.info("ABU CHECKING FILE ACCESS");
+        if (Files.exists(Paths.get(featureFlagFilePath))) {
+            LOGGER.info("Feature file exisit");
+            try {
+                String fileContents = new String(Files.readAllBytes(Paths.get(featureFlagFilePath)), StandardCharsets.UTF_8);
+                LOGGER.info("Feature flag file contents: {}", fileContents);
+            } catch (IOException e) {
+                LOGGER.error("Failed to read feature flag file: ", e);
+            }
+        } else {
+            LOGGER.warn("Feature flag file does not exist at path: {}", featureFlagFilePath);
+        }
+
         Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
+
 
         ConfigRetriever featureFlagConfigRetriever = ConfigRetrieverFactory.create(
                 vertx,
@@ -300,7 +318,7 @@ public class Main {
         );
 
 
-
+        LOGGER.info("Feature flag Line 321");
         Future.all(dynamicConfigFuture, staticConfigFuture, featureFlagConfigRetriever.getConfig())
                 .onComplete(ar -> {
                     if (ar.succeeded()) {
@@ -308,14 +326,14 @@ public class Main {
                         IConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
                         IConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
                         JsonObject featureFlagConfig = configServiceManagerCompositeFuture.resultAt(2);
-
+                        LOGGER.info("Feature flag Line 329");
                         boolean remoteConfigFeatureFlag = featureFlagConfig
                                 .getJsonObject("remote_config")
                                 .getBoolean(Const.Config.RemoteConfigFeatureFlagProp, false);
-
+                        LOGGER.info("Feature flag Line 333");
                         ConfigServiceManager configServiceManager = new ConfigServiceManager(
                                 vertx, dynamicConfigService, staticConfigService, remoteConfigFeatureFlag);
-
+                        LOGGER.info("Feature flag Line 336");
                         setupFeatureFlagListener(configServiceManager, featureFlagConfigRetriever);
 
                         IConfigService configService = configServiceManager.getDelegatingConfigService();

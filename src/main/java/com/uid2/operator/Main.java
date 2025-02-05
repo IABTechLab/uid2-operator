@@ -321,20 +321,25 @@
 
             LOGGER.info("Feature flag Line 321");
             
-        Future<IConfigService> loggedDynamicConfigFuture = dynamicConfigFuture.otherwise(ex -> {
-        LOGGER.error("ABU dynamicConfigFuture failed: ", ex);
-            throw ex;
-        });
+        Future<IConfigService> loggedDynamicConfigFuture = dynamicConfigFuture.map(config -> (IConfigService) config)
+    .otherwise(ex -> {
+        LOGGER.error("dynamicConfigFuture failed: ", ex);
+        throw ex;
+    });
 
-        Future<IConfigService> loggedStaticConfigFuture = staticConfigFuture.otherwise(ex -> {
-            LOGGER.error("ABU staticConfigFuture failed: ", ex);
-            throw ex;
-        });
+Future<IConfigService> loggedStaticConfigFuture = staticConfigFuture.map(config -> (IConfigService) config)
+    .otherwise(ex -> {
+        LOGGER.error("staticConfigFuture failed: ", ex);
+        throw ex;
+    });
 
-        Future<JsonObject> loggedFeatureFlagConfigFuture = featureFlagConfigRetriever.getConfig().otherwise(ex -> {
-            LOGGER.error("ABU featureFlagConfigFuture failed: ", ex);
-            throw ex;
-        });
+Future<JsonObject> loggedFeatureFlagConfigFuture = featureFlagConfigRetriever.getConfig()
+    .otherwise(ex -> {
+        LOGGER.error("featureFlagConfigFuture failed: ", ex);
+        throw ex;
+    });
+
+        
 
             Future.all(loggedDynamicConfigFuture, loggedStaticConfigFuture, loggedFeatureFlagConfigFuture)
                     .onComplete(ar -> {

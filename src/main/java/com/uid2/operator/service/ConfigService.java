@@ -20,8 +20,8 @@ public class ConfigService implements IConfigService {
     private final ConfigRetriever configRetriever;
     private static final Logger logger = LoggerFactory.getLogger(ConfigService.class);
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("config-service");
-    private static final int MAX_FAILURE_COUNT = 3;
     private final AtomicInteger failedRetrievalCount = new AtomicInteger(0);
+    public static final int MAX_FAILURE_COUNT = 3;
 
     private ConfigService(ConfigRetriever configRetriever) {
         this.configRetriever = configRetriever;

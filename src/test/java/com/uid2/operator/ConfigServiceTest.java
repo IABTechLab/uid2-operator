@@ -2,19 +2,20 @@ package com.uid2.operator;
 
 import com.uid2.operator.service.ConfigRetrieverFactory;
 import com.uid2.operator.service.ConfigService;
-import io.vertx.core.Future;
-import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
+import com.uid2.shared.health.HealthManager;
+import io.vertx.core.*;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.config.ConfigRetriever;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import org.junit.jupiter.api.*;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 
 import static com.uid2.operator.Const.Config.*;
 import static com.uid2.operator.service.UIDOperatorService.*;
@@ -59,27 +60,34 @@ class ConfigServiceTest {
     }
 
     private Future<Void> startMockServer(JsonObject config) {
-        if (server != null) {
-            server.close();
-        }
-
         Promise<Void> promise = Promise.promise();
 
-        Router router = Router.router(vertx);
-        router.route().handler(BodyHandler.create());
-        router.get("/operator/config").handler(ctx -> ctx.response()
-                .putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                .end(config.encode()));
+        Future<Void> closeFuture = Future.succeededFuture();
+        if (server != null) {
+            closeFuture = server.close();
+        }
 
-        server = vertx.createHttpServer()
-                .requestHandler(router)
-                .listen(Const.Port.ServicePortForCore,"127.0.0.1", http -> {
-                    if (http.succeeded()) {
-                        promise.complete();
-                    } else {
-                        promise.fail(http.cause());
-                    }
-                });
+        closeFuture.onComplete(ar -> {
+            if (ar.succeeded()) {
+                Router router = Router.router(vertx);
+                router.route().handler(BodyHandler.create());
+                router.get("/operator/config").handler(ctx -> ctx.response()
+                        .putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                        .end(config.encode()));
+
+                server = vertx.createHttpServer()
+                        .requestHandler(router)
+                        .listen(Const.Port.ServicePortForCore, "127.0.0.1", http -> {
+                            if (http.succeeded()) {
+                                promise.complete();
+                            } else {
+                                promise.fail(http.cause());
+                            }
+                        });
+            } else {
+                promise.fail(ar.cause());
+            }
+        });
 
         return promise.future();
     }
@@ -136,6 +144,37 @@ class ConfigServiceTest {
                        throw throwable;
                    }, "Expected a RuntimeException but the creation succeeded");
                    testContext.completeNow();
+                }));
+    }
+
+    @Test
+    public void testConfigStreamExceptionHandler(VertxTestContext testContext) {
+        JsonObject jsonBootstrapConfig = new JsonObject()
+                .put("type", "json")
+                .put("config", runtimeConfig)
+                .put(ConfigScanPeriodMs, -1);
+
+        ConfigRetriever mockRetriever = spy(configRetrieverFactory.create(vertx, jsonBootstrapConfig, ""));
+        ReadStream<JsonObject> mockStream = mock(ReadStream.class);
+
+        when(mockRetriever.configStream()).thenReturn(mockStream);
+
+        ArgumentCaptor<Handler<Throwable>> exceptionHandlerCaptor =
+                ArgumentCaptor.forClass(Handler.class);
+        doReturn(mockStream).when(mockStream).exceptionHandler(exceptionHandlerCaptor.capture());
+
+        ConfigService.create(mockRetriever)
+                .onComplete(testContext.succeeding( configService -> {
+                    testContext.verify(() -> {
+                    assertTrue(HealthManager.instance.isHealthy(), "ConfigService should be healthy after successful initialisation");
+                    RuntimeException simulatedException = new RuntimeException("Test Exception");
+                    Handler<Throwable> capturedHandler = exceptionHandlerCaptor.getValue();
+                    for (int i = 0; i < ConfigService.MAX_FAILURE_COUNT; i++) {
+                        capturedHandler.handle(simulatedException);
+                    }
+                    assertFalse(HealthManager.instance.isHealthy(), "ConfigService should be unhealthy after " + ConfigService.MAX_FAILURE_COUNT + " failed retrievals");
+                    });
+                    testContext.completeNow();
                 }));
     }
 }

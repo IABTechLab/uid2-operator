@@ -8,9 +8,9 @@ from google.cloud import secretmanager
 from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
 from google.api_core.exceptions import PermissionDenied, NotFound
-
+from urllib.parse import urlparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, MissingConfig, OperatorKeyNotFound, OperatorKeyAccessDenied, ConfidentialComputeStartupException
+from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, ConfigurationMissingError, OperatorKeyNotFoundError, OperatorKeyPermissionError, ConfidentialComputeStartupError
 
 class GCPEntryPoint(ConfidentialCompute):
 
@@ -32,16 +32,16 @@ class GCPEntryPoint(ConfidentialCompute):
         }
 
         if not os.getenv("API_TOKEN_SECRET_NAME"):
-            raise MissingConfig(self.__class__.__name__, ["API_TOKEN_SECRET_NAME"])
+            raise ConfigurationMissingError(self.__class__.__name__, ["API_TOKEN_SECRET_NAME"])
         try:
             client = secretmanager.SecretManagerServiceClient()
             secret_version_name = f"{os.getenv("API_TOKEN_SECRET_NAME")}"
             response = client.access_secret_version(name=secret_version_name)
             secret_value = response.payload.data.decode("UTF-8")
         except (PermissionDenied, DefaultCredentialsError) as e:
-            raise OperatorKeyAccessDenied(self.__class__.__name__, str(e))
+            raise OperatorKeyPermissionError(self.__class__.__name__, str(e))
         except NotFound:
-            raise OperatorKeyNotFound(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
+            raise OperatorKeyNotFoundError(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
         self.configs["operator_key"] = secret_value
     
     def __populate_operator_config(self, destination):
@@ -49,8 +49,8 @@ class GCPEntryPoint(ConfidentialCompute):
         shutil.copy(target_config, destination)
         with open(destination, 'r') as file:
             config = file.read()
-        config = config.replace("https://core.uidapi.com", self.configs.get("core_base_url"))
-        config = config.replace("https://optout.uidapi.com", self.configs.get("optout_base_url"))
+        config = config.replace("core.uidapi.com", urlparse(self.configs.get("core_base_url")).netloc)
+        config = config.replace("optout.uidapi.com", urlparse(self.configs.get("optout_base_url")).netloc)
         with open(destination, 'w') as file:
             file.write(config)
 
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     try:
         gcp = GCPEntryPoint()
         gcp.run_compute()
-    except ConfidentialComputeStartupException as e:
+    except ConfidentialComputeStartupError as e:
         print("Failed starting up Confidential Compute. Please checks the logs for errors and retry \n", e)
     except Exception as e:
         print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)

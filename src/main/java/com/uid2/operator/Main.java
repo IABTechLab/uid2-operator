@@ -51,8 +51,8 @@ import javax.management.*;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -320,7 +320,23 @@ public class Main {
 
 
         LOGGER.info("Feature flag Line 321");
-        Future.all(dynamicConfigFuture, staticConfigFuture, featureFlagConfigRetriever.getConfig())
+        
+    Future<IConfigService> loggedDynamicConfigFuture = dynamicConfigFuture.otherwise(ex -> {
+    LOGGER.error("ABU dynamicConfigFuture failed: ", ex);
+        throw ex;
+    });
+
+    Future<IConfigService> loggedStaticConfigFuture = staticConfigFuture.otherwise(ex -> {
+        LOGGER.error("ABU staticConfigFuture failed: ", ex);
+        throw ex;
+    });
+
+    Future<JsonObject> loggedFeatureFlagConfigFuture = featureFlagConfigRetriever.getConfig().otherwise(ex -> {
+        LOGGER.error("ABU featureFlagConfigFuture failed: ", ex);
+        throw ex;
+    });
+
+        Future.all(loggedDynamicConfigFuture, loggedStaticConfigFuture, loggedFeatureFlagConfigFuture.getConfig())
                 .onComplete(ar -> {
                     if (ar.succeeded()) {
                         CompositeFuture configServiceManagerCompositeFuture = ar.result();

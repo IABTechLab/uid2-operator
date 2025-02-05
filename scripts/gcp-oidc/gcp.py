@@ -4,6 +4,7 @@ import os
 import shutil
 from typing import Dict
 import sys
+import logging
 from google.cloud import secretmanager
 from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
@@ -64,7 +65,7 @@ class GCPEntryPoint(ConfidentialCompute):
 
     def run_compute(self) -> None:
         self._set_confidential_config()
-        print(f"Fetched configs")
+        logging.info("Fetched configs")
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
         config_locaton = "/tmp/final-config.json"
@@ -89,7 +90,7 @@ if __name__ == "__main__":
         gcp = GCPEntryPoint()
         gcp.run_compute()
     except ConfidentialComputeStartupError as e:
-        print("Failed starting up Confidential Compute. Please checks the logs for errors and retry \n", e)
+        logging.error(f"Failed starting up Confidential Compute. Please checks the logs for errors and retry {e}")
     except Exception as e:
-        print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
+        logging.error(f"Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log {e}")
            

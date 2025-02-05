@@ -72,6 +72,7 @@ class GCPEntryPoint(ConfidentialCompute):
         config_locaton = "/tmp/final-config.json"
         self.__populate_operator_config(config_locaton)
         os.environ["gcp_secret_version_name"] = os.getenv("API_TOKEN_SECRET_NAME")
+        return
         java_command = [
             "java",
             "-XX:MaxRAMPercentage=95", 

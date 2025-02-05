@@ -9,6 +9,7 @@ import multiprocessing
 import requests
 import signal
 import argparse
+import logging
 from botocore.exceptions import ClientError, NoCredentialsError
 from typing import Dict
 import sys
@@ -99,7 +100,7 @@ class EC2EntryPoint(ConfidentialCompute):
             return configs
         
         region = self.__get_current_region()
-        print(f"Running in {region}")
+        logging.info(f"Running in {region}")
         client = boto3.client("secretsmanager", region_name=region)
         try:
             self.configs = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
@@ -168,19 +169,19 @@ class EC2EntryPoint(ConfidentialCompute):
         self.__setup_vsockproxy(log_level)
         self.__run_config_server()
         self.__run_socks_proxy()
-        print("Finished setting up all auxiliaries")
+        logging.info("Finished setting up all auxiliaries")
 
     def _validate_auxiliaries(self) -> None:
         """Validates connection to flask server direct and through socks proxy."""
-        print("Validating auxiliaries")
+        logging.info("Validating auxiliaries")
         try:
             for attempt in range(10):
                 try:
                     response = requests.get(AuxiliaryConfig.get_config_url())
-                    print("Config server is reachable")
+                    logging.info("Config server is reachable")
                     break
                 except requests.exceptions.ConnectionError as e:
-                    print(f"Connecting to config server, attempt {attempt + 1} failed with ConnectionError: {e}")
+                    logging.error(f"Connecting to config server, attempt {attempt + 1} failed with ConnectionError: {e}")
                 time.sleep(1)
             else:
                 raise RuntimeError(f"Config server unreachable")
@@ -193,7 +194,7 @@ class EC2EntryPoint(ConfidentialCompute):
             response.raise_for_status()
         except requests.RequestException as e:
             raise RuntimeError(f"Cannot connect to config server via SOCKS proxy: {e}")
-        print("Connectivity check to config server passes")
+        logging.info("Connectivity check to config server passes")
 
     def __run_nitro_enclave(self):
         command = [
@@ -205,7 +206,7 @@ class EC2EntryPoint(ConfidentialCompute):
             "--enclave-name", "uid2operator"
         ]
         if self.configs.get('debug_mode', False):
-            print("Running in debug_mode")
+            logging.info("Running in debug_mode")
             command += ["--debug-mode", "--attach-console"]
         self.run_command(command, separate_process=False)
 
@@ -213,7 +214,7 @@ class EC2EntryPoint(ConfidentialCompute):
         """Main execution flow for confidential compute."""
         secret_manager_key = self.__get_secret_name_from_userdata()
         self._set_confidential_config(secret_manager_key)
-        print(f"Fetched configs from {secret_manager_key}")
+        logging.info(f"Fetched configs from {secret_manager_key}")
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
         self._setup_auxiliaries()
@@ -236,11 +237,11 @@ class EC2EntryPoint(ConfidentialCompute):
                 if result.stdout.strip():
                     for pid in result.stdout.strip().split("\n"):
                         os.kill(int(pid), signal.SIGKILL)
-                    print(f"Killed process '{process_name}'.")
+                    logging.info(f"Killed process '{process_name}'.")
                 else:
-                    print(f"No process named '{process_name}' found.")
+                    logging.info(f"No process named '{process_name}' found.")
             except Exception as e:
-                print(f"Error killing process '{process_name}': {e}")
+                logging.error(f"Error killing process '{process_name}': {e}")
 
 
 if __name__ == "__main__":
@@ -254,7 +255,7 @@ if __name__ == "__main__":
         else:
             ec2.run_compute()
     except ConfidentialComputeStartupError as e:
-        print("Failed starting up Confidential Compute. Please checks the logs for errors and retry \n", e)
+        logging.error(f"Failed starting up Confidential Compute. Please checks the logs for errors and retry {e}")
     except Exception as e:
-        print("Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log \n ", e)
+        logging.error(f"Unexpected failure while starting up Confidential Compute. Please contact UID support team with this log {e}")
            

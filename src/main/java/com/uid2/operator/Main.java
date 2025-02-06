@@ -350,7 +350,7 @@ public class Main {
                     try {
                         fs.add(createStoreVerticles());
                     } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        return Future.failedFuture(e);
                     }
 
                     CompositeFuture.all(fs).onComplete(ar -> {
@@ -365,12 +365,12 @@ public class Main {
                                 Promise<String> promise = Promise.promise();
                                 vertx.deployVerticle(operatorVerticleSupplier, options, promise);
                                 return promise.future();
-                            })
-                            .onFailure(t -> {
-                                LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
-                                vertx.close();
-                                System.exit(1);
                             });
+                })
+                .onFailure(t -> {
+                    LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
+                    vertx.close();
+                    System.exit(1);
                 });
     }
 

@@ -38,8 +38,10 @@ import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.config.ConfigRetriever;
+import io.vertx.config.ConfigRetrieverOptions;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.micrometer.*;
 import io.vertx.micrometer.backends.BackendRegistries;
@@ -288,15 +290,18 @@ public class Main {
 
         Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
 
-        ConfigRetriever featureFlagConfigRetriever = ConfigRetrieverFactory.create(
+        ConfigRetriever featureFlagConfigRetriever = ConfigRetriever.create(
                 vertx,
-                new JsonObject()
-                        .put("type", "file")
-                        .put("config", new JsonObject()
-                                .put("path", "conf/feat-flag/feat-flag.json")
-                                .put("format", "json"))
-                        .put(ConfigScanPeriodMsProp, 10000),
-                ""
+                new ConfigRetrieverOptions(
+                        new JsonObject()
+                                .put("stores", new JsonArray()
+                                        .add(new JsonObject()
+                                                .put("type", "file")
+                                                .put("optional", true)
+                                                .put("config", new JsonObject()
+                                                        .put("path", "conf/feat-flag/feat-flag.json")
+                                                        .put("format", "json"))))
+                                .put("scanPeriod", 10000))
         );
 
 
@@ -377,7 +382,7 @@ public class Main {
     private void setupFeatureFlagListener(ConfigServiceManager manager, ConfigRetriever retriever) {
         retriever.listen(change -> {
             JsonObject newConfig = change.getNewConfiguration();
-            boolean useDynamicConfig = newConfig.getJsonObject("remote_config").getBoolean("enabled", true);
+            boolean useDynamicConfig = newConfig.getJsonObject("remote_config", new JsonObject()).getBoolean("enabled", false);
             manager.updateConfigService(useDynamicConfig).onComplete(update -> {
                 if (update.succeeded()) {
                     LOGGER.info("Remote config feature flag toggled successfully");

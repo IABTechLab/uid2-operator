@@ -365,12 +365,12 @@ public class Main {
                                 Promise<String> promise = Promise.promise();
                                 vertx.deployVerticle(operatorVerticleSupplier, options, promise);
                                 return promise.future();
-                            })
-                            .onFailure(t -> {
-                                LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
-                                vertx.close();
-                                System.exit(1);
                             });
+                })
+                .onFailure(t -> {
+                    LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
+                    vertx.close();
+                    System.exit(1);
                 });
     }
 

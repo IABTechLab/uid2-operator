@@ -290,6 +290,9 @@ public class Main {
 
         Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
 
+        // Create ConfigRetriever with options specified in JsonObject.
+        // Includes an optional file store and scan period of 10000 ms (10 sec).
+        // See https://vertx.io/docs/vertx-config/java/#_file for Vertx file store docs.
         ConfigRetriever featureFlagConfigRetriever = ConfigRetriever.create(
                 vertx,
                 new ConfigRetrieverOptions(
@@ -299,12 +302,9 @@ public class Main {
                                                 .put("type", "file")
                                                 .put("optional", true)
                                                 .put("config", new JsonObject()
-                                                        .put("path", "conf/feat-flag/feat-flag.json")
-                                                        .put("format", "json"))))
+                                                        .put("path", "conf/feat-flag/feat-flag.json"))))
                                 .put("scanPeriod", 10000))
         );
-
-
 
         Future.all(dynamicConfigFuture, staticConfigFuture, featureFlagConfigRetriever.getConfig())
                 .onComplete(ar -> {
@@ -316,7 +316,7 @@ public class Main {
 
                         boolean remoteConfigFeatureFlag = featureFlagConfig
                                 .getJsonObject("remote_config")
-                                .getBoolean(Const.Config.RemoteConfigFeatureFlagProp, false);
+                                .getBoolean("enabled", false);
 
                         ConfigServiceManager configServiceManager = new ConfigServiceManager(
                                 vertx, dynamicConfigService, staticConfigService, remoteConfigFeatureFlag);

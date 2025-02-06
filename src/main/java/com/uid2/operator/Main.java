@@ -350,7 +350,7 @@ public class Main {
                     try {
                         fs.add(createStoreVerticles());
                     } catch (Exception e) {
-                        return Future.failedFuture(e);
+                        throw new RuntimeException(e);
                     }
 
                     CompositeFuture.all(fs).onComplete(ar -> {

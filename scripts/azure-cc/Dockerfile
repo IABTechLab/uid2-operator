@@ -26,7 +26,6 @@ ENV JAR_NAME=${JAR_NAME}
 ENV JAR_VERSION=${JAR_VERSION}
 ENV IMAGE_VERSION=${IMAGE_VERSION}
 ENV REGION=default
-ENV LOKI_HOSTNAME=loki
 
 # Copy application files
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar

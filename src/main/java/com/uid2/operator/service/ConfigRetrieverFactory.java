@@ -18,7 +18,11 @@ public class ConfigRetrieverFactory {
             URI uri = URI.create(storeConfig.getString("url"));
             storeConfig.remove("url");
             storeConfig.put("host", uri.getHost());
-            storeConfig.put("port", uri.getPort() == -1 ? (uri.getScheme().equals("https") ? 443 : 80) : uri.getPort());
+            int port = uri.getPort();
+            if (port == -1) {
+                port = uri.getScheme().equals("https") ? 443 : 80;
+            }
+            storeConfig.put("port", port);
             storeConfig.put("path", uri.getPath());
             storeConfig.put("ssl", uri.getScheme().equals("https"));
             storeConfig.put("headers", new JsonObject()

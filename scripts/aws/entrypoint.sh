@@ -46,9 +46,7 @@ build_parameterized_config() {
 
 build_operator_config() {
   CORE_BASE_URL=$(jq -r ".core_base_url" < "${PARAMETERIZED_CONFIG}")
-  CORE_BASE_URL=$(echo "$CORE_BASE_URL" | sed -E 's#^(https?://)?([^/]+).*#\2#')
   OPTOUT_BASE_URL=$(jq -r ".optout_base_url" < "${PARAMETERIZED_CONFIG}")
-  OPTOUT_BASE_URL=$(echo "$OPTOUT_BASE_URL" | sed -E 's#^(https?://)?([^/]+).*#\2#')
   DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${PARAMETERIZED_CONFIG}")
   DEBUG_MODE=$(jq -r ".debug_mode" < "${PARAMETERIZED_CONFIG}")
 
@@ -69,11 +67,11 @@ build_operator_config() {
 
   if [[ "$DEPLOYMENT_ENVIRONMENT" != "prod" ]]; then
     #Allow override of base URL in non-prod environments
-    CORE_PATTERN="core.*uidapi.com"
-    OPTOUT_PATTERN="optout.*uidapi.com"
+    CORE_PATTERN="https://core.*uidapi.com"
+    OPTOUT_PATTERN="https://optout.*uidapi.com"
     if [[ "$DEPLOYMENT_ENVIRONMENT" == "euid" ]]; then
-      CORE_PATTERN="core.*euid.eu"
-      OPTOUT_PATTERN="optout.*euid.eu"
+      CORE_PATTERN="https://core.*euid.eu"
+      OPTOUT_PATTERN="https://optout.*euid.eu"
     fi
     sed -i "s#${CORE_PATTERN}#${CORE_BASE_URL}#g" "${OPERATOR_CONFIG}"
     sed -i "s#${OPTOUT_PATTERN}#${OPTOUT_BASE_URL}#g" "${OPERATOR_CONFIG}"

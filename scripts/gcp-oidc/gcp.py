@@ -6,10 +6,8 @@ from typing import Dict
 import sys
 import logging
 from google.cloud import secretmanager
-from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
 from google.api_core.exceptions import PermissionDenied, NotFound
-from urllib.parse import urlparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, ConfigurationMissingError, OperatorKeyNotFoundError, OperatorKeyPermissionError, ConfidentialComputeStartupError
 
@@ -50,8 +48,8 @@ class GCPEntryPoint(ConfidentialCompute):
         shutil.copy(target_config, destination)
         with open(destination, 'r') as file:
             config = file.read()
-        config = config.replace("core.uidapi.com", urlparse(self.configs.get("core_base_url")).netloc)
-        config = config.replace("optout.uidapi.com", urlparse(self.configs.get("optout_base_url")).netloc)
+        config = config.replace("core.uidapi.com", self.configs.get("core_base_url"))
+        config = config.replace("optout.uidapi.com", self.configs.get("optout_base_url"))
         with open(destination, 'w') as file:
             file.write(config)
 

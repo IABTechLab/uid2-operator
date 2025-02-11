@@ -36,9 +36,7 @@
   "runtime_config_store": {
     "type": "http",
     "config" : {
-      "host": "core",
-      "port": 8088,
-      "path": "/operator/config"
+      "url": "http://core:8080/operator/config"
     },
     "config_scan_period_ms": 300000
   }

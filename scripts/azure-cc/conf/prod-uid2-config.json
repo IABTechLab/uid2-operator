@@ -15,10 +15,7 @@
   "runtime_config_store": {
     "type": "http",
     "config" : {
-      "host": "core-prod.uidapi.com",
-      "port": 443,
-      "ssl": true,
-      "path": "/operator/config"
+      "url": "https://core-prod.uidapi.com/operator/config"
     },
     "config_scan_period_ms": 300000
   }

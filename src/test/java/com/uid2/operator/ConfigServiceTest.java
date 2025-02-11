@@ -34,9 +34,7 @@ class ConfigServiceTest {
         bootstrapConfig = new JsonObject()
                 .put("type", "http")
                 .put("config", new JsonObject()
-                        .put("host", "localhost")
-                        .put("port", 8088)
-                        .put("path", "/operator/config"))
+                        .put("url", "http://localhost:8088/operator/config"))
                 .put(ConfigScanPeriodMsProp, 300000);
 
         runtimeConfig = new JsonObject()
@@ -71,7 +69,7 @@ class ConfigServiceTest {
 
         server = vertx.createHttpServer()
                 .requestHandler(router)
-                .listen(Const.Port.ServicePortForCore,"127.0.0.1", http -> {
+                .listen(Const.Port.ServicePortForCore,"localhost", http -> {
                     if (http.succeeded()) {
                         promise.complete();
                     } else {

@@ -161,6 +161,7 @@ jobs:
         with:
           image_ref: ${{ steps.meta.outputs.tags }}
           scan_type: 'image'
+          failure_severity: ${{ inputs.vulnerability_severity }}
 
       - name: Push to Docker
         id: push-to-docker

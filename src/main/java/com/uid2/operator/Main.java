@@ -596,7 +596,8 @@ public class Main {
                 LOGGER.info("creating uid core client with gcp oidc attestation protocol");
                 attestationProvider = AttestationFactory.getGcpOidcAttestation();
                 break;
-            case "azure-cc", "azure-cc-aks":
+            case "azure-cc":
+            case "azure-cc-aks":
                 LOGGER.info("creating uid core client with" + enclavePlatform + "attestation protocol");
                 String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
                 attestationProvider = AttestationFactory.getAzureCCAttestation(maaServerBaseUrl);

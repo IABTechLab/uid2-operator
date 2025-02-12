@@ -159,7 +159,7 @@ jobs:
       - name: Vulnerability Scan
         uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@v3
         with:
-          image-ref: ${{ steps.meta.outputs.tags }}
+          image_ref: ${{ steps.meta.outputs.tags }}
 
       - name: Push to Docker
         id: push-to-docker

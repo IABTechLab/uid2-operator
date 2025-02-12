@@ -55,8 +55,8 @@ class AzureEntryPoint(ConfidentialCompute):
             with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
                 config = file.read()
 
-            config = config.replace("core-integ.uidapi.com", self.configs["core_base_url"])
-            config = config.replace("optout-integ.uidapi.com", self.configs["optout_base_url"])
+            config = config.replace("https://core-integ.uidapi.com", self.configs["core_base_url"])
+            config = config.replace("https://optout-integ.uidapi.com", self.configs["optout_base_url"])
 
             with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
                 file.write(config)

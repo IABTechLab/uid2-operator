@@ -576,7 +576,6 @@ public class Main {
     private AttestationResponseHandler getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
         String enclavePlatform = this.config.getString(Const.Config.EnclavePlatformProp);
         String operatorType = this.config.getString(Const.Config.OperatorTypeProp, "");
-        String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
 
         IAttestationProvider attestationProvider;
         switch (enclavePlatform) {
@@ -597,12 +596,9 @@ public class Main {
                 LOGGER.info("creating uid core client with gcp oidc attestation protocol");
                 attestationProvider = AttestationFactory.getGcpOidcAttestation();
                 break;
-            case "azure-cc":
+            case "azure-cc", "azure-cc-aks":
                 LOGGER.info("creating uid core client with" + enclavePlatform + "attestation protocol");
-                attestationProvider = AttestationFactory.getAzureCCAttestation(maaServerBaseUrl);
-                break;
-            case "azure-cc-aks":
-                LOGGER.info("creating uid core client with" + enclavePlatform + "attestation protocol");
+                String maaServerBaseUrl = this.config.getString(Const.Config.MaaServerBaseUrlProp, "https://sharedeus.eus.attest.azure.net");
                 attestationProvider = AttestationFactory.getAzureCCAttestation(maaServerBaseUrl);
                 break;
             default:
@@ -622,7 +618,7 @@ public class Main {
             case "aws-nitro": {
                 return () -> this.config.getString(Const.Config.CoreApiTokenProp);
             }
-            case "azure-cc": {
+            case "azure-cc", "azure-cc-aks": {
                 var vaultName = this.config.getString(Const.Config.AzureVaultNameProp);
                 var secretName = this.config.getString(Const.Config.AzureSecretNameProp);
                 return OperatorKeyRetrieverFactory.getAzureOperatorKeyRetriever(vaultName, secretName);

@@ -160,6 +160,7 @@ jobs:
         uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@v3
         with:
           image_ref: ${{ steps.meta.outputs.tags }}
+          scan_type: 'image'
 
       - name: Push to Docker
         id: push-to-docker

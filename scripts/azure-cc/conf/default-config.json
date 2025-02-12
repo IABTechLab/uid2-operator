@@ -29,7 +29,7 @@
   "services_metadata_path": "services/metadata.json",
   "service_links_metadata_path": "service_links/metadata.json",
   "optout_metadata_path": null,
-  "enclave_platform": "azure-cc",
+  "enclave_platform": "azure-cc-aks",
   "optout_inmem_cache": true,
   "identity_token_expires_after_seconds": 86400,
   "refresh_token_expires_after_seconds": 2592000,

@@ -156,31 +156,12 @@ jobs:
             IMAGE_VERSION=${{ steps.update_version.outputs.new_version }}
             BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
 
-      - name: Generate Trivy vulnerability scan report
-        uses: aquasecurity/trivy-action@0.14.0
+      - name: Vulnerability Scan
+        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@v3
         with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'sarif'
-          exit-code: '0'
-          ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
-          output: 'trivy-results.sarif'
-          hide-progress: true
-
-      - name: Upload Trivy scan report to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-      - name: Test with Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.14.0
-        with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: ${{ inputs.vulnerability_severity }}
-          hide-progress: true
+          image_ref: ${{ steps.meta.outputs.tags }}
+          scan_type: 'image'
+          failure_severity: ${{ (inputs.vulnerability_severity == 'CRITICAL (DO NOT use if JIRA ticket not raised)' && 'CRITICAL') || inputs.vulnerability_severity }}
 
       - name: Push to Docker
         id: push-to-docker

@@ -28,14 +28,6 @@
   "enable_phone_support": true,
   "enable_v1_phone_support": false,
   "enable_v2_encryption": true,
-  "runtime_config_store": {
-    "type": "http",
-    "config" : {
-      "host": "core.prod.euid.eu",
-      "port": 443,
-      "ssl": true,
-      "path": "/operator/config"
-    },
-    "config_scan_period_ms": 300000
-  }
+  "runtime_config_path": "https://core.prod.euid.eu/operator/config",
+  "runtime_config_refresh_ms": 300000
 }

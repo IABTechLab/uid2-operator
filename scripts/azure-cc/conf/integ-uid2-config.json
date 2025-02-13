@@ -11,14 +11,6 @@
   "core_attest_url": "https://core-integ.uidapi.com/attest",
   "optout_api_uri": "https://optout-integ.uidapi.com/optout/replicate",
   "optout_s3_folder": "uid-optout-integ/",
-  "runtime_config_store": {
-    "type": "http",
-    "config" : {
-      "host": "core-integ.uidapi.com",
-      "port": 443,
-      "ssl": true,
-      "path": "/operator/config"
-    },
-    "config_scan_period_ms": 300000
-  }
+  "runtime_config_path": "https://core-integ.uidapi.com/operator/config",
+  "runtime_config_refresh_ms": 300000
 }

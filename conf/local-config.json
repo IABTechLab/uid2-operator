@@ -38,5 +38,5 @@
   "salts_expired_shutdown_hours": 12,
   "operator_type": "public",
   "runtime_config_path": "/com.uid2.core/test/runtime_config/metadata.json",
-  "runtime_config_refresh_ms": 5000
+  "runtime_config_refresh_ms": 300000
 }

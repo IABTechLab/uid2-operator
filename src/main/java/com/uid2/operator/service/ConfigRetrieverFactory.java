@@ -9,20 +9,16 @@ import io.vertx.core.json.JsonObject;
 import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
 
 public class ConfigRetrieverFactory {
-    public static ConfigRetriever create(Vertx vertx, JsonObject bootstrapConfig, String operatorKey) {
+    public static ConfigRetriever create(Vertx vertx, JsonObject bootstrapConfig) {
         String type = bootstrapConfig.getString("type");
         JsonObject storeConfig = bootstrapConfig.getJsonObject("config");
-        if (type.equals("http")) {
-            storeConfig.put("headers", new JsonObject()
-                    .put("Authorization", "Bearer " + operatorKey));
-        }
 
         ConfigStoreOptions storeOptions = new ConfigStoreOptions()
                 .setType(type)
                 .setConfig(storeConfig);
 
         ConfigRetrieverOptions retrieverOptions = new ConfigRetrieverOptions()
-                .setScanPeriod(bootstrapConfig.getLong(ConfigScanPeriodMsProp))
+                .setScanPeriod(bootstrapConfig.getLong(ConfigScanPeriodMsProp, 5000L))
                 .addStore(storeOptions);
 
         return ConfigRetriever.create(vertx, retrieverOptions);

@@ -148,7 +148,7 @@ public class Main {
         this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
-        String runtimeConfigMdPath = this.config.getString("runtime_config_path");
+        String runtimeConfigMdPath = this.config.getString(Const.Config.RuntimeConfigPathProp);
         this.runtimeConfigStore = new RotatingRuntimeConfigStore(vertx, fsStores, runtimeConfigMdPath);
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
 

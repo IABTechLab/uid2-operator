@@ -1,4 +1,5 @@
 {
+  "version": 1,
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,

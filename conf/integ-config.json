@@ -15,13 +15,6 @@
   "optout_api_uri": "http://localhost:8081/optout/replicate",
   "salts_expired_shutdown_hours": 12,
   "operator_type": "public",
-  "runtime_config_store": {
-    "type": "http",
-    "config" : {
-      "host": "localhost",
-      "port": 8088,
-      "path": "/operator/config"
-    },
-    "config_scan_period_ms": 300000
-  }
+  "runtime_config_path": "http://localhost:8088/operator/config",
+  "runtime_config_refresh_ms": 5000
 }

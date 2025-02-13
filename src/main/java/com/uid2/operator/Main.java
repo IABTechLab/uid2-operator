@@ -273,7 +273,7 @@ public class Main {
         }
     }
 
-    private Future<IConfigService> initialiseConfigService(ConfigRetriever dynamicConfigRetriever) throws Exception {
+    private Future<IConfigService> initialiseConfigService(ConfigRetriever dynamicConfigRetriever) {
         Promise<IConfigService> promise = Promise.promise();
 
         Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
@@ -344,13 +344,7 @@ public class Main {
         );
 
         this.createStoreVerticles()
-                .compose(v -> {
-                    try {
-                        return this.initialiseConfigService(dynamicConfigRetriever);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                })
+                .compose(v -> this.initialiseConfigService(dynamicConfigRetriever))
                 .compose(configService -> {
                     Supplier<Verticle> operatorVerticleSupplier = () -> {
                         UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);

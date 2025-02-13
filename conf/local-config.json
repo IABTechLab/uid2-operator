@@ -37,12 +37,6 @@
   "client_side_token_generate_log_invalid_http_origins": true,
   "salts_expired_shutdown_hours": 12,
   "operator_type": "public",
-  "runtime_config_store": {
-    "type": "file",
-    "config" : {
-      "path": "conf/runtime-config-defaults.json",
-      "format": "json"
-    },
-    "config_scan_period_ms": 5000
-  }
+  "runtime_config_path": "/com.uid2.core/test/runtime_config/metadata.json",
+  "runtime_config_refresh_ms": 300000
 }

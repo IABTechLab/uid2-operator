@@ -102,29 +102,29 @@ on:
         type: string
         default: '{
           "pcr0": "xxxxx" }'
-#
-#jobs:
-#  e2e-test:
-#    name: E2E Test
-#    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v3
-#    with:
-#      operator_type: ${{ inputs.operator_type }}
-#      operator_image_version: ${{ inputs.operator_image_version }}
-#      core_image_version: ${{ inputs.core_image_version }}
-#      optout_image_version: ${{ inputs.optout_image_version }}
-#      e2e_image_version: ${{ inputs.e2e_image_version }}
-#      operator_branch: ${{ github.ref }}
-#      branch_core: ${{ fromJson(inputs.branch).core }}
-#      branch_optout: ${{ fromJson(inputs.branch).optout }}
-#      branch_admin: ${{ fromJson(inputs.branch).admin }}
-#      uid2_e2e_identity_scope: ${{ inputs.identity_scope }}
-#      gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
-#      gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
-#      gcp_project: ${{ vars.GCP_PROJECT }}
-#      aws_region: ${{ fromJson(inputs.aws).region }}
-#      aws_ami: ${{ fromJson(inputs.aws).ami }}
-#      aws_pcr0: ${{ fromJson(inputs.aws).pcr0 }}
-#      eks_pcr0: ${{ fromJson(inputs.eks).pcr0 }}
-#      eks_test_cluster: ${{ vars.EKS_TEST_CLUSTER }}
-#      eks_test_cluster_region: ${{ vars.EKS_TEST_CLUSTER_REGION }}
-#    secrets: inherit
+
+jobs:
+  e2e-test:
+    name: E2E Test attempt 2
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v3
+    with:
+      operator_type: ${{ inputs.operator_type }}
+      operator_image_version: ${{ inputs.operator_image_version }}
+      core_image_version: ${{ inputs.core_image_version }}
+      optout_image_version: ${{ inputs.optout_image_version }}
+      e2e_image_version: ${{ inputs.e2e_image_version }}
+      operator_branch: ${{ github.ref }}
+      branch_core: ${{ fromJson(inputs.branch).core }}
+      branch_optout: ${{ fromJson(inputs.branch).optout }}
+      branch_admin: ${{ fromJson(inputs.branch).admin }}
+      uid2_e2e_identity_scope: ${{ inputs.identity_scope }}
+      gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
+      gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      gcp_project: ${{ vars.GCP_PROJECT }}
+      aws_region: ${{ fromJson(inputs.aws).region }}
+      aws_ami: ${{ fromJson(inputs.aws).ami }}
+      aws_pcr0: ${{ fromJson(inputs.aws).pcr0 }}
+      eks_pcr0: ${{ fromJson(inputs.eks).pcr0 }}
+      eks_test_cluster: ${{ vars.EKS_TEST_CLUSTER }}
+      eks_test_cluster_region: ${{ vars.EKS_TEST_CLUSTER_REGION }}
+    secrets: inherit

@@ -50,7 +50,6 @@ class GCPEntryPoint(ConfidentialCompute):
             config = file.read()
         config = config.replace("https://core.uidapi.com", self.configs.get("core_base_url"))
         config = config.replace("https://optout.uidapi.com", self.configs.get("optout_base_url"))
-        print("Final config used", config)
         with open(destination, 'w') as file:
             file.write(config)
 

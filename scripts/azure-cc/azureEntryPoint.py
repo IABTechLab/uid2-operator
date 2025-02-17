@@ -8,7 +8,6 @@ import sys
 import shutil
 import requests
 import logging
-from urllib.parse import urlparse
 from confidential_compute import ConfidentialCompute, ConfigurationMissingError, OperatorKeyPermissionError, OperatorKeyNotFoundError, ConfidentialComputeStartupError
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential, CredentialUnavailableError
@@ -54,13 +53,13 @@ class AzureEntryPoint(ConfidentialCompute):
         CORE_BASE_URL = os.getenv("CORE_BASE_URL")
         OPTOUT_BASE_URL = os.getenv("OPTOUT_BASE_URL")
         
-        if CORE_BASE_URL and OPTOUT_BASE_URL and AzureEntryPoint.env_name != 'prod':
-            logging.info(f"-- replacing URLs by {CORE_BASE_URL} and {OPTOUT_BASE_URL}")
+        if self.configs["core_base_url"] and self.configs["optout_base_url"] and AzureEntryPoint.env_name != 'prod':
+            logging.info(f"-- replacing URLs by {self.configs["core_base_url"]} and {self.configs["optout_base_url"]}")
             with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
                 config = file.read()
 
-            config = config.replace("core-integ.uidapi.com", urlparse(CORE_BASE_URL).netloc)
-            config = config.replace("optout-integ.uidapi.com", urlparse(OPTOUT_BASE_URL).netloc)
+            config = config.replace("https://core-integ.uidapi.com", self.configs["core_base_url"])
+            config = config.replace("https://optout-integ.uidapi.com", self.configs["optout_base_url"])
 
             with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
                 file.write(config)
@@ -150,8 +149,8 @@ class AzureEntryPoint(ConfidentialCompute):
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""
         self.__check_env_variables()
-        self.__create_final_config()
         self._set_confidential_config()
+        self.__create_final_config()
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
         self._setup_auxiliaries()

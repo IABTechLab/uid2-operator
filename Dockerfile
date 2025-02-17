@@ -1,5 +1,5 @@
-# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.4_7-jre-alpine/images/sha256-8179ddc8a6c5ac9af935020628763b9a5a671e0914976715d2b61b21881cefca
-FROM eclipse-temurin@sha256:8179ddc8a6c5ac9af935020628763b9a5a671e0914976715d2b61b21881cefca
+# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21-jre-alpine-3.20/images/sha256-8f44829b456f0185dbc21b3f76bd8798cd6721eacf886fe2881d58326a9e487f
+FROM eclipse-temurin@sha256:0f5a0c4a33c7aacf22db45ceed54c4fdfb3b7507d0ff105dd2ee3ebf6469fea3
 
 WORKDIR /app
 EXPOSE 8080

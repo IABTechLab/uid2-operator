@@ -92,8 +92,8 @@ class AzureEntryPoint(ConfidentialCompute):
         
 
     def _set_confidential_config(self, secret_identifier: str = None):
-        self.configs["skip_validations"] = os.getenv("SKIP_VALIDATIONS", "false").lower() == "true"
-        self.configs["debug_mode"] = os.getenv("DEBUG_MODE", "false").lower() == "true"
+        self.configs["skip_validations"] = os.getenv("SKIP_VALIDATIONS", "true").lower() == "true"
+        self.configs["debug_mode"] = os.getenv("DEBUG_MODE", "true").lower() == "true"
         self.configs["environment"] = AzureEntryPoint.env_name
 
         # set self.configs["operator_key"]

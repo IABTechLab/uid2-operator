@@ -105,6 +105,7 @@ public class Main {
 
         var operatorKeyRetriever = createOperatorKeyRetriever();
         var operatorKey = operatorKeyRetriever.retrieve();
+        LOGGER.info("Kat test operator key: {}", operatorKey);
 
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {

@@ -64,12 +64,6 @@ class AzureEntryPoint(ConfidentialCompute):
         with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
             logging.info(file.read())
 
-    def __set_base_urls(self):
-        with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
-            jdata = json.load(file)
-            self.configs["core_base_url"] = jdata["core_attest_url"]
-            self.configs["optout_base_url"] = jdata["optout_api_uri"]
-
     def __set_operator_key(self):
         try:
             credential = DefaultAzureCredential()
@@ -91,11 +85,9 @@ class AzureEntryPoint(ConfidentialCompute):
         self.configs["skip_validations"] = os.getenv("SKIP_VALIDATIONS", "false").lower() == "true"
         self.configs["debug_mode"] = os.getenv("DEBUG_MODE", "false").lower() == "true"
         self.configs["environment"] = AzureEntryPoint.env_name
-
-        # set self.configs["operator_key"]
+        self.configs["core_base_url"] = os.getenv("CORE_BASE_URL")
+        self.configs["optout_base_url"] = os.getenv("OPTOUT_BASE_URL")
         self.__set_operator_key()
-        # set base urls from final config file
-        self.__set_base_urls()
 
     def __run_operator(self):
 

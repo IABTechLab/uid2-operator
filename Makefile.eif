@@ -33,7 +33,7 @@ build_configs: build/conf/default-config.json build/conf/feat-flag.json build/co
 build/conf/default-config.json: build_artifacts ./scripts/aws/conf/default-config.json
 	cp ./scripts/aws/conf/default-config.json ./build/conf/
 
-build/conf/feat-flag.json: build_artifacts ./scripts/aws/conf/feat-flag.json
+build/conf/feat-flag.json: build_artifacts ./scripts/aws/conf/feat-flag/feat-flag.json
 	cp ./scripts/aws/conf/feat-flag/feat-flag.json ./build/conf/
 
 build/conf/euid-integ-config.json: build_artifacts ./scripts/aws/conf/euid-integ-config.json

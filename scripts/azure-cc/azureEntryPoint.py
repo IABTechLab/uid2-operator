@@ -49,9 +49,6 @@ class AzureEntryPoint(ConfidentialCompute):
         except IOError as e:
             logging.error(f"Failed to create {AzureEntryPoint.FINAL_CONFIG} with error: {e}")
             sys.exit(1)
-
-        CORE_BASE_URL = os.getenv("CORE_BASE_URL")
-        OPTOUT_BASE_URL = os.getenv("OPTOUT_BASE_URL")
         
         if self.configs["core_base_url"] and self.configs["optout_base_url"] and AzureEntryPoint.env_name != 'prod':
             logging.info(f"-- replacing URLs by {self.configs["core_base_url"]} and {self.configs["optout_base_url"]}")

@@ -19,7 +19,7 @@ echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
 # -- gvisor forwarder
-gvforwarder -debug -url vsock://3:1024/connect &
+/app/gvforwarder -debug -url vsock://3:1024/connect &
 sleep 5
 
 # -- load config from identity service

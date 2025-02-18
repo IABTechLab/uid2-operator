@@ -28,6 +28,7 @@ class AzureEntryPoint(ConfidentialCompute):
         super().__init__()
 
     def __check_env_variables(self):
+        logging.info(f"__check_env_variables") 
         # Check essential env variables
         if AzureEntryPoint.kv_name is None:
             raise ConfigurationMissingError(self.__class__.__name__, ["VAULT_NAME"])        
@@ -37,7 +38,8 @@ class AzureEntryPoint(ConfidentialCompute):
             raise ConfigurationMissingError(self.__class__.__name__, ["DEPLOYMENT_ENVIRONMENT"])        
         logging.info("Environment variables validation success")
 
-    def __create_final_config(self):      
+    def __create_final_config(self):
+        logging.info(f"__create_final_config")  
         TARGET_CONFIG = f"/app/conf/{AzureEntryPoint.env_name}-uid2-config.json"
         if not os.path.isfile(TARGET_CONFIG):
             logging.error(f"Unrecognized config {TARGET_CONFIG}")
@@ -53,11 +55,11 @@ class AzureEntryPoint(ConfidentialCompute):
         CORE_BASE_URL = os.getenv("CORE_BASE_URL")
         OPTOUT_BASE_URL = os.getenv("OPTOUT_BASE_URL")
         if CORE_BASE_URL and OPTOUT_BASE_URL and AzureEntryPoint.env_name != 'prod':
-            logging.info(f"-- replacing URLs by {OPTOUT_BASE_URL} and {OPTOUT_BASE_URL}")
+            logging.info(f"-- replacing URLs by {CORE_BASE_URL} and {OPTOUT_BASE_URL}")
             with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
                 config = file.read()
 
-            config = config.replace("https://core-integ.uidapi.com", OPTOUT_BASE_URL)
+            config = config.replace("https://core-integ.uidapi.com", CORE_BASE_URL)
             config = config.replace("https://optout-integ.uidapi.com", OPTOUT_BASE_URL)
 
             with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
@@ -90,6 +92,7 @@ class AzureEntryPoint(ConfidentialCompute):
         
 
     def _set_confidential_config(self, secret_identifier: str = None):
+        logging.info(f"_set_confidential_config")  
         self.configs["skip_validations"] = os.getenv("SKIP_VALIDATIONS", "true").lower() == "true"
         self.configs["debug_mode"] = os.getenv("DEBUG_MODE", "true").lower() == "true"
         self.configs["environment"] = AzureEntryPoint.env_name

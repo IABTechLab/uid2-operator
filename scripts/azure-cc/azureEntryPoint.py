@@ -149,8 +149,8 @@ class AzureEntryPoint(ConfidentialCompute):
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""
         self.__check_env_variables()
-        self._set_confidential_config()
         self.__create_final_config()
+        self._set_confidential_config()
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
         self._setup_auxiliaries()

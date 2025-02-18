@@ -24,6 +24,13 @@ RUN git clone https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git \
     && cp uid2-aws-enclave-vsockproxy/build/vsock-bridge/src/vsock-bridge ./vsockpx \
     && rm -rf uid2-aws-enclave-vsockproxy
 
+RUN git clone https://github.com/containers/gvisor-tap-vsock.git \
+    && cd gvisor-tap-vsock \
+    && make \
+    && cd .. \
+    && cp gvisor-tap-vsock/bin/gvproxy ./gvproxy \
+    && cp gvisor-tap-vsock/bin/gvforwarder ./gvforwarder
+
 COPY ./scripts/aws/pipeline/aws_nitro_eif.sh /aws_nitro_eif.sh
 
 CMD ["/usr/sbin/init"]

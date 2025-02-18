@@ -101,6 +101,7 @@ class AzureEntryPoint(ConfidentialCompute):
         self.__set_operator_key()
         # set base urls from final config file
         self.__set_base_urls()
+        logging.info(self.configs)
 
     def __run_operator(self):
 

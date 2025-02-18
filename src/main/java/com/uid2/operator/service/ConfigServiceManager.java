@@ -10,15 +10,13 @@ import org.slf4j.LoggerFactory;
 public class ConfigServiceManager {
     private final Vertx vertx;
     private final DelegatingConfigService delegatingConfigService;
-    private final IConfigService dynamicConfigService;
     private final IConfigService staticConfigService;
     private static final Logger logger = LoggerFactory.getLogger(ConfigServiceManager.class);
 
-    public ConfigServiceManager(Vertx vertx, IConfigService dynamicConfigService, IConfigService staticConfigService, boolean useDynamicConfig) {
+    public ConfigServiceManager(Vertx vertx, IConfigService staticConfigService, boolean useDynamicConfig) {
         this.vertx = vertx;
-        this.dynamicConfigService = dynamicConfigService;
         this.staticConfigService = staticConfigService;
-        this.delegatingConfigService = new DelegatingConfigService(useDynamicConfig ? dynamicConfigService : staticConfigService);
+        this.delegatingConfigService = new DelegatingConfigService(staticConfigService);
     }
 
     public Future<Void> updateConfigService(boolean useDynamicConfig) {
@@ -27,13 +25,13 @@ public class ConfigServiceManager {
             if (lockAsyncResult.succeeded()) {
                 Lock lock = lockAsyncResult.result();
                 try {
-                    if (useDynamicConfig) {
+                    /*if (useDynamicConfig) {
                         logger.info("Switching to DynamicConfigService");
                         delegatingConfigService.updateConfigService(dynamicConfigService);
-                    } else {
+                    } else {*/
                         logger.info("Switching to StaticConfigService");
                         delegatingConfigService.updateConfigService(staticConfigService);
-                    }
+//                    }
                     promise.complete();
                 } catch (Exception e) {
                     promise.fail(e);

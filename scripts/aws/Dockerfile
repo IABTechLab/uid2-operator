@@ -20,7 +20,7 @@ COPY ./syslog-ng-ose-pub.asc /app/dep/
 
 RUN echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee -a /etc/apt/sources.list \
     && apt update -y \
-    && apt install -y pkg-config libssl-dev libssl1.1 net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 \
+    && apt install -y pkg-config libssl-dev libssl1.1 net-tools curl jq netcat python3 python3-pip libcap2 libivykis0 libjson-c5 libnet1 libwrap0 busybox udhcpc\
     && apt-key add /app/dep/syslog-ng-ose-pub.asc \
     && apt-get install /app/dep/syslog-ng-core_4.6.0-1_amd64.deb \
     && rm -rf /var/lib/apt/lists/* \
@@ -28,7 +28,6 @@ RUN echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee -a /e
 RUN pip3 install boto3==1.16.9
 
 COPY ./gvforwarder /app
-RUN apt install busybox udhcpc -y
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
 COPY ./static             /app/static

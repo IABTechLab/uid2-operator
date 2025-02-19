@@ -83,6 +83,7 @@ setup_auxiliaries
 build_parameterized_config
 build_operator_config
 
+
 DEBUG_MODE=$(jq -r ".debug_mode" < "${OPERATOR_CONFIG}")
 LOGBACK_CONF="./conf/logback.xml"
 
@@ -95,6 +96,8 @@ cd /app
 
 # -- start operator
 echo "Starting Java application..."
+
+cat "${OPERATOR_CONFIG}"
 
 java \
   -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \

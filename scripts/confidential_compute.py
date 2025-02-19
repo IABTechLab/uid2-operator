@@ -98,7 +98,7 @@ class ConfidentialCompute(ABC):
             
         type_hints = get_type_hints(ConfidentialComputeConfig, include_extras=True)
         required_keys = [field for field, hint in type_hints.items() if "NotRequired" not in str(hint)]
-        missing_keys = [key for key in required_keys if key not in self.configs]
+        missing_keys = [key for key in required_keys if key not in self.configs or self.configs[key] == None]
         if missing_keys:
             raise ConfigurationMissingError(self.__class__.__name__, missing_keys)
         

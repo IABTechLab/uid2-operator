@@ -140,7 +140,6 @@ class AzureEntryPoint(ConfidentialCompute):
         self._set_confidential_config()
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
-        print("log self.config to see what values ", self.configs)
         self.__create_final_config()
         self._setup_auxiliaries()
         self.__run_operator()

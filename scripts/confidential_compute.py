@@ -109,8 +109,6 @@ class ConfidentialCompute(ABC):
         if self.configs.get("debug_mode") and environment == "prod":
             raise ConfigurationValueError(self.__class__.__name__, "debug_mode")
         
-        print("log environment to see what values ", environment)
-        
         validate_url("core_base_url", environment)
         validate_url("optout_base_url", environment)
         validate_operator_key()

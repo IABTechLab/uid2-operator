@@ -70,7 +70,6 @@ class AzureEntryPoint(ConfidentialCompute):
             kv_URL = f"https://{AzureEntryPoint.kv_name}.vault.azure.net"
             secret_client = SecretClient(vault_url=kv_URL, credential=credential)
             secret = secret_client.get_secret(AzureEntryPoint.secret_name)
-            # print(f"Secret Value: {secret.value}")
             self.configs["operator_key"] = secret.value
 
         except (CredentialUnavailableError, ClientAuthenticationError) as auth_error:
@@ -139,9 +138,10 @@ class AzureEntryPoint(ConfidentialCompute):
         """Main execution flow for confidential compute."""
         self.__check_env_variables()
         self._set_confidential_config()
-        self.__create_final_config()
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
+        print("log self.config to see what values ", self.configs)
+        self.__create_final_config()
         self._setup_auxiliaries()
         self.__run_operator()
 

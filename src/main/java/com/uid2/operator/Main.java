@@ -60,6 +60,7 @@ import java.util.*;
 import java.util.function.Supplier;
 
 import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
+import static com.uid2.operator.Const.Config.OperatorRuntimeConfigEventBus;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {
@@ -77,6 +78,7 @@ public class Main {
     private final RotatingClientSideKeypairStore clientSideKeypairProvider;
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
+    private final RotatingRuntimeConfigStore runtimeConfigStore;
     private OperatorShutdownHandler shutdownHandler = null;
     private final OperatorMetrics metrics;
     private final boolean clientSideTokenGenerate;
@@ -146,6 +148,8 @@ public class Main {
         this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
         String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
         this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
+        String runtimeConfigMdPath = this.config.getString(Const.Config.RuntimeConfigPathProp);
+        this.runtimeConfigStore = new RotatingRuntimeConfigStore(vertx, fsStores, runtimeConfigMdPath);
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
 
         if (this.validateServiceLinks) {
@@ -269,14 +273,9 @@ public class Main {
         }
     }
 
-    private Future<IConfigService> initialiseConfigService() throws Exception {
+    private Future<IConfigService> initialiseConfigService(ConfigRetriever dynamicConfigRetriever) {
         Promise<IConfigService> promise = Promise.promise();
 
-        ConfigRetriever dynamicConfigRetriever = ConfigRetrieverFactory.create(
-                vertx,
-                config.getJsonObject("runtime_config_store"),
-                this.createOperatorKeyRetriever().retrieve()
-        );
         Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
 
         ConfigRetriever staticConfigRetriever = ConfigRetrieverFactory.create(
@@ -284,8 +283,7 @@ public class Main {
                 new JsonObject()
                         .put("type", "json")
                         .put("config", config)
-                        .put(ConfigScanPeriodMsProp, -1),
-                ""
+                        .put(ConfigScanPeriodMsProp, -1)
         );
 
         Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
@@ -337,9 +335,17 @@ public class Main {
         this.createVertxInstancesMetric();
         this.createVertxEventLoopsMetric();
 
-        this.initialiseConfigService()
-                .compose(configService -> {
+        ConfigRetriever dynamicConfigRetriever = ConfigRetrieverFactory.create(
+                vertx,
+                new JsonObject()
+                        .put("type", "event-bus")
+                        .put("config", new JsonObject()
+                                .put("address", OperatorRuntimeConfigEventBus))
+        );
 
+        this.createStoreVerticles()
+                .compose(v -> this.initialiseConfigService(dynamicConfigRetriever))
+                .compose(configService -> {
                     Supplier<Verticle> operatorVerticleSupplier = () -> {
                         UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
                         return verticle;
@@ -352,11 +358,6 @@ public class Main {
                     Promise<Void> compositePromise = Promise.promise();
                     List<Future> fs = new ArrayList<>();
                     fs.add(createAndDeployStatsCollector());
-                    try {
-                        fs.add(createStoreVerticles());
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
 
                     CompositeFuture.all(fs).onComplete(ar -> {
                         if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
@@ -424,6 +425,7 @@ public class Main {
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("runtime_config", runtimeConfigStore, "runtime_config_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));

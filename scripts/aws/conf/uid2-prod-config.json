@@ -23,11 +23,6 @@
   "refresh_token_expires_after_seconds": 2592000,
   "refresh_identity_token_after_seconds": 3600,
   "allow_legacy_api": false,
-  "runtime_config_store": {
-    "type": "http",
-    "config" : {
-      "url": "https://core-prod.uidapi.com/operator/config"
-    },
-    "config_scan_period_ms": 300000
-  }
+  "runtime_config_path": "https://core-prod.uidapi.com/operator/config",
+  "runtime_config_refresh_ms": 300000
 }

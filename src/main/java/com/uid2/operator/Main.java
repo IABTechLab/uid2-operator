@@ -306,20 +306,19 @@ public class Main {
                                 .put("scanPeriod", 10000))
         );
 
-        Future.all(dynamicConfigFuture, staticConfigFuture, featureFlagConfigRetriever.getConfig())
+        Future.all(staticConfigFuture, featureFlagConfigRetriever.getConfig())
                 .onComplete(ar -> {
                     if (ar.succeeded()) {
                         CompositeFuture configServiceManagerCompositeFuture = ar.result();
-                        IConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
-                        IConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
-                        JsonObject featureFlagConfig = configServiceManagerCompositeFuture.resultAt(2);
+                        IConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(0);
+                        JsonObject featureFlagConfig = configServiceManagerCompositeFuture.resultAt(1);
 
                         boolean remoteConfigFeatureFlag = featureFlagConfig
                                 .getJsonObject("remote_config")
                                 .getBoolean("enabled", false);
 
                         ConfigServiceManager configServiceManager = new ConfigServiceManager(
-                                vertx, dynamicConfigService, staticConfigService, remoteConfigFeatureFlag);
+                                vertx, staticConfigService, remoteConfigFeatureFlag);
 
                         setupFeatureFlagListener(configServiceManager, featureFlagConfigRetriever);
 

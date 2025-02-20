@@ -39,9 +39,9 @@ import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.config.ConfigRetrieverOptions;
+import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.micrometer.*;
 import io.vertx.micrometer.backends.BackendRegistries;
@@ -59,7 +59,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
-import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {
@@ -269,68 +268,20 @@ public class Main {
         }
     }
 
-    private Future<IConfigService> initialiseConfigService() throws Exception {
-        Promise<IConfigService> promise = Promise.promise();
+    private Future<IConfigService> initialiseConfigService() {
+        // Read runtime config values from this.config.
+        final ConfigStoreOptions configStoreOptions = new ConfigStoreOptions()
+                .setType("json")
+                .setConfig(config);
+        
+        final ConfigRetrieverOptions configRetrieverOptions = new ConfigRetrieverOptions()
+                .addStore(configStoreOptions)
+                // Don't scan as config values won't change.
+                .setScanPeriod(-1);
 
-        ConfigRetriever dynamicConfigRetriever = ConfigRetrieverFactory.create(
-                vertx,
-                config.getJsonObject("runtime_config_store"),
-                this.createOperatorKeyRetriever().retrieve()
-        );
-        Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
-
-        ConfigRetriever staticConfigRetriever = ConfigRetrieverFactory.create(
-                vertx,
-                new JsonObject()
-                        .put("type", "json")
-                        .put("config", config)
-                        .put(ConfigScanPeriodMsProp, -1),
-                ""
-        );
-
-        Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
-
-        // Create ConfigRetriever with options specified in JsonObject.
-        // Includes an optional file store and scan period of 10000 ms (10 sec).
-        // See https://vertx.io/docs/vertx-config/java/#_file for Vertx file store docs.
-        ConfigRetriever featureFlagConfigRetriever = ConfigRetriever.create(
-                vertx,
-                new ConfigRetrieverOptions(
-                        new JsonObject()
-                                .put("stores", new JsonArray()
-                                        .add(new JsonObject()
-                                                .put("type", "file")
-                                                .put("optional", true)
-                                                .put("config", new JsonObject()
-                                                        .put("path", "conf/feat-flag/feat-flag.json"))))
-                                .put("scanPeriod", 10000))
-        );
-
-        Future.all(dynamicConfigFuture, staticConfigFuture, featureFlagConfigRetriever.getConfig())
-                .onComplete(ar -> {
-                    if (ar.succeeded()) {
-                        CompositeFuture configServiceManagerCompositeFuture = ar.result();
-                        IConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
-                        IConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
-                        JsonObject featureFlagConfig = configServiceManagerCompositeFuture.resultAt(2);
-
-                        boolean remoteConfigFeatureFlag = featureFlagConfig
-                                .getJsonObject("remote_config")
-                                .getBoolean("enabled", false);
-
-                        ConfigServiceManager configServiceManager = new ConfigServiceManager(
-                                vertx, dynamicConfigService, staticConfigService, remoteConfigFeatureFlag);
-
-                        setupFeatureFlagListener(configServiceManager, featureFlagConfigRetriever);
-
-                        IConfigService configService = configServiceManager.getDelegatingConfigService();
-                        promise.complete(configService);
-                    } else {
-                        LOGGER.error("Failed to initialise ConfigService: ", ar.cause());
-                        promise.fail(ar.cause());
-                    }
-                });
-        return promise.future();
+        final ConfigRetriever configRetriever = ConfigRetriever.create(vertx, configRetrieverOptions);
+        
+        return ConfigService.create(configRetriever).map(x -> (IConfigService) x);
     }
 
     private void run() throws Exception {

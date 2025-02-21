@@ -34,5 +34,8 @@
   "failure_shutdown_wait_hours": 120,
   "sharing_token_expiry_seconds": 2592000,
   "validate_service_links": false,
-  "operator_type": "private"
+  "operator_type": "private",
+  "identity_token_expires_after_seconds": 86400,
+  "refresh_token_expires_after_seconds": 2592000,
+  "refresh_identity_token_after_seconds": 3600
 }

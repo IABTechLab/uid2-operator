@@ -1,5 +1,6 @@
 class UID2 {
     constructor() {
+        this.version = "0.0.1a.js";
         this.init = (opts) => {
             const identity = opts["identity"];
             if (identity) {
@@ -17,6 +18,7 @@ class UID2 {
                 req.overrideMimeType("application/json");
                 var cb = this.handleRefreshResponse;
                 req.open("GET", url, false);
+                req.setRequestHeader('X-UID2-Client-Version', 'uid2-sdk-' + this.version);
                 req.onload = function () {
                     cb(req.responseText);
                 };

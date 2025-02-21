@@ -10,20 +10,19 @@ exec &> >(tee -a "$LOG_FILE")
 PARAMETERIZED_CONFIG="/app/conf/config-overrides.json"
 OPERATOR_CONFIG="/tmp/final-config.json"
 
-setup_auxiliaries() {
-  set -o pipefail
-  ulimit -n 65536
+
+set -o pipefail
+ulimit -n 65536
 
   # -- setup loopback device
-  echo "Setting up loopback device..."
-  ifconfig lo 127.0.0.1
+echo "Setting up loopback device..."
+ifconfig lo 127.0.0.1
 
   # -- start vsock proxy
-  echo "Starting vsock proxy..."
-  /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
+echo "Starting vsock proxy..."
+/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
-  /usr/sbin/syslog-ng --verbose
-}
+/usr/sbin/syslog-ng --verbose
 
 
 build_parameterized_config() {
@@ -79,7 +78,6 @@ build_operator_config() {
   
 }
 
-setup_auxiliaries
 build_parameterized_config
 build_operator_config
 
@@ -108,3 +106,4 @@ java \
   -Dlogback.configurationFile=${LOGBACK_CONF} \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
   -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar
+

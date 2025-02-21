@@ -15,7 +15,7 @@ from typing import Dict
 import sys
 import time
 import yaml
-
+logging.basicConfig(level=logging.INFO)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, InstanceProfileMissingError, OperatorKeyNotFoundError, ConfigurationValueError, ConfidentialComputeStartupError
 
@@ -146,8 +146,8 @@ class EC2EntryPoint(ConfidentialCompute):
         """
         Starts the SOCKS proxy service.
         """
-        command = ["sockd", "-D"]
-        self.run_command(command)
+        command = ["sockd"]
+        self.run_command(command, separate_process=True)
 
     def __get_secret_name_from_userdata(self) -> str:
         """Extracts the secret name from EC2 user data."""

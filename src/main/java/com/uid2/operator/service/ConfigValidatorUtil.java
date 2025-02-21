@@ -9,7 +9,7 @@ import static com.uid2.operator.service.UIDOperatorService.*;
 
 public class ConfigValidatorUtil {
     private static final Logger logger = LoggerFactory.getLogger(ConfigValidatorUtil.class);
-    public static final String VALUES_ARE_NULL = "One or more of the following required config values are null: ";
+    public static final String VALUES_ARE_NULL = "ABU ADDED One or more of the following required config values are null: ";
 
     public static Boolean validateIdentityRefreshTokens(Integer identityExpiresAfter, Integer refreshExpiresAfter, Integer refreshIdentityAfter) {
         boolean isValid = true;

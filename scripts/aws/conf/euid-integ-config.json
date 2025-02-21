@@ -18,5 +18,8 @@
       "url": "https://core.integ.euid.eu/operator/config"
     },
     "config_scan_period_ms": 300000
-  }
+  },
+  "identity_token_expires_after_seconds": 86400,
+  "refresh_token_expires_after_seconds": 2592000,
+  "refresh_identity_token_after_seconds": 3600
 }

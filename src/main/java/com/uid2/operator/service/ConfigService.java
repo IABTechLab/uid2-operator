@@ -46,6 +46,8 @@ public class ConfigService implements IConfigService {
     }
 
     private JsonObject configValidationHandler(JsonObject config) {
+        logger.error("ABU ADDED");
+        logger.error(config.toString());
         boolean isValid = true;
         Integer identityExpiresAfter = config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         Integer refreshExpiresAfter = config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);

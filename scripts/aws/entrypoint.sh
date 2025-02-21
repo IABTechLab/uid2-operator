@@ -10,21 +10,32 @@ exec &> >(tee -a "$LOG_FILE")
 PARAMETERIZED_CONFIG="/app/conf/config-overrides.json"
 OPERATOR_CONFIG="/tmp/final-config.json"
 
-setup_auxiliaries() {
-  set -o pipefail
-  ulimit -n 65536
 
-  # -- setup loopback device
-  echo "Setting up loopback device..."
-  ifconfig lo 127.0.0.1
+set -o pipefail
+ulimit -n 65536
 
-  # -- start vsock proxy
-  echo "Starting vsock proxy..."
-  /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
+# -- setup loopback device
+echo "Setting up loopback device..."
+ifconfig lo 127.0.0.1
 
-  /usr/sbin/syslog-ng --verbose
-}
+# -- start vsock proxy
+echo "Starting vsock proxy..."
+/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
+/usr/sbin/syslog-ng --verbose
+
+#!/bin/bash
+
+URL="https://example.com"
+
+# Send request and check response
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+
+if [[ $RESPONSE -eq 200 ]]; then
+    echo "Success: Received response from $URL"
+else
+    echo "Failed: No response or HTTP code $RESPONSE"
+fi
 
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
@@ -46,9 +57,7 @@ build_parameterized_config() {
 
 build_operator_config() {
   CORE_BASE_URL=$(jq -r ".core_base_url" < "${PARAMETERIZED_CONFIG}")
-  CORE_BASE_URL=$(echo "$CORE_BASE_URL" | sed -E 's#^(https?://)?([^/]+).*#\2#')
   OPTOUT_BASE_URL=$(jq -r ".optout_base_url" < "${PARAMETERIZED_CONFIG}")
-  OPTOUT_BASE_URL=$(echo "$OPTOUT_BASE_URL" | sed -E 's#^(https?://)?([^/]+).*#\2#')
   DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${PARAMETERIZED_CONFIG}")
   DEBUG_MODE=$(jq -r ".debug_mode" < "${PARAMETERIZED_CONFIG}")
 
@@ -69,11 +78,11 @@ build_operator_config() {
 
   if [[ "$DEPLOYMENT_ENVIRONMENT" != "prod" ]]; then
     #Allow override of base URL in non-prod environments
-    CORE_PATTERN="core.*uidapi.com"
-    OPTOUT_PATTERN="optout.*uidapi.com"
+    CORE_PATTERN="https://core.*uidapi.com"
+    OPTOUT_PATTERN="https://optout.*uidapi.com"
     if [[ "$DEPLOYMENT_ENVIRONMENT" == "euid" ]]; then
-      CORE_PATTERN="core.*euid.eu"
-      OPTOUT_PATTERN="optout.*euid.eu"
+      CORE_PATTERN="https://core.*euid.eu"
+      OPTOUT_PATTERN="https://optout.*euid.eu"
     fi
     sed -i "s#${CORE_PATTERN}#${CORE_BASE_URL}#g" "${OPERATOR_CONFIG}"
     sed -i "s#${OPTOUT_PATTERN}#${OPTOUT_BASE_URL}#g" "${OPERATOR_CONFIG}"
@@ -81,9 +90,9 @@ build_operator_config() {
   
 }
 
-setup_auxiliaries
 build_parameterized_config
 build_operator_config
+
 
 DEBUG_MODE=$(jq -r ".debug_mode" < "${OPERATOR_CONFIG}")
 LOGBACK_CONF="./conf/logback.xml"
@@ -98,6 +107,8 @@ cd /app
 # -- start operator
 echo "Starting Java application..."
 
+cat "${OPERATOR_CONFIG}"
+
 java \
   -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal \
   -Djava.security.egd=file:/dev/./urandom \
@@ -107,3 +118,4 @@ java \
   -Dlogback.configurationFile=${LOGBACK_CONF} \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
   -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar
+

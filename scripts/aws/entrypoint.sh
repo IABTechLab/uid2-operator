@@ -14,11 +14,11 @@ OPERATOR_CONFIG="/tmp/final-config.json"
 set -o pipefail
 ulimit -n 65536
 
-  # -- setup loopback device
+# -- setup loopback device
 echo "Setting up loopback device..."
 ifconfig lo 127.0.0.1
 
-  # -- start vsock proxy
+# -- start vsock proxy
 echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 

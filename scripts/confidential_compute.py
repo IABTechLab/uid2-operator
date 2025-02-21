@@ -144,7 +144,7 @@ class ConfidentialCompute(ABC):
             if separate_process:
                 subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             else:
-                subprocess.run(command,check=True,text=True)
+                subprocess.run(command,check=True,text=True,capture_output=False)
         except Exception as e:
             logging.error(f"Failed to run command: {e}", exc_info=True)
             raise RuntimeError (f"Failed to start {' '.join(command)} ")

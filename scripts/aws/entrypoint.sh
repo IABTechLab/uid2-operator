@@ -10,7 +10,6 @@ exec &> >(tee -a "$LOG_FILE")
 PARAMETERIZED_CONFIG="/app/conf/config-overrides.json"
 OPERATOR_CONFIG="/tmp/final-config.json"
 
-
 set -o pipefail
 ulimit -n 65536
 
@@ -27,6 +26,8 @@ echo "Starting vsock proxy..."
 #!/bin/bash
 
 URL="https://example.com"
+ping example.com
+curl -v https://example.com
 
 # Send request and check response
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")

@@ -23,20 +23,8 @@ echo "Starting vsock proxy..."
 
 /usr/sbin/syslog-ng --verbose
 
-#!/bin/bash
-
-URL="https://example.com"
-ping example.com
-curl -v https://example.com
-
 # Send request and check response
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
-
-if [[ $RESPONSE -eq 200 ]]; then
-    echo "Success: Received response from $URL"
-else
-    echo "Failed: No response or HTTP code $RESPONSE"
-fi
+curl -s -x socks5h://127.0.0.1:3305 "https://example.com"
 
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig

@@ -23,9 +23,6 @@ echo "Starting vsock proxy..."
 
 /usr/sbin/syslog-ng --verbose
 
-# Send request and check response
-curl -s -x socks5h://127.0.0.1:3305 "https://example.com"
-
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
   REQUIRED_KEYS=("optout_base_url" "core_base_url" "core_api_token" "optout_api_token" "environment")

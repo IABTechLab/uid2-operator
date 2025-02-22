@@ -66,7 +66,7 @@ build_operator_config() {
     #Allow override of base URL in non-prod environments
     CORE_PATTERN="https://core.*uidapi.com"
     OPTOUT_PATTERN="https://optout.*uidapi.com"
-    if [[ "$DEPLOYMENT_ENVIRONMENT" == "euid" ]]; then
+    if [[ "$IDENTITY_SCOPE_LOWER" == "euid" ]]; then
       CORE_PATTERN="https://core.*euid.eu"
       OPTOUT_PATTERN="https://optout.*euid.eu"
     fi

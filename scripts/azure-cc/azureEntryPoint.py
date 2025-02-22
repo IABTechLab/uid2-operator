@@ -21,6 +21,8 @@ class AzureEntryPoint(ConfidentialCompute):
     env_name = os.getenv("DEPLOYMENT_ENVIRONMENT")
     jar_name = os.getenv("JAR_NAME", "default-jar-name")
     jar_version = os.getenv("JAR_VERSION", "default-jar-version")
+    default_core_endpoint = f"https://core-{env_name}.uidapi.com"
+    default_optout_endpoint = f"https://optout-{env_name}.uidapi.com"
 
     FINAL_CONFIG = "/tmp/final-config.json"
 
@@ -50,16 +52,14 @@ class AzureEntryPoint(ConfidentialCompute):
             logging.error(f"Failed to create {AzureEntryPoint.FINAL_CONFIG} with error: {e}")
             sys.exit(1)
         
-        if self.configs["core_base_url"] and self.configs["optout_base_url"] and AzureEntryPoint.env_name != 'prod':
-            logging.info(f"-- replacing URLs by {self.configs["core_base_url"]} and {self.configs["optout_base_url"]}")
-            with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
-                config = file.read()
+        logging.info(f"-- replacing URLs by {self.configs["core_base_url"]} and {self.configs["optout_base_url"]}")
+        with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
+            config = file.read()
 
-            config = config.replace("https://core-integ.uidapi.com", self.configs["core_base_url"])
-            config = config.replace("https://optout-integ.uidapi.com", self.configs["optout_base_url"])
-
-            with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
-                file.write(config)
+        config = config.replace("https://core.uidapi.com", self.configs["core_base_url"])
+        config = config.replace("https://optout.uidapi.com", self.configs["optout_base_url"])
+        with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
+            file.write(config)
 
         with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
             logging.info(file.read())
@@ -81,11 +81,12 @@ class AzureEntryPoint(ConfidentialCompute):
         
 
     def _set_confidential_config(self, secret_identifier: str = None):
+        """Builds and sets ConfidentialComputeConfig"""
         self.configs["skip_validations"] = os.getenv("SKIP_VALIDATIONS", "false").lower() == "true"
         self.configs["debug_mode"] = os.getenv("DEBUG_MODE", "false").lower() == "true"
         self.configs["environment"] = AzureEntryPoint.env_name
-        self.configs["core_base_url"] = os.getenv("CORE_BASE_URL")
-        self.configs["optout_base_url"] = os.getenv("OPTOUT_BASE_URL")
+        self.configs["core_base_url"] = os.getenv("CORE_BASE_URL") if os.getenv("CORE_BASE_URL") and AzureEntryPoint.env_name == "integ" else AzureEntryPoint.default_core_endpoint
+        self.configs["optout_base_url"] = os.getenv("OPTOUT_BASE_URL")  if os.getenv("OPTOUT_BASE_URL") and AzureEntryPoint.env_name == "integ" else AzureEntryPoint.default_optout_endpoint
         self.__set_operator_key()
 
     def __run_operator(self):

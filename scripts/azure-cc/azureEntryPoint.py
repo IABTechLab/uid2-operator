@@ -21,8 +21,8 @@ class AzureEntryPoint(ConfidentialCompute):
     env_name = os.getenv("DEPLOYMENT_ENVIRONMENT")
     jar_name = os.getenv("JAR_NAME", "default-jar-name")
     jar_version = os.getenv("JAR_VERSION", "default-jar-version")
-    default_core_endpoint = f"https://core-{env_name}.uidapi.com"
-    default_optout_endpoint = f"https://optout-{env_name}.uidapi.com"
+    default_core_endpoint = f"https://core-{env_name}.uidapi.com".lower()
+    default_optout_endpoint = f"https://optout-{env_name}.uidapi.com".lower()
 
     FINAL_CONFIG = "/tmp/final-config.json"
 

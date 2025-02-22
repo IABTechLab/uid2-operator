@@ -146,8 +146,8 @@ class EC2EntryPoint(ConfidentialCompute):
         """
         Starts the SOCKS proxy service.
         """
-        command = ["sockd"]
-        self.run_command(command, separate_process=True)
+        command = ["sockd", "-D"]
+        self.run_command(command)
 
     def __get_secret_name_from_userdata(self) -> str:
         """Extracts the secret name from EC2 user data."""

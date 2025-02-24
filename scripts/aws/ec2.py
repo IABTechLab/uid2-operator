@@ -293,8 +293,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     logging.basicConfig(level=logging.INFO)
-    
-    print("testing xu")
+
     try:
         ec2 = EC2EntryPoint()
         if args.operation == "stop":

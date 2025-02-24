@@ -247,6 +247,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         // Static and health check
         router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
+        // Temporary Old SDK logging
+        router.get(OLD_SDK_LOG.toString()).handler(this::handleOldSDKVersionLogging);
 
         if (this.allowLegacyAPI) {
             // V1 APIs
@@ -811,6 +813,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.write(reason);
             resp.end();
         }
+    }
+
+    private void handleOldSDKVersionLogging(RoutingContext rc) {
+        // throwaway endpoint to log version
+        rc.response().end("OK");
     }
 
     private void handleTokenRefreshV1(RoutingContext rc) {

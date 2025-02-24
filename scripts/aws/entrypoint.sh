@@ -10,21 +10,18 @@ exec &> >(tee -a "$LOG_FILE")
 PARAMETERIZED_CONFIG="/app/conf/config-overrides.json"
 OPERATOR_CONFIG="/tmp/final-config.json"
 
-setup_auxiliaries() {
-  set -o pipefail
-  ulimit -n 65536
+set -o pipefail
+ulimit -n 65536
 
-  # -- setup loopback device
-  echo "Setting up loopback device..."
-  ifconfig lo 127.0.0.1
+# -- setup loopback device
+echo "Setting up loopback device..."
+ifconfig lo 127.0.0.1
 
-  # -- start vsock proxy
-  echo "Starting vsock proxy..."
-  /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
+# -- start vsock proxy
+echo "Starting vsock proxy..."
+/app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
-  /usr/sbin/syslog-ng --verbose
-}
-
+/usr/sbin/syslog-ng --verbose
 
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
@@ -46,9 +43,7 @@ build_parameterized_config() {
 
 build_operator_config() {
   CORE_BASE_URL=$(jq -r ".core_base_url" < "${PARAMETERIZED_CONFIG}")
-  CORE_BASE_URL=$(echo "$CORE_BASE_URL" | sed -E 's#^(https?://)?([^/]+).*#\2#')
   OPTOUT_BASE_URL=$(jq -r ".optout_base_url" < "${PARAMETERIZED_CONFIG}")
-  OPTOUT_BASE_URL=$(echo "$OPTOUT_BASE_URL" | sed -E 's#^(https?://)?([^/]+).*#\2#')
   DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${PARAMETERIZED_CONFIG}")
   DEBUG_MODE=$(jq -r ".debug_mode" < "${PARAMETERIZED_CONFIG}")
 
@@ -69,11 +64,11 @@ build_operator_config() {
 
   if [[ "$DEPLOYMENT_ENVIRONMENT" != "prod" ]]; then
     #Allow override of base URL in non-prod environments
-    CORE_PATTERN="core.*uidapi.com"
-    OPTOUT_PATTERN="optout.*uidapi.com"
-    if [[ "$DEPLOYMENT_ENVIRONMENT" == "euid" ]]; then
-      CORE_PATTERN="core.*euid.eu"
-      OPTOUT_PATTERN="optout.*euid.eu"
+    CORE_PATTERN="https://core.*uidapi.com"
+    OPTOUT_PATTERN="https://optout.*uidapi.com"
+    if [[ "$IDENTITY_SCOPE_LOWER" == "euid" ]]; then
+      CORE_PATTERN="https://core.*euid.eu"
+      OPTOUT_PATTERN="https://optout.*euid.eu"
     fi
     sed -i "s#${CORE_PATTERN}#${CORE_BASE_URL}#g" "${OPERATOR_CONFIG}"
     sed -i "s#${OPTOUT_PATTERN}#${OPTOUT_BASE_URL}#g" "${OPERATOR_CONFIG}"
@@ -81,9 +76,9 @@ build_operator_config() {
   
 }
 
-setup_auxiliaries
 build_parameterized_config
 build_operator_config
+
 
 DEBUG_MODE=$(jq -r ".debug_mode" < "${OPERATOR_CONFIG}")
 LOGBACK_CONF="./conf/logback.xml"
@@ -107,3 +102,4 @@ java \
   -Dlogback.configurationFile=${LOGBACK_CONF} \
   -Dhttp_proxy=socks5://127.0.0.1:3305 \
   -jar /app/"${JAR_NAME}"-"${JAR_VERSION}".jar
+

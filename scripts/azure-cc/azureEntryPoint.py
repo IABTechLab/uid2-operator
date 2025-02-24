@@ -8,7 +8,6 @@ import sys
 import shutil
 import requests
 import logging
-from urllib.parse import urlparse
 from confidential_compute import ConfidentialCompute, ConfigurationMissingError, OperatorKeyPermissionError, OperatorKeyNotFoundError, ConfidentialComputeStartupError
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential, CredentialUnavailableError
@@ -22,6 +21,8 @@ class AzureEntryPoint(ConfidentialCompute):
     env_name = os.getenv("DEPLOYMENT_ENVIRONMENT")
     jar_name = os.getenv("JAR_NAME", "default-jar-name")
     jar_version = os.getenv("JAR_VERSION", "default-jar-version")
+    default_core_endpoint = f"https://core-{env_name}.uidapi.com".lower()
+    default_optout_endpoint = f"https://optout-{env_name}.uidapi.com".lower()
 
     FINAL_CONFIG = "/tmp/final-config.json"
 
@@ -50,29 +51,18 @@ class AzureEntryPoint(ConfidentialCompute):
         except IOError as e:
             logging.error(f"Failed to create {AzureEntryPoint.FINAL_CONFIG} with error: {e}")
             sys.exit(1)
-
-        CORE_BASE_URL = os.getenv("CORE_BASE_URL")
-        OPTOUT_BASE_URL = os.getenv("OPTOUT_BASE_URL")
         
-        if CORE_BASE_URL and OPTOUT_BASE_URL and AzureEntryPoint.env_name != 'prod':
-            logging.info(f"-- replacing URLs by {CORE_BASE_URL} and {OPTOUT_BASE_URL}")
-            with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
-                config = file.read()
+        logging.info(f"-- replacing URLs by {self.configs["core_base_url"]} and {self.configs["optout_base_url"]}")
+        with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
+            config = file.read()
 
-            config = config.replace("core-integ.uidapi.com", urlparse(CORE_BASE_URL).netloc)
-            config = config.replace("optout-integ.uidapi.com", urlparse(OPTOUT_BASE_URL).netloc)
-
-            with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
-                file.write(config)
+        config = config.replace("https://core.uidapi.com", self.configs["core_base_url"])
+        config = config.replace("https://optout.uidapi.com", self.configs["optout_base_url"])
+        with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
+            file.write(config)
 
         with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
             logging.info(file.read())
-
-    def __set_base_urls(self):
-        with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
-            jdata = json.load(file)
-            self.configs["core_base_url"] = jdata["core_attest_url"]
-            self.configs["optout_base_url"] = jdata["optout_api_uri"]
 
     def __set_operator_key(self):
         try:
@@ -80,7 +70,6 @@ class AzureEntryPoint(ConfidentialCompute):
             kv_URL = f"https://{AzureEntryPoint.kv_name}.vault.azure.net"
             secret_client = SecretClient(vault_url=kv_URL, credential=credential)
             secret = secret_client.get_secret(AzureEntryPoint.secret_name)
-            # print(f"Secret Value: {secret.value}")
             self.configs["operator_key"] = secret.value
 
         except (CredentialUnavailableError, ClientAuthenticationError) as auth_error:
@@ -92,14 +81,13 @@ class AzureEntryPoint(ConfidentialCompute):
         
 
     def _set_confidential_config(self, secret_identifier: str = None):
+        """Builds and sets ConfidentialComputeConfig"""
         self.configs["skip_validations"] = os.getenv("SKIP_VALIDATIONS", "false").lower() == "true"
         self.configs["debug_mode"] = os.getenv("DEBUG_MODE", "false").lower() == "true"
         self.configs["environment"] = AzureEntryPoint.env_name
-
-        # set self.configs["operator_key"]
+        self.configs["core_base_url"] = os.getenv("CORE_BASE_URL") if os.getenv("CORE_BASE_URL") and AzureEntryPoint.env_name == "integ" else AzureEntryPoint.default_core_endpoint
+        self.configs["optout_base_url"] = os.getenv("OPTOUT_BASE_URL")  if os.getenv("OPTOUT_BASE_URL") and AzureEntryPoint.env_name == "integ" else AzureEntryPoint.default_optout_endpoint
         self.__set_operator_key()
-        # set base urls from final config file
-        self.__set_base_urls()
 
     def __run_operator(self):
 
@@ -150,10 +138,10 @@ class AzureEntryPoint(ConfidentialCompute):
     def run_compute(self) -> None:
         """Main execution flow for confidential compute."""
         self.__check_env_variables()
-        self.__create_final_config()
         self._set_confidential_config()
         if not self.configs.get("skip_validations"):
             self.validate_configuration()
+        self.__create_final_config()
         self._setup_auxiliaries()
         self.__run_operator()
 

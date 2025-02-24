@@ -11,12 +11,5 @@
   "core_attest_url": "https://core.integ.euid.eu/attest",
   "optout_api_uri": "https://optout.integ.euid.eu/optout/replicate",
   "optout_s3_folder": "optout/",
-  "allow_legacy_api": false,
-  "runtime_config_store": {
-    "type": "http",
-    "config" : {
-      "url": "https://core.integ.euid.eu/operator/config"
-    },
-    "config_scan_period_ms": 300000
-  }
+  "allow_legacy_api": false
 }

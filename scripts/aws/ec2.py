@@ -15,7 +15,7 @@ from typing import Dict
 import sys
 import time
 import yaml
-
+logging.basicConfig(level=logging.INFO)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, InstanceProfileMissingError, OperatorKeyNotFoundError, ConfigurationValueError, ConfidentialComputeStartupError
 

@@ -2,7 +2,7 @@ var __openId = {
 
     init : function(opts) {
         // verify if this is still being used
-        const url = "http://localhost:8080/ops/logSdk?apiContact=" + document.location.hostname;
+        const url = "https://prod.uidapi.com/ops/logSdk?apiContact=" + document.location.hostname;
         const req = new XMLHttpRequest();
         req.open("GET", url, false);
         req.setRequestHeader("X-UID2-Client-Version", "openid-sdk-1.0");

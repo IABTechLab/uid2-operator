@@ -291,8 +291,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Manage EC2-based confidential compute workflows.")
     parser.add_argument("-o", "--operation", choices=["stop", "start"], default="start", help="Operation to perform.")
     args = parser.parse_args()
-    
-    logging.basicConfig(level=logging.INFO)
 
     try:
         ec2 = EC2EntryPoint()

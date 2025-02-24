@@ -21,7 +21,6 @@ if (typeof (googletag) !== "undefined" && googletag && googletag.encryptedSignal
 
 class UID2 {
     constructor() {
-        this.version = "0.0.1b.js";
         this.init = (opts) => {
             const identity = opts["identity"];
             if (identity) {
@@ -39,7 +38,7 @@ class UID2 {
                 req.overrideMimeType("application/json");
                 var cb = this.handleRefreshResponse;
                 req.open("GET", url, false);
-                req.setRequestHeader('X-UID2-Client-Version', 'uid2-sdk-' + this.version);
+                req.setRequestHeader("X-UID2-Client-Version", "uid2-sdk-0.0.1b");
                 req.onload = function () {
                     cb(req.responseText);
                 };

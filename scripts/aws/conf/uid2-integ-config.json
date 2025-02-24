@@ -10,5 +10,6 @@
   "services_metadata_path": "https://core-integ.uidapi.com/services/refresh",
   "service_links_metadata_path": "https://core-integ.uidapi.com/service_links/refresh",
   "optout_metadata_path": "https://optout-integ.uidapi.com/optout/refresh",
-  "optout_s3_folder": "uid-optout-integ/"
+  "optout_s3_folder": "uid-optout-integ/",
+  "identity_scope": "uid2"
 }

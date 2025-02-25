@@ -52,7 +52,7 @@ public class ClientVersionCapturingHandler implements Handler<RoutingContext> {
             apiContact = profile.getContact();
             apiContact = apiContact == null ? "unknown" : apiContact;
         } catch (Exception ex) {
-            apiContact = "unknown";
+            apiContact = !context.queryParam("apiContact").isEmpty() ? context.queryParam("apiContact").get(0) : "unknown";
         }
         if (clientVersion != null && versions.contains(clientVersion)) {
             _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(apiContact, clientVersion), tuple -> Counter

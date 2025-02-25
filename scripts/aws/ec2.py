@@ -11,7 +11,7 @@ import signal
 import argparse
 import logging
 from botocore.exceptions import ClientError, NoCredentialsError
-from typing import Dict
+from typing import Dict, List
 import sys
 import time
 import yaml
@@ -105,6 +105,8 @@ class EC2EntryPoint(ConfidentialCompute):
         try:
             self.configs = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
             self.__validate_aws_specific_config()
+        except json.JSONDecodeError as e:
+            raise OperatorKeyNotFoundError(self.__class__.__name__, f"Can not parse secret {secret_identifier} in {region}")
         except NoCredentialsError as _:
             raise InstanceProfileMissingError(self.__class__.__name__)
         except ClientError as _:
@@ -119,38 +121,80 @@ class EC2EntryPoint(ConfidentialCompute):
         except Exception as e:
             raise RuntimeError("/etc/nitro_enclaves/allocator.yaml does not have CPU, memory allocated")
 
-    def __setup_vsockproxy(self, log_level: int) -> None:
-        """
-        Sets up the vsock proxy service.
-        """
+    def __setup_vsockproxy(self) -> None:
+        logging.info("Sets up the vSock proxy service")
         thread_count = (multiprocessing.cpu_count() + 1) // 2
         command = [
             "/usr/bin/vsockpx", "-c", "/etc/uid2operator/proxy.yaml",
-            "--workers", str(thread_count), "--log-level", str(log_level), "--daemon"
+            "--workers", str(thread_count), "--daemon"
         ]
-        self.run_command(command)
+
+        debug_command = [
+            "/usr/bin/vsockpx", "-c", "/etc/uid2operator/proxy.yaml",
+            "--workers", str(thread_count), "--log-level", "0"
+        ]
+
+        self.run_service([command, debug_command], "vsock_proxy")
 
     def __run_config_server(self) -> None:
-        """
-        Starts the Flask configuration server.
-        """
+        logging.info("Starts the Flask configuration server")
         os.makedirs("/etc/secret/secret-value", exist_ok=True)
         config_path = "/etc/secret/secret-value/config"
+
+        # Save configs to a file
         with open(config_path, 'w') as config_file:
             json.dump(self.configs, config_file)
+
         os.chdir("/opt/uid2operator/config-server")
         command = ["./bin/flask", "run", "--host", AuxiliaryConfig.LOCALHOST, "--port", AuxiliaryConfig.FLASK_PORT]
-        self.run_command(command, separate_process=True)
+
+        self.run_service([command, command], "flask_config_server", separate_process=True)
 
     def __run_socks_proxy(self) -> None:
-        """
-        Starts the SOCKS proxy service.
-        """
+        logging.info("Starts the SOCKS proxy service")
         command = ["sockd", "-D"]
-        self.run_command(command)
+
+        # -d specifies debug level
+        debug_command = ["sockd", "-d", "0"]
+
+        self.run_service([command, debug_command], "socks_proxy")
+
+    def run_service(self, command: List[List[str]], log_filename: str, separate_process: bool = False) -> None:
+        """
+        Runs a service command with logging if debug_mode is enabled.
+
+        :param command: command[0] regular command, command[1] debug mode command
+        :param log_filename: Base name of the log file (e.g., "flask_config_server", "socks_proxy", "vsock_proxy")
+        :param separate_process: Whether to run in a separate process
+        """
+        log_file = f"/var/log/{log_filename}.log"
+
+        if self.configs.get("debug_mode") is True:
+            
+            # Remove old log file to start fresh
+            if os.path.exists(log_file):
+                os.remove(log_file)
+
+            # Set up logging
+            logging.basicConfig(
+                filename=log_file,
+                filemode="w",
+                level=logging.DEBUG,
+                format="%(asctime)s %(levelname)s: %(message)s"
+            )
+
+            logging.info(f"Debug mode is on, logging into {log_file}")
+
+            # Run debug mode command
+            with open(log_file, "a") as log:
+                self.run_command(command[1], separate_process=True, stdout=log, stderr=log)
+        else:
+            # Run regular command, possibly daemon
+            self.run_command(command[0], separate_process=separate_process)
 
     def __get_secret_name_from_userdata(self) -> str:
         """Extracts the secret name from EC2 user data."""
+        logging.info("Extracts the secret name from EC2 user data")
         token = self.__get_aws_token()
         response = requests.get(AuxiliaryConfig.get_user_data_url(), headers={"X-aws-ec2-metadata-token": token})
         user_data = response.text
@@ -165,8 +209,7 @@ class EC2EntryPoint(ConfidentialCompute):
 
     def _setup_auxiliaries(self) -> None:
         """Sets up the vsock tunnel, socks proxy and flask server"""
-        log_level = 1 if self.configs["debug_mode"] else 3
-        self.__setup_vsockproxy(log_level)
+        self.__setup_vsockproxy()
         self.__run_config_server()
         self.__run_socks_proxy()
         logging.info("Finished setting up all auxiliaries")
@@ -206,7 +249,7 @@ class EC2EntryPoint(ConfidentialCompute):
             "--enclave-name", "uid2operator"
         ]
         if self.configs.get('debug_mode', False):
-            logging.info("Running in debug_mode")
+            logging.info("Running nitro in debug_mode")
             command += ["--debug-mode", "--attach-console"]
         self.run_command(command, separate_process=False)
 
@@ -248,6 +291,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Manage EC2-based confidential compute workflows.")
     parser.add_argument("-o", "--operation", choices=["stop", "start"], default="start", help="Operation to perform.")
     args = parser.parse_args()
+
     try:
         ec2 = EC2EntryPoint()
         if args.operation == "stop":

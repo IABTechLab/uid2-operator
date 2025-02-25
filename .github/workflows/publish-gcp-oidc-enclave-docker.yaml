@@ -157,7 +157,7 @@ jobs:
             BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
 
       - name: Vulnerability Scan
-        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@v3
+        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@vse-UID2-4968-ignore-google-auth-private-key-string-secret
         with:
           image_ref: ${{ steps.meta.outputs.tags }}
           scan_type: 'image'

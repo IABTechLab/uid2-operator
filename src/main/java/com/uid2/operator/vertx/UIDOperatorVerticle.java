@@ -816,7 +816,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void handleOldSDKVersionLogging(RoutingContext rc) {
-        // throwaway endpoint to log version
         rc.response().end("OK");
     }
 

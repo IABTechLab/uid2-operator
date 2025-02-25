@@ -45,14 +45,18 @@ public class ClientVersionCapturingHandler implements Handler<RoutingContext> {
             clientVersion =  !context.queryParam("client").isEmpty() ? context.queryParam("client").get(0) : null;
         }
         String apiContact;
-        try {
-            final String authHeaderValue = context.request().getHeader("Authorization");
-            final String authKey = extractBearerToken(authHeaderValue);
-            final IAuthorizable profile = this.authKeyStore.get(authKey);
-            apiContact = profile.getContact();
-            apiContact = apiContact == null ? "unknown" : apiContact;
-        } catch (Exception ex) {
-            apiContact = !context.queryParam("apiContact").isEmpty() ? context.queryParam("apiContact").get(0) : "unknown";
+        // remove in UID2-4990
+        apiContact = !context.queryParam("apiContact").isEmpty() ? context.queryParam("apiContact").get(0) : null;
+        if (apiContact == null) {
+            try {
+                final String authHeaderValue = context.request().getHeader("Authorization");
+                final String authKey = extractBearerToken(authHeaderValue);
+                final IAuthorizable profile = this.authKeyStore.get(authKey);
+                apiContact = profile.getContact();
+                apiContact = apiContact == null ? "unknown" : apiContact;
+            } catch (Exception ex) {
+                apiContact = "unknown";
+            }
         }
         if (clientVersion != null && versions.contains(clientVersion)) {
             _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(apiContact, clientVersion), tuple -> Counter

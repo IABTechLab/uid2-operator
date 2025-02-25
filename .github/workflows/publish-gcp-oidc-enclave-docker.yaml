@@ -161,6 +161,7 @@ jobs:
         with:
           image_ref: ${{ steps.meta.outputs.tags }}
           scan_type: 'image'
+          skip_files: '/*/google/auth/crypt/__pycache__/_python_rsa.cpython-312.pyc'
           failure_severity: ${{ (inputs.vulnerability_severity == 'CRITICAL (DO NOT use if JIRA ticket not raised)' && 'CRITICAL') || inputs.vulnerability_severity }}
 
       - name: Push to Docker

@@ -834,8 +834,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         if (clientVersion != null && host != null) {
             _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(host, clientVersion), tuple -> Counter
-                    .builder("uid2.client_sdk_versions")
-                    .description("counter for how many http requests are processed per each client sdk version")
+                    .builder("uid2.old_client_sdk_versions")
+                    .description("counter for how many http requests are processed per each very old client sdk version")
                     .tags("host", tuple.getItem1(), "client_version", tuple.getItem2())
                     .register(Metrics.globalRegistry)).increment();;
         }

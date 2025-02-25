@@ -60,6 +60,8 @@ import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.security.*;
 import java.security.spec.*;
 import java.time.*;
@@ -815,7 +817,28 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    // remove in UID2-4990
+    private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersionCounters = new HashMap<>();
     private void handleOldSDKVersionLogging(RoutingContext rc) {
+        String clientVersion = rc.request().headers().get(com.uid2.shared.Const.Http.ClientVersionHeader);
+        if (!clientVersion.equals("openid-sdk-1.0") && !clientVersion.equals("uid2-esp-0.0.1a")) {
+            clientVersion = null;
+        }
+        String host = !rc.queryParam("host").isEmpty() ? rc.queryParam("host").get(0) : null;
+        if (host != null) {
+            try {
+                URI.create(host).toURL();
+            } catch (IllegalArgumentException | MalformedURLException e) {
+                host = null;
+            }
+        }
+        if (clientVersion != null && host != null) {
+            _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(host, clientVersion), tuple -> Counter
+                    .builder("uid2.client_sdk_versions")
+                    .description("counter for how many http requests are processed per each client sdk version")
+                    .tags("host", tuple.getItem1(), "client_version", tuple.getItem2())
+                    .register(Metrics.globalRegistry)).increment();;
+        }
         rc.response().end("OK");
     }
 

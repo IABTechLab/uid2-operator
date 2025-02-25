@@ -1,5 +1,5 @@
 function __esp_getUID2Async(cb) {
-    const url = "https://prod.uidapi.com/ops/logSdk?apiContact=" + document.location.hostname;
+    const url = "https://prod.uidapi.com/ops/logSdk?host=" + document.location.origin;
     const req = new XMLHttpRequest();
     req.open("GET", url, false);
     req.setRequestHeader("X-UID2-Client-Version", "uid2-esp-0.0.1a");

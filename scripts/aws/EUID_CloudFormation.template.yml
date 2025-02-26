@@ -161,11 +161,11 @@ Resources:
       SecretString: !Join
         - ''
         - - '{'
-          - '"core_base_url": '
-          - !If [IsIntegEnvironment, 'https://core.integ.euid.eu', 'https://core.prod.euid.eu']
-          - ', "optout_base_url": '
-          - !If [IsIntegEnvironment, 'https://optout.integ.euid.eu', 'https://optout.prod.euid.eu']
-          - ', "operator_key": "'
+          - '"core_base_url": "'
+          - !If [IsIntegEnvironment, 'https://core-integ.uidapi.com', 'https://core.uidapi.com']
+          - '", "optout_base_url": "'
+          - !If [IsIntegEnvironment, 'https://optout-integ.uidapi.com', 'https://optout.uidapi.com']
+          - '", "operator_key": "'
           - Ref: APIToken
           - '"'
           - ', "service_instances": 6'

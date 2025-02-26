@@ -85,7 +85,7 @@ jobs:
         uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v3
         with:
           add: 'pom.xml version.json'
-          message: 'Released ${{ ienv.RELEASE_TYPE }} version: ${{ steps.version.outputs.new_version }}'
+          message: 'Released ${{ env.RELEASE_TYPE }} version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }} 
 
   buildPublic:

@@ -1,5 +1,5 @@
 name: Publish All Operators
-run-name: ${{ format('Publish All Operators - {0} Release', env.RELEASE_TYPE) }}
+run-name: ${{ format('Publish All Operators - Release') }}
 on:
   workflow_dispatch:
     inputs:

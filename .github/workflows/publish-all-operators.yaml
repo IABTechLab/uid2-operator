@@ -1,5 +1,5 @@
 name: Publish All Operators
-run-name: ${{ format('Publish All Operators - {0} Release', inputs.release_type) }}
+run-name: ${{ format('Publish All Operators - {0} Release', env.RELEASE_TYPE) }}
 on:
   workflow_dispatch:
     inputs:
@@ -18,6 +18,12 @@ on:
         - CRITICAL,HIGH
         - CRITICAL,HIGH,MEDIUM
         - CRITICAL (DO NOT use if JIRA ticket not raised)
+  schedule:
+    - cron: "0 0 * * *"
+
+env:
+  RELEASE_TYPE: ${{ inputs.release_type || (github.event_name == 'schedule' && 'patch') }}
+  VULNERABILITY_SEVERITY: ${{ env.VULNERABILITY_SEVERITY || (github.event_name == 'schedule' && 'CRITICAL,HIGH') }}
 
 jobs:
   start:
@@ -28,7 +34,7 @@ jobs:
         commit_sha: ${{ steps.commit-and-tag.outputs.commit_sha }}
     steps:
       - name: Approve Major release
-        if: inputs.release_type == 'Major'
+        if: env.RELEASE_TYPE == 'Major'
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.token }}
@@ -47,7 +53,7 @@ jobs:
       - name: Check branch and release type
         uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2
         with:
-          release_type: ${{ inputs.release_type }}
+          release_type: ${{ env.RELEASE_TYPE }}
     
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -64,7 +70,7 @@ jobs:
         id: version
         uses: IABTechLab/uid2-shared-actions/actions/version_number@v2
         with:
-          type: ${{ inputs.release_type }}
+          type: ${{ env.RELEASE_TYPE }}
           branch_name: ${{ github.ref }}
 
       - name: Update pom.xml
@@ -79,7 +85,7 @@ jobs:
         uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v3
         with:
           add: 'pom.xml version.json'
-          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+          message: 'Released ${{ ienv.RELEASE_TYPE }} version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }} 
 
   buildPublic:
@@ -87,9 +93,9 @@ jobs:
     needs: start
     uses: ./.github/workflows/publish-public-operator-docker-image.yaml
     with:
-      release_type: ${{ inputs.release_type }}
+      release_type: ${{ env.RELEASE_TYPE }}
       version_number_input: ${{ needs.start.outputs.new_version }}
-      vulnerability_severity: ${{ inputs.vulnerability_severity }}
+      vulnerability_severity: ${{ env.VULNERABILITY_SEVERITY }}
     secrets: inherit
 
   buildGCP:
@@ -97,10 +103,10 @@ jobs:
     needs: start
     uses: ./.github/workflows/publish-gcp-oidc-enclave-docker.yaml
     with:
-      release_type: ${{ inputs.release_type }}
+      release_type: ${{ env.RELEASE_TYPE }}
       version_number_input: ${{ needs.start.outputs.new_version }}
       commit_sha: ${{ needs.start.outputs.commit_sha }}
-      vulnerability_severity: ${{ inputs.vulnerability_severity }}
+      vulnerability_severity: ${{ env.VULNERABILITY_SEVERITY }}
     secrets: inherit
 
   buildAzure:
@@ -108,10 +114,10 @@ jobs:
     needs: start
     uses: ./.github/workflows/publish-azure-cc-enclave-docker.yaml
     with:
-      release_type: ${{ inputs.release_type }}
+      release_type: ${{ env.RELEASE_TYPE }}
       version_number_input: ${{ needs.start.outputs.new_version }}
       commit_sha: ${{ needs.start.outputs.commit_sha }}
-      vulnerability_severity: ${{ inputs.vulnerability_severity }}
+      vulnerability_severity: ${{ env.VULNERABILITY_SEVERITY }}
     secrets: inherit
 
   buildAWS:
@@ -119,7 +125,7 @@ jobs:
     needs: start
     uses: ./.github/workflows/publish-aws-nitro-eif.yaml
     with:
-      release_type: ${{ inputs.release_type }}
+      release_type: ${{ env.RELEASE_TYPE }}
       version_number_input: ${{ needs.start.outputs.new_version }}
       commit_sha: ${{ needs.start.outputs.commit_sha }}
     secrets: inherit

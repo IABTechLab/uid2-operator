@@ -28,6 +28,8 @@ jobs:
     outputs:
         new_version: ${{ steps.version.outputs.new_version }}
         commit_sha: ${{ steps.commit-and-tag.outputs.commit_sha }}
+        release_type: ${{ steps.set-env.outputs.release_type }}
+        vulnerability_severity: ${{ steps.set-env.outputs.vulnerability_severity }}
     env:
         RELEASE_TYPE: ${{ inputs.release_type || (github.event_name == 'schedule' && 'patch') }}
         VULNERABILITY_SEVERITY: ${{ inputs.vulnerability_severity || (github.event_name == 'schedule' && 'CRITICAL,HIGH') }}

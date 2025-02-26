@@ -30,7 +30,7 @@ jobs:
         commit_sha: ${{ steps.commit-and-tag.outputs.commit_sha }}
     env:
         RELEASE_TYPE: ${{ inputs.release_type || (github.event_name == 'schedule' && 'patch') }}
-        VULNERABILITY_SEVERITY: ${{ env.VULNERABILITY_SEVERITY || (github.event_name == 'schedule' && 'CRITICAL,HIGH') }}
+        VULNERABILITY_SEVERITY: ${{ inputs.vulnerability_severity || (github.event_name == 'schedule' && 'CRITICAL,HIGH') }}
     steps:
       - name: Set Environment Variables
         id: set-env

@@ -1,5 +1,5 @@
 name: Publish All Operators
-run-name: ${{ format('Publish All Operators - Release') }}
+run-name: ${{ format('Publish All Operators - {0} Release', github.event.inputs.release_type || 'scheduled') }}
 on:
   workflow_dispatch:
     inputs:

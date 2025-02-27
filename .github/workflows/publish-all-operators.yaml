@@ -249,7 +249,7 @@ jobs:
   notifyFailure:
       name: Notify Slack on Failure
       runs-on: ubuntu-latest
-      if: failure() && github.ref == 'refs/heads/main'
+      if: failure()
       needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
       steps:
         - name: Send Slack Alert

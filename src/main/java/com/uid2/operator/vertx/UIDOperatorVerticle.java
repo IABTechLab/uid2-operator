@@ -894,12 +894,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     public void recordOperatorServedSdkUsage(Integer siteId, RoutingContext rc, String clientVersion) {
-        final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
-        String apiContact = clientKey.getContact();
-        _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(apiContact, clientVersion), tuple -> Counter
+        _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion), tuple -> Counter
                     .builder("uid2.client_sdk_versions")
                     .description("counter for how many http requests are processed per each operator-served sdk version")
-                    .tags("api_contact", tuple.getItem1(), "client_version", tuple.getItem2())
+                    .tags("site_id", tuple.getItem1(), "client_version", tuple.getItem2())
                     .register(Metrics.globalRegistry)).increment();;
     }
 

@@ -11,6 +11,7 @@ import com.uid2.operator.privacy.tcf.TransparentConsentParseResult;
 import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
 import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
+import com.uid2.operator.service.ResponseUtil.ResponseStatus;
 import com.uid2.operator.store.*;
 import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.PrivacyBits;
@@ -25,9 +26,6 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.*;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
-import com.uid2.shared.store.IClientKeyProvider;
-import com.uid2.shared.store.IClientSideKeypairStore;
-import com.uid2.shared.store.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -870,6 +868,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
             siteId = rc.get(Const.RoutingContextData.SiteId);
+            recordOperatorServedSdkUsage(siteId, rc, rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
@@ -894,6 +893,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    public void recordOperatorServedSdkUsage(Integer siteId, RoutingContext rc, String clientVersion) {
+        final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+        String apiContact = clientKey.getContact();
+        _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(apiContact, clientVersion), tuple -> Counter
+                    .builder("uid2.client_sdk_versions")
+                    .description("counter for how many http requests are processed per each operator-served sdk version")
+                    .tags("api_contact", tuple.getItem1(), "client_version", tuple.getItem2())
+                    .register(Metrics.globalRegistry)).increment();;
+    }
+
     private void handleTokenRefreshV2(RoutingContext rc) {
         Integer siteId = null;
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
@@ -905,6 +914,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             String tokenStr = (String) rc.data().get("request");
             final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
             siteId = rc.get(Const.RoutingContextData.SiteId);
+            recordOperatorServedSdkUsage(siteId, rc, rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
@@ -1169,6 +1179,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             sendJsonResponse(rc, toJson(r.getTokens()));
 
             siteId = rc.get(Const.RoutingContextData.SiteId);
+            recordOperatorServedSdkUsage(siteId, rc, rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (r.isRefreshed()) {
                 this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
             }

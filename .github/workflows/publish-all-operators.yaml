@@ -246,3 +246,16 @@ jobs:
               ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip
+  notifyFailure:
+      name: Notify Slack on Failure
+      runs-on: ubuntu-latest
+      if: failure() && github.ref == 'refs/heads/main'
+      needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
+      steps:
+        - name: Send Slack Alert
+          env:
+            SLACK_COLOR: danger
+            SLACK_MESSAGE: ':x: Operator Pipeline failed'
+            SLACK_TITLE: Pipeline Failed in ${{ github.workflow }}
+            SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          uses: rtCamp/action-slack-notify@v2

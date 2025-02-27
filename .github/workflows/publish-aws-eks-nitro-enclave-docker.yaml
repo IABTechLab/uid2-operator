@@ -1,4 +1,4 @@
-name: Publish EKS Operator Docker Images
+name: Publish EKS Enclave Operator Docker Images
 run-name: >-
   ${{ inputs.operator_release == '' && format('Publish EKS Operator Docker Images for Operator Run Number: {0}', inputs.operator_run_number) || format('Publish EKS Operator Docker Images for Operator Release: {0}', inputs.operator_release)}}
 on:

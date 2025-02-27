@@ -146,19 +146,11 @@ jobs:
       operator_run_number: ${{ github.run_id }}
     secrets: inherit
 
-  buildEKS:
-    name: Build AWS EKS Docker
-    needs: [start, buildAWS]
-    uses: ./.github/workflows/publish-aws-eks-nitro-enclave-docker.yaml
-    with:
-      operator_run_number: ${{ github.run_id }}
-    secrets: inherit
-
   createRelease:
     name: Create Release
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
-    needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI, buildEKS]
+    needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -194,12 +186,6 @@ jobs:
         with:
           pattern: 'aws-ami-ids-*'
           path: ./manifests/aws_ami
-
-      - name: Download AWS EKS manifest
-        uses: actions/download-artifact@v4
-        with:
-          pattern: 'aws-eks-enclave-ids-*'
-          path: ./manifests/aws_eks
 
       - name: Download Deployment Files
         uses: actions/download-artifact@v4

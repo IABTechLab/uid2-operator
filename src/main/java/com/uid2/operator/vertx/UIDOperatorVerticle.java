@@ -896,11 +896,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     public void recordOperatorServedSdkUsage(Integer siteId, RoutingContext rc, String clientVersion) {
-        _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion), tuple -> Counter
+        if (siteId != null) {
+            _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion), tuple -> Counter
                     .builder("uid2.client_sdk_versions")
                     .description("counter for how many http requests are processed per each operator-served sdk version")
                     .tags("site_id", tuple.getItem1(), "client_version", tuple.getItem2())
                     .register(Metrics.globalRegistry)).increment();;
+        }
     }
 
     private void handleTokenRefreshV2(RoutingContext rc) {

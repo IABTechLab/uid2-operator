@@ -896,7 +896,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     public void recordOperatorServedSdkUsage(Integer siteId, RoutingContext rc, String clientVersion) {
-        if (siteId != null) {
+        if (siteId != null && clientVersion != null) {
             _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion), tuple -> Counter
                     .builder("uid2.client_sdk_versions")
                     .description("counter for how many http requests are processed per each operator-served sdk version")

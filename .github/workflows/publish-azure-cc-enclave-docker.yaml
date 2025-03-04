@@ -68,8 +68,10 @@ jobs:
       pull-requests: write
     outputs:
       jar_version: ${{ steps.update_version.outputs.new_version }}
+      docker_version: ${{ steps.meta.outputs.version }}
       image_tag: ${{ steps.update_version.outputs.image_tag }}
       tags: ${{ steps.meta.outputs.tags }}
+      is_release: ${{ steps.update_version.outputs.is_release }}
     steps:
       - name: Update Operator Version
         id: update_version
@@ -214,32 +216,32 @@ jobs:
           IMAGE: ${{ needs.buildImage.outputs.tags }}
           OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
           MANIFEST_DIR: ${{ env.MANIFEST_OUTPUT_DIR }}
-          VERSION_NUMBER: ${{ steps.update_version.outputs.new_version }}
+          VERSION_NUMBER: ${{ needs.buildImage.outputs.jar_version }}
         run: |
           bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: azure-cc-deployment-files-${{ steps.update_version.outputs.new_version }}
+          name: azure-cc-deployment-files-${{ needs.buildImage.outputs.jar_version }}
           path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Upload manifest
         uses: actions/upload-artifact@v4
         with:
-          name: azure-cc-enclave-id-${{ steps.update_version.outputs.new_version }}
+          name: azure-cc-enclave-id-${{ needs.buildImage.outputs.jar_version }}
           path: ${{ env.MANIFEST_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Generate release archive
-        if: ${{ inputs.version_number_input == '' && steps.update_version.outputs.is_release == 'true' }}
+        if: ${{ inputs.version_number_input == '' && needs.buildImage.outputs.is_release == 'true' }}
         run: |
-          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.meta.outputs.version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ needs.buildImage.outputs.docker_version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
 
       - name: Build changelog
         id: github_release
-        if: ${{ inputs.version_number_input == '' && steps.update_version.outputs.is_release == 'true' }}
+        if: ${{ inputs.version_number_input == '' && needs.buildImage.outputs.is_release == 'true' }}
         uses: mikepenz/release-changelog-builder-action@v4
         with:
           configurationJson: |
@@ -251,15 +253,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create release
-        if: ${{ inputs.version_number_input == '' && steps.update_version.outputs.is_release == 'true' }}
+        if: ${{ inputs.version_number_input == '' && needs.buildImage.outputs.is_release == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ steps.update_version.outputs.new_version }}
+          name: ${{ needs.buildImage.outputs.jar_version }}
           body: ${{ steps.github_release.outputs.changelog }}
           draft: true
           files: |
-            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ steps.update_version.outputs.new_version }}.zip
-            ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ steps.update_version.outputs.new_version }}.txt
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ needs.buildImage.outputs.jar_version }}.zip
+            ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ needs.buildImage.outputs.jar_version }}.txt
 
   e2e:
     name: E2E

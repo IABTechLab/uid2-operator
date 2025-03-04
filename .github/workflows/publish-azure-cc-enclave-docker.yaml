@@ -177,6 +177,9 @@ jobs:
     #   jar_version: ${{ steps.update_version.outputs.new_version }}
     #   image_tag: ${{ steps.update_version.outputs.image_tag }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: uninstall azure-cli 
         run: |
           sudo apt-get remove -y azure-cli
@@ -266,7 +269,7 @@ jobs:
   e2e:
     name: E2E
     uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
-    needs: buildImage
+    needs: [buildImage, azureCc]
     with:
       operator_type: azure
       operator_image_version: ${{ needs.buildImage.outputs.image_tag }}

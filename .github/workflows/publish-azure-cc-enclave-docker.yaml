@@ -69,6 +69,7 @@ jobs:
     outputs:
       jar_version: ${{ steps.update_version.outputs.new_version }}
       image_tag: ${{ steps.update_version.outputs.image_tag }}
+      tags: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Update Operator Version
         id: update_version
@@ -159,6 +160,21 @@ jobs:
             JAR_VERSION=${{ steps.update_version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.update_version.outputs.new_version }}
 
+  azureCc:
+    name: Azure CC
+    runs-on: ubuntu-latest
+    # TODO
+    permissions:
+      contents: write
+      security-events: write
+      packages: write
+      id-token: write
+      pull-requests: write
+    needs: buildImage
+    # outputs:
+    #   jar_version: ${{ steps.update_version.outputs.new_version }}
+    #   image_tag: ${{ steps.update_version.outputs.image_tag }}
+    steps:
       - name: uninstall azure-cli 
         run: |
           sudo apt-get remove -y azure-cli
@@ -195,7 +211,7 @@ jobs:
 
       - name: Generate Azure deployment artifacts
         env:
-          IMAGE: ${{ steps.meta.outputs.tags }}
+          IMAGE: ${{ needs.buildImage.outputs.tags }}
           OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
           MANIFEST_DIR: ${{ env.MANIFEST_OUTPUT_DIR }}
           VERSION_NUMBER: ${{ steps.update_version.outputs.new_version }}
@@ -228,7 +244,7 @@ jobs:
         with:
           configurationJson: |
             {
-              "template": "#{{CHANGELOG}}\n## Installation\n```\ndocker pull ${{ steps.meta.outputs.tags }}\n```\n\n## Image reference to deploy: \n```\n${{ steps.update_version.outputs.image_tag }}\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
+              "template": "#{{CHANGELOG}}\n## Installation\n```\ndocker pull ${{ needs.buildImage.outputs.tags }}\n```\n\n## Image reference to deploy: \n```\n${{ needs.buildImage.outputs.image_tag }}\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
               "pr_template": " - #{{TITLE}} - ( PR: ##{{NUMBER}} )"
             }
         env:

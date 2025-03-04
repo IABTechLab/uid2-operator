@@ -283,8 +283,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void setupV2Routes(Router mainRouter, BodyHandler bodyHandler) {
 
-        mainRouter.post(V2_TOKEN_GENERATE.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
+//        mainRouter.post(V2_TOKEN_GENERATE.toString()).handler(bodyHandler).handler(auth.handleV1(
+//                rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
         mainRouter.post(V2_TOKEN_REFRESH.toString()).handler(bodyHandler).handler(auth.handleWithOptionalAuth(
                 rc -> v2PayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
         mainRouter.post(V2_TOKEN_VALIDATE.toString()).handler(bodyHandler).handler(auth.handleV1(

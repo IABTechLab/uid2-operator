@@ -162,9 +162,9 @@ Resources:
         - ''
         - - '{'
           - '"core_base_url": "'
-          - !If [IsIntegEnvironment, 'https://core-integ.uidapi.com', 'https://core.uidapi.com']
+          - !If [IsIntegEnvironment, 'https://core.integ.euid.eu', 'https://core.prod.euid.eu']
           - '", "optout_base_url": "'
-          - !If [IsIntegEnvironment, 'https://optout-integ.uidapi.com', 'https://optout.uidapi.com']
+          - !If [IsIntegEnvironment, 'https://optout.integ.euid.eu', 'https://optout.prod.euid.eu']
           - '", "operator_key": "'
           - Ref: APIToken
           - '"'

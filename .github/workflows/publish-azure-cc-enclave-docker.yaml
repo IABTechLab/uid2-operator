@@ -185,7 +185,7 @@ jobs:
 
       - name: Copy Azure deployment files
         # run: ./scripts/azure-cc/deployment/copy-input-files.sh
-        run:
+        run: |
           mkdir -p ${{ env.ARTIFACTS_OUTPUT_DIR }}
           cp ${{ env.SCRIPTS_DIR }}/gateway.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
           cp ${{ env.SCRIPTS_DIR }}/gateway.parameters.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
@@ -197,7 +197,7 @@ jobs:
           cp ${{ env.SCRIPTS_DIR }}/vnet.parameters.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
 
       - name: Update operator template
-        run:
+        run: |
           IMAGE=${{ needs.buildImage.outputs.tag }}
           IMAGE_VERSION=$(echo $IMAGE | awk -F':' '{print $2}')
           sed -i "s#IMAGE_PLACEHOLDER#${IMAGE}#g" ${{ env.ARTIFACTS_OUTPUT_DIR }}/operator.json

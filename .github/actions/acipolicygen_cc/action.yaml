@@ -1,0 +1,17 @@
+name: 'ACI Policy Generator for Azure CC'
+description: 'Generate an ACI policyf or Azure CC'
+inputs:
+  template_file:
+    description: 'Path to the template file'
+    required: true
+outputs:
+  policy:
+    description: 'The base64-encoded policy'
+runs:
+  using: 'docker'
+  image: Dockerfile
+  args:
+    - --approve-wildcards
+    - --template-file
+    - ${{ inputs.template_file }}
+    - --print-policy

@@ -198,7 +198,7 @@ jobs:
 
       - name: Update operator template
         run: |
-          IMAGE=${{ needs.buildImage.outputs.tag }}
+          IMAGE=${{ needs.buildImage.outputs.tags }}
           IMAGE_VERSION=$(echo $IMAGE | awk -F':' '{print $2}')
           sed -i "s#IMAGE_PLACEHOLDER#${IMAGE}#g" ${{ env.ARTIFACTS_OUTPUT_DIR }}/operator.json
           sed -i "s#IMAGE_VERSION_PLACEHOLDER#${IMAGE_VERSION}#g" ${{ env.ARTIFACTS_OUTPUT_DIR }}/operator.json
@@ -207,7 +207,8 @@ jobs:
         id: aci_policy
         uses: ./.github/actions/acipolicygen_cc
         with:
-          template_file: ${{ env.ARTIFACTS_OUTPUT_DIR }}/operator.json
+          # TODO
+          template_file: /github/workspace/deployment-artifacts/operator.json
 
       - name: Update operator template
         # TODO

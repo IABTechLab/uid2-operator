@@ -1,0 +1,14 @@
+name: 'ACI Policy Generator for Azure VN'
+description: 'Generate an ACI policy for Azure VN'
+inputs:
+  yaml_file:
+    description: 'Path to the VN YAML file'
+    required: true
+outputs:
+  policy:
+    description: 'The base64-encoded policy'
+runs:
+  using: 'docker'
+  image: Dockerfile
+  args:
+    - ${{ inputs.yaml_file }}

@@ -4,11 +4,15 @@ inputs:
   template_file:
     description: 'Path to the template file'
     required: true
-outputs:
-  policy:
-    description: 'The base64-encoded policy'
+  output_file:
+    description: 'Path to the output policy file'
+    required: true
+# outputs:
+#   policy:
+#     description: 'The base64-encoded policy'
 runs:
   using: 'docker'
   image: Dockerfile
   args:
     - ${{ inputs.template_file }}
+    - ${{ inputs.output_file }}

@@ -176,23 +176,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SCRIPTS_DIR: ./scripts/azure-cc/deployment
-    # TODO
-    permissions:
-      contents: write
-      security-events: write
-      packages: write
-      id-token: write
-      pull-requests: write
     needs: buildImage
-    # outputs:
-    #   jar_version: ${{ steps.update_version.outputs.new_version }}
-    #   image_tag: ${{ steps.update_version.outputs.image_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Copy Azure deployment files
-        # run: ./scripts/azure-cc/deployment/copy-input-files.sh
         run: |
           mkdir -p ${{ env.ARTIFACTS_OUTPUT_DIR }}
           cp ${{ env.SCRIPTS_DIR }}/gateway.json \
@@ -228,7 +217,6 @@ jobs:
           GENERATED_REGO_BASE64: ${{ env.SCRIPTS_DIR }}/generated.rego.base64
           POLICY_DIGEST_FILE: ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ needs.buildImage.outputs.jar_version }}.txt
           OPERATOR_TEMPLATE: ${{ env.ARTIFACTS_OUTPUT_DIR }}/operator.json
-        # TODO
         run: |
           echo -n ${{ steps.aci_policy.outputs.policy }} > $POLICY_BASE_64
 
@@ -246,15 +234,6 @@ jobs:
           cp $OPERATOR_TEMPLATE /tmp/source.json
           base64 --wrap=0 $GENERATED_REGO > $GENERATED_REGO_BASE64
           jq --arg policy $(cat $GENERATED_REGO_BASE64) '.resources[].properties.confidentialComputeProperties.ccePolicy = $policy' /tmp/source.json > $OPERATOR_TEMPLATE
-
-      # - name: Generate Azure deployment artifacts
-      #   env:
-      #     IMAGE: ${{ needs.buildImage.outputs.tags }}
-      #     OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
-      #     MANIFEST_DIR: ${{ env.MANIFEST_OUTPUT_DIR }}
-      #     VERSION_NUMBER: ${{ needs.buildImage.outputs.jar_version }}
-      #   run: |
-      #     bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4

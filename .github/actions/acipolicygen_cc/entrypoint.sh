@@ -5,7 +5,7 @@ az confcom acipolicygen \
     --template-file \
     $GITHUB_WORKSPACE/$1 \
     --print-policy \
-    >> $GITHUB_WORKSPACE/$2
+    >>"$GITHUB_OUTPUT"
 
 # if [[ $? -ne 0 ]]; then
 #     exit 1

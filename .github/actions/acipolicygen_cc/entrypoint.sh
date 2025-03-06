@@ -3,7 +3,7 @@
 az confcom acipolicygen $@ >> /tmp/output.txt
 
 if [[ $? -ne 0 ]]; then
-    exit $?
+    exit 1
 fi
 
 export GITHUB_OUTPUT=`cat /tmp/output.txt`

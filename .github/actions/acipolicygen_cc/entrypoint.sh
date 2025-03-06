@@ -7,3 +7,5 @@ if [[ $? -ne 0 ]]; then
 fi
 
 export GITHUB_OUTPUT=`cat /tmp/output.txt`
+
+echo $GITHUB_OUTPUT

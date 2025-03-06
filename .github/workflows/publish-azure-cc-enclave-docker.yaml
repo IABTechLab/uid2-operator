@@ -195,14 +195,15 @@ jobs:
         # run: ./scripts/azure-cc/deployment/copy-input-files.sh
         run: |
           mkdir -p ${{ env.ARTIFACTS_OUTPUT_DIR }}
-          cp ${{ env.SCRIPTS_DIR }}/gateway.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
-          cp ${{ env.SCRIPTS_DIR }}/gateway.parameters.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
-          cp ${{ env.SCRIPTS_DIR }}/vault.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
-          cp ${{ env.SCRIPTS_DIR }}/vault.parameters.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
-          cp ${{ env.SCRIPTS_DIR }}/operator.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
-          cp ${{ env.SCRIPTS_DIR }}/operator.parameters.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
-          cp ${{ env.SCRIPTS_DIR }}/vnet.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
-          cp ${{ env.SCRIPTS_DIR }}/vnet.parameters.json ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          cp ${{ env.SCRIPTS_DIR }}/gateway.json \
+            ${{ env.SCRIPTS_DIR }}/gateway.parameters.json \
+            ${{ env.SCRIPTS_DIR }}/vault.json \
+            ${{ env.SCRIPTS_DIR }}/vault.parameters.json \
+            ${{ env.SCRIPTS_DIR }}/operator.json \
+            ${{ env.SCRIPTS_DIR }}/operator.parameters.json \
+            ${{ env.SCRIPTS_DIR }}/vnet.json \
+            ${{ env.SCRIPTS_DIR }}/vnet.parameters.json \
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}
 
       - name: Update operator template
         run: |
@@ -232,6 +233,8 @@ jobs:
 
           POLICY_DIGEST_FILE=azure-cc-operator-digest-${{ needs.buildImage.outputs.jar_version }}.txt
           GENERATED_REGO_SHA256=$(sha256sum ${{ env.SCRIPTS_DIR }}/generated.rego | cut -d ' ' -f 1)
+
+          mkdir -p ${{ env.MANIFEST_OUTPUT_DIR }}
           echo $GENERATED_REGO_SHA256 > ${{ env.MANIFEST_OUTPUT_DIR }}/$POLICY_DIGEST_FILE
 
           cp ${{ env.ARTIFACTS_OUTPUT_DIR }}/operator.json /tmp/source.json

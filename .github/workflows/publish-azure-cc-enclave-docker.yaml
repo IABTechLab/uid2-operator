@@ -87,6 +87,9 @@ jobs:
       #     image_tag_suffix: ${{ env.ENCLAVE_PROTOCOL }}
       #     commit_sha: ${{ inputs.commit_sha }}
 
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:

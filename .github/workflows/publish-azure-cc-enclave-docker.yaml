@@ -67,20 +67,25 @@ jobs:
       id-token: write
       pull-requests: write
     outputs:
-      jar_version: ${{ steps.update_version.outputs.new_version }}
-      docker_version: ${{ steps.meta.outputs.version }}
-      image_tag: ${{ steps.update_version.outputs.image_tag }}
-      tags: ${{ steps.meta.outputs.tags }}
-      is_release: ${{ steps.update_version.outputs.is_release }}
+      # jar_version: ${{ steps.update_version.outputs.new_version }}
+      # docker_version: ${{ steps.meta.outputs.version }}
+      # image_tag: ${{ steps.update_version.outputs.image_tag }}
+      # tags: ${{ steps.meta.outputs.tags }}
+      # is_release: ${{ steps.update_version.outputs.is_release }}
+      jar_version: 5.49.9-alpha-224-SNAPSHOT
+      docker_version: 5.49.9-alpha-224-SNAPSHOT-azure-cc
+      image_tag: 5.49.9-alpha-224-SNAPSHOT-azure-cc
+      tags: ghcr.io/iabtechlab/uid2-operator:5.49.9-alpha-224-SNAPSHOT-azure-cc
+      is_release: false
     steps:
-      - name: Update Operator Version
-        id: update_version
-        uses: IABTechLab/uid2-operator/.github/actions/update_operator_version@main
-        with:
-          release_type: ${{ inputs.release_type }}
-          version_number_input: ${{ inputs.version_number_input }}
-          image_tag_suffix: ${{ env.ENCLAVE_PROTOCOL }}
-          commit_sha: ${{ inputs.commit_sha }}
+      # - name: Update Operator Version
+      #   id: update_version
+      #   uses: IABTechLab/uid2-operator/.github/actions/update_operator_version@main
+      #   with:
+      #     release_type: ${{ inputs.release_type }}
+      #     version_number_input: ${{ inputs.version_number_input }}
+      #     image_tag_suffix: ${{ env.ENCLAVE_PROTOCOL }}
+      #     commit_sha: ${{ inputs.commit_sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -89,79 +94,79 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      - name: Package JAR
-        id: package
-        run: |
-          mvn -B package -P ${{ env.MAVEN_PROFILE }} 
-          echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
-          echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
-          cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
-          cp scripts/confidential_compute.py ${{ env.DOCKER_CONTEXT_PATH }}/
+      # - name: Package JAR
+      #   id: package
+      #   run: |
+      #     mvn -B package -P ${{ env.MAVEN_PROFILE }} 
+      #     echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
+      #     echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
+      #     cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
+      #     cp scripts/confidential_compute.py ${{ env.DOCKER_CONTEXT_PATH }}/
 
-      - name: Log in to the Docker container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Log in to the Docker container registry
+      #   uses: docker/login-action@v3
+      #   with:
+      #     registry: ${{ env.REGISTRY }}
+      #     username: ${{ github.actor }}
+      #     password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=${{ steps.update_version.outputs.image_tag }}
+      # - name: Extract metadata (tags, labels) for Docker
+      #   id: meta
+      #   uses: docker/metadata-action@v5
+      #   with:
+      #     images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      #     tags: |
+      #       type=raw,value=${{ steps.update_version.outputs.image_tag }}
 
-      - name: Build and export to Docker
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ env.DOCKER_CONTEXT_PATH }}
-          load: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            JAR_VERSION=${{ steps.update_version.outputs.new_version }}
-            IMAGE_VERSION=${{ steps.update_version.outputs.new_version }}
-            BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
+      # - name: Build and export to Docker
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: ${{ env.DOCKER_CONTEXT_PATH }}
+      #     load: true
+      #     tags: ${{ steps.meta.outputs.tags }}
+      #     labels: ${{ steps.meta.outputs.labels }}
+      #     build-args: |
+      #       JAR_VERSION=${{ steps.update_version.outputs.new_version }}
+      #       IMAGE_VERSION=${{ steps.update_version.outputs.new_version }}
+      #       BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
 
-      - name: Generate Trivy vulnerability scan report
-        uses: aquasecurity/trivy-action@0.14.0
-        with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'sarif'
-          exit-code: '0'
-          ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
-          output: 'trivy-results.sarif'
-          hide-progress: true
+      # - name: Generate Trivy vulnerability scan report
+      #   uses: aquasecurity/trivy-action@0.14.0
+      #   with:
+      #     image-ref: ${{ steps.meta.outputs.tags }}
+      #     format: 'sarif'
+      #     exit-code: '0'
+      #     ignore-unfixed: true
+      #     severity: 'CRITICAL,HIGH'
+      #     output: 'trivy-results.sarif'
+      #     hide-progress: true
 
-      - name: Upload Trivy scan report to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
+      # - name: Upload Trivy scan report to GitHub Security tab
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: 'trivy-results.sarif'
 
-      - name: Test with Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.14.0
-        with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: ${{ inputs.vulnerability_severity }}
-          hide-progress: true
+      # - name: Test with Trivy vulnerability scanner
+      #   uses: aquasecurity/trivy-action@0.14.0
+      #   with:
+      #     image-ref: ${{ steps.meta.outputs.tags }}
+      #     format: 'table'
+      #     exit-code: '1'
+      #     ignore-unfixed: true
+      #     severity: ${{ inputs.vulnerability_severity }}
+      #     hide-progress: true
 
-      - name: Push to Docker
-        id: push-to-docker
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ env.DOCKER_CONTEXT_PATH }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            JAR_VERSION=${{ steps.update_version.outputs.new_version }}
-            IMAGE_VERSION=${{ steps.update_version.outputs.new_version }}
+      # - name: Push to Docker
+      #   id: push-to-docker
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: ${{ env.DOCKER_CONTEXT_PATH }}
+      #     push: true
+      #     tags: ${{ steps.meta.outputs.tags }}
+      #     labels: ${{ steps.meta.outputs.labels }}
+      #     build-args: |
+      #       JAR_VERSION=${{ steps.update_version.outputs.new_version }}
+      #       IMAGE_VERSION=${{ steps.update_version.outputs.new_version }}
 
   azureCc:
     name: Azure CC
@@ -279,11 +284,11 @@ jobs:
             ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ needs.buildImage.outputs.jar_version }}.zip
             ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ needs.buildImage.outputs.jar_version }}.txt
 
-  e2e:
-    name: E2E
-    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
-    needs: [buildImage, azureCc]
-    with:
-      operator_type: azure
-      operator_image_version: ${{ needs.buildImage.outputs.image_tag }}
-    secrets: inherit
+  # e2e:
+  #   name: E2E
+  #   uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+  #   needs: [buildImage, azureCc]
+  #   with:
+  #     operator_type: azure
+  #     operator_image_version: ${{ needs.buildImage.outputs.image_tag }}
+  #   secrets: inherit

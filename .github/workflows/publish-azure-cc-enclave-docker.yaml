@@ -216,7 +216,7 @@ jobs:
         uses: ./.github/actions/acipolicygen_cc
         with:
           # TODO
-          template_file: $GITHUB_WORKSPACE/deployment-artifacts/operator.json
+          template_file: deployment-artifacts/operator.json
 
       - name: Update operator template
         # TODO

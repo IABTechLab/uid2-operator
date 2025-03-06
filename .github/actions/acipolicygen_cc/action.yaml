@@ -11,7 +11,4 @@ runs:
   using: 'docker'
   image: Dockerfile
   args:
-    - --approve-wildcards
-    - --template-file
     - ${{ inputs.template_file }}
-    - --print-policy

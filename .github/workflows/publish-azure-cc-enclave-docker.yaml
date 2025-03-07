@@ -169,6 +169,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     needs: buildImage
+    env:
+      ARTIFACT_PREFIX: azure-cc-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -192,14 +194,14 @@ jobs:
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: azure-cc-deployment-files-${{ needs.buildImage.outputs.jar_version }}
+          name: ${{ env.ARTIFACT_PREFIX }}deployment-files-${{ needs.buildImage.outputs.jar_version }}
           path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Upload manifest
         uses: actions/upload-artifact@v4
         with:
-          name: azure-cc-enclave-id-${{ needs.buildImage.outputs.jar_version }}
+          name: ${{ env.ARTIFACT_PREFIX }}enclave-id-${{ needs.buildImage.outputs.jar_version }}
           path: ${{ env.MANIFEST_OUTPUT_DIR }}
           if-no-files-found: error
 

@@ -93,6 +93,3 @@ base64 -w0 < ${INPUT_DIR}/generated.rego > ${INPUT_DIR}/generated.rego.base64
 python3 ${SCRIPT_DIR}/generate.py ${INPUT_DIR}/generated.rego > ${MANIFEST_DIR}/${POLICY_DIGEST_FILE}
 
 sed -i "s#CCE_POLICY_PLACEHOLDER#$(cat ${INPUT_DIR}/generated.rego.base64)#g" ${OUTPUT_DIR}/operator.yaml
-# cp ${OUTPUT_DIR}/operator.json ${INPUT_DIR}/source.json
-# jq --arg policy "$(cat ${INPUT_DIR}/generated.rego.base64)" '.resources[].properties.confidentialComputeProperties.ccePolicy = $policy' ${INPUT_DIR}/source.json > ${OUTPUT_DIR}/operator.json
-

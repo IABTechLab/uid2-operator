@@ -163,7 +163,7 @@ jobs:
             IMAGE_VERSION=${{ steps.update_version.outputs.new_version }}
 
   azureCc:
-    name: Azure CC
+    name: Create Azure CC artifacts
     runs-on: ubuntu-latest
     permissions: {}
     needs: buildImage
@@ -201,11 +201,59 @@ jobs:
           path: ${{ env.MANIFEST_OUTPUT_DIR }}
           if-no-files-found: error
 
-  e2e:
-    name: E2E
+  e2eAzureCc:
+    name: E2E Azure CC
     uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
     needs: [buildImage, azureCc]
     with:
       operator_type: azure
+      operator_image_version: ${{ needs.buildImage.outputs.image_tag }}
+    secrets: inherit
+
+  azureAks:
+    name: Create Azure AKS artifacts
+    runs-on: ubuntu-latest
+    permissions: {}
+    needs: buildImage
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Azure CLI
+        uses: ./.github/actions/install_az_cli
+
+      - name: check azure-cli version
+        run: |
+          az --version
+
+      - name: Generate Azure deployment artifacts
+        env:
+          IMAGE: ${{ needs.buildImage.outputs.tags }}
+          OUTPUT_DIR: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          MANIFEST_DIR: ${{ env.MANIFEST_OUTPUT_DIR }}
+          VERSION_NUMBER: ${{ needs.buildImage.outputs.jar_version }}
+        run: |
+          bash ./scripts/azure-aks/deployment/generate-deployment-artifacts.sh
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: azure-aks-deployment-files-${{ needs.buildImage.outputs.jar_version }}
+          path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          if-no-files-found: error
+
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: azure-aks-enclave-id-${{ needs.buildImage.outputs.jar_version }}
+          path: ${{ env.MANIFEST_OUTPUT_DIR }}
+          if-no-files-found: error
+
+  e2eAzureAks:
+    name: E2E Azure AKS
+    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+    needs: [buildImage, azureAks]
+    with:
+      operator_type: aks
       operator_image_version: ${{ needs.buildImage.outputs.image_tag }}
     secrets: inherit

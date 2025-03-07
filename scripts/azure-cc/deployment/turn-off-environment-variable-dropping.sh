@@ -1,0 +1,1 @@
+sed -i "s#allow_environment_variable_dropping := true#allow_environment_variable_dropping := false#g" $1

@@ -211,16 +211,18 @@ jobs:
           # TODO
           template_file: deployment-artifacts/operator.json
 
-      - name: Modify policy
+      - name: Decode policy
         env:
           POLICY_BASE_64: ${{ env.SCRIPTS_DIR }}/policy.base64
           GENERATED_REGO: ${{ env.SCRIPTS_DIR }}/generated.rego
         run: |
           echo -n ${{ steps.aci_policy.outputs.policy }} > $POLICY_BASE_64
-
-          # Export the policy, update it to turn off allow_environment_variable_dropping.
-          base64 --decode $POLICY_BASE_64 > $GENERATED_REGO
-          sed -i "s#allow_environment_variable_dropping := true#allow_environment_variable_dropping := false#g" $GENERATED_REGO
+          base64 --decode --ignore-garbage $POLICY_BASE_64 > $GENERATED_REGO
+      
+      - name: Turn off allow_environment_variable_dropping
+        env:
+          GENERATED_REGO: ${{ env.SCRIPTS_DIR }}/generated.rego
+        run: ./scripts/azure-cc/deployment/turn-off-environment-variable-dropping.sh ${{ env.GENERATED_REGO }}
 
       - name: Update operator template CCE policy
         env:
@@ -326,3 +328,8 @@ jobs:
         with:
           # TODO
           template_file: deployment-artifacts/operator.yaml
+
+      - name: Turn off allow_environment_variable_dropping
+        env:
+          GENERATED_REGO: ${{ env.SCRIPTS_DIR }}/generated.rego
+        run: ./scripts/azure-cc/deployment/turn-off-environment-variable-dropping.sh ${{ env.GENERATED_REGO }}

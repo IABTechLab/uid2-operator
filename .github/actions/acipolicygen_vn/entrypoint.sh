@@ -1,6 +1,7 @@
 #!/bin/sh -l
 
 POLICY_BASE_64=$(az confcom acipolicygen \
+    --approve-wildcards \
     --virtual-node-yaml \
     $GITHUB_WORKSPACE/$1 \
     --print-policy)

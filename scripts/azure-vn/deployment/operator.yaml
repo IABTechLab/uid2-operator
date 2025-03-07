@@ -12,7 +12,7 @@ spec:
       labels:
         app.kubernetes.io/name: operator
       annotations:
-        microsoft.containerinstance.virtualnode.ccepolicy: ''
+        microsoft.containerinstance.virtualnode.ccepolicy: CCE_POLICY_PLACEHOLDER
         microsoft.containerinstance.virtualnode.identity: IDENTITY_PLACEHOLDER
         microsoft.containerinstance.virtualnode.injectdns: "false"
     spec:

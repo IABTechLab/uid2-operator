@@ -74,7 +74,7 @@ jobs:
       is_release: false
     steps:
       - name: Noop
-        run: ech noop
+        run: echo noop
       # - name: Update Operator Version
       #   id: update_version
       #   uses: IABTechLab/uid2-operator/.github/actions/update_operator_version@main

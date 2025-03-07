@@ -218,7 +218,7 @@ jobs:
         run: |
           echo -n ${{ steps.aci_policy.outputs.policy }} > $POLICY_BASE_64
           base64 --decode --ignore-garbage $POLICY_BASE_64 > $GENERATED_REGO
-      
+
       - name: Turn off allow_environment_variable_dropping
         env:
           GENERATED_REGO: ${{ env.SCRIPTS_DIR }}/generated.rego
@@ -328,6 +328,14 @@ jobs:
         with:
           # TODO
           template_file: deployment-artifacts/operator.yaml
+
+      - name: Decode policy
+        env:
+          POLICY_BASE_64: ${{ env.SCRIPTS_DIR }}/policy.base64
+          GENERATED_REGO: ${{ env.SCRIPTS_DIR }}/generated.rego
+        run: |
+          echo -n ${{ steps.aci_policy.outputs.policy }} > $POLICY_BASE_64
+          base64 --decode --ignore-garbage $POLICY_BASE_64 > $GENERATED_REGO
 
       - name: Turn off allow_environment_variable_dropping
         env:

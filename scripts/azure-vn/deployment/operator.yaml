@@ -13,7 +13,7 @@ spec:
         app.kubernetes.io/name: operator
       annotations:
         microsoft.containerinstance.virtualnode.ccepolicy: ''
-        microsoft.containerinstance.virtualnode.identity: /subscriptions/63e97a70-d825-4b08-af6d-c0d8ad98bed3/resourcegroups/kat-vn-aks/providers/Microsoft.ManagedIdentity/userAssignedIdentities/kat-vn-aks-opr-id
+        microsoft.containerinstance.virtualnode.identity: IDENTITY_PLACEHOLDER
         microsoft.containerinstance.virtualnode.injectdns: "false"
     spec:
       containers:
@@ -36,7 +36,7 @@ spec:
           command:
             - /skr.sh
         - name: uid2-operator
-          image: "ghcr.io/iabtechlab/uid2-operator:5.47.71-alpha-215-SNAPSHOT-azure-cc"
+          image: IMAGE_PLACEHOLDER
           resources:
             limits:
               memory: "8Gi"
@@ -45,11 +45,11 @@ spec:
             runAsUser: 1000
           env:
             - name: VAULT_NAME
-              value: kat-vn-aks-vault
+              value: VAULT_NAME_PLACEHOLDER
             - name: OPERATOR_KEY_SECRET_NAME
-              value: kat-vn-aks-opr-key-name
+              value: OPERATOR_KEY_SECRET_NAME_PLACEHOLDER
             - name: DEPLOYMENT_ENVIRONMENT
-              value: integ
+              value: DEPLOYMENT_ENVIRONMENT_PLACEHOLDER
           ports:
             - containerPort: 8080
               protocol: TCP

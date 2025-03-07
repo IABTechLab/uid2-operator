@@ -305,31 +305,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # - name: Copy Azure deployment files
-      #   run: |
-      #     mkdir -p ${{ env.ARTIFACTS_OUTPUT_DIR }}
-      #     cp ${{ env.SCRIPTS_DIR }}/gateway.json \
-      #       ${{ env.SCRIPTS_DIR }}/gateway.parameters.json \
-      #       ${{ env.SCRIPTS_DIR }}/vault.json \
-      #       ${{ env.SCRIPTS_DIR }}/vault.parameters.json \
-      #       ${{ env.SCRIPTS_DIR }}/operator.json \
-      #       ${{ env.SCRIPTS_DIR }}/operator.parameters.json \
-      #       ${{ env.SCRIPTS_DIR }}/vnet.json \
-      #       ${{ env.SCRIPTS_DIR }}/vnet.parameters.json \
-      #       ${{ env.ARTIFACTS_OUTPUT_DIR }}
+      - name: Copy Azure deployment files
+        run: |
+          mkdir -p ${{ env.ARTIFACTS_OUTPUT_DIR }}
+          cp ${{ env.SCRIPTS_DIR }}/operator.yaml \
+            ${{ env.ARTIFACTS_OUTPUT_DIR }}
 
       - name: Update operator template image and image version
         env:
-          OPERATOR_TEMPLATE: ${{ env.ARTIFACTS_OUTPUT_DIR }}/operator.json
+          OPERATOR_TEMPLATE: ${{ env.ARTIFACTS_OUTPUT_DIR }}/operator.yaml
           IMAGE: ${{ needs.buildImage.outputs.tags }}
         run: |
-          IMAGE_VERSION=$(echo $IMAGE | awk -F':' '{print $2}')
+          # IMAGE_VERSION=$(echo $IMAGE | awk -F':' '{print $2}')
           sed -i "s#IMAGE_PLACEHOLDER#${IMAGE}#g" $OPERATOR_TEMPLATE
-          sed -i "s#IMAGE_VERSION_PLACEHOLDER#${IMAGE_VERSION}#g" $OPERATOR_TEMPLATE
+          # sed -i "s#IMAGE_VERSION_PLACEHOLDER#${IMAGE_VERSION}#g" $OPERATOR_TEMPLATE
 
       - name: Generate ACI policy
         id: aci_policy
-        uses: ./.github/actions/acipolicygen_cc
+        uses: ./.github/actions/acipolicygen_vn
         with:
           # TODO
-          template_file: deployment-artifacts/operator.json
+          template_file: deployment-artifacts/operator.yaml

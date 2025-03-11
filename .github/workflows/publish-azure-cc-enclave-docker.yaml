@@ -71,7 +71,7 @@ jobs:
       docker_version: ${{ steps.meta.outputs.version }}
       image_tag: ${{ steps.update_version.outputs.image_tag }}
       tags: ${{ steps.meta.outputs.tags }}
-      is_release: false
+      is_release: ${{ steps.update_version.outputs.is_release }}
     steps:
       - name: Update Operator Version
         id: update_version

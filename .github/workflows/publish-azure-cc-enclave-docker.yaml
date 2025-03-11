@@ -67,10 +67,10 @@ jobs:
       id-token: write
       pull-requests: write
     outputs:
-      jar_version: 5.49.9-alpha-224-SNAPSHOT
-      docker_version: 5.49.9-alpha-224-SNAPSHOT-azure-cc
-      image_tag: 5.49.9-alpha-224-SNAPSHOT-azure-cc
-      tags: ghcr.io/iabtechlab/uid2-operator:5.49.9-alpha-224-SNAPSHOT-azure-cc
+      jar_version: ${{ steps.update_version.outputs.new_version }}
+      docker_version: ${{ steps.meta.outputs.version }}
+      image_tag: ${{ steps.update_version.outputs.image_tag }}
+      tags: ${{ steps.meta.outputs.tags }}
       is_release: false
     steps:
       - name: Update Operator Version

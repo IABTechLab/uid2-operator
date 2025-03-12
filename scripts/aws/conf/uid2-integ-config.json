@@ -10,6 +10,7 @@
   "services_metadata_path": "https://core-integ.uidapi.com/services/refresh",
   "service_links_metadata_path": "https://core-integ.uidapi.com/service_links/refresh",
   "optout_metadata_path": "https://optout-integ.uidapi.com/optout/refresh",
+  "cloud_encryption_keys_metadata_path": "https://core-integ.uidapi.com/cloud_encryption_keys/retrieve",
   "optout_s3_folder": "uid-optout-integ/",
   "identity_scope": "uid2"
 }

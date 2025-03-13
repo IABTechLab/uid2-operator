@@ -90,6 +90,6 @@ sed -i 's#{"pattern":"DEPLOYMENT_ENVIRONMENT=DEPLOYMENT_ENVIRONMENT_PLACEHOLDER"
 sed -i 's#{"pattern":"VAULT_NAME=VAULT_NAME_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"VAULT_NAME=.+","required":false,"strategy":"re2"}#g' generated.rego
 sed -i 's#{"pattern":"OPERATOR_KEY_SECRET_NAME=OPERATOR_KEY_SECRET_NAME_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"OPERATOR_KEY_SECRET_NAME=.+","required":false,"strategy":"re2"}#g' generated.rego
 base64 -w0 < ${INPUT_DIR}/generated.rego > ${INPUT_DIR}/generated.rego.base64
-python3 ${SCRIPT_DIR}/generate.py ${INPUT_DIR}/generated.rego > ${MANIFEST_DIR}/${POLICY_DIGEST_FILE}
+python3 ${SCRIPT_DIR}/../azure-cc/generate.py ${INPUT_DIR}/generated.rego > ${MANIFEST_DIR}/${POLICY_DIGEST_FILE}
 
 sed -i "s#CCE_POLICY_PLACEHOLDER#$(cat ${INPUT_DIR}/generated.rego.base64)#g" ${OUTPUT_DIR}/operator.yaml

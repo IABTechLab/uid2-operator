@@ -165,12 +165,7 @@ jobs:
   azureCc:
     name: Azure CC
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      security-events: write
-      packages: write
-      id-token: write
-      pull-requests: write
+    permissions: {}
     needs: buildImage
     steps:
       - name: Checkout
@@ -205,35 +200,6 @@ jobs:
           name: azure-cc-enclave-id-${{ needs.buildImage.outputs.jar_version }}
           path: ${{ env.MANIFEST_OUTPUT_DIR }}
           if-no-files-found: error
-
-      - name: Generate release archive
-        if: ${{ inputs.version_number_input == '' && needs.buildImage.outputs.is_release == 'true' }}
-        run: |
-          zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ needs.buildImage.outputs.docker_version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
-
-      - name: Build changelog
-        id: github_release
-        if: ${{ inputs.version_number_input == '' && needs.buildImage.outputs.is_release == 'true' }}
-        uses: mikepenz/release-changelog-builder-action@v4
-        with:
-          configurationJson: |
-            {
-              "template": "#{{CHANGELOG}}\n## Installation\n```\ndocker pull ${{ needs.buildImage.outputs.tags }}\n```\n\n## Image reference to deploy: \n```\n${{ needs.buildImage.outputs.image_tag }}\n```\n\n## Changelog\n#{{UNCATEGORIZED}}",
-              "pr_template": " - #{{TITLE}} - ( PR: ##{{NUMBER}} )"
-            }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create release
-        if: ${{ inputs.version_number_input == '' && needs.buildImage.outputs.is_release == 'true' }}
-        uses: softprops/action-gh-release@v2
-        with:
-          name: ${{ needs.buildImage.outputs.jar_version }}
-          body: ${{ steps.github_release.outputs.changelog }}
-          draft: true
-          files: |
-            ${{ env.ARTIFACTS_OUTPUT_DIR }}/uid2-operator-deployment-artifacts-${{ needs.buildImage.outputs.jar_version }}.zip
-            ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ needs.buildImage.outputs.jar_version }}.txt
 
   e2e:
     name: E2E

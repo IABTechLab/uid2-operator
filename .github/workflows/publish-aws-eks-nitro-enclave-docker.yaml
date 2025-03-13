@@ -36,9 +36,12 @@ jobs:
       security-events: write
       packages: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build Docker Image for EKS Pod
         id: build_docker_image_uid
-        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@main
+        uses: ./.github/actions/build_eks_docker_image
         with:
           identity_scope: uid2
           artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
@@ -61,9 +64,12 @@ jobs:
       security-events: write
       packages: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build Docker Image for EKS Pod
         id: build_docker_image_euid
-        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@main
+        uses: ./.github/actions/build_eks_docker_image
         with:
           identity_scope: euid
           artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid

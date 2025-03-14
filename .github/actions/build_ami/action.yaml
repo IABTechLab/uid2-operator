@@ -124,6 +124,9 @@ runs:
     - name: Create AMI
       shell: bash
       working-directory: ./scripts/aws/uid2-operator-ami
+      env:
+        PACKER_LOG: 1
+        PACKER_LOG_PATH: /tmp/packer.log
       run: |
         ls -al
         TIMESTAMP=$(date +%s)
@@ -134,6 +137,12 @@ runs:
           -var "timestamp=$TIMESTAMP" \
           -var-file="${{ inputs.identity_scope }}.pkrvars.hcl" \
           .
+
+    - name: Upload Packer logs
+      uses: actions/upload-artifact@v4
+      with:
+        name: packer.log
+        path: /tmp/packer.log
 
     - name: Extract AMI ID
       id: extractAmiIdAndEnclaveId

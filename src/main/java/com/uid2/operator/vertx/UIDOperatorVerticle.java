@@ -88,7 +88,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
-    private final IConfigService configService;
+    private final JsonObject config;
     private final boolean clientSideTokenGenerate;
     private final AuthMiddleware auth;
     private final ISiteStore siteProvider;
@@ -98,8 +98,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IOptOutStore optOutStore;
     private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
-    private final boolean allowLegacyAPI;
-    private final boolean identityV3Enabled;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
@@ -122,7 +120,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
     private final Handler<Boolean> saltRetrievalResponseHandler;
+    private final int maxBidstreamLifetimeSeconds;
     private final int allowClockSkewSeconds;
+    protected int maxSharingLifetimeSeconds;
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
     protected boolean keySharingEndpointProvideAppNames;
     protected Instant lastInvalidOriginProcessTime = Instant.now();
@@ -137,11 +137,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final String ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_MISSING = "Required Parameter Missing: exactly one of email or email_hash must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
-    private static final String RC_CONFIG_KEY = "remote-config";
     public final static String ORIGIN_HEADER = "Origin";
 
-    public UIDOperatorVerticle(IConfigService configService,
-                               JsonObject config,
+    public UIDOperatorVerticle(JsonObject config,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
@@ -160,7 +158,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             throw new RuntimeException(e);
         }
-        this.configService = configService;
+        this.config = config;
         this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -179,25 +177,30 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
         this.clientSideTokenGenerateLogInvalidHttpOrigin = config.getBoolean("client_side_token_generate_log_invalid_http_origins", false);
+        final Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
+        this.maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
+        if (this.maxBidstreamLifetimeSeconds < identityTokenExpiresAfterSeconds) {
+            LOGGER.error("Max bidstream lifetime seconds ({} seconds) is less than identity token lifetime ({} seconds)", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds);
+            throw new RuntimeException("Max bidstream lifetime seconds is less than identity token lifetime seconds");
+        }
         this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
+        this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
-        this.allowLegacyAPI = config.getBoolean(Const.Config.AllowLegacyAPIProp, true);
-        this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
     }
 
     @Override
     public void start(Promise<Void> startPromise) throws Exception {
         this.healthComponent.setHealthStatus(false, "still starting");
         this.idService = new UIDOperatorService(
+                this.config,
                 this.optOutStore,
                 this.saltProvider,
                 this.encoder,
                 this.clock,
                 this.identityScope,
-                this.saltRetrievalResponseHandler,
-                this.identityV3Enabled
+                this.saltRetrievalResponseHandler
         );
 
         final Router router = createRoutesSetup();
@@ -237,11 +240,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .allowedHeader("Content-Type"));
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
         router.route("/static/*").handler(StaticHandler.create("static"));
-        router.route().handler(ctx -> {
-            JsonObject curConfig = configService.getConfig();
-            ctx.put(RC_CONFIG_KEY, curConfig);
-            ctx.next();
-        });
         router.route().failureHandler(new GenericFailureHandler());
 
         final BodyHandler bodyHandler = BodyHandler.create().setHandleFileUploads(false).setBodyLimit(MAX_REQUEST_BODY_SIZE);
@@ -252,7 +250,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // Temporary Old SDK logging
         router.get(OLD_SDK_LOG.toString()).handler(this::handleOldSDKVersionLogging);
 
-        if (this.allowLegacyAPI) {
+        if (this.config.getBoolean(Const.Config.AllowLegacyAPIProp, true)) {
             // V1 APIs
             router.get(V1_TOKEN_GENERATE.toString()).handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
             router.get(V1_TOKEN_VALIDATE.toString()).handler(this::handleTokenValidateV1);
@@ -321,10 +319,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private JsonObject getConfigFromRc(RoutingContext rc) {
-        return rc.get(RC_CONFIG_KEY);
-    }
-
     private Set<String> getDomainNameListForClientSideTokenGenerate(ClientSideKeypair keypair) {
         Site s = siteProvider.getSite(keypair.getSiteId());
         if (s == null) {
@@ -344,12 +338,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body;
-
-        JsonObject config = this.getConfigFromRc(rc);
-
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
 
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
         try {
@@ -488,10 +476,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     new IdentityRequest(
                             new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                             input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
-                            OptoutCheckPolicy.RespectOptOut),
-                    refreshIdentityAfter,
-                    refreshExpiresAfter,
-                    identityExpiresAfter);
+                            OptoutCheckPolicy.RespectOptOut));
         } catch (KeyManager.NoActiveKeyException e){
             SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, e, platformType);
             return;
@@ -625,10 +610,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private String getSharingTokenExpirySeconds() {
+        return config.getString(Const.Config.SharingTokenExpiryProp);
+    }
+
     public void handleKeysSharing(RoutingContext rc) {
-        JsonObject config = this.getConfigFromRc(rc);
-        int sharingTokenExpirySeconds = config.getInteger(Const.Config.SharingTokenExpiryProp);
-        int maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, sharingTokenExpirySeconds);
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
 
@@ -637,7 +623,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
 
             final JsonObject resp = new JsonObject();
-            addSharingHeaderFields(resp, keyManagerSnapshot, clientKey, maxSharingLifetimeSeconds, sharingTokenExpirySeconds);
+            addSharingHeaderFields(resp, keyManagerSnapshot, clientKey);
 
             final List<KeysetKey> accessibleKeys = getAccessibleKeys(keysetKeyStore, keyManagerSnapshot, clientKey);
 
@@ -682,20 +668,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .collect(Collectors.toList());
 
         final JsonObject resp = new JsonObject();
+        addBidstreamHeaderFields(resp);
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-        int maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
-
-
-        addBidstreamHeaderFields(resp, maxBidstreamLifetimeSeconds);
         resp.put("keys", keysJson);
         addSites(resp, accessibleKeys, keysetMap);
 
         ResponseUtil.SuccessV2(rc, resp);
     }
 
-    private void addBidstreamHeaderFields(JsonObject resp, int maxBidstreamLifetimeSeconds) {
+    private void addBidstreamHeaderFields(JsonObject resp) {
         resp.put("max_bidstream_lifetime_seconds", maxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
         addIdentityScopeField(resp);
         addAllowClockSkewSecondsField(resp);
@@ -733,7 +714,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void addSharingHeaderFields(JsonObject resp, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey, int maxSharingLifetimeSeconds, int sharingTokenExpirySeconds) {
+    private void addSharingHeaderFields(JsonObject resp, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey) {
         resp.put("caller_site_id", clientKey.getSiteId());
         resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
 
@@ -748,7 +729,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // this is written out as a String, i.e. in the JSON response of key/sharing endpoint, it would show:
         // "token_expiry_seconds" : "2592000"
         // it should be an integer instead, but we can't change it until we confirm that the oldest version of each of our SDKs support this
-        resp.put("token_expiry_seconds", String.valueOf(sharingTokenExpirySeconds));
+        resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
 
         if (clientKey.hasRole(Role.SHARER)) {
             resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
@@ -863,10 +844,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         }
 
-        JsonObject config = this.getConfigFromRc(rc);
-
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
-
         try {
             final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
             siteId = rc.get(Const.RoutingContextData.SiteId);
@@ -886,7 +863,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
             } else {
                 ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
             }
 
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, r, platformType);
@@ -909,8 +886,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         Integer siteId = null;
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         try {
             platformType = getPlatformType(rc);
             String tokenStr = (String) rc.data().get("request");
@@ -934,7 +909,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 }
             } else {
                 ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, r, platformType);
         } catch (Exception e) {
@@ -1006,11 +981,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final int siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
-
         try {
             final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
             platformType = getPlatformType(rc);
@@ -1019,10 +989,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                OptoutCheckPolicy.defaultPolicy()),
-                        refreshIdentityAfter,
-                        refreshExpiresAfter,
-                        identityExpiresAfter);
+                                OptoutCheckPolicy.defaultPolicy()));
 
                 ResponseUtil.Success(rc, toJsonV1(t));
                 recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
@@ -1035,11 +1002,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenGenerateV2(RoutingContext rc) {
         final Integer siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
-
-        JsonObject config = this.getConfigFromRc(rc);
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
 
         try {
             JsonObject req = (JsonObject) rc.data().get("request");
@@ -1081,10 +1043,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                OptoutCheckPolicy.respectOptOut()),
-                        refreshIdentityAfter,
-                        refreshExpiresAfter,
-                        identityExpiresAfter);
+                                OptoutCheckPolicy.respectOptOut()));
 
                 if (t.isEmptyToken()) {
                     if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
@@ -1100,10 +1059,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                 new IdentityRequest(
                                         new PublisherIdentity(siteId, 0, 0),
                                         optOutTokenInput.toUserIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
-                                        OptoutCheckPolicy.DoNotRespect),
-                                refreshIdentityAfter,
-                                refreshExpiresAfter,
-                                identityExpiresAfter);
+                                        OptoutCheckPolicy.DoNotRespect));
 
                         ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, optOutTokens.getAdvertisingTokenVersion(), platformType);
@@ -1129,11 +1085,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = this.getTokenInput(rc);
         Integer siteId = null;
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
-
 
         if (input == null) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, ERROR_INVALID_INPUT_EMAIL_MISSING, siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
@@ -1150,10 +1101,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     new IdentityRequest(
                             new PublisherIdentity(siteId, 0, 0),
                             input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                            OptoutCheckPolicy.defaultPolicy()),
-                    refreshIdentityAfter,
-                    refreshExpiresAfter,
-                    identityExpiresAfter);
+                            OptoutCheckPolicy.defaultPolicy()));
 
             recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), TokenResponseStatsCollector.PlatformType.Other);
             sendJsonResponse(rc, toJson(t));
@@ -1171,10 +1119,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        JsonObject config = this.getConfigFromRc(rc);
-
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
-
         try {
             final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
 
@@ -1183,7 +1127,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             siteId = rc.get(Const.RoutingContextData.SiteId);
             recordOperatorServedSdkUsage(siteId, rc, rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (r.isRefreshed()) {
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, r, TokenResponseStatsCollector.PlatformType.Other);
         } catch (Exception e) {
@@ -1890,12 +1834,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         recordRefreshTokenVersionCount(String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)), this.getRefreshTokenVersion(tokenStr));
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
-
-        return this.idService.refreshIdentity(refreshToken, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
+        return this.idService.refreshIdentity(refreshToken);
     }
 
     public static String getSiteName(ISiteStore siteStore, Integer siteId) {
@@ -1921,7 +1860,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return origin != null ? TokenResponseStatsCollector.PlatformType.HasOriginHeader : TokenResponseStatsCollector.PlatformType.Other;
     }
 
-    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader, Duration identityExpiresAfter) {
+    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader) {
         DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(new Tuple.Tuple2<>(apiContact, hasOriginHeader), k ->
                 DistributionSummary
                         .builder("uid2.token_refresh_duration_seconds")
@@ -1934,7 +1873,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         );
         ds.record(durationSinceLastRefresh.getSeconds());
 
-        boolean isExpired = durationSinceLastRefresh.compareTo(identityExpiresAfter) > 0;
+        boolean isExpired = durationSinceLastRefresh.compareTo(this.idService.getIdentityExpiryDuration()) > 0;
         Counter c = _advertisingTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), hasOriginHeader, isExpired), k ->
                 Counter
                         .builder("uid2.advertising_token_expired_on_refresh")

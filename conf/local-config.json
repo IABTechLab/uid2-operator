@@ -38,6 +38,7 @@
   "client_side_token_generate_log_invalid_http_origins": true,
   "salts_expired_shutdown_hours": 12,
   "operator_type": "public",
+  "encrpyted_files": true,
   "runtime_config_store": {
     "type": "file",
     "config" : {

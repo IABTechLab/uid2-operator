@@ -535,7 +535,8 @@ public class Main {
 
     private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
         AttestationResponseHandler attestationResponseHandler = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
-        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
+        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy,
+                attestationResponseHandler, this.config.getBoolean(Const.Config.EncrpytedFiles, false));
         UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }

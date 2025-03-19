@@ -32,12 +32,5 @@
   "optout_api_uri": "http://optout:8081/optout/replicate",
   "optout_delta_rotate_interval": 60,
   "cloud_refresh_interval": 30,
-  "operator_type": "public",
-  "runtime_config_store": {
-    "type": "http",
-    "config" : {
-      "url": "http://core:8088/operator/config"
-    },
-    "config_scan_period_ms": 300000
-  }
+  "operator_type": "public"
 }

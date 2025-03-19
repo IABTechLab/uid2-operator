@@ -43,10 +43,6 @@ import java.util.Random;
 
 public class BenchmarkCommon {
 
-    final static int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
-    final static int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
-    final static int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
-
     static IUIDOperatorService createUidOperatorService() throws Exception {
         RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
                 new EmbeddedResourceStorage(Main.class),
@@ -63,6 +59,15 @@ public class BenchmarkCommon {
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
 
+        final int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
+        final int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
+        final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
+
+        final JsonObject config = new JsonObject();
+        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
+        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
+        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
+
         final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
         final List<String> optOutPartitionFiles = new ArrayList<>();
         final ICloudStorage optOutLocalStorage = make1mOptOutEntryStorage(
@@ -71,13 +76,13 @@ public class BenchmarkCommon {
         final IOptOutStore optOutStore = new StaticOptOutStore(optOutLocalStorage, make1mOptOutEntryConfig(), optOutPartitionFiles);
 
         return new UIDOperatorService(
+                config,
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
                 Clock.systemUTC(),
                 IdentityScope.UID2,
-                null,
-                false
+                null
         );
     }
 

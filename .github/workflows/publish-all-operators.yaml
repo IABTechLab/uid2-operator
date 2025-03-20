@@ -4,8 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       release_type:
-        type: choice
         description: The type of release
+        required: true
+        type: choice
         options:
         - Patch
         - Minor
@@ -13,11 +14,17 @@ on:
         - Snapshot
       vulnerability_severity:
         description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised.
+        required: true
         type: choice
         options:
         - CRITICAL,HIGH
         - CRITICAL,HIGH,MEDIUM
         - CRITICAL (DO NOT use if JIRA ticket not raised)
+      dry_run:
+        description: Executes a dry run - E2E tests against mock environment without publishing any artifacts
+        required: true
+        type: boolean
+        default: true
   schedule:
     - cron: "0 0 * * *"
 
@@ -149,7 +156,7 @@ jobs:
   createRelease:
     name: Create Release
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
     needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
     steps:
       - name: Checkout repo

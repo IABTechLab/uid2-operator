@@ -254,8 +254,8 @@ class UID2 {
             return arrayBuffer;
         }
 
-        const refreshToken = (identity) => {
-            const baseUrl = getOptionOrDefault(_opts.baseUrl, "https://prod.uidapi.com");
+        this.refreshToken = (identity) => {
+            const baseUrl = "http://localhost:8080"
             const url = baseUrl + "/v2/token/refresh";
             const req = new XMLHttpRequest();
             _refreshReq = req;

@@ -40,12 +40,29 @@ public class ConfigServiceManagerTest {
     }
 
     @Test
-    void testRemoteFeatureFlag(VertxTestContext testContext) {
+    void testRemoteFeatureFlagEnabled(VertxTestContext testContext) {
         IConfigService delegatingConfigService = configServiceManager.getDelegatingConfigService();
 
         configServiceManager.updateConfigService(true)
                 .compose(updateToDynamic -> {
                     testContext.verify(() -> assertEquals(bootstrapConfig, delegatingConfigService.getConfig()));
+
+                    return configServiceManager.updateConfigService(false);
+                })
+                .onSuccess(updateToStatic -> testContext.verify(() -> {
+                    assertEquals(staticConfig, delegatingConfigService.getConfig());
+                    testContext.completeNow();
+                }))
+                .onFailure(testContext::failNow);
+    }
+
+    @Test
+    void testRemoteFeatureFlagDisabled(VertxTestContext testContext) {
+        IConfigService delegatingConfigService = configServiceManager.getDelegatingConfigService();
+
+        configServiceManager.updateConfigService(false)
+                .compose(updateToDynamic -> {
+                    testContext.verify(() -> assertEquals(staticConfig, delegatingConfigService.getConfig()));
 
                     return configServiceManager.updateConfigService(false);
                 })

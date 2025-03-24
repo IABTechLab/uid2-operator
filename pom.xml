@@ -6,7 +6,7 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.49.20-alpha-171-SNAPSHOT</version>
+    <version>5.49.61</version>
   
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -20,7 +20,7 @@
         <micrometer.version>1.12.2</micrometer.version>
         <enclave-api.version>2.1.6</enclave-api.version>
         <enclave-aws.version>2.1.0</enclave-aws.version>
-        <enclave-azure.version>2.1.0</enclave-azure.version>
+        <enclave-azure.version>2.1.13</enclave-azure.version>
         <enclave-gcp.version>2.1.0</enclave-gcp.version>
         <uid2-shared.version>8.1.39-alpha-208-SNAPSHOT</uid2-shared.version>
         <image.version>${project.version}</image.version>

@@ -1,10 +1,10 @@
 name: Run Operator E2E Tests
-run-name: ${{ format('Run Operator E2E Tests - {0} {1}', inputs.operator_type, inputs.identity_scope) }} by @${{ github.actor }}
+run-name: ${{ format('Run Operator E2E Tests - {0} {1} {2}', inputs.operator_type, inputs.identity_scope, inputs.target_environment) }} by @${{ github.actor }}
 on:
   workflow_dispatch:
     inputs:
       operator_type:
-        description: The operator type [public, gcp, azure, aws, eks]
+        description: The operator type [public, gcp, azure, aws, aks]
         required: true
         type: choice
         options:
@@ -12,7 +12,7 @@ on:
           - gcp
           - azure
           - aws
-          - eks
+          - aks
       identity_scope:
         description: The identity scope [UID2, EUID]
         required: true
@@ -20,6 +20,19 @@ on:
         options:
           - UID2
           - EUID
+      target_environment:
+        description: PRIVATE OPERATORS ONLY - The target environment [mock, integ, prod]
+        required: true
+        type: choice
+        options:
+          - mock
+          - integ
+          - prod
+      operator_shutdown:
+        description: PRIVATE OPERATORS ONLY - If true, will automatically shut down operators after E2E tests. If false, remember to manually clean up the operator.
+        required: true
+        type: boolean
+        default: true
       operator_image_version:
         description: 'Image: Operator image version (for gcp/azure, set appropriate image)'
         type: string
@@ -51,22 +64,25 @@ on:
           "region": "us-east-1",
           "ami": "ami-xxxxx",
           "pcr0": "xxxxx" }'
-      eks:
-        description: The arguments for EKS operator
-        type: string
-        default: '{
-          "pcr0": "xxxxx" }'
 
   workflow_call:
     inputs:
       operator_type:
-        description: The operator type [public, gcp, azure, aws, eks]
+        description: The operator type [public, gcp, azure, aws, aks]
         type: string
         default: public
       identity_scope:
         description: The identity scope [UID2, EUID]
         type: string
         default: UID2
+      target_environment:
+        description: PRIVATE OPERATORS ONLY - The target environment [mock, integ, prod]
+        type: string
+        default: mock
+      operator_shutdown:
+        description: PRIVATE OPERATORS ONLY - If true, will automatically shut down operators after E2E tests. If false, remember to manually clean up the operator.
+        type: boolean
+        default: true
       operator_image_version:
         description: 'Image: Operator image version (for gcp/azure, set appropriate image)'
         type: string
@@ -96,11 +112,6 @@ on:
         default: '{
           "region": "us-east-1",
           "ami": "ami-xxxxx",
-          "pcr0": "xxxxx" }'
-      eks:
-        description: The arguments for EKS operator
-        type: string
-        default: '{
           "pcr0": "xxxxx" }'
 
 jobs:
@@ -109,22 +120,21 @@ jobs:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v3
     with:
       operator_type: ${{ inputs.operator_type }}
+      identity_scope: ${{ inputs.identity_scope }}
+      target_environment: ${{ inputs.target_environment }}
+      operator_shutdown: ${{ inputs.operator_shutdown }}
       operator_image_version: ${{ inputs.operator_image_version }}
       core_image_version: ${{ inputs.core_image_version }}
       optout_image_version: ${{ inputs.optout_image_version }}
       e2e_image_version: ${{ inputs.e2e_image_version }}
       operator_branch: ${{ github.ref }}
-      branch_core: ${{ fromJson(inputs.branch).core }}
-      branch_optout: ${{ fromJson(inputs.branch).optout }}
-      branch_admin: ${{ fromJson(inputs.branch).admin }}
-      uid2_e2e_identity_scope: ${{ inputs.identity_scope }}
+      core_branch: ${{ fromJson(inputs.branch).core }}
+      optout_branch: ${{ fromJson(inputs.branch).optout }}
+      admin_branch: ${{ fromJson(inputs.branch).admin }}
       gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
       gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       gcp_project: ${{ vars.GCP_PROJECT }}
       aws_region: ${{ fromJson(inputs.aws).region }}
       aws_ami: ${{ fromJson(inputs.aws).ami }}
       aws_pcr0: ${{ fromJson(inputs.aws).pcr0 }}
-      eks_pcr0: ${{ fromJson(inputs.eks).pcr0 }}
-      eks_test_cluster: ${{ vars.EKS_TEST_CLUSTER }}
-      eks_test_cluster_region: ${{ vars.EKS_TEST_CLUSTER_REGION }}
     secrets: inherit

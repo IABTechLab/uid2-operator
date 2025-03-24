@@ -46,7 +46,7 @@ jobs:
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.token }}
-          approvers: thomasm-ttd,atarassov-ttd,cody-constine-ttd
+          approvers: atarassov-ttd,vishalegbert-ttd,sunnywu,cody-constine-ttd
           minimum-approvals: 1
           issue-title: Creating Major version of UID2-Operator
 
@@ -169,11 +169,17 @@ jobs:
           pattern: gcp-oidc-enclave-ids-*
           path: ./manifests/gcp_oidc_operator
 
-      - name: Download Azure manifest
+      - name: Download Azure CC manifest
         uses: actions/download-artifact@v4
         with:
           pattern: azure-cc-enclave-id-*
           path: ./manifests/azure_cc_operator
+
+      - name: Download Azure AKS manifest
+        uses: actions/download-artifact@v4
+        with:
+          pattern: azure-aks-enclave-id-*
+          path: ./manifests/azure_aks_operator
 
       - name: Download EIF manifest
         uses: actions/download-artifact@v4
@@ -217,6 +223,7 @@ jobs:
           (cd ./deployment/aws-euid-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd ./deployment/aws-uid2-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd ./deployment/azure-cc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
+          (cd ./deployment/azure-aks-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
@@ -230,6 +237,7 @@ jobs:
               ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip
+              ./azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip
   notifyFailure:

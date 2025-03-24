@@ -14,20 +14,20 @@ public class ConfigServiceManager {
     private final IConfigService staticConfigService;
     private static final Logger logger = LoggerFactory.getLogger(ConfigServiceManager.class);
 
-    public ConfigServiceManager(Vertx vertx, IConfigService dynamicConfigService, IConfigService staticConfigService, boolean useDynamicConfig) {
+    public ConfigServiceManager(Vertx vertx, IConfigService dynamicConfigService, IConfigService staticConfigService, boolean remoteConfigEnabled) {
         this.vertx = vertx;
         this.dynamicConfigService = dynamicConfigService;
         this.staticConfigService = staticConfigService;
-        this.delegatingConfigService = new DelegatingConfigService(useDynamicConfig ? dynamicConfigService : staticConfigService);
+        this.delegatingConfigService = new DelegatingConfigService(remoteConfigEnabled ? dynamicConfigService : staticConfigService);
     }
 
-    public Future<Void> updateConfigService(boolean useDynamicConfig) {
+    public Future<Void> updateConfigService(boolean remoteConfigEnabled) {
         Promise<Void> promise = Promise.promise();
         vertx.sharedData().getLocalLock("updateConfigServiceLock", lockAsyncResult -> {
             if (lockAsyncResult.succeeded()) {
                 Lock lock = lockAsyncResult.result();
                 try {
-                    if (useDynamicConfig) {
+                    if (remoteConfigEnabled) {
                         logger.info("Switching to DynamicConfigService");
                         delegatingConfigService.updateConfigService(dynamicConfigService);
                     } else {

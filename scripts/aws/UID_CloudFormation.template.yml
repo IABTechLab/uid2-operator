@@ -190,9 +190,9 @@ Resources:
         - ''
         - - '{'
           - '"core_base_url": "'
-          - !If [IsIntegEnvironment, 'https://core-integ.uidapi.com', 'https://core.uidapi.com']
+          - !If [IsIntegEnvironment, 'https://core-integ.uidapi.com', 'https://core-prod.uidapi.com']
           - '", "optout_base_url": "'
-          - !If [IsIntegEnvironment, 'https://optout-integ.uidapi.com', 'https://optout.uidapi.com']
+          - !If [IsIntegEnvironment, 'https://optout-integ.uidapi.com', 'https://optout-prod.uidapi.com']
           - '", "operator_key": "'
           - Ref: APIToken
           - '"'

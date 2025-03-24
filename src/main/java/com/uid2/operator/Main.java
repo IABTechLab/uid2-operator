@@ -10,6 +10,7 @@ import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.reader.RotatingCloudEncryptionKeyApiProvider;
 import com.uid2.operator.service.*;
+import com.uid2.operator.store.ConfigStore;
 import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.store.CloudSyncOptOutStore;
@@ -71,6 +72,7 @@ public class Main {
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
+    private final ConfigStore configStore;
     private final RotatingSiteStore siteProvider;
     private final RotatingClientKeyProvider clientKeyProvider;
     private final RotatingKeysetKeyStore keysetKeyStore;
@@ -180,6 +182,7 @@ public class Main {
         }
 
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
+        this.configStore = new ConfigStore();
 
         if (this.validateServiceLinks) {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
@@ -383,6 +386,11 @@ public class Main {
             siteProvider.getMetadata();
             clientSideKeypairProvider.getMetadata();
         }
+        clientKeyProvider.getMetadata();
+        keysetKeyStore.getMetadata();
+        keysetProvider.getMetadata();
+        saltProvider.getMetadata();
+        configStore.getMetadata();
 
         if (validateServiceLinks) {
             serviceProvider.getMetadata();
@@ -425,6 +433,7 @@ public class Main {
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
+        fs.add(createAndDeployRotatingStoreVerticle("config", null, "config_refresh_ms"));
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));
             else promise.complete();

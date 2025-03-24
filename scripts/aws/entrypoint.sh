@@ -21,8 +21,6 @@ ifconfig lo 127.0.0.1
 echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
-/usr/sbin/syslog-ng --verbose
-
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
   REQUIRED_KEYS=("optout_base_url" "core_base_url" "core_api_token" "optout_api_token" "environment")
@@ -85,6 +83,7 @@ LOGBACK_CONF="./conf/logback.xml"
 
 if [[ "$DEBUG_MODE" == "true" ]]; then
   LOGBACK_CONF="./conf/logback-debug.xml"
+  /usr/sbin/syslog-ng --verbose
 fi
 
 # -- set pwd to /app so we can find default configs

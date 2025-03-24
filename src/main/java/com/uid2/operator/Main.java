@@ -330,9 +330,7 @@ public class Main {
                             .compose(v -> {
                                 metrics.setup();
                                 vertx.setPeriodic(60000, id -> metrics.update());
-                                Promise<String> promise = Promise.promise();
-                                vertx.deployVerticle(operatorVerticleSupplier, options, promise);
-                                return promise.future();
+                                return vertx.deployVerticle(operatorVerticleSupplier, options);
                             });
                 })
                 .onFailure(t -> {
@@ -391,26 +389,21 @@ public class Main {
         final int intervalMs = config.getInteger(storeRefreshConfigMs, 10000);
 
         RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
-        Promise<String> promise = Promise.promise();
-        vertx.deployVerticle(rotatingStoreVerticle, promise);
-        return promise.future();
+        return vertx.deployVerticle(rotatingStoreVerticle);
     }
 
     private Future<String> createAndDeployCloudSyncStoreVerticle(String name, ICloudStorage fsCloud,
                                                                  ICloudSync cloudSync) {
-        Promise<String> promise = Promise.promise();
         CloudSyncVerticle cloudSyncVerticle = new CloudSyncVerticle(name, fsCloud, fsLocal, cloudSync, config);
-        vertx.deployVerticle(cloudSyncVerticle, promise);
-        return promise.future()
+        return vertx.deployVerticle(cloudSyncVerticle)
             .onComplete(v -> setupTimerEvent(cloudSyncVerticle.eventRefresh()));
     }
 
     private Future<String> createAndDeployStatsCollector() {
-        Promise<String> promise = Promise.promise();
         StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50), config.getInteger(Const.Config.MaxVersionBucketsPerSite, 50));
-        vertx.deployVerticle(statsCollectorVerticle, promise);
+        Future<String> result = vertx.deployVerticle(statsCollectorVerticle);
         _statsCollectorQueue = statsCollectorVerticle;
-        return promise.future();
+        return result;
     }
 
     private void setupTimerEvent(String eventCloudRefresh) {

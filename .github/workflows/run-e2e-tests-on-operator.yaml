@@ -28,7 +28,7 @@ on:
           - mock
           - integ
           - prod
-      operator_shutdown:
+      delay_operator_shutdown:
         description: PRIVATE OPERATORS ONLY - If true, will delay operator shutdown by 24 hours.
         required: true
         type: boolean

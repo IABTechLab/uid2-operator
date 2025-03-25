@@ -16,6 +16,7 @@ ulimit -n 65536
 # -- setup loopback device
 echo "Setting up loopback device..."
 ifconfig lo 127.0.0.1
+/usr/sbin/syslog-ng --verbose
 
 # -- start vsock proxy
 echo "Starting vsock proxy..."
@@ -83,7 +84,6 @@ LOGBACK_CONF="./conf/logback.xml"
 
 if [[ "$DEBUG_MODE" == "true" ]]; then
   LOGBACK_CONF="./conf/logback-debug.xml"
-  /usr/sbin/syslog-ng --verbose
 fi
 
 # -- set pwd to /app so we can find default configs

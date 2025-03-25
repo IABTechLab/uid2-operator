@@ -129,6 +129,7 @@ public class UIDOperatorVerticleTest {
         when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class), any(Role.class))).thenReturn(true);
 
         setupConfig(config);
+        // TODO: Remove this when we remove tokenGenerateOptOutTokenWithDisableOptoutTokenFF test
         if(testInfo.getTestMethod().isPresent() &&
                 testInfo.getTestMethod().get().getName().equals("tokenGenerateOptOutTokenWithDisableOptoutTokenFF")) {
             config.put(Const.Config.DisableOptoutTokenProp, true);

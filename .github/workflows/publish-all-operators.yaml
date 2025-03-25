@@ -76,7 +76,7 @@ jobs:
 
       - name: Set version number
         id: version
-        uses: IABTechLab/uid2-shared-actions/actions/version_number@v2
+        uses: IABTechLab/uid2-shared-actions/actions/version_number@xuy-UID2-5055-release-operator-from-releas-branch
         with:
           type: ${{ env.RELEASE_TYPE }}
           branch_name: ${{ github.ref }}

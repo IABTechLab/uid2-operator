@@ -300,11 +300,11 @@ public class Main {
                         IConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
 
                         boolean remoteConfigFeatureFlag = config.getBoolean(RemoteConfigProp, false);
-                        ConfigServiceManager configServiceManager = new ConfigServiceManager(
-                                vertx, dynamicConfigService, staticConfigService, remoteConfigFeatureFlag);
-
-                        IConfigService configService = configServiceManager.getDelegatingConfigService();
-                        promise.complete(configService);
+                        if (remoteConfigFeatureFlag) {
+                            promise.complete(dynamicConfigService);
+                        } else {
+                            promise.complete(staticConfigService);
+                        }
                     } else {
                         LOGGER.error("Failed to initialise ConfigService: ", ar.cause());
                         promise.fail(ar.cause());

@@ -270,38 +270,33 @@ public class Main {
 
     private Future<IConfigService> initialiseConfigService() throws Exception {
         Promise<IConfigService> promise = Promise.promise();
+        boolean enableRemoteConfigFeatureFlag = config.getBoolean(EnableRemoteConfigProp, false);
+        Future<ConfigService> configFuture;
+        ConfigRetriever configRetriever;
 
-        ConfigRetriever dynamicConfigRetriever = ConfigRetrieverFactory.create(
-                vertx,
-                config.getJsonObject("runtime_config_store"),
-                this.createOperatorKeyRetriever().retrieve()
-        );
-        Future<ConfigService> dynamicConfigFuture = ConfigService.create(dynamicConfigRetriever);
+        if (enableRemoteConfigFeatureFlag) {
+            configRetriever = ConfigRetrieverFactory.create(
+                    vertx,
+                    config.getJsonObject("runtime_config_store"),
+                    this.createOperatorKeyRetriever().retrieve()
+            );
+        } else {
+            configRetriever = ConfigRetrieverFactory.create(
+                    vertx,
+                    new JsonObject()
+                            .put("type", "json")
+                            .put("config", config)
+                            .put(ConfigScanPeriodMsProp, -1),
+                    ""
+            );
+        }
+        configFuture = ConfigService.create(configRetriever);
 
-        ConfigRetriever staticConfigRetriever = ConfigRetrieverFactory.create(
-                vertx,
-                new JsonObject()
-                        .put("type", "json")
-                        .put("config", config)
-                        .put(ConfigScanPeriodMsProp, -1),
-                ""
-        );
-
-        Future<ConfigService> staticConfigFuture = ConfigService.create(staticConfigRetriever);
-
-        Future.all(dynamicConfigFuture, staticConfigFuture)
-                .onComplete(ar -> {
+        configFuture.onComplete(ar -> {
                     if (ar.succeeded()) {
-                        CompositeFuture configServiceManagerCompositeFuture = ar.result();
-                        IConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
-                        IConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
+                        IConfigService configService = ar.result();
 
-                        boolean enableRemoteConfigFeatureFlag = config.getBoolean(EnableRemoteConfigProp, false);
-                        if (enableRemoteConfigFeatureFlag) {
-                            promise.complete(dynamicConfigService);
-                        } else {
-                            promise.complete(staticConfigService);
-                        }
+                        promise.complete(configService);
                     } else {
                         LOGGER.error("Failed to initialise ConfigService: ", ar.cause());
                         promise.fail(ar.cause());

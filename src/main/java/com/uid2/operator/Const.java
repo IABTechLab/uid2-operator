@@ -32,5 +32,6 @@ public class Const extends com.uid2.shared.Const {
 
         public static final String ConfigScanPeriodMsProp = "config_scan_period_ms";
         public static final String IdentityV3Prop = "identity_v3";
+        public static final String DisableOptoutTokenProp = "disable_optout_token";
     }
 }

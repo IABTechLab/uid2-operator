@@ -100,6 +100,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Clock clock;
     private final boolean allowLegacyAPI;
     private final boolean identityV3Enabled;
+    private final boolean disableOptoutToken;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
@@ -185,6 +186,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
         this.allowLegacyAPI = config.getBoolean(Const.Config.AllowLegacyAPIProp, true);
         this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
+        this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
     }
 
     @Override
@@ -1087,7 +1089,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         identityExpiresAfter);
 
                 if (t.isEmptyToken()) {
-                    if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
+                    if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect && !this.disableOptoutToken) { // only legacy can use this policy
                         final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
                                 ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
                                 : InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone);

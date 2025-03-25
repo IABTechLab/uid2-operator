@@ -129,6 +129,11 @@ public class UIDOperatorVerticleTest {
         when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class), any(Role.class))).thenReturn(true);
 
         setupConfig(config);
+        // TODO: Remove this when we remove tokenGenerateOptOutTokenWithDisableOptoutTokenFF test
+        if(testInfo.getTestMethod().isPresent() &&
+                testInfo.getTestMethod().get().getName().equals("tokenGenerateOptOutTokenWithDisableOptoutTokenFF")) {
+            config.put(Const.Config.DisableOptoutTokenProp, true);
+        }
         if(testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
         }
@@ -165,6 +170,7 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.AllowClockSkewSecondsProp, 3600);
         config.put(Const.Config.OptOutStatusApiEnabled, true);
         config.put(Const.Config.OptOutStatusMaxRequestSize, optOutStatusMaxRequestSize);
+        config.put(Const.Config.DisableOptoutTokenProp, false);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -1204,6 +1210,51 @@ public class UIDOperatorVerticleTest {
                                 TokenResponseStatsCollector.PlatformType.InApp);
                         testContext.completeNow();
                     });
+                });
+    }
+
+    @ParameterizedTest // TODO: remove test after optout check phase 3
+    @CsvSource({"policy,someoptout@example.com,Email",
+            "policy,+01234567890,Phone",
+            "optout_check,someoptout@example.com,Email",
+            "optout_check,+01234567890,Phone"})
+    void tokenGenerateOptOutTokenWithDisableOptoutTokenFF(String policyParameterKey, String identity, IdentityType identityType,
+                                  Vertx vertx, VertxTestContext testContext) {
+        ClientKey oldClientKey = new ClientKey(
+                null,
+                null,
+                Utils.toBase64String(clientSecret),
+                "test-contact",
+                newClientCreationDateTime.minusSeconds(5),
+                Set.of(Role.GENERATOR),
+                201,
+                null
+        );
+        when(clientKeyProvider.get(any())).thenReturn(oldClientKey);
+        when(clientKeyProvider.getClientKey(any())).thenReturn(oldClientKey);
+        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
+        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
+        setupSalts();
+        setupKeys();
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put(identityType.name().toLowerCase(), identity);
+        v2Payload.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
+
+        sendTokenGenerate("v2", vertx,
+                "", v2Payload, 200,
+                json -> {
+                    assertEquals("optout", json.getString("status"));
+
+                    decodeV2RefreshToken(json);
+
+                    assertTokenStatusMetrics(
+                            201,
+                            TokenResponseStatsCollector.Endpoint.GenerateV2,
+                            TokenResponseStatsCollector.ResponseStatus.OptOut,
+                            TokenResponseStatsCollector.PlatformType.Other);
+
+                    testContext.completeNow();
                 });
     }
 

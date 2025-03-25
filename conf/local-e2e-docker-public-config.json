@@ -40,5 +40,6 @@
       "url": "http://core:8088/operator/config"
     },
     "config_scan_period_ms": 300000
-  }
+  },
+  "disable_optout_token": false
 }

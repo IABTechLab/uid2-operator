@@ -23,5 +23,5 @@
     "config_scan_period_ms": 300000
   },
   "disable_optout_token": false,
-  "remote_config": false
+  "enable_remote_config": false
 }

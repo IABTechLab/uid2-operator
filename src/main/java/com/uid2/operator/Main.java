@@ -38,11 +38,8 @@ import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.config.ConfigRetriever;
-import io.vertx.config.ConfigRetrieverOptions;
-import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.micrometer.*;
 import io.vertx.micrometer.backends.BackendRegistries;
@@ -61,7 +58,7 @@ import java.util.*;
 import java.util.function.Supplier;
 
 import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
-import static com.uid2.operator.Const.Config.RemoteConfigProp;
+import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {
@@ -299,8 +296,8 @@ public class Main {
                         IConfigService dynamicConfigService = configServiceManagerCompositeFuture.resultAt(0);
                         IConfigService staticConfigService = configServiceManagerCompositeFuture.resultAt(1);
 
-                        boolean remoteConfigFeatureFlag = config.getBoolean(RemoteConfigProp, false);
-                        if (remoteConfigFeatureFlag) {
+                        boolean enableRemoteConfigFeatureFlag = config.getBoolean(EnableRemoteConfigProp, false);
+                        if (enableRemoteConfigFeatureFlag) {
                             promise.complete(dynamicConfigService);
                         } else {
                             promise.complete(staticConfigService);

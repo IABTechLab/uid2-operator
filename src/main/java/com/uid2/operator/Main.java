@@ -290,19 +290,12 @@ public class Main {
                     ""
             );
         }
-        configFuture = ConfigService.create(configRetriever);
 
-        configFuture.onComplete(ar -> {
-                    if (ar.succeeded()) {
-                        IConfigService configService = ar.result();
-
-                        promise.complete(configService);
-                    } else {
-                        LOGGER.error("Failed to initialise ConfigService: ", ar.cause());
-                        promise.fail(ar.cause());
-                    }
+        return ConfigService.create(configRetriever)
+                .map(configService -> (IConfigService) configService)
+                .onFailure(e -> {
+                    LOGGER.error("Failed to initialise ConfigService", e);
                 });
-        return promise.future();
     }
 
     private void run() throws Exception {

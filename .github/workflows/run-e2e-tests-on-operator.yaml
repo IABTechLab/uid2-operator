@@ -21,7 +21,7 @@ on:
           - UID2
           - EUID
       target_environment:
-        description: PRIVATE OPERATORS ONLY - The target environment [mock, integ, prod]
+        description: For gcp, azure, aws (NOT public, aks) - The target environment [mock, integ, prod]
         required: true
         type: choice
         options:

@@ -269,9 +269,7 @@ public class Main {
     }
 
     private Future<IConfigService> initialiseConfigService() throws Exception {
-        Promise<IConfigService> promise = Promise.promise();
         boolean enableRemoteConfigFeatureFlag = config.getBoolean(EnableRemoteConfigProp, false);
-        Future<ConfigService> configFuture;
         ConfigRetriever configRetriever;
 
         if (enableRemoteConfigFeatureFlag) {

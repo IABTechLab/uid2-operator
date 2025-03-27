@@ -137,6 +137,8 @@ public class UIDOperatorVerticleTest {
         if(testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
         }
+        // TODO: Remove this when we remove allow_legacy_api FF
+        config.put("allow_legacy_api", true);
         when(configService.getConfig()).thenReturn(config);
 
         this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configService, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse);

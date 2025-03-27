@@ -46,5 +46,6 @@
     },
     "config_scan_period_ms": 5000
   },
-  "disable_optout_token": false
+  "disable_optout_token": false,
+  "enable_remote_config": false
 }

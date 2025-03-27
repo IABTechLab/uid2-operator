@@ -28,11 +28,11 @@ on:
           - mock
           - integ
           - prod
-      operator_shutdown:
-        description: PRIVATE OPERATORS ONLY - If true, will automatically shut down operators after E2E tests. If false, remember to manually clean up the operator.
+      delay_operator_shutdown:
+        description: PRIVATE OPERATORS ONLY - If true, will delay operator shutdown by 24 hours.
         required: true
         type: boolean
-        default: true
+        default: false
       operator_image_version:
         description: 'Image: Operator image version (for gcp/azure, set appropriate image)'
         type: string
@@ -79,10 +79,10 @@ on:
         description: PRIVATE OPERATORS ONLY - The target environment [mock, integ, prod]
         type: string
         default: mock
-      operator_shutdown:
-        description: PRIVATE OPERATORS ONLY - If true, will automatically shut down operators after E2E tests. If false, remember to manually clean up the operator.
+      delay_operator_shutdown:
+        description: PRIVATE OPERATORS ONLY - If true, will delay operator shutdown by 24 hours.
         type: boolean
-        default: true
+        default: false
       operator_image_version:
         description: 'Image: Operator image version (for gcp/azure, set appropriate image)'
         type: string
@@ -122,7 +122,7 @@ jobs:
       operator_type: ${{ inputs.operator_type }}
       identity_scope: ${{ inputs.identity_scope }}
       target_environment: ${{ inputs.target_environment }}
-      operator_shutdown: ${{ inputs.operator_shutdown }}
+      delay_operator_shutdown: ${{ inputs.delay_operator_shutdown }}
       operator_image_version: ${{ inputs.operator_image_version }}
       core_image_version: ${{ inputs.core_image_version }}
       optout_image_version: ${{ inputs.optout_image_version }}

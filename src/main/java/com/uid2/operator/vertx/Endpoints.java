@@ -6,7 +6,6 @@ import java.util.stream.Stream;
 
 public enum Endpoints {
     OPS_HEALTHCHECK("/ops/healthcheck"),
-    OLD_SDK_LOG("/ops/logSdk"),
     V0_KEY_LATEST("/key/latest"),
     V0_TOKEN_GENERATE("/token/generate"),
     V0_TOKEN_REFRESH("/token/refresh"),

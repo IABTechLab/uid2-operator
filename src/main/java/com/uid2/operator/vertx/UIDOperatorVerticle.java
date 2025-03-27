@@ -100,6 +100,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Clock clock;
     private final boolean allowLegacyAPI;
     private final boolean identityV3Enabled;
+    private final boolean disableOptoutToken;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
@@ -183,8 +184,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
-        this.allowLegacyAPI = config.getBoolean(Const.Config.AllowLegacyAPIProp, true);
+        this.allowLegacyAPI = config.getBoolean(Const.Config.AllowLegacyAPIProp, false);
         this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
+        this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
     }
 
     @Override
@@ -249,8 +251,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         // Static and health check
         router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
-        // Temporary Old SDK logging
-        router.get(OLD_SDK_LOG.toString()).handler(this::handleOldSDKVersionLogging);
 
         if (this.allowLegacyAPI) {
             // V1 APIs
@@ -817,31 +817,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    // remove in UID2-4990
-    private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersionCounters = new HashMap<>();
-    private void handleOldSDKVersionLogging(RoutingContext rc) {
-        String clientVersion = rc.request().headers().get(com.uid2.shared.Const.Http.ClientVersionHeader);
-        if (!clientVersion.equals("openid-sdk-1.0") && !clientVersion.equals("uid2-esp-0.0.1a")) {
-            clientVersion = null;
-        }
-        String host = !rc.queryParam("host").isEmpty() ? rc.queryParam("host").get(0) : null;
-        if (host != null) {
-            try {
-                URI.create(host).toURL();
-            } catch (IllegalArgumentException | MalformedURLException e) {
-                host = null;
-            }
-        }
-        if (clientVersion != null && host != null) {
-            _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(host, clientVersion), tuple -> Counter
-                    .builder("uid2.old_client_sdk_versions")
-                    .description("counter for how many http requests are processed per each very old client sdk version")
-                    .tags("host", tuple.getItem1(), "client_version", tuple.getItem2())
-                    .register(Metrics.globalRegistry)).increment();;
-        }
-        rc.response().end("OK");
-    }
-
     private void handleTokenRefreshV1(RoutingContext rc) {
         final List<String> tokenList = rc.queryParam("refresh_token");
         TokenResponseStatsCollector.PlatformType platformType = getPlatformType(rc);
@@ -870,7 +845,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         try {
             final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
             siteId = rc.get(Const.RoutingContextData.SiteId);
-            recordOperatorServedSdkUsage(siteId, rc, rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
@@ -895,6 +869,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersionCounters = new HashMap<>();
     public void recordOperatorServedSdkUsage(Integer siteId, RoutingContext rc, String clientVersion) {
         if (siteId != null && clientVersion != null) {
             _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion), tuple -> Counter
@@ -1087,7 +1062,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         identityExpiresAfter);
 
                 if (t.isEmptyToken()) {
-                    if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
+                    if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect && !this.disableOptoutToken) { // only legacy can use this policy
                         final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
                                 ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
                                 : InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone);
@@ -1181,7 +1156,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             sendJsonResponse(rc, toJson(r.getTokens()));
 
             siteId = rc.get(Const.RoutingContextData.SiteId);
-            recordOperatorServedSdkUsage(siteId, rc, rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (r.isRefreshed()) {
                 this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
             }

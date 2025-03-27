@@ -38,5 +38,6 @@
   "enclave_platform": null,
   "failure_shutdown_wait_hours": 120,
   "sharing_token_expiry_seconds": 2592000,
-  "operator_type": "public"
+  "operator_type": "public",
+  "enable_remote_config": false
 }

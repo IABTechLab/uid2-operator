@@ -40,8 +40,6 @@ import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.config.ConfigRetriever;
-import io.vertx.config.ConfigRetrieverOptions;
-import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
@@ -61,6 +59,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
+import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
+import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {
@@ -305,20 +305,32 @@ public class Main {
         }
     }
 
-    private Future<IConfigService> initialiseConfigService() {
-        // Read runtime config values from this.config.
-        final ConfigStoreOptions configStoreOptions = new ConfigStoreOptions()
-                .setType("json")
-                .setConfig(config);
-        
-        final ConfigRetrieverOptions configRetrieverOptions = new ConfigRetrieverOptions()
-                .addStore(configStoreOptions)
-                // Don't scan as config values won't change.
-                .setScanPeriod(-1);
+    private Future<IConfigService> initialiseConfigService() throws Exception {
+        boolean enableRemoteConfigFeatureFlag = config.getBoolean(EnableRemoteConfigProp, false);
+        ConfigRetriever configRetriever;
 
-        final ConfigRetriever configRetriever = ConfigRetriever.create(vertx, configRetrieverOptions);
-        
-        return ConfigService.create(configRetriever).map(x -> (IConfigService) x);
+        if (enableRemoteConfigFeatureFlag) {
+            configRetriever = ConfigRetrieverFactory.create(
+                    vertx,
+                    config.getJsonObject("runtime_config_store"),
+                    this.createOperatorKeyRetriever().retrieve()
+            );
+        } else {
+            configRetriever = ConfigRetrieverFactory.create(
+                    vertx,
+                    new JsonObject()
+                            .put("type", "json")
+                            .put("config", config)
+                            .put(ConfigScanPeriodMsProp, -1),
+                    ""
+            );
+        }
+
+        return ConfigService.create(configRetriever)
+                .map(configService -> (IConfigService) configService)
+                .onFailure(e -> {
+                    LOGGER.error("Failed to initialise ConfigService", e);
+                });
     }
 
     private void run() throws Exception {
@@ -365,20 +377,6 @@ public class Main {
                     vertx.close();
                     System.exit(1);
                 });
-    }
-
-    private void setupFeatureFlagListener(ConfigServiceManager manager, ConfigRetriever retriever) {
-        retriever.listen(change -> {
-            JsonObject newConfig = change.getNewConfiguration();
-            boolean useDynamicConfig = newConfig.getJsonObject("remote_config", new JsonObject()).getBoolean("enabled", false);
-            manager.updateConfigService(useDynamicConfig).onComplete(update -> {
-                if (update.succeeded()) {
-                    LOGGER.info("Remote config feature flag toggled successfully");
-                } else {
-                    LOGGER.error("Failed to toggle remote config feature flag: ", update.cause());
-                }
-            });
-        });
     }
 
     private Future<Void> createStoreVerticles() throws Exception {

@@ -85,11 +85,37 @@ if [[ $? -ne 0 ]]; then
 fi
 
 base64 -di < ${INPUT_DIR}/policy.base64 > ${INPUT_DIR}/generated.rego
-sed -i "s#allow_environment_variable_dropping := true#allow_environment_variable_dropping := false#g" ${INPUT_DIR}/generated.rego
-sed -i 's#{"pattern":"DEPLOYMENT_ENVIRONMENT=DEPLOYMENT_ENVIRONMENT_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"DEPLOYMENT_ENVIRONMENT=.+","required":false,"strategy":"re2"}#g' generated.rego
-sed -i 's#{"pattern":"VAULT_NAME=VAULT_NAME_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"VAULT_NAME=.+","required":false,"strategy":"re2"}#g' generated.rego
-sed -i 's#{"pattern":"OPERATOR_KEY_SECRET_NAME=OPERATOR_KEY_SECRET_NAME_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"OPERATOR_KEY_SECRET_NAME=.+","required":false,"strategy":"re2"}#g' generated.rego
-base64 -w0 < ${INPUT_DIR}/generated.rego > ${INPUT_DIR}/generated.rego.base64
-python3 ${SCRIPT_DIR}/../azure-cc/generate.py ${INPUT_DIR}/generated.rego > ${MANIFEST_DIR}/${POLICY_DIGEST_FILE}
+if [[ $? -ne 0 ]]; then
+  echo "Failed to base64-decode policy"
+  exit 1
+fi
 
-sed -i "s#CCE_POLICY_PLACEHOLDER#$(cat ${INPUT_DIR}/generated.rego.base64)#g" ${OUTPUT_DIR}/operator.yaml
+sed --in-place \
+  -e "s#allow_environment_variable_dropping := true#allow_environment_variable_dropping := false#g" \
+  -e 's#{"pattern":"DEPLOYMENT_ENVIRONMENT=DEPLOYMENT_ENVIRONMENT_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"DEPLOYMENT_ENVIRONMENT=.+","required":false,"strategy":"re2"}#g' \
+  -e 's#{"pattern":"VAULT_NAME=VAULT_NAME_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"VAULT_NAME=.+","required":false,"strategy":"re2"}#g' \
+  -e 's#{"pattern":"OPERATOR_KEY_SECRET_NAME=OPERATOR_KEY_SECRET_NAME_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"OPERATOR_KEY_SECRET_NAME=.+","required":false,"strategy":"re2"}#g' \
+  ${INPUT_DIR}/generated.rego
+if [[ $? -ne 0 ]]; then
+  echo "Failed to replace placeholders in policy file"
+  exit 1
+fi
+
+base64 -w0 < ${INPUT_DIR}/generated.rego > ${INPUT_DIR}/generated.rego.base64
+if [[ $? -ne 0 ]]; then
+  echo "Failed to base64-encode policy file"
+  exit 1
+fi
+
+python3 ${SCRIPT_DIR}/../../azure-cc/generate.py ${INPUT_DIR}/generated.rego > ${MANIFEST_DIR}/${POLICY_DIGEST_FILE}
+if [[ $? -ne 0 ]]; then
+  echo "Failed to generate digest from policy file"
+  exit 1
+fi
+
+sed --in-place "s#CCE_POLICY_PLACEHOLDER#$(cat ${INPUT_DIR}/generated.rego.base64)#g" ${OUTPUT_DIR}/operator.yaml
+if [[ $? -ne 0 ]]; then
+  echo "Failed to replace placeholder in operator.yaml"
+  exit 1
+fi
+

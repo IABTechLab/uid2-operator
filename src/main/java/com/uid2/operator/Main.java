@@ -342,16 +342,23 @@ public class Main {
         LOGGER.info("Remote config feature flag is enabled");
         ConfigRetriever configRetriever = ConfigRetrieverFactory.create(
                 vertx,
-                Duration.ofMillis(config.getLong(ConfigScanPeriodMsProp)),
+                Duration.ofSeconds(5),
+// TODO: Remove the prop, and remove from config... we can aggressively scan the event bus.
+//                Duration.ofMillis(config.getLong(ConfigScanPeriodMsProp)),
                 new ConfigStoreOptions().setType("event-bus")
                         // TODO: Extract string constant.
                         .setConfig(new JsonObject().put("address", "operator-config"))
         );
 
-        // TODO
-//        configStore.getMetadata();
+        // TODO: Add config_refresh_ms to config.
         return createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms")
-                .compose(id -> ConfigService.create(configRetriever).map(configSerivce -> (IConfigService) configSerivce));
+                .compose(id -> {
+                    // When the verticle has finished deploying, we have successfully fetched config values
+                    // and published them to the event bus. We need to wait for configRetriever to have seen
+                    // the new value ...
+                    // We're really waiting for configRetriever to have a good config value.
+                    return ConfigService.create(configRetriever).map(configSerivce -> (IConfigService) configSerivce);
+                });
     }
 
     private boolean getRemoteConfigFeatureFlagEnabled() {

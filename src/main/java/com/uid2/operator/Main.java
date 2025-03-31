@@ -329,7 +329,7 @@ public class Main {
         if (enableRemoteConfigFeatureFlag) {
             configRetriever = ConfigRetrieverFactory.create(
                     vertx,
-                    config,
+                    Duration.ofMillis(config.getLong(ConfigScanPeriodMsProp)),
                     new ConfigStoreOptions().setType("event-bus")
                             // TODO: Extract string constant.
                                     .setConfig(new JsonObject().put("address", "operator-config"))
@@ -337,7 +337,7 @@ public class Main {
         } else {
             configRetriever = ConfigRetrieverFactory.create(
                     vertx,
-                    config,
+                    Duration.ZERO,
                     new ConfigStoreOptions().setType("json")
                             .setConfig(config)
             );

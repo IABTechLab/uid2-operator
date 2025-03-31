@@ -7,12 +7,13 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
 import java.net.URI;
+import java.time.Duration;
 
 import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
 
 public class ConfigRetrieverFactory {
     // TODO
-    public static ConfigRetriever create(Vertx vertx, JsonObject bootstrapConfig, ConfigStoreOptions storeOptions) {
+    public static ConfigRetriever create(Vertx vertx, Duration configScanPeriod, ConfigStoreOptions storeOptions) {
 //        String type = bootstrapConfig.getString("type");
 //        JsonObject storeConfig = bootstrapConfig.getJsonObject("config");
 //        if (type.equals("http")) {
@@ -35,7 +36,7 @@ public class ConfigRetrieverFactory {
 //                .setConfig(storeConfig);
 
         ConfigRetrieverOptions retrieverOptions = new ConfigRetrieverOptions()
-                .setScanPeriod(bootstrapConfig.getLong(ConfigScanPeriodMsProp))
+                .setScanPeriod(configScanPeriod.toMillis())
                 .addStore(storeOptions);
 
         return ConfigRetriever.create(vertx, retrieverOptions);

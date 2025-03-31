@@ -347,18 +347,22 @@ public class Main {
         // We don't want to wait forever!
         // 
 
+        // TODO: What about a timeout?
+        
         Promise<IConfigService> promise = Promise.promise();
         // Set up the listener.
+        LOGGER.info("Listening for config to be sent to event bus");
         configRetriever.listen(configChange -> {
             final JsonObject newConfiguration = configChange.getNewConfiguration();
             if (!newConfiguration.isEmpty()) {
                 // TODO: :( I have to return a CS here...
-                promise.complete();
+                promise.complete(new ConfigService());
             }
         });
 
         // Deploy the verticle to retrieve remote config.
         createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms")
+                // If deployment fails, no config values will be sent to the event bus so we should fail.
                 .onFailure(promise::fail);
 
         return promise.future();

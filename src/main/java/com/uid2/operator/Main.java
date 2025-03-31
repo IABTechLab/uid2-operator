@@ -288,6 +288,10 @@ public class Main {
         }
 
         LOGGER.info("Remote config feature flag is enabled");
+        return getConfigServiceFromEventBus();
+    }
+
+    private Future<IConfigService> getConfigServiceFromEventBus() {
         ConfigRetriever configRetriever = ConfigRetrieverFactory.create(
                 vertx,
                 Duration.ofSeconds(5),
@@ -307,7 +311,7 @@ public class Main {
         configRetriever.listen(configChange -> {
             final JsonObject newConfiguration = configChange.getNewConfiguration();
             if (!newConfiguration.isEmpty()) {
-                // :( I have to return a CS here...
+                // TODO: :( I have to return a CS here...
                 promise.complete();
             }
         });
@@ -315,7 +319,7 @@ public class Main {
         // Deploy the verticle to retrieve remote config.
         createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms")
                 .onFailure(promise::fail);
-        
+
         return promise.future();
         // TODO: Add config_refresh_ms to config.
 //                .compose(id -> {
@@ -327,6 +331,7 @@ public class Main {
 //                });
     }
 
+    // Returns a ConfigService that retrieves config values from the bootstrap configuration JsonObject.
     private Future<IConfigService> getConfigServiceFromBootstrapConfig() {
         ConfigRetriever configRetriever = ConfigRetrieverFactory.create(
                 vertx,

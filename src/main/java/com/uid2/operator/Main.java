@@ -309,7 +309,6 @@ public class Main {
         // TODO: What about a timeout?
         
         Promise<IConfigService> promise = Promise.promise();
-        // Set up the listener.
         LOGGER.info("Listening for config to be sent to event bus");
         configRetriever.listen(configChange -> {
             final JsonObject newConfiguration = configChange.getNewConfiguration();

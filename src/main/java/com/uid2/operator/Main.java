@@ -324,32 +324,34 @@ public class Main {
 
     private Future<IConfigService> initialiseConfigService() {
         boolean enableRemoteConfigFeatureFlag = getRemoteConfigFeatureFlagEnabled();
-        ConfigRetriever configRetriever;
-
-        if (enableRemoteConfigFeatureFlag) {
-            LOGGER.info("Remote config feature flag is enabled");
-            configRetriever = ConfigRetrieverFactory.create(
-                    vertx,
-                    Duration.ofMillis(config.getLong(ConfigScanPeriodMsProp)),
-                    new ConfigStoreOptions().setType("event-bus")
-                            // TODO: Extract string constant.
-                                    .setConfig(new JsonObject().put("address", "operator-config"))
-            );
-        } else {
+        if (!enableRemoteConfigFeatureFlag) {
             LOGGER.info("Remote config feature flag is not enabled");
-            configRetriever = ConfigRetrieverFactory.create(
+            ConfigRetriever configRetriever = ConfigRetrieverFactory.create(
                     vertx,
                     Duration.ZERO,
                     new ConfigStoreOptions().setType("json")
                             .setConfig(config)
             );
+            return ConfigService.create(configRetriever)
+                    .map(configService -> (IConfigService) configService)
+                    .onFailure(e -> {
+                        LOGGER.error("Failed to initialise ConfigService", e);
+                    });
         }
 
-        return ConfigService.create(configRetriever)
-                .map(configService -> (IConfigService) configService)
-                .onFailure(e -> {
-                    LOGGER.error("Failed to initialise ConfigService", e);
-                });
+        LOGGER.info("Remote config feature flag is enabled");
+        ConfigRetriever configRetriever = ConfigRetrieverFactory.create(
+                vertx,
+                Duration.ofMillis(config.getLong(ConfigScanPeriodMsProp)),
+                new ConfigStoreOptions().setType("event-bus")
+                        // TODO: Extract string constant.
+                        .setConfig(new JsonObject().put("address", "operator-config"))
+        );
+
+        // TODO
+//        configStore.getMetadata();
+        return createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms")
+                .compose(id -> ConfigService.create(configRetriever).map(configSerivce -> (IConfigService) configSerivce));
     }
 
     private boolean getRemoteConfigFeatureFlagEnabled() {
@@ -410,9 +412,6 @@ public class Main {
         keysetKeyStore.getMetadata();
         keysetProvider.getMetadata();
         saltProvider.getMetadata();
-        if (this.getRemoteConfigFeatureFlagEnabled()) {
-            configStore.getMetadata();
-        }
 
         if (validateServiceLinks) {
             serviceProvider.getMetadata();
@@ -455,10 +454,6 @@ public class Main {
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
-        
-        if (this.getRemoteConfigFeatureFlagEnabled()) {
-            fs.add(createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms"));
-        }
         
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));

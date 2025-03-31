@@ -29,15 +29,19 @@ public class ConfigService implements IConfigService {
         ConfigService instance = new ConfigService(configRetriever);
 
         // Prevent dependent classes from attempting to access configuration before it has been retrieved.
-        configRetriever.getConfig(ar -> {
-            if (ar.succeeded()) {
-                logger.info("Successfully loaded config");
-                promise.complete(instance);
-            } else {
-                logger.error("Failed to load config: {}", ar.cause().getMessage());
-                promise.fail(ar.cause());
-            }
-        });
+        configRetriever.configStream()
+                .handler(config -> {
+                    logger.info("Successfully loaded config");
+                    promise.complete(instance);
+                });
+//            if (ar.succeeded()) {
+//                logger.info("Successfully loaded config");
+//                promise.complete(instance);
+//            } else {
+//                logger.error("Failed to load config: {}", ar.cause().getMessage());
+//                promise.fail(ar.cause());
+//            }
+//        });
 
         return promise.future();
     }

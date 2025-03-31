@@ -16,7 +16,7 @@
   "refresh_token_v3": false,
   "identity_v3": false,
   "identity_scope": "uid2",
-  "enable_v2_encryption": false,
+  "enable_v2_encryption": true,
   "sharing_token_expiry_seconds": 2592000,
   "cloud_download_threads": 8,
   "cloud_upload_threads": 2,
@@ -39,6 +39,6 @@
   "salts_expired_shutdown_hours": 12,
   "operator_type": "public",
   "disable_optout_token": false,
-  "enable_remote_config": false,
+  "enable_remote_config": true,
   "config_scan_period_ms": 10000
 }

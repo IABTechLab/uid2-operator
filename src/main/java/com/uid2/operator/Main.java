@@ -41,7 +41,6 @@ import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.config.ConfigRetriever;
-import io.vertx.config.ConfigRetrieverOptions;
 import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
@@ -187,7 +186,8 @@ public class Main {
         
         if (this.getRemoteConfigFeatureFlagEnabled()) {
             // TODO: Extract string constant.
-            this.configStore = new ConfigStore(fsStores, vertx, "operator-config");
+            String configMdPath = this.config.getString("config_metadata_path");
+            this.configStore = new ConfigStore(vertx, fsStores, configMdPath, "operator-config");
         }
 
         if (this.validateServiceLinks) {

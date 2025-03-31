@@ -61,7 +61,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
-import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
 import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
@@ -326,17 +325,7 @@ public class Main {
         boolean enableRemoteConfigFeatureFlag = getRemoteConfigFeatureFlagEnabled();
         if (!enableRemoteConfigFeatureFlag) {
             LOGGER.info("Remote config feature flag is not enabled");
-            ConfigRetriever configRetriever = ConfigRetrieverFactory.create(
-                    vertx,
-                    Duration.ZERO,
-                    new ConfigStoreOptions().setType("json")
-                            .setConfig(config)
-            );
-            return ConfigService.create(configRetriever)
-                    .map(configService -> (IConfigService) configService)
-                    .onFailure(e -> {
-                        LOGGER.error("Failed to initialise ConfigService", e);
-                    });
+            return getConfigServiceFromBootstrapConfig();
         }
 
         LOGGER.info("Remote config feature flag is enabled");
@@ -354,23 +343,42 @@ public class Main {
         // We don't want to wait forever!
         // 
 
-        Promise<Void> promise = Promise.promise();
+        Promise<IConfigService> promise = Promise.promise();
+        // Set up the listener.
         configRetriever.listen(configChange -> {
-            if (!configChange.getNewConfiguration().isEmpty()) {
+            final JsonObject newConfiguration = configChange.getNewConfiguration();
+            if (!newConfiguration.isEmpty()) {
                 // :( I have to return a CS here...
                 promise.complete();
             }
         });
+
+        // Deploy the verticle to retrieve remote config.
+        createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms")
+                .onFailure(promise::fail);
         
         return promise.future();
         // TODO: Add config_refresh_ms to config.
-        return createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms")
-                .compose(id -> {
-                    // When the verticle has finished deploying, we have successfully fetched config values
-                    // and published them to the event bus. We need to wait for configRetriever to have seen
-                    // the new value ...
-                    // We're really waiting for configRetriever to have a good config value.
-                    return ConfigService.create(configRetriever).map(configSerivce -> (IConfigService) configSerivce);
+//                .compose(id -> {
+//                    // When the verticle has finished deploying, we have successfully fetched config values
+//                    // and published them to the event bus. We need to wait for configRetriever to have seen
+//                    // the new value ...
+//                    // We're really waiting for configRetriever to have a good config value.
+//                    return ConfigService.create(configRetriever).map(configSerivce -> (IConfigService) configSerivce);
+//                });
+    }
+
+    private Future<IConfigService> getConfigServiceFromBootstrapConfig() {
+        ConfigRetriever configRetriever = ConfigRetrieverFactory.create(
+                vertx,
+                Duration.ZERO,
+                new ConfigStoreOptions().setType("json")
+                        .setConfig(config)
+        );
+        return ConfigService.create(configRetriever)
+                .map(configService -> (IConfigService) configService)
+                .onFailure(e -> {
+                    LOGGER.error("Failed to initialise ConfigService", e);
                 });
     }
 

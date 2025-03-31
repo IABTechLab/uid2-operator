@@ -186,7 +186,8 @@ public class Main {
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
         
         if (this.getRemoteConfigFeatureFlagEnabled()) {
-            this.configStore = new ConfigStore(fsStores);
+            // TODO: Extract string constant.
+            this.configStore = new ConfigStore(fsStores, vertx, "operator-config");
         }
 
         if (this.validateServiceLinks) {
@@ -321,24 +322,24 @@ public class Main {
         }
     }
 
-    private Future<IConfigService> initialiseConfigService() throws Exception {
+    private Future<IConfigService> initialiseConfigService() {
         boolean enableRemoteConfigFeatureFlag = getRemoteConfigFeatureFlagEnabled();
         ConfigRetriever configRetriever;
 
         if (enableRemoteConfigFeatureFlag) {
             configRetriever = ConfigRetrieverFactory.create(
                     vertx,
-                    config.getJsonObject("runtime_config_store"),
-                    this.createOperatorKeyRetriever().retrieve()
+                    config,
+                    new ConfigStoreOptions().setType("event-bus")
+                            // TODO: Extract string constant.
+                                    .setConfig(new JsonObject().put("address", "operator-config"))
             );
         } else {
             configRetriever = ConfigRetrieverFactory.create(
                     vertx,
-                    new JsonObject()
-                            .put("type", "json")
-                            .put("config", config)
-                            .put(ConfigScanPeriodMsProp, -1),
-                    ""
+                    config,
+                    new ConfigStoreOptions().setType("json")
+                            .setConfig(config)
             );
         }
 

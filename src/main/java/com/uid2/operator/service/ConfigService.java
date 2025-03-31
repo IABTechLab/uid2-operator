@@ -18,6 +18,8 @@ public class ConfigService implements IConfigService {
 
     private ConfigService(ConfigRetriever configRetriever) {
         this.configRetriever = configRetriever;
+        // Maybe we should listen on the stream instead...
+        // This could conflict with Kat's changes.
         this.configRetriever.setConfigurationProcessor(this::configValidationHandler);
     }
 

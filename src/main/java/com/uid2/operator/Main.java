@@ -327,6 +327,7 @@ public class Main {
         ConfigRetriever configRetriever;
 
         if (enableRemoteConfigFeatureFlag) {
+            LOGGER.info("Remote config feature flag is enabled");
             configRetriever = ConfigRetrieverFactory.create(
                     vertx,
                     Duration.ofMillis(config.getLong(ConfigScanPeriodMsProp)),
@@ -335,6 +336,7 @@ public class Main {
                                     .setConfig(new JsonObject().put("address", "operator-config"))
             );
         } else {
+            LOGGER.info("Remote config feature flag is not enabled");
             configRetriever = ConfigRetrieverFactory.create(
                     vertx,
                     Duration.ZERO,

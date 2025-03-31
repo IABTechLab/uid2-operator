@@ -41,6 +41,8 @@ import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
 import io.vertx.config.ConfigRetriever;
+import io.vertx.config.ConfigRetrieverOptions;
+import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
@@ -72,7 +74,7 @@ public class Main {
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
-    private final ConfigStore configStore;
+    private ConfigStore configStore;
     private final RotatingSiteStore siteProvider;
     private final RotatingClientKeyProvider clientKeyProvider;
     private final RotatingKeysetKeyStore keysetKeyStore;
@@ -182,7 +184,10 @@ public class Main {
         }
 
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
-        this.configStore = new ConfigStore();
+        
+        if (this.getRemoteConfigFeatureFlagEnabled()) {
+            this.configStore = new ConfigStore(fsStores);
+        }
 
         if (this.validateServiceLinks) {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
@@ -196,6 +201,14 @@ public class Main {
                 this.siteProvider.loadContent();
                 this.clientSideKeypairProvider.loadContent();
             }
+            // Why do we do this? Do we need to?
+//            if (this.getRemoteConfigFeatureFlagEnabled()) {
+//                this.configStore.loadContent();
+//            }
+            this.clientKeyProvider.loadContent();
+            this.saltProvider.loadContent();
+            this.keysetProvider.loadContent();
+            this.keysetKeyStore.loadContent();
 
             if (this.validateServiceLinks) {
                 this.serviceProvider.loadContent();
@@ -309,7 +322,7 @@ public class Main {
     }
 
     private Future<IConfigService> initialiseConfigService() throws Exception {
-        boolean enableRemoteConfigFeatureFlag = config.getBoolean(EnableRemoteConfigProp, false);
+        boolean enableRemoteConfigFeatureFlag = getRemoteConfigFeatureFlagEnabled();
         ConfigRetriever configRetriever;
 
         if (enableRemoteConfigFeatureFlag) {
@@ -334,6 +347,10 @@ public class Main {
                 .onFailure(e -> {
                     LOGGER.error("Failed to initialise ConfigService", e);
                 });
+    }
+
+    private boolean getRemoteConfigFeatureFlagEnabled() {
+        return config.getBoolean(EnableRemoteConfigProp, false);
     }
 
     private void run() throws Exception {
@@ -390,7 +407,9 @@ public class Main {
         keysetKeyStore.getMetadata();
         keysetProvider.getMetadata();
         saltProvider.getMetadata();
-        configStore.getMetadata();
+        if (this.getRemoteConfigFeatureFlagEnabled()) {
+            configStore.getMetadata();
+        }
 
         if (validateServiceLinks) {
             serviceProvider.getMetadata();
@@ -433,7 +452,11 @@ public class Main {
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
-        fs.add(createAndDeployRotatingStoreVerticle("config", null, "config_refresh_ms"));
+        
+        if (this.getRemoteConfigFeatureFlagEnabled()) {
+            fs.add(createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms"));
+        }
+        
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));
             else promise.complete();

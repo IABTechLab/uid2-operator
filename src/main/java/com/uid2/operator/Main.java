@@ -308,13 +308,12 @@ public class Main {
 
         // TODO: What about a timeout?
         
-        Promise<IConfigService> promise = Promise.promise();
+        Promise<ConfigService> promise = Promise.promise();
         LOGGER.info("Listening for config to be sent to event bus");
         configRetriever.listen(configChange -> {
             final JsonObject newConfiguration = configChange.getNewConfiguration();
             if (!newConfiguration.isEmpty()) {
-                // TODO: :( I have to return a CS here...
-                promise.complete(new ConfigService());
+                ConfigService.create(configRetriever).onComplete(promise);
             }
         });
 
@@ -323,7 +322,7 @@ public class Main {
                 // If deployment fails, no config values will be sent to the event bus so we should fail.
                 .onFailure(promise::fail);
 
-        return promise.future();
+        return promise.future().map(configService -> (IConfigService) configService);
         // TODO: Add config_refresh_ms to config.
 //                .compose(id -> {
 //                    // When the verticle has finished deploying, we have successfully fetched config values

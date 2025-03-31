@@ -308,7 +308,20 @@ public class Main {
                         // TODO: Extract string constant.
                         .setConfig(new JsonObject().put("address", "operator-config"))
         );
+        // What are we trying to express?
+        // Once configRetriever has a non-empty value, we can call ConfigService.create.
+        // We don't want to wait forever!
+        // 
 
+        Promise<Void> promise = Promise.promise();
+        configRetriever.listen(configChange -> {
+            if (!configChange.getNewConfiguration().isEmpty()) {
+                // :( I have to return a CS here...
+                promise.complete();
+            }
+        });
+        
+        return promise.future();
         // TODO: Add config_refresh_ms to config.
         return createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms")
                 .compose(id -> {

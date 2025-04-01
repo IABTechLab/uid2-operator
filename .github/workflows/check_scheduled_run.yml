@@ -14,8 +14,7 @@ jobs:
     env:
       WORKFLOWS: |
         IABTechLab/uid2-operator:publish-all-operators.yaml
-        IABTechLab/uid2-core:build-and-publish.yaml
-        IABTechLab/uid2-shared:run-tests.yaml
+        IABTechLab/uid2-operator:vulnerability-scan-failure-notify.yaml
 
     steps:
       - name: Check workflows and format Slack message
@@ -73,8 +72,5 @@ jobs:
 
             core.setOutput("summary", summary);
 
-      - name: Print summary to console
-        run: |
-          cat <<EOF
-          ${{ steps.gather.outputs.summary }}
-          EOF
+      - name: Print summary
+        run: echo "${{ steps.gather.outputs.summary }}"

@@ -8,6 +8,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.uid2.operator.service.ConfigValidatorUtil.*;
@@ -25,8 +26,12 @@ public class ConfigService implements IConfigService {
     
     private Future<Void> start() {
         Promise<Void> promise = Promise.promise();
+        // Add a random value to the config, so that configRetriever.configStream()
+        // publishes a new value on every scan.
+        configRetriever.setConfigurationProcessor(config -> config.put("__config_service_uuid", UUID.randomUUID().toString()));
         configRetriever.configStream()
                 .handler(newConfig -> {
+                    newConfig.remove("__config_service_uuid");
                     if (newConfig.isEmpty())  {
                         // Event bus config store returns an empty JsonObject if nothing has been published to its address.
                         // Skip empty config values.

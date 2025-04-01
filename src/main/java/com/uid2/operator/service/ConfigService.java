@@ -46,6 +46,7 @@ public class ConfigService implements IConfigService {
                         }
                         logger.info("Successfully updated config");
                     } else {
+                        // TODO: What if we can't get valid config ... should we shut down?
                         logger.error("Failed to update config");
                     }
                 });

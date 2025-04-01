@@ -27,6 +27,7 @@ public class ConfigService implements IConfigService {
         Promise<Void> promise = Promise.promise();
         configRetriever.listen(configChange -> {
             if (configChange.getNewConfiguration().isEmpty()) {
+                // Event bus config store returns an empty JsonObject if nothing has been published to its address.
                 // Skip empty config values.
                 return;
             }

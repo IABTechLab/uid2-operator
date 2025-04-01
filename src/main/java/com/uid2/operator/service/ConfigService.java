@@ -26,17 +26,19 @@ public class ConfigService implements IConfigService {
     private Future<Void> start() {
         Promise<Void> promise = Promise.promise();
         configRetriever.listen(configChange -> {
-            // Return when we have some valid config.
-            if (!configChange.getNewConfiguration().isEmpty()) {
-                if (isConfigValid(configChange.getNewConfiguration())) {
-                    if (this.config.getAndSet(configChange.getNewConfiguration()) == null) {
-                        // Complete the promise when we have our first valid config values.
-                        promise.complete();
-                    }
-                    logger.info("Successfully updated config");
-                } else {
-                    logger.error("Failed to update config");
+            if (configChange.getNewConfiguration().isEmpty()) {
+                // Skip empty config values.
+                return;
+            }
+            
+            if (isConfigValid(configChange.getNewConfiguration())) {
+                if (this.config.getAndSet(configChange.getNewConfiguration()) == null) {
+                    // Complete the promise when we have our first valid config values.
+                    promise.complete();
                 }
+                logger.info("Successfully updated config");
+            } else {
+                logger.error("Failed to update config");
             }
         });
         

@@ -74,4 +74,7 @@ jobs:
             core.setOutput("summary", summary);
 
       - name: Print summary to console
-        run: echo "${{ steps.gather.outputs.summary }}"
+        run: |
+          cat <<EOF
+          ${{ steps.gather.outputs.summary }}
+          EOF

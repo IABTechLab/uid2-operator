@@ -1,5 +1,6 @@
 package com.uid2.operator;
 
+import com.uid2.operator.model.RuntimeConfig;
 import com.uid2.operator.service.ConfigRetrieverFactory;
 import com.uid2.operator.service.ConfigService;
 import io.vertx.core.Future;
@@ -87,9 +88,9 @@ class ConfigServiceTest {
         startMockServer(httpStoreConfig)
                 .compose(v -> ConfigService.create(configRetriever))
                 .compose(configService -> {
-                    JsonObject retrievedConfig = configService.getConfig();
+                    RuntimeConfig retrievedConfig = configService.getConfig();
                     assertNotNull(retrievedConfig, "Config retriever should initialise without error");
-                    assertTrue(retrievedConfig.fieldNames().containsAll(httpStoreConfig.fieldNames()), "Retrieved config should contain all keys in http store config");
+                    assertTrue(JsonObject.mapFrom(retrievedConfig).fieldNames().containsAll(httpStoreConfig.fieldNames()), "Retrieved config should contain all keys in http store config");
                     return Future.succeededFuture();
                 })
                 .onComplete(testContext.succeedingThenComplete());

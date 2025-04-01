@@ -240,7 +240,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
         router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().handler(ctx -> {
-            JsonObject curConfig = configService.getConfig();
+            RuntimeConfig curConfig = configService.getConfig();
             ctx.put(RC_CONFIG_KEY, curConfig);
             ctx.next();
         });

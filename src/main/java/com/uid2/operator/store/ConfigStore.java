@@ -8,18 +8,16 @@ import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.json.JsonObject;
 
 import java.io.InputStream;
+import java.util.concurrent.atomic.AtomicReference;
 
-public class ConfigStore implements IMetadataVersionedStore {
+public class ConfigStore implements IConfigStore, IMetadataVersionedStore {
     private final DownloadCloudStorage fileStreamProvider;
-    private final Vertx vertx;
     private final String configMetadataPath;
-    private final String address;
+    private final AtomicReference<JsonObject> config = new AtomicReference<>();
 
-    public ConfigStore(Vertx vertx, DownloadCloudStorage fileStreamProvider, String configMetadataPath, String address) {
+    public ConfigStore(Vertx vertx, DownloadCloudStorage fileStreamProvider, String configMetadataPath) {
         this.fileStreamProvider = fileStreamProvider;
-        this.vertx = vertx;
         this.configMetadataPath = configMetadataPath;
-        this.address = address;
     }
     
     @Override
@@ -38,8 +36,13 @@ public class ConfigStore implements IMetadataVersionedStore {
     public long loadContent(JsonObject metadata) throws Exception {
         // The config is returned as part of the metadata itself.
         JsonObject config = metadata.getJsonObject("config");
-        // There should be a config store listening for new config values on the address.
-        this.vertx.eventBus().publish(address, config);
+        // TODO: Validation
+        this.config.set(config);
         return 1;
+    }
+
+    @Override
+    public JsonObject getConfig() {
+        return config.get();
     }
 }

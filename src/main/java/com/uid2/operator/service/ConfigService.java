@@ -43,31 +43,11 @@ public class ConfigService implements IConfigService {
         });
         
         return promise.future();
-//
-//        // Maybe we should listen on the stream instead...
-//        // This could conflict with Kat's changes.
-//        configRetriever.setConfigurationProcessor(this::configValidationHandler);
     }
 
     public static Future<ConfigService> create(ConfigRetriever configRetriever) {
-        // Not necessarily true! At this point, configRetriever has returned some config...
-//        Promise<ConfigService> promise = Promise.promise();
-
         ConfigService instance = new ConfigService(configRetriever);
-        Future<Void> start = instance.start();
-
-        // Prevent dependent classes from attempting to access configuration before it has been retrieved.
-//        configRetriever.getConfig(ar -> {
-//            if (ar.succeeded()) {
-//                logger.info("Successfully loaded config");
-//                promise.complete(instance);
-//            } else {
-//                logger.error("Failed to load config: {}", ar.cause().getMessage());
-//                promise.fail(ar.cause());
-//            }
-//        });
-
-        return start.map(instance);
+        return instance.start().map(instance);
     }
 
     @Override
@@ -90,16 +70,5 @@ public class ConfigService implements IConfigService {
         isValid &= validateSharingTokenExpiry(sharingTokenExpiry);
 
         return isValid;
-//        if (!isValid) {
-//            logger.error("Failed to update config");
-//            JsonObject lastConfig = this.getConfig();
-//            if (lastConfig == null || lastConfig.isEmpty()) {
-//                throw new RuntimeException("Invalid config retrieved and no previous config to revert to");
-//            }
-//            return lastConfig;
-//        }
-//
-//        logger.info("Successfully updated config");
-//        return config;
     }
 }

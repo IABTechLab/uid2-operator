@@ -2,7 +2,8 @@ name: UID2 Scheduled Workflow Status Summary
 
 on:
   schedule:
-    - cron: '0 23 * * *'  # 3 PM PST
+    - cron: '0 16 * * *'  # 9:00 AM GMT -7
+    - cron: '0 0 * * *'   # 5:00 PM GMT -7
   workflow_dispatch:
   push:
 
@@ -51,3 +52,6 @@ jobs:
             }
 
             core.setOutput("summary", summary);
+            
+      - name: Print to console
+        run: echo "${{ steps.gather.outputs.summary }}"

@@ -47,7 +47,12 @@ public class ConfigService implements IConfigService {
                         logger.info("Successfully updated config");
                     } else {
                         // TODO: What if we can't get valid config ... should we shut down?
+                        // TODO: Should this be communicated with metrics? Via RSV?
+                        // If so, we would have to throw an exception from refresh.
                         logger.error("Failed to update config");
+                        if (oldConfig == null) {
+                            promise.fail("Invalid config retrieved and no previous config to revert to");
+                        }
                     }
                 });
 

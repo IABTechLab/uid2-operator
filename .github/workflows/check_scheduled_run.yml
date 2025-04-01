@@ -1,0 +1,52 @@
+name: UID2 Scheduled Workflow Status Summary
+
+on:
+  schedule:
+    - cron: '0 23 * * *'  # 3 PM PST
+  workflow_dispatch:
+
+jobs:
+  check-status:
+    runs-on: ubuntu-latest
+
+    env:
+      WORKFLOWS: |
+        IABTechLab/uid2-operator:publish-all-operators.yaml
+        IABTechLab/uid2-core:build-and-publish.yaml
+
+    steps:
+      - name: Check workflows and format Slack message
+        id: gather
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.CROSS_REPO_PAT }}  # use the personal access token here
+          script: |
+            const workflows = process.env.WORKFLOWS.trim().split('\n');
+            let summary = "*📋 UID2 Scheduled Workflow Summary:*\n";
+
+            for (const wf of workflows) {
+              const [fullRepo, workflow] = wf.split(":");
+              const [owner, repo] = fullRepo.split("/");
+
+              try {
+                const runs = await github.rest.actions.listWorkflowRuns({
+                  owner,
+                  repo,
+                  workflow_id: workflow,
+                  per_page: 10,
+                });
+
+                const run = runs.data.workflow_runs.find(r => r.event === 'schedule');
+
+                if (run) {
+                  const status = run.conclusion === 'success' ? '✅ Success' : (run.conclusion === 'failure' ? '❌ Failed' : `⚠️ ${run.conclusion}`);
+                  summary += `• \`${repo}/${workflow}\` - ${status} (<${run.html_url}|view>)\n`;
+                } else {
+                  summary += `• \`${repo}/${workflow}\` - ⚠️ No scheduled run found\n`;
+                }
+              } catch (err) {
+                summary += `• \`${repo}/${workflow}\` - ❗ Error: ${err.message}\n`;
+              }
+            }
+
+            core.setOutput("summary", summary);

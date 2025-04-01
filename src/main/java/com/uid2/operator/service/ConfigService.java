@@ -21,33 +21,51 @@ public class ConfigService implements IConfigService {
 
     private ConfigService(ConfigRetriever configRetriever) {
         this.configRetriever = configRetriever;
-        // Maybe we should listen on the stream instead...
-        // This could conflict with Kat's changes.
-        this.configRetriever.setConfigurationProcessor(this::configValidationHandler);
+    }
+    
+    private Future<Void> start() {
+        Promise<Void> promise = Promise.promise();
+        configRetriever.listen(configChange -> {
+            // Return when we have some valid config.
+            if (!configChange.getNewConfiguration().isEmpty()) {
+                if (isConfigValid(configChange.getNewConfiguration())) {
+                    if (this.config.getAndSet(configChange.getNewConfiguration()) == null) {
+                        // Complete the promise when we have our first valid config values.
+                        promise.complete();
+                    }
+                    logger.info("Successfully updated config");
+                } else {
+                    logger.error("Failed to update config");
+                }
+            }
+        });
+        
+        return promise.future();
+//
+//        // Maybe we should listen on the stream instead...
+//        // This could conflict with Kat's changes.
+//        configRetriever.setConfigurationProcessor(this::configValidationHandler);
     }
 
     public static Future<ConfigService> create(ConfigRetriever configRetriever) {
-        // At this point, configRetriever has returned some config...
-        Promise<ConfigService> promise = Promise.promise();
+        // Not necessarily true! At this point, configRetriever has returned some config...
+//        Promise<ConfigService> promise = Promise.promise();
 
-        configRetriever.listen(configChange -> {
-            
-        });
-        
         ConfigService instance = new ConfigService(configRetriever);
+        Future<Void> start = instance.start();
 
         // Prevent dependent classes from attempting to access configuration before it has been retrieved.
-        configRetriever.getConfig(ar -> {
-            if (ar.succeeded()) {
-                logger.info("Successfully loaded config");
-                promise.complete(instance);
-            } else {
-                logger.error("Failed to load config: {}", ar.cause().getMessage());
-                promise.fail(ar.cause());
-            }
-        });
+//        configRetriever.getConfig(ar -> {
+//            if (ar.succeeded()) {
+//                logger.info("Successfully loaded config");
+//                promise.complete(instance);
+//            } else {
+//                logger.error("Failed to load config: {}", ar.cause().getMessage());
+//                promise.fail(ar.cause());
+//            }
+//        });
 
-        return promise.future();
+        return start.map(instance);
     }
 
     @Override
@@ -55,7 +73,7 @@ public class ConfigService implements IConfigService {
         return this.config.get();
     }
 
-    private JsonObject configValidationHandler(JsonObject config) {
+    private static boolean isConfigValid(JsonObject config) {
         boolean isValid = true;
         Integer identityExpiresAfter = config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         Integer refreshExpiresAfter = config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
@@ -69,16 +87,17 @@ public class ConfigService implements IConfigService {
 
         isValid &= validateSharingTokenExpiry(sharingTokenExpiry);
 
-        if (!isValid) {
-            logger.error("Failed to update config");
-            JsonObject lastConfig = this.getConfig();
-            if (lastConfig == null || lastConfig.isEmpty()) {
-                throw new RuntimeException("Invalid config retrieved and no previous config to revert to");
-            }
-            return lastConfig;
-        }
-
-        logger.info("Successfully updated config");
-        return config;
+        return isValid;
+//        if (!isValid) {
+//            logger.error("Failed to update config");
+//            JsonObject lastConfig = this.getConfig();
+//            if (lastConfig == null || lastConfig.isEmpty()) {
+//                throw new RuntimeException("Invalid config retrieved and no previous config to revert to");
+//            }
+//            return lastConfig;
+//        }
+//
+//        logger.info("Successfully updated config");
+//        return config;
     }
 }

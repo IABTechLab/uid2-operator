@@ -8,6 +8,7 @@ public class BootstrapConfigStore implements IConfigStore {
     public BootstrapConfigStore(JsonObject config) {
         this.config = config;
     }
+
     @Override
     public JsonObject getConfig() {
         return config;

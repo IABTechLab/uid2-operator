@@ -11,7 +11,6 @@ public class ConfigValidatorUtil {
     private static final Logger logger = LoggerFactory.getLogger(ConfigValidatorUtil.class);
     public static final String VALUES_ARE_NULL = "One or more of the following required config values are null: ";
 
-    // This is getting called on empty config returned by event bus store :(
     public static Boolean validateIdentityRefreshTokens(Integer identityExpiresAfter, Integer refreshExpiresAfter, Integer refreshIdentityAfter) {
         boolean isValid = true;
 

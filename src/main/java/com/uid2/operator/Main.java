@@ -380,7 +380,7 @@ public class Main {
     private Future<IConfigService> getConfigServiceFromBootstrapConfig() {
         ConfigRetriever configRetriever = ConfigRetrieverFactory.create(
                 vertx,
-                Duration.ZERO,
+                Duration.ofSeconds(5),
                 new ConfigStoreOptions().setType("json")
                         .setConfig(config)
         );

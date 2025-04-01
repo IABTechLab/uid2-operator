@@ -15,43 +15,63 @@ jobs:
       WORKFLOWS: |
         IABTechLab/uid2-operator:publish-all-operators.yaml
         IABTechLab/uid2-core:build-and-publish.yaml
+        IABTechLab/uid2-shared:run-tests.yaml
 
     steps:
       - name: Check workflows and format Slack message
         id: gather
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.CROSS_REPO_PAT }}  # use the personal access token here
+          github-token: ${{ secrets.CROSS_REPO_PAT }}
           script: |
             const workflows = process.env.WORKFLOWS.trim().split('\n');
             let summary = "*📋 UID2 Scheduled Workflow Summary:*\n";
 
             for (const wf of workflows) {
-              const [fullRepo, workflow] = wf.split(":");
-              const [owner, repo] = fullRepo.split("/");
+              const [fullRepo, workflowFile] = wf.trim().split(":");
+              const [owner, repo] = fullRepo.trim().split("/");
+
+              console.log(`🔍 Checking ${owner}/${repo} – ${workflowFile}`);
 
               try {
-                const runs = await github.rest.actions.listWorkflowRuns({
+                // Try to fetch the human-readable workflow name
+                let workflowName = workflowFile;
+                try {
+                  const { data: workflowMeta } = await github.rest.actions.getWorkflow({
+                    owner,
+                    repo,
+                    workflow_id: workflowFile.trim()
+                  });
+                  workflowName = workflowMeta.name;
+                } catch (metaErr) {
+                  console.warn(`⚠️ Could not fetch workflow name for ${workflowFile}: ${metaErr.message}`);
+                }
+
+                // Fetch workflow runs
+                const { data: runs } = await github.rest.actions.listWorkflowRuns({
                   owner,
                   repo,
-                  workflow_id: workflow,
+                  workflow_id: workflowFile.trim(),
                   per_page: 10,
                 });
 
-                const run = runs.data.workflow_runs.find(r => r.event === 'schedule');
+                const run = runs.workflow_runs.find(r => r.event === 'schedule');
 
                 if (run) {
-                  const status = run.conclusion === 'success' ? '✅ Success' : (run.conclusion === 'failure' ? '❌ Failed' : `⚠️ ${run.conclusion}`);
-                  summary += `• \`${repo}/${workflow}\` - ${status} (<${run.html_url}|view>)\n`;
+                  const status = run.conclusion === 'success' ? '✅ Success' :
+                                 run.conclusion === 'failure' ? '❌ Failed' :
+                                 `⚠️ ${run.conclusion}`;
+                  summary += `• *${workflowName}* – \`${workflowFile}\` - ${status} (<${run.html_url}|view>)\n`;
                 } else {
-                  summary += `• \`${repo}/${workflow}\` - ⚠️ No scheduled run found\n`;
+                  summary += `• *${workflowName}* – \`${workflowFile}\` - ⚠️ No scheduled run found\n`;
                 }
+
               } catch (err) {
-                summary += `• \`${repo}/${workflow}\` - ❗ Error: ${err.message}\n`;
+                summary += `• \`${repo}/${workflowFile}\` - ❗ Error: ${err.message}\n`;
               }
             }
 
             core.setOutput("summary", summary);
-            
-      - name: Print to console
+
+      - name: Print summary to console
         run: echo "${{ steps.gather.outputs.summary }}"

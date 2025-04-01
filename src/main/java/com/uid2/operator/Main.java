@@ -9,11 +9,9 @@ import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.service.*;
-import com.uid2.operator.store.ConfigStore;
+import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
-import com.uid2.operator.store.CloudSyncOptOutStore;
-import com.uid2.operator.store.OptOutCloudStorage;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
@@ -70,7 +68,7 @@ public class Main {
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
-    private ConfigStore configStore;
+    private final IConfigStore configStore;
     private final RotatingSiteStore siteProvider;
     private final RotatingClientKeyProvider clientKeyProvider;
     private final RotatingKeysetKeyStore keysetKeyStore;
@@ -152,7 +150,9 @@ public class Main {
         if (this.getRemoteConfigFeatureFlagEnabled()) {
             // TODO: Extract string constant.
             String configMdPath = this.config.getString("config_metadata_path");
-            this.configStore = new ConfigStore(vertx, fsStores, configMdPath, "operator-config");
+            this.configStore = new ConfigStore(vertx, fsStores, configMdPath);
+        } else {
+            this.configStore = new BootstrapConfigStore(this.config);
         }
 
         if (this.validateServiceLinks) {
@@ -278,76 +278,6 @@ public class Main {
         } else {
             return cloudStorage;
         }
-    }
-
-    private Future<IConfigService> initialiseConfigService() {
-        boolean enableRemoteConfigFeatureFlag = getRemoteConfigFeatureFlagEnabled();
-        if (!enableRemoteConfigFeatureFlag) {
-            LOGGER.info("Remote config feature flag is not enabled");
-            return getConfigServiceFromBootstrapConfig();
-        }
-
-        LOGGER.info("Remote config feature flag is enabled");
-        return getConfigServiceFromEventBus();
-    }
-
-    private Future<IConfigService> getConfigServiceFromEventBus() {
-        ConfigRetriever configRetriever = ConfigRetrieverFactory.create(
-                vertx,
-                Duration.ofSeconds(5),
-// TODO: Remove the prop, and remove from config... we can aggressively scan the event bus.
-//                Duration.ofMillis(config.getLong(ConfigScanPeriodMsProp)),
-                new ConfigStoreOptions().setType("event-bus")
-                        // TODO: Extract string constant.
-                        .setConfig(new JsonObject().put("address", "operator-config"))
-        );
-        // What are we trying to express?
-        // Once configRetriever has a non-empty value, we can call ConfigService.create.
-        // We don't want to wait forever!
-        // 
-
-        // TODO: What about a timeout?
-        
-//        LOGGER.info("Listening for config to be sent to event bus");
-//        configRetriever.listen(configChange -> {
-//            final JsonObject newConfiguration = configChange.getNewConfiguration();
-//            if (!newConfiguration.isEmpty()) {
-//                ConfigService.create(configRetriever).onComplete(promise);
-//            }
-//        });
-
-        // Will complete once we have a valid config.
-        // Should fail if we do not have a valid config.
-        Future<ConfigService> configServiceFuture = ConfigService.create(configRetriever);
-        
-        // Deploy the verticle to retrieve remote config.
-        Future<String> rotatingStoreVerticleDeployed = createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms");
-                // If deployment fails, no config values will be sent to the event bus so we should fail.
-
-        return Future.all(rotatingStoreVerticleDeployed, configServiceFuture).map(c -> (IConfigService) c.list().get(1));
-        // TODO: Add config_refresh_ms to config.
-//                .compose(id -> {
-//                    // When the verticle has finished deploying, we have successfully fetched config values
-//                    // and published them to the event bus. We need to wait for configRetriever to have seen
-//                    // the new value ...
-//                    // We're really waiting for configRetriever to have a good config value.
-//                    return ConfigService.create(configRetriever).map(configSerivce -> (IConfigService) configSerivce);
-//                });
-    }
-
-    // Returns a ConfigService that retrieves config values from the bootstrap configuration JsonObject.
-    private Future<IConfigService> getConfigServiceFromBootstrapConfig() {
-        ConfigRetriever configRetriever = ConfigRetrieverFactory.create(
-                vertx,
-                Duration.ofSeconds(5),
-                new ConfigStoreOptions().setType("json")
-                        .setConfig(config)
-        );
-        return ConfigService.create(configRetriever)
-                .map(configService -> (IConfigService) configService)
-                .onFailure(e -> {
-                    LOGGER.error("Failed to initialise ConfigService", e);
-                });
     }
 
     private boolean getRemoteConfigFeatureFlagEnabled() {

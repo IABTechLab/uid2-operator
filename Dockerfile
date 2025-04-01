@@ -17,7 +17,6 @@ COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-static.tar.gz /app/static.tar.gz
 COPY ./conf/default-config.json /app/conf/
 COPY ./conf/*.xml /app/conf/
-COPY ./conf/runtime-config-defaults.json /app/conf/
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
 

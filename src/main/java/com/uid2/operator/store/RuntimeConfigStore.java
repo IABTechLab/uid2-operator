@@ -4,18 +4,17 @@ import com.uid2.shared.Utils;
 import com.uid2.shared.cloud.DownloadCloudStorage;
 import com.uid2.shared.store.reader.IMetadataVersionedStore;
 import io.vertx.core.Vertx;
-import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.json.JsonObject;
 
 import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class ConfigStore implements IConfigStore, IMetadataVersionedStore {
+public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore {
     private final DownloadCloudStorage fileStreamProvider;
     private final String configMetadataPath;
     private final AtomicReference<JsonObject> config = new AtomicReference<>();
 
-    public ConfigStore(Vertx vertx, DownloadCloudStorage fileStreamProvider, String configMetadataPath) {
+    public RuntimeConfigStore(Vertx vertx, DownloadCloudStorage fileStreamProvider, String configMetadataPath) {
         this.fileStreamProvider = fileStreamProvider;
         this.configMetadataPath = configMetadataPath;
     }

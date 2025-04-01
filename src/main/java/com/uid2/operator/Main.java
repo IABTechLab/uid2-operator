@@ -349,7 +349,6 @@ public class Main {
 
         // TODO: What about a timeout?
         
-        Promise<ConfigService> promise = Promise.promise();
 //        LOGGER.info("Listening for config to be sent to event bus");
 //        configRetriever.listen(configChange -> {
 //            final JsonObject newConfiguration = configChange.getNewConfiguration();
@@ -360,14 +359,13 @@ public class Main {
 
         // Will complete once we have a valid config.
         // Should fail if we do not have a valid config.
-        ConfigService.create(configRetriever).onComplete(promise);
+        Future<ConfigService> configServiceFuture = ConfigService.create(configRetriever);
         
         // Deploy the verticle to retrieve remote config.
-        createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms")
+        Future<String> rotatingStoreVerticleDeployed = createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms");
                 // If deployment fails, no config values will be sent to the event bus so we should fail.
-                .onFailure(promise::fail);
 
-        return promise.future().map(configService -> (IConfigService) configService);
+        return Future.all(rotatingStoreVerticleDeployed, configServiceFuture).map(c -> (IConfigService) c.list().get(1));
         // TODO: Add config_refresh_ms to config.
 //                .compose(id -> {
 //                    // When the verticle has finished deploying, we have successfully fetched config values

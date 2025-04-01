@@ -309,14 +309,18 @@ public class Main {
         // TODO: What about a timeout?
         
         Promise<ConfigService> promise = Promise.promise();
-        LOGGER.info("Listening for config to be sent to event bus");
-        configRetriever.listen(configChange -> {
-            final JsonObject newConfiguration = configChange.getNewConfiguration();
-            if (!newConfiguration.isEmpty()) {
-                ConfigService.create(configRetriever).onComplete(promise);
-            }
-        });
+//        LOGGER.info("Listening for config to be sent to event bus");
+//        configRetriever.listen(configChange -> {
+//            final JsonObject newConfiguration = configChange.getNewConfiguration();
+//            if (!newConfiguration.isEmpty()) {
+//                ConfigService.create(configRetriever).onComplete(promise);
+//            }
+//        });
 
+        // Will complete once we have a valid config.
+        // Should fail if we do not have a valid config.
+        ConfigService.create(configRetriever).onComplete(promise);
+        
         // Deploy the verticle to retrieve remote config.
         createAndDeployRotatingStoreVerticle("config", configStore, "config_refresh_ms")
                 // If deployment fails, no config values will be sent to the event bus so we should fail.

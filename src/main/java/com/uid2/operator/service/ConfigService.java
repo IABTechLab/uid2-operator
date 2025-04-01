@@ -25,24 +25,31 @@ public class ConfigService implements IConfigService {
     
     private Future<Void> start() {
         Promise<Void> promise = Promise.promise();
-        configRetriever.listen(configChange -> {
-            if (configChange.getNewConfiguration().isEmpty()) {
-                // Event bus config store returns an empty JsonObject if nothing has been published to its address.
-                // Skip empty config values.
-                return;
-            }
-            
-            if (isConfigValid(configChange.getNewConfiguration())) {
-                if (this.config.getAndSet(configChange.getNewConfiguration()) == null) {
-                    // Complete the promise when we have our first valid config values.
-                    promise.complete();
-                }
-                logger.info("Successfully updated config");
-            } else {
-                logger.error("Failed to update config");
-            }
-        });
-        
+        configRetriever.configStream()
+                .handler(newConfig -> {
+                    if (newConfig.isEmpty())  {
+                        // Event bus config store returns an empty JsonObject if nothing has been published to its address.
+                        // Skip empty config values.
+                        return;
+                    }
+
+                    var oldConfig = this.config.get();
+                    if (oldConfig != null && oldConfig.equals(newConfig)) {
+                        return;
+                    }
+                        
+                    if (isConfigValid(newConfig)) {
+                        this.config.set(newConfig);
+                        if (oldConfig == null) {
+                            // Complete the promise when we have our first valid config values.
+                            promise.complete();
+                        }
+                        logger.info("Successfully updated config");
+                    } else {
+                        logger.error("Failed to update config");
+                    }
+                });
+
         return promise.future();
     }
 

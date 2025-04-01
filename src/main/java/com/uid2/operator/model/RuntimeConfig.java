@@ -5,10 +5,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import static com.uid2.operator.service.ConfigValidatorUtil.*;
 
 public class RuntimeConfig {
+    @JsonProperty("identity_token_expires_after_seconds")
     private Integer identity_token_expires_after_seconds;
+    @JsonProperty("refresh_token_expires_after_seconds")
     private Integer refresh_token_expires_after_seconds;
+    @JsonProperty("refresh_identity_token_after_seconds")
     private Integer refresh_identity_token_after_seconds;
+    @JsonProperty("sharing_token_expiry_seconds")
     private Integer sharing_token_expiry_seconds;
+    @JsonProperty("max_bidstream_lifetime_seconds")
     private Integer max_bidstream_lifetime_seconds;
 
     public Integer getIdentityTokenExpiresAfterSeconds() {

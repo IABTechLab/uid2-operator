@@ -8,11 +8,14 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import static com.uid2.operator.service.ConfigValidatorUtil.*;
 import static com.uid2.operator.service.UIDOperatorService.*;
 
 public class ConfigService implements IConfigService {
 
+    private final AtomicReference<JsonObject> config = new AtomicReference<>();
     private final ConfigRetriever configRetriever;
     private static final Logger logger = LoggerFactory.getLogger(ConfigService.class);
 
@@ -24,8 +27,13 @@ public class ConfigService implements IConfigService {
     }
 
     public static Future<ConfigService> create(ConfigRetriever configRetriever) {
+        // At this point, configRetriever has returned some config...
         Promise<ConfigService> promise = Promise.promise();
 
+        configRetriever.listen(configChange -> {
+            
+        });
+        
         ConfigService instance = new ConfigService(configRetriever);
 
         // Prevent dependent classes from attempting to access configuration before it has been retrieved.
@@ -44,7 +52,7 @@ public class ConfigService implements IConfigService {
 
     @Override
     public JsonObject getConfig() {
-        return configRetriever.getCachedConfig();
+        return this.config.get();
     }
 
     private JsonObject configValidationHandler(JsonObject config) {

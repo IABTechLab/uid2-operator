@@ -36,7 +36,7 @@ public class ConfigStore implements IMetadataVersionedStore {
 
     @Override
     public long loadContent(JsonObject metadata) throws Exception {
-        // The config is returned as part of the metadata object itself.
+        // The config is returned as part of the metadata itself.
         JsonObject config = metadata.getJsonObject("config");
         // There should be a config store listening for new config values on the address.
         this.vertx.eventBus().publish(address, config);

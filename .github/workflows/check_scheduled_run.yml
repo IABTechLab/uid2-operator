@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: '0 23 * * *'  # 3 PM PST
   workflow_dispatch:
+  push:
 
 jobs:
   check-status:

@@ -43,7 +43,9 @@ class ConfigServiceTest {
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 7200)
                 .put(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, 1800)
                 .put(MaxBidstreamLifetimeSecondsProp, 7200)
-                .put(SharingTokenExpiryProp, 3600);
+                .put(SharingTokenExpiryProp, 3600)
+                .put(MaxSharingLifetimeProp, 3600);
+
 
     }
 
@@ -98,7 +100,7 @@ class ConfigServiceTest {
 
     @Test
     void testInvalidConfigRevertsToPrevious(VertxTestContext testContext) {
-        JsonObject lastConfig = new JsonObject().put("previous", "config");
+        JsonObject lastConfig = runtimeConfig;
         JsonObject invalidConfig = new JsonObject()
                 .put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 1000)
                 .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 2000);
@@ -111,7 +113,8 @@ class ConfigServiceTest {
         ConfigService.create(spyRetriever)
                 .compose(configService -> {
                     reset(spyRetriever);
-                    assertEquals(lastConfig, configService.getConfig(), "Invalid config not reverted to previous config");
+                    JsonObject actual = JsonObject.mapFrom(configService.getConfig());
+                    assertEquals(lastConfig, actual, "Invalid config not reverted to previous config");
                     return Future.succeededFuture();
                 })
                 .onComplete(testContext.succeedingThenComplete());

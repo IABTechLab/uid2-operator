@@ -150,6 +150,12 @@ public class UIDOperatorVerticleTest {
         Metrics.globalRegistry.add(registry);
     }
 
+    public void modifyConfig(String configName, Object configValue) {
+        config.put(configName, configValue);
+        RuntimeConfig runtimeConfig = config.mapTo(RuntimeConfig.class);
+        when(configService.getConfig()).thenReturn(runtimeConfig);
+    }
+
     @AfterEach
     public void teardown() throws Exception {
         Metrics.globalRegistry.remove(registry);
@@ -4799,7 +4805,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void keySharingKeysets_SHARER_CustomMaxSharingLifetimeSeconds(Vertx vertx, VertxTestContext testContext) {
-        this.config.put(Const.Config.MaxSharingLifetimeProp, 999999);
+        modifyConfig(Const.Config.MaxSharingLifetimeProp, 999999);
         keySharingKeysets_SHARER(true, true, vertx, testContext, 999999);
     }
     
@@ -5160,9 +5166,9 @@ public class UIDOperatorVerticleTest {
         Duration newRefreshExpiresAfter = Duration.ofMinutes(30);
         Duration newRefreshIdentityAfter = Duration.ofMinutes(10);
 
-        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toSeconds());
-        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toSeconds());
-        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toSeconds());
+        modifyConfig(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toSeconds());
+        modifyConfig(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toSeconds());
+        modifyConfig(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toSeconds());
 
         sendTokenGenerate("v2", vertx,
                 null, v2Payload, 200,
@@ -5183,8 +5189,8 @@ public class UIDOperatorVerticleTest {
         int newSharingTokenExpiry = config.getInteger(Const.Config.SharingTokenExpiryProp) + 1;
         int newMaxSharingLifetimeSeconds = config.getInteger(Const.Config.SharingTokenExpiryProp) + 1;
 
-        config.put(Const.Config.SharingTokenExpiryProp, newSharingTokenExpiry);
-        config.put(Const.Config.MaxSharingLifetimeProp, newMaxSharingLifetimeSeconds);
+        modifyConfig(Const.Config.SharingTokenExpiryProp, newSharingTokenExpiry);
+        modifyConfig(Const.Config.MaxSharingLifetimeProp, newMaxSharingLifetimeSeconds);
 
         String apiVersion = "v2";
         int siteId = 5;
@@ -5213,7 +5219,7 @@ public class UIDOperatorVerticleTest {
     @Test
     void keyBidstreamRespectsConfigValues(Vertx vertx, VertxTestContext testContext) {
         int newMaxBidstreamLifetimeSeconds = 999999;
-        config.put(Const.Config.MaxBidstreamLifetimeSecondsProp, newMaxBidstreamLifetimeSeconds);
+        modifyConfig(Const.Config.MaxBidstreamLifetimeSecondsProp, newMaxBidstreamLifetimeSeconds);
 
         final String apiVersion = "v2";
         final KeyDownloadEndpoint endpoint = KeyDownloadEndpoint.BIDSTREAM;

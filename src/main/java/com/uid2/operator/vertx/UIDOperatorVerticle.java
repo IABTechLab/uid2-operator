@@ -60,8 +60,6 @@ import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URI;
 import java.security.*;
 import java.security.spec.*;
 import java.time.*;
@@ -88,7 +86,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
-    private final IConfigService configService;
+    private final IConfigStore configStore;
     private final boolean clientSideTokenGenerate;
     private final AuthMiddleware auth;
     private final ISiteStore siteProvider;
@@ -141,7 +139,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final String RC_CONFIG_KEY = "remote-config";
     public final static String ORIGIN_HEADER = "Origin";
 
-    public UIDOperatorVerticle(IConfigService configService,
+    public UIDOperatorVerticle(IConfigStore configStore,
                                JsonObject config,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
@@ -161,7 +159,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             throw new RuntimeException(e);
         }
-        this.configService = configService;
+        this.configStore = configStore;
         this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -240,7 +238,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
         router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().handler(ctx -> {
-            JsonObject curConfig = configService.getConfig();
+            JsonObject curConfig = configStore.getConfig();
             ctx.put(RC_CONFIG_KEY, curConfig);
             ctx.next();
         });

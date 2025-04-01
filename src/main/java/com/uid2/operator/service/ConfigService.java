@@ -45,11 +45,11 @@ public class ConfigService implements IConfigService {
                         
                     if (isConfigValid(newConfig)) {
                         this.config.set(newConfig);
+                        logger.info("Successfully updated config");
                         if (oldConfig == null) {
                             // Complete the promise when we have our first valid config values.
                             promise.complete();
                         }
-                        logger.info("Successfully updated config");
                     } else {
                         // TODO: What if we can't get valid config ... should we shut down?
                         // TODO: Should this be communicated with metrics? Via RSV?

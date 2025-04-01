@@ -182,8 +182,7 @@ public class Main {
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
         
         if (this.getRemoteConfigFeatureFlagEnabled()) {
-            // TODO: Extract string constant.
-            String configMdPath = this.config.getString("config_metadata_path");
+            String configMdPath = this.config.getString(Const.Config.ConfigMetadataPathProp);
             this.configStore = new ConfigStore(vertx, fsStores, configMdPath);
         } else {
             this.configStore = new BootstrapConfigStore(this.config);

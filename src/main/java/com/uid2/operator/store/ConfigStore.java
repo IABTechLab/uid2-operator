@@ -4,6 +4,7 @@ import com.uid2.shared.Utils;
 import com.uid2.shared.cloud.DownloadCloudStorage;
 import com.uid2.shared.store.reader.IMetadataVersionedStore;
 import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.json.JsonObject;
 
 import java.io.InputStream;
@@ -23,12 +24,9 @@ public class ConfigStore implements IMetadataVersionedStore {
     
     @Override
     public JsonObject getMetadata() throws Exception {
-        // TODO
         try (InputStream s = this.fileStreamProvider.download(configMetadataPath)) {
             return Utils.toJsonObject(s);
         }
-//        this.fileStreamProvider.download()
-//        return null;
     }
 
     @Override
@@ -38,7 +36,10 @@ public class ConfigStore implements IMetadataVersionedStore {
 
     @Override
     public long loadContent(JsonObject metadata) throws Exception {
-        this.vertx.eventBus().publish(address, metadata.getJsonObject("config"));
+        // The config is returned as part of the metadata object itself.
+        JsonObject config = metadata.getJsonObject("config");
+        // There should be a config store listening for new config values on the address.
+        this.vertx.eventBus().publish(address, config);
         return 1;
     }
 }

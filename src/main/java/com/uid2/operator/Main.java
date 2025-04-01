@@ -288,43 +288,35 @@ public class Main {
         this.createVertxInstancesMetric();
         this.createVertxEventLoopsMetric();
 
-        this.initialiseConfigService()
-                .compose(configService -> {
+        Supplier<Verticle> operatorVerticleSupplier = () -> {
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
+            return verticle;
+        };
 
-                    Supplier<Verticle> operatorVerticleSupplier = () -> {
-                        UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
-                        return verticle;
-                    };
+        DeploymentOptions options = new DeploymentOptions();
+        int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
+        options.setInstances(svcInstances);
 
-                    DeploymentOptions options = new DeploymentOptions();
-                    int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
-                    options.setInstances(svcInstances);
+        Promise<Void> compositePromise = Promise.promise();
+        List<Future> fs = new ArrayList<>();
+        fs.add(createAndDeployStatsCollector());
+        try {
+            fs.add(createStoreVerticles());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
-                    Promise<Void> compositePromise = Promise.promise();
-                    List<Future> fs = new ArrayList<>();
-                    fs.add(createAndDeployStatsCollector());
-                    try {
-                        fs.add(createStoreVerticles());
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+        CompositeFuture.all(fs).onComplete(ar -> {
+            if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
+            else compositePromise.complete();
+        });
 
-                    CompositeFuture.all(fs).onComplete(ar -> {
-                        if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
-                        else compositePromise.complete();
-                    });
-
-                    return compositePromise.future()
-                            .compose(v -> {
-                                metrics.setup();
-                                vertx.setPeriodic(60000, id -> metrics.update());
-                                return vertx.deployVerticle(operatorVerticleSupplier, options);
-                            });
-                })
-                .onFailure(t -> {
-                    LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
-                    vertx.close();
-                    System.exit(1);
+        // TODO: Check what this method used to look like before we introduced initializeConfigService.
+        compositePromise.future()
+                .compose(v -> {
+                    metrics.setup();
+                    vertx.setPeriodic(60000, id -> metrics.update());
+                    return vertx.deployVerticle(operatorVerticleSupplier, options);
                 });
     }
 

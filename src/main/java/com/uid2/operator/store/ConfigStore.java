@@ -37,6 +37,7 @@ public class ConfigStore implements IConfigStore, IMetadataVersionedStore {
         // The config is returned as part of the metadata itself.
         JsonObject config = metadata.getJsonObject("config");
         // TODO: Validation
+        // TODO: logging?
         this.config.set(config);
         return 1;
     }

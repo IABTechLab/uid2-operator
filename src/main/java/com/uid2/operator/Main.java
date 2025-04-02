@@ -80,6 +80,7 @@ public class Main {
     private final boolean encryptedCloudFilesEnabled;
     private OperatorShutdownHandler shutdownHandler = null;
     private final OperatorMetrics metrics;
+    private final boolean useRemoteConfig;
     private final boolean clientSideTokenGenerate;
     private final boolean validateServiceLinks;
     private IStatsCollectorQueue _statsCollectorQueue;
@@ -101,7 +102,7 @@ public class Main {
         }
 
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
-        boolean useRemoteConfig = config.getBoolean(EnableRemoteConfigProp, false);
+        this.useRemoteConfig = config.getBoolean(EnableRemoteConfigProp, false);
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
         this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
@@ -365,6 +366,9 @@ public class Main {
             siteProvider.getMetadata();
             clientSideKeypairProvider.getMetadata();
         }
+        if (useRemoteConfig) {
+            configStore.getConfig();
+        }
         clientKeyProvider.getMetadata();
         keysetKeyStore.getMetadata();
         keysetProvider.getMetadata();
@@ -406,6 +410,9 @@ public class Main {
             fs.add(createAndDeployRotatingStoreVerticle("cloud_encryption_keys", cloudEncryptionKeyProvider, "cloud_encryption_keys_refresh_ms"));
         }
 
+        if (useRemoteConfig) {
+            fs.add(createAndDeployRotatingStoreVerticle("runtime_config", (RuntimeConfigStore) configStore, Const.Config.ConfigScanPeriodMsProp));
+        }
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));

@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore {
     private final DownloadCloudStorage fileStreamProvider;
     private final String configMetadataPath;
-    private final AtomicReference<JsonObject> config = new AtomicReference<>();
+    private final AtomicReference<RuntimeConfig> config = new AtomicReference<>();
 
     public RuntimeConfigStore(Vertx vertx, DownloadCloudStorage fileStreamProvider, String configMetadataPath) {
         this.fileStreamProvider = fileStreamProvider;
@@ -34,15 +34,24 @@ public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore
     @Override
     public long loadContent(JsonObject metadata) throws Exception {
         // The config is returned as part of the metadata itself.
-        JsonObject config = metadata.getJsonObject("config");
-        // TODO: Validation
-        // TODO: logging?
-        this.config.set(config);
+        RuntimeConfig newRuntimeConfig = metadata.getJsonObject("runtime_config").mapTo(RuntimeConfig.class);
+
+        if (!newRuntimeConfig.isValid()) {
+//            logger.error("Failed to update config");
+            RuntimeConfig lastConfig = this.config.get();
+            if (lastConfig == null || !lastConfig.isValid()) {
+                throw new RuntimeException("Invalid config retrieved and no previous config to revert to");
+            }
+            this.config.set(lastConfig);
+        }
+
+//        logger.info("Successfully updated config");
+        this.config.set(newRuntimeConfig);
         return 1;
     }
 
     @Override
     public RuntimeConfig getConfig() {
-        return config.get().mapTo(RuntimeConfig.class);
+        return this.config.get();
     }
 }

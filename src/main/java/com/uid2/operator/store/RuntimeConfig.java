@@ -57,11 +57,11 @@ public class RuntimeConfig {
     @JsonIgnore
     public boolean isValid() {
         boolean isValid = true;
-        isValid &= validateIdentityRefreshTokens(identityTokenExpiresAfterSeconds, refreshTokenExpiresAfterSeconds, refreshIdentityTokenAfterSeconds);
+        isValid &= validateIdentityRefreshTokens(getIdentityTokenExpiresAfterSeconds(), getRefreshTokenExpiresAfterSeconds(), getRefreshIdentityTokenAfterSeconds());
 
-        isValid &= validateBidstreamLifetime(maxBidstreamLifetimeSeconds, refreshIdentityTokenAfterSeconds);
+        isValid &= validateBidstreamLifetime(getMaxBidstreamLifetimeSeconds(), getRefreshIdentityTokenAfterSeconds());
 
-        isValid &= validateSharingTokenExpiry(sharingTokenExpirySeconds);
+        isValid &= validateSharingTokenExpiry(getSharingTokenExpirySeconds());
         return isValid;
     }
 }

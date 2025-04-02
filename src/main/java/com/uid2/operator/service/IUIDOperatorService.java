@@ -12,9 +12,9 @@ import java.util.List;
 
 public interface IUIDOperatorService {
 
-    TokenGenerateResponse generateIdentity(TokenGenerateRequest request);
+    TokenGenerateResponse generateIdentity(TokenGenerateRequest request, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter);
 
-    TokenRefreshResponse refreshIdentity(TokenRefreshRequest input);
+    TokenRefreshResponse refreshIdentity(TokenRefreshRequest input, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter);
 
     IdentityMapResponseItem mapHashedDii(IdentityMapRequestItem request);
 
@@ -28,6 +28,4 @@ public interface IUIDOperatorService {
     boolean advertisingTokenMatches(String advertisingToken, HashedDii hashedDii, Instant asOf);
 
     Instant getLatestOptoutEntry(HashedDii hashedDii, Instant asOf);
-
-    Duration getIdentityExpiryDuration();
 }

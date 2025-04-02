@@ -10,7 +10,6 @@ import com.uid2.shared.model.TokenVersion;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,15 +34,13 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final EncryptedTokenEncoder encoder;
     private final Clock clock;
     private final IdentityScope identityScope;
+
     private final FirstLevelHash testOptOutIdentityForEmail;
     private final FirstLevelHash testOptOutIdentityForPhone;
     private final FirstLevelHash testValidateIdentityForEmail;
     private final FirstLevelHash testValidateIdentityForPhone;
     private final FirstLevelHash testRefreshOptOutIdentityForEmail;
     private final FirstLevelHash testRefreshOptOutIdentityForPhone;
-    private final Duration identityExpiresAfter;
-    private final Duration refreshExpiresAfter;
-    private final Duration refreshIdentityAfter;
 
     private final OperatorIdentity operatorIdentity;
     private final TokenVersion refreshTokenVersion;
@@ -52,8 +49,10 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private final Handler<Boolean> saltRetrievalResponseHandler;
 
-    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler) {
+
+    public UIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock,
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled) {
+
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
@@ -76,26 +75,25 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
-        this.identityExpiresAfter = Duration.ofSeconds(config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
-        this.refreshExpiresAfter = Duration.ofSeconds(config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        this.refreshIdentityAfter = Duration.ofSeconds(config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-
-        if (this.identityExpiresAfter.compareTo(this.refreshExpiresAfter) > 0) {
-            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-        }
-        if (this.refreshIdentityAfter.compareTo(this.identityExpiresAfter) > 0) {
-            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        }
-        if (this.refreshIdentityAfter.compareTo(this.refreshExpiresAfter) > 0) {
-            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        }
-
         this.refreshTokenVersion = TokenVersion.V3;
-        this.rawUidV3Enabled = config.getBoolean("identity_v3", false);
+        this.rawUidV3Enabled = identityV3Enabled;
+    }
+
+    private void validateTokenDurations(Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        if (identityExpiresAfter.compareTo(refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ")");
+        }
+        if (refreshIdentityAfter.compareTo(identityExpiresAfter) > 0) {
+            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
+        }
+        if (refreshIdentityAfter.compareTo(refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
+        }
     }
 
     @Override
-    public TokenGenerateResponse generateIdentity(TokenGenerateRequest request) {
+    public TokenGenerateResponse generateIdentity(TokenGenerateRequest request, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        this.validateTokenDurations(refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.hashedDii.hashedDii(), now);
         final FirstLevelHash firstLevelHashIdentity = new FirstLevelHash(
@@ -105,12 +103,13 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return TokenGenerateResponse.OptOutResponse;
         } else {
-            return generateIdentity(request.sourcePublisher, firstLevelHashIdentity, request.privacyBits);
+            return this.generateIdentity(request.sourcePublisher, firstLevelHashIdentity, request.privacyBits, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
         }
     }
 
     @Override
-    public TokenRefreshResponse refreshIdentity(TokenRefreshRequest input) {
+    public TokenRefreshResponse refreshIdentity(TokenRefreshRequest input, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        this.validateTokenDurations(refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
         // should not be possible as different scopes should be using different keys, but just in case
         if (input.firstLevelHash.identityScope() != this.identityScope) {
             return TokenRefreshResponse.Invalid;
@@ -137,8 +136,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             if (!optedOut) {
                 TokenGenerateResponse tokenGenerateResponse = this.generateIdentity(input.sourcePublisher,
                         input.firstLevelHash,
-                        input.privacyBits);
-
+                        input.privacyBits, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
                 return TokenRefreshResponse.createRefreshedResponse(tokenGenerateResponse, durationSinceLastRefresh, isCstg);
             } else {
                 return TokenRefreshResponse.Optout;
@@ -211,11 +209,6 @@ public class UIDOperatorService implements IUIDOperatorService {
         return this.optOutStore.getLatestEntry(firstLevelHash);
     }
 
-    @Override
-    public Duration getIdentityExpiryDuration() {
-        return this.identityExpiresAfter;
-    }
-
     private FirstLevelHash getFirstLevelHashIdentity(HashedDii hashedDii, Instant asOf) {
         return getFirstLevelHashIdentity(hashedDii.identityScope(), hashedDii.diiType(), hashedDii.hashedDii(), asOf);
     }
@@ -241,7 +234,8 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private TokenGenerateResponse generateIdentity(SourcePublisher sourcePublisher,
-                                                   FirstLevelHash firstLevelHash, PrivacyBits privacyBits) {
+                                                   FirstLevelHash firstLevelHash, PrivacyBits privacyBits,
+                                                   Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
         final IdentityMapResponseItem identityMapResponseItem = generateRawUid(firstLevelHash, nowUtc);
@@ -251,8 +245,8 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         return this.encoder.encodeIntoIdentityResponse(
                 this.createAdvertisingTokenRequest(sourcePublisher, rawUid, nowUtc, privacyBits,
-                        firstLevelHash.establishedAt()),
-                this.createTokenRefreshRequest(sourcePublisher, firstLevelHash, nowUtc, privacyBits),
+                        firstLevelHash.establishedAt(), identityExpiresAfter),
+                this.createTokenRefreshRequest(sourcePublisher, firstLevelHash, nowUtc, privacyBits, refreshExpiresAfter),
                 nowUtc.plusMillis(refreshIdentityAfter.toMillis()),
                 nowUtc
         );
@@ -261,7 +255,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private TokenRefreshRequest createTokenRefreshRequest(SourcePublisher sourcePublisher,
                                                           FirstLevelHash firstLevelHash,
                                                           Instant now,
-                                                          PrivacyBits privacyBits) {
+                                                          PrivacyBits privacyBits, Duration refreshExpiresAfter) {
         return new TokenRefreshRequest(
                 this.refreshTokenVersion,
                 now,
@@ -273,7 +267,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private AdvertisingTokenRequest createAdvertisingTokenRequest(SourcePublisher sourcePublisher, RawUid rawUidIdentity,
-                                                                  Instant now, PrivacyBits privacyBits, Instant establishedAt) {
+                                                                  Instant now, PrivacyBits privacyBits, Instant establishedAt, Duration identityExpiresAfter) {
 
         return new AdvertisingTokenRequest(TokenVersion.V4, now, now.plusMillis(identityExpiresAfter.toMillis()),
                 this.operatorIdentity, sourcePublisher, rawUidIdentity,

@@ -10,6 +10,8 @@
   "optout_metadata_path": "https://optout.integ.euid.eu/optout/refresh",
   "core_attest_url": "https://core.integ.euid.eu/attest",
   "optout_api_uri": "https://optout.integ.euid.eu/optout/replicate",
+  "cloud_encryption_keys_metadata_path": "https://core.integ.euid.eu/cloud_encryption_keys/retrieve",
   "optout_s3_folder": "optout/",
-  "allow_legacy_api": false
+  "allow_legacy_api": false,
+  "identity_scope": "euid"
 }

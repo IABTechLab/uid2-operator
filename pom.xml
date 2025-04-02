@@ -6,8 +6,8 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.43.4</version>
-
+    <version>5.50.36</version>
+  
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <vertx.version>4.5.11</vertx.version>
@@ -20,9 +20,9 @@
         <micrometer.version>1.12.2</micrometer.version>
         <enclave-api.version>2.1.6</enclave-api.version>
         <enclave-aws.version>2.1.0</enclave-aws.version>
-        <enclave-azure.version>2.1.0</enclave-azure.version>
+        <enclave-azure.version>2.1.13</enclave-azure.version>
         <enclave-gcp.version>2.1.0</enclave-gcp.version>
-        <uid2-shared.version>8.0.9</uid2-shared.version>
+        <uid2-shared.version>9.0.8</uid2-shared.version>
         <image.version>${project.version}</image.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
@@ -161,11 +161,6 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>1.5.8</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.loki4j</groupId>
-            <artifactId>loki-logback-appender</artifactId>
-            <version>1.5.2</version>
         </dependency>
         <dependency>
             <groupId>net.logstash.logback</groupId>

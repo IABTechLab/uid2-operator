@@ -24,7 +24,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+
 import static com.uid2.operator.service.TokenUtils.getFirstLevelHashFromHashedDii;
+import static com.uid2.operator.Const.Config.IdentityV3Prop;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -35,6 +37,7 @@ import org.mockito.MockitoAnnotations;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
@@ -58,8 +61,8 @@ public class UIDOperatorServiceTest {
     final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
 
     class ExtendedUIDOperatorService extends UIDOperatorService {
-        public ExtendedUIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler) {
-            super(config, optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler);
+        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled) {
+            super(optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler, identityV3Enabled);
         }
     }
 
@@ -92,32 +95,32 @@ public class UIDOperatorServiceTest {
         uid2Config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         uid2Config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        uid2Config.put("identity_v3", false);
+        uid2Config.put(IdentityV3Prop, false);
 
         uid2Service = new ExtendedUIDOperatorService(
-                uid2Config,
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
                 this.clock,
                 IdentityScope.UID2,
-                this.shutdownHandler::handleSaltRetrievalResponse
+                this.shutdownHandler::handleSaltRetrievalResponse,
+                uid2Config.getBoolean(IdentityV3Prop)
         );
 
         euidConfig = new JsonObject();
         euidConfig.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
         euidConfig.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
         euidConfig.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        euidConfig.put("identity_v3", true);
+        euidConfig.put(IdentityV3Prop, true);
 
         euidService = new ExtendedUIDOperatorService(
-                euidConfig,
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
                 this.clock,
                 IdentityScope.EUID,
-                this.shutdownHandler::handleSaltRetrievalResponse
+                this.shutdownHandler::handleSaltRetrievalResponse,
+                euidConfig.getBoolean(IdentityV3Prop)
         );
     }
 
@@ -179,7 +182,10 @@ public class UIDOperatorServiceTest {
                 OptoutCheckPolicy.DoNotRespect, PrivacyBits.fromInt(0),
                 this.now.minusSeconds(234)
         );
-        final TokenGenerateResponse tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
+        final TokenGenerateResponse tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest,
+                Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(tokenGenerateResponse);
@@ -208,7 +214,10 @@ public class UIDOperatorServiceTest {
         setNow(Instant.now().plusSeconds(200));
 
         reset(shutdownHandler);
-        final TokenRefreshResponse refreshResponse = uid2Service.refreshIdentity(tokenRefreshRequest);
+        final TokenRefreshResponse refreshResponse = uid2Service.refreshIdentity(tokenRefreshRequest,
+                Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(refreshResponse);
@@ -245,14 +254,21 @@ public class UIDOperatorServiceTest {
                 inputVal.toHashedDii(IdentityScope.UID2),
                 OptoutCheckPolicy.DoNotRespect, PrivacyBits.fromInt(0), this.now
         );
-        final TokenGenerateResponse tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
+
+        final TokenGenerateResponse tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest,
+                Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(tokenGenerateResponse);
         assertFalse(tokenGenerateResponse.isOptedOut());
 
         final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(tokenGenerateResponse.getRefreshToken());
-        assertEquals(TokenRefreshResponse.Optout, uid2Service.refreshIdentity(tokenRefreshRequest));
+        assertEquals(TokenRefreshResponse.Optout, uid2Service.refreshIdentity(tokenRefreshRequest,
+                Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)));
     }
 
     @Test
@@ -264,7 +280,11 @@ public class UIDOperatorServiceTest {
                 inputVal.toHashedDii(IdentityScope.UID2),
                 OptoutCheckPolicy.RespectOptOut, PrivacyBits.fromInt(0), this.now
         );
-        final TokenGenerateResponse tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
+
+        final TokenGenerateResponse tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest,
+                Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         assertTrue(tokenGenerateResponse.isOptedOut());
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
@@ -280,14 +300,20 @@ public class UIDOperatorServiceTest {
                 inputVal.toHashedDii(IdentityScope.EUID),
                 OptoutCheckPolicy.DoNotRespect, PrivacyBits.fromInt(0), this.now
         );
-        final TokenGenerateResponse tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest);
+        final TokenGenerateResponse tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest,
+                Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
         assertNotNull(tokenGenerateResponse);
 
         final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(tokenGenerateResponse.getRefreshToken());
         reset(shutdownHandler);
-        assertEquals(TokenRefreshResponse.Invalid, uid2Service.refreshIdentity(tokenRefreshRequest));
+        assertEquals(TokenRefreshResponse.Invalid, uid2Service.refreshIdentity(tokenRefreshRequest,
+                Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)));
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(anyBoolean());
     }
 
@@ -320,20 +346,32 @@ public class UIDOperatorServiceTest {
         final AdvertisingTokenRequest advertisingTokenRequest;
         final TokenGenerateResponse tokenGenerateResponseAfterOptOut;
         if (scope == IdentityScope.UID2) {
-            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequestForceGenerate);
+            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequestForceGenerate,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
             advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.UID2, hashedDii.diiType(), tokenGenerateRequestRespectOptOut.sourcePublisher.siteId);
             reset(shutdownHandler);
-            tokenGenerateResponseAfterOptOut = uid2Service.generateIdentity(tokenGenerateRequestRespectOptOut);
+            tokenGenerateResponseAfterOptOut = uid2Service.generateIdentity(tokenGenerateRequestRespectOptOut,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
 
         } else {
-            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequestForceGenerate);
+            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequestForceGenerate,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
             verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
             verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
             advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.EUID, hashedDii.diiType(), tokenGenerateRequestRespectOptOut.sourcePublisher.siteId);
             reset(shutdownHandler);
-            tokenGenerateResponseAfterOptOut = euidService.generateIdentity(tokenGenerateRequestRespectOptOut);
+            tokenGenerateResponseAfterOptOut = euidService.generateIdentity(tokenGenerateRequestRespectOptOut,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
@@ -444,10 +482,16 @@ public class UIDOperatorServiceTest {
 
         TokenGenerateResponse tokenGenerateResponse;
         if(scope == IdentityScope.EUID) {
-            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         else {
-            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
@@ -507,10 +551,16 @@ public class UIDOperatorServiceTest {
 
         TokenGenerateResponse tokenGenerateResponse;
         if(scope == IdentityScope.EUID) {
-            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         else {
-            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
@@ -522,7 +572,10 @@ public class UIDOperatorServiceTest {
 
         final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(tokenGenerateResponse.getRefreshToken());
         reset(shutdownHandler);
-        assertEquals(TokenRefreshResponse.Optout, (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest));
+        assertEquals(TokenRefreshResponse.Optout, (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest,
+                Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)));
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(anyBoolean());
     }
 
@@ -549,10 +602,16 @@ public class UIDOperatorServiceTest {
 
         TokenGenerateResponse tokenGenerateResponse;
         if(scope == IdentityScope.EUID) {
-            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         else {
-            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
@@ -564,7 +623,10 @@ public class UIDOperatorServiceTest {
 
         final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(tokenGenerateResponse.getRefreshToken());
         reset(shutdownHandler);
-        assertEquals(TokenRefreshResponse.Optout, (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest));
+        assertEquals(TokenRefreshResponse.Optout, (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest,
+                Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)));
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(anyBoolean());
     }
 
@@ -625,10 +687,16 @@ public class UIDOperatorServiceTest {
         TokenGenerateResponse tokenGenerateResponse;
         AdvertisingTokenRequest advertisingTokenRequest;
         if (scope == IdentityScope.EUID) {
-            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         else {
-            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), scope, tokenGenerateRequest.hashedDii.diiType(), tokenGenerateRequest.sourcePublisher.siteId);
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
@@ -688,10 +756,16 @@ public class UIDOperatorServiceTest {
         );
         TokenGenerateResponse tokenGenerateResponse;
         if(scope == IdentityScope.EUID) {
-            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         else {
-            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(false);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(true);
@@ -699,7 +773,11 @@ public class UIDOperatorServiceTest {
         assertNotNull(tokenGenerateResponse);
 
         final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(tokenGenerateResponse.getRefreshToken());
-        TokenRefreshResponse refreshResponse = (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest);
+        TokenRefreshResponse refreshResponse =
+                (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest,
+                        Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                        Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                        Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         assertTrue(refreshResponse.isRefreshed());
         assertNotNull(refreshResponse.getIdentityResponse());
         assertNotEquals(TokenRefreshResponse.Optout, refreshResponse);
@@ -719,23 +797,23 @@ public class UIDOperatorServiceTest {
         saltProvider.loadContent();
 
         UIDOperatorService uid2Service = new UIDOperatorService(
-                uid2Config,
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
                 this.clock,
                 IdentityScope.UID2,
-                this.shutdownHandler::handleSaltRetrievalResponse
+                this.shutdownHandler::handleSaltRetrievalResponse,
+                uid2Config.getBoolean(IdentityV3Prop)
         );
 
         UIDOperatorService euidService = new UIDOperatorService(
-                euidConfig,
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
                 this.clock,
                 IdentityScope.EUID,
-                this.shutdownHandler::handleSaltRetrievalResponse
+                this.shutdownHandler::handleSaltRetrievalResponse,
+                euidConfig.getBoolean(IdentityV3Prop)
         );
 
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
@@ -751,11 +829,17 @@ public class UIDOperatorServiceTest {
         AdvertisingTokenRequest advertisingTokenRequest;
         reset(shutdownHandler);
         if(scope == IdentityScope.EUID) {
-            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = euidService.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
             advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.EUID, tokenGenerateRequest.hashedDii.diiType(), tokenGenerateRequest.sourcePublisher.siteId);
         }
         else {
-            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest);
+            tokenGenerateResponse = uid2Service.generateIdentity(tokenGenerateRequest,
+                    Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                    Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                    Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
             advertisingTokenRequest = validateAndGetToken(tokenEncoder, tokenGenerateResponse.getAdvertisingToken(), IdentityScope.UID2, tokenGenerateRequest.hashedDii.diiType(), tokenGenerateRequest.sourcePublisher.siteId);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
@@ -766,7 +850,10 @@ public class UIDOperatorServiceTest {
 
         final TokenRefreshRequest tokenRefreshRequest = this.tokenEncoder.decodeRefreshToken(tokenGenerateResponse.getRefreshToken());
         reset(shutdownHandler);
-        TokenRefreshResponse refreshResponse = (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest);
+        TokenRefreshResponse refreshResponse = (scope == IdentityScope.EUID? euidService: uid2Service).refreshIdentity(tokenRefreshRequest,
+                Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
         verify(shutdownHandler, never()).handleSaltRetrievalResponse(false);
         assertTrue(refreshResponse.isRefreshed());

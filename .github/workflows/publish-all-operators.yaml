@@ -1,5 +1,5 @@
 name: Publish All Operators
-run-name: ${{ format('Publish All Operators - {0} Release', inputs.release_type) }}
+run-name: ${{ format('Publish All Operators - {0} Release', github.event.inputs.release_type || 'scheduled') }}
 on:
   workflow_dispatch:
     inputs:
@@ -18,6 +18,8 @@ on:
         - CRITICAL,HIGH
         - CRITICAL,HIGH,MEDIUM
         - CRITICAL (DO NOT use if JIRA ticket not raised)
+  schedule:
+    - cron: "0 0 * * *"
 
 jobs:
   start:
@@ -26,13 +28,25 @@ jobs:
     outputs:
         new_version: ${{ steps.version.outputs.new_version }}
         commit_sha: ${{ steps.commit-and-tag.outputs.commit_sha }}
+        release_type: ${{ steps.set-env.outputs.release_type }}
+        vulnerability_severity: ${{ steps.set-env.outputs.vulnerability_severity }}
+    env:
+        RELEASE_TYPE: ${{ inputs.release_type || (github.event_name == 'schedule' && 'patch') }}
+        VULNERABILITY_SEVERITY: ${{ inputs.vulnerability_severity || (github.event_name == 'schedule' && 'CRITICAL,HIGH') }}
     steps:
+      - name: Set Environment Variables
+        id: set-env
+        run: |
+          echo "release_type=${{ inputs.release_type || (github.event_name == 'schedule' && 'patch') }}" >> $GITHUB_ENV
+          echo "vulnerability_severity=${{ inputs.vulnerability_severity || (github.event_name == 'schedule' && 'CRITICAL,HIGH') }}" >> $GITHUB_ENV
+          echo "release_type=${RELEASE_TYPE}" >> $GITHUB_OUTPUT
+          echo "vulnerability_severity=${VULNERABILITY_SEVERITY}" >> $GITHUB_OUTPUT
       - name: Approve Major release
-        if: inputs.release_type == 'Major'
+        if: env.RELEASE_TYPE == 'Major'
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.token }}
-          approvers: thomasm-ttd,atarassov-ttd,cody-constine-ttd
+          approvers: atarassov-ttd,vishalegbert-ttd,sunnywu,cody-constine-ttd
           minimum-approvals: 1
           issue-title: Creating Major version of UID2-Operator
 
@@ -64,7 +78,7 @@ jobs:
         id: version
         uses: IABTechLab/uid2-shared-actions/actions/version_number@v2
         with:
-          type: ${{ inputs.release_type }}
+          type: ${{ env.RELEASE_TYPE }}
           branch_name: ${{ github.ref }}
 
       - name: Update pom.xml
@@ -79,7 +93,7 @@ jobs:
         uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v3
         with:
           add: 'pom.xml version.json'
-          message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+          message: 'Released ${{ env.RELEASE_TYPE }} version: ${{ steps.version.outputs.new_version }}'
           tag: v${{ steps.version.outputs.new_version }} 
 
   buildPublic:
@@ -87,9 +101,9 @@ jobs:
     needs: start
     uses: ./.github/workflows/publish-public-operator-docker-image.yaml
     with:
-      release_type: ${{ inputs.release_type }}
+      release_type: ${{ needs.start.outputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
-      vulnerability_severity: ${{ inputs.vulnerability_severity }}
+      vulnerability_severity: ${{ needs.start.outputs.vulnerability_severity }}
     secrets: inherit
 
   buildGCP:
@@ -97,10 +111,10 @@ jobs:
     needs: start
     uses: ./.github/workflows/publish-gcp-oidc-enclave-docker.yaml
     with:
-      release_type: ${{ inputs.release_type }}
+      release_type: ${{ needs.start.outputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
       commit_sha: ${{ needs.start.outputs.commit_sha }}
-      vulnerability_severity: ${{ inputs.vulnerability_severity }}
+      vulnerability_severity: ${{ needs.start.outputs.vulnerability_severity }}
     secrets: inherit
 
   buildAzure:
@@ -108,10 +122,10 @@ jobs:
     needs: start
     uses: ./.github/workflows/publish-azure-cc-enclave-docker.yaml
     with:
-      release_type: ${{ inputs.release_type }}
+      release_type: ${{ needs.start.outputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
       commit_sha: ${{ needs.start.outputs.commit_sha }}
-      vulnerability_severity: ${{ inputs.vulnerability_severity }}
+      vulnerability_severity: ${{ needs.start.outputs.vulnerability_severity }}
     secrets: inherit
 
   buildAWS:
@@ -119,7 +133,7 @@ jobs:
     needs: start
     uses: ./.github/workflows/publish-aws-nitro-eif.yaml
     with:
-      release_type: ${{ inputs.release_type }}
+      release_type: ${{ needs.start.outputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
       commit_sha: ${{ needs.start.outputs.commit_sha }}
     secrets: inherit
@@ -132,18 +146,11 @@ jobs:
       operator_run_number: ${{ github.run_id }}
     secrets: inherit
 
-  buildEKS:
-    name: Build AWS EKS Docker
-    needs: [start, buildAWS]
-    uses: ./.github/workflows/publish-aws-eks-nitro-enclave-docker.yaml
-    with:
-      operator_run_number: ${{ github.run_id }}
-    secrets: inherit
-
   createRelease:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI, buildEKS]
+    if: github.event_name == 'workflow_dispatch'
+    needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -162,11 +169,17 @@ jobs:
           pattern: gcp-oidc-enclave-ids-*
           path: ./manifests/gcp_oidc_operator
 
-      - name: Download Azure manifest
+      - name: Download Azure CC manifest
         uses: actions/download-artifact@v4
         with:
           pattern: azure-cc-enclave-id-*
           path: ./manifests/azure_cc_operator
+
+      - name: Download Azure AKS manifest
+        uses: actions/download-artifact@v4
+        with:
+          pattern: azure-aks-enclave-id-*
+          path: ./manifests/azure_aks_operator
 
       - name: Download EIF manifest
         uses: actions/download-artifact@v4
@@ -179,12 +192,6 @@ jobs:
         with:
           pattern: 'aws-ami-ids-*'
           path: ./manifests/aws_ami
-
-      - name: Download AWS EKS manifest
-        uses: actions/download-artifact@v4
-        with:
-          pattern: 'aws-eks-enclave-ids-*'
-          path: ./manifests/aws_eks
 
       - name: Download Deployment Files
         uses: actions/download-artifact@v4
@@ -216,6 +223,7 @@ jobs:
           (cd ./deployment/aws-euid-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd ./deployment/aws-uid2-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd ./deployment/azure-cc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
+          (cd ./deployment/azure-aks-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
@@ -229,5 +237,19 @@ jobs:
               ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip
+              ./azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip
+  notifyFailure:
+      name: Notify Slack on Failure
+      runs-on: ubuntu-latest
+      if: failure() && github.ref == 'refs/heads/main'
+      needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
+      steps:
+        - name: Send Slack Alert
+          env:
+            SLACK_COLOR: danger
+            SLACK_MESSAGE: ':x: Operator Pipeline failed'
+            SLACK_TITLE: Pipeline Failed in ${{ github.workflow }}
+            SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          uses: rtCamp/action-slack-notify@v2

@@ -1,11 +1,15 @@
-# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.4_7-jre-alpine/images/sha256-8179ddc8a6c5ac9af935020628763b9a5a671e0914976715d2b61b21881cefca
-FROM eclipse-temurin@sha256:8179ddc8a6c5ac9af935020628763b9a5a671e0914976715d2b61b21881cefca
+# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.6_7-jre-alpine/images/sha256-f184bb601f9e6068dd0a92738764d1ff447ab68c15ddbf8c303c5c29de9a1df8
+FROM eclipse-temurin@sha256:f184bb601f9e6068dd0a92738764d1ff447ab68c15ddbf8c303c5c29de9a1df8
 
-LABEL "tee.launch_policy.allow_env_override"="API_TOKEN_SECRET_NAME,DEPLOYMENT_ENVIRONMENT,CORE_BASE_URL,OPTOUT_BASE_URL"
+LABEL "tee.launch_policy.allow_env_override"="API_TOKEN_SECRET_NAME,DEPLOYMENT_ENVIRONMENT,CORE_BASE_URL,OPTOUT_BASE_URL,DEBUG_MODE,SKIP_VALIDATIONS"
 LABEL "tee.launch_policy.log_redirect"="always"
 
 # Install Packages
-RUN apk update && apk add jq
+RUN apk update && apk add --no-cache jq python3 py3-pip && \
+    python3 -m venv /venv && \
+    . /venv/bin/activate && \
+    pip install --no-cache-dir google-cloud-secret-manager google-auth google-api-core && \
+    rm -rf /var/cache/apk/*
 
 WORKDIR /app
 EXPOSE 8080
@@ -18,7 +22,6 @@ ENV JAR_NAME=${JAR_NAME}
 ENV JAR_VERSION=${JAR_VERSION}
 ENV IMAGE_VERSION=${IMAGE_VERSION}
 ENV REGION=default
-ENV LOKI_HOSTNAME=loki
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-sources.jar /app
@@ -28,9 +31,10 @@ COPY ./conf/*.xml /app/conf/
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
 
-COPY ./entrypoint.sh /app/
-RUN chmod a+x /app/entrypoint.sh
+COPY ./gcp.py /app/
+COPY ./confidential_compute.py /app
+RUN chmod a+x /app/gcp.py
 
 RUN mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && mkdir -p /app && chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads
 
-CMD ["/app/entrypoint.sh"]
+CMD ["/venv/bin/python", "/app/gcp.py"]

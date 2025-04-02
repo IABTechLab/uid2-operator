@@ -59,7 +59,7 @@ runs:
       uses: actions/checkout@v4
 
     - name: Get EIF for Release ${{ inputs.operator_release }}
-      uses: IABTechLab/uid2-operator/.github/actions/download_release_artifact@main
+      uses: ./.github/actions/download_release_artifact
       if: ${{ inputs.operator_release != '' }}
       with:
         github_token: ${{ inputs.github_token }}

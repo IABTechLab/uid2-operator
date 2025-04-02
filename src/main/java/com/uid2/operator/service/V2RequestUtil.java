@@ -1,8 +1,7 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.model.KeyManager;
-import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.shared.IClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -15,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -172,7 +170,12 @@ public class V2RequestUtil {
                 .appendInt(refreshKey.getId())
                 .appendBytes(encrypted)
                 .getBytes());
-        assert modifiedToken.length() == V2_REFRESH_PAYLOAD_LENGTH;
+        if (modifiedToken.length() != V2_REFRESH_PAYLOAD_LENGTH) {
+            final String errorMsg = "Generated refresh token's length=" + modifiedToken.length()
+                    + " is not equal to=" + V2_REFRESH_PAYLOAD_LENGTH;
+            LOGGER.error(errorMsg);
+            throw new IllegalArgumentException(errorMsg);
+        }
 
         bodyJson.put("refresh_token", modifiedToken);
         bodyJson.put("refresh_response_key", refreshResponseKey);

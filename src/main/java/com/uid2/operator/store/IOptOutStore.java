@@ -1,6 +1,6 @@
 package com.uid2.operator.store;
 
-import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
+import com.uid2.operator.model.identities.FirstLevelHash;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 
@@ -11,12 +11,12 @@ public interface IOptOutStore {
     /**
      * Get latest opt-out record
      *
-     * @param firstLevelHashIdentity The first level hash of a DII Hash
+     * @param firstLevelHash The first level hash of a DII Hash
      * @return The timestamp of latest opt-out record. <b>NULL</b> if no record.
      */
-    Instant getLatestEntry(FirstLevelHashIdentity firstLevelHashIdentity);
+    Instant getLatestEntry(FirstLevelHash firstLevelHash);
 
     long getOptOutTimestampByAdId(String adId);
 
-    void addEntry(FirstLevelHashIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler);
+    void addEntry(FirstLevelHash firstLevelHash, byte[] advertisingId, Handler<AsyncResult<Instant>> handler);
 }

@@ -2,6 +2,7 @@ package com.uid2.operator;
 
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
+import com.uid2.operator.service.IConfigService;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.IOptOutStore;
@@ -17,7 +18,8 @@ import java.util.Set;
 
 //An extended UIDOperatorVerticle to expose classes for testing purposes
 public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
-    public ExtendedUIDOperatorVerticle(JsonObject config,
+    public ExtendedUIDOperatorVerticle(IConfigService configService,
+                                       JsonObject config,
                                        boolean clientSideTokenGenerate,
                                        ISiteStore siteProvider,
                                        IClientKeyProvider clientKeyProvider,
@@ -29,7 +31,7 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        IStatsCollectorQueue statsCollectorQueue,
                                        SecureLinkValidatorService secureLinkValidationService,
                                        Handler<Boolean> saltRetrievalResponseHandler) {
-        super(config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler);
+        super(configService, config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler);
     }
 
     public IUIDOperatorService getIdService() {
@@ -38,10 +40,6 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
 
     public void setKeySharingEndpointProvideAppNames(boolean enable) {
         this.keySharingEndpointProvideAppNames = enable;
-    }
-
-    public void setMaxSharingLifetimeSeconds(int maxSharingLifetimeSeconds) {
-        this.maxSharingLifetimeSeconds = maxSharingLifetimeSeconds;
     }
 
     public void setLastInvalidOriginProcessTime(Instant lastInvalidOriginProcessTime) {

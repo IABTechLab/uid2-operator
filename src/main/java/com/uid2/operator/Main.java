@@ -339,23 +339,26 @@ public class Main {
         Promise<Void> compositePromise = Promise.promise();
         List<Future> fs = new ArrayList<>();
         fs.add(createAndDeployStatsCollector());
-        try {
-            fs.add(createStoreVerticles());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        fs.add(createStoreVerticles());
 
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
             else compositePromise.complete();
         });
 
-        // TODO: Check what this method used to look like before we introduced initializeConfigService.
         compositePromise.future()
                 .compose(v -> {
                     metrics.setup();
                     vertx.setPeriodic(60000, id -> metrics.update());
-                    return vertx.deployVerticle(operatorVerticleSupplier, options);
+
+                    Promise<String> promise = Promise.promise();
+                    vertx.deployVerticle(operatorVerticleSupplier, options, promise);
+                    return promise.future();
+                })
+                .onFailure(t -> {
+                    LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
+                    vertx.close();
+                    System.exit(1);
                 });
     }
 

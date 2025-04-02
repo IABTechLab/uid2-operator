@@ -40,12 +40,13 @@ public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore
         RuntimeConfig newRuntimeConfig = metadata.getJsonObject("runtime_config").mapTo(RuntimeConfig.class);
 
         if (!newRuntimeConfig.isValid()) {
-            logger.error("Failed to update runtime config");
+            logger.warn("New runtime config invalid, reverting to the last runtime config...");
             RuntimeConfig lastConfig = this.config.get();
             if (lastConfig == null || !lastConfig.isValid()) {
                 throw new RuntimeException("Invalid config retrieved and no previous config to revert to");
             }
             this.config.set(lastConfig);
+            return 1;
         }
 
         logger.info("Successfully updated runtime config");

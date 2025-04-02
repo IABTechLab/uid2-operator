@@ -1,11 +1,9 @@
 package com.uid2.operator;
 
-import com.uid2.operator.store.IConfigStore;
 import com.uid2.operator.store.RuntimeConfig;
 import com.uid2.operator.store.RuntimeConfigStore;
 import com.uid2.shared.cloud.ICloudStorage;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.junit5.VertxExtension;
 import org.junit.jupiter.api.AfterEach;
@@ -17,10 +15,6 @@ import org.mockito.MockitoAnnotations;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;

@@ -18,4 +18,9 @@ public class BootstrapConfigStore implements IConfigStore {
     public void loadContent() throws Exception {
         return;
     }
+
+    @Override
+    public JsonObject getMetadata() throws Exception {
+        return this.config;
+    }
 }

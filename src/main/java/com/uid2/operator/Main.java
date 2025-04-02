@@ -367,7 +367,7 @@ public class Main {
             clientSideKeypairProvider.getMetadata();
         }
         if (useRemoteConfig) {
-            configStore.getConfig();
+            configStore.getMetadata();
         }
         clientKeyProvider.getMetadata();
         keysetKeyStore.getMetadata();

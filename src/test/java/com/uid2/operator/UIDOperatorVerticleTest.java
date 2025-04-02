@@ -10,6 +10,7 @@ import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.IConfigStore;
 import com.uid2.operator.store.IOptOutStore;
+import com.uid2.operator.store.RuntimeConfig;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
@@ -119,6 +120,7 @@ public class UIDOperatorVerticleTest {
 
     private SimpleMeterRegistry registry;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
+    private RuntimeConfig runtimeConfig;
     private final JsonObject config = new JsonObject();
 
     @BeforeEach
@@ -130,6 +132,7 @@ public class UIDOperatorVerticleTest {
         when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class), any(Role.class))).thenReturn(true);
 
         setupConfig(config);
+        runtimeConfig = setupRuntimeConfig(config);
         // TODO: Remove this when we remove tokenGenerateOptOutTokenWithDisableOptoutTokenFF test
         if(testInfo.getTestMethod().isPresent() &&
                 testInfo.getTestMethod().get().getName().equals("tokenGenerateOptOutTokenWithDisableOptoutTokenFF")) {
@@ -140,7 +143,7 @@ public class UIDOperatorVerticleTest {
         }
         // TODO: Remove this when we remove allow_legacy_api FF
         config.put("allow_legacy_api", true);
-        when(configStore.getConfig()).thenReturn(config);
+        when(configStore.getConfig()).thenReturn(runtimeConfig);
 
         this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse);
 
@@ -150,10 +153,20 @@ public class UIDOperatorVerticleTest {
         Metrics.globalRegistry.add(registry);
     }
 
+    public void modifyConfig(String configName, Object configValue) {
+        config.put(configName, configValue);
+        runtimeConfig = setupRuntimeConfig(config);
+        when(configStore.getConfig()).thenReturn(runtimeConfig);
+    }
+
     @AfterEach
     public void teardown() throws Exception {
         Metrics.globalRegistry.remove(registry);
         mocks.close();
+    }
+
+    private RuntimeConfig setupRuntimeConfig(JsonObject config) {
+        return config.mapTo(RuntimeConfig.class);
     }
 
     private void setupConfig(JsonObject config) {
@@ -174,6 +187,8 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.OptOutStatusApiEnabled, true);
         config.put(Const.Config.OptOutStatusMaxRequestSize, optOutStatusMaxRequestSize);
         config.put(Const.Config.DisableOptoutTokenProp, false);
+        config.put(Const.Config.EnableRemoteConfigProp, false);
+        config.put(Const.Config.ConfigScanPeriodMsProp, 10000);
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -4799,7 +4814,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void keySharingKeysets_SHARER_CustomMaxSharingLifetimeSeconds(Vertx vertx, VertxTestContext testContext) {
-        this.config.put(Const.Config.MaxSharingLifetimeProp, 999999);
+        modifyConfig(Const.Config.MaxSharingLifetimeProp, 999999);
         keySharingKeysets_SHARER(true, true, vertx, testContext, 999999);
     }
     
@@ -5160,9 +5175,9 @@ public class UIDOperatorVerticleTest {
         Duration newRefreshExpiresAfter = Duration.ofMinutes(30);
         Duration newRefreshIdentityAfter = Duration.ofMinutes(10);
 
-        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toSeconds());
-        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toSeconds());
-        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toSeconds());
+        modifyConfig(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toSeconds());
+        modifyConfig(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toSeconds());
+        modifyConfig(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toSeconds());
 
         sendTokenGenerate("v2", vertx,
                 null, v2Payload, 200,
@@ -5183,8 +5198,8 @@ public class UIDOperatorVerticleTest {
         int newSharingTokenExpiry = config.getInteger(Const.Config.SharingTokenExpiryProp) + 1;
         int newMaxSharingLifetimeSeconds = config.getInteger(Const.Config.SharingTokenExpiryProp) + 1;
 
-        config.put(Const.Config.SharingTokenExpiryProp, newSharingTokenExpiry);
-        config.put(Const.Config.MaxSharingLifetimeProp, newMaxSharingLifetimeSeconds);
+        modifyConfig(Const.Config.SharingTokenExpiryProp, newSharingTokenExpiry);
+        modifyConfig(Const.Config.MaxSharingLifetimeProp, newMaxSharingLifetimeSeconds);
 
         String apiVersion = "v2";
         int siteId = 5;
@@ -5213,7 +5228,7 @@ public class UIDOperatorVerticleTest {
     @Test
     void keyBidstreamRespectsConfigValues(Vertx vertx, VertxTestContext testContext) {
         int newMaxBidstreamLifetimeSeconds = 999999;
-        config.put(Const.Config.MaxBidstreamLifetimeSecondsProp, newMaxBidstreamLifetimeSeconds);
+        modifyConfig(Const.Config.MaxBidstreamLifetimeSecondsProp, newMaxBidstreamLifetimeSeconds);
 
         final String apiVersion = "v2";
         final KeyDownloadEndpoint endpoint = KeyDownloadEndpoint.BIDSTREAM;

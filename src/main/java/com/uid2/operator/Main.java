@@ -11,6 +11,7 @@ import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.reader.RotatingCloudEncryptionKeyApiProvider;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
+import com.uid2.operator.store.BootstrapConfigStore;
 import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;

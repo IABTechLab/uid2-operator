@@ -101,6 +101,7 @@ public class Main {
         }
 
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
+        boolean useRemoteConfig = config.getBoolean(EnableRemoteConfigProp, false);
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
         this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
@@ -180,7 +181,7 @@ public class Main {
 
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
         
-        if (this.getRemoteConfigFeatureFlagEnabled()) {
+        if (useRemoteConfig) {
             String configMdPath = this.config.getString(Const.Config.ConfigMetadataPathProp);
             this.configStore = new RuntimeConfigStore(vertx, fsStores, configMdPath);
         } else {
@@ -317,10 +318,6 @@ public class Main {
         } else {
             return cloudStorage;
         }
-    }
-
-    private boolean getRemoteConfigFeatureFlagEnabled() {
-        return config.getBoolean(EnableRemoteConfigProp, false);
     }
 
     private void run() throws Exception {

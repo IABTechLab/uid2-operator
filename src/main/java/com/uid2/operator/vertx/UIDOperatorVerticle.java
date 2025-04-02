@@ -12,6 +12,7 @@ import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
 import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
+import com.uid2.operator.store.IConfigStore;
 import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;

@@ -202,10 +202,9 @@ public class Main {
                 this.siteProvider.loadContent();
                 this.clientSideKeypairProvider.loadContent();
             }
-            // Why do we do this? Do we need to?
-//            if (this.getRemoteConfigFeatureFlagEnabled()) {
-//                this.configStore.loadContent();
-//            }
+            if (useRemoteConfig) {
+                this.configStore.loadContent();
+            }
             this.clientKeyProvider.loadContent();
             this.saltProvider.loadContent();
             this.keysetProvider.loadContent();

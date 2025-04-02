@@ -42,7 +42,7 @@ public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore
     }
 
     @Override
-    public JsonObject getConfig() {
-        return config.get();
+    public RuntimeConfig getConfig() {
+        return config.get().mapTo(RuntimeConfig.class);
     }
 }

@@ -10,7 +10,7 @@ public class BootstrapConfigStore implements IConfigStore {
     }
 
     @Override
-    public JsonObject getConfig() {
-        return config;
+    public RuntimeConfig getConfig() {
+        return config.mapTo(RuntimeConfig.class);
     }
 }

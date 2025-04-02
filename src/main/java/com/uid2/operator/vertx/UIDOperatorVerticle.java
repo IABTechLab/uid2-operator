@@ -238,7 +238,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
         router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().handler(ctx -> {
-            JsonObject curConfig = configStore.getConfig();
+            RuntimeConfig curConfig = configStore.getConfig();
             ctx.put(RC_CONFIG_KEY, curConfig);
             ctx.next();
         });
@@ -319,7 +319,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private JsonObject getConfigFromRc(RoutingContext rc) {
+    private RuntimeConfig getConfigFromRc(RoutingContext rc) {
         return rc.get(RC_CONFIG_KEY);
     }
 
@@ -343,11 +343,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body;
 
-        JsonObject config = this.getConfigFromRc(rc);
+        RuntimeConfig config = this.getConfigFromRc(rc);
 
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
 
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
         try {
@@ -624,9 +624,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     public void handleKeysSharing(RoutingContext rc) {
-        JsonObject config = this.getConfigFromRc(rc);
-        int sharingTokenExpirySeconds = config.getInteger(Const.Config.SharingTokenExpiryProp);
-        int maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, sharingTokenExpirySeconds);
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        int sharingTokenExpirySeconds = config.getSharingTokenExpirySeconds();
+        int maxSharingLifetimeSeconds = config.getMaxSharingLifetimeSeconds();
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
 
@@ -681,9 +681,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final JsonObject resp = new JsonObject();
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-        int maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        int maxBidstreamLifetimeSeconds = config.getMaxBidstreamLifetimeSeconds();
 
 
         addBidstreamHeaderFields(resp, maxBidstreamLifetimeSeconds);
@@ -836,9 +835,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         }
 
-        JsonObject config = this.getConfigFromRc(rc);
+        RuntimeConfig config = this.getConfigFromRc(rc);
 
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
 
         try {
             final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
@@ -882,8 +881,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         Integer siteId = null;
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
         try {
             platformType = getPlatformType(rc);
             String tokenStr = (String) rc.data().get("request");
@@ -979,10 +978,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final int siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
 
         try {
             final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
@@ -1009,10 +1008,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final Integer siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
 
         try {
             JsonObject req = (JsonObject) rc.data().get("request");
@@ -1102,10 +1101,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = this.getTokenInput(rc);
         Integer siteId = null;
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
 
 
         if (input == null) {
@@ -1144,9 +1143,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        JsonObject config = this.getConfigFromRc(rc);
+        RuntimeConfig config = this.getConfigFromRc(rc);
 
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
 
         try {
             final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
@@ -1862,10 +1861,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         recordRefreshTokenVersionCount(String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)), this.getRefreshTokenVersion(tokenStr));
 
-        JsonObject config = this.getConfigFromRc(rc);
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
 
         return this.idService.refreshIdentity(refreshToken, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
     }

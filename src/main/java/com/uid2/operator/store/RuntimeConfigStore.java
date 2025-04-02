@@ -5,11 +5,14 @@ import com.uid2.shared.cloud.DownloadCloudStorage;
 import com.uid2.shared.store.reader.IMetadataVersionedStore;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore {
+    private static final Logger logger = LoggerFactory.getLogger(RuntimeConfigStore.class);
     private final DownloadCloudStorage fileStreamProvider;
     private final String configMetadataPath;
     private final AtomicReference<RuntimeConfig> config = new AtomicReference<>();
@@ -37,7 +40,7 @@ public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore
         RuntimeConfig newRuntimeConfig = metadata.getJsonObject("runtime_config").mapTo(RuntimeConfig.class);
 
         if (!newRuntimeConfig.isValid()) {
-//            logger.error("Failed to update config");
+            logger.error("Failed to update runtime config");
             RuntimeConfig lastConfig = this.config.get();
             if (lastConfig == null || !lastConfig.isValid()) {
                 throw new RuntimeException("Invalid config retrieved and no previous config to revert to");
@@ -45,7 +48,7 @@ public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore
             this.config.set(lastConfig);
         }
 
-//        logger.info("Successfully updated config");
+        logger.info("Successfully updated runtime config");
         this.config.set(newRuntimeConfig);
         return 1;
     }

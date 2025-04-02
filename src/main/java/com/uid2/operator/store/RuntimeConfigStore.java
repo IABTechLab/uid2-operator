@@ -55,6 +55,11 @@ public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore
     }
 
     @Override
+    public void loadContent() throws Exception {
+        this.loadContent(this.getMetadata());
+    }
+
+    @Override
     public RuntimeConfig getConfig() {
         return this.config.get();
     }

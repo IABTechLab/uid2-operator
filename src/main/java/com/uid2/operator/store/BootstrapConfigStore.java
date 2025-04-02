@@ -13,4 +13,9 @@ public class BootstrapConfigStore implements IConfigStore {
     public RuntimeConfig getConfig() {
         return config.mapTo(RuntimeConfig.class);
     }
+
+    @Override
+    public void loadContent() throws Exception {
+        return;
+    }
 }

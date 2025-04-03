@@ -6,11 +6,11 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.50.37</version>
+    <version>5.50.38-alpha-178-SNAPSHOT</version>
   
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <vertx.version>4.5.11</vertx.version>
+        <vertx.version>4.5.13</vertx.version>
         <vertx-maven-plugin.version>1.0.22</vertx-maven-plugin.version>
         <junit-jupiter.version>5.11.2</junit-jupiter.version>
         <junit-vintage.version>5.11.2</junit-vintage.version>

@@ -66,22 +66,4 @@ public class RuntimeConfig {
         isValid &= validateSharingTokenExpiry(getSharingTokenExpirySeconds());
         return isValid;
     }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        RuntimeConfig that = (RuntimeConfig) o;
-        return Objects.equals(identityTokenExpiresAfterSeconds, that.identityTokenExpiresAfterSeconds) &&
-                Objects.equals(refreshTokenExpiresAfterSeconds, that.refreshTokenExpiresAfterSeconds) &&
-                Objects.equals(refreshIdentityTokenAfterSeconds, that.refreshIdentityTokenAfterSeconds) &&
-                Objects.equals(sharingTokenExpirySeconds, that.sharingTokenExpirySeconds) &&
-                Objects.equals(maxBidstreamLifetimeSeconds, that.maxBidstreamLifetimeSeconds) &&
-                Objects.equals(maxSharingLifetimeSeconds, that.maxSharingLifetimeSeconds);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(identityTokenExpiresAfterSeconds, refreshTokenExpiresAfterSeconds, refreshIdentityTokenAfterSeconds, sharingTokenExpirySeconds, maxBidstreamLifetimeSeconds, maxSharingLifetimeSeconds);
-    }
 }

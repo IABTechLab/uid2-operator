@@ -16,6 +16,7 @@ import org.mockito.MockitoAnnotations;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
@@ -66,7 +67,9 @@ public class RuntimeConfigStoreTest {
         final JsonObject loadedMetadata = runtimeConfigStore.getMetadata();
         runtimeConfigStore.loadContent(loadedMetadata);
         assertEquals(2, runtimeConfigStore.getVersion(loadedMetadata));
-        assertEquals(this.runtimeConfig, runtimeConfigStore.getConfig());
+        assertThat(runtimeConfigStore.getConfig())
+                .usingRecursiveComparison()
+                .isEqualTo(this.runtimeConfig);
     }
 
     @Test
@@ -118,7 +121,9 @@ public class RuntimeConfigStoreTest {
         final JsonObject loadedMetadata1 = runtimeConfigStore.getMetadata();
         runtimeConfigStore.loadContent(loadedMetadata1);
         assertEquals(1, runtimeConfigStore.getVersion(loadedMetadata1));
-        assertEquals(this.runtimeConfig, runtimeConfigStore.getConfig());
+        assertThat(runtimeConfigStore.getConfig())
+                .usingRecursiveComparison()
+                .isEqualTo(this.runtimeConfig);
 
         // Second call, return invalid config
         when(cloudStorage.download("metadata"))
@@ -126,6 +131,8 @@ public class RuntimeConfigStoreTest {
 
         final JsonObject loadedMetadata2 = runtimeConfigStore.getMetadata();
         runtimeConfigStore.loadContent(loadedMetadata2);
-        assertEquals(this.runtimeConfig, runtimeConfigStore.getConfig());
+        assertThat(runtimeConfigStore.getConfig())
+                .usingRecursiveComparison()
+                .isEqualTo(this.runtimeConfig);
     }
 }

@@ -1,6 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.Const;
+import com.uid2.operator.model.RuntimeConfig;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -41,31 +42,20 @@ public class ConfigService implements IConfigService {
     }
 
     @Override
-    public JsonObject getConfig() {
-        return configRetriever.getCachedConfig();
+    public RuntimeConfig getConfig() {
+        return configRetriever.getCachedConfig().mapTo(RuntimeConfig.class);
     }
 
     private JsonObject configValidationHandler(JsonObject config) {
-        boolean isValid = true;
-        Integer identityExpiresAfter = config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-        Integer refreshExpiresAfter = config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
-        Integer refreshIdentityAfter = config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        Integer maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityExpiresAfter);
-        Integer sharingTokenExpiry = config.getInteger(Const.Config.SharingTokenExpiryProp);
+        RuntimeConfig runtimeConfig = config.mapTo(RuntimeConfig.class);
 
-        isValid &= validateIdentityRefreshTokens(identityExpiresAfter, refreshExpiresAfter, refreshIdentityAfter);
-
-        isValid &= validateBidstreamLifetime(maxBidstreamLifetimeSeconds, identityExpiresAfter);
-
-        isValid &= validateSharingTokenExpiry(sharingTokenExpiry);
-
-        if (!isValid) {
+        if (!runtimeConfig.isValid()) {
             logger.error("Failed to update config");
-            JsonObject lastConfig = this.getConfig();
-            if (lastConfig == null || lastConfig.isEmpty()) {
+            RuntimeConfig lastConfig = this.getConfig();
+            if (lastConfig == null || !lastConfig.isValid()) {
                 throw new RuntimeException("Invalid config retrieved and no previous config to revert to");
             }
-            return lastConfig;
+            return JsonObject.mapFrom(lastConfig);
         }
 
         logger.info("Successfully updated config");

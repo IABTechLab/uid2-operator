@@ -1,7 +1,7 @@
 package com.uid2.operator.service;
 
-import io.vertx.core.json.JsonObject;
+import com.uid2.operator.model.RuntimeConfig;
 
 public interface IConfigService {
-    JsonObject getConfig();
+    RuntimeConfig getConfig();
 }

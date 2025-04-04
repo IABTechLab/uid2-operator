@@ -3,7 +3,6 @@ package com.uid2.operator;
 import com.uid2.operator.store.RuntimeConfig;
 import com.uid2.operator.store.RuntimeConfigStore;
 import com.uid2.shared.cloud.ICloudStorage;
-import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.junit5.VertxExtension;
 import org.junit.jupiter.api.AfterEach;
@@ -52,7 +51,7 @@ public class RuntimeConfigStoreTest {
     }
 
     @Test
-    public void loadRuntimeConfigSingleVersion(Vertx vertx) throws Exception {
+    public void loadRuntimeConfigSingleVersion() throws Exception {
         final JsonObject metadataJson = new JsonObject();
         {
             metadataJson.put("version", 2);
@@ -62,7 +61,7 @@ public class RuntimeConfigStoreTest {
         when(cloudStorage.download("metadata"))
                 .thenReturn(new ByteArrayInputStream(metadataJson.toString().getBytes(StandardCharsets.US_ASCII)));
 
-        RuntimeConfigStore runtimeConfigStore = new RuntimeConfigStore(vertx, cloudStorage, "metadata");
+        RuntimeConfigStore runtimeConfigStore = new RuntimeConfigStore(cloudStorage, "metadata");
 
         final JsonObject loadedMetadata = runtimeConfigStore.getMetadata();
         runtimeConfigStore.loadContent(loadedMetadata);
@@ -73,7 +72,7 @@ public class RuntimeConfigStoreTest {
     }
 
     @Test
-    public void testFirstInvalidConfigThrowsRuntimeException(Vertx vertx) throws Exception {
+    public void testFirstInvalidConfigThrowsRuntimeException() throws Exception {
         JsonObject invalidConfig = new JsonObject()
                 .put("identity_token_expires_after_seconds", 1000)
                 .put("refresh_token_expires_after_seconds", 2000);
@@ -87,7 +86,7 @@ public class RuntimeConfigStoreTest {
         when(cloudStorage.download("metadata"))
                 .thenReturn(new ByteArrayInputStream(metadataJson.toString().getBytes(StandardCharsets.US_ASCII)));
 
-        RuntimeConfigStore runtimeConfigStore = new RuntimeConfigStore(vertx, cloudStorage, "metadata");
+        RuntimeConfigStore runtimeConfigStore = new RuntimeConfigStore(cloudStorage, "metadata");
 
         final JsonObject loadedMetadata = runtimeConfigStore.getMetadata();
         assertThrows(RuntimeException.class, () -> {
@@ -96,7 +95,7 @@ public class RuntimeConfigStoreTest {
     }
 
     @Test
-    public void testInvalidConfigRevertsToPrevious(Vertx vertx) throws Exception {
+    public void testInvalidConfigRevertsToPrevious() throws Exception {
         JsonObject invalidConfig = new JsonObject()
                 .put("identity_token_expires_after_seconds", 1000)
                 .put("refresh_token_expires_after_seconds", 2000);
@@ -112,7 +111,7 @@ public class RuntimeConfigStoreTest {
             v2MetadataJson.put("runtime_config", invalidConfig);
         }
 
-        RuntimeConfigStore runtimeConfigStore = new RuntimeConfigStore(vertx, cloudStorage, "metadata");
+        RuntimeConfigStore runtimeConfigStore = new RuntimeConfigStore(cloudStorage, "metadata");
 
         // First call, return valid config
         when(cloudStorage.download("metadata"))

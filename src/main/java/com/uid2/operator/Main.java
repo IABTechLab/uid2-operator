@@ -185,7 +185,7 @@ public class Main {
         
         if (useRemoteConfig) {
             String configMdPath = this.config.getString(Const.Config.RuntimeConfigMetadataPathProp);
-            this.configStore = new RuntimeConfigStore(vertx, fsStores, configMdPath);
+            this.configStore = new RuntimeConfigStore(fsStores, configMdPath);
         } else {
             this.configStore = new BootstrapConfigStore(this.config);
         }

@@ -3,7 +3,6 @@ package com.uid2.operator.store;
 import com.uid2.shared.Utils;
 import com.uid2.shared.cloud.DownloadCloudStorage;
 import com.uid2.shared.store.reader.IMetadataVersionedStore;
-import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +16,7 @@ public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore
     private final String configMetadataPath;
     private final AtomicReference<RuntimeConfig> config = new AtomicReference<>();
 
-    public RuntimeConfigStore(Vertx vertx, DownloadCloudStorage fileStreamProvider, String configMetadataPath) {
+    public RuntimeConfigStore(DownloadCloudStorage fileStreamProvider, String configMetadataPath) {
         this.fileStreamProvider = fileStreamProvider;
         this.configMetadataPath = configMetadataPath;
     }

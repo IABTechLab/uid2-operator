@@ -205,10 +205,6 @@ public class Main {
             if (useRemoteConfig) {
                 this.configStore.loadContent();
             }
-            this.clientKeyProvider.loadContent();
-            this.saltProvider.loadContent();
-            this.keysetProvider.loadContent();
-            this.keysetKeyStore.loadContent();
 
             if (this.validateServiceLinks) {
                 this.serviceProvider.loadContent();

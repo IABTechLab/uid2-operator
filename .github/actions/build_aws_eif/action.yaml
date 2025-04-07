@@ -81,6 +81,11 @@ runs:
       run: |
         make -f ${{ inputs.makefile }} ${{ inputs.identity_scope }}operator.eif
 
+    - name: Verify EIF
+      shell: bash
+      run: |
+        nitro-cli describe-eif --eif-path $1.eif 
+
     - name: Free up space
       shell: bash
       run: |

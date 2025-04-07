@@ -87,6 +87,8 @@ runs:
         FILE=$(echo $ARTIFACTS | jq -r '.[0].name')
         unzip -o -d ./scripts/aws/uid2-operator-ami/artifacts $FILE.zip
         rm $FILE.zip
+        zip "./scripts/aws/uid2-operator-ami/artifacts/uid2operatoreif.zip" "./scripts/aws/uid2-operator-ami/artifacts/uid2operator.eif"
+        ls -al
 
     - name: Configure UID2 AWS credentials
       uses: aws-actions/configure-aws-credentials@v4

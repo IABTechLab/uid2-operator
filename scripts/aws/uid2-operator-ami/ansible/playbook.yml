@@ -99,11 +99,18 @@
       requirements: /opt/uid2operator/requirements.txt
       virtualenv_command: 'python3.11 -m venv'
 
-  - name: Install Operator EIF
+  - name: Copy Operator EIF
     ansible.builtin.copy:
-      src: /tmp/artifacts/uid2operator.eif
-      dest: /opt/uid2operator/uid2operator.eif
+      src: /tmp/artifacts/uid2operatoreif.zip
+      dest: /opt/uid2operator/uid2operatoreif.zip
       remote_src: yes
+
+  - name: Unzip Operator EIF
+    ansible.builtin.unarchive:
+        src: /opt/uid2operator/uid2operatoreif.zip
+        dest: /opt/uid2operator/uid2operator.eif
+        remote_src: yes
+        creates: /opt/uid2operator/uid2operator.eif
 
   - name: Install Identity Scope
     ansible.builtin.copy:

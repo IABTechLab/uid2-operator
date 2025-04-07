@@ -529,7 +529,6 @@ public class UIDOperatorVerticleTest {
 
     private void setupKeysetsMock(Map<Integer, Keyset> keysets) {
         KeysetSnapshot keysetSnapshot = new KeysetSnapshot(keysets);
-        when(keysetProvider.getSnapshot(any())).thenReturn(keysetSnapshot); //note that this getSnapshot() overload should be removed; it ignores the argument passed in
         when(keysetProvider.getSnapshot()).thenReturn(keysetSnapshot);
     }
 

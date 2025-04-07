@@ -2,12 +2,13 @@ package com.uid2.operator.store;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 
-import static com.uid2.operator.service.ConfigValidatorUtil.*;
-
 @JsonDeserialize(builder = RuntimeConfig.Builder.class)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class RuntimeConfig {
     private final Integer identityTokenExpiresAfterSeconds;
     private final Integer refreshTokenExpiresAfterSeconds;
@@ -56,23 +57,58 @@ public class RuntimeConfig {
         this.maxBidstreamLifetimeSeconds = builder.maxBidstreamLifetimeSeconds;
         this.maxSharingLifetimeSeconds = builder.maxSharingLifetimeSeconds;
 
+        validateIdentityRefreshTokens();
+        validateBidstreamLifetime();
+        validateSharingTokenExpiry();
+    }
+    
+    private void validateIdentityRefreshTokens() {
         if (this.identityTokenExpiresAfterSeconds == null) {
             throw new IllegalArgumentException("");
         }
-        
+
         if (this.refreshTokenExpiresAfterSeconds == null) {
             throw new IllegalArgumentException("");
         }
-        
+
         if (this.refreshIdentityTokenAfterSeconds == null) {
             throw new IllegalArgumentException("");
         }
-            
-        validateIdentityRefreshTokens(getIdentityTokenExpiresAfterSeconds(), getRefreshTokenExpiresAfterSeconds(), getRefreshIdentityTokenAfterSeconds());
-
-        validateBidstreamLifetime(getMaxBidstreamLifetimeSeconds(), getRefreshIdentityTokenAfterSeconds());
-
-        validateSharingTokenExpiry(getSharingTokenExpirySeconds());
+        
+        if (this.refreshTokenExpiresAfterSeconds < this.identityTokenExpiresAfterSeconds) {
+            throw new IllegalArgumentException("");
+        }
+        
+        if (this.identityTokenExpiresAfterSeconds < this.refreshIdentityTokenAfterSeconds) {
+            throw new IllegalArgumentException("");
+        }
+        
+        if (this.refreshTokenExpiresAfterSeconds < this.refreshIdentityTokenAfterSeconds) {
+            throw new IllegalArgumentException("");
+//            logger.error(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " ({}) < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " ({})", refreshExpiresAfter, refreshIdentityAfter);
+        }
+    }
+    
+    private void validateBidstreamLifetime() {
+        if (this.maxBidstreamLifetimeSeconds == null) {
+            throw new IllegalArgumentException("");
+        }
+        
+//        if (areValuesNull(maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds)) {
+//            logger.error(VALUES_ARE_NULL + MaxBidstreamLifetimeSecondsProp + ", " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
+//            return false;
+//        }
+        if (this.maxBidstreamLifetimeSeconds < this.identityTokenExpiresAfterSeconds) {
+            throw new IllegalArgumentException("");
+//            logger.error(MaxBidstreamLifetimeSecondsProp + " ({}) < " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " ({})", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds);
+        }
+    }
+    
+    private void validateSharingTokenExpiry() {
+        if (this.sharingTokenExpirySeconds == null) {
+            throw new IllegalArgumentException("");
+//            logger.error(VALUES_ARE_NULL + SharingTokenExpiryProp);
+        }
     }
     
     @JsonPOJOBuilder

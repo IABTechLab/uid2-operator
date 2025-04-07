@@ -128,7 +128,7 @@ runs:
         docker cp amazonlinux:/pcr0.txt                                 ${ARTIFACTS_OUTPUT_DIR}/
         echo "enclave_id=$(cat ${{ steps.buildFolder.outputs.BUILD_FOLDER}}/pcr0.txt)" >> $GITHUB_OUTPUT
         
-        pcrsize=$(wc -c < "${{ steps.buildFolder.outputs.BUILD_FOLDER}}/pcr0.txtf")
+        pcrsize=$(wc -c < "${{ steps.buildFolder.outputs.BUILD_FOLDER}}/pcr0.txt")
         if [ $pcrsize -le 1 ]; then
           echo "The pcr0.txt file was less then 1 byte. This indicates a build failure"
           exit 1

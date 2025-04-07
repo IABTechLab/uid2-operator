@@ -362,13 +362,6 @@ public class Main {
             siteProvider.getMetadata();
             clientSideKeypairProvider.getMetadata();
         }
-        if (useRemoteConfig) {
-            configStore.getMetadata();
-        }
-        clientKeyProvider.getMetadata();
-        keysetKeyStore.getMetadata();
-        keysetProvider.getMetadata();
-        saltProvider.getMetadata();
 
         if (validateServiceLinks) {
             serviceProvider.getMetadata();

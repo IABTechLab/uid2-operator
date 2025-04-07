@@ -23,10 +23,4 @@ public class BootstrapConfigStore implements IConfigStore {
         logger.info("Remote Config FF is not enabled, bootstrap config was loaded.");
         return;
     }
-
-    @Override
-    public JsonObject getMetadata() throws Exception {
-        logger.info("Successfully loaded bootstrap config");
-        return this.config;
-    }
 }

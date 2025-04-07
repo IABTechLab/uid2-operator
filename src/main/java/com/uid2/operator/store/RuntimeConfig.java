@@ -1,27 +1,20 @@
 package com.uid2.operator.store;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.Objects;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 
 import static com.uid2.operator.service.ConfigValidatorUtil.*;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonDeserialize(builder = RuntimeConfig.Builder.class)
 public class RuntimeConfig {
-    @JsonProperty("identity_token_expires_after_seconds")
-    private Integer identityTokenExpiresAfterSeconds;
-    @JsonProperty("refresh_token_expires_after_seconds")
-    private Integer refreshTokenExpiresAfterSeconds;
-    @JsonProperty("refresh_identity_token_after_seconds")
-    private Integer refreshIdentityTokenAfterSeconds;
-    @JsonProperty("sharing_token_expiry_seconds")
-    private Integer sharingTokenExpirySeconds;
-    @JsonProperty("max_bidstream_lifetime_seconds")
-    private Integer maxBidstreamLifetimeSeconds;
-    @JsonProperty("max_sharing_lifetime_seconds")
-    private Integer maxSharingLifetimeSeconds;
+    private final Integer identityTokenExpiresAfterSeconds;
+    private final Integer refreshTokenExpiresAfterSeconds;
+    private final Integer refreshIdentityTokenAfterSeconds;
+    private final Integer sharingTokenExpirySeconds;
+    private final Integer maxBidstreamLifetimeSeconds;
+    private final Integer maxSharingLifetimeSeconds;
 
     public Integer getIdentityTokenExpiresAfterSeconds() {
         return identityTokenExpiresAfterSeconds;
@@ -55,15 +48,75 @@ public class RuntimeConfig {
         return sharingTokenExpirySeconds;
     }
 
-    // @JsonIgnore is needed to exclude 'valid' field from JSON conversion via JsonObject.mapFrom()."
-    @JsonIgnore
-    public boolean isValid() {
-        boolean isValid = true;
-        isValid &= validateIdentityRefreshTokens(getIdentityTokenExpiresAfterSeconds(), getRefreshTokenExpiresAfterSeconds(), getRefreshIdentityTokenAfterSeconds());
+    private RuntimeConfig(Builder builder) {
+        this.identityTokenExpiresAfterSeconds = builder.identityTokenExpiresAfterSeconds;
+        this.refreshTokenExpiresAfterSeconds = builder.refreshTokenExpiresAfterSeconds;
+        this.refreshIdentityTokenAfterSeconds = builder.refreshIdentityTokenAfterSeconds;
+        this.sharingTokenExpirySeconds = builder.sharingTokenExpirySeconds;
+        this.maxBidstreamLifetimeSeconds = builder.maxBidstreamLifetimeSeconds;
+        this.maxSharingLifetimeSeconds = builder.maxSharingLifetimeSeconds;
 
-        isValid &= validateBidstreamLifetime(getMaxBidstreamLifetimeSeconds(), getRefreshIdentityTokenAfterSeconds());
+        if (this.identityTokenExpiresAfterSeconds == null) {
+            throw new IllegalArgumentException("");
+        }
+        
+        if (this.refreshTokenExpiresAfterSeconds == null) {
+            throw new IllegalArgumentException("");
+        }
+        
+        if (this.refreshIdentityTokenAfterSeconds == null) {
+            throw new IllegalArgumentException("");
+        }
+            
+        validateIdentityRefreshTokens(getIdentityTokenExpiresAfterSeconds(), getRefreshTokenExpiresAfterSeconds(), getRefreshIdentityTokenAfterSeconds());
 
-        isValid &= validateSharingTokenExpiry(getSharingTokenExpirySeconds());
-        return isValid;
+        validateBidstreamLifetime(getMaxBidstreamLifetimeSeconds(), getRefreshIdentityTokenAfterSeconds());
+
+        validateSharingTokenExpiry(getSharingTokenExpirySeconds());
+    }
+    
+    @JsonPOJOBuilder
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Builder {
+        private Integer identityTokenExpiresAfterSeconds;
+        private Integer refreshTokenExpiresAfterSeconds;
+        private Integer refreshIdentityTokenAfterSeconds;
+        private Integer sharingTokenExpirySeconds;
+        private Integer maxBidstreamLifetimeSeconds;
+        private Integer maxSharingLifetimeSeconds;
+
+        public Builder withIdentityTokenExpiresAfterSeconds(@JsonProperty("identity_token_expires_after_seconds") Integer identityTokenExpiresAfterSeconds) {
+            this.identityTokenExpiresAfterSeconds = identityTokenExpiresAfterSeconds;
+            return this;
+        }
+        
+        public Builder withRefreshTokenExpiresAfterSeconds(@JsonProperty("refresh_token_expires_after_seconds") Integer refreshTokenExpiresAfterSeconds) {
+            this.refreshTokenExpiresAfterSeconds = refreshTokenExpiresAfterSeconds;
+            return this;
+        }
+        
+        public Builder withRefreshIdentityTokenAfterSeconds(@JsonProperty("refresh_identity_token_after_seconds") Integer refreshIdentityTokenAfterSeconds) {
+            this.refreshIdentityTokenAfterSeconds = refreshIdentityTokenAfterSeconds;
+            return this;
+        }
+
+        public Builder withSharingTokenExpirySeconds(@JsonProperty("sharing_token_expiry_seconds") Integer sharingTokenExpirySeconds) {
+            this.sharingTokenExpirySeconds = sharingTokenExpirySeconds;
+            return this;
+        }
+
+        public Builder withMaxBidstreamLifetimeSeconds(@JsonProperty("max_bidstream_lifetime_seconds") Integer maxBidstreamLifetimeSeconds) {
+            this.maxBidstreamLifetimeSeconds = maxBidstreamLifetimeSeconds;
+            return this;
+        }
+
+        public Builder withMaxSharingLifetimeSeconds(@JsonProperty("max_sharing_lifetime_seconds") Integer maxSharingLifetimeSeconds) {
+            this.maxSharingLifetimeSeconds = maxSharingLifetimeSeconds;
+            return this;
+        }
+        
+        public RuntimeConfig build() {
+            return new RuntimeConfig(this);
+        }
     }
 }

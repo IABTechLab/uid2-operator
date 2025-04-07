@@ -37,19 +37,19 @@ public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore
     public long loadContent(JsonObject metadata) throws Exception {
         // The config is returned as part of the metadata itself.
         RuntimeConfig newRuntimeConfig = metadata.getJsonObject("runtime_config").mapTo(RuntimeConfig.class);
-
-        if (!newRuntimeConfig.isValid()) {
-            logger.warn("New runtime config invalid, reverting to the last runtime config...");
-            RuntimeConfig lastConfig = this.config.get();
-            if (lastConfig == null || !lastConfig.isValid()) {
-                throw new RuntimeException("Invalid config retrieved and no previous config to revert to");
-            }
-            this.config.set(lastConfig);
-            return 1;
-        }
-
-        logger.info("Successfully updated runtime config");
         this.config.set(newRuntimeConfig);
+        logger.info("Successfully updated runtime config");
+
+//        if (!newRuntimeConfig.isValid()) {
+//            logger.warn("New runtime config invalid, reverting to the last runtime config...");
+//            RuntimeConfig lastConfig = this.config.get();
+//            if (lastConfig == null || !lastConfig.isValid()) {
+//                throw new RuntimeException("Invalid config retrieved and no previous config to revert to");
+//            }
+//            this.config.set(lastConfig);
+//            return 1;
+//        }
+//
         return 1;
     }
 

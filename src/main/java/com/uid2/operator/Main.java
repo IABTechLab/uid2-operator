@@ -10,10 +10,10 @@ import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.reader.RotatingCloudEncryptionKeyApiProvider;
 import com.uid2.operator.service.*;
+import com.uid2.operator.store.*;
+import com.uid2.operator.store.BootstrapConfigStore;
 import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
-import com.uid2.operator.store.CloudSyncOptOutStore;
-import com.uid2.operator.store.OptOutCloudStorage;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
@@ -59,7 +59,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
-import static com.uid2.operator.Const.Config.ConfigScanPeriodMsProp;
 import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
@@ -71,6 +70,7 @@ public class Main {
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
+    private final IConfigStore configStore;
     private final RotatingSiteStore siteProvider;
     private final RotatingClientKeyProvider clientKeyProvider;
     private final RotatingKeysetKeyStore keysetKeyStore;
@@ -81,6 +81,7 @@ public class Main {
     private final boolean encryptedCloudFilesEnabled;
     private OperatorShutdownHandler shutdownHandler = null;
     private final OperatorMetrics metrics;
+    private final boolean useRemoteConfig;
     private final boolean clientSideTokenGenerate;
     private final boolean validateServiceLinks;
     private IStatsCollectorQueue _statsCollectorQueue;
@@ -102,6 +103,7 @@ public class Main {
         }
 
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
+        this.useRemoteConfig = config.getBoolean(EnableRemoteConfigProp, false);
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
         this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
@@ -180,6 +182,13 @@ public class Main {
         }
 
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
+        
+        if (useRemoteConfig) {
+            String configMdPath = this.config.getString(Const.Config.RuntimeConfigMetadataPathProp);
+            this.configStore = new RuntimeConfigStore(fsStores, configMdPath);
+        } else {
+            this.configStore = new BootstrapConfigStore(this.config);
+        }
 
         if (this.validateServiceLinks) {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
@@ -192,6 +201,9 @@ public class Main {
             if (clientSideTokenGenerate) {
                 this.siteProvider.loadContent();
                 this.clientSideKeypairProvider.loadContent();
+            }
+            if (useRemoteConfig) {
+                this.configStore.loadContent();
             }
 
             if (this.validateServiceLinks) {
@@ -305,72 +317,37 @@ public class Main {
         }
     }
 
-    private Future<IConfigService> initialiseConfigService() throws Exception {
-        boolean enableRemoteConfigFeatureFlag = config.getBoolean(EnableRemoteConfigProp, false);
-        ConfigRetriever configRetriever;
-
-        if (enableRemoteConfigFeatureFlag) {
-            configRetriever = ConfigRetrieverFactory.create(
-                    vertx,
-                    config.getJsonObject("runtime_config_store"),
-                    this.createOperatorKeyRetriever().retrieve()
-            );
-        } else {
-            configRetriever = ConfigRetrieverFactory.create(
-                    vertx,
-                    new JsonObject()
-                            .put("type", "json")
-                            .put("config", config)
-                            .put(ConfigScanPeriodMsProp, -1),
-                    ""
-            );
-        }
-
-        return ConfigService.create(configRetriever)
-                .map(configService -> (IConfigService) configService)
-                .onFailure(e -> {
-                    LOGGER.error("Failed to initialise ConfigService", e);
-                });
-    }
-
     private void run() throws Exception {
         this.createVertxInstancesMetric();
         this.createVertxEventLoopsMetric();
 
-        this.initialiseConfigService()
-                .compose(configService -> {
+        Supplier<Verticle> operatorVerticleSupplier = () -> {
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
+            return verticle;
+        };
 
-                    Supplier<Verticle> operatorVerticleSupplier = () -> {
-                        UIDOperatorVerticle verticle = new UIDOperatorVerticle(configService, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
-                        return verticle;
-                    };
+        DeploymentOptions options = new DeploymentOptions();
+        int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
+        options.setInstances(svcInstances);
 
-                    DeploymentOptions options = new DeploymentOptions();
-                    int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
-                    options.setInstances(svcInstances);
+        Promise<Void> compositePromise = Promise.promise();
+        List<Future> fs = new ArrayList<>();
+        fs.add(createAndDeployStatsCollector());
+        fs.add(createStoreVerticles());
 
-                    Promise<Void> compositePromise = Promise.promise();
-                    List<Future> fs = new ArrayList<>();
-                    fs.add(createAndDeployStatsCollector());
-                    try {
-                        fs.add(createStoreVerticles());
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+        CompositeFuture.all(fs).onComplete(ar -> {
+            if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
+            else compositePromise.complete();
+        });
 
-                    CompositeFuture.all(fs).onComplete(ar -> {
-                        if (ar.failed()) compositePromise.fail(new Exception(ar.cause()));
-                        else compositePromise.complete();
-                    });
+        compositePromise.future()
+                .compose(v -> {
+                    metrics.setup();
+                    vertx.setPeriodic(60000, id -> metrics.update());
 
-                    return compositePromise.future()
-                            .compose(v -> {
-                                metrics.setup();
-                                vertx.setPeriodic(60000, id -> metrics.update());
-                                Promise<String> promise = Promise.promise();
-                                vertx.deployVerticle(operatorVerticleSupplier, options, promise);
-                                return promise.future();
-                            });
+                    Promise<String> promise = Promise.promise();
+                    vertx.deployVerticle(operatorVerticleSupplier, options, promise);
+                    return promise.future();
                 })
                 .onFailure(t -> {
                     LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
@@ -422,6 +399,9 @@ public class Main {
             fs.add(createAndDeployRotatingStoreVerticle("cloud_encryption_keys", cloudEncryptionKeyProvider, "cloud_encryption_keys_refresh_ms"));
         }
 
+        if (useRemoteConfig) {
+            fs.add(createAndDeployRotatingStoreVerticle("runtime_config", (RuntimeConfigStore) configStore, Const.Config.ConfigScanPeriodMsProp));
+        }
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
@@ -440,26 +420,21 @@ public class Main {
         final int intervalMs = config.getInteger(storeRefreshConfigMs, 10000);
 
         RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
-        Promise<String> promise = Promise.promise();
-        vertx.deployVerticle(rotatingStoreVerticle, promise);
-        return promise.future();
+        return vertx.deployVerticle(rotatingStoreVerticle);
     }
 
     private Future<String> createAndDeployCloudSyncStoreVerticle(String name, ICloudStorage fsCloud,
                                                                  ICloudSync cloudSync) {
-        Promise<String> promise = Promise.promise();
         CloudSyncVerticle cloudSyncVerticle = new CloudSyncVerticle(name, fsCloud, fsLocal, cloudSync, config);
-        vertx.deployVerticle(cloudSyncVerticle, promise);
-        return promise.future()
+        return vertx.deployVerticle(cloudSyncVerticle)
             .onComplete(v -> setupTimerEvent(cloudSyncVerticle.eventRefresh()));
     }
 
     private Future<String> createAndDeployStatsCollector() {
-        Promise<String> promise = Promise.promise();
         StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50), config.getInteger(Const.Config.MaxVersionBucketsPerSite, 50));
-        vertx.deployVerticle(statsCollectorVerticle, promise);
+        Future<String> result = vertx.deployVerticle(statsCollectorVerticle);
         _statsCollectorQueue = statsCollectorVerticle;
-        return promise.future();
+        return result;
     }
 
     private void setupTimerEvent(String eventCloudRefresh) {

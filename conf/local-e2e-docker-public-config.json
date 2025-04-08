@@ -38,5 +38,5 @@
   "salts_expired_shutdown_hours": 12,
   "operator_type": "public",
   "disable_optout_token": true,
-  "enable_remote_config": true
+  "enable_remote_config": false
 }

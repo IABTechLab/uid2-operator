@@ -41,6 +41,6 @@
   "operator_type": "public",
   "encrypted_files": true,
   "disable_optout_token": false,
-  "enable_remote_config": true,
+  "enable_remote_config": false,
   "config_scan_period_ms": 10000
 }

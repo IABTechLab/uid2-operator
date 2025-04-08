@@ -53,10 +53,8 @@ public class RuntimeConfigStoreTest {
     @Test
     public void loadRuntimeConfigSingleVersion() throws Exception {
         final JsonObject metadataJson = new JsonObject();
-        {
-            metadataJson.put("version", 2);
-            metadataJson.put("runtime_config", this.config);
-        }
+        metadataJson.put("version", 2);
+        metadataJson.put("runtime_config", this.config);
 
         when(cloudStorage.download("metadata"))
                 .thenReturn(new ByteArrayInputStream(metadataJson.toString().getBytes(StandardCharsets.US_ASCII)));
@@ -78,10 +76,8 @@ public class RuntimeConfigStoreTest {
                 .put("refresh_token_expires_after_seconds", 2000);
 
         final JsonObject metadataJson = new JsonObject();
-        {
-            metadataJson.put("version", 1);
-            metadataJson.put("runtime_config", invalidConfig);
-        }
+        metadataJson.put("version", 1);
+        metadataJson.put("runtime_config", invalidConfig);
 
         when(cloudStorage.download("metadata"))
                 .thenReturn(new ByteArrayInputStream(metadataJson.toString().getBytes(StandardCharsets.US_ASCII)));
@@ -101,15 +97,11 @@ public class RuntimeConfigStoreTest {
                 .put("refresh_token_expires_after_seconds", 2000);
 
         final JsonObject v1MetadataJson = new JsonObject();
-        {
-            v1MetadataJson.put("version", 1);
-            v1MetadataJson.put("runtime_config", this.config);
-        }
+        v1MetadataJson.put("version", 1);
+        v1MetadataJson.put("runtime_config", this.config);
         final JsonObject v2MetadataJson = new JsonObject();
-        {
-            v2MetadataJson.put("version", 2);
-            v2MetadataJson.put("runtime_config", invalidConfig);
-        }
+        v2MetadataJson.put("version", 2);
+        v2MetadataJson.put("runtime_config", invalidConfig);
 
         RuntimeConfigStore runtimeConfigStore = new RuntimeConfigStore(cloudStorage, "metadata");
 

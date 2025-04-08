@@ -6,16 +6,16 @@ import org.slf4j.LoggerFactory;
 
 public class BootstrapConfigStore implements IConfigStore {
     private static final Logger logger = LoggerFactory.getLogger(BootstrapConfigStore.class);
-    private final JsonObject config;
+    private final RuntimeConfig config;
 
     public BootstrapConfigStore(JsonObject config) {
+        this.config = config.mapTo(RuntimeConfig.class);
         logger.info("Successfully loaded bootstrap config");
-        this.config = config;
     }
 
     @Override
     public RuntimeConfig getConfig() {
-        return config.mapTo(RuntimeConfig.class);
+        return config;
     }
 
     @Override

@@ -76,7 +76,7 @@ public class RuntimeConfigTest {
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
 
-        assertThat(ex.getMessage()).contains("is required");
+        assertThat(ex.getMessage()).contains(String.format("%s is required", propertyName));
     }
 
     @ParameterizedTest
@@ -86,7 +86,7 @@ public class RuntimeConfigTest {
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
 
-        assertThat(ex.getMessage()).contains("is required");
+        assertThat(ex.getMessage()).contains(String.format("%s is required", propertyName));
     }
 
     private RuntimeConfig mapToRuntimeConfig() {
@@ -108,7 +108,7 @@ public class RuntimeConfigTest {
         validConfig.put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 5);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
-        assertThat(ex.getMessage()).contains("Refresh token expires after seconds must be >= identity token expires after seconds");
+        assertThat(ex.getMessage()).contains("refresh_token_expires_after_seconds (5) must be >= identity_token_expires_after_seconds (10)");
     }
 
     @Test
@@ -117,16 +117,16 @@ public class RuntimeConfigTest {
         validConfig.put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 5);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
-        assertThat(ex.getMessage()).contains("Identity token expires after seconds must be >= refresh identity token after seconds");
+        assertThat(ex.getMessage()).contains("identity_token_expires_after_seconds (5) must be >= refresh_identity_token_after_seconds (6)");
     }
 
     @Test
     void maxBidStreamLifetimeSecondsIsLessThanIdentityTokenExpiresAfterSecondsThrows() {
-        validConfig.put(MaxBidstreamLifetimeSecondsProp, 5);
-        validConfig.put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 10);
+        int newMaxBidStreamLifetimeSeconds = validConfig.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS) - 1;
+        validConfig.put(MaxBidstreamLifetimeSecondsProp, newMaxBidStreamLifetimeSeconds);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
-        assertThat(ex.getMessage()).contains("Identity token expires after seconds must be >= refresh identity token after seconds");
+        assertThat(ex.getMessage()).contains(String.format("max_bidstream_lifetime_seconds (%d) must be >= identity_token_expires_after_seconds (%d)", newMaxBidStreamLifetimeSeconds, validConfig.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)));
     }
     
     @Test

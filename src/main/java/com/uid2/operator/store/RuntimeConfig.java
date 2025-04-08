@@ -73,35 +73,35 @@ public class RuntimeConfig {
     
     private void validateIdentityRefreshTokens() {
         if (this.identityTokenExpiresAfterSeconds == null) {
-            throw new IllegalArgumentException("Identity token expires after seconds is required");
+            throw new IllegalArgumentException("identity_token_expires_after_seconds is required");
         }
 
         if (this.refreshTokenExpiresAfterSeconds == null) {
-            throw new IllegalArgumentException("Refresh token expires after seconds is required");
+            throw new IllegalArgumentException("refresh_token_expires_after_seconds is required");
         }
 
         if (this.refreshIdentityTokenAfterSeconds == null) {
-            throw new IllegalArgumentException("Refresh identity token after seconds is required");
+            throw new IllegalArgumentException("refresh_identity_token_after_seconds is required");
         }
         
         if (this.refreshTokenExpiresAfterSeconds < this.identityTokenExpiresAfterSeconds) {
-            throw new IllegalArgumentException("Refresh token expires after seconds must be >= identity token expires after seconds");
+            throw new IllegalArgumentException(String.format("refresh_token_expires_after_seconds (%d) must be >= identity_token_expires_after_seconds (%d)", refreshTokenExpiresAfterSeconds, identityTokenExpiresAfterSeconds));
         }
         
         if (this.identityTokenExpiresAfterSeconds < this.refreshIdentityTokenAfterSeconds) {
-            throw new IllegalArgumentException("Identity token expires after seconds must be >= refresh identity token after seconds");
+            throw new IllegalArgumentException(String.format("identity_token_expires_after_seconds (%d) must be >= refresh_identity_token_after_seconds (%d)", identityTokenExpiresAfterSeconds, refreshIdentityTokenAfterSeconds));
         }
     }
     
     private void validateBidstreamLifetime() {
         if (this.maxBidstreamLifetimeSeconds != null && this.maxBidstreamLifetimeSeconds < this.identityTokenExpiresAfterSeconds) {
-            throw new IllegalArgumentException("Max bidstream lifetime seconds must be >= identity token expires after seconds");
+            throw new IllegalArgumentException(String.format("max_bidstream_lifetime_seconds (%d) must be >= identity_token_expires_after_seconds (%d)", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds));
         }
     }
     
     private void validateSharingTokenExpiry() {
         if (this.sharingTokenExpirySeconds == null) {
-            throw new IllegalArgumentException("Sharing token expiry seconds is required");
+            throw new IllegalArgumentException("sharing_token_expiry_seconds is required");
         }
     }
     

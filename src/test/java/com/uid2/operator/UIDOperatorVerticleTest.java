@@ -143,7 +143,7 @@ public class UIDOperatorVerticleTest {
         }
         // TODO: Remove this when we remove allow_legacy_api FF
         config.put("allow_legacy_api", true);
-        when(configStore.getConfig()).thenReturn(runtimeConfig);
+        when(configStore.getConfig()).thenAnswer(x -> runtimeConfig);
 
         this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse);
 

@@ -73,35 +73,35 @@ public class RuntimeConfig {
     
     private void validateIdentityRefreshTokens() {
         if (this.identityTokenExpiresAfterSeconds == null) {
-            throw new IllegalArgumentException("");
+            throw new IllegalArgumentException("Identity token expires after seconds is required");
         }
 
         if (this.refreshTokenExpiresAfterSeconds == null) {
-            throw new IllegalArgumentException("");
+            throw new IllegalArgumentException("Refresh token expires after seconds is required");
         }
 
         if (this.refreshIdentityTokenAfterSeconds == null) {
-            throw new IllegalArgumentException("");
+            throw new IllegalArgumentException("Refresh identity token after seconds is required");
         }
         
         if (this.refreshTokenExpiresAfterSeconds < this.identityTokenExpiresAfterSeconds) {
-            throw new IllegalArgumentException("");
+            throw new IllegalArgumentException("Refresh token expires after seconds must be >= identity token expires after seconds");
         }
         
         if (this.identityTokenExpiresAfterSeconds < this.refreshIdentityTokenAfterSeconds) {
-            throw new IllegalArgumentException("");
+            throw new IllegalArgumentException("Identity token expires after seconds must be >= refresh identity token after seconds");
         }
     }
     
     private void validateBidstreamLifetime() {
         if (this.maxBidstreamLifetimeSeconds != null && this.maxBidstreamLifetimeSeconds < this.identityTokenExpiresAfterSeconds) {
-            throw new IllegalArgumentException("");
+            throw new IllegalArgumentException("Max bidstream lifetime seconds must be >= identity token expires after seconds");
         }
     }
     
     private void validateSharingTokenExpiry() {
         if (this.sharingTokenExpirySeconds == null) {
-            throw new IllegalArgumentException("");
+            throw new IllegalArgumentException("Sharing token expiry seconds is required");
         }
     }
     

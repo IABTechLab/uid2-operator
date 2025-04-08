@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 import static com.uid2.operator.Const.Config.MaxBidstreamLifetimeSecondsProp;
 import static com.uid2.operator.Const.Config.SharingTokenExpiryProp;
 import static com.uid2.operator.service.UIDOperatorService.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class RuntimeConfigTest {
@@ -28,6 +29,7 @@ public class RuntimeConfigTest {
     @Test
     void mapToRuntimeConfigPreservesValues() {
         RuntimeConfig config = mapToRuntimeConfig();
+        
         assertEquals(validConfig.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), config.getIdentityTokenExpiresAfterSeconds());
         assertEquals(validConfig.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), config.getRefreshTokenExpiresAfterSeconds());
         assertEquals(validConfig.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS), config.getRefreshIdentityTokenAfterSeconds());
@@ -35,8 +37,17 @@ public class RuntimeConfigTest {
     }
     
     @Test
+    void runtimeConfigUsesCorrectDefaultValues() {
+        RuntimeConfig config = mapToRuntimeConfig();
+        
+        assertEquals(validConfig.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), config.getMaxBidstreamLifetimeSeconds());
+        assertEquals(validConfig.getInteger(SharingTokenExpiryProp), config.getMaxSharingLifetimeSeconds());
+    }
+    
+    @Test
     void extraPropertyDoesNotThrow() {
         validConfig.put("some_new_property", 1);
+        
         assertDoesNotThrow(this::mapToRuntimeConfig);
     }
     
@@ -44,14 +55,20 @@ public class RuntimeConfigTest {
     @MethodSource("requiredFields")
     void requiredFieldIsNullThrows(String propertyName) {
         validConfig.putNull(propertyName);
-        assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
+        
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
+        
+        assertThat(ex.getMessage()).contains("is required");
     }
 
     @ParameterizedTest
     @MethodSource("requiredFields")
     void requiredFieldIsMissingThrows(String propertyName) {
         validConfig.remove(propertyName);
-        assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
+        
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
+        
+        assertThat(ex.getMessage()).contains("is required");
     }
 
     private RuntimeConfig mapToRuntimeConfig() {
@@ -73,6 +90,7 @@ public class RuntimeConfigTest {
         validConfig.put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 5);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
+        assertThat(ex.getMessage()).contains("Refresh token expires after seconds must be >= identity token expires after seconds");
     }
     
     @Test
@@ -81,6 +99,7 @@ public class RuntimeConfigTest {
         validConfig.put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 5);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
+        assertThat(ex.getMessage()).contains("Identity token expires after seconds must be >= refresh identity token after seconds");
     }
     
     @Test
@@ -89,5 +108,6 @@ public class RuntimeConfigTest {
         validConfig.put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 10);
         
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
+        assertThat(ex.getMessage()).contains("Identity token expires after seconds must be >= refresh identity token after seconds");
     }
 }

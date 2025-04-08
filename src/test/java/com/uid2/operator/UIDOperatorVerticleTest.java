@@ -53,6 +53,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.slf4j.LoggerFactory;
 import static org.assertj.core.api.Assertions.*;
 
@@ -79,7 +82,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(VertxExtension.class)
+@ExtendWith({VertxExtension.class, MockitoExtension.class})
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class UIDOperatorVerticleTest {
     private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
     private static final Instant legacyClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).minus(1, ChronoUnit.SECONDS);
@@ -102,21 +106,34 @@ public class UIDOperatorVerticleTest {
 
     private static final int optOutStatusMaxRequestSize = 1000;
 
-    private AutoCloseable mocks;
-    @Mock private ISiteStore siteProvider;
-    @Mock private IClientKeyProvider clientKeyProvider;
-    @Mock private IClientSideKeypairStore clientSideKeypairProvider;
-    @Mock private IClientSideKeypairStore.IClientSideKeypairStoreSnapshot clientSideKeypairSnapshot;
-    @Mock private IKeysetKeyStore keysetKeyStore;
-    @Mock private RotatingKeysetProvider keysetProvider;
-    @Mock private ISaltProvider saltProvider;
-    @Mock private SecureLinkValidatorService secureLinkValidatorService;
-    @Mock private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
-    @Mock private IOptOutStore optOutStore;
-    @Mock private Clock clock;
-    @Mock private IStatsCollectorQueue statsCollectorQueue;
-    @Mock private OperatorShutdownHandler shutdownHandler;
-    @Mock private IConfigStore configStore;
+    @Mock
+    private ISiteStore siteProvider;
+    @Mock
+    private IClientKeyProvider clientKeyProvider;
+    @Mock
+    private IClientSideKeypairStore clientSideKeypairProvider;
+    @Mock
+    private IClientSideKeypairStore.IClientSideKeypairStoreSnapshot clientSideKeypairSnapshot;
+    @Mock
+    private IKeysetKeyStore keysetKeyStore;
+    @Mock
+    private RotatingKeysetProvider keysetProvider;
+    @Mock
+    private ISaltProvider saltProvider;
+    @Mock
+    private SecureLinkValidatorService secureLinkValidatorService;
+    @Mock
+    private ISaltProvider.ISaltSnapshot saltProviderSnapshot;
+    @Mock
+    private IOptOutStore optOutStore;
+    @Mock
+    private Clock clock;
+    @Mock
+    private IStatsCollectorQueue statsCollectorQueue;
+    @Mock
+    private OperatorShutdownHandler shutdownHandler;
+    @Mock
+    private IConfigStore configStore;
 
     private SimpleMeterRegistry registry;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
@@ -125,7 +142,6 @@ public class UIDOperatorVerticleTest {
 
     @BeforeEach
     public void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
-        mocks = MockitoAnnotations.openMocks(this);
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().plus(1, ChronoUnit.HOURS));
         when(clock.instant()).thenAnswer(i -> now);
@@ -156,7 +172,6 @@ public class UIDOperatorVerticleTest {
     @AfterEach
     public void teardown() throws Exception {
         Metrics.globalRegistry.remove(registry);
-        mocks.close();
     }
 
     private RuntimeConfig setupRuntimeConfig(JsonObject config) {
@@ -885,7 +900,7 @@ public class UIDOperatorVerticleTest {
 
         // the clock value shouldn't matter here
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
-            .thenReturn(now.minus(1, ChronoUnit.HOURS));
+                .thenReturn(now.minus(1, ChronoUnit.HOURS));
 
         JsonObject req = new JsonObject();
         JsonArray emails = new JsonArray();
@@ -912,7 +927,7 @@ public class UIDOperatorVerticleTest {
         setupKeys();
         // the clock value shouldn't matter here
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
-            .thenReturn(now.minus(1, ChronoUnit.HOURS));
+                .thenReturn(now.minus(1, ChronoUnit.HOURS));
         JsonObject req = new JsonObject();
         JsonArray emails = new JsonArray();
         emails.add("random-optout-user@email.io");
@@ -1146,7 +1161,7 @@ public class UIDOperatorVerticleTest {
             "optout_check,someoptout@example.com,Email",
             "optout_check,+01234567890,Phone"})
     void tokenGenerateOptOutToken(String policyParameterKey, String identity, IdentityType identityType,
-                                           Vertx vertx, VertxTestContext testContext) {
+                                  Vertx vertx, VertxTestContext testContext) {
         ClientKey oldClientKey = new ClientKey(
                 null,
                 null,
@@ -1229,7 +1244,7 @@ public class UIDOperatorVerticleTest {
             "optout_check,someoptout@example.com,Email",
             "optout_check,+01234567890,Phone"})
     void tokenGenerateOptOutTokenWithDisableOptoutTokenFF(String policyParameterKey, String identity, IdentityType identityType,
-                                  Vertx vertx, VertxTestContext testContext) {
+                                                          Vertx vertx, VertxTestContext testContext) {
         ClientKey oldClientKey = new ClientKey(
                 null,
                 null,
@@ -2321,9 +2336,9 @@ public class UIDOperatorVerticleTest {
 
     private static Stream<Arguments> optOutStatusRequestData() {
         List<String> rawUIDS = Arrays.asList("RUQbFozFwnmPVjDx8VMkk9vJoNXUJImKnz2h9RfzzM24",
-            "qAmIGxqLk_RhOtm4f1nLlqYewqSma8fgvjEXYnQ3Jr0K",
-            "r3wW2uvJkwmeFcbUwSeM6BIpGF8tX38wtPfVc4wYyo71",
-            "e6SA-JVAXnvk8F1MUtzsMOyWuy5Xqe15rLAgqzSGiAbz");
+                "qAmIGxqLk_RhOtm4f1nLlqYewqSma8fgvjEXYnQ3Jr0K",
+                "r3wW2uvJkwmeFcbUwSeM6BIpGF8tX38wtPfVc4wYyo71",
+                "e6SA-JVAXnvk8F1MUtzsMOyWuy5Xqe15rLAgqzSGiAbz");
         Map<String, Long> optedOutIdsCase1 = new HashMap<>();
 
         optedOutIdsCase1.put(rawUIDS.get(0), Instant.now().minus(1, ChronoUnit.DAYS).getEpochSecond());
@@ -2335,10 +2350,10 @@ public class UIDOperatorVerticleTest {
         optedOutIdsCase2.put(rawUIDS.get(2), -1L);
         optedOutIdsCase2.put(rawUIDS.get(3), -1L);
         return Stream.of(
-            Arguments.arguments(optedOutIdsCase1, 2, Role.MAPPER),
-            Arguments.arguments(optedOutIdsCase1, 2, Role.ID_READER),
-            Arguments.arguments(optedOutIdsCase1, 2, Role.SHARER),
-            Arguments.arguments(optedOutIdsCase2, 0, Role.MAPPER)
+                Arguments.arguments(optedOutIdsCase1, 2, Role.MAPPER),
+                Arguments.arguments(optedOutIdsCase1, 2, Role.ID_READER),
+                Arguments.arguments(optedOutIdsCase1, 2, Role.SHARER),
+                Arguments.arguments(optedOutIdsCase2, 0, Role.MAPPER)
         );
     }
 
@@ -3554,15 +3569,15 @@ public class UIDOperatorVerticleTest {
         setupCstgBackend("cstg.co.uk");
 
         postCstg(vertx,
-                 "v2/token/client-generate",
-                 "https://cstg.co.uk",
-                 null,
-                 testContext.succeeding(result -> testContext.verify(() -> {
-                     JsonObject response = result.bodyAsJsonObject();
-                     assertEquals("client_error", response.getString("status"));
-                     assertEquals("json payload expected but not found", response.getString("message"));
-                     testContext.completeNow();
-                 })));
+                "v2/token/client-generate",
+                "https://cstg.co.uk",
+                null,
+                testContext.succeeding(result -> testContext.verify(() -> {
+                    JsonObject response = result.bodyAsJsonObject();
+                    assertEquals("client_error", response.getString("status"));
+                    assertEquals("json payload expected but not found", response.getString("message"));
+                    testContext.completeNow();
+                })));
     }
 
     @Test
@@ -3571,12 +3586,12 @@ public class UIDOperatorVerticleTest {
 
         WebClient client = WebClient.create(vertx);
         client.postAbs(getUrlForEndpoint("v2/token/client-generate"))
-            .putHeader(ORIGIN_HEADER, "https://cstg.co.uk")
-            .putHeader("Content-Type", "application/json")
-            .sendBuffer(Buffer.buffer("not a valid json payload"), result -> testContext.verify(() -> {
-                assertEquals(400, result.result().statusCode());
-                testContext.completeNow();
-            }));
+                .putHeader(ORIGIN_HEADER, "https://cstg.co.uk")
+                .putHeader("Content-Type", "application/json")
+                .sendBuffer(Buffer.buffer("not a valid json payload"), result -> testContext.verify(() -> {
+                    assertEquals(400, result.result().statusCode());
+                    testContext.completeNow();
+                }));
     }
 
     @ParameterizedTest
@@ -4023,7 +4038,7 @@ public class UIDOperatorVerticleTest {
         else { //can't be other types
             assertFalse(true);
         }
-        
+
         return createClientSideTokenGenerateRequestWithPayload(identity, timestamp, appName);
     }
 
@@ -4071,7 +4086,7 @@ public class UIDOperatorVerticleTest {
 
                     // When we refresh the token the user has opted out.
                     when(optOutStore.getLatestEntry(any(UserIdentity.class)))
-                        .thenReturn(advertisingToken.userIdentity.establishedAt.plusSeconds(1));
+                            .thenReturn(advertisingToken.userIdentity.establishedAt.plusSeconds(1));
 
                     sendTokenRefresh("v2", vertx, testContext, genBody.getString("refresh_token"), genBody.getString("refresh_response_key"), 200, refreshRespJson -> {
                         assertEquals("optout", refreshRespJson.getString("status"));
@@ -4092,7 +4107,7 @@ public class UIDOperatorVerticleTest {
             "false,+61400000000,Phone",
     })
     void cstgSuccessForBothOptedAndNonOptedOutTest(boolean optOutExpected, String id, IdentityType identityType,
-                          Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+                                                   Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
 
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
@@ -4716,20 +4731,20 @@ public class UIDOperatorVerticleTest {
         Map<Integer, Site> emptySites = new HashMap<>();
         return Stream.of(
                 // Both domains and app names should be present in response
-            Arguments.of("true", KeyDownloadEndpoint.SHARING, mockSitesWithBoth, expectedSitesWithBoth),
-            Arguments.of("true", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithBoth, expectedSitesWithBoth),
+                Arguments.of("true", KeyDownloadEndpoint.SHARING, mockSitesWithBoth, expectedSitesWithBoth),
+                Arguments.of("true", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithBoth, expectedSitesWithBoth),
 
-            // only domains should be present in response
-            Arguments.of("false", KeyDownloadEndpoint.SHARING, mockSitesWithDomainsOnly, expectedSitesDomainsOnly),
-            Arguments.of("false", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithDomainsOnly, expectedSitesDomainsOnly),
+                // only domains should be present in response
+                Arguments.of("false", KeyDownloadEndpoint.SHARING, mockSitesWithDomainsOnly, expectedSitesDomainsOnly),
+                Arguments.of("false", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithDomainsOnly, expectedSitesDomainsOnly),
 
-            // only app names should be present in response
-            Arguments.of("true", KeyDownloadEndpoint.SHARING, mockSitesWithAppNamesOnly, expectedSitesWithAppNamesOnly),
-            Arguments.of("true", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithAppNamesOnly, expectedSitesWithAppNamesOnly),
+                // only app names should be present in response
+                Arguments.of("true", KeyDownloadEndpoint.SHARING, mockSitesWithAppNamesOnly, expectedSitesWithAppNamesOnly),
+                Arguments.of("true", KeyDownloadEndpoint.BIDSTREAM, mockSitesWithAppNamesOnly, expectedSitesWithAppNamesOnly),
 
-            // None
-            Arguments.of("false", KeyDownloadEndpoint.SHARING, emptySites, emptySites),
-            Arguments.of("false", KeyDownloadEndpoint.BIDSTREAM, emptySites, emptySites)
+                // None
+                Arguments.of("false", KeyDownloadEndpoint.SHARING, emptySites, emptySites),
+                Arguments.of("false", KeyDownloadEndpoint.BIDSTREAM, emptySites, emptySites)
         );
     }
 
@@ -4809,7 +4824,7 @@ public class UIDOperatorVerticleTest {
         this.runtimeConfig = this.runtimeConfig.toBuilder().withMaxSharingLifetimeSeconds(999999).build();
         keySharingKeysets_SHARER(true, true, vertx, testContext, 999999);
     }
-    
+
     @ParameterizedTest
     @CsvSource({
             "true, true",
@@ -5226,7 +5241,7 @@ public class UIDOperatorVerticleTest {
     @Test
     void keyBidstreamRespectsConfigValues(Vertx vertx, VertxTestContext testContext) {
         int newMaxBidstreamLifetimeSeconds = 999999;
-        
+
         this.runtimeConfig = this.runtimeConfig
                 .toBuilder()
                 .withMaxBidstreamLifetimeSeconds(newMaxBidstreamLifetimeSeconds)
@@ -5272,7 +5287,7 @@ public class UIDOperatorVerticleTest {
                 .withRefreshTokenExpiresAfterSeconds((int) newRefreshExpiresAfter.toSeconds())
                 .withRefreshIdentityTokenAfterSeconds((int) newRefreshIdentityAfter.toSeconds())
                 .build();
-        
+
         sendTokenGenerate("v2", vertx,
                 null, v2Payload, 200,
                 respJson -> {
@@ -5297,7 +5312,7 @@ public class UIDOperatorVerticleTest {
                 .withSharingTokenExpirySeconds(newSharingTokenExpiry)
                 .withMaxSharingLifetimeSeconds(newMaxSharingLifetimeSeconds)
                 .build();
-        
+
         String apiVersion = "v2";
         int siteId = 5;
         fakeAuth(siteId, Role.SHARER);
@@ -5325,12 +5340,12 @@ public class UIDOperatorVerticleTest {
     @Test
     void keyBidstreamRespectsConfigValuesWithRemoteConfig(Vertx vertx, VertxTestContext testContext) {
         int newMaxBidstreamLifetimeSeconds = 999999;
-        
+
         this.runtimeConfig = this.runtimeConfig
                 .toBuilder()
                 .withMaxBidstreamLifetimeSeconds(newMaxBidstreamLifetimeSeconds)
                 .build();
-        
+
         final String apiVersion = "v2";
         final KeyDownloadEndpoint endpoint = KeyDownloadEndpoint.BIDSTREAM;
 

@@ -129,7 +129,7 @@ public class RuntimeConfigStoreTest {
                 .thenReturn(new ByteArrayInputStream(v2MetadataJson.toString().getBytes(StandardCharsets.US_ASCII)));
 
         final JsonObject loadedMetadata2 = runtimeConfigStore.getMetadata();
-        runtimeConfigStore.loadContent(loadedMetadata2);
+        assertThrows(IllegalArgumentException.class, () -> runtimeConfigStore.loadContent(loadedMetadata2));
         assertThat(runtimeConfigStore.getConfig())
                 .usingRecursiveComparison()
                 .isEqualTo(this.runtimeConfig);

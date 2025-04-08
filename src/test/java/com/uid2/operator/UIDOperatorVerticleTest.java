@@ -153,12 +153,6 @@ public class UIDOperatorVerticleTest {
         Metrics.globalRegistry.add(registry);
     }
 
-//    public void modifyConfig(String configName, Object configValue) {
-//        config.put(configName, configValue);
-//        runtimeConfig = setupRuntimeConfig(config);
-//        when(configStore.getConfig()).thenReturn(runtimeConfig);
-//    }
-
     @AfterEach
     public void teardown() throws Exception {
         Metrics.globalRegistry.remove(registry);
@@ -187,7 +181,6 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.OptOutStatusApiEnabled, true);
         config.put(Const.Config.OptOutStatusMaxRequestSize, optOutStatusMaxRequestSize);
         config.put(Const.Config.DisableOptoutTokenProp, false);
-        config.put(Const.Config.EnableRemoteConfigProp, false);
         config.put(Const.Config.ConfigScanPeriodMsProp, 10000);
     }
 
@@ -5181,9 +5174,6 @@ public class UIDOperatorVerticleTest {
                 .withRefreshTokenExpiresAfterSeconds((int) newRefreshExpiresAfter.toSeconds())
                 .withRefreshIdentityTokenAfterSeconds((int) newRefreshIdentityAfter.toSeconds())
                 .build();
-//        modifyConfig(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toSeconds());
-//        modifyConfig(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toSeconds());
-//        modifyConfig(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toSeconds());
 
         sendTokenGenerate("v2", vertx,
                 null, v2Payload, 200,
@@ -5284,8 +5274,6 @@ public class UIDOperatorVerticleTest {
                 .withRefreshIdentityTokenAfterSeconds((int) newRefreshIdentityAfter.toSeconds())
                 .build();
         
-        this.config.put(Const.Config.EnableRemoteConfigProp, true);
-
         sendTokenGenerate("v2", vertx,
                 null, v2Payload, 200,
                 respJson -> {
@@ -5311,8 +5299,6 @@ public class UIDOperatorVerticleTest {
                 .withMaxSharingLifetimeSeconds(newMaxSharingLifetimeSeconds)
                 .build();
         
-        this.config.put(Const.Config.EnableRemoteConfigProp, true);
-
         String apiVersion = "v2";
         int siteId = 5;
         fakeAuth(siteId, Role.SHARER);
@@ -5346,8 +5332,6 @@ public class UIDOperatorVerticleTest {
                 .withMaxBidstreamLifetimeSeconds(newMaxBidstreamLifetimeSeconds)
                 .build();
         
-        this.config.put(Const.Config.EnableRemoteConfigProp, true);
-
         final String apiVersion = "v2";
         final KeyDownloadEndpoint endpoint = KeyDownloadEndpoint.BIDSTREAM;
 

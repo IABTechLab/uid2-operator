@@ -1,26 +1,35 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.store.RuntimeConfig;
+import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConfigValidatorUtilTest {
-    private final RuntimeConfig validConfig = new RuntimeConfig.Builder()
-            .withIdentityTokenExpiresAfterSeconds(259200)
-            .withRefreshTokenExpiresAfterSeconds(2592000)
-            .withRefreshIdentityTokenAfterSeconds(1600)
-            .withSharingTokenExpirySeconds(2592000)
-            .build();
+    private final JsonObject validConfig = new JsonObject()
+            .put("identity_token_expires_after_seconds", 259200)
+            .put("refresh_token_expires_after_seconds", 2592000)
+            .put("refresh_identity_token_after_seconds", 3600)
+            .put("sharing_token_expiry_seconds",  2592000);
+    
+    @Test
+    void testValidConfigDoesNotThrow() {
+        assertDoesNotThrow(() -> validConfig.mapTo(RuntimeConfig.class));
+    }
+    
+    @Test
+    void testExtraPropertyDoesNotThrow() {
+        assertDoesNotThrow(() -> validConfig.put("some_new_property", 1).mapTo(RuntimeConfig.class));
+    }
     
     @Test
     void testIdentityTokenExpiresAfterSecondsIsGreaterThanRefreshTokenExpiresAfterSecondsThrows() {
         // identityExpiresAfter is greater than refreshExpiresAfter
         IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class, () ->
-                validConfig.toBuilder()
-                        .withIdentityTokenExpiresAfterSeconds(10)
-                        .withRefreshTokenExpiresAfterSeconds(5)
-                        .build()
+                validConfig.put("identity_token_expires_after_seconds", 10)
+                        .put("refresh_token_expires_after_seconds", 5)
+                        .mapTo(RuntimeConfig.class)
         );
 //
 //        assertFalse(ConfigValidatorUtil.validateIdentityRefreshTokens(10, 5, 3));

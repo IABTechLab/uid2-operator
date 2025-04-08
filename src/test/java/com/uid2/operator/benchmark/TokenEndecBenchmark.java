@@ -1,6 +1,7 @@
 package com.uid2.operator.benchmark;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -14,20 +15,20 @@ import java.util.List;
 public class TokenEndecBenchmark {
 
     private static final IUIDOperatorService uidService;
-    private static final UserIdentity[] userIdentities;
-    private static final PublisherIdentity publisher;
+    private static final HashedDii[] hashedDiiIdentities;
+    private static final SourcePublisher publisher;
     private static final EncryptedTokenEncoder encoder;
-    private static final IdentityTokens[] generatedTokens;
+    private static final TokenGenerateResponse[] generatedTokens;
     private static int idx = 0;
 
     static {
         try {
             uidService = BenchmarkCommon.createUidOperatorService();
-            userIdentities = BenchmarkCommon.createUserIdentities();
-            publisher = BenchmarkCommon.createPublisherIdentity();
+            hashedDiiIdentities = BenchmarkCommon.createHashedDiiIdentities();
+            publisher = BenchmarkCommon.createSourcePublisher();
             encoder = BenchmarkCommon.createTokenEncoder();
             generatedTokens = createAdvertisingTokens();
-            if (generatedTokens.length < 65536 || userIdentities.length < 65536) {
+            if (generatedTokens.length < 65536 || hashedDiiIdentities.length < 65536) {
                 throw new IllegalStateException("must create more than 65535 test candidates.");
             }
         } catch (Exception e) {
@@ -35,30 +36,29 @@ public class TokenEndecBenchmark {
         }
     }
 
-    static IdentityTokens[] createAdvertisingTokens() {
-        List<IdentityTokens> tokens = new ArrayList<>();
-        for (int i = 0; i < userIdentities.length; i++) {
+    static TokenGenerateResponse[] createAdvertisingTokens() {
+        List<TokenGenerateResponse> tokens = new ArrayList<>();
+        for (int i = 0; i < hashedDiiIdentities.length; i++) {
             tokens.add(
-                    uidService.generateIdentity(
-                            new IdentityRequest(
-                                    publisher,
-                                    userIdentities[i],
-                                    OptoutCheckPolicy.DoNotRespect),
+                    uidService.generateIdentity(new TokenGenerateRequest(
+                            publisher,
+                            hashedDiiIdentities[i],
+                            OptoutCheckPolicy.DoNotRespect),
                             Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
                             Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
                             Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS))
             );
         }
-        return tokens.toArray(new IdentityTokens[tokens.size()]);
+        return tokens.toArray(new TokenGenerateResponse[tokens.size()]);
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public IdentityTokens TokenGenerationBenchmark() {
-        return uidService.generateIdentity(new IdentityRequest(
-                        publisher,
-                        userIdentities[(idx++) & 65535],
-                        OptoutCheckPolicy.DoNotRespect),
+    public TokenGenerateResponse TokenGenerationBenchmark() {
+        return uidService.generateIdentity(new TokenGenerateRequest(
+                publisher,
+                hashedDiiIdentities[(idx++) & 65535],
+                OptoutCheckPolicy.DoNotRespect),
                 Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
                 Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
                 Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)
@@ -67,7 +67,7 @@ public class TokenEndecBenchmark {
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public RefreshResponse TokenRefreshBenchmark() {
+    public TokenRefreshResponse TokenRefreshBenchmark() {
         return uidService.refreshIdentity(
                 encoder.decodeRefreshToken(
                         generatedTokens[(idx++) & 65535].getRefreshToken()),

@@ -35,8 +35,19 @@ public class RuntimeConfigStore implements IConfigStore, IMetadataVersionedStore
 
     @Override
     public long loadContent(JsonObject metadata) throws Exception {
+        if (metadata == null) {
+            throw new RuntimeException("Metadata is null");
+        }
+        
         // The config is returned as part of the metadata itself.
-        RuntimeConfig newRuntimeConfig = metadata.getJsonObject("runtime_config").mapTo(RuntimeConfig.class);
+        JsonObject runtimeConfig = metadata.getJsonObject("runtime_config");
+        
+        logger.info("Received new config {}", runtimeConfig == null ? null : runtimeConfig.toString());
+        if (runtimeConfig == null) {
+            throw new RuntimeException("Runtime config is null");
+        }
+        
+        RuntimeConfig newRuntimeConfig = runtimeConfig.mapTo(RuntimeConfig.class);
         this.config.set(newRuntimeConfig);
         logger.info("Successfully updated runtime config");
         return 1;

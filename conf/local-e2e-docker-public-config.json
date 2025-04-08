@@ -14,6 +14,7 @@
   "services_metadata_path": "http://core:8088/services/refresh",
   "service_links_metadata_path": "http://core:8088/service_links/refresh",
   "cloud_encryption_keys_metadata_path": "http://core:8088/cloud_encryption_keys/retrieve",
+  "runtime_config_metadata_path": "http://core:8088/operator/config",
   "encrypted_files": true,
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
@@ -36,13 +37,6 @@
   "cloud_refresh_interval": 30,
   "salts_expired_shutdown_hours": 12,
   "operator_type": "public",
-  "runtime_config_store": {
-    "type": "http",
-    "config" : {
-      "url": "http://core:8088/operator/config"
-    },
-    "config_scan_period_ms": 300000
-  },
   "disable_optout_token": true,
   "enable_remote_config": false
 }

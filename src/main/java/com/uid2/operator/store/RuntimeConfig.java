@@ -91,33 +91,17 @@ public class RuntimeConfig {
         if (this.identityTokenExpiresAfterSeconds < this.refreshIdentityTokenAfterSeconds) {
             throw new IllegalArgumentException("");
         }
-        
-        if (this.refreshTokenExpiresAfterSeconds < this.refreshIdentityTokenAfterSeconds) {
-            throw new IllegalArgumentException("");
-//            logger.error(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " ({}) < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " ({})", refreshExpiresAfter, refreshIdentityAfter);
-        }
     }
     
     private void validateBidstreamLifetime() {
-        // TODO
-//        if (this.maxBidstreamLifetimeSeconds == null) {
-//            throw new IllegalArgumentException("");
-//        }
-        
-//        if (areValuesNull(maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds)) {
-//            logger.error(VALUES_ARE_NULL + MaxBidstreamLifetimeSecondsProp + ", " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-//            return false;
-//        }
         if (this.maxBidstreamLifetimeSeconds != null && this.maxBidstreamLifetimeSeconds < this.identityTokenExpiresAfterSeconds) {
             throw new IllegalArgumentException("");
-//            logger.error(MaxBidstreamLifetimeSecondsProp + " ({}) < " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " ({})", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds);
         }
     }
     
     private void validateSharingTokenExpiry() {
         if (this.sharingTokenExpirySeconds == null) {
             throw new IllegalArgumentException("");
-//            logger.error(VALUES_ARE_NULL + SharingTokenExpiryProp);
         }
     }
     

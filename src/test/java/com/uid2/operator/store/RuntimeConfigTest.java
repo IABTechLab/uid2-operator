@@ -24,6 +24,15 @@ public class RuntimeConfigTest {
     void validConfigDoesNotThrow() {
         assertDoesNotThrow(this::mapToRuntimeConfig);
     }
+
+    @Test
+    void mapToRuntimeConfigPreservesValues() {
+        RuntimeConfig config = mapToRuntimeConfig();
+        assertEquals(validConfig.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), config.getIdentityTokenExpiresAfterSeconds());
+        assertEquals(validConfig.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), config.getRefreshTokenExpiresAfterSeconds());
+        assertEquals(validConfig.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS), config.getRefreshIdentityTokenAfterSeconds());
+        assertEquals(validConfig.getInteger(SharingTokenExpiryProp), config.getSharingTokenExpirySeconds());
+    }
     
     @Test
     void extraPropertyDoesNotThrow() {
@@ -45,8 +54,8 @@ public class RuntimeConfigTest {
         assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
     }
 
-    private void mapToRuntimeConfig() {
-        validConfig.mapTo(RuntimeConfig.class);
+    private RuntimeConfig mapToRuntimeConfig() {
+        return validConfig.mapTo(RuntimeConfig.class);
     }
     
     private static Stream<Arguments> requiredFields() {

@@ -128,4 +128,15 @@ public class RuntimeConfigTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
         assertThat(ex.getMessage()).contains("Identity token expires after seconds must be >= refresh identity token after seconds");
     }
+    
+    @Test
+    void toBuilderBuildReturnsEquivalentObject() {
+        RuntimeConfig config = mapToRuntimeConfig();
+        
+        RuntimeConfig toBuilderBuild = config.toBuilder().build();
+
+        assertThat(toBuilderBuild)
+                .usingRecursiveComparison()
+                .isEqualTo(config);
+    }
 }

@@ -11,11 +11,14 @@ import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.model.KeysetKey;
 import io.vertx.core.json.JsonObject;
-import org.junit.Test;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
@@ -24,17 +27,21 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class V2RequestUtilTest {
     private static final String LOGGER_NAME = "com.uid2.operator.service.V2RequestUtil";
-    private static MemoryAppender memoryAppender;
-    private final IClock clock = mock(IClock.class);
-    private final Instant mockNow = Instant.parse("2024-03-20T04:02:46.130Z");
-    private AutoCloseable mocks;
-    private final KeyManager keyManager = Mockito.mock(KeyManager.class);
-    private final KeysetKey refreshKey = Mockito.mock(KeysetKey.class);
+    private static final Instant MOCK_NOW = Instant.parse("2024-03-20T04:02:46.130Z");
+
+    @Mock
+    private IClock clock;
+    @Mock
+    private KeyManager keyManager;
+    @Mock
+    private KeysetKey refreshKey;
+    private MemoryAppender memoryAppender;
 
     private void setupMemoryAppender() {
         Logger logger = (Logger)LoggerFactory.getLogger(LOGGER_NAME);
@@ -47,19 +54,18 @@ public class V2RequestUtilTest {
 
     @BeforeEach
     public void setup() {
-        mocks = MockitoAnnotations.openMocks(this);
+        setupMemoryAppender();
     }
 
     @AfterEach
-    public void close() throws Exception {
+    public void teardown() {
         memoryAppender.reset();
         memoryAppender.stop();
-        mocks.close();
     }
 
     @Test
     public void testParseRequestWithExpectedJson() {
-        when(clock.now()).thenReturn(mockNow);
+        when(clock.now()).thenReturn(MOCK_NOW);
 
         String testToken = "AdvertisingTokenmZ4dZgeuXXl6DhoXqbRXQbHlHhA96leN94U1uavZVspwKXlfWETZ3b%2FbesPFFvJxNLLySg4QEYHUAiyUrNncgnm7ppu0mi6wU2CW6hssiuEkKfstbo9XWgRUbWNTM%2BewMzXXM8G9j8Q%3D";
         String testEmailHash = "LdhtUlMQ58ZZy5YUqGPRQw5xUMS5dXG5ocJHYJHbAKI=";
@@ -79,7 +85,7 @@ public class V2RequestUtilTest {
                 "YGdzZw9oM2RzBgB8THMyAEe408lvdfsTsGteaLAGayY=",
                 "name",
                 "contact",
-                mockNow,
+                MOCK_NOW,
                 Set.of(),
                 113,
                 false,
@@ -91,7 +97,7 @@ public class V2RequestUtilTest {
     }
     @Test
     public void testParseRequestWithNullBody() {
-        when(clock.now()).thenReturn(mockNow);
+        when(clock.now()).thenReturn(MOCK_NOW);
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequest(null, null, clock);
 
@@ -100,7 +106,7 @@ public class V2RequestUtilTest {
 
     @Test
     public void testParseRequestWithNonBase64Body() {
-        when(clock.now()).thenReturn(mockNow);
+        when(clock.now()).thenReturn(MOCK_NOW);
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequest("test string", null, clock);
 
@@ -109,7 +115,7 @@ public class V2RequestUtilTest {
 
     @Test
     public void testParseRequestWithTooShortBody() {
-        when(clock.now()).thenReturn(mockNow);
+        when(clock.now()).thenReturn(MOCK_NOW);
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequest("dGVzdA==", null, clock);
 
@@ -118,7 +124,6 @@ public class V2RequestUtilTest {
 
     @Test
     public void testParseRequestWithMalformedJson() {
-        setupMemoryAppender();
         when(clock.now()).thenReturn(Instant.parse("2024-03-20T06:33:15.627Z"));
 
         // The bodyString was encoded by below json:
@@ -134,7 +139,7 @@ public class V2RequestUtilTest {
                 "YGdzZw9oM2RzBgB8THMyAEe408lvdfsTsGteaLAGayY=",
                 "name",
                 "contact",
-                mockNow,
+                MOCK_NOW,
                 Set.of(),
                 113,
                 false,

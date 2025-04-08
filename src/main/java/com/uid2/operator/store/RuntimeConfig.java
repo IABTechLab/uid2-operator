@@ -61,6 +61,16 @@ public class RuntimeConfig {
         validateSharingTokenExpiry();
     }
     
+    public RuntimeConfig.Builder toBuilder() {
+        return new Builder()
+                .withIdentityTokenExpiresAfterSeconds(this.identityTokenExpiresAfterSeconds)
+                .withRefreshTokenExpiresAfterSeconds(this.refreshTokenExpiresAfterSeconds)
+                .withRefreshIdentityTokenAfterSeconds(this.refreshIdentityTokenAfterSeconds)
+                .withSharingTokenExpirySeconds(this.sharingTokenExpirySeconds)
+                .withMaxBidstreamLifetimeSeconds(this.maxBidstreamLifetimeSeconds)
+                .withMaxSharingLifetimeSeconds(this.maxSharingLifetimeSeconds);
+    }
+    
     private void validateIdentityRefreshTokens() {
         if (this.identityTokenExpiresAfterSeconds == null) {
             throw new IllegalArgumentException("");

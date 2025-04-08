@@ -153,11 +153,11 @@ public class UIDOperatorVerticleTest {
         Metrics.globalRegistry.add(registry);
     }
 
-    public void modifyConfig(String configName, Object configValue) {
-        config.put(configName, configValue);
-        runtimeConfig = setupRuntimeConfig(config);
-        when(configStore.getConfig()).thenReturn(runtimeConfig);
-    }
+//    public void modifyConfig(String configName, Object configValue) {
+//        config.put(configName, configValue);
+//        runtimeConfig = setupRuntimeConfig(config);
+//        when(configStore.getConfig()).thenReturn(runtimeConfig);
+//    }
 
     @AfterEach
     public void teardown() throws Exception {
@@ -4814,7 +4814,7 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void keySharingKeysets_SHARER_CustomMaxSharingLifetimeSeconds(Vertx vertx, VertxTestContext testContext) {
-        modifyConfig(Const.Config.MaxSharingLifetimeProp, 999999);
+        this.runtimeConfig = this.runtimeConfig.toBuilder().withMaxSharingLifetimeSeconds(999999).build();
         keySharingKeysets_SHARER(true, true, vertx, testContext, 999999);
     }
     
@@ -5175,9 +5175,15 @@ public class UIDOperatorVerticleTest {
         Duration newRefreshExpiresAfter = Duration.ofMinutes(30);
         Duration newRefreshIdentityAfter = Duration.ofMinutes(10);
 
-        modifyConfig(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toSeconds());
-        modifyConfig(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toSeconds());
-        modifyConfig(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toSeconds());
+        this.runtimeConfig = this.runtimeConfig
+                .toBuilder()
+                .withIdentityTokenExpiresAfterSeconds((int) newIdentityExpiresAfter.toSeconds())
+                .withRefreshTokenExpiresAfterSeconds((int) newRefreshExpiresAfter.toSeconds())
+                .withRefreshIdentityTokenAfterSeconds((int) newRefreshIdentityAfter.toSeconds())
+                .build();
+//        modifyConfig(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toSeconds());
+//        modifyConfig(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toSeconds());
+//        modifyConfig(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toSeconds());
 
         sendTokenGenerate("v2", vertx,
                 null, v2Payload, 200,
@@ -5198,8 +5204,11 @@ public class UIDOperatorVerticleTest {
         int newSharingTokenExpiry = config.getInteger(Const.Config.SharingTokenExpiryProp) + 1;
         int newMaxSharingLifetimeSeconds = config.getInteger(Const.Config.SharingTokenExpiryProp) + 1;
 
-        modifyConfig(Const.Config.SharingTokenExpiryProp, newSharingTokenExpiry);
-        modifyConfig(Const.Config.MaxSharingLifetimeProp, newMaxSharingLifetimeSeconds);
+        this.runtimeConfig = this.runtimeConfig
+                .toBuilder()
+                .withSharingTokenExpirySeconds(newSharingTokenExpiry)
+                .withMaxBidstreamLifetimeSeconds(newMaxSharingLifetimeSeconds)
+                .build();
 
         String apiVersion = "v2";
         int siteId = 5;
@@ -5228,7 +5237,11 @@ public class UIDOperatorVerticleTest {
     @Test
     void keyBidstreamRespectsConfigValues(Vertx vertx, VertxTestContext testContext) {
         int newMaxBidstreamLifetimeSeconds = 999999;
-        modifyConfig(Const.Config.MaxBidstreamLifetimeSecondsProp, newMaxBidstreamLifetimeSeconds);
+        
+        this.runtimeConfig = this.runtimeConfig
+                .toBuilder()
+                .withMaxBidstreamLifetimeSeconds(newMaxBidstreamLifetimeSeconds)
+                .build();
 
         final String apiVersion = "v2";
         final KeyDownloadEndpoint endpoint = KeyDownloadEndpoint.BIDSTREAM;
@@ -5264,10 +5277,14 @@ public class UIDOperatorVerticleTest {
         Duration newRefreshExpiresAfter = Duration.ofMinutes(30);
         Duration newRefreshIdentityAfter = Duration.ofMinutes(10);
 
-        modifyConfig(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, newIdentityExpiresAfter.toSeconds());
-        modifyConfig(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, newRefreshExpiresAfter.toSeconds());
-        modifyConfig(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, newRefreshIdentityAfter.toSeconds());
-        modifyConfig(Const.Config.EnableRemoteConfigProp, true);
+        this.runtimeConfig = this.runtimeConfig
+                .toBuilder()
+                .withIdentityTokenExpiresAfterSeconds((int) newIdentityExpiresAfter.toSeconds())
+                .withRefreshTokenExpiresAfterSeconds((int) newRefreshExpiresAfter.toSeconds())
+                .withRefreshIdentityTokenAfterSeconds((int) newRefreshIdentityAfter.toSeconds())
+                .build();
+        
+        this.config.put(Const.Config.EnableRemoteConfigProp, true);
 
         sendTokenGenerate("v2", vertx,
                 null, v2Payload, 200,
@@ -5288,9 +5305,13 @@ public class UIDOperatorVerticleTest {
         int newSharingTokenExpiry = config.getInteger(Const.Config.SharingTokenExpiryProp) + 1;
         int newMaxSharingLifetimeSeconds = config.getInteger(Const.Config.SharingTokenExpiryProp) + 1;
 
-        modifyConfig(Const.Config.SharingTokenExpiryProp, newSharingTokenExpiry);
-        modifyConfig(Const.Config.MaxSharingLifetimeProp, newMaxSharingLifetimeSeconds);
-        modifyConfig(Const.Config.EnableRemoteConfigProp, true);
+        this.runtimeConfig = this.runtimeConfig
+                .toBuilder()
+                .withSharingTokenExpirySeconds(newSharingTokenExpiry)
+                .withMaxSharingLifetimeSeconds(newMaxSharingLifetimeSeconds)
+                .build();
+        
+        this.config.put(Const.Config.EnableRemoteConfigProp, true);
 
         String apiVersion = "v2";
         int siteId = 5;
@@ -5319,8 +5340,13 @@ public class UIDOperatorVerticleTest {
     @Test
     void keyBidstreamRespectsConfigValuesWithRemoteConfig(Vertx vertx, VertxTestContext testContext) {
         int newMaxBidstreamLifetimeSeconds = 999999;
-        modifyConfig(Const.Config.MaxBidstreamLifetimeSecondsProp, newMaxBidstreamLifetimeSeconds);
-        modifyConfig(Const.Config.EnableRemoteConfigProp, true);
+        
+        this.runtimeConfig = this.runtimeConfig
+                .toBuilder()
+                .withMaxBidstreamLifetimeSeconds(newMaxBidstreamLifetimeSeconds)
+                .build();
+        
+        this.config.put(Const.Config.EnableRemoteConfigProp, true);
 
         final String apiVersion = "v2";
         final KeyDownloadEndpoint endpoint = KeyDownloadEndpoint.BIDSTREAM;

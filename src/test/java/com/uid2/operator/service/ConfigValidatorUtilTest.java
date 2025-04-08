@@ -20,7 +20,6 @@ public class ConfigValidatorUtilTest {
                 validConfig.toBuilder()
                         .withIdentityTokenExpiresAfterSeconds(10)
                         .withRefreshTokenExpiresAfterSeconds(5)
-                        .withRefreshIdentityTokenAfterSeconds(3)
                         .build()
         );
 //

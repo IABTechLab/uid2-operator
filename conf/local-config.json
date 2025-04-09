@@ -39,7 +39,7 @@
   "client_side_token_generate_log_invalid_http_origins": true,
   "salts_expired_shutdown_hours": 12,
   "operator_type": "public",
-  "encrypted_files": true,
+  "encrypted_files": false,
   "disable_optout_token": true,
   "enable_remote_config": false
 }

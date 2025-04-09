@@ -59,7 +59,7 @@ jobs:
             GITHUB_CONTEXT: ${{ toJson(github) }}
 
       - name: Check branch and release type
-        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@xuy-UID2-5055-release-operator-from-releas-branch
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v3
         with:
           release_type: ${{ inputs.release_type }}
     
@@ -76,7 +76,7 @@ jobs:
 
       - name: Set version number
         id: version
-        uses: IABTechLab/uid2-shared-actions/actions/version_number@xuy-UID2-5055-release-operator-from-releas-branch
+        uses: IABTechLab/uid2-shared-actions/actions/version_number@v3
         with:
           type: ${{ env.RELEASE_TYPE }}
           branch_name: ${{ github.ref }}

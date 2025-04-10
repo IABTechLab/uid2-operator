@@ -341,6 +341,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return site.getAppNames();
     }
 
+    private void checkInvalidApiKey(String key) {
+        // log if api key was passed in
+        ClientKey clientKey = this.clientKeyProvider.getClientKey(key);
+        if (clientKey != null) {
+            LOGGER.error("Client side key is an api key with api_key_id={} for site_id={}", clientKey.getKeyId(), clientKey.getSiteId());
+        }
+    }
+
     private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body;
 
@@ -370,6 +378,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final ClientSideKeypair clientSideKeypair = this.clientSideKeypairProvider.getSnapshot().getKeypair(request.getSubscriptionId());
         if (clientSideKeypair == null) {
+            checkInvalidApiKey(request.getSubscriptionId());
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "bad subscription_id",
                     null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId, siteProvider, platformType);
             return;
@@ -399,6 +408,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
             clientPublicKey = kf.generatePublic(pkSpec);
         } catch (Exception e) {
+            checkInvalidApiKey(request.getPublicKey());
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "bad public key", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey, siteProvider, platformType);
             return;
         }

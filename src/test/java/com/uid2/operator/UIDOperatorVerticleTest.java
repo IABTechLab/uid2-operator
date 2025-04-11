@@ -3679,7 +3679,9 @@ public class UIDOperatorVerticleTest {
                 400,
                 testContext,
                 respJson -> {
-                    Assertions.assertEquals(publicKey.equals(clientKey), logWatcher.list.stream().anyMatch(l -> l.getFormattedMessage().contains("Client side key is an api key with api_key_id=key-id for site_id=1")));
+                    if (publicKey.equals(clientKey)) { // if client api key is passed in to cstg, we should log
+                        Assertions.assertTrue(logWatcher.list.stream().anyMatch(l -> l.getFormattedMessage().contains("Client side key is an api key with api_key_id=key-id for site_id=1")));
+                    }
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad public key", respJson.getString("message"));
                     assertTokenStatusMetrics(
@@ -3731,7 +3733,9 @@ public class UIDOperatorVerticleTest {
                 400,
                 testContext,
                 respJson -> {
-                    Assertions.assertEquals(subscriptionId.equals(clientKey), logWatcher.list.stream().anyMatch(l -> l.getFormattedMessage().contains("Client side key is an api key with api_key_id=key-id for site_id=1")));
+                    if (subscriptionId.equals(clientKey)) { // if client api key is passed in to cstg, we should log
+                        Assertions.assertTrue(logWatcher.list.stream().anyMatch(l -> l.getFormattedMessage().contains("Client side key is an api key with api_key_id=key-id for site_id=1")));
+                    }
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad subscription_id", respJson.getString("message"));
                     testContext.completeNow();

@@ -146,6 +146,7 @@ public class UIDOperatorVerticleTest {
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().plus(1, ChronoUnit.HOURS));
         when(clock.instant()).thenAnswer(i -> now);
         when(this.secureLinkValidatorService.validateRequest(any(RoutingContext.class), any(JsonObject.class), any(Role.class))).thenReturn(true);
+        when(this.clientKeyProvider.getClientKey(clientKey)).thenReturn(new ClientKey("key-hash", "key-salt", "secret", "name", Instant.now(), Set.of(), 1, "key-id"));
 
         setupConfig(config);
         runtimeConfig = setupRuntimeConfig(config);
@@ -3638,8 +3639,13 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    @Test
-    void cstgBadPublicKey(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    @ParameterizedTest
+    @ValueSource(strings = {"bad-key", clientKey})
+    void cstgBadPublicKey(String publicKey, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
+
         setupCstgBackend("cstg.co.uk");
 
         String rawId = "random@unifiedid.com";
@@ -3661,7 +3667,7 @@ public class UIDOperatorVerticleTest {
         JsonObject requestJson = new JsonObject();
         requestJson.put("payload", payload);
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
-        requestJson.put("public_key", "bad-key");
+        requestJson.put("public_key", publicKey);
         requestJson.put("timestamp", timestamp);
         requestJson.put("subscription_id", clientSideTokenGenerateSubscriptionId);
 
@@ -3673,6 +3679,9 @@ public class UIDOperatorVerticleTest {
                 400,
                 testContext,
                 respJson -> {
+                    if (publicKey.equals(clientKey)) { // if client api key is passed in to cstg, we should log
+                        Assertions.assertTrue(logWatcher.list.stream().anyMatch(l -> l.getFormattedMessage().contains("Client side key is an api key with api_key_id=key-id for site_id=1")));
+                    }
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad public key", respJson.getString("message"));
                     assertTokenStatusMetrics(
@@ -3684,8 +3693,13 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    @Test
-    void cstgBadSubscriptionId(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    @ParameterizedTest
+    @ValueSource(strings = {"bad", clientKey})
+    void cstgBadSubscriptionId(String subscriptionId, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(logWatcher);
+
         setupCstgBackend("cstg.co.uk");
 
         String rawId = "random@unifiedid.com";
@@ -3709,7 +3723,7 @@ public class UIDOperatorVerticleTest {
         requestJson.put("iv", EncodingUtils.toBase64String(iv));
         requestJson.put("public_key", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE92+xlW2eIrXsDzV4cSfldDKxLXHsMmjLIqpdwOqJ29pWTNnZMaY2ycZHFpxbp6UlQ6vVSpKwImTKr3uikm9yCw==");
         requestJson.put("timestamp", timestamp);
-        requestJson.put("subscription_id", "bad");
+        requestJson.put("subscription_id", subscriptionId);
 
         sendCstg(vertx,
                 "v2/token/client-generate",
@@ -3719,6 +3733,9 @@ public class UIDOperatorVerticleTest {
                 400,
                 testContext,
                 respJson -> {
+                    if (subscriptionId.equals(clientKey)) { // if client api key is passed in to cstg, we should log
+                        Assertions.assertTrue(logWatcher.list.stream().anyMatch(l -> l.getFormattedMessage().contains("Client side key is an api key with api_key_id=key-id for site_id=1")));
+                    }
                     assertEquals("client_error", respJson.getString("status"));
                     assertEquals("bad subscription_id", respJson.getString("message"));
                     testContext.completeNow();

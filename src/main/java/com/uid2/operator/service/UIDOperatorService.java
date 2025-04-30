@@ -4,7 +4,7 @@ import com.uid2.operator.model.*;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
-import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.salt.ISaltProvider;
 import com.uid2.shared.model.TokenVersion;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -223,9 +223,9 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         return new MappedIdentity(
                 this.rawUidV3Enabled
-                    ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, rotatingSalt.getSalt())
-                    : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, rotatingSalt.getSalt()),
-                rotatingSalt.getHashedId());
+                    ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, rotatingSalt.currentSalt())
+                    : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, rotatingSalt.currentSalt()),
+                rotatingSalt.hashedId());
     }
 
     private IdentityTokens generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {

@@ -8,6 +8,7 @@ import com.uid2.operator.store.IConfigStore;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.store.*;
+import com.uid2.shared.store.salt.ISaltProvider;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 

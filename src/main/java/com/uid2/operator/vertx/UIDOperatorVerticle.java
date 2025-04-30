@@ -28,7 +28,7 @@ import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
-import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.salt.ISaltProvider;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -1273,8 +1273,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (modified != null) {
                 for (SaltEntry e : modified) {
                     final JsonObject o = new JsonObject();
-                    o.put("bucket_id", e.getHashedId());
-                    Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
+                    o.put("bucket_id", e.hashedId());
+                    Instant lastUpdated = Instant.ofEpochMilli(e.lastUpdated());
 
                     o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
                     resp.add(o);
@@ -1305,8 +1305,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (modified != null) {
                 for (SaltEntry e : modified) {
                     final JsonObject o = new JsonObject();
-                    o.put("bucket_id", e.getHashedId());
-                    Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
+                    o.put("bucket_id", e.hashedId());
+                    Instant lastUpdated = Instant.ofEpochMilli(e.lastUpdated());
 
                     o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
                     resp.add(o);

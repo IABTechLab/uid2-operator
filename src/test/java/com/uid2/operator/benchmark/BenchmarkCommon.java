@@ -19,7 +19,7 @@ import com.uid2.shared.optout.OptOutEntry;
 import com.uid2.shared.optout.OptOutHeap;
 import com.uid2.shared.optout.OptOutPartition;
 import com.uid2.shared.store.CloudPath;
-import com.uid2.shared.store.RotatingSaltProvider;
+import com.uid2.shared.store.salt.RotatingSaltProvider;
 import com.uid2.shared.store.reader.RotatingClientKeyProvider;
 import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;

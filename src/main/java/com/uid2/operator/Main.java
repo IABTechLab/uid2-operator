@@ -243,22 +243,19 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
+        // ignore SIGTERM until k8s sends SIGKILL after 30s. This gives time for the healthcheck to notify ELB of pod termination
         SignalHandler termHandler = new SignalHandler() {
             @Override
             public void handle(Signal sig) {
                 System.out.println("SIGTERM received. Ignoring signal and continuing operation.");
             }
         };
-
-        // Register the handler for the TERM signal (SIGTERM)
         try {
             Signal.handle(new Signal("TERM"), termHandler);
             System.out.println("Registered SIGTERM handler to ignore the signal.");
         } catch (IllegalArgumentException e) {
-            // Signal registration might fail
              System.err.println("Could not register SIGTERM handler: " + e.getMessage());
         } catch (Throwable t) {
-            // Catch other potential issues
              System.err.println("An unexpected error occurred during signal handler registration: " + t.getMessage());
         }
 

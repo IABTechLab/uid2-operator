@@ -62,6 +62,9 @@ import java.util.function.Supplier;
 import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
+import sun.misc.Signal;
+import sun.misc.SignalHandler;
+
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
@@ -239,6 +242,25 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
+
+        SignalHandler termHandler = new SignalHandler() {
+            @Override
+            public void handle(Signal sig) {
+                System.out.println("SIGTERM received. Ignoring signal and continuing operation.");
+            }
+        };
+
+        // Register the handler for the TERM signal (SIGTERM)
+        try {
+            Signal.handle(new Signal("TERM"), termHandler);
+            System.out.println("Registered SIGTERM handler to ignore the signal.");
+        } catch (IllegalArgumentException e) {
+            // Signal registration might fail
+             System.err.println("Could not register SIGTERM handler: " + e.getMessage());
+        } catch (Throwable t) {
+            // Catch other potential issues
+             System.err.println("An unexpected error occurred during signal handler registration: " + t.getMessage());
+        }
 
         java.security.Security.setProperty("networkaddress.cache.ttl" , "60");
 

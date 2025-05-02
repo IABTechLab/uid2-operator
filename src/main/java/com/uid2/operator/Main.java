@@ -64,9 +64,6 @@ import java.util.function.Supplier;
 import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
-import sun.misc.Signal;
-import sun.misc.SignalHandler;
-
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 

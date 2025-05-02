@@ -21,7 +21,7 @@ public class Const extends com.uid2.shared.Const {
         public static final String OperatorTypeProp = "operator_type";
         public static final String EnclavePlatformProp = "enclave_platform";
         public static final String EncryptedFiles = "encrypted_files";
-        public static final String PodTerminationCHeckInterval = "pod_termination_check_interval";
+        public static final String PodTerminationCheckInterval = "pod_termination_check_interval";
 
         public static final String AzureVaultNameProp = "azure_vault_name";
         public static final String AzureSecretNameProp = "azure_secret_name";

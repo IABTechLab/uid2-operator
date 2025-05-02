@@ -245,23 +245,6 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-
-        // ignore SIGTERM until k8s sends SIGKILL after 30s. This gives time for the healthcheck to notify ELB of pod termination
-        SignalHandler termHandler = new SignalHandler() {
-            @Override
-            public void handle(Signal sig) {
-                System.out.println("SIGTERM received. Ignoring signal and continuing operation.");
-            }
-        };
-        try {
-            Signal.handle(new Signal("TERM"), termHandler);
-            System.out.println("Registered SIGTERM handler to ignore the signal.");
-        } catch (IllegalArgumentException e) {
-             System.err.println("Could not register SIGTERM handler: " + e.getMessage());
-        } catch (Throwable t) {
-             System.err.println("An unexpected error occurred during signal handler registration: " + t.getMessage());
-        }
-
         java.security.Security.setProperty("networkaddress.cache.ttl" , "60");
 
         final String vertxConfigPath = System.getProperty(Const.Config.VERTX_CONFIG_PATH_PROP);

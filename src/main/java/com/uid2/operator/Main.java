@@ -31,6 +31,8 @@ import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
 import com.uid2.shared.vertx.RotatingStoreVerticle;
 import com.uid2.shared.vertx.VertxUtils;
+import com.uid2.shared.health.HealthManager;
+import com.uid2.shared.health.PodTerminationMonitor;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -94,6 +96,7 @@ public class Main {
         this.config = config;
 
         this.appVersion = ApplicationVersion.load("uid2-operator", "uid2-shared", "uid2-attestation-api");
+        HealthManager.instance.registerGenericComponent(new PodTerminationMonitor(config.getInteger(Const.Config.PodTerminationCheckInterval, 3000)));
 
         // allow to switch between in-mem optout file cache and on-disk file cache
         if (config.getBoolean(Const.Config.OptOutInMemCacheProp)) {

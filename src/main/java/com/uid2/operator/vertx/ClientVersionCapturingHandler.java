@@ -3,7 +3,6 @@ package com.uid2.operator.vertx;
 import com.uid2.operator.util.RoutingContextUtil;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Const;
-import com.uid2.shared.auth.IAuthorizable;
 import com.uid2.shared.auth.IAuthorizableProvider;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
@@ -53,7 +52,7 @@ public class ClientVersionCapturingHandler implements Handler<RoutingContext> {
                     tuple -> Counter
                             .builder("uid2.client_sdk_versions")
                             .description("counter for how many http requests are processed per each client sdk version")
-                            .tags("api_contact", tuple.getItem1(), "client_version", tuple.getItem2(), "path", path)
+                            .tags("site_id", "unknown", "api_contact", tuple.getItem1(), "client_version", tuple.getItem2(), "path", path)
                             .register(Metrics.globalRegistry)
             ).increment();
         }

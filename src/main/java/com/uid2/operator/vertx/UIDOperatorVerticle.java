@@ -881,7 +881,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             String path = RoutingContextUtil.getPath(rc);
 
             CLIENT_VERSION_COUNTERS.computeIfAbsent(
-                    new Tuple.Tuple2<>("unknown".equals(siteId) ? apiContact : siteId, clientVersion),
+                    new Tuple.Tuple2<>(siteId, clientVersion),
                     tuple -> Counter
                             .builder("uid2.client_sdk_versions")
                             .description("counter for how many http requests are processed per each operator-served sdk version")
@@ -889,10 +889,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                             .register(Metrics.globalRegistry)
             ).increment();
         }
-    }
-
-    public void recordOperatorServedSdkUsageByApiContact(RoutingContext rc, String apiContact, String clientVersion) {
-        recordOperatorServedSdkUsage(rc, "unknown", apiContact, clientVersion);
     }
 
     private void handleTokenRefreshV2(RoutingContext rc) {
@@ -1597,8 +1593,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
+            Integer siteId = RoutingContextUtil.getSiteId(rc);
             String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
-            recordOperatorServedSdkUsageByApiContact(rc, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
+            recordOperatorServedSdkUsage(
+                    rc,
+                    siteId == null ? "unknown" : Integer.toString(siteId),
+                    apiContact,
+                    rc.request().headers().get(Const.Http.ClientVersionHeader)
+            );
+
 
             final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
             if (inputList == null) {

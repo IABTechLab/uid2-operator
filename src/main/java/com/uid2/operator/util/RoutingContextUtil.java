@@ -1,7 +1,9 @@
 package com.uid2.operator.util;
 
+import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.IAuthorizable;
 import com.uid2.shared.auth.IAuthorizableProvider;
+import com.uid2.shared.middleware.AuthMiddleware;
 import io.vertx.ext.web.RoutingContext;
 
 import java.net.URI;
@@ -24,6 +26,10 @@ public final class RoutingContextUtil {
         } catch (Exception ex) {
             return UNKNOWN;
         }
+    }
+
+    public static Integer getSiteId(RoutingContext rc) {
+        return AuthMiddleware.getAuthClient(ClientKey.class, rc).getSiteId();
     }
 
     public static String getPath(RoutingContext rc) {

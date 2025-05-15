@@ -246,7 +246,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         router.route().failureHandler(new GenericFailureHandler());
 
         final BodyHandler bodyHandler = BodyHandler.create().setHandleFileUploads(false).setBodyLimit(MAX_REQUEST_BODY_SIZE);
-        setupV2Routes(router, bodyHandler);
+        setUpEncryptedRoutes(router, bodyHandler);
 
         // Static and health check
         router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
@@ -280,7 +280,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return router;
     }
 
-    private void setupV2Routes(Router mainRouter, BodyHandler bodyHandler) {
+    private void setUpEncryptedRoutes(Router mainRouter, BodyHandler bodyHandler) {
 
         mainRouter.post(V2_TOKEN_GENERATE.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
@@ -309,8 +309,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (this.clientSideTokenGenerate)
             mainRouter.post(V2_TOKEN_CLIENTGENERATE.toString()).handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
-    }
+        mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
+                rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
 
+    }
 
     private void handleClientSideTokenGenerate(RoutingContext rc) {
         try {
@@ -1574,6 +1576,53 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return resp;
     }
 
+    private JsonObject handleIdentityMapV3(RoutingContext rc, InputUtil.InputVal[] inputList) {
+        final Instant now = Instant.now();
+        final JsonArray mapped = new JsonArray();
+        final JsonArray unmapped = new JsonArray();
+        final int count = inputList.length;
+        int invalidCount = 0;
+        int optoutCount = 0;
+        for (int i = 0; i < count; ++i) {
+            final InputUtil.InputVal input = inputList[i];
+            if (input != null && input.isValid()) {
+                final MappedIdentity mappedIdentity = idService.mapIdentity(
+                        new MapRequest(
+                                input.toUserIdentity(this.identityScope, 0, now),
+                                OptoutCheckPolicy.respectOptOut(),
+                                now));
+
+                if (mappedIdentity.isOptedOut()) {
+                    final JsonObject resp = new JsonObject();
+                    resp.put("input", input.getProvided());
+                    resp.put("reason", "optout");
+                    unmapped.add(resp);
+                    optoutCount++;
+                } else {
+                    final JsonObject resp = new JsonObject();
+                    resp.put("input", input.getProvided());
+                    resp.put("uid", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
+                    resp.put("prev_uid", EncodingUtils.toBase64String(mappedIdentity.previousId));
+                    resp.put("refresh_from", mappedIdentity.refreshFrom);
+                    mapped.add(resp);
+                }
+            } else {
+                final JsonObject resp = new JsonObject();
+                resp.put("input", input == null ? "null" : input.getProvided());
+                resp.put("reason", "invalid identifier");
+                unmapped.add(resp);
+                invalidCount++;
+            }
+        }
+
+        recordIdentityMapStats(rc, inputList.length, invalidCount, optoutCount);
+
+        final JsonObject resp = new JsonObject();
+        resp.put("mapped", mapped);
+        if (!unmapped.isEmpty()) resp.put("unmapped", unmapped);
+        return resp;
+    }
+
     private void handleIdentityMapBatchV1(RoutingContext rc) {
         try {
             final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
@@ -1650,6 +1699,30 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return getInputList == null ?
                 createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
                 getInputList.get();
+    }
+
+    private void handleIdentityMapV3(RoutingContext rc) {
+        try {
+            final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
+            if (inputList == null) {
+                if (this.phoneSupport)
+                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
+                else
+                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
+                return;
+            }
+
+            JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
+            if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
+                ResponseUtil.LogErrorAndSendResponse(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
+                return;
+            }
+
+            final JsonObject resp = handleIdentityMapV3(rc, inputList);
+            ResponseUtil.SuccessV2(rc, resp);
+        } catch (Exception e) {
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v3", e);
+        }
     }
 
     private void handleIdentityMapBatch(RoutingContext rc) {

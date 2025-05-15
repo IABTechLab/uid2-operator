@@ -45,7 +45,7 @@ public final class RoutingContextUtil {
         return UNKNOWN;
     }
 
-    private static String extractBearerToken(final String headerValue) {
+    public static String extractBearerToken(final String headerValue) {
         if (headerValue == null) {
             return null;
         }

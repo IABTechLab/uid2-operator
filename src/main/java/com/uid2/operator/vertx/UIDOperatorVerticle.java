@@ -876,16 +876,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private static final Map<Tuple.Tuple2<String, String>, Counter> CLIENT_VERSION_COUNTERS = new HashMap<>();
-    private void recordOperatorServedSdkUsage(RoutingContext rc, String siteId, String apiContact, String clientVersion) {
+    private void recordOperatorServedSdkUsage(RoutingContext rc, Integer siteId, String apiContact, String clientVersion) {
         if (siteId != null && apiContact != null && clientVersion != null) {
-            String path = RoutingContextUtil.getPath(rc);
+            final String path = RoutingContextUtil.getPath(rc);
 
             CLIENT_VERSION_COUNTERS.computeIfAbsent(
-                    new Tuple.Tuple2<>(siteId, clientVersion),
+                    new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion),
                     tuple -> Counter
                             .builder("uid2.client_sdk_versions")
                             .description("counter for how many http requests are processed per each operator-served sdk version")
-                            .tags("site_id", siteId, "api_contact", apiContact, "client_version", clientVersion, "path", path)
+                            .tags("site_id", tuple.getItem1(), "api_contact", apiContact, "client_version", tuple.getItem2(), "path", path)
                             .register(Metrics.globalRegistry)
             ).increment();
         }
@@ -903,7 +903,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
             siteId = rc.get(Const.RoutingContextData.SiteId);
             final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
-            recordOperatorServedSdkUsage(rc, Integer.toString(siteId), apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
+            recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
@@ -1593,15 +1593,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
-            Integer siteId = RoutingContextUtil.getSiteId(rc);
-            String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
-            recordOperatorServedSdkUsage(
-                    rc,
-                    siteId == null ? "unknown" : Integer.toString(siteId),
-                    apiContact,
-                    rc.request().headers().get(Const.Http.ClientVersionHeader)
-            );
-
+            final Integer siteId = RoutingContextUtil.getSiteId(rc);
+            final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
+            recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
 
             final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
             if (inputList == null) {

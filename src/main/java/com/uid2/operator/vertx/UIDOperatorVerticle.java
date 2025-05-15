@@ -876,16 +876,38 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private static final Map<Tuple.Tuple2<String, String>, Counter> CLIENT_VERSION_COUNTERS = new HashMap<>();
-    public void recordOperatorServedSdkUsage(Integer siteId, RoutingContext rc, String clientVersion) {
-        if (siteId != null && clientVersion != null) {
+    private void recordOperatorServedSdkUsage(RoutingContext rc, String siteId, String apiContact, String clientVersion) {
+        if ((siteId != null || apiContact != null) && clientVersion != null) {
             String path = RoutingContextUtil.getPath(rc);
 
-            CLIENT_VERSION_COUNTERS.computeIfAbsent(new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion), tuple -> Counter
-                    .builder("uid2.client_sdk_versions")
-                    .description("counter for how many http requests are processed per each operator-served sdk version")
-                    .tags("site_id", tuple.getItem1(), "client_version", tuple.getItem2(), "path", path)
-                    .register(Metrics.globalRegistry)).increment();
+            if (siteId != null) {
+                CLIENT_VERSION_COUNTERS.computeIfAbsent(
+                        new Tuple.Tuple2<>(siteId, clientVersion),
+                        tuple -> Counter
+                                .builder("uid2.client_sdk_versions")
+                                .description("counter for how many http requests are processed per each operator-served sdk version")
+                                .tags("site_id", tuple.getItem1(), "api_contact", "unknown", "client_version", tuple.getItem2(), "path", path)
+                                .register(Metrics.globalRegistry)
+                ).increment();
+            } else {
+                CLIENT_VERSION_COUNTERS.computeIfAbsent(
+                        new Tuple.Tuple2<>(apiContact, clientVersion),
+                        tuple -> Counter
+                                .builder("uid2.client_sdk_versions")
+                                .description("counter for how many http requests are processed per each operator-served sdk version")
+                                .tags("site_id", "unknown", "api_contact", tuple.getItem1(), "client_version", tuple.getItem2(), "path", path)
+                                .register(Metrics.globalRegistry)
+                ).increment();
+            }
         }
+    }
+
+    private void recordOperatorServedSdkUsageBySiteId(RoutingContext rc, String siteId, String clientVersion) {
+        recordOperatorServedSdkUsage(rc, siteId, null, clientVersion);
+    }
+
+    public void recordOperatorServedSdkUsageByApiContact(RoutingContext rc, String apiContact, String clientVersion) {
+        recordOperatorServedSdkUsage(rc, null, apiContact, clientVersion);
     }
 
     private void handleTokenRefreshV2(RoutingContext rc) {
@@ -899,7 +921,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             String tokenStr = (String) rc.data().get("request");
             final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
             siteId = rc.get(Const.RoutingContextData.SiteId);
-            recordOperatorServedSdkUsage(siteId, rc, rc.request().headers().get(Const.Http.ClientVersionHeader));
+            recordOperatorServedSdkUsageBySiteId(rc, Integer.toString(siteId), rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
@@ -1589,12 +1611,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
+            String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
+            recordOperatorServedSdkUsageByApiContact(rc, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
+
             final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
             if (inputList == null) {
-                if (this.phoneSupport)
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
-                else
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
+                ResponseUtil.LogInfoAndSend400Response(rc, this.phoneSupport ? ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_INPUT_EMAIL_MISSING);
                 return;
             }
 

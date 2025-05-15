@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.Set;
 
 public class ClientVersionCapturingHandler implements Handler<RoutingContext> {
-    private static final String BEARER_TOKEN_PREFIX = "bearer ";
     private static final Map<Tuple.Tuple2<String, String>, Counter> CLIENT_VERSION_COUNTERS = new HashMap<>();
     private static final Set<String> VERSIONS = new HashSet<>();
 
@@ -45,17 +44,7 @@ public class ClientVersionCapturingHandler implements Handler<RoutingContext> {
             clientVersion = !rc.queryParam("client").isEmpty() ? rc.queryParam("client").getFirst() : null;
         }
 
-        String apiContact;
-        try {
-            final String authHeaderValue = rc.request().getHeader("Authorization");
-            final String authKey = extractBearerToken(authHeaderValue);
-            final IAuthorizable profile = this.authKeyStore.get(authKey);
-            apiContact = profile.getContact();
-            apiContact = apiContact == null ? "unknown" : apiContact;
-        } catch (Exception ex) {
-            apiContact = "unknown";
-        }
-
+        String apiContact = RoutingContextUtil.getApiContact(rc, authKeyStore);
         String path = RoutingContextUtil.getPath(rc);
 
         if (clientVersion != null && VERSIONS.contains(clientVersion)) {
@@ -74,23 +63,5 @@ public class ClientVersionCapturingHandler implements Handler<RoutingContext> {
     private static String getFileNameWithoutExtension(Path path) {
         final String fileName = path.getFileName().toString();
         return fileName.indexOf(".") > 0 ? fileName.substring(0, fileName.lastIndexOf(".")) : fileName;
-    }
-
-    private static String extractBearerToken(final String headerValue) {
-        if (headerValue == null) {
-            return null;
-        }
-
-        final String v = headerValue.trim();
-        if (v.length() < BEARER_TOKEN_PREFIX.length()) {
-            return null;
-        }
-
-        final String givenPrefix = v.substring(0, BEARER_TOKEN_PREFIX.length());
-
-        if (!BEARER_TOKEN_PREFIX.equalsIgnoreCase(givenPrefix)) {
-            return null;
-        }
-        return v.substring(BEARER_TOKEN_PREFIX.length());
     }
 }

@@ -18,9 +18,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static com.uid2.operator.IdentityConst.*;
+import static java.time.temporal.ChronoUnit.DAYS;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
@@ -29,6 +31,8 @@ public class UIDOperatorService implements IUIDOperatorService {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
 
     private static final Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
+    private final static long DAY_IN_MS = Duration.ofDays(1).toMillis();
+
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final ITokenEncoder encoder;
@@ -49,7 +53,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Handler<Boolean> saltRetrievalResponseHandler;
 
     public UIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled) {
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean UIDIdentityV3Enabled) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
@@ -73,7 +77,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
         this.refreshTokenVersion = TokenVersion.V3;
-        this.rawUidV3Enabled = identityV3Enabled;
+        this.rawUidV3Enabled = UIDIdentityV3Enabled;
     }
 
     private void validateTokenDurations(Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
@@ -151,14 +155,14 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return MappedIdentity.LogoutIdentity;
         } else {
-            return getAdvertisingId(firstLevelHashIdentity, request.asOf);
+            return getMappedIdentity(firstLevelHashIdentity, request.asOf);
         }
     }
 
     @Override
     public MappedIdentity map(UserIdentity userIdentity, Instant asOf) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        return getAdvertisingId(firstLevelHashIdentity, asOf);
+        return getMappedIdentity(firstLevelHashIdentity, asOf);
     }
 
     @Override
@@ -179,7 +183,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf);
+        final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf);
 
         this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.advertisingId, r -> {
             if (r.succeeded()) {
@@ -193,7 +197,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, asOf);
+        final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf);
 
         final AdvertisingToken token = this.encoder.decodeAdvertisingToken(advertisingToken);
         return Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id);
@@ -218,20 +222,49 @@ public class UIDOperatorService implements IUIDOperatorService {
         return TokenUtils.getFirstLevelHash(identityHash, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
     }
 
-    private MappedIdentity getAdvertisingId(UserIdentity firstLevelHashIdentity, Instant asOf) {
+    private MappedIdentity getMappedIdentity(UserIdentity firstLevelHashIdentity, Instant asOf) {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
+        final byte[] advertisingId = getAdvertisingId(firstLevelHashIdentity, rotatingSalt.currentSalt());
+        final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHashIdentity, rotatingSalt, asOf);
+        final long refreshFrom = getRefreshFrom(rotatingSalt, asOf);
 
         return new MappedIdentity(
-                this.rawUidV3Enabled
-                    ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, rotatingSalt.currentSalt())
-                    : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, rotatingSalt.currentSalt()),
-                rotatingSalt.hashedId());
+                advertisingId,
+                rotatingSalt.hashedId(),
+                previousAdvertisingId,
+                refreshFrom);
+    }
+
+    private byte[] getAdvertisingId(UserIdentity firstLevelHashIdentity, String salt) {
+        return rawUidV3Enabled
+                ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, salt)
+                : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, salt);
+    }
+
+    private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf) {
+        long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
+        if ( age / DAY_IN_MS < 90) {
+            if (rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isEmpty()) {
+                LOGGER.warn("Previous salt is null or empty but salt is less than 90 days old, bucket_id={}", firstLevelHashIdentity.id);
+                return new byte[0];
+            }
+            return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt());
+        }
+        return new byte[0];
+    }
+
+    private long getRefreshFrom(SaltEntry rotatingSalt, Instant asOf) {
+        Long refreshFrom = rotatingSalt.refreshFrom();
+        if (refreshFrom == null || refreshFrom < asOf.toEpochMilli()) {
+            return asOf.truncatedTo(ChronoUnit.DAYS).plus(1, DAYS).toEpochMilli();
+        }
+        return refreshFrom;
     }
 
     private IdentityTokens generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
-        final MappedIdentity mappedIdentity = getAdvertisingId(firstLevelHashIdentity, nowUtc);
+        final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, nowUtc);
         final UserIdentity advertisingIdentity = new UserIdentity(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType,
                 mappedIdentity.advertisingId, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
 
@@ -282,7 +315,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (forRefresh && (userIdentity.matches(testRefreshOptOutIdentityForEmail) || userIdentity.matches(testRefreshOptOutIdentityForPhone))) {
             return new GlobalOptoutResult(Instant.now());
         } else if (userIdentity.matches(testValidateIdentityForEmail) || userIdentity.matches(testValidateIdentityForPhone)
-        || userIdentity.matches(testRefreshOptOutIdentityForEmail) || userIdentity.matches(testRefreshOptOutIdentityForPhone)) {
+                || userIdentity.matches(testRefreshOptOutIdentityForEmail) || userIdentity.matches(testRefreshOptOutIdentityForPhone)) {
             return new GlobalOptoutResult(null);
         } else if (userIdentity.matches(testOptOutIdentityForEmail) || userIdentity.matches(testOptOutIdentityForPhone)) {
             return new GlobalOptoutResult(Instant.now());

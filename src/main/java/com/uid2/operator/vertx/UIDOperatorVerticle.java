@@ -82,7 +82,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
      * is slightly longer than it should be. When validating token lifetimes, we add a small buffer to account for this.
      */
     public static final Duration TOKEN_LIFETIME_TOLERANCE = Duration.ofSeconds(10);
-    private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+    private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneOffset.UTC);
 
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
@@ -136,6 +136,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private static final String ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_MISSING = "Required Parameter Missing: exactly one of email or email_hash must be specified";
+    private static final String ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: [email, email_hash, phone, phone_hash] must be specified";
+    private static final String ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING = "Required Parameter Missing: email or email_hash must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
     private static final String RC_CONFIG_KEY = "remote-config";
     public final static String ORIGIN_HEADER = "Origin";
@@ -1576,51 +1578,51 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return resp;
     }
 
-    private JsonObject handleIdentityMapV3(RoutingContext rc, InputUtil.InputVal[] inputList) {
+    private JsonObject handleIdentityMapV3(RoutingContext rc, Map<String, InputUtil.InputVal[]> input) {
         final Instant now = Instant.now();
-        final JsonArray mapped = new JsonArray();
-        final JsonArray unmapped = new JsonArray();
-        final int count = inputList.length;
+        final JsonObject mappedResponse = new JsonObject();
         int invalidCount = 0;
         int optoutCount = 0;
-        for (int i = 0; i < count; ++i) {
-            final InputUtil.InputVal input = inputList[i];
-            if (input != null && input.isValid()) {
-                final MappedIdentity mappedIdentity = idService.mapIdentity(
-                        new MapRequest(
-                                input.toUserIdentity(this.identityScope, 0, now),
-                                OptoutCheckPolicy.respectOptOut(),
-                                now));
+        int inputTotalCount = 0;
 
-                if (mappedIdentity.isOptedOut()) {
-                    final JsonObject resp = new JsonObject();
-                    resp.put("input", input.getProvided());
-                    resp.put("reason", "optout");
-                    unmapped.add(resp);
-                    optoutCount++;
+        for (Map.Entry<String, InputUtil.InputVal[]> identityInput : input.entrySet()) {
+            JsonArray mappedIdentityList = new JsonArray();
+            final InputUtil.InputVal[] identityList = identityInput.getValue();
+            inputTotalCount += identityList.length;
+
+            for (final InputUtil.InputVal rawId : identityList) {
+                if (rawId != null && rawId.isValid()) {
+                    final MappedIdentity mappedId = idService.mapIdentity(
+                            new MapRequest(
+                                    rawId.toUserIdentity(this.identityScope, 0, now),
+                                    OptoutCheckPolicy.respectOptOut(),
+                                    now));
+
+                    if (mappedId.isOptedOut()) {
+                        final JsonObject resp = new JsonObject();
+                        resp.put("e", "OPTOUT");
+                        mappedIdentityList.add(resp);
+                        optoutCount++;
+                    } else {
+                        final JsonObject resp = new JsonObject();
+                        resp.put("u", EncodingUtils.toBase64String(mappedId.advertisingId));
+                        resp.put("p", EncodingUtils.toBase64String(mappedId.previousId));
+                        resp.put("r", mappedId.refreshFrom);
+                        mappedIdentityList.add(resp);
+                    }
                 } else {
                     final JsonObject resp = new JsonObject();
-                    resp.put("input", input.getProvided());
-                    resp.put("uid", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-                    resp.put("prev_uid", EncodingUtils.toBase64String(mappedIdentity.previousId));
-                    resp.put("refresh_from", mappedIdentity.refreshFrom);
-                    mapped.add(resp);
+                    resp.put("e", "INVALID");
+                    mappedIdentityList.add(resp);
+                    invalidCount++;
                 }
-            } else {
-                final JsonObject resp = new JsonObject();
-                resp.put("input", input == null ? "null" : input.getProvided());
-                resp.put("reason", "invalid identifier");
-                unmapped.add(resp);
-                invalidCount++;
             }
+            mappedResponse.put(identityInput.getKey(), mappedIdentityList);
         }
 
-        recordIdentityMapStats(rc, inputList.length, invalidCount, optoutCount);
+        recordIdentityMapStats(rc, inputTotalCount, invalidCount, optoutCount);
 
-        final JsonObject resp = new JsonObject();
-        resp.put("mapped", mapped);
-        if (!unmapped.isEmpty()) resp.put("unmapped", unmapped);
-        return resp;
+        return mappedResponse;
     }
 
     private void handleIdentityMapBatchV1(RoutingContext rc) {
@@ -1703,12 +1705,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV3(RoutingContext rc) {
         try {
-            final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
+            final Map<String, InputUtil.InputVal[]> inputList = getIdentityMapMixedInput(rc);
             if (inputList == null) {
                 if (this.phoneSupport)
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
+                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT);
                 else
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
+                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING);
                 return;
             }
 
@@ -1723,6 +1725,38 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } catch (Exception e) {
             ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v3", e);
         }
+    }
+
+    private Map<String, InputUtil.InputVal[]> getIdentityMapMixedInput(RoutingContext rc) {
+        final JsonObject obj = (JsonObject) rc.data().get("request");
+
+        final Map<String, InputUtil.InputVal[]> normalizedIdentities = new HashMap<>();
+
+        final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
+        if (emails != null && !emails.isEmpty()) {
+            normalizedIdentities.put("email", createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw));
+        }
+
+        final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
+        if (emailHashes != null && !emailHashes.isEmpty()) {
+            normalizedIdentities.put("email_hash", createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash));
+        }
+
+        final JsonArray phones = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone", rc) : null;
+        if (phones != null && !phones.isEmpty()) {
+            normalizedIdentities.put("phone", createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw));
+        }
+
+        final JsonArray phoneHashes = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone_hash", rc) : null;
+        if (phoneHashes != null && !phoneHashes.isEmpty()) {
+            normalizedIdentities.put("phone_hash", createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash));
+        }
+
+        if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
+            return null;
+        }
+
+        return normalizedIdentities;
     }
 
     private void handleIdentityMapBatch(RoutingContext rc) {

@@ -244,19 +244,17 @@ public class UIDOperatorService implements IUIDOperatorService {
     private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf) {
         long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
         if ( age / DAY_IN_MS < 90) {
+            if (rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isEmpty()) {
+                LOGGER.warn("Previous salt is null or empty but salt is less than 90 days old, bucket_id={}", firstLevelHashIdentity.id);
+            }
             return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt());
         }
-
-//        if (rotatingSalt.previousSalt() != null && !rotatingSalt.previousSalt().isEmpty()) {
-//            LOGGER.warn("A previous salt over 90 days old is still present. Bucket ID={}", rotatingSalt.id());
-//        }
-        return null;
+        return new byte[0];
     }
 
     private long getRefreshFrom(SaltEntry rotatingSalt, Instant asOf) {
-        long refreshFrom = rotatingSalt.refreshFrom();
-        if (refreshFrom < asOf.toEpochMilli()) {
-//            LOGGER.warn("Refresh from date is in the past. Bucket ID={}", rotatingSalt.id());
+        Long refreshFrom = rotatingSalt.refreshFrom();
+        if (refreshFrom == null || refreshFrom < asOf.toEpochMilli()) {
             return asOf.truncatedTo(ChronoUnit.DAYS).plus(1, DAYS).toEpochMilli();
         }
         return refreshFrom;

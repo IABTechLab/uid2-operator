@@ -57,6 +57,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.slf4j.LoggerFactory;
+
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.*;
 
 import javax.crypto.SecretKey;
@@ -64,9 +66,7 @@ import java.math.BigInteger;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -1027,6 +1027,111 @@ public class UIDOperatorVerticleTest {
 
         send("v2", vertx, "v2/identity/map", false, null, req, 200, respJson -> {
             assertTrue(respJson.containsKey("body"));
+            assertEquals("success", respJson.getString("status"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void v3IdentityMapSuccess(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+
+        var lastUpdated = LocalDateTime.of(2025, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli();
+        var refreshFrom = lastUpdated + Duration.ofDays(30).toMillis();
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", refreshFrom, "previousSalt", null, null);
+
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = JsonArray.of("test1@uid2.com", "test2@uid2.com", "test3@uid2.com");
+
+        req.put("email", emails);
+
+        send("v2", vertx, "v3/identity/map", false, null, req, 200, respJson -> {
+            assertTrue(respJson.containsKey("body"));
+            JsonObject body = respJson.getJsonObject("body");
+            assertTrue(body.containsKey("email"));
+            assertTrue(body.containsKey("phone_hash"));
+            assertFalse(body.containsKey("phone"));
+            assertFalse(body.containsKey("email_hash"));
+
+            assertEquals(3, body.getJsonArray("email").size());
+            assertEquals(2, body.getJsonArray("phone_hash").size());
+            assertEquals("success", respJson.getString("status"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void v3IdentityMapMixedInput(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+
+        when(saltProviderSnapshot.getFirstLevelSalt()).thenReturn(firstLevelSalt);
+
+        var lastUpdated = Instant.now().minus(1, DAYS).toEpochMilli();
+        var refreshFrom = lastUpdated + Duration.ofDays(30).toMillis();
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", refreshFrom, "previousSalt", null, null);
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = JsonArray.of("test1@uid2.com", "test2@uid2.com", "test3@uid2.com");
+        JsonArray phones = new JsonArray();
+        JsonArray phoneHashes = JsonArray.of(TokenUtils.getIdentityHashString("+15555555555"), TokenUtils.getIdentityHashString("+14444444444"));
+
+        req.put("email", emails);
+        req.put("phone", phones);
+        req.put("phone_hash", phoneHashes);
+
+        send("v2", vertx, "v3/identity/map", false, null, req, 200, respJson -> {
+            assertTrue(respJson.containsKey("body"));
+            JsonObject body = respJson.getJsonObject("body");
+            assertTrue(body.containsKey("email"));
+            assertTrue(body.containsKey("phone_hash"));
+            assertFalse(body.containsKey("phone"));
+            assertFalse(body.containsKey("email_hash"));
+
+            var mappedEmails = body.getJsonArray("email");
+            assertEquals(3, mappedEmails.size());
+            var mappedEmailExpected = new JsonObject();
+            mappedEmailExpected.put("u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentSalt())));
+            mappedEmailExpected.put("p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email,"test1@uid2.com", firstLevelSalt, salt.previousSalt())));
+            mappedEmailExpected.put("r", refreshFrom);
+            assertEquals(mappedEmailExpected, mappedEmails.getJsonObject(0));
+            assertEquals(2, body.getJsonArray("phone_hash").size());
+            assertEquals("success", respJson.getString("status"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void v3IdentityMapNoPreviousId(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = JsonArray.of("test1@uid2.com", "test2@uid2.com", "test3@uid2.com");
+        JsonArray phones = new JsonArray();
+        JsonArray phoneHashes = JsonArray.of(TokenUtils.getIdentityHashString("+15555555555"), TokenUtils.getIdentityHashString("+14444444444"));
+
+        req.put("email", emails);
+        req.put("phone", phones);
+        req.put("phone_hash", phoneHashes);
+
+        send("v2", vertx, "v3/identity/map", false, null, req, 200, respJson -> {
+            assertTrue(respJson.containsKey("body"));
+            JsonObject body = respJson.getJsonObject("body");
+            assertTrue(body.containsKey("email"));
+            assertTrue(body.containsKey("phone_hash"));
+            assertFalse(body.containsKey("phone"));
+            assertFalse(body.containsKey("email_hash"));
+
+            assertEquals(3, body.getJsonArray("email").size());
+            assertEquals(2, body.getJsonArray("phone_hash").size());
             assertEquals("success", respJson.getString("status"));
             testContext.completeNow();
         });
@@ -2342,8 +2447,8 @@ public class UIDOperatorVerticleTest {
                 "e6SA-JVAXnvk8F1MUtzsMOyWuy5Xqe15rLAgqzSGiAbz");
         Map<String, Long> optedOutIdsCase1 = new HashMap<>();
 
-        optedOutIdsCase1.put(rawUIDS.get(0), Instant.now().minus(1, ChronoUnit.DAYS).getEpochSecond());
-        optedOutIdsCase1.put(rawUIDS.get(1), Instant.now().minus(2, ChronoUnit.DAYS).getEpochSecond());
+        optedOutIdsCase1.put(rawUIDS.get(0), Instant.now().minus(1, DAYS).getEpochSecond());
+        optedOutIdsCase1.put(rawUIDS.get(1), Instant.now().minus(2, DAYS).getEpochSecond());
         optedOutIdsCase1.put(rawUIDS.get(2), -1L);
         optedOutIdsCase1.put(rawUIDS.get(3), -1L);
 

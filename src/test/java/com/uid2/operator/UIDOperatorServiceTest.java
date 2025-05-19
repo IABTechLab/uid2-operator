@@ -984,7 +984,7 @@ public class UIDOperatorServiceTest {
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 
-        long expectedRefreshFrom = this.now.truncatedTo(DAYS).plus(1, DAYS).toEpochMilli();;
+        long expectedRefreshFrom = this.now.truncatedTo(DAYS).plus(1, DAYS).toEpochMilli();
         assertEquals(expectedRefreshFrom, mappedIdentity.refreshFrom);
     }
 }

@@ -15,6 +15,7 @@ import com.uid2.operator.store.*;
 import com.uid2.operator.store.IConfigStore;
 import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.PrivacyBits;
+import com.uid2.operator.util.RoutingContextUtil;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
@@ -136,8 +137,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private static final String ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_MISSING = "Required Parameter Missing: exactly one of email or email_hash must be specified";
-    private static final String ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: [email, email_hash, phone, phone_hash] must be specified";
-    private static final String ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING = "Required Parameter Missing: email or email_hash must be specified";
+    private static final String ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: one or more of [email, email_hash, phone, phone_hash] must be specified";
+    private static final String ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING = "Required Parameter Missing: one or more of [email, email_hash] must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
     private static final String RC_CONFIG_KEY = "remote-config";
     public final static String ORIGIN_HEADER = "Origin";
@@ -390,7 +391,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         if(clientSideKeypair.isDisabled()) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.Unauthorized, 401, rc, "Unauthorized",
-                        clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unauthorized, siteProvider, platformType);
+                    clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unauthorized, siteProvider, platformType);
             return;
         }
 
@@ -880,14 +881,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersionCounters = new HashMap<>();
-    public void recordOperatorServedSdkUsage(Integer siteId, RoutingContext rc, String clientVersion) {
-        if (siteId != null && clientVersion != null) {
-            _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion), tuple -> Counter
-                    .builder("uid2.client_sdk_versions")
-                    .description("counter for how many http requests are processed per each operator-served sdk version")
-                    .tags("site_id", tuple.getItem1(), "client_version", tuple.getItem2())
-                    .register(Metrics.globalRegistry)).increment();;
+    private static final Map<Tuple.Tuple2<String, String>, Counter> CLIENT_VERSION_COUNTERS = new HashMap<>();
+    private void recordOperatorServedSdkUsage(RoutingContext rc, Integer siteId, String apiContact, String clientVersion) {
+        if (siteId != null && apiContact != null && clientVersion != null) {
+            final String path = RoutingContextUtil.getPath(rc);
+
+            CLIENT_VERSION_COUNTERS.computeIfAbsent(
+                    new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion),
+                    tuple -> Counter
+                            .builder("uid2.client_sdk_versions")
+                            .description("counter for how many http requests are processed per each operator-served sdk version")
+                            .tags("site_id", tuple.getItem1(), "api_contact", apiContact, "client_version", tuple.getItem2(), "path", path)
+                            .register(Metrics.globalRegistry)
+            ).increment();
         }
     }
 
@@ -902,7 +908,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             String tokenStr = (String) rc.data().get("request");
             final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
             siteId = rc.get(Const.RoutingContextData.SiteId);
-            recordOperatorServedSdkUsage(siteId, rc, rc.request().headers().get(Const.Http.ClientVersionHeader));
+            final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
+            recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
@@ -1606,7 +1613,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     } else {
                         final JsonObject resp = new JsonObject();
                         resp.put("u", EncodingUtils.toBase64String(mappedId.advertisingId));
-                        resp.put("p", EncodingUtils.toBase64String(mappedId.previousId));
+                        resp.put("p", mappedId.previousId == null ? null : EncodingUtils.toBase64String(mappedId.previousId));
                         resp.put("r", mappedId.refreshFrom);
                         mappedIdentityList.add(resp);
                     }
@@ -1735,22 +1742,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
         if (emails != null && !emails.isEmpty()) {
-            normalizedIdentities.put("email", createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw));
+            normalizedIdentities.put("email", normalizeIdentitiesWithMultipleFields(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw));
         }
 
         final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
         if (emailHashes != null && !emailHashes.isEmpty()) {
-            normalizedIdentities.put("email_hash", createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash));
+            normalizedIdentities.put("email_hash", normalizeIdentitiesWithMultipleFields(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash));
         }
 
         final JsonArray phones = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone", rc) : null;
         if (phones != null && !phones.isEmpty()) {
-            normalizedIdentities.put("phone", createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw));
+            normalizedIdentities.put("phone", normalizeIdentitiesWithMultipleFields(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw));
         }
 
         final JsonArray phoneHashes = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone_hash", rc) : null;
         if (phoneHashes != null && !phoneHashes.isEmpty()) {
-            normalizedIdentities.put("phone_hash", createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash));
+            normalizedIdentities.put("phone_hash", normalizeIdentitiesWithMultipleFields(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash));
         }
 
         if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
@@ -1842,29 +1849,29 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final String metricKey = serviceName + serviceLinkName;
             DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(metricKey,
                     k -> DistributionSummary.builder("uid2.operator.identity.map.services.inputs")
-                .description("number of emails or phone numbers passed to identity map batch endpoint by services")
-                .tags(Arrays.asList(Tag.of("api_contact", apiContact),
-                Tag.of("service_name", serviceName),
-                Tag.of("service_link_name", serviceLinkName)))
-                .register(Metrics.globalRegistry));
+                            .description("number of emails or phone numbers passed to identity map batch endpoint by services")
+                            .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                                    Tag.of("service_name", serviceName),
+                                    Tag.of("service_link_name", serviceLinkName)))
+                            .register(Metrics.globalRegistry));
             ds.record(inputCount);
 
             Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(metricKey,
-                k -> new Tuple.Tuple2<>(
-                Counter.builder("uid2.operator.identity.map.services.unmapped")
-                .description("number of invalid identifiers passed to identity map batch endpoint by services")
-                .tags(Arrays.asList(Tag.of("api_contact", apiContact),
-                    Tag.of("reason", "invalid"),
-                    Tag.of("service_name", serviceName),
-                    Tag.of("service_link_name", serviceLinkName)))
-                .register(Metrics.globalRegistry),
-                Counter.builder("uid2.operator.identity.map.services.unmapped")
-                    .description("number of optout identifiers passed to identity map batch endpoint by services")
-                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
-                        Tag.of("reason", "optout"),
-                        Tag.of("service_name", serviceName),
-                        Tag.of("service_link_name", serviceLinkName)))
-                    .register(Metrics.globalRegistry)));
+                    k -> new Tuple.Tuple2<>(
+                            Counter.builder("uid2.operator.identity.map.services.unmapped")
+                                    .description("number of invalid identifiers passed to identity map batch endpoint by services")
+                                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                                            Tag.of("reason", "invalid"),
+                                            Tag.of("service_name", serviceName),
+                                            Tag.of("service_link_name", serviceLinkName)))
+                                    .register(Metrics.globalRegistry),
+                            Counter.builder("uid2.operator.identity.map.services.unmapped")
+                                    .description("number of optout identifiers passed to identity map batch endpoint by services")
+                                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                                            Tag.of("reason", "optout"),
+                                            Tag.of("service_name", serviceName),
+                                            Tag.of("service_link_name", serviceLinkName)))
+                                    .register(Metrics.globalRegistry)));
             if (invalidCount > 0) counterTuple.getItem1().increment(invalidCount);
             if (optOutCount > 0) counterTuple.getItem2().increment(optOutCount);
         }
@@ -2062,35 +2069,39 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final int size = a.size();
         final InputUtil.InputVal[] resp = new InputUtil.InputVal[size];
 
-        if (identityType == IdentityType.Email) {
-            if (inputType == InputUtil.IdentityInputType.Raw) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizeEmail(a.getString(i));
-                }
-            } else if (inputType == InputUtil.IdentityInputType.Hash) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizeEmailHash(a.getString(i));
-                }
-            } else {
-                throw new IllegalStateException("inputType");
-            }
-        } else if (identityType == IdentityType.Phone) {
-            if (inputType == InputUtil.IdentityInputType.Raw) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizePhone(a.getString(i));
-                }
-            } else if (inputType == InputUtil.IdentityInputType.Hash) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizePhoneHash(a.getString(i));
-                }
-            } else {
-                throw new IllegalStateException("inputType");
-            }
-        } else {
-            throw new IllegalStateException("identityType");
+        for (int i = 0; i < size; i++) {
+            resp[i] = normalizeIdentity(a.getString(i), identityType, inputType);
         }
 
         return resp;
+    }
+
+    private InputUtil.InputVal normalizeIdentity(String identity, IdentityType identityType, InputUtil.IdentityInputType inputType) {
+        return switch (identityType) {
+            case Email -> switch (inputType) {
+                case Raw -> InputUtil.normalizeEmail(identity);
+                case Hash -> InputUtil.normalizeEmailHash(identity);
+            };
+            case Phone -> switch (inputType) {
+                case Raw -> InputUtil.normalizePhone(identity);
+                case Hash -> InputUtil.normalizePhoneHash(identity);
+            };
+        };
+    }
+
+    private InputUtil.InputVal[] normalizeIdentitiesWithMultipleFields(JsonArray identities, IdentityType identityType, InputUtil.IdentityInputType inputType) {
+        if (identities == null || identities.isEmpty()) {
+            return new InputUtil.InputVal[0];
+        }
+        final int size = identities.size();
+        final InputUtil.InputVal[] normalizedIdentities = new InputUtil.InputVal[size];
+
+        for (int i = 0; i < size; i++) {
+            JsonObject identity = identities.getJsonObject(i);
+            normalizeIdentity(identity.getString("i"), identityType, inputType);
+        }
+
+        return normalizedIdentities;
     }
 
     private UserConsentStatus validateUserConsent(JsonObject req, String apiContact) {

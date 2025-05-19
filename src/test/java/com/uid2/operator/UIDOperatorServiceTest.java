@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -904,7 +905,6 @@ public class UIDOperatorServiceTest {
         var expectedPreviousUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.previousSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
         assertArrayEquals(expectedCurrentUID, mappedIdentity.advertisingId);
         assertArrayEquals(expectedPreviousUID, mappedIdentity.previousId);
-        assertEquals(refreshFrom, mappedIdentity.refreshFrom);
     }
 
     @Test
@@ -923,10 +923,8 @@ public class UIDOperatorServiceTest {
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
         var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
-        var expectedPreviousUID = new byte[0];
         assertArrayEquals(expectedCurrentUID, mappedIdentity.advertisingId);
-        assertArrayEquals(expectedPreviousUID, mappedIdentity.previousId);
-        assertEquals(refreshFrom, mappedIdentity.refreshFrom);
+        assertArrayEquals(null, mappedIdentity.previousId);
     }
 
     @Test
@@ -946,9 +944,28 @@ public class UIDOperatorServiceTest {
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 
         var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
-        var expectedPreviousUID = new byte[0];
         assertArrayEquals(expectedCurrentUID, mappedIdentity.advertisingId);
-        assertArrayEquals(expectedPreviousUID, mappedIdentity.previousId);
+        assertArrayEquals(null, mappedIdentity.previousId);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "1"})
+    void testMappedIdentityWithValidRefreshFrom(int refreshFromDays) {
+        var saltSnapshot = setUpMockSalts();
+
+        long lastUpdated = this.now.minus(30, DAYS).toEpochMilli();
+        long refreshFrom = this.now.plus(refreshFromDays, DAYS).toEpochMilli();
+
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", refreshFrom, null, null, null);
+        when(saltSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        var email = "test@uid.com";
+        InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
+        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
+
+        MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
+
+        assertEquals(refreshFrom, mappedIdentity.refreshFrom);
     }
 
     @Test
@@ -967,7 +984,7 @@ public class UIDOperatorServiceTest {
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 
-        long expectedRefreshFrom = this.now.truncatedTo(DAYS).plus(1, DAYS).toEpochMilli();;
+        long expectedRefreshFrom = this.now.truncatedTo(DAYS).plus(1, DAYS).toEpochMilli();
         assertEquals(expectedRefreshFrom, mappedIdentity.refreshFrom);
     }
 }

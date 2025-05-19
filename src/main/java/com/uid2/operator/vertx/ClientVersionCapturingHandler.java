@@ -2,15 +2,11 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Const;
-import com.uid2.shared.auth.IAuthorizable;
 import com.uid2.shared.auth.IAuthorizableProvider;
-import com.uid2.shared.middleware.AuthMiddleware;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -67,23 +63,5 @@ public class ClientVersionCapturingHandler implements Handler<RoutingContext> {
     private static String getFileNameWithoutExtension(Path path) {
         final String fileName = path.getFileName().toString();
         return fileName.indexOf(".") > 0 ? fileName.substring(0, fileName.lastIndexOf(".")) : fileName;
-    }
-
-    private static String extractBearerToken(final String headerValue) {
-        if (headerValue == null) {
-            return null;
-        }
-
-        final String v = headerValue.trim();
-        if (v.length() < BEARER_TOKEN_PREFIX.length()) {
-            return null;
-        }
-
-        final String givenPrefix = v.substring(0, BEARER_TOKEN_PREFIX.length());
-
-        if (!BEARER_TOKEN_PREFIX.equals(givenPrefix.toLowerCase())) {
-            return null;
-        }
-        return v.substring(BEARER_TOKEN_PREFIX.length());
     }
 }

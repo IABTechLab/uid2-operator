@@ -18,7 +18,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static com.uid2.operator.IdentityConst.*;
@@ -31,7 +30,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
 
     private static final Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
-    private final static long DAY_IN_MS = Duration.ofDays(1).toMillis();
+    private static final long DAY_IN_MS = Duration.ofDays(1).toMillis();
 
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
@@ -53,7 +52,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final Handler<Boolean> saltRetrievalResponseHandler;
 
     public UIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean UIDIdentityV3Enabled) {
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
@@ -77,7 +76,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
         this.refreshTokenVersion = TokenVersion.V3;
-        this.rawUidV3Enabled = UIDIdentityV3Enabled;
+        this.rawUidV3Enabled = identityV3Enabled;
     }
 
     private void validateTokenDurations(Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
@@ -244,19 +243,18 @@ public class UIDOperatorService implements IUIDOperatorService {
     private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf) {
         long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
         if ( age / DAY_IN_MS < 90) {
-            if (rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isEmpty()) {
-                LOGGER.warn("Previous salt is null or empty but salt is less than 90 days old, bucket_id={}", firstLevelHashIdentity.id);
-                return new byte[0];
+            if (rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isBlank()) {
+                return null;
             }
             return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt());
         }
-        return new byte[0];
+        return null;
     }
 
     private long getRefreshFrom(SaltEntry rotatingSalt, Instant asOf) {
         Long refreshFrom = rotatingSalt.refreshFrom();
         if (refreshFrom == null || refreshFrom < asOf.toEpochMilli()) {
-            return asOf.truncatedTo(ChronoUnit.DAYS).plus(1, DAYS).toEpochMilli();
+            return asOf.truncatedTo(DAYS).plus(1, DAYS).toEpochMilli();
         }
         return refreshFrom;
     }

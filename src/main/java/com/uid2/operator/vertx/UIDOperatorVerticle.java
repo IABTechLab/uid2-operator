@@ -111,7 +111,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
     private final IdentityScope identityScope;
-    private final V2PayloadHandler v2PayloadHandler;
+    private final V2PayloadHandler encryptedPayloadHandler;
     private final boolean phoneSupport;
     private final int tcfVendorId;
     private final IStatsCollectorQueue _statsCollectorQueue;
@@ -173,7 +173,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
-        this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
+        this.encryptedPayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
@@ -285,26 +285,26 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void setUpEncryptedRoutes(Router mainRouter, BodyHandler bodyHandler) {
 
         mainRouter.post(V2_TOKEN_GENERATE.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
+                rc -> encryptedPayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
         mainRouter.post(V2_TOKEN_REFRESH.toString()).handler(bodyHandler).handler(auth.handleWithOptionalAuth(
-                rc -> v2PayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
+                rc -> encryptedPayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
         mainRouter.post(V2_TOKEN_VALIDATE.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
         mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
         mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
         mainRouter.post(V2_KEY_LATEST.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
         mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
         mainRouter.post(V2_TOKEN_LOGOUT.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
+                rc -> encryptedPayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
         if (this.optOutStatusApiEnabled) {
             mainRouter.post(V2_OPTOUT_STATUS.toString()).handler(bodyHandler).handler(auth.handleV1(
-                    rc -> v2PayloadHandler.handle(rc, this::handleOptoutStatus),
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleOptoutStatus),
                     Role.MAPPER, Role.SHARER, Role.ID_READER));
         }
 
@@ -312,7 +312,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             mainRouter.post(V2_TOKEN_CLIENTGENERATE.toString()).handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
         mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
 
     }
 
@@ -1585,12 +1585,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         int optoutCount = 0;
         int inputTotalCount = 0;
 
-        for (Map.Entry<String, InputUtil.InputVal[]> identityInput : input.entrySet()) {
+        for (Map.Entry<String, InputUtil.InputVal[]> identityType : input.entrySet()) {
             JsonArray mappedIdentityList = new JsonArray();
-            final InputUtil.InputVal[] identityList = identityInput.getValue();
-            inputTotalCount += identityList.length;
+            final InputUtil.InputVal[] rawIdentityList = identityType.getValue();
+            inputTotalCount += rawIdentityList.length;
 
-            for (final InputUtil.InputVal rawId : identityList) {
+            for (final InputUtil.InputVal rawId : rawIdentityList) {
                 if (rawId != null && rawId.isValid()) {
                     final MappedIdentity mappedId = idService.mapIdentity(
                             new MapRequest(
@@ -1617,7 +1617,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     invalidCount++;
                 }
             }
-            mappedResponse.put(identityInput.getKey(), mappedIdentityList);
+            mappedResponse.put(identityType.getKey(), mappedIdentityList);
         }
 
         recordIdentityMapStats(rc, inputTotalCount, invalidCount, optoutCount);
@@ -1637,6 +1637,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private boolean validateServiceLink(RoutingContext rc) {
+        JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
+        if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
+            return false;
+        }
+        return true;
+    }
+
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
             final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
@@ -1648,11 +1657,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
-            if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
-                ResponseUtil.LogErrorAndSendResponse(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
-                return;
-            }
+            if (!validateServiceLink(rc)) { return; }
 
             final JsonObject resp = handleIdentityMapCommon(rc, inputList);
             ResponseUtil.SuccessV2(rc, resp);
@@ -1714,11 +1719,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
-            if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
-                ResponseUtil.LogErrorAndSendResponse(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
-                return;
-            }
+            if (!validateServiceLink(rc)) { return; }
 
             final JsonObject resp = handleIdentityMapV3(rc, inputList);
             ResponseUtil.SuccessV2(rc, resp);

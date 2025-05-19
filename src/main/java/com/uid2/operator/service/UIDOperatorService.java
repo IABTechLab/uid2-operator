@@ -246,6 +246,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         if ( age / DAY_IN_MS < 90) {
             if (rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isEmpty()) {
                 LOGGER.warn("Previous salt is null or empty but salt is less than 90 days old, bucket_id={}", firstLevelHashIdentity.id);
+                return new byte[0];
             }
             return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt());
         }

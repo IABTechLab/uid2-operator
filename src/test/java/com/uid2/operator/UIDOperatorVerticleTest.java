@@ -1046,10 +1046,11 @@ public class UIDOperatorVerticleTest {
 
         var phoneHash = TokenUtils.getIdentityHashString("+15555555555");
         JsonObject request = JsonObject.of(
-                "email", JsonObject.of("i", "test1@uid2.com",
-                                            "i", "test2@uid2.com"),
+                "email", JsonArray.of(
+                        JsonObject.of("i", "test1@uid2.com"),
+                                JsonObject.of("i", "test2@uid2.com")),
                 "phone", new JsonArray(),
-                "phone_hash", JsonObject.of("i", phoneHash)
+                "phone_hash", JsonArray.of(JsonObject.of("i", phoneHash))
         );
 
         send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
@@ -1103,10 +1104,10 @@ public class UIDOperatorVerticleTest {
         SaltEntry salt = new SaltEntry(1, "1", lastUpdated.toEpochMilli(), "salt", refreshFrom.toEpochMilli(), "previousSalt", null, null);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject request = JsonObject.of("email", JsonObject.of(
-            "i", "test1@uid2.com",
-            "i", "invalidEmail")
-        );
+        JsonObject request = JsonObject.of("email", JsonArray.of(
+            JsonObject.of("i", "test1@uid2.com"),
+                    JsonObject.of("i", "invalidEmail")
+        ));
 
         send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");
@@ -1135,7 +1136,7 @@ public class UIDOperatorVerticleTest {
         SaltEntry salt = new SaltEntry(1, "1", lastUpdatedOver90Days, "salt", refreshFrom.toEpochMilli(), hasPreviousSalt ? "previousSalt" : null, null, null);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject request = JsonObject.of("email", JsonObject.of("i", "test1@uid2.com"));
+        JsonObject request = JsonObject.of("email", JsonArray.of(JsonObject.of("i", "test1@uid2.com")));
 
         send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");
@@ -1165,7 +1166,7 @@ public class UIDOperatorVerticleTest {
         SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", outdatedRefreshFrom, null, null, null);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject request = JsonObject.of("email", JsonObject.of("i", "test1@uid2.com"));
+        JsonObject request = JsonObject.of("email", JsonArray.of(JsonObject.of("i", "test1@uid2.com")));
 
         send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");

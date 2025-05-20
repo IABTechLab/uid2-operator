@@ -889,8 +889,8 @@ public class UIDOperatorServiceTest {
     void testMappedIdentityWithPreviousSaltReturnsPreviousUid() {
         var saltSnapshot = setUpMockSalts();
 
-        long lastUpdated = this.now.toEpochMilli();
-        long refreshFrom = lastUpdated + Duration.ofDays(30).toMillis();
+        long lastUpdated = this.now.minus(90, DAYS).plusMillis(1).toEpochMilli(); // 1 millis before 90 days old
+        long refreshFrom = lastUpdated + Duration.ofDays(120).toMillis();
 
         SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", refreshFrom, "previousSalt", null, null);
         when(saltSnapshot.getRotatingSalt(any())).thenReturn(salt);
@@ -908,12 +908,12 @@ public class UIDOperatorServiceTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"90", "120"})
-    void testMappedIdentityWithOutdatedPreviousSaltReturnsNoPreviousUid(int lastUpdatedDays) {
+    @ValueSource(strings = {"0", "1"})
+    void testMappedIdentityWithOutdatedPreviousSaltReturnsNoPreviousUid(long extraMsAfter90DaysOld) {
         var saltSnapshot = setUpMockSalts();
 
-        long lastUpdated = this.now.minus(lastUpdatedDays, DAYS).toEpochMilli();
-        long refreshFrom = this.now.plus(30, DAYS).toEpochMilli();
+        long lastUpdated = this.now.minus(90, DAYS).minusMillis(extraMsAfter90DaysOld).toEpochMilli();
+        long refreshFrom = lastUpdated + Duration.ofDays(120).toMillis();
 
         SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", refreshFrom, "previousSalt", null, null);
         when(saltSnapshot.getRotatingSalt(any())).thenReturn(salt);
@@ -925,7 +925,7 @@ public class UIDOperatorServiceTest {
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
         var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
         assertArrayEquals(expectedCurrentUID, mappedIdentity.advertisingId);
-        assertArrayEquals(null, mappedIdentity.previousAdvertisingId);
+        assertArrayEquals(null , mappedIdentity.previousAdvertisingId);
     }
 
     @Test

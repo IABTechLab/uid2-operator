@@ -83,6 +83,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
      * is slightly longer than it should be. When validating token lifetimes, we add a small buffer to account for this.
      */
     public static final Duration TOKEN_LIFETIME_TOLERANCE = Duration.ofSeconds(10);
+    private static final long SECOND_IN_MILLIS = 1000;
     private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneOffset.UTC);
 
     private static final String REQUEST = "request";
@@ -1613,8 +1614,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     } else {
                         final JsonObject resp = new JsonObject();
                         resp.put("u", EncodingUtils.toBase64String(mappedId.advertisingId));
-                        resp.put("p", mappedId.previousId == null ? null : EncodingUtils.toBase64String(mappedId.previousId));
-                        resp.put("r", mappedId.refreshFrom);
+                        resp.put("p", mappedId.previousAdvertisingId == null ? null : EncodingUtils.toBase64String(mappedId.previousAdvertisingId));
+                        resp.put("r", mappedId.refreshFrom / SECOND_IN_MILLIS);
                         mappedIdentityList.add(resp);
                     }
                 } else {

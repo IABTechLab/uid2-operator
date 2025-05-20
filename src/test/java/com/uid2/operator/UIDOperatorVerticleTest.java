@@ -1032,90 +1032,83 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    JsonArray createInputArray(String ...inputs) {
-        JsonArray inputArray = new JsonArray();
-        for (String s : inputs) {
-            JsonObject obj = new JsonObject();
-            obj.put("i", s);
-            inputArray.add(obj);
-        }
-        return inputArray;
-    }
-
     @Test
     void v3IdentityMapMixedInputSuccess(Vertx vertx, VertxTestContext testContext) {
-        var phoneHash = TokenUtils.getIdentityHashString("+15555555555");
-
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
 
         var lastUpdated = Instant.now().minus(1, DAYS);
         var refreshFrom = lastUpdated.plus(30, DAYS);
+
         SaltEntry salt = new SaltEntry(1, "1", lastUpdated.toEpochMilli(), "salt", refreshFrom.toEpochMilli(), "previousSalt", null, null);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject req = new JsonObject();
-        JsonArray emails = createInputArray("test1@uid2.com", "test2@uid2.com");
-        JsonArray phones = new JsonArray();
-        JsonArray phoneHashes = createInputArray(phoneHash);
+        var phoneHash = TokenUtils.getIdentityHashString("+15555555555");
+        JsonObject request = JsonObject.of(
+                "email", JsonObject.of("i", "test1@uid2.com",
+                                            "i", "test2@uid2.com"),
+                "phone", new JsonArray(),
+                "phone_hash", JsonObject.of("i", phoneHash)
+        );
 
-        req.put("email", emails);
-        req.put("phone", phones);
-        req.put("phone_hash", phoneHashes);
-
-        send("v2", vertx, "v3/identity/map", false, null, req, 200, respJson -> {
+        send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");
-            assertTrue(body.containsKey("email"));
-            assertTrue(body.containsKey("phone_hash"));
-            assertFalse(body.containsKey("phone"));
-            assertFalse(body.containsKey("email_hash"));
+            assertEquals(Set.of("email", "phone_hash"), body.fieldNames());
 
             var mappedEmails = body.getJsonArray("email");
             assertEquals(2, mappedEmails.size());
-            var mappedEmailExpected1 = new JsonObject();
-            mappedEmailExpected1.put("u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentSalt())));
-            mappedEmailExpected1.put("p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email,"test1@uid2.com", firstLevelSalt, salt.previousSalt())));
-            mappedEmailExpected1.put("r", refreshFrom.getEpochSecond());
+
+            var mappedEmailExpected1 = JsonObject.of(
+                "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentSalt())),
+                "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email,"test1@uid2.com", firstLevelSalt, salt.previousSalt())),
+                "r", refreshFrom.getEpochSecond()
+            );
             assertEquals(mappedEmailExpected1, mappedEmails.getJsonObject(0));
 
-            var mappedEmailExpected2 = new JsonObject();
-            mappedEmailExpected2.put("u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test2@uid2.com", firstLevelSalt, salt.currentSalt())));
-            mappedEmailExpected2.put("p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email,"test2@uid2.com", firstLevelSalt, salt.previousSalt())));
-            mappedEmailExpected2.put("r", refreshFrom.getEpochSecond());
+            var mappedEmailExpected2 = JsonObject.of(
+                "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test2@uid2.com", firstLevelSalt, salt.currentSalt())),
+                "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email,"test2@uid2.com", firstLevelSalt, salt.previousSalt())),
+                "r", refreshFrom.getEpochSecond()
+            );
             assertEquals(mappedEmailExpected2, mappedEmails.getJsonObject(1));
 
             var mappedPhoneHash = body.getJsonArray("phone_hash");
             assertEquals(1, mappedPhoneHash.size());
-            var mappedPhoneHashExpected = new JsonObject();
-            mappedPhoneHashExpected.put("u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentityHash(IdentityType.Phone, phoneHash, firstLevelSalt, salt.currentSalt())));
-            mappedPhoneHashExpected.put("p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentityHash(IdentityType.Phone,phoneHash, firstLevelSalt, salt.previousSalt())));
-            mappedPhoneHashExpected.put("r", refreshFrom.getEpochSecond());
+
+            var mappedPhoneHashExpected = JsonObject.of(
+                "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentityHash(IdentityType.Phone, phoneHash, firstLevelSalt, salt.currentSalt())),
+                "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentityHash(IdentityType.Phone, phoneHash, firstLevelSalt, salt.previousSalt())),
+                "r", refreshFrom.getEpochSecond()
+            );
             assertEquals(mappedPhoneHashExpected, mappedPhoneHash.getJsonObject(0));
+
             assertEquals("success", respJson.getString("status"));
             testContext.completeNow();
         });
     }
 
     @Test
-    void v3IdentityMapErrorOutput(Vertx vertx, VertxTestContext testContext) {
+    void v3IdentityMapUnmappedIdentitiesOptoutAndInvalid(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
 
+        // optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
 
         Instant lastUpdated = Instant.now().minus(1, DAYS);
         Instant refreshFrom = lastUpdated.plus(30, DAYS);
+
         SaltEntry salt = new SaltEntry(1, "1", lastUpdated.toEpochMilli(), "salt", refreshFrom.toEpochMilli(), "previousSalt", null, null);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject req = new JsonObject();
-        JsonArray emails = createInputArray("test1@uid2.com", "invalidEmail");
+        JsonObject request = JsonObject.of("email", JsonObject.of(
+            "i", "test1@uid2.com",
+            "i", "invalidEmail")
+        );
 
-        req.put("email", emails);
-
-        send("v2", vertx, "v3/identity/map", false, null, req, 200, respJson -> {
+        send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");
 
             var mappedEmails = body.getJsonArray("email");
@@ -1123,6 +1116,7 @@ public class UIDOperatorVerticleTest {
 
             assertEquals(JsonObject.of("e", "OPTOUT"), mappedEmails.getJsonObject(0));
             assertEquals(JsonObject.of("e", "INVALID"), mappedEmails.getJsonObject(1));
+
             assertEquals("success", respJson.getString("status"));
             testContext.completeNow();
         });
@@ -1137,22 +1131,21 @@ public class UIDOperatorVerticleTest {
 
         var lastUpdatedOver90Days = Instant.now().minus(120, DAYS).toEpochMilli();
         var refreshFrom = Instant.now().plus(30, DAYS);
+
         SaltEntry salt = new SaltEntry(1, "1", lastUpdatedOver90Days, "salt", refreshFrom.toEpochMilli(), hasPreviousSalt ? "previousSalt" : null, null, null);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject req = new JsonObject();
-        JsonArray emails = createInputArray("test1@uid2.com");
+        JsonObject request = JsonObject.of("email", JsonObject.of("i", "test1@uid2.com"));
 
-        req.put("email", emails);
-
-        send("v2", vertx, "v3/identity/map", false, null, req, 200, respJson -> {
+        send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");
             var mappedEmails = body.getJsonArray("email");
 
-            var expectedMappedEmails = new JsonObject();
-            expectedMappedEmails.put("u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentSalt())));
-            expectedMappedEmails.put("p", null);
-            expectedMappedEmails.put("r", refreshFrom.getEpochSecond());
+            var expectedMappedEmails = JsonObject.of(
+                "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentSalt())),
+                "p", null,
+                "r", refreshFrom.getEpochSecond()
+            );
             assertEquals(expectedMappedEmails, mappedEmails.getJsonObject(0));
 
             testContext.completeNow();
@@ -1164,24 +1157,25 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
+
         Instant asOf = Instant.now();
         var lastUpdated = asOf.minus(120, DAYS).toEpochMilli();
         var outdatedRefreshFrom = asOf.minus(30, DAYS).toEpochMilli();
+
         SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", outdatedRefreshFrom, null, null, null);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject req = new JsonObject();
-        JsonArray emails = createInputArray("test1@uid2.com");
+        JsonObject request = JsonObject.of("email", JsonObject.of("i", "test1@uid2.com"));
 
-        req.put("email", emails);
-
-        send("v2", vertx, "v3/identity/map", false, null, req, 200, respJson -> {
+        send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");
             var mappedEmails = body.getJsonArray("email");
-            var expectedMappedEmails = new JsonObject();
-            expectedMappedEmails.put("u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentSalt())));
-            expectedMappedEmails.put("p", null);
-            expectedMappedEmails.put("r", asOf.truncatedTo(DAYS).plus(1, DAYS).getEpochSecond());
+
+            var expectedMappedEmails = JsonObject.of(
+                "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentSalt())),
+                "p", null,
+                "r", asOf.truncatedTo(DAYS).plus(1, DAYS).getEpochSecond()
+            );
             assertEquals(expectedMappedEmails, mappedEmails.getJsonObject(0));
 
             testContext.completeNow();

@@ -30,7 +30,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
 
-    private static final Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
+    private static final Instant REFRESH_CUTOFF = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private static final long DAY_IN_MS = Duration.ofDays(1).toMillis();
 
     private final ISaltProvider saltProvider;
@@ -116,7 +116,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             return RefreshResponse.Invalid;
         }
 
-        if (token.userIdentity.establishedAt.isBefore(RefreshCutoff)) {
+        if (token.userIdentity.establishedAt.isBefore(REFRESH_CUTOFF)) {
             return RefreshResponse.Deprecated;
         }
 
@@ -243,7 +243,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf) {
         long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
-        if ( age / DAY_IN_MS < 90) {
+        if (age / DAY_IN_MS < 90) {
             if (rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isBlank()) {
                 return null;
             }

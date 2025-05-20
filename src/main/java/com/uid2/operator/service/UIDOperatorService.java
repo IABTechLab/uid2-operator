@@ -31,7 +31,6 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private static final Instant REFRESH_CUTOFF = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private static final long DAY_IN_MS = Duration.ofDays(1).toMillis();
-    private static final long SECOND_IN_MS = 1000;
 
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;

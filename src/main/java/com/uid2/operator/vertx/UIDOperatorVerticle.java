@@ -1742,22 +1742,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
         if (emails != null && !emails.isEmpty()) {
-            normalizedIdentities.put("email", normalizeIdentitiesWithMultipleFields(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw));
+            normalizedIdentities.put("email", normalizeIdentitiesWithMultipleFields(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw, rc));
         }
 
         final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
         if (emailHashes != null && !emailHashes.isEmpty()) {
-            normalizedIdentities.put("email_hash", normalizeIdentitiesWithMultipleFields(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash));
+            normalizedIdentities.put("email_hash", normalizeIdentitiesWithMultipleFields(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash, rc));
         }
 
         final JsonArray phones = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone", rc) : null;
         if (phones != null && !phones.isEmpty()) {
-            normalizedIdentities.put("phone", normalizeIdentitiesWithMultipleFields(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw));
+            normalizedIdentities.put("phone", normalizeIdentitiesWithMultipleFields(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw, rc));
         }
 
         final JsonArray phoneHashes = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone_hash", rc) : null;
         if (phoneHashes != null && !phoneHashes.isEmpty()) {
-            normalizedIdentities.put("phone_hash", normalizeIdentitiesWithMultipleFields(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash));
+            normalizedIdentities.put("phone_hash", normalizeIdentitiesWithMultipleFields(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash, rc));
         }
 
         if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
@@ -2089,7 +2089,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         };
     }
 
-    private InputUtil.InputVal[] normalizeIdentitiesWithMultipleFields(JsonArray identities, IdentityType identityType, InputUtil.IdentityInputType inputType) {
+    private InputUtil.InputVal[] normalizeIdentitiesWithMultipleFields(JsonArray identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
         if (identities == null || identities.isEmpty()) {
             return new InputUtil.InputVal[0];
         }
@@ -2097,8 +2097,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal[] normalizedIdentities = new InputUtil.InputVal[size];
 
         for (int i = 0; i < size; i++) {
-            JsonObject identity = identities.getJsonObject(i);
-            normalizeIdentity(identity.getString("i"), identityType, inputType);
+            JsonObject identity = JsonParseUtils.parseObjectFromArray(identities, i, rc);
+            if (identity != null) {
+                String identityString = JsonParseUtils.parseString(identity, "i", rc);
+                normalizedIdentities[i] = normalizeIdentity(identityString, identityType, inputType);
+            }
         }
 
         return normalizedIdentities;

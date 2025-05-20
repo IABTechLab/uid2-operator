@@ -1719,10 +1719,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV3(RoutingContext rc) {
         try {
-            final Integer siteId = RoutingContextUtil.getSiteId(rc);
-            final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
-            recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
-
             final Map<String, InputUtil.InputVal[]> inputList = getIdentityMapMixedInput(rc);
             if (inputList == null) {
                 ResponseUtil.LogInfoAndSend400Response(rc, phoneSupport ? ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING);

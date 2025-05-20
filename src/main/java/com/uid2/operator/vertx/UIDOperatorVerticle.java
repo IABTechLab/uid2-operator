@@ -1647,21 +1647,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private boolean validateServiceLink(RoutingContext rc) {
         JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
-        if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
-            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
-            return false;
+        if (this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
+            return true;
         }
-        return true;
+        ResponseUtil.LogErrorAndSendResponse(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
+        return false;
     }
 
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
+            final Integer siteId = RoutingContextUtil.getSiteId(rc);
+            final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
+            recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
+
             final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
             if (inputList == null) {
-                if (this.phoneSupport)
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
-                else
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
+                ResponseUtil.LogInfoAndSend400Response(rc, this.phoneSupport ? ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_INPUT_EMAIL_MISSING);
                 return;
             }
 
@@ -1718,12 +1719,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV3(RoutingContext rc) {
         try {
+            final Integer siteId = RoutingContextUtil.getSiteId(rc);
+            final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
+            recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
+
             final Map<String, InputUtil.InputVal[]> inputList = getIdentityMapMixedInput(rc);
             if (inputList == null) {
-                if (this.phoneSupport)
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT);
-                else
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING);
+                ResponseUtil.LogInfoAndSend400Response(rc, phoneSupport ? ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING);
                 return;
             }
 

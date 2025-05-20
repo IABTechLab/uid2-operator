@@ -904,17 +904,18 @@ public class UIDOperatorServiceTest {
         var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
         var expectedPreviousUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.previousSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
         assertArrayEquals(expectedCurrentUID, mappedIdentity.advertisingId);
-        assertArrayEquals(expectedPreviousUID, mappedIdentity.previousId);
+        assertArrayEquals(expectedPreviousUID, mappedIdentity.previousAdvertisingId);
     }
 
-    @Test
-    void testMappedIdentityWithOutdatedPreviousSaltReturnsNoPreviousUid() {
+    @ParameterizedTest
+    @ValueSource(strings = {"90", "120"})
+    void testMappedIdentityWithOutdatedPreviousSaltReturnsNoPreviousUid(int lastUpdatedDays) {
         var saltSnapshot = setUpMockSalts();
 
-        long lastUpdatedOver90DaysAgo = this.now.minus(91, DAYS).toEpochMilli();
+        long lastUpdated = this.now.minus(lastUpdatedDays, DAYS).toEpochMilli();
         long refreshFrom = this.now.plus(30, DAYS).toEpochMilli();
 
-        SaltEntry salt = new SaltEntry(1, "1", lastUpdatedOver90DaysAgo, "salt", refreshFrom, "previousSalt", null, null);
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", refreshFrom, "previousSalt", null, null);
         when(saltSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
         var email = "test@uid.com";
@@ -924,7 +925,7 @@ public class UIDOperatorServiceTest {
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
         var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
         assertArrayEquals(expectedCurrentUID, mappedIdentity.advertisingId);
-        assertArrayEquals(null, mappedIdentity.previousId);
+        assertArrayEquals(null, mappedIdentity.previousAdvertisingId);
     }
 
     @Test
@@ -945,11 +946,11 @@ public class UIDOperatorServiceTest {
 
         var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
         assertArrayEquals(expectedCurrentUID, mappedIdentity.advertisingId);
-        assertArrayEquals(null, mappedIdentity.previousId);
+        assertArrayEquals(null, mappedIdentity.previousAdvertisingId);
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"0", "1"})
+    @ValueSource(strings = {"0", "30"})
     void testMappedIdentityWithValidRefreshFrom(int refreshFromDays) {
         var saltSnapshot = setUpMockSalts();
 
@@ -972,7 +973,7 @@ public class UIDOperatorServiceTest {
     void testMappedIdentityWithOutdatedRefreshFrom() {
         var saltSnapshot = setUpMockSalts();
 
-        long lastUpdated = this.now.minus(30, DAYS).toEpochMilli();
+        long lastUpdated = this.now.minus(31, DAYS).toEpochMilli();
         long outdatedRefreshFrom = this.now.minus(1, DAYS).toEpochMilli();
 
         SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", outdatedRefreshFrom, null, null, null);

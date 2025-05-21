@@ -656,7 +656,7 @@ public class UIDOperatorVerticleTest {
         return getRawUid(identityType, identityString, firstLevelSalt, rotatingSalt, getIdentityScope(), useRawUidV3());
     }
 
-    private static byte[] getRawUid(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt, IdentityScope identityScope, boolean useRawUidV3) {
+    public static byte[] getRawUid(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt, IdentityScope identityScope, boolean useRawUidV3) {
         return !useRawUidV3
                 ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt)
                 : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt);

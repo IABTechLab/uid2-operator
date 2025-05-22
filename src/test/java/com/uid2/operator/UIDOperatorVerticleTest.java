@@ -47,10 +47,7 @@ import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.*;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -1045,17 +1042,18 @@ public class UIDOperatorVerticleTest {
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
         var phoneHash = TokenUtils.getIdentityHashString("+15555555555");
-        JsonObject request = JsonObject.of(
-                "email", JsonArray.of(
-                        JsonObject.of("i", "test1@uid2.com"),
-                                JsonObject.of("i", "test2@uid2.com")),
-                "phone", new JsonArray(),
-                "phone_hash", JsonArray.of(JsonObject.of("i", phoneHash))
+        JsonObject request = new JsonObject(String.format("""
+                {
+                    "email": [{"i": "test1@uid2.com"}, {"i": "test2@uid2.com"}],
+                    "phone": [],
+                    "phone_hash": [{"i": "%s"}]
+                }
+                """, phoneHash)
         );
 
         send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");
-            assertEquals(Set.of("email", "phone_hash"), body.fieldNames());
+            assertEquals(Set.of("email", "email_hash", "phone", "phone_hash"), body.fieldNames());
 
             var mappedEmails = body.getJsonArray("email");
             assertEquals(2, mappedEmails.size());
@@ -1073,6 +1071,9 @@ public class UIDOperatorVerticleTest {
                 "r", refreshFrom.getEpochSecond()
             );
             assertEquals(mappedEmailExpected2, mappedEmails.getJsonObject(1));
+
+            assertEquals(0, body.getJsonArray("email_hash").size());
+            assertEquals(0, body.getJsonArray("phone").size());
 
             var mappedPhoneHash = body.getJsonArray("phone_hash");
             assertEquals(1, mappedPhoneHash.size());
@@ -1104,28 +1105,96 @@ public class UIDOperatorVerticleTest {
         SaltEntry salt = new SaltEntry(1, "1", lastUpdated.toEpochMilli(), "salt", refreshFrom.toEpochMilli(), "previousSalt", null, null);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject request = JsonObject.of("email", JsonArray.of(
-            JsonObject.of("i", "test1@uid2.com"),
-                    JsonObject.of("i", "invalidEmail")
-        ));
+        JsonObject request = new JsonObject("""
+                { "email": [{"i": "test1@uid2.com"}, {"i": "invalid_email"}] }
+                """
+        );
 
         send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");
 
-            var mappedEmails = body.getJsonArray("email");
-            assertEquals(2, mappedEmails.size());
+            JsonObject expected = new JsonObject("""
+                    {
+                        "email": [{"e": "OPTOUT"}, {"e": "INVALID"}],
+                        "email_hash": [],
+                        "phone": [],
+                        "phone_hash": []
+                    }
+            """);
 
-            assertEquals(JsonObject.of("e", "OPTOUT"), mappedEmails.getJsonObject(0));
-            assertEquals(JsonObject.of("e", "INVALID"), mappedEmails.getJsonObject(1));
+            assertEquals(expected, body);
 
-            assertEquals("success", respJson.getString("status"));
             testContext.completeNow();
         });
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"true", "false"})
-    void v3IdentityMapNoPreviousAdvertisingId(boolean hasPreviousSalt, Vertx vertx, VertxTestContext testContext) {
+    @ValueSource(strings = {"{\"email\": []}", "{\"email_hash\": null}" })
+    void v3IdentityMapEmptyInputFormats(String inputPayload, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+
+        Instant lastUpdated = Instant.now().minus(1, DAYS);
+        Instant refreshFrom = lastUpdated.plus(30, DAYS);
+
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated.toEpochMilli(), "salt", refreshFrom.toEpochMilli(), "previousSalt", null, null);
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        JsonObject request = inputPayload == null ? null : new JsonObject(inputPayload);
+
+        send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
+            JsonObject body = respJson.getJsonObject("body");
+            JsonObject expected = new JsonObject("""
+                {
+                     "email": [],
+                     "email_hash": [],
+                     "phone": [],
+                     "phone_hash": []
+                }
+            """);
+            assertEquals(expected, body);
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"{}"})
+    void v3IdentityMapMissingValidInputKeys(String inputPayload, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+
+        JsonObject request = inputPayload == null ? null : new JsonObject(inputPayload);
+
+        send("v2", vertx, "v3/identity/map", false, null, request, 400, respJson -> {
+            assertEquals("Required Parameter Missing: one or more of [email, email_hash, phone, phone_hash] must be specified", respJson.getString("message"));
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"invalid_key\": []}",
+                            "{\"email\": [{}]}",
+                            "{\"email\": [{\"invalid_key\": \"value\"}]}",
+                            "{\"email\": [ {\"i\": null} ]}",
+                            "{\"email\": [ {\"i\": \"some_email\"}, null ]}"})
+    void v3IdentityMapIncorrectInputFormats(String inputPayload, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+
+        JsonObject request = inputPayload == null ? null : new JsonObject(inputPayload);
+
+        send("v2", vertx, "v3/identity/map", false, null, request, 400, respJson -> {
+            assertTrue(respJson.getString("message").startsWith("Incorrect request format"));
+            testContext.completeNow();
+        });
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"previousSalt"})
+    void v3IdentityMapNoPreviousAdvertisingId(String previousSalt, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
@@ -1133,10 +1202,12 @@ public class UIDOperatorVerticleTest {
         var lastUpdatedOver90Days = Instant.now().minus(120, DAYS).toEpochMilli();
         var refreshFrom = Instant.now().plus(30, DAYS);
 
-        SaltEntry salt = new SaltEntry(1, "1", lastUpdatedOver90Days, "salt", refreshFrom.toEpochMilli(), hasPreviousSalt ? "previousSalt" : null, null, null);
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdatedOver90Days, "salt", refreshFrom.toEpochMilli(), previousSalt, null, null);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject request = JsonObject.of("email", JsonArray.of(JsonObject.of("i", "test1@uid2.com")));
+        JsonObject request = new JsonObject("""
+                { "email": [{"i": "test1@uid2.com"}] }
+        """);
 
         send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");
@@ -1166,7 +1237,9 @@ public class UIDOperatorVerticleTest {
         SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", outdatedRefreshFrom, null, null, null);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject request = JsonObject.of("email", JsonArray.of(JsonObject.of("i", "test1@uid2.com")));
+        JsonObject request = new JsonObject("""
+                { "email": [{"i": "test1@uid2.com"}] }
+        """);
 
         send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
             JsonObject body = respJson.getJsonObject("body");

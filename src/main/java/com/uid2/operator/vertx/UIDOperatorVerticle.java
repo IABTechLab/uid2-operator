@@ -1,5 +1,11 @@
 package com.uid2.operator.vertx;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
@@ -30,6 +36,7 @@ import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
 import com.uid2.shared.store.salt.ISaltProvider;
+import com.uid2.shared.util.Mapper;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -61,6 +68,7 @@ import org.slf4j.LoggerFactory;
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.DataInput;
 import java.io.IOException;
 import java.security.*;
 import java.security.spec.*;
@@ -84,7 +92,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
      */
     public static final Duration TOKEN_LIFETIME_TOLERANCE = Duration.ofSeconds(10);
     private static final long SECOND_IN_MILLIS = 1000;
-    private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneOffset.UTC);
+    private static final DateTimeFormatter API_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneOffset.UTC);
 
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
@@ -131,6 +139,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private final int optOutStatusMaxRequestSize;
     private final boolean optOutStatusApiEnabled;
+
+    private final ObjectMapper objectMapper = Mapper.getApiInstance();
 
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
@@ -1288,7 +1298,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     o.put("bucket_id", e.hashedId());
                     Instant lastUpdated = Instant.ofEpochMilli(e.lastUpdated());
 
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
+                    o.put("last_updated", API_DATE_TIME_FORMATTER.format(lastUpdated));
                     resp.add(o);
                 }
                 ResponseUtil.Success(rc, resp);
@@ -1320,7 +1330,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     o.put("bucket_id", e.hashedId());
                     Instant lastUpdated = Instant.ofEpochMilli(e.lastUpdated());
 
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
+                    o.put("last_updated", API_DATE_TIME_FORMATTER.format(lastUpdated));
                     resp.add(o);
                 }
                 ResponseUtil.SuccessV2(rc, resp);
@@ -1586,7 +1596,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return resp;
     }
 
-    private JsonObject handleIdentityMapV3(RoutingContext rc, Map<String, InputUtil.InputVal[]> input) {
+    private JsonObject processIdentityMapV3Response(RoutingContext rc, Map<String, InputUtil.InputVal[]> input) {
         final Instant now = Instant.now();
         final JsonObject mappedResponse = new JsonObject();
         int invalidCount = 0;
@@ -1599,6 +1609,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             inputTotalCount += rawIdentityList.length;
 
             for (final InputUtil.InputVal rawId : rawIdentityList) {
+                final JsonObject resp = new JsonObject();
                 if (rawId != null && rawId.isValid()) {
                     final MappedIdentity mappedId = idService.mapIdentity(
                             new MapRequest(
@@ -1607,23 +1618,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                     now));
 
                     if (mappedId.isOptedOut()) {
-                        final JsonObject resp = new JsonObject();
                         resp.put("e", "OPTOUT");
-                        mappedIdentityList.add(resp);
                         optoutCount++;
                     } else {
-                        final JsonObject resp = new JsonObject();
                         resp.put("u", EncodingUtils.toBase64String(mappedId.advertisingId));
                         resp.put("p", mappedId.previousAdvertisingId == null ? null : EncodingUtils.toBase64String(mappedId.previousAdvertisingId));
                         resp.put("r", mappedId.refreshFrom / SECOND_IN_MILLIS);
-                        mappedIdentityList.add(resp);
                     }
                 } else {
-                    final JsonObject resp = new JsonObject();
                     resp.put("e", "INVALID");
-                    mappedIdentityList.add(resp);
                     invalidCount++;
                 }
+                mappedIdentityList.add(resp);
             }
             mappedResponse.put(identityType.getKey(), mappedIdentityList);
         }
@@ -1719,57 +1725,41 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV3(RoutingContext rc) {
         try {
-            final Map<String, InputUtil.InputVal[]> inputList = getIdentityMapMixedInput(rc);
-            if (inputList == null) {
+            JsonObject jsonInput = (JsonObject) rc.data().get("request");
+
+            if (jsonInput == null || jsonInput.isEmpty()) {
                 ResponseUtil.LogInfoAndSend400Response(rc, phoneSupport ? ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING);
                 return;
             }
 
+            IdentityMapRequest input = objectMapper.readValue(jsonInput.toString(), IdentityMapRequest.class);
+            final Map<String, InputUtil.InputVal[]> normalizedInput = processIdentityMapMixedInput(rc, input);
+
             if (!validateServiceLink(rc)) { return; }
 
-            final JsonObject resp = handleIdentityMapV3(rc, inputList);
+            final JsonObject resp = processIdentityMapV3Response(rc, normalizedInput);
             ResponseUtil.SuccessV2(rc, resp);
+        } catch (JsonProcessingException processingException) {
+            ResponseUtil.LogInfoAndSend400Response(rc, "Incorrect request format: " + processingException.getMessage());
         } catch (Exception e) {
-            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v3", e);
+                ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v3", e);
         }
     }
 
-    private Map<String, InputUtil.InputVal[]> getIdentityMapMixedInput(RoutingContext rc) {
-        final JsonObject obj = (JsonObject) rc.data().get("request");
-
+    private Map<String, InputUtil.InputVal[]> processIdentityMapMixedInput(RoutingContext rc, IdentityMapRequest input) {
         final Map<String, InputUtil.InputVal[]> normalizedIdentities = new HashMap<>();
 
-        final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
-        if (emails != null && !emails.isEmpty()) {
-            InputUtil.InputVal[] normalizedEmails = parseIdentitiesInput(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw, rc);
-            if (normalizedEmails == null) { return null; }
-            normalizedIdentities.put("email", normalizedEmails);
-        }
+        var normalizedEmails = parseIdentitiesInput(input.email(), IdentityType.Email, InputUtil.IdentityInputType.Raw, rc);
+        normalizedEmails.ifPresent(inputVals -> normalizedIdentities.put("email", inputVals));
 
-        final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
-        if (emailHashes != null && !emailHashes.isEmpty()) {
-            InputUtil.InputVal[] normalizedEmailHashes = parseIdentitiesInput(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash, rc);
-            if (normalizedEmailHashes == null) { return null; }
-            normalizedIdentities.put("email_hash", normalizedEmailHashes);
-        }
+        var normalizedEmailHashes = parseIdentitiesInput(input.email_hash(), IdentityType.Email, InputUtil.IdentityInputType.Hash, rc);
+        normalizedEmailHashes.ifPresent(inputVals -> normalizedIdentities.put("email_hash", inputVals));
 
-        final JsonArray phones = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone", rc) : null;
-        if (phones != null && !phones.isEmpty()) {
-            InputUtil.InputVal[] normalizedPhones = parseIdentitiesInput(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw, rc);
-            if (normalizedPhones == null) { return null; }
-            normalizedIdentities.put("phone", normalizedPhones);
-        }
+        var normalizedPhones = parseIdentitiesInput(input.phone(), IdentityType.Phone, InputUtil.IdentityInputType.Raw, rc);
+        normalizedPhones.ifPresent(inputVals -> normalizedIdentities.put("phone", inputVals));
 
-        final JsonArray phoneHashes = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone_hash", rc) : null;
-        if (phoneHashes != null && !phoneHashes.isEmpty()) {
-            InputUtil.InputVal[] normalizedPhoneHashes = parseIdentitiesInput(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash, rc);
-            if (normalizedPhoneHashes == null) { return null; }
-            normalizedIdentities.put("phone_hash", normalizedPhoneHashes);
-        }
-
-        if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
-            return null;
-        }
+        var normalizedPhoneHashes = parseIdentitiesInput(input.phone_hash(), IdentityType.Phone, InputUtil.IdentityInputType.Hash, rc);
+        normalizedPhoneHashes.ifPresent(inputVals -> normalizedIdentities.put("phone_hash", inputVals));
 
         return normalizedIdentities;
     }
@@ -2096,23 +2086,21 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         };
     }
 
-    private InputUtil.InputVal[] parseIdentitiesInput(JsonArray identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
+    private Optional<InputUtil.InputVal[]> parseIdentitiesInput(List<IdentityMapRequest.IdentityInput> identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
         if (identities == null || identities.isEmpty()) {
-            return new InputUtil.InputVal[0];
+            return Optional.of(new InputUtil.InputVal[0]);
         }
-        final int size = identities.size();
-        final InputUtil.InputVal[] normalizedIdentities = new InputUtil.InputVal[size];
+        final InputUtil.InputVal[] normalizedIdentities = new InputUtil.InputVal[identities.size()];
 
-        for (int i = 0; i < size; i++) {
-            JsonObject identity = JsonParseUtils.parseObjectFromArray(identities, i, rc);
+        for (int i = 0; i < identities.size(); i++) {
+            IdentityMapRequest.IdentityInput identity = identities.get(i);
             if (identity == null) {
-                return null;
+                LogInfoAndSend400Response(rc, "identity cannot be null");
+                return Optional.empty();
             }
-            String identityString = JsonParseUtils.parseString(identity, "i", rc);
-            normalizedIdentities[i] = normalizeIdentity(identityString, identityType, inputType);
+            normalizedIdentities[i] = normalizeIdentity(identity.input(), identityType, inputType);
         }
-
-        return normalizedIdentities;
+        return Optional.of(normalizedIdentities);
     }
 
     private UserConsentStatus validateUserConsent(JsonObject req, String apiContact) {

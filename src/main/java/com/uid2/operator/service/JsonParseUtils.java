@@ -15,26 +15,4 @@ public class JsonParseUtils {
         }
         return outArray;
     }
-
-    public static String parseString(JsonObject object, String key, RoutingContext rc) {
-        try {
-            String s = object.getString(key);
-            if (s == null) {
-                ResponseUtil.LogInfoAndSend400Response(rc, String.format("missing key \"%s\"", key));
-            }
-            return s;
-        } catch (ClassCastException e) {
-            ResponseUtil.LogInfoAndSend400Response(rc, String.format("key \"%s\" must be a string", key));
-            return null;
-        }
-    }
-
-    public static JsonObject parseObjectFromArray(JsonArray array, int index, RoutingContext rc) {
-        try {
-            return array.getJsonObject(index);
-        } catch (ClassCastException e) {
-            ResponseUtil.LogInfoAndSend400Response(rc, "incorrect input format");
-            return null;
-        }
-    }
 }

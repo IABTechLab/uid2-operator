@@ -1,10 +1,6 @@
 package com.uid2.operator.vertx;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
@@ -68,7 +64,6 @@ import org.slf4j.LoggerFactory;
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.DataInput;
 import java.io.IOException;
 import java.security.*;
 import java.security.spec.*;
@@ -140,7 +135,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int optOutStatusMaxRequestSize;
     private final boolean optOutStatusApiEnabled;
 
-    private final ObjectMapper objectMapper = Mapper.getApiInstance();
+    private final static ObjectMapper OBJECT_MAPPER = Mapper.getApiInstance();
 
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
@@ -1732,7 +1727,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            IdentityMapRequest input = objectMapper.readValue(jsonInput.toString(), IdentityMapRequest.class);
+            IdentityMapRequest input = OBJECT_MAPPER.readValue(jsonInput.toString(), IdentityMapRequest.class);
             final Map<String, InputUtil.InputVal[]> normalizedInput = processIdentityMapMixedInput(rc, input);
 
             if (!validateServiceLink(rc)) { return; }

@@ -2,7 +2,7 @@ package com.uid2.operator.model;
 
 import com.fasterxml.jackson.annotation.*;
 
-public record IdentityMapRequest (
+public record IdentityMapV3Request(
         @JsonSetter(contentNulls = Nulls.FAIL)
         @JsonProperty("email") IdentityInput[] email,
 
@@ -14,7 +14,7 @@ public record IdentityMapRequest (
 
         @JsonSetter(contentNulls = Nulls.FAIL)
         @JsonProperty("phone_hash") IdentityInput[] phone_hash
-){
+) {
     public record IdentityInput(
             @JsonSetter(nulls = Nulls.FAIL)
             @JsonProperty("i") String input

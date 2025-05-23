@@ -1727,21 +1727,21 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            IdentityMapRequest input = OBJECT_MAPPER.readValue(jsonInput.toString(), IdentityMapRequest.class);
+            IdentityMapV3Request input = OBJECT_MAPPER.readValue(jsonInput.toString(), IdentityMapV3Request.class);
             final Map<String, InputUtil.InputVal[]> normalizedInput = processIdentityMapMixedInput(rc, input);
 
             if (!validateServiceLink(rc)) { return; }
 
             final JsonObject response = processIdentityMapV3Response(rc, normalizedInput);
             ResponseUtil.SuccessV2(rc, response);
-        } catch (JsonProcessingException processingException) {
+        } catch (ClassCastException | JsonProcessingException processingException) {
             ResponseUtil.LogInfoAndSend400Response(rc, "Incorrect request format");
         } catch (Exception e) {
             ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v3", e);
         }
     }
 
-    private Map<String, InputUtil.InputVal[]> processIdentityMapMixedInput(RoutingContext rc, IdentityMapRequest input) {
+    private Map<String, InputUtil.InputVal[]> processIdentityMapMixedInput(RoutingContext rc, IdentityMapV3Request input) {
         final Map<String, InputUtil.InputVal[]> normalizedIdentities = new HashMap<>();
 
         var normalizedEmails = parseIdentitiesInput(input.email(), IdentityType.Email, InputUtil.IdentityInputType.Raw, rc);
@@ -2081,7 +2081,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         };
     }
 
-    private InputUtil.InputVal[] parseIdentitiesInput(IdentityMapRequest.IdentityInput[] identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
+    private InputUtil.InputVal[] parseIdentitiesInput(IdentityMapV3Request.IdentityInput[] identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
         if (identities == null || identities.length == 0) {
             return new InputUtil.InputVal[0];
         }

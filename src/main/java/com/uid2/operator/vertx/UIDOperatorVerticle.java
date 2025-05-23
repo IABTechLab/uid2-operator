@@ -1737,12 +1737,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             if (!validateServiceLink(rc)) { return; }
 
-            final JsonObject resp = processIdentityMapV3Response(rc, normalizedInput);
-            ResponseUtil.SuccessV2(rc, resp);
+            final JsonObject response = processIdentityMapV3Response(rc, normalizedInput);
+            ResponseUtil.SuccessV2(rc, response);
         } catch (JsonProcessingException processingException) {
-            ResponseUtil.LogInfoAndSend400Response(rc, "Incorrect request format: " + processingException.getMessage());
+            ResponseUtil.LogInfoAndSend400Response(rc, "Incorrect request format");
         } catch (Exception e) {
-                ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v3", e);
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v3", e);
         }
     }
 
@@ -1750,16 +1750,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final Map<String, InputUtil.InputVal[]> normalizedIdentities = new HashMap<>();
 
         var normalizedEmails = parseIdentitiesInput(input.email(), IdentityType.Email, InputUtil.IdentityInputType.Raw, rc);
-        normalizedEmails.ifPresent(inputVals -> normalizedIdentities.put("email", inputVals));
+        normalizedIdentities.put("email", normalizedEmails);
 
         var normalizedEmailHashes = parseIdentitiesInput(input.email_hash(), IdentityType.Email, InputUtil.IdentityInputType.Hash, rc);
-        normalizedEmailHashes.ifPresent(inputVals -> normalizedIdentities.put("email_hash", inputVals));
+        normalizedIdentities.put("email_hash", normalizedEmailHashes);
 
         var normalizedPhones = parseIdentitiesInput(input.phone(), IdentityType.Phone, InputUtil.IdentityInputType.Raw, rc);
-        normalizedPhones.ifPresent(inputVals -> normalizedIdentities.put("phone", inputVals));
+        normalizedIdentities.put("phone", normalizedPhones);
 
         var normalizedPhoneHashes = parseIdentitiesInput(input.phone_hash(), IdentityType.Phone, InputUtil.IdentityInputType.Hash, rc);
-        normalizedPhoneHashes.ifPresent(inputVals -> normalizedIdentities.put("phone_hash", inputVals));
+        normalizedIdentities.put("phone_hash", normalizedPhoneHashes);
 
         return normalizedIdentities;
     }
@@ -2086,21 +2086,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         };
     }
 
-    private Optional<InputUtil.InputVal[]> parseIdentitiesInput(List<IdentityMapRequest.IdentityInput> identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
+    private InputUtil.InputVal[] parseIdentitiesInput(List<IdentityMapRequest.IdentityInput> identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
         if (identities == null || identities.isEmpty()) {
-            return Optional.of(new InputUtil.InputVal[0]);
+            return new InputUtil.InputVal[0];
         }
-        final InputUtil.InputVal[] normalizedIdentities = new InputUtil.InputVal[identities.size()];
+        final var normalizedIdentities = new InputUtil.InputVal[identities.size()];
 
         for (int i = 0; i < identities.size(); i++) {
-            IdentityMapRequest.IdentityInput identity = identities.get(i);
-            if (identity == null) {
-                LogInfoAndSend400Response(rc, "identity cannot be null");
-                return Optional.empty();
-            }
+            final var identity = identities.get(i);
             normalizedIdentities[i] = normalizeIdentity(identity.input(), identityType, inputType);
         }
-        return Optional.of(normalizedIdentities);
+        return normalizedIdentities;
     }
 
     private UserConsentStatus validateUserConsent(JsonObject req, String apiContact) {

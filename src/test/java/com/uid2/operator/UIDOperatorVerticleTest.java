@@ -1178,15 +1178,16 @@ public class UIDOperatorVerticleTest {
                             "{\"email\": [{}]}",
                             "{\"email\": [{\"invalid_key\": \"value\"}]}",
                             "{\"email\": [ {\"i\": null} ]}",
-                            "{\"email\": [ {\"i\": \"some_email\"}, null ]}"})
+                            "{\"email\": [ {\"i\": \"some_email\"}, null ]}",
+                            "{\"email\": [ \"not_object\" ]}"})
     void v3IdentityMapIncorrectInputFormats(String inputPayload, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
 
-        JsonObject request = inputPayload == null ? null : new JsonObject(inputPayload);
+        JsonObject request = new JsonObject(inputPayload);
 
         send("v2", vertx, "v3/identity/map", false, null, request, 400, respJson -> {
-            assertTrue(respJson.getString("message").startsWith("Incorrect request format"));
+            assertEquals("Incorrect request format", respJson.getString("message"));
             testContext.completeNow();
         });
     }

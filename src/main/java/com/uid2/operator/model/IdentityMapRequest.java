@@ -4,12 +4,20 @@ import com.fasterxml.jackson.annotation.*;
 import java.util.List;
 
 public record IdentityMapRequest (
-        @JsonProperty("email") @JsonSetter(contentNulls = Nulls.FAIL) List<IdentityInput> email,
-        @JsonProperty("email_hash") @JsonSetter(contentNulls = Nulls.FAIL) List<IdentityInput> email_hash,
-        @JsonProperty("phone") @JsonSetter(contentNulls = Nulls.FAIL) List<IdentityInput> phone,
-        @JsonProperty("phone_hash") @JsonSetter(contentNulls = Nulls.FAIL) List<IdentityInput> phone_hash
+        @JsonSetter(contentNulls = Nulls.FAIL)
+        @JsonProperty("email") List<IdentityInput>email,
+
+        @JsonSetter(contentNulls = Nulls.FAIL)
+        @JsonProperty("email_hash")  List<IdentityInput> email_hash,
+
+        @JsonSetter(contentNulls = Nulls.FAIL)
+        @JsonProperty("phone") List<IdentityInput> phone,
+
+        @JsonSetter(contentNulls = Nulls.FAIL)
+        @JsonProperty("phone_hash") List<IdentityInput> phone_hash
 ){
     public record IdentityInput(
-        @JsonProperty("i") @JsonSetter(nulls = Nulls.FAIL) String input
+            @JsonSetter(nulls = Nulls.FAIL)
+            @JsonProperty("i") String input
     ) {}
 }

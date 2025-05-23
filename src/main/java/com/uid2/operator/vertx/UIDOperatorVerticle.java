@@ -2088,9 +2088,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final var normalizedIdentities = new InputUtil.InputVal[identities.length];
 
         for (int i = 0; i < identities.length; i++) {
-            final var identity = identities[i];
-            normalizedIdentities[i] = normalizeIdentity(identity.input(), identityType, inputType);
+            normalizedIdentities[i] = normalizeIdentity(identities[i].input(), identityType, inputType);
         }
+
         return normalizedIdentities;
     }
 

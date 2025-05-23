@@ -2081,14 +2081,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         };
     }
 
-    private InputUtil.InputVal[] parseIdentitiesInput(List<IdentityMapRequest.IdentityInput> identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
-        if (identities == null || identities.isEmpty()) {
+    private InputUtil.InputVal[] parseIdentitiesInput(IdentityMapRequest.IdentityInput[] identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
+        if (identities == null || identities.length == 0) {
             return new InputUtil.InputVal[0];
         }
-        final var normalizedIdentities = new InputUtil.InputVal[identities.size()];
+        final var normalizedIdentities = new InputUtil.InputVal[identities.length];
 
-        for (int i = 0; i < identities.size(); i++) {
-            final var identity = identities.get(i);
+        for (int i = 0; i < identities.length; i++) {
+            final var identity = identities[i];
             normalizedIdentities[i] = normalizeIdentity(identity.input(), identityType, inputType);
         }
         return normalizedIdentities;

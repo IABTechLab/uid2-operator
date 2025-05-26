@@ -1319,6 +1319,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 ResponseUtil.LogInfoAndSend400Response(rc, "invalid date, must conform to ISO 8601");
                 return;
             }
+
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
             final JsonArray resp = new JsonArray();
             if (modified != null) {

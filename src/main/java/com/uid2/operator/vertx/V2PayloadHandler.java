@@ -49,7 +49,8 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        String compressionHeader = rc.request().getHeader(V2RequestUtil.COMPRESSION_HEADER);
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock(), compressionHeader);
         if (!request.isValid()) {
             ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
@@ -67,7 +68,8 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        String compressionHeader = rc.request().getHeader(V2RequestUtil.COMPRESSION_HEADER);
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock(), compressionHeader);
         if (!request.isValid()) {
             ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
@@ -85,7 +87,8 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        String compressionHeader = rc.request().getHeader(V2RequestUtil.COMPRESSION_HEADER);
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock(), compressionHeader);
         if (!request.isValid()) {
             SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
             return;
@@ -150,10 +153,17 @@ public class V2PayloadHandler {
 
             if (request != null) {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
+                
+                byte[] responseBytes = respJson.encode().getBytes(StandardCharsets.UTF_8);
+                
+                // Check if compression is enabled via header
+                String compressionHeader = rc.request().getHeader(V2RequestUtil.COMPRESSION_HEADER);
+                if (V2RequestUtil.DEFLATE_COMPRESSION.equals(compressionHeader)) {
+                    responseBytes = V2RequestUtil.compressPayload(responseBytes);
+                }
+                
                 // Encrypt whole payload using key shared with client.
-                byte[] encryptedResp = AesGcm.encrypt(
-                    respJson.encode().getBytes(StandardCharsets.UTF_8),
-                    request.encryptionKey);
+                byte[] encryptedResp = AesGcm.encrypt(responseBytes, request.encryptionKey);
                 rc.response().end(Utils.toBase64String(encryptedResp));
             }
             else {
@@ -182,7 +192,16 @@ public class V2PayloadHandler {
         Buffer buffer = Buffer.buffer();
         buffer.appendLong(EncodingUtils.NowUTCMillis().toEpochMilli());
         buffer.appendBytes(nonce);
-        buffer.appendBytes(resp.encode().getBytes(StandardCharsets.UTF_8));
+        
+        byte[] responseBytes = resp.encode().getBytes(StandardCharsets.UTF_8);
+        
+        // Check if compression is enabled via header
+        String compressionHeader = rc.request().getHeader(V2RequestUtil.COMPRESSION_HEADER);
+        if (V2RequestUtil.DEFLATE_COMPRESSION.equals(compressionHeader)) {
+            responseBytes = V2RequestUtil.compressPayload(responseBytes);
+        }
+        
+        buffer.appendBytes(responseBytes);
 
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
         rc.response().end(Utils.toBase64String(AesGcm.encrypt(buffer.getBytes(), keyBytes)));

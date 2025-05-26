@@ -14,10 +14,17 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
 
 public class V2RequestUtil {
     public static class V2Request {
@@ -54,9 +61,17 @@ public class V2RequestUtil {
     public static final long V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES = 1;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
+    
+    public static final String COMPRESSION_HEADER = "X-UID2-Compression";
+    public static final String DEFLATE_COMPRESSION = "deflate";
 
     // clock is passed in to test V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES in unit tests
     public static V2Request parseRequest(String bodyString, ClientKey ck, IClock clock) {
+        return parseRequest(bodyString, ck, clock, null);
+    }
+    
+    // Overloaded method that accepts compression header for decompression
+    public static V2Request parseRequest(String bodyString, ClientKey ck, IClock clock, String compressionHeader) {
         if (bodyString == null) {
             return new V2Request("Invalid body: Body is missing.");
         }
@@ -102,7 +117,15 @@ public class V2RequestUtil {
         if (decryptedBody.length > 16) {
             try {
                 // Skip 8 bytes timestamp, 8 bytes nonce
-                String bodyStr = new String(decryptedBody, 16, decryptedBody.length - 16, StandardCharsets.UTF_8);
+                byte[] payloadBytes = new byte[decryptedBody.length - 16];
+                System.arraycopy(decryptedBody, 16, payloadBytes, 0, decryptedBody.length - 16);
+                
+                // Check if decompression is needed
+                if (DEFLATE_COMPRESSION.equals(compressionHeader)) {
+                    payloadBytes = decompressPayload(payloadBytes);
+                }
+                
+                String bodyStr = new String(payloadBytes, StandardCharsets.UTF_8);
                 payload = new JsonObject(bodyStr);
             } catch (Exception ex) {
                 LOGGER.error("Invalid payload in body: Data is not valid json string.");
@@ -181,5 +204,39 @@ public class V2RequestUtil {
 
         bodyJson.put("refresh_token", modifiedToken);
         bodyJson.put("refresh_response_key", refreshResponseKey);
+    }
+    
+    public static byte[] compressPayload(byte[] payload) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            Deflater deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, false);
+            DeflaterOutputStream dos = new DeflaterOutputStream(baos, deflater);
+            dos.write(payload);
+            dos.close();
+            return baos.toByteArray();
+        } catch (IOException e) {
+            LOGGER.error("Failed to compress payload", e);
+            throw new RuntimeException("Compression failed", e);
+        }
+    }
+    
+    public static byte[] decompressPayload(byte[] compressedPayload) {
+        try {
+            ByteArrayInputStream bais = new ByteArrayInputStream(compressedPayload);
+            Inflater inflater = new Inflater(false);
+            InflaterInputStream iis = new InflaterInputStream(bais, inflater);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = iis.read(buffer)) != -1) {
+                baos.write(buffer, 0, len);
+            }
+            iis.close();
+            return baos.toByteArray();
+        } catch (IOException e) {
+            LOGGER.error("Failed to decompress payload", e);
+            throw new RuntimeException("Decompression failed", e);
+        }
     }
 }

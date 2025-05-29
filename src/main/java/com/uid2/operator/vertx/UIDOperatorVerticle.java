@@ -15,6 +15,7 @@ import com.uid2.operator.store.*;
 import com.uid2.operator.store.IConfigStore;
 import com.uid2.operator.util.DomainNameCheckUtil;
 import com.uid2.operator.util.PrivacyBits;
+import com.uid2.operator.util.RoutingContextUtil;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
@@ -311,7 +312,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
-
     }
 
     private void handleClientSideTokenGenerate(RoutingContext rc) {
@@ -388,7 +388,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         if(clientSideKeypair.isDisabled()) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.Unauthorized, 401, rc, "Unauthorized",
-                        clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unauthorized, siteProvider, platformType);
+                    clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unauthorized, siteProvider, platformType);
             return;
         }
 
@@ -878,14 +878,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersionCounters = new HashMap<>();
-    public void recordOperatorServedSdkUsage(Integer siteId, RoutingContext rc, String clientVersion) {
-        if (siteId != null && clientVersion != null) {
-            _clientVersionCounters.computeIfAbsent(new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion), tuple -> Counter
-                    .builder("uid2.client_sdk_versions")
-                    .description("counter for how many http requests are processed per each operator-served sdk version")
-                    .tags("site_id", tuple.getItem1(), "client_version", tuple.getItem2())
-                    .register(Metrics.globalRegistry)).increment();;
+    private static final Map<Tuple.Tuple2<String, String>, Counter> CLIENT_VERSION_COUNTERS = new HashMap<>();
+    private void recordOperatorServedSdkUsage(RoutingContext rc, Integer siteId, String apiContact, String clientVersion) {
+        if (siteId != null && apiContact != null && clientVersion != null) {
+            final String path = RoutingContextUtil.getPath(rc);
+
+            CLIENT_VERSION_COUNTERS.computeIfAbsent(
+                    new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion),
+                    tuple -> Counter
+                            .builder("uid2.client_sdk_versions")
+                            .description("counter for how many http requests are processed per each operator-served sdk version")
+                            .tags("site_id", tuple.getItem1(), "api_contact", apiContact, "client_version", tuple.getItem2(), "path", path)
+                            .register(Metrics.globalRegistry)
+            ).increment();
         }
     }
 
@@ -900,7 +905,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             String tokenStr = (String) rc.data().get("request");
             final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
             siteId = rc.get(Const.RoutingContextData.SiteId);
-            recordOperatorServedSdkUsage(siteId, rc, rc.request().headers().get(Const.Http.ClientVersionHeader));
+            final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
+            recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
@@ -1637,12 +1643,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
+            final Integer siteId = RoutingContextUtil.getSiteId(rc);
+            final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
+            recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
+
             final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
             if (inputList == null) {
-                if (this.phoneSupport)
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
-                else
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
+                ResponseUtil.LogInfoAndSend400Response(rc, this.phoneSupport ? ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_INPUT_EMAIL_MISSING);
                 return;
             }
 
@@ -1807,29 +1814,29 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final String metricKey = serviceName + serviceLinkName;
             DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(metricKey,
                     k -> DistributionSummary.builder("uid2.operator.identity.map.services.inputs")
-                .description("number of emails or phone numbers passed to identity map batch endpoint by services")
-                .tags(Arrays.asList(Tag.of("api_contact", apiContact),
-                Tag.of("service_name", serviceName),
-                Tag.of("service_link_name", serviceLinkName)))
-                .register(Metrics.globalRegistry));
+                            .description("number of emails or phone numbers passed to identity map batch endpoint by services")
+                            .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                                    Tag.of("service_name", serviceName),
+                                    Tag.of("service_link_name", serviceLinkName)))
+                            .register(Metrics.globalRegistry));
             ds.record(inputCount);
 
             Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(metricKey,
-                k -> new Tuple.Tuple2<>(
-                Counter.builder("uid2.operator.identity.map.services.unmapped")
-                .description("number of invalid identifiers passed to identity map batch endpoint by services")
-                .tags(Arrays.asList(Tag.of("api_contact", apiContact),
-                    Tag.of("reason", "invalid"),
-                    Tag.of("service_name", serviceName),
-                    Tag.of("service_link_name", serviceLinkName)))
-                .register(Metrics.globalRegistry),
-                Counter.builder("uid2.operator.identity.map.services.unmapped")
-                    .description("number of optout identifiers passed to identity map batch endpoint by services")
-                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
-                        Tag.of("reason", "optout"),
-                        Tag.of("service_name", serviceName),
-                        Tag.of("service_link_name", serviceLinkName)))
-                    .register(Metrics.globalRegistry)));
+                    k -> new Tuple.Tuple2<>(
+                            Counter.builder("uid2.operator.identity.map.services.unmapped")
+                                    .description("number of invalid identifiers passed to identity map batch endpoint by services")
+                                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                                            Tag.of("reason", "invalid"),
+                                            Tag.of("service_name", serviceName),
+                                            Tag.of("service_link_name", serviceLinkName)))
+                                    .register(Metrics.globalRegistry),
+                            Counter.builder("uid2.operator.identity.map.services.unmapped")
+                                    .description("number of optout identifiers passed to identity map batch endpoint by services")
+                                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                                            Tag.of("reason", "optout"),
+                                            Tag.of("service_name", serviceName),
+                                            Tag.of("service_link_name", serviceLinkName)))
+                                    .register(Metrics.globalRegistry)));
             if (invalidCount > 0) counterTuple.getItem1().increment(invalidCount);
             if (optOutCount > 0) counterTuple.getItem2().increment(optOutCount);
         }

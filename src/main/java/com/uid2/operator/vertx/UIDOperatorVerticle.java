@@ -1,5 +1,7 @@
 package com.uid2.operator.vertx;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
@@ -30,6 +32,7 @@ import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
 import com.uid2.shared.store.salt.ISaltProvider;
+import com.uid2.shared.util.Mapper;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -83,7 +86,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
      * is slightly longer than it should be. When validating token lifetimes, we add a small buffer to account for this.
      */
     public static final Duration TOKEN_LIFETIME_TOLERANCE = Duration.ofSeconds(10);
-    private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+    private static final long SECOND_IN_MILLIS = 1000;
+    private static final DateTimeFormatter API_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneOffset.UTC);
 
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
@@ -112,7 +116,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
     private final IdentityScope identityScope;
-    private final V2PayloadHandler v2PayloadHandler;
+    private final V2PayloadHandler encryptedPayloadHandler;
     private final boolean phoneSupport;
     private final int tcfVendorId;
     private final IStatsCollectorQueue _statsCollectorQueue;
@@ -131,12 +135,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int optOutStatusMaxRequestSize;
     private final boolean optOutStatusApiEnabled;
 
+    private final static ObjectMapper OBJECT_MAPPER = Mapper.getApiInstance();
+
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
     private final static List<String> SUPPORTED_IN_APP = Arrays.asList("Android", "ios", "tvos");
 
     private static final String ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_MISSING = "Required Parameter Missing: exactly one of email or email_hash must be specified";
+    private static final String ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: one or more of [email, email_hash, phone, phone_hash] must be specified";
+    private static final String ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING = "Required Parameter Missing: one or more of [email, email_hash] must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
     private static final String RC_CONFIG_KEY = "remote-config";
     public final static String ORIGIN_HEADER = "Origin";
@@ -172,7 +180,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
-        this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
+        this.encryptedPayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
@@ -247,7 +255,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         router.route().failureHandler(new GenericFailureHandler());
 
         final BodyHandler bodyHandler = BodyHandler.create().setHandleFileUploads(false).setBodyLimit(MAX_REQUEST_BODY_SIZE);
-        setupV2Routes(router, bodyHandler);
+        setUpEncryptedRoutes(router, bodyHandler);
 
         // Static and health check
         router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
@@ -281,34 +289,38 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return router;
     }
 
-    private void setupV2Routes(Router mainRouter, BodyHandler bodyHandler) {
+    private void setUpEncryptedRoutes(Router mainRouter, BodyHandler bodyHandler) {
 
         mainRouter.post(V2_TOKEN_GENERATE.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
+                rc -> encryptedPayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
         mainRouter.post(V2_TOKEN_REFRESH.toString()).handler(bodyHandler).handler(auth.handleWithOptionalAuth(
-                rc -> v2PayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
+                rc -> encryptedPayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
         mainRouter.post(V2_TOKEN_VALIDATE.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
         mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
         mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
         mainRouter.post(V2_KEY_LATEST.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
         mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
         mainRouter.post(V2_TOKEN_LOGOUT.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
+                rc -> encryptedPayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
         if (this.optOutStatusApiEnabled) {
             mainRouter.post(V2_OPTOUT_STATUS.toString()).handler(bodyHandler).handler(auth.handleV1(
-                    rc -> v2PayloadHandler.handle(rc, this::handleOptoutStatus),
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleOptoutStatus),
                     Role.MAPPER, Role.SHARER, Role.ID_READER));
         }
 
         if (this.clientSideTokenGenerate)
             mainRouter.post(V2_TOKEN_CLIENTGENERATE.toString()).handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
+
+        mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
+                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
+
     }
 
     private void handleClientSideTokenGenerate(RoutingContext rc) {
@@ -1281,7 +1293,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     o.put("bucket_id", e.hashedId());
                     Instant lastUpdated = Instant.ofEpochMilli(e.lastUpdated());
 
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
+                    o.put("last_updated", API_DATE_TIME_FORMATTER.format(lastUpdated));
                     resp.add(o);
                 }
                 ResponseUtil.Success(rc, resp);
@@ -1313,7 +1325,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     o.put("bucket_id", e.hashedId());
                     Instant lastUpdated = Instant.ofEpochMilli(e.lastUpdated());
 
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
+                    o.put("last_updated", API_DATE_TIME_FORMATTER.format(lastUpdated));
                     resp.add(o);
                 }
                 ResponseUtil.SuccessV2(rc, resp);
@@ -1579,6 +1591,49 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return resp;
     }
 
+    private JsonObject processIdentityMapV3Response(RoutingContext rc, Map<String, InputUtil.InputVal[]> input) {
+        final Instant now = Instant.now();
+        final JsonObject mappedResponse = new JsonObject();
+        int invalidCount = 0;
+        int optoutCount = 0;
+        int inputTotalCount = 0;
+
+        for (Map.Entry<String, InputUtil.InputVal[]> identityType : input.entrySet()) {
+            JsonArray mappedIdentityList = new JsonArray();
+            final InputUtil.InputVal[] rawIdentityList = identityType.getValue();
+            inputTotalCount += rawIdentityList.length;
+
+            for (final InputUtil.InputVal rawId : rawIdentityList) {
+                final JsonObject resp = new JsonObject();
+                if (rawId != null && rawId.isValid()) {
+                    final MappedIdentity mappedId = idService.mapIdentity(
+                            new MapRequest(
+                                    rawId.toUserIdentity(this.identityScope, 0, now),
+                                    OptoutCheckPolicy.respectOptOut(),
+                                    now));
+
+                    if (mappedId.isOptedOut()) {
+                        resp.put("e", IdentityMapResponseType.OPTOUT);
+                        optoutCount++;
+                    } else {
+                        resp.put("u", EncodingUtils.toBase64String(mappedId.advertisingId));
+                        resp.put("p", mappedId.previousAdvertisingId == null ? null : EncodingUtils.toBase64String(mappedId.previousAdvertisingId));
+                        resp.put("r", mappedId.refreshFrom / SECOND_IN_MILLIS);
+                    }
+                } else {
+                    resp.put("e", IdentityMapResponseType.INVALID);
+                    invalidCount++;
+                }
+                mappedIdentityList.add(resp);
+            }
+            mappedResponse.put(identityType.getKey(), mappedIdentityList);
+        }
+
+        recordIdentityMapStats(rc, inputTotalCount, invalidCount, optoutCount);
+
+        return mappedResponse;
+    }
+
     private void handleIdentityMapBatchV1(RoutingContext rc) {
         try {
             final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
@@ -1589,6 +1644,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } catch (Exception e) {
             ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping batched identity", e);
         }
+    }
+
+    private boolean validateServiceLink(RoutingContext rc) {
+        JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
+        if (this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
+            return true;
+        }
+        ResponseUtil.LogErrorAndSendResponse(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
+        return false;
     }
 
     private void handleIdentityMapV2(RoutingContext rc) {
@@ -1603,11 +1667,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 return;
             }
 
-            JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
-            if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
-                ResponseUtil.LogErrorAndSendResponse(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
-                return;
-            }
+            if (!validateServiceLink(rc)) { return; }
 
             final JsonObject resp = handleIdentityMapCommon(rc, inputList);
             ResponseUtil.SuccessV2(rc, resp);
@@ -1656,6 +1716,47 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return getInputList == null ?
                 createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
                 getInputList.get();
+    }
+
+    private void handleIdentityMapV3(RoutingContext rc) {
+        try {
+            JsonObject jsonInput = (JsonObject) rc.data().get("request");
+
+            if (jsonInput == null || jsonInput.isEmpty()) {
+                ResponseUtil.LogInfoAndSend400Response(rc, phoneSupport ? ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING);
+                return;
+            }
+
+            IdentityMapV3Request input = OBJECT_MAPPER.readValue(jsonInput.toString(), IdentityMapV3Request.class);
+            final Map<String, InputUtil.InputVal[]> normalizedInput = processIdentityMapMixedInput(rc, input);
+
+            if (!validateServiceLink(rc)) { return; }
+
+            final JsonObject response = processIdentityMapV3Response(rc, normalizedInput);
+            ResponseUtil.SuccessV2(rc, response);
+        } catch (ClassCastException | JsonProcessingException processingException) {
+            ResponseUtil.LogInfoAndSend400Response(rc, "Incorrect request format");
+        } catch (Exception e) {
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v3", e);
+        }
+    }
+
+    private Map<String, InputUtil.InputVal[]> processIdentityMapMixedInput(RoutingContext rc, IdentityMapV3Request input) {
+        final Map<String, InputUtil.InputVal[]> normalizedIdentities = new HashMap<>();
+
+        var normalizedEmails = parseIdentitiesInput(input.email(), IdentityType.Email, InputUtil.IdentityInputType.Raw, rc);
+        normalizedIdentities.put("email", normalizedEmails);
+
+        var normalizedEmailHashes = parseIdentitiesInput(input.email_hash(), IdentityType.Email, InputUtil.IdentityInputType.Hash, rc);
+        normalizedIdentities.put("email_hash", normalizedEmailHashes);
+
+        var normalizedPhones = parseIdentitiesInput(input.phone(), IdentityType.Phone, InputUtil.IdentityInputType.Raw, rc);
+        normalizedIdentities.put("phone", normalizedPhones);
+
+        var normalizedPhoneHashes = parseIdentitiesInput(input.phone_hash(), IdentityType.Phone, InputUtil.IdentityInputType.Hash, rc);
+        normalizedIdentities.put("phone_hash", normalizedPhoneHashes);
+
+        return normalizedIdentities;
     }
 
     private void handleIdentityMapBatch(RoutingContext rc) {
@@ -1960,35 +2061,37 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final int size = a.size();
         final InputUtil.InputVal[] resp = new InputUtil.InputVal[size];
 
-        if (identityType == IdentityType.Email) {
-            if (inputType == InputUtil.IdentityInputType.Raw) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizeEmail(a.getString(i));
-                }
-            } else if (inputType == InputUtil.IdentityInputType.Hash) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizeEmailHash(a.getString(i));
-                }
-            } else {
-                throw new IllegalStateException("inputType");
-            }
-        } else if (identityType == IdentityType.Phone) {
-            if (inputType == InputUtil.IdentityInputType.Raw) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizePhone(a.getString(i));
-                }
-            } else if (inputType == InputUtil.IdentityInputType.Hash) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizePhoneHash(a.getString(i));
-                }
-            } else {
-                throw new IllegalStateException("inputType");
-            }
-        } else {
-            throw new IllegalStateException("identityType");
+        for (int i = 0; i < size; i++) {
+            resp[i] = normalizeIdentity(a.getString(i), identityType, inputType);
         }
 
         return resp;
+    }
+
+    private InputUtil.InputVal normalizeIdentity(String identity, IdentityType identityType, InputUtil.IdentityInputType inputType) {
+        return switch (identityType) {
+            case Email -> switch (inputType) {
+                case Raw -> InputUtil.normalizeEmail(identity);
+                case Hash -> InputUtil.normalizeEmailHash(identity);
+            };
+            case Phone -> switch (inputType) {
+                case Raw -> InputUtil.normalizePhone(identity);
+                case Hash -> InputUtil.normalizePhoneHash(identity);
+            };
+        };
+    }
+
+    private InputUtil.InputVal[] parseIdentitiesInput(IdentityMapV3Request.IdentityInput[] identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
+        if (identities == null || identities.length == 0) {
+            return new InputUtil.InputVal[0];
+        }
+        final var normalizedIdentities = new InputUtil.InputVal[identities.length];
+
+        for (int i = 0; i < identities.length; i++) {
+            normalizedIdentities[i] = normalizeIdentity(identities[i].input(), identityType, inputType);
+        }
+
+        return normalizedIdentities;
     }
 
     private UserConsentStatus validateUserConsent(JsonObject req, String apiContact) {

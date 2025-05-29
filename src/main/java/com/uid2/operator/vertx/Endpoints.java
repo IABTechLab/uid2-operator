@@ -32,6 +32,8 @@ public enum Endpoints {
     V2_OPTOUT_STATUS("/v2/optout/status"),
     V2_TOKEN_CLIENTGENERATE("/v2/token/client-generate"),
 
+    V3_IDENTITY_MAP("/v3/identity/map"),
+
     EUID_SDK_1_0_0("/static/js/euid-sdk-1.0.0.js"),
     OPENID_SDK_1_0("/static/js/openid-sdk-1.0.js"),
     UID2_ESP_0_0_1A("/static/js/uid2-esp-0.0.1a.js"),

@@ -11,7 +11,7 @@ from google.cloud import secretmanager
 from google.auth.exceptions import DefaultCredentialsError
 from google.api_core.exceptions import PermissionDenied, NotFound
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, ConfigurationMissingError, OperatorKeyNotFoundError, OperatorKeyPermissionError, ConfidentialComputeStartupError
+from confidential_compute import ConfidentialCompute, ConfigurationMissingError, OperatorKeyNotFoundError, OperatorKeyPermissionError, ConfidentialComputeStartupError
 
 
 class AuxiliaryConfig:

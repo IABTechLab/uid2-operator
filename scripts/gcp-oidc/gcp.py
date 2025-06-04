@@ -11,7 +11,7 @@ from google.api_core.exceptions import PermissionDenied, NotFound
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, ConfigurationMissingError, OperatorKeyNotFoundError, OperatorKeyPermissionError, ConfidentialComputeStartupError
 
-class GCPEntryPoint(ConfidentialCompute):
+class GCP(ConfidentialCompute):
 
     def __init__(self):
         super().__init__()
@@ -85,7 +85,7 @@ class GCPEntryPoint(ConfidentialCompute):
 
 if __name__ == "__main__":
     try:
-        gcp = GCPEntryPoint()
+        gcp = GCP()
         gcp.run_compute()
     except ConfidentialComputeStartupError as e:
         logging.error(f"Failed starting up Confidential Compute. Please checks the logs for errors and retry {e}")

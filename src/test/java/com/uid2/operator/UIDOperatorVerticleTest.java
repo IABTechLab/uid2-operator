@@ -2673,7 +2673,7 @@ public class UIDOperatorVerticleTest {
             Handler<AsyncResult<Instant>> handler = invocation.getArgument(2);
             handler.handle(Future.succeededFuture(Instant.now()));
             return null;
-        }).when(this.optOutStore).addEntry(any(), any(), any());
+        }).when(this.optOutStore).addEntry(any(), any(), any(), any(), any());
 
         send("v2", vertx, "v2/token/logout", false, null, req, 200, respJson -> {
             assertEquals("success", respJson.getString("status"));
@@ -2697,7 +2697,7 @@ public class UIDOperatorVerticleTest {
             Handler<AsyncResult<Instant>> handler = invocation.getArgument(2);
             handler.handle(Future.succeededFuture(Instant.now()));
             return null;
-        }).when(this.optOutStore).addEntry(any(), any(), any());
+        }).when(this.optOutStore).addEntry(any(), any(), any(), any(), any());
 
         send("v2", vertx, "v2/token/logout", false, null, req, 200, respJson -> {
             assertEquals("success", respJson.getString("status"));

@@ -17,5 +17,5 @@ public interface IOptOutStore {
 
     long getOptOutTimestampByAdId(String adId);
 
-    void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler);
+    void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, String uidTraceId, String serviceInstanceId, Handler<AsyncResult<Instant>> handler);
 }

@@ -207,6 +207,12 @@
             <version>5.12.0</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.uid2</groupId>
+            <artifactId>uid2-shared</artifactId>
+            <version>9.5.3</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <profiles>

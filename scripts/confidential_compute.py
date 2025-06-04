@@ -13,6 +13,7 @@ class ConfidentialComputeConfig(TypedDict):
     core_base_url: str
     optout_base_url: str
     environment: str
+    uid_instance_id_prefix: str
     skip_validations: NotRequired[bool]
     debug_mode: NotRequired[bool]
 

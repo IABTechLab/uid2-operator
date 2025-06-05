@@ -88,7 +88,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
-    public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, String uidTraceId, String serviceInstanceId, Handler<AsyncResult<Instant>> handler) {
+    public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, String uidTraceId, String uidInstanceId, Handler<AsyncResult<Instant>> handler) {
         if (remoteApiHost == null) {
             handler.handle(Future.failedFuture("remote api not set"));
             return;
@@ -98,7 +98,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.id))
             .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId))
             .putHeader("Authorization", remoteApiBearerToken)
-            .putHeader(Audit.UID_INSTANCE_ID_HEADER, serviceInstanceId)
+            .putHeader(Audit.UID_INSTANCE_ID_HEADER, uidInstanceId)
             .as(BodyCodec.string());
 
         if (uidTraceId != null) {

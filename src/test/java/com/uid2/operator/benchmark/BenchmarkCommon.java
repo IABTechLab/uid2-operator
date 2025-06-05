@@ -191,7 +191,7 @@ public class BenchmarkCommon {
         }
 
         @Override
-        public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, String uidTraceId, String serviceInstanceId, Handler<AsyncResult<Instant>> handler) {
+        public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, String uidTraceId, String uidInstanceId, Handler<AsyncResult<Instant>> handler) {
             // noop
         }
 

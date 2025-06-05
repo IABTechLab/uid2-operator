@@ -213,6 +213,12 @@
             <version>9.5.3</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>com.uid2</groupId>
+            <artifactId>uid2-shared</artifactId>
+            <version>9.5.4-alpha-236-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <profiles>

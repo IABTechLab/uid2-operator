@@ -140,9 +140,12 @@ class ConfidentialCompute(ABC):
         pass
 
     def get_uid_instance_id(self, identifier, version):
+        print(f"Generating UID Indentifier for {identifier} running version: {version}")
         identifier_hash = hashlib.sha256(identifier.encode()).hexdigest()[:6]
         cloud_provider = self.__class__.__name__.lower()
-        return f"{cloud_provider}-{identifier_hash}-{version}"
+        uid_instance_id = f"{cloud_provider}-{identifier_hash}-{version}"
+        print(f"Generated and using uid_instance_id: {uid_instance_id}")
+        return uid_instance_id
 
     @staticmethod
     def run_command(command, separate_process=False, stdout=None, stderr=None):

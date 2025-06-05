@@ -8,6 +8,7 @@ import sys
 import shutil
 import requests
 import logging
+from datetime import datetime
 from confidential_compute import ConfidentialCompute, ConfigurationMissingError, OperatorKeyPermissionError, OperatorKeyNotFoundError, ConfidentialComputeStartupError
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential, CredentialUnavailableError
@@ -78,22 +79,14 @@ class AZR(ConfidentialCompute):
             logging.error(f"Read operator key, secret not found: {AZR.secret_name}. Error: {not_found_error}")
             raise OperatorKeyNotFoundError(self.__class__.__name__, str(not_found_error))
         
-    def __get_azure_instance_info(self) -> tuple[str, str]:
+    def __get_azure_image_info(self) -> str:
         """
-        Fetches Azure VM ID, and image version from Azure Instance Metadata Service.
+        Fetches Image version from non-modifiable environment variable.
         """
-        metadata_url = "http://169.254.169.254/metadata/instance?api-version=2021-02-01"
-        headers = {"Metadata": "true"}
         try:
-            response = requests.get(metadata_url, headers=headers, timeout=2)
-            response.raise_for_status()
-            data = response.json()
-            
-            vm_id = data["compute"]["vmId"]
-            image_version = data["compute"]["imageReference"]["version"]
-            return vm_id, image_version
-        except requests.RequestException as e:
-            raise RuntimeError(f"Failed to fetch Azure instance info: {e}")
+            return os.getenv("IMAGE_NAME")
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch Azure image info: {e}")
         
 
     def _set_confidential_config(self, secret_identifier: str = None):
@@ -103,8 +96,8 @@ class AZR(ConfidentialCompute):
         self.configs["environment"] = AZR.env_name
         self.configs["core_base_url"] = os.getenv("CORE_BASE_URL") if os.getenv("CORE_BASE_URL") and AZR.env_name == "integ" else AZR.default_core_endpoint
         self.configs["optout_base_url"] = os.getenv("OPTOUT_BASE_URL")  if os.getenv("OPTOUT_BASE_URL") and AZR.env_name == "integ" else AZR.default_optout_endpoint
-        vm_id, image_version = self.__get_azure_instance_info()
-        self.configs["uid_instance_id_prefix"] = self.get_uid_instance_id(identifier=vm_id, version=image_version)
+        image_version = self.__get_azure_image_info()
+        self.configs["uid_instance_id_prefix"] = self.get_uid_instance_id(identifier=datetime.now().strftime("%H:%M:%S"), version=image_version)
         self.__set_operator_key()
 
     def __run_operator(self):

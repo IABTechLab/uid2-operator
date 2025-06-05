@@ -2,7 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
 import com.uid2.operator.util.PrivacyBits;
-import com.uid2.shared.audit.ServiceInstanceIdProvider;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.salt.ISaltProvider;
@@ -51,17 +51,17 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final boolean rawUidV3Enabled;
 
     private final Handler<Boolean> saltRetrievalResponseHandler;
-    private final ServiceInstanceIdProvider serviceInstanceIdProvider;
+    private final UidInstanceIdProvider uidInstanceIdProvider;
 
     public UIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, ServiceInstanceIdProvider serviceInstanceIdProvider) {
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = identityScope;
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
-        this.serviceInstanceIdProvider = serviceInstanceIdProvider;
+        this.uidInstanceIdProvider = uidInstanceIdProvider;
 
         this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
                 InputUtil.normalizeEmail(OptOutIdentityForEmail).getIdentityInput(), Instant.now());
@@ -187,7 +187,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
         final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf);
 
-        this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.advertisingId, uidTraceId, this.serviceInstanceIdProvider.getInstanceId(), r -> {
+        this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.advertisingId, uidTraceId, this.uidInstanceIdProvider.getInstanceId(), r -> {
             if (r.succeeded()) {
                 handler.handle(Future.succeededFuture(r.result()));
             } else {

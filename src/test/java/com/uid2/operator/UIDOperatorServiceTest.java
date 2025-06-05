@@ -8,7 +8,7 @@ import com.uid2.operator.service.InputUtil;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
-import com.uid2.shared.audit.ServiceInstanceIdProvider;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.salt.ISaltProvider;
@@ -48,7 +48,7 @@ public class UIDOperatorServiceTest {
     @Mock private Clock clock;
     @Mock private OperatorShutdownHandler shutdownHandler;
     EncryptedTokenEncoder tokenEncoder;
-    ServiceInstanceIdProvider serviceInstanceIdProvider;
+    UidInstanceIdProvider uidInstanceIdProvider;
     JsonObject uid2Config;
     JsonObject euidConfig;
     ExtendedUIDOperatorService uid2Service;
@@ -62,8 +62,8 @@ public class UIDOperatorServiceTest {
     final String FIRST_LEVEL_SALT = "first-level-salt";
 
     class ExtendedUIDOperatorService extends UIDOperatorService {
-        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, ServiceInstanceIdProvider serviceInstanceIdProvider) {
-            super(optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler, identityV3Enabled, serviceInstanceIdProvider);
+        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
+            super(optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler, identityV3Enabled, uidInstanceIdProvider);
         }
     }
 
@@ -98,7 +98,7 @@ public class UIDOperatorServiceTest {
         uid2Config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         uid2Config.put(IdentityV3Prop, false);
 
-        serviceInstanceIdProvider = new ServiceInstanceIdProvider("test-instance", "id");
+        uidInstanceIdProvider = new UidInstanceIdProvider("test-instance", "id");
 
         uid2Service = new ExtendedUIDOperatorService(
                 optOutStore,
@@ -108,7 +108,7 @@ public class UIDOperatorServiceTest {
                 IdentityScope.UID2,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 uid2Config.getBoolean(IdentityV3Prop),
-                serviceInstanceIdProvider
+                uidInstanceIdProvider
         );
 
         euidConfig = new JsonObject();
@@ -125,7 +125,7 @@ public class UIDOperatorServiceTest {
                 IdentityScope.EUID,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 euidConfig.getBoolean(IdentityV3Prop),
-                serviceInstanceIdProvider
+                uidInstanceIdProvider
         );
     }
 
@@ -154,7 +154,7 @@ public class UIDOperatorServiceTest {
                 IdentityScope.UID2,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 uid2Config.getBoolean(IdentityV3Prop),
-                serviceInstanceIdProvider
+                uidInstanceIdProvider
         );
 
         return saltSnapshot;
@@ -814,7 +814,7 @@ public class UIDOperatorServiceTest {
                 IdentityScope.UID2,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 uid2Config.getBoolean(IdentityV3Prop),
-                serviceInstanceIdProvider
+                uidInstanceIdProvider
         );
 
         UIDOperatorService euidService = new UIDOperatorService(
@@ -825,7 +825,7 @@ public class UIDOperatorServiceTest {
                 IdentityScope.EUID,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 euidConfig.getBoolean(IdentityV3Prop),
-                serviceInstanceIdProvider
+                uidInstanceIdProvider
         );
 
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);

@@ -9,7 +9,7 @@ import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.CloudSyncOptOutStore;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.Utils;
-import com.uid2.shared.audit.ServiceInstanceIdProvider;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Role;
 import com.uid2.shared.cloud.CloudStorageException;
@@ -79,7 +79,7 @@ public class BenchmarkCommon {
                 IdentityScope.UID2,
                 null,
                 false,
-                new ServiceInstanceIdProvider("test-instance", "id")
+                new UidInstanceIdProvider("test-instance", "id")
         );
     }
 

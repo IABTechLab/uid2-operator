@@ -16,7 +16,7 @@ import com.uid2.operator.util.Tuple;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.Utils;
-import com.uid2.shared.audit.ServiceInstanceIdProvider;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Keyset;
 import com.uid2.shared.auth.KeysetSnapshot;
@@ -132,7 +132,7 @@ public class UIDOperatorVerticleTest {
     private OperatorShutdownHandler shutdownHandler;
     @Mock
     private IConfigStore configStore;
-    private ServiceInstanceIdProvider serviceInstanceIdProvider;
+    private UidInstanceIdProvider uidInstanceIdProvider;
 
     private SimpleMeterRegistry registry;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
@@ -161,9 +161,9 @@ public class UIDOperatorVerticleTest {
         config.put("allow_legacy_api", true);
         when(configStore.getConfig()).thenAnswer(x -> runtimeConfig);
 
-        this.serviceInstanceIdProvider = new ServiceInstanceIdProvider("test-instance", "id");
+        this.uidInstanceIdProvider = new UidInstanceIdProvider("test-instance", "id");
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse, serviceInstanceIdProvider);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse, uidInstanceIdProvider);
 
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 

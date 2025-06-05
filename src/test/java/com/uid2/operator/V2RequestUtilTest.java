@@ -11,6 +11,7 @@ import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.model.KeysetKey;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RequestBody;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

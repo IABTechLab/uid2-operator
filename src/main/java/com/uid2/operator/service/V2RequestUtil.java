@@ -3,6 +3,7 @@ package com.uid2.operator.service;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.vertx.ClientInputValidationException;
+import com.uid2.operator.vertx.V2PayloadHandler;
 import com.uid2.shared.IClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -11,6 +12,8 @@ import com.uid2.shared.encryption.Random;
 import com.uid2.shared.model.KeysetKey;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RequestBody;
+import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,6 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 public class V2RequestUtil {
     public static class V2Request {
@@ -55,6 +60,34 @@ public class V2RequestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
+    public static byte[] compressPayload(byte[] input) {
+        Deflater compressor = new Deflater();
+        Buffer compressedBuffer = Buffer.buffer();
+        compressor.setInput(input);
+        compressor.finish();
+        while (!compressor.finished()) {
+            byte[] tempBuffer = new byte[1024];
+            int compressedSize = compressor.deflate(tempBuffer);
+            compressedBuffer.appendBytes(tempBuffer,0, compressedSize);
+        }
+        compressor.end();
+        LOGGER.info("Compressed raw payload: " + compressedBuffer.length());
+        return compressedBuffer.getBytes();
+    }
+
+    public static byte[] decompressPayload(byte[] payload) throws Exception{
+        Inflater decompressor = new Inflater();
+        decompressor.setInput(payload, 0, payload.length);
+        Buffer outputBuffer = Buffer.buffer();
+        while (!decompressor.finished()) {
+            byte[] tempBuffer = new byte[1024];
+            int compressedSize = decompressor.inflate(tempBuffer);
+            outputBuffer.appendBytes(tempBuffer, 0, compressedSize);
+        }
+        decompressor.end();
+        return outputBuffer.getBytes();
+    }
+
     // clock is passed in to test V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES in unit tests
     public static V2Request parseRequest(String bodyString, ClientKey ck, IClock clock) {
         if (bodyString == null) {
@@ -67,7 +100,12 @@ public class V2RequestUtil {
             //  byte 0: version
             //  byte 1-12: GCM IV
             //  byte 13-end: encrypted payload + GCM AUTH TAG
-            bodyBytes = Utils.decodeBase64String(bodyString);
+            if (V2PayloadHandler.ENABLE_COMPRESSION) {
+                bodyBytes = requestBody.buffer().getBytes();
+            } else {
+                bodyBytes = Utils.decodeBase64String(requestBody.asString());
+            }
+
         } catch (IllegalArgumentException ex) {
             return new V2Request("Invalid body: Body is not valid base64.");
         }
@@ -87,11 +125,22 @@ public class V2RequestUtil {
             return new V2Request("Invalid body: Check encryption key (ClientSecret)");
         }
 
+        byte[] finalBody;
+        if (V2PayloadHandler.ENABLE_COMPRESSION) {
+            try {
+                finalBody = decompressPayload(decryptedBody);
+            } catch (Exception ex) {
+                return new V2Request("Invalid body: Check compression method.");
+            }
+        } else {
+            finalBody = decryptedBody;
+        }
+
         // Request envelop format:
         //  byte 0-7: timestamp
         //  byte 8-15: nonce
         //  byte 16-end: base64 encoded request json
-        Buffer b = Buffer.buffer(decryptedBody);
+        Buffer b = Buffer.buffer(finalBody);
         Instant tm = Instant.ofEpochMilli(b.getLong(0));
         if (Math.abs(Duration.between(tm, clock.now()).toMinutes()) >
                 V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
@@ -99,10 +148,10 @@ public class V2RequestUtil {
         }
 
         JsonObject payload = null;
-        if (decryptedBody.length > 16) {
+        if (finalBody.length > 16) {
             try {
                 // Skip 8 bytes timestamp, 8 bytes nonce
-                String bodyStr = new String(decryptedBody, 16, decryptedBody.length - 16, StandardCharsets.UTF_8);
+                String bodyStr = new String(finalBody, 16, finalBody.length - 16, StandardCharsets.UTF_8);
                 payload = new JsonObject(bodyStr);
             } catch (Exception ex) {
                 LOGGER.error("Invalid payload in body: Data is not valid json string.");

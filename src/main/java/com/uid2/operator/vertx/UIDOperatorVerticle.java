@@ -79,7 +79,7 @@ import static com.uid2.operator.service.ResponseUtil.*;
 import static com.uid2.operator.vertx.Endpoints.*;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
-    private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
+    public static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     /**
      * There is currently an issue with v2 tokens (and possibly also other ad token versions) where the token lifetime

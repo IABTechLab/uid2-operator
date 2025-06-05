@@ -20,8 +20,10 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
+import java.util.zip.Deflater;
 
 import static com.uid2.operator.service.ResponseUtil.SendClientErrorResponseAndRecordStats;
 
@@ -36,6 +38,8 @@ public class V2PayloadHandler {
 
     private ISiteStore siteProvider;
 
+    public static boolean ENABLE_COMPRESSION = true;
+
     public V2PayloadHandler(KeyManager keyManager, Boolean enableEncryption, IdentityScope identityScope, ISiteStore siteProvider) {
         this.keyManager = keyManager;
         this.enableEncryption = enableEncryption;
@@ -49,7 +53,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
             ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
@@ -67,7 +71,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
             ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
@@ -85,7 +89,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
             SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
             return;
@@ -184,8 +188,23 @@ public class V2PayloadHandler {
         buffer.appendBytes(nonce);
         buffer.appendBytes(resp.encode().getBytes(StandardCharsets.UTF_8));
 
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
-        rc.response().end(Utils.toBase64String(AesGcm.encrypt(buffer.getBytes(), keyBytes)));
+        byte[] finalData;
+        LOGGER.info("Uncompressed raw payload: " + buffer.length());
+        if (ENABLE_COMPRESSION) {
+            finalData = V2RequestUtil.compressPayload(buffer.getBytes());
+            Buffer encryptedBuffer = Buffer.buffer(AesGcm.encrypt(finalData, keyBytes));
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/octet-stream");
+            rc.response().putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(encryptedBuffer.length()));
+            rc.response().putHeader("With-Compression", "true");
+            LOGGER.info("With compression and binary: Final response payload length: {}", encryptedBuffer.length());
+            rc.response().end(encryptedBuffer);
+        } else {
+            finalData = buffer.getBytes();
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
+            var encrypted = Utils.toBase64String(AesGcm.encrypt(finalData, keyBytes));
+            LOGGER.info("Without compression Final response payload length: {}", encrypted.length());
+            rc.response().end(encrypted);
+        }
     }
 
     private void handleResponse(RoutingContext rc, V2RequestUtil.V2Request request) {

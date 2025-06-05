@@ -15,6 +15,7 @@ import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
+import com.uid2.operator.vertx.V2PayloadHandler;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Keyset;
@@ -36,6 +37,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -69,10 +71,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
+
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
 import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.*;
+import static com.uid2.operator.vertx.V2PayloadHandler.*;
 import static com.uid2.shared.Const.Data.*;
 import static com.uid2.shared.Const.Http.ClientVersionHeader;
 import static org.junit.jupiter.api.Assertions.*;
@@ -249,10 +255,18 @@ public class UIDOperatorVerticleTest {
                 assertEquals(expectedHttpCode, ar.result().statusCode());
 
                 if (ar.result().statusCode() == 200) {
-                    byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, ck.getSecretBytes());
-                    assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
-
-                    JsonObject respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
+                    JsonObject respJson = new JsonObject();
+                    if (V2PayloadHandler.ENABLE_COMPRESSION) {
+                        try {
+                            byte[] decrypted = AesGcm.decrypt(ar.result().bodyAsBuffer().getBytes(), 0, ck.getSecretBytes());
+                            byte[] decompressed = V2RequestUtil.decompressPayload(decrypted);
+                            respJson = new JsonObject(new String(decompressed, 16, decompressed.length - 16, StandardCharsets.UTF_8));
+                        } catch (Exception e) {}
+                    } else {
+                        byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, ck.getSecretBytes());
+                        assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
+                        respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
+                    }
 
                     handler.handle(respJson);
                 } else {
@@ -425,6 +439,7 @@ public class UIDOperatorVerticleTest {
     private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, String referer, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
         postV2(ck, vertx, endpoint, body, nonce, referer, handler, null, null);
     }
+
     private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, String referer, Handler<AsyncResult<HttpResponse<Buffer>>> handler, String headerName, String headerValue) {
         WebClient client = WebClient.create(vertx);
 
@@ -436,23 +451,51 @@ public class UIDOperatorVerticleTest {
             b.appendBytes(body.encode().getBytes(StandardCharsets.UTF_8));
 
         Buffer bufBody = Buffer.buffer();
-        bufBody.appendByte((byte) 1);
-        if (ck != null) {
-            bufBody.appendBytes(AesGcm.encrypt(b.getBytes(), ck.getSecretBytes()));
-        }
+        if (ENABLE_COMPRESSION) {
+            byte[] compressed = V2RequestUtil.compressPayload(b.getBytes());
+            bufBody.appendByte((byte) 1);
+            if (ck != null) {
+                bufBody.appendBytes(AesGcm.encrypt(compressed, ck.getSecretBytes()));
+            }
+            final String apiKey = ck == null ? "" : clientKey;
+            HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
+                    .putHeader("Authorization", "Bearer " + apiKey)
+                    .putHeader("Content-Type", "application/octet-stream")
+                    .putHeader("Content-Length", String.valueOf(bufBody.length()))
+                    .putHeader("With-Compression", "true");
 
-        final String apiKey = ck == null ? "" : clientKey;
-        HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
-                .putHeader("Authorization", "Bearer " + apiKey)
-                .putHeader("content-type", "text/plain");
-        if (headerName != null) {
-            request.putHeader(headerName, headerValue);
-        }
+            if (headerName != null) {
+                request.putHeader(headerName, headerValue);
+            }
 
-        if (referer != null) {
-            request.putHeader("Referer", referer);
+            if (referer != null) {
+                request.putHeader("Referer", referer);
+            }
+
+            LOGGER.info("With compression and binary: Final request payload: {}", bufBody.length());
+            request.sendBuffer(bufBody, handler);
+        } else {
+            bufBody.appendByte((byte) 1);
+            if (ck != null) {
+                bufBody.appendBytes(AesGcm.encrypt(b.getBytes(), ck.getSecretBytes()));
+            }
+            final String apiKey = ck == null ? "" : clientKey;
+            HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
+                    .putHeader("Authorization", "Bearer " + apiKey)
+                    .putHeader("content-type", "text/plain");
+
+            if (headerName != null) {
+                request.putHeader(headerName, headerValue);
+            }
+
+            if (referer != null) {
+                request.putHeader("Referer", referer);
+            }
+
+            var finalData = Buffer.buffer(Utils.toBase64String(bufBody.getBytes()).getBytes(StandardCharsets.UTF_8));
+            LOGGER.info("Without compression: Final request payload: {}", finalData.length());
+            request.sendBuffer(finalData, handler);
         }
-        request.sendBuffer(Buffer.buffer(Utils.toBase64String(bufBody.getBytes()).getBytes(StandardCharsets.UTF_8)), handler);
     }
 
     private void checkEncryptionKeysResponse(JsonObject response, KeysetKey... expectedKeys) {
@@ -1253,6 +1296,47 @@ public class UIDOperatorVerticleTest {
             );
             assertEquals(expectedMappedEmails, mappedEmails.getJsonObject(0));
 
+            testContext.completeNow();
+        });
+    }
+
+    protected String getRandomString() {
+        String SALTCHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+        StringBuilder salt = new StringBuilder();
+        java.util.Random rnd = new java.util.Random();
+        while (salt.length() < 15) { // length of the random string.
+            int index = (int) (rnd.nextFloat() * SALTCHARS.length());
+            salt.append(SALTCHARS.charAt(index));
+        }
+        return salt.toString();
+    }
+
+    @Test
+    void compressionTesting(Vertx vertx, VertxTestContext testContext) {
+        Instant asOf = Instant.now();
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+        var lastUpdated = Instant.now().minus(1, DAYS);
+        var refreshFrom = lastUpdated.plus(30, DAYS);
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated.toEpochMilli(), "salt", refreshFrom.toEpochMilli(), "previousSalt", null, null);
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        JsonObject request = new JsonObject();
+
+        var identityListEmailHash = new JsonArray();
+        for (int j = 0; j < 5000; j++) {
+            identityListEmailHash.add(JsonObject.of("i", TokenUtils.getIdentityHashString(getRandomString() + "@example.com")));
+            identityListEmailHash.add(JsonObject.of("i", getRandomString() + "invalid"));
+        }
+        request.put("email_hash", identityListEmailHash);
+
+        send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
+            JsonObject body = respJson.getJsonObject("body");
+            assertEquals(Set.of("email", "email_hash", "phone", "phone_hash"), body.fieldNames());
+            assertEquals(10000, body.getJsonArray("email_hash").size());
+            Instant testEnd = Instant.now();
+            LOGGER.info("completion time: {}ms", Duration.between(testEnd, asOf));
             testContext.completeNow();
         });
     }

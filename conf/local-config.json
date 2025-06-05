@@ -41,5 +41,6 @@
   "operator_type": "public",
   "encrypted_files": false,
   "disable_optout_token": true,
-  "enable_remote_config": false
+  "enable_remote_config": false,
+  "uid_instance_id_prefix": "local-operator"
 }

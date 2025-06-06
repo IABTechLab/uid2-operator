@@ -8,14 +8,14 @@ import sys
 import shutil
 import requests
 import logging
+from datetime import datetime
 from confidential_compute import ConfidentialCompute, ConfigurationMissingError, OperatorKeyPermissionError, OperatorKeyNotFoundError, ConfidentialComputeStartupError
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential, CredentialUnavailableError
 from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-class AzureEntryPoint(ConfidentialCompute):
-  
+class AZR(ConfidentialCompute):
     kv_name = os.getenv("VAULT_NAME")
     secret_name = os.getenv("OPERATOR_KEY_SECRET_NAME")
     env_name = os.getenv("DEPLOYMENT_ENVIRONMENT")
@@ -31,79 +31,87 @@ class AzureEntryPoint(ConfidentialCompute):
 
     def __check_env_variables(self):
         # Check essential env variables
-        if AzureEntryPoint.kv_name is None:
+        if AZR.kv_name is None:
             raise ConfigurationMissingError(self.__class__.__name__, ["VAULT_NAME"])        
-        if AzureEntryPoint.secret_name is None:
+        if AZR.secret_name is None:
             raise ConfigurationMissingError(self.__class__.__name__, ["OPERATOR_KEY_SECRET_NAME"])        
-        if AzureEntryPoint.env_name is None:
+        if AZR.env_name is None:
             raise ConfigurationMissingError(self.__class__.__name__, ["DEPLOYMENT_ENVIRONMENT"])        
         logging.info("Environment variables validation success")
 
     def __create_final_config(self):      
-        TARGET_CONFIG = f"/app/conf/{AzureEntryPoint.env_name}-uid2-config.json"
+        TARGET_CONFIG = f"/app/conf/{AZR.env_name}-uid2-config.json"
         if not os.path.isfile(TARGET_CONFIG):
             logging.error(f"Unrecognized config {TARGET_CONFIG}")
             sys.exit(1)
 
-        logging.info(f"-- copying {TARGET_CONFIG} to {AzureEntryPoint.FINAL_CONFIG}")
+        logging.info(f"-- copying {TARGET_CONFIG} to {AZR.FINAL_CONFIG}")
         try:
-            shutil.copy(TARGET_CONFIG, AzureEntryPoint.FINAL_CONFIG)
+            shutil.copy(TARGET_CONFIG, AZR.FINAL_CONFIG)
         except IOError as e:
-            logging.error(f"Failed to create {AzureEntryPoint.FINAL_CONFIG} with error: {e}")
+            logging.error(f"Failed to create {AZR.FINAL_CONFIG} with error: {e}")
             sys.exit(1)
         
         logging.info(f"-- replacing URLs by {self.configs["core_base_url"]} and {self.configs["optout_base_url"]}")
-        with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
+        with open(AZR.FINAL_CONFIG, "r") as file:
             config = file.read()
 
         config = config.replace("https://core.uidapi.com", self.configs["core_base_url"])
         config = config.replace("https://optout.uidapi.com", self.configs["optout_base_url"])
-        with open(AzureEntryPoint.FINAL_CONFIG, "w") as file:
+        with open(AZR.FINAL_CONFIG, "w") as file:
             file.write(config)
 
-        with open(AzureEntryPoint.FINAL_CONFIG, "r") as file:
+        with open(AZR.FINAL_CONFIG, "r") as file:
             logging.info(file.read())
 
     def __set_operator_key(self):
         try:
             credential = DefaultAzureCredential()
-            kv_URL = f"https://{AzureEntryPoint.kv_name}.vault.azure.net"
+            kv_URL = f"https://{AZR.kv_name}.vault.azure.net"
             secret_client = SecretClient(vault_url=kv_URL, credential=credential)
-            secret = secret_client.get_secret(AzureEntryPoint.secret_name)
+            secret = secret_client.get_secret(AZR.secret_name)
             self.configs["operator_key"] = secret.value
 
         except (CredentialUnavailableError, ClientAuthenticationError) as auth_error:
             logging.error(f"Read operator key, authentication error: {auth_error}")
             raise OperatorKeyPermissionError(self.__class__.__name__, str(auth_error))
         except ResourceNotFoundError as not_found_error:
-            logging.error(f"Read operator key, secret not found: {AzureEntryPoint.secret_name}. Error: {not_found_error}")
+            logging.error(f"Read operator key, secret not found: {AZR.secret_name}. Error: {not_found_error}")
             raise OperatorKeyNotFoundError(self.__class__.__name__, str(not_found_error))
+        
+    def __get_azure_image_info(self) -> str:
+        """
+        Fetches Image version from non-modifiable environment variable.
+        """
+        try:
+            return os.getenv("IMAGE_NAME")
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch Azure image info: {e}")
         
 
     def _set_confidential_config(self, secret_identifier: str = None):
         """Builds and sets ConfidentialComputeConfig"""
         self.configs["skip_validations"] = os.getenv("SKIP_VALIDATIONS", "false").lower() == "true"
         self.configs["debug_mode"] = os.getenv("DEBUG_MODE", "false").lower() == "true"
-        self.configs["environment"] = AzureEntryPoint.env_name
-        self.configs["core_base_url"] = os.getenv("CORE_BASE_URL") if os.getenv("CORE_BASE_URL") and AzureEntryPoint.env_name == "integ" else AzureEntryPoint.default_core_endpoint
-        self.configs["optout_base_url"] = os.getenv("OPTOUT_BASE_URL")  if os.getenv("OPTOUT_BASE_URL") and AzureEntryPoint.env_name == "integ" else AzureEntryPoint.default_optout_endpoint
+        self.configs["environment"] = AZR.env_name
+        self.configs["core_base_url"] = os.getenv("CORE_BASE_URL") if os.getenv("CORE_BASE_URL") and AZR.env_name == "integ" else AZR.default_core_endpoint
+        self.configs["optout_base_url"] = os.getenv("OPTOUT_BASE_URL")  if os.getenv("OPTOUT_BASE_URL") and AZR.env_name == "integ" else AZR.default_optout_endpoint
+        image_version = self.__get_azure_image_info()
+        self.configs["uid_instance_id_prefix"] = self.get_uid_instance_id(identifier=datetime.now().strftime("%H:%M:%S"), version=image_version)
         self.__set_operator_key()
 
     def __run_operator(self):
-
-        # Start the operator
-        os.environ["azure_vault_name"] = AzureEntryPoint.kv_name
-        os.environ["azure_secret_name"] = AzureEntryPoint.secret_name
-
+        os.environ["azure_vault_name"] = AZR.kv_name
+        os.environ["azure_secret_name"] = AZR.secret_name
         java_command = [
             "java",
             "-XX:MaxRAMPercentage=95", "-XX:-UseCompressedOops", "-XX:+PrintFlagsFinal",
             "-Djava.security.egd=file:/dev/./urandom",
             "-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory",
             "-Dlogback.configurationFile=/app/conf/logback.xml",
-            f"-Dvertx-config-path={AzureEntryPoint.FINAL_CONFIG}",
+            f"-Dvertx-config-path={AZR.FINAL_CONFIG}",
             "-jar", 
-            f"{AzureEntryPoint.jar_name}-{AzureEntryPoint.jar_version}.jar"
+            f"{AZR.jar_name}-{AZR.jar_version}.jar"
         ]
         logging.info("-- starting java operator application")
         self.run_command(java_command, separate_process=False)
@@ -152,9 +160,9 @@ class AzureEntryPoint(ConfidentialCompute):
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
-    logging.info("Start AzureEntryPoint")
+    logging.info("Start Azure")
     try:
-        operator = AzureEntryPoint()
+        operator = AZR()
         operator.run_compute()
     except ConfidentialComputeStartupError as e:
         logging.error(f"Failed starting up Azure Confidential Compute. Please checks the logs for errors and retry {e}", exc_info=True)

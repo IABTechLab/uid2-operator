@@ -6,21 +6,23 @@ from abc import ABC, abstractmethod
 from typing import TypedDict, NotRequired, get_type_hints
 import subprocess
 import logging
+import hashlib
 
 class ConfidentialComputeConfig(TypedDict):
     operator_key: str
     core_base_url: str
     optout_base_url: str
     environment: str
+    uid_instance_id_prefix: str
     skip_validations: NotRequired[bool]
     debug_mode: NotRequired[bool]
 
 class ConfidentialComputeStartupError(Exception):
     def __init__(self, error_name, provider, extra_message=None):
         urls = {
-            "EC2EntryPoint": "https://unifiedid.com/docs/guides/operator-guide-aws-marketplace#uid2-operator-error-codes",
-            "AzureEntryPoint": "https://unifiedid.com/docs/guides/operator-guide-azure-enclave#uid2-operator-error-codes",
-            "GCPEntryPoint": "https://unifiedid.com/docs/guides/operator-private-gcp-confidential-space#uid2-operator-error-codes",
+            "EC2": "https://unifiedid.com/docs/guides/operator-guide-aws-marketplace#uid2-operator-error-codes",
+            "AZR": "https://unifiedid.com/docs/guides/operator-guide-azure-enclave#uid2-operator-error-codes",
+            "GCP": "https://unifiedid.com/docs/guides/operator-private-gcp-confidential-space#uid2-operator-error-codes",
         }
         url = urls.get(provider)
         super().__init__(f"{error_name}\n" + (extra_message if extra_message else "") + f"\nVisit {url} for more details")
@@ -136,6 +138,14 @@ class ConfidentialCompute(ABC):
     def run_compute(self) -> None:
         """ Runs confidential computing."""
         pass
+
+    def get_uid_instance_id(self, identifier, version):
+        logging.info(f"Generating UID Indentifier for {identifier} running version: {version}")
+        identifier_hash = hashlib.sha256(identifier.encode()).hexdigest()[:6]
+        cloud_provider = self.__class__.__name__.lower()
+        uid_instance_id = f"{cloud_provider}-{identifier_hash}-{version}"
+        logging.info(f"Generated and using uid_instance_id: {uid_instance_id}")
+        return uid_instance_id
 
     @staticmethod
     def run_command(command, separate_process=False, stdout=None, stderr=None):

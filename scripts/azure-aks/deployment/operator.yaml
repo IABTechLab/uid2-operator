@@ -50,6 +50,8 @@ spec:
               value: OPERATOR_KEY_SECRET_NAME_PLACEHOLDER
             - name: DEPLOYMENT_ENVIRONMENT
               value: DEPLOYMENT_ENVIRONMENT_PLACEHOLDER
+            - name: IMAGE_NAME
+              value: IMAGE_PLACEHOLDER
           ports:
             - containerPort: 8080
               protocol: TCP

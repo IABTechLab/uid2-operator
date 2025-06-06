@@ -71,7 +71,7 @@ public class V2RequestUtil {
             compressedBuffer.appendBytes(tempBuffer,0, compressedSize);
         }
         compressor.end();
-        LOGGER.info("Compressed raw payload: " + compressedBuffer.length());
+        //LOGGER.info("Compressed raw payload: " + compressedBuffer.length());
         return compressedBuffer.getBytes();
     }
 
@@ -88,26 +88,34 @@ public class V2RequestUtil {
         return outputBuffer.getBytes();
     }
 
+    public static V2Request parseRequestAsBuffer(Buffer bodyBuffer, ClientKey ck, IClock clock, boolean withCompression) {
+        if (bodyBuffer == null) {
+            return new V2Request("Invalid body: Body is missing.");
+        }
+        return parseRequest(bodyBuffer.getBytes(), ck, clock, withCompression);
+    }
+
     // clock is passed in to test V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES in unit tests
-    public static V2Request parseRequest(String bodyString, ClientKey ck, IClock clock) {
+    public static V2Request parseRequestAsString(String bodyString, ClientKey ck, IClock clock, boolean withCompression) {
         if (bodyString == null) {
             return new V2Request("Invalid body: Body is missing.");
         }
-
         byte[] bodyBytes;
         try {
-            // Payload envelop format:
-            //  byte 0: version
-            //  byte 1-12: GCM IV
-            //  byte 13-end: encrypted payload + GCM AUTH TAG
-            if (V2PayloadHandler.ENABLE_COMPRESSION) {
-                bodyBytes = requestBody.buffer().getBytes();
-            } else {
-                bodyBytes = Utils.decodeBase64String(requestBody.asString());
-            }
-
+            bodyBytes = Utils.decodeBase64String(bodyString);
         } catch (IllegalArgumentException ex) {
             return new V2Request("Invalid body: Body is not valid base64.");
+        }
+        return parseRequest(bodyBytes, ck, clock, withCompression);
+    }
+
+    private static V2Request parseRequest(byte[] bodyBytes, ClientKey ck, IClock clock, boolean withCompression) {
+        // Payload envelop format:
+        //  byte 0: version
+        //  byte 1-12: GCM IV
+        //  byte 13-end: encrypted payload + GCM AUTH TAG
+        if (bodyBytes == null || bodyBytes.length == 0) {
+            return new V2Request("Invalid body: Body is missing.");
         }
 
         if (bodyBytes.length < MIN_PAYLOAD_LENGTH) {
@@ -126,7 +134,7 @@ public class V2RequestUtil {
         }
 
         byte[] finalBody;
-        if (V2PayloadHandler.ENABLE_COMPRESSION) {
+        if (withCompression) {
             try {
                 finalBody = decompressPayload(decryptedBody);
             } catch (Exception ex) {

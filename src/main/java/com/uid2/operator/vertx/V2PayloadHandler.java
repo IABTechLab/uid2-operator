@@ -38,8 +38,6 @@ public class V2PayloadHandler {
 
     private ISiteStore siteProvider;
 
-    public static boolean ENABLE_COMPRESSION = true;
-
     public V2PayloadHandler(KeyManager keyManager, Boolean enableEncryption, IdentityScope identityScope, ISiteStore siteProvider) {
         this.keyManager = keyManager;
         this.enableEncryption = enableEncryption;
@@ -52,8 +50,13 @@ public class V2PayloadHandler {
             passThrough(rc, apiHandler);
             return;
         }
-
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request;
+        boolean hasCompression = rc.request().headers().contains("With-Compression") && rc.request().getHeader("With-Compression").equals("true");
+        if (rc.request().getHeader("Content-Type").equals("application/octet-stream")) {
+            request = V2RequestUtil.parseRequestAsBuffer(rc.body().buffer(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock(), hasCompression);
+        } else {
+            request = V2RequestUtil.parseRequestAsString(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock(), hasCompression);
+        }
         if (!request.isValid()) {
             ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
@@ -71,7 +74,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequestAsString(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock(), false);
         if (!request.isValid()) {
             ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
@@ -89,7 +92,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequestAsString(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock(), false);
         if (!request.isValid()) {
             SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
             return;
@@ -182,28 +185,42 @@ public class V2PayloadHandler {
             .end(respJson.encode());
     }
 
-    private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
+    public static byte[] writeResponseBody(byte[] nonce, JsonObject resp, byte[] keyBytes, boolean withCompression, boolean binary) {
         Buffer buffer = Buffer.buffer();
         buffer.appendLong(EncodingUtils.NowUTCMillis().toEpochMilli());
         buffer.appendBytes(nonce);
         buffer.appendBytes(resp.encode().getBytes(StandardCharsets.UTF_8));
 
-        byte[] finalData;
-        LOGGER.info("Uncompressed raw payload: " + buffer.length());
-        if (ENABLE_COMPRESSION) {
-            finalData = V2RequestUtil.compressPayload(buffer.getBytes());
-            Buffer encryptedBuffer = Buffer.buffer(AesGcm.encrypt(finalData, keyBytes));
-            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/octet-stream");
-            rc.response().putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(encryptedBuffer.length()));
+        byte[] response = buffer.getBytes();
+        //LOGGER.info("Uncompressed raw payload: " + buffer.length());
+        if (withCompression) {
+            response = V2RequestUtil.compressPayload(buffer.getBytes());
+        }
+        return AesGcm.encrypt(response, keyBytes);
+    }
+
+    private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
+        boolean withCompression = "true".equals(rc.request().getHeader("With-Compression"));
+        boolean binary = "application/octet-stream".equals(rc.request().getHeader("Content-Type"));
+
+        if (withCompression) {
             rc.response().putHeader("With-Compression", "true");
-            LOGGER.info("With compression and binary: Final response payload length: {}", encryptedBuffer.length());
-            rc.response().end(encryptedBuffer);
         } else {
-            finalData = buffer.getBytes();
             rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
-            var encrypted = Utils.toBase64String(AesGcm.encrypt(finalData, keyBytes));
-            LOGGER.info("Without compression Final response payload length: {}", encrypted.length());
-            rc.response().end(encrypted);
+        }
+        if (binary) {
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/octet-stream");
+        }
+
+        var response = writeResponseBody(nonce, resp, keyBytes, withCompression, binary);
+        if (binary) {
+            Buffer respBuffer = Buffer.buffer(response);
+            //LOGGER.info("Final response payload: {}", respBuffer.length());
+            rc.response().end(respBuffer);
+        } else {
+            String respString = Utils.toBase64String(response);
+            //LOGGER.info("Final response payload: {}", respString.length());
+            rc.response().end(respString);
         }
     }
 

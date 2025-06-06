@@ -105,13 +105,13 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                     failure = new Exception("optout api http status: " + String.valueOf(ar.result().statusCode()));
                 }
 
-                if (failure == null) {
-                    handler.handle(Future.succeededFuture(Utils.nowUTCMillis()));
-                } else {
-                    LOGGER.error("CloudSyncOptOutStore.addEntry remote web request failed", failure);
-                    handler.handle(Future.failedFuture(failure));
-                }
-            });
+            if (failure == null) {
+                handler.handle(Future.succeededFuture(Utils.nowUTCMillis()));
+            } else {
+                LOGGER.error("CloudSyncOptOutStore.addEntry remote web request failed", failure);
+                handler.handle(Future.failedFuture(failure));
+            }
+        });
     }
 
     public void registerCloudSync(OptOutCloudSync cloudSync) {

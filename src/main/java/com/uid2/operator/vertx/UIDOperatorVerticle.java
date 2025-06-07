@@ -21,6 +21,8 @@ import com.uid2.operator.util.RoutingContextUtil;
 import com.uid2.operator.util.Tuple;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
+import com.uid2.shared.audit.Audit;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.auth.*;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
@@ -105,6 +107,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final boolean allowLegacyAPI;
     private final boolean identityV3Enabled;
     private final boolean disableOptoutToken;
+    private final UidInstanceIdProvider uidInstanceIdProvider;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
@@ -161,7 +164,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue,
                                SecureLinkValidatorService secureLinkValidatorService,
-                               Handler<Boolean> saltRetrievalResponseHandler) {
+                               Handler<Boolean> saltRetrievalResponseHandler,
+                               UidInstanceIdProvider uidInstanceIdProvider) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -195,6 +199,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.allowLegacyAPI = config.getBoolean(Const.Config.AllowLegacyAPIProp, false);
         this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
         this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
+        this.uidInstanceIdProvider = uidInstanceIdProvider;
     }
 
     @Override
@@ -207,7 +212,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.clock,
                 this.identityScope,
                 this.saltRetrievalResponseHandler,
-                this.identityV3Enabled
+                this.identityV3Enabled,
+                this.uidInstanceIdProvider
         );
 
         final Router router = createRoutesSetup();
@@ -1214,9 +1220,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleLogoutAsync(RoutingContext rc) {
         final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
+        final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
         if (input.isValid()) {
             final Instant now = Instant.now();
-            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, ar -> {
+            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, uidTraceId, ar -> {
                 if (ar.succeeded()) {
                     rc.response().end("OK");
                 } else {
@@ -1231,11 +1238,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private Future handleLogoutAsyncV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
+        final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
         if (input.isValid()) {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
-            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, ar -> {
+            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, uidTraceId, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
                     body.put("optout", "OK");

@@ -42,5 +42,6 @@
   "client_side_token_generate_log_invalid_http_origins": true,
   "salts_expired_shutdown_hours": 12,
   "operator_type": "private",
-  "enable_remote_config": false
+  "enable_remote_config": false,
+  "uid_instance_id_prefix": "local-private-operator"
 }

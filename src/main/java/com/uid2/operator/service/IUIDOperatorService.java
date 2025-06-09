@@ -22,7 +22,7 @@ public interface IUIDOperatorService {
 
     List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
 
-    void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler);
+    void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, Handler<AsyncResult<Instant>> handler);
 
     boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf);
 

@@ -22,7 +22,7 @@
         <enclave-aws.version>2.1.0</enclave-aws.version>
         <enclave-azure.version>2.1.13</enclave-azure.version>
         <enclave-gcp.version>2.1.0</enclave-gcp.version>
-        <uid2-shared.version>9.4.14</uid2-shared.version>
+        <uid2-shared.version>10.0.0</uid2-shared.version>
         <image.version>${project.version}</image.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
@@ -206,12 +206,6 @@
             <artifactId>mockito-junit-jupiter</artifactId>
             <version>5.12.0</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.uid2</groupId>
-            <artifactId>uid2-shared</artifactId>
-            <version>9.5.4-alpha-236-SNAPSHOT</version>
-            <scope>compile</scope>
         </dependency>
     </dependencies>
 

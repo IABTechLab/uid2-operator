@@ -42,8 +42,6 @@ public class IdentityMapBenchmark {
         @Param({"100", "1000", "10000"})
         int numRecords;
 
-        Buffer payloadCompressedBinary;
-        String payloadCompressed;
         Buffer payloadBinary;
         String payloadNone;
 

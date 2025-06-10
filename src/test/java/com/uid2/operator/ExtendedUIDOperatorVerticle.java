@@ -7,6 +7,7 @@ import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.IConfigStore;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.salt.ISaltProvider;
 import io.vertx.core.Handler;
@@ -31,8 +32,9 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        Clock clock,
                                        IStatsCollectorQueue statsCollectorQueue,
                                        SecureLinkValidatorService secureLinkValidationService,
-                                       Handler<Boolean> saltRetrievalResponseHandler) {
-        super(configStore, config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler);
+                                       Handler<Boolean> saltRetrievalResponseHandler,
+                                       UidInstanceIdProvider uidInstanceIdProvider) {
+        super(configStore, config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler, uidInstanceIdProvider);
     }
 
     public IUIDOperatorService getIdService() {

@@ -17,6 +17,8 @@ import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.Utils;
+import com.uid2.shared.audit.Audit;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Keyset;
 import com.uid2.shared.auth.KeysetSnapshot;
@@ -45,6 +47,7 @@ import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
+import org.checkerframework.checker.units.qual.C;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -54,7 +57,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.openjdk.jmh.annotations.Param;
 import org.slf4j.LoggerFactory;
 
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -134,6 +136,7 @@ public class UIDOperatorVerticleTest {
     private OperatorShutdownHandler shutdownHandler;
     @Mock
     private IConfigStore configStore;
+    private UidInstanceIdProvider uidInstanceIdProvider;
 
     private SimpleMeterRegistry registry;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
@@ -162,7 +165,9 @@ public class UIDOperatorVerticleTest {
         config.put("allow_legacy_api", true);
         when(configStore.getConfig()).thenAnswer(x -> runtimeConfig);
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse);
+        this.uidInstanceIdProvider = new UidInstanceIdProvider("test-instance", "id");
+
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider,  optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse, uidInstanceIdProvider);
 
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 
@@ -2736,16 +2741,17 @@ public class UIDOperatorVerticleTest {
         req.put("email", "test@uid2.com");
 
         doAnswer(invocation -> {
-            Handler<AsyncResult<Instant>> handler = invocation.getArgument(2);
+            Handler<AsyncResult<Instant>> handler = invocation.getArgument(4);
             handler.handle(Future.succeededFuture(Instant.now()));
             return null;
-        }).when(this.optOutStore).addEntry(any(), any(), any());
+        }).when(this.optOutStore).addEntry(any(), any(), eq("uid-trace-id"), eq("test-instance-id"), any());
 
         send("v2", vertx, "v2/token/logout", false, null, req, 200, respJson -> {
             assertEquals("success", respJson.getString("status"));
             assertEquals("OK", respJson.getJsonObject("body").getString("optout"));
             testContext.completeNow();
-        }, Map.of("Content-Type", contentType));
+        }, Map.of(Audit.UID_TRACE_ID_HEADER, "uid-trace-id",
+                    "Content-Type", contentType));
     }
 
     @Test
@@ -2760,10 +2766,10 @@ public class UIDOperatorVerticleTest {
         req.put("email", "test@uid2.com");
 
         doAnswer(invocation -> {
-            Handler<AsyncResult<Instant>> handler = invocation.getArgument(2);
+            Handler<AsyncResult<Instant>> handler = invocation.getArgument(4);
             handler.handle(Future.succeededFuture(Instant.now()));
             return null;
-        }).when(this.optOutStore).addEntry(any(), any(), any());
+        }).when(this.optOutStore).addEntry(any(), any(), any(), any(), any());
 
         send("v2", vertx, "v2/token/logout", false, null, req, 200, respJson -> {
             assertEquals("success", respJson.getString("status"));

@@ -365,18 +365,23 @@ public class UIDOperatorVerticleTest {
         if (apiVersion.equals("v2")) {
             WebClient client = WebClient.create(vertx);
             HttpRequest<Buffer> refreshHttpRequest = client.postAbs(getUrlForEndpoint("v2/token/refresh"));
-
+            refreshHttpRequest.putHeader("content-type", "text/plain");
             for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
                 refreshHttpRequest.putHeader(entry.getKey(), entry.getValue());
             }
 
             refreshHttpRequest
-                    .putHeader("content-type", "text/plain")
                     .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), testContext.succeeding(response -> testContext.verify(() -> {
                         assertEquals(expectedHttpCode, response.statusCode());
 
                         if (response.statusCode() == 200 && v2RefreshDecryptSecret != null) {
-                            byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(response.bodyAsString()), 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
+                            byte[] byteResp;
+                            if (response.headers().contains("Content-Type", "application/octet-stream", true)) {
+                                byteResp =response.bodyAsBuffer().getBytes();
+                            } else {
+                                byteResp = Utils.decodeBase64String(response.bodyAsString());
+                            }
+                            byte[] decrypted = AesGcm.decrypt(byteResp, 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
                             JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
 
                             if (respJson.getString("status").equals("success"))
@@ -1643,15 +1648,18 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void tokenGenerateThenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1, text/plain",
+                "v2, text/plain",
+                "v2, application/octet-stream"})
+    void tokenGenerateThenRefresh(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
 
-        Map<String, String> additionalHeaders = Map.of(ClientVersionHeader, iosClientVersionHeaderValue);
+        Map<String, String> additionalHeaders = Map.of(ClientVersionHeader, iosClientVersionHeaderValue,
+                                                        "Content-Type", contentType);
 
         generateTokens(apiVersion, vertx, "email", emailAddress, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));

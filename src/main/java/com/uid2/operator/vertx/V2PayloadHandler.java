@@ -149,12 +149,18 @@ public class V2PayloadHandler {
                 V2RequestUtil.handleRefreshTokenInResponseBody(bodyJson, this.keyManager, this.identityScope);
 
             if (request != null) {
-                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
                 // Encrypt whole payload using key shared with client.
                 byte[] encryptedResp = AesGcm.encrypt(
                     respJson.encode().getBytes(StandardCharsets.UTF_8),
                     request.encryptionKey);
-                rc.response().end(Utils.toBase64String(encryptedResp));
+
+                if (rc.request().headers().contains("Content-Type", "application/octet-stream", true)) {
+                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/octet-stream")
+                                .end(Buffer.buffer(encryptedResp));
+                } else {
+                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain")
+                                .end(Utils.toBase64String(encryptedResp));
+                }
             }
             else {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")

@@ -92,7 +92,7 @@ public class V2RequestUtilTest {
                 false,
                 "key-id"
         );
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, ck, clock, false);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, ck, clock);
 
         assertEquals(expectedPayload, res.payload);
     }
@@ -100,7 +100,7 @@ public class V2RequestUtilTest {
     public void testParseRequestWithNullBody() {
         when(clock.now()).thenReturn(MOCK_NOW);
 
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(null, null, clock, false);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(null, null, clock);
 
         assertEquals("Invalid body: Body is missing.", res.errorMessage);
     }
@@ -109,7 +109,7 @@ public class V2RequestUtilTest {
     public void testParseRequestWithNonBase64Body() {
         when(clock.now()).thenReturn(MOCK_NOW);
 
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("test string", null, clock, false);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("test string", null, clock);
 
         assertEquals("Invalid body: Body is not valid base64.", res.errorMessage);
     }
@@ -118,7 +118,7 @@ public class V2RequestUtilTest {
     public void testParseRequestWithTooShortBody() {
         when(clock.now()).thenReturn(MOCK_NOW);
 
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("dGVzdA==", null, clock, false);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("dGVzdA==", null, clock);
 
         assertEquals("Invalid body: Body too short. Check encryption method.", res.errorMessage);
     }
@@ -146,7 +146,7 @@ public class V2RequestUtilTest {
                 false,
                 "key-id"
         );
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, ck, clock, false);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, ck, clock);
 
         assertEquals("Invalid payload in body: Data is not valid json string.", res.errorMessage);
         assertThat(memoryAppender.countEventsForLogger(LOGGER_NAME)).isEqualTo(1);

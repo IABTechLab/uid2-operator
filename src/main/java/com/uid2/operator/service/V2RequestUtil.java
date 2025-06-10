@@ -60,43 +60,15 @@ public class V2RequestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
-    public static byte[] compressPayload(byte[] input) {
-        Deflater compressor = new Deflater();
-        Buffer compressedBuffer = Buffer.buffer();
-        compressor.setInput(input);
-        compressor.finish();
-        while (!compressor.finished()) {
-            byte[] tempBuffer = new byte[1024];
-            int compressedSize = compressor.deflate(tempBuffer);
-            compressedBuffer.appendBytes(tempBuffer,0, compressedSize);
-        }
-        compressor.end();
-        //LOGGER.info("Compressed raw payload: " + compressedBuffer.length());
-        return compressedBuffer.getBytes();
-    }
-
-    public static byte[] decompressPayload(byte[] payload) throws Exception{
-        Inflater decompressor = new Inflater();
-        decompressor.setInput(payload, 0, payload.length);
-        Buffer outputBuffer = Buffer.buffer();
-        while (!decompressor.finished()) {
-            byte[] tempBuffer = new byte[1024];
-            int compressedSize = decompressor.inflate(tempBuffer);
-            outputBuffer.appendBytes(tempBuffer, 0, compressedSize);
-        }
-        decompressor.end();
-        return outputBuffer.getBytes();
-    }
-
-    public static V2Request parseRequestAsBuffer(Buffer bodyBuffer, ClientKey ck, IClock clock, boolean withCompression) {
+    public static V2Request parseRequestAsBuffer(Buffer bodyBuffer, ClientKey ck, IClock clock) {
         if (bodyBuffer == null) {
             return new V2Request("Invalid body: Body is missing.");
         }
-        return parseRequest(bodyBuffer.getBytes(), ck, clock, withCompression);
+        return parseRequest(bodyBuffer.getBytes(), ck, clock);
     }
 
     // clock is passed in to test V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES in unit tests
-    public static V2Request parseRequestAsString(String bodyString, ClientKey ck, IClock clock, boolean withCompression) {
+    public static V2Request parseRequestAsString(String bodyString, ClientKey ck, IClock clock) {
         if (bodyString == null) {
             return new V2Request("Invalid body: Body is missing.");
         }
@@ -106,10 +78,10 @@ public class V2RequestUtil {
         } catch (IllegalArgumentException ex) {
             return new V2Request("Invalid body: Body is not valid base64.");
         }
-        return parseRequest(bodyBytes, ck, clock, withCompression);
+        return parseRequest(bodyBytes, ck, clock);
     }
 
-    private static V2Request parseRequest(byte[] bodyBytes, ClientKey ck, IClock clock, boolean withCompression) {
+    private static V2Request parseRequest(byte[] bodyBytes, ClientKey ck, IClock clock) {
         // Payload envelop format:
         //  byte 0: version
         //  byte 1-12: GCM IV
@@ -126,29 +98,18 @@ public class V2RequestUtil {
             return new V2Request("Invalid body: Version mismatch.");
         }
 
-        byte[] decryptedBody;
+        byte[] decrypted;
         try {
-            decryptedBody = AesGcm.decrypt(bodyBytes, 1, ck.getSecretBytes());
+            decrypted = AesGcm.decrypt(bodyBytes, 1, ck.getSecretBytes());
         } catch (Exception ex) {
             return new V2Request("Invalid body: Check encryption key (ClientSecret)");
-        }
-
-        byte[] finalBody;
-        if (withCompression) {
-            try {
-                finalBody = decompressPayload(decryptedBody);
-            } catch (Exception ex) {
-                return new V2Request("Invalid body: Check compression method.");
-            }
-        } else {
-            finalBody = decryptedBody;
         }
 
         // Request envelop format:
         //  byte 0-7: timestamp
         //  byte 8-15: nonce
         //  byte 16-end: base64 encoded request json
-        Buffer b = Buffer.buffer(finalBody);
+        Buffer b = Buffer.buffer(decrypted);
         Instant tm = Instant.ofEpochMilli(b.getLong(0));
         if (Math.abs(Duration.between(tm, clock.now()).toMinutes()) >
                 V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
@@ -156,10 +117,10 @@ public class V2RequestUtil {
         }
 
         JsonObject payload = null;
-        if (finalBody.length > 16) {
+        if (decrypted.length > 16) {
             try {
                 // Skip 8 bytes timestamp, 8 bytes nonce
-                String bodyStr = new String(finalBody, 16, finalBody.length - 16, StandardCharsets.UTF_8);
+                String bodyStr = new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8);
                 payload = new JsonObject(bodyStr);
             } catch (Exception ex) {
                 LOGGER.error("Invalid payload in body: Data is not valid json string.");

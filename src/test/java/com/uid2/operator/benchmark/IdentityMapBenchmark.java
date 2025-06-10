@@ -64,10 +64,8 @@ public class IdentityMapBenchmark {
 
         @Setup
         public void setup() {
-            this.payloadCompressedBinary = Buffer.buffer(createEncryptedPayload(true, this.numRecords));
-            this.payloadCompressed = Utils.toBase64String(createEncryptedPayload(true, this.numRecords));
-            this.payloadBinary = Buffer.buffer(createEncryptedPayload(false, this.numRecords));
-            this.payloadNone = Utils.toBase64String(createEncryptedPayload(false, this.numRecords));
+            this.payloadBinary = Buffer.buffer(createEncryptedPayload(this.numRecords));
+            this.payloadNone = Utils.toBase64String(createEncryptedPayload(this.numRecords));
         }
 
         private static String randomEmail() {
@@ -105,7 +103,7 @@ public class IdentityMapBenchmark {
             return dii;
         }
 
-        private static byte[] createEncryptedPayload(boolean compressPayload, int numRecords) {
+        private static byte[] createEncryptedPayload(int numRecords) {
             Buffer b = Buffer.buffer();
             b.appendLong(now.toEpochMilli());
             b.appendLong(new BigInteger(nonce).longValue());
@@ -115,9 +113,6 @@ public class IdentityMapBenchmark {
             Buffer bufBody = Buffer.buffer();
             bufBody.appendByte((byte) 1);
             byte[] payload = b.getBytes();
-            if (compressPayload) {
-                payload = V2RequestUtil.compressPayload(payload);
-            }
 
             bufBody.appendBytes(AesGcm.encrypt(payload, clientKey.getSecretBytes()));
 
@@ -143,30 +138,8 @@ public class IdentityMapBenchmark {
     @Fork(2)
     @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
     @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
-    public void decompressionBenchmarkingCompressedAndBinary(PayloadState state, Blackhole bh) {
-        var data = V2RequestUtil.parseRequestAsBuffer(state.payloadCompressedBinary, PayloadState.clientKey, new InstantClock(), true);
-        bh.consume(data);
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.AverageTime)
-    @OutputTimeUnit(TimeUnit.MILLISECONDS)
-    @Fork(2)
-    @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
-    @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
-    public void decompressionBenchmarkingCompressed(PayloadState state, Blackhole bh) {
-        var data = V2RequestUtil.parseRequestAsString(state.payloadCompressed, PayloadState.clientKey, new InstantClock(), true);
-        bh.consume(data);
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.AverageTime)
-    @OutputTimeUnit(TimeUnit.MILLISECONDS)
-    @Fork(2)
-    @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
-    @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
     public void decompressionBenchmarkingBinary(PayloadState state, Blackhole bh) {
-        var data = V2RequestUtil.parseRequestAsBuffer(state.payloadBinary, PayloadState.clientKey, new InstantClock(), true);
+        var data = V2RequestUtil.parseRequestAsBuffer(state.payloadBinary, PayloadState.clientKey, new InstantClock());
         bh.consume(data);
     }
 
@@ -177,29 +150,7 @@ public class IdentityMapBenchmark {
     @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
     @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
     public void decompressionBenchmarkingNone(PayloadState state, Blackhole bh) {
-        var data = V2RequestUtil.parseRequestAsString(state.payloadNone, PayloadState.clientKey, new InstantClock(), true);
-        bh.consume(data);
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.AverageTime)
-    @OutputTimeUnit(TimeUnit.MILLISECONDS)
-    @Fork(2)
-    @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
-    @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
-    public void compressionBenchmarkingCompressedAndBinary(PayloadState state, Blackhole bh) {
-        var data = V2PayloadHandler.writeResponseBody(PayloadState.nonce, PayloadState.createDII(state.numRecords), PayloadState.clientKey.getSecretBytes(), true, true);
-        bh.consume(data);
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.AverageTime)
-    @OutputTimeUnit(TimeUnit.MILLISECONDS)
-    @Fork(2)
-    @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
-    @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
-    public void compressionBenchmarkingCompressed(PayloadState state, Blackhole bh) {
-        var data = V2PayloadHandler.writeResponseBody(PayloadState.nonce, PayloadState.createDII(state.numRecords), PayloadState.clientKey.getSecretBytes(), true, false);
+        var data = V2RequestUtil.parseRequestAsString(state.payloadNone, PayloadState.clientKey, new InstantClock());
         bh.consume(data);
     }
 
@@ -210,7 +161,7 @@ public class IdentityMapBenchmark {
     @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
     @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
     public void compressionBenchmarkingBinary(PayloadState state, Blackhole bh) {
-        var data = V2PayloadHandler.writeResponseBody(PayloadState.nonce, PayloadState.createDII(state.numRecords), PayloadState.clientKey.getSecretBytes(), false, true);
+        var data = V2PayloadHandler.writeResponseBody(PayloadState.nonce, PayloadState.createDII(state.numRecords), PayloadState.clientKey.getSecretBytes());
         bh.consume(data);
     }
 
@@ -221,7 +172,7 @@ public class IdentityMapBenchmark {
     @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
     @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
     public void compressionBenchmarkingNone(PayloadState state, Blackhole bh) {
-        var data = V2PayloadHandler.writeResponseBody(PayloadState.nonce, PayloadState.createDII(state.numRecords), PayloadState.clientKey.getSecretBytes(), false, false);
+        var data = V2PayloadHandler.writeResponseBody(PayloadState.nonce, PayloadState.createDII(state.numRecords), PayloadState.clientKey.getSecretBytes());
         bh.consume(data);
     }
 }

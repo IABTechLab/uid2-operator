@@ -13,9 +13,9 @@ import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.store.RuntimeConfig;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
+import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
-import com.uid2.operator.vertx.V2PayloadHandler;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Keyset;
@@ -37,7 +37,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -55,6 +54,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.openjdk.jmh.annotations.Param;
 import org.slf4j.LoggerFactory;
 
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -68,17 +68,14 @@ import java.security.*;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import java.util.zip.Deflater;
-import java.util.zip.Inflater;
 
 import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
 import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.*;
-import static com.uid2.operator.vertx.V2PayloadHandler.*;
 import static com.uid2.shared.Const.Data.*;
 import static com.uid2.shared.Const.Http.ClientVersionHeader;
 import static org.junit.jupiter.api.Assertions.*;
@@ -261,19 +258,12 @@ public class UIDOperatorVerticleTest {
                 if (ar.result().statusCode() == 200) {
                     JsonObject respJson;
                     byte[] byteResp;
-                    if ("application/octet-stream".equals(ar.result().getHeader("Content-Type"))) {
+                    if (ar.result().headers().contains("Content-Type", "application/octet-stream", true)) {
                         byteResp = ar.result().bodyAsBuffer().getBytes();
                     } else {
                         byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
                     }
                     byte[] decrypted = AesGcm.decrypt(byteResp, 0, ck.getSecretBytes());
-                    if ("true".equals(ar.result().getHeader("With-Compression"))) {
-                        try {
-                            decrypted = V2RequestUtil.decompressPayload(decrypted);
-                        } catch (Exception e) {
-                            throw new RuntimeException("Error with decompressing payload", e);
-                        }
-                    }
                     assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
                     respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
                     handler.handle(respJson);
@@ -473,9 +463,6 @@ public class UIDOperatorVerticleTest {
         Buffer bufBody = Buffer.buffer();
         bufBody.appendByte((byte) 1);
         byte[] payload = b.getBytes();
-        if ("true".equals(additionalHeaders.get("With-Compression"))) {
-            payload = V2RequestUtil.compressPayload(payload);
-        }
         if (ck != null) {
             bufBody.appendBytes(AesGcm.encrypt(payload, ck.getSecretBytes()));
         }
@@ -483,14 +470,11 @@ public class UIDOperatorVerticleTest {
             request.putHeader("Referer", referer);
         }
 
-        Buffer finalData;
-        if ("application/octet-stream".equals(additionalHeaders.get("Content-Type"))) {
-            finalData = bufBody;
+        if (additionalHeaders.containsKey("Content-Type") && additionalHeaders.get("Content-Type").equals("application/octet-stream")) {
+            request.sendBuffer(bufBody, handler);
         } else {
-            finalData = Buffer.buffer(Utils.toBase64String(bufBody.getBytes()).getBytes(StandardCharsets.UTF_8));
+            request.sendBuffer(Buffer.buffer(Utils.toBase64String(bufBody.getBytes()).getBytes(StandardCharsets.UTF_8)), handler);
         }
-        LOGGER.info("Final request payload: {}", finalData.length());
-        request.sendBuffer(finalData, handler);
     }
 
     private void checkEncryptionKeysResponse(JsonObject response, KeysetKey... expectedKeys) {
@@ -1067,8 +1051,12 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void v3IdentityMapMixedInputSuccess(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "text/plain",
+            "application/octet-stream"
+    })
+    void v3IdentityMapMixedInputSuccess(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
@@ -1125,7 +1113,7 @@ public class UIDOperatorVerticleTest {
 
             assertEquals("success", respJson.getString("status"));
             testContext.completeNow();
-        });
+        }, Map.of("Content-Type", contentType));
     }
 
     @Test
@@ -1295,46 +1283,22 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    protected String getRandomString() {
-        String SALTCHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-        StringBuilder salt = new StringBuilder();
-        java.util.Random rnd = new java.util.Random();
-        while (salt.length() < 15) { // length of the random string.
-            int index = (int) (rnd.nextFloat() * SALTCHARS.length());
-            salt.append(SALTCHARS.charAt(index));
-        }
-        return salt.toString();
-    }
-
-    @Test
-    void compressionTesting(Vertx vertx, VertxTestContext testContext) {
-        Instant asOf = Instant.now();
+    @ParameterizedTest
+    @EnumSource(value = Endpoints.class, names = "V[23]_.*", mode = EnumSource.Mode.MATCH_ALL)
+    void testBinaryPayloads(Endpoints endpoint, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
-        var lastUpdated = Instant.now().minus(1, DAYS);
-        var refreshFrom = lastUpdated.plus(30, DAYS);
-        SaltEntry salt = new SaltEntry(1, "1", lastUpdated.toEpochMilli(), "salt", refreshFrom.toEpochMilli(), "previousSalt", null, null);
-        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
-        JsonObject request = new JsonObject();
+        var request = new JsonObject("""
+                { "invalid": "value" }
+                """);
 
-        var identityListEmailHash = new JsonArray();
-        for (int j = 0; j < 10000; j++) {
-            identityListEmailHash.add(JsonObject.of("i", TokenUtils.getIdentityHashString(getRandomString() + "@example.com")));
-            //identityListEmailHash.add(JsonObject.of("i", getRandomString() + "invalid"));
-        }
-        request.put("email_hash", identityListEmailHash);
-
-        send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
-            JsonObject body = respJson.getJsonObject("body");
-            assertEquals(Set.of("email", "email_hash", "phone", "phone_hash"), body.fieldNames());
-            assertEquals(10000, body.getJsonArray("email_hash").size());
-            Instant testEnd = Instant.now();
-            LOGGER.info("completion time: {}ms", Duration.between(testEnd, asOf));
+        send("v2", vertx, String.valueOf(endpoint), false, null, request, 400, respJson -> {
             testContext.completeNow();
-        }, Map.of("With-Compression", "true", "Content-Type", "application/octet-stream"));
+        }, Map.of("Content-Type", "application/octet-stream"));
     }
+
 
     @Test
     void tokenGenerateNewClientNoPolicySpecified(Vertx vertx, VertxTestContext testContext) {

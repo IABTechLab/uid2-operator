@@ -5,13 +5,28 @@ import shutil
 from typing import Dict
 import sys
 import logging
+import requests
+import re
 from google.cloud import secretmanager
 from google.auth.exceptions import DefaultCredentialsError
 from google.api_core.exceptions import PermissionDenied, NotFound
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from confidential_compute import ConfidentialCompute, ConfidentialComputeConfig, ConfigurationMissingError, OperatorKeyNotFoundError, OperatorKeyPermissionError, ConfidentialComputeStartupError
+from confidential_compute import ConfidentialCompute, ConfigurationMissingError, OperatorKeyNotFoundError, OperatorKeyPermissionError, ConfidentialComputeStartupError
 
-class GCPEntryPoint(ConfidentialCompute):
+
+class AuxiliaryConfig:
+    GCP_METADATA: str = "169.254.169.254"
+    GCP_HEADER: dict = {"Metadata-Flavor": "Google"}
+
+    @classmethod
+    def get_gcp_instance_id_url(cls) -> str:
+        return f"http://{cls.GCP_METADATA}/computeMetadata/v1/instance/id"
+
+    @classmethod
+    def get_gcp_image_url(cls) -> str:
+        return f"http://{cls.GCP_METADATA}/computeMetadata/v1/instance/image"
+    
+class GCP(ConfidentialCompute):
 
     def __init__(self):
         super().__init__()
@@ -42,6 +57,8 @@ class GCPEntryPoint(ConfidentialCompute):
         except NotFound:
             raise OperatorKeyNotFoundError(self.__class__.__name__, f"Secret Manager {os.getenv("API_TOKEN_SECRET_NAME")}")
         self.configs["operator_key"] = secret_value
+        instance_id, version = self.__get_gcp_instance_info()
+        self.configs["uid_instance_id_prefix"] = self.get_uid_instance_id(identifier=instance_id, version=version)
     
     def __populate_operator_config(self, destination):
         target_config = f"/app/conf/{self.configs["environment"].lower()}-config.json"
@@ -60,6 +77,21 @@ class GCPEntryPoint(ConfidentialCompute):
     def _validate_auxiliaries(self) -> None:
         """ No Auxiliariy service required for GCP Confidential compute. """
         pass
+
+    def __get_gcp_instance_info(self) -> tuple[str, str]:
+        """Fetches the GCP instance ID, and image version."""
+        try:
+            response = requests.get(AuxiliaryConfig.get_gcp_instance_id_url(), headers=AuxiliaryConfig.GCP_HEADER, timeout=2)
+            response.raise_for_status()
+            instance_id = response.text.strip()
+            image_response = requests.get(AuxiliaryConfig.get_gcp_image_url(), headers=AuxiliaryConfig.GCP_HEADER, timeout=2)
+            image_response.raise_for_status()
+            image = image_response.text.strip()
+            match = re.search(r":(\d+\.\d+\.\d+)", image)
+            version = match.group(1) if match else "unknown"
+            return instance_id, version
+        except requests.RequestException as e:
+            raise RuntimeError(f"Failed to fetch GCP instance info: {e}")
 
     def run_compute(self) -> None:
         self._set_confidential_config()
@@ -85,7 +117,7 @@ class GCPEntryPoint(ConfidentialCompute):
 
 if __name__ == "__main__":
     try:
-        gcp = GCPEntryPoint()
+        gcp = GCP()
         gcp.run_compute()
     except ConfidentialComputeStartupError as e:
         logging.error(f"Failed starting up Confidential Compute. Please checks the logs for errors and retry {e}")

@@ -125,17 +125,17 @@ public class IdentityMapBenchmark {
         }
     }
 
-    @Benchmark
-    @BenchmarkMode(Mode.Throughput)
-    public MappedIdentity IdentityMapRawThroughput() {
-        return uidService.map(userIdentities[(idx++) & 65535], Instant.now());
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.Throughput)
-    public MappedIdentity IdentityMapWithOptOutThroughput() {
-        return uidService.mapIdentity(new MapRequest(userIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
-    }
+//    @Benchmark
+//    @BenchmarkMode(Mode.Throughput)
+//    public MappedIdentity IdentityMapRawThroughput() {
+//        return uidService.map(userIdentities[(idx++) & 65535], Instant.now());
+//    }
+//
+//    @Benchmark
+//    @BenchmarkMode(Mode.Throughput)
+//    public MappedIdentity IdentityMapWithOptOutThroughput() {
+//        return uidService.mapIdentity(new MapRequest(userIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
+//    }
 
     @Benchmark
     @BenchmarkMode(Mode.AverageTime)

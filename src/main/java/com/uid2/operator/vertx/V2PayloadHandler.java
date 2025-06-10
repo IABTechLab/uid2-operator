@@ -205,11 +205,11 @@ public class V2PayloadHandler {
 
         if (withCompression) {
             rc.response().putHeader("With-Compression", "true");
-        } else {
-            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
         }
         if (binary) {
             rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/octet-stream");
+        } else {
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
         }
 
         var response = writeResponseBody(nonce, resp, keyBytes, withCompression, binary);

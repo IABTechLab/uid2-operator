@@ -80,7 +80,8 @@ public class BenchmarkCommon {
                 Clock.systemUTC(),
                 IdentityScope.UID2,
                 shutdownHandler::handleSaltRetrievalResponse,
-                false
+                false,
+                null
         );
     }
 
@@ -192,13 +193,13 @@ public class BenchmarkCommon {
         }
 
         @Override
-        public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
-            // noop
+        public long getOptOutTimestampByAdId(String adId) {
+            return -1;
         }
 
         @Override
-        public long getOptOutTimestampByAdId(String adId) {
-            return -1;
+        public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, String uidTraceId, String uidInstanceId, Handler<AsyncResult<Instant>> handler) {
+
         }
     }
 

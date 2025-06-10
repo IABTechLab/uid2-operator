@@ -1239,7 +1239,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
         final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
-        if (input.isValid()) {
+        if (input != null && input.isValid()) {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();

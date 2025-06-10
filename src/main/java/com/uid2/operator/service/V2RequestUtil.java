@@ -2,29 +2,21 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
-import com.uid2.operator.vertx.ClientInputValidationException;
-import com.uid2.operator.vertx.V2PayloadHandler;
 import com.uid2.shared.IClock;
-import com.uid2.shared.InstantClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
-import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.KeysetKey;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.RequestBody;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.zip.Deflater;
-import java.util.zip.Inflater;
 
 public class V2RequestUtil {
     public static class V2Request {
@@ -108,9 +100,9 @@ public class V2RequestUtil {
             return new V2Request("Invalid body: Version mismatch.");
         }
 
-        byte[] decrypted;
+        byte[] decryptedBody;
         try {
-            decrypted = AesGcm.decrypt(bodyBytes, 1, ck.getSecretBytes());
+            decryptedBody = AesGcm.decrypt(bodyBytes, 1, ck.getSecretBytes());
         } catch (Exception ex) {
             return new V2Request("Invalid body: Check encryption key (ClientSecret)");
         }
@@ -119,7 +111,7 @@ public class V2RequestUtil {
         //  byte 0-7: timestamp
         //  byte 8-15: nonce
         //  byte 16-end: base64 encoded request json
-        Buffer b = Buffer.buffer(decrypted);
+        Buffer b = Buffer.buffer(decryptedBody);
         Instant tm = Instant.ofEpochMilli(b.getLong(0));
         if (Math.abs(Duration.between(tm, clock.now()).toMinutes()) >
                 V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES) {
@@ -127,10 +119,10 @@ public class V2RequestUtil {
         }
 
         JsonObject payload = null;
-        if (decrypted.length > 16) {
+        if (decryptedBody.length > 16) {
             try {
                 // Skip 8 bytes timestamp, 8 bytes nonce
-                String bodyStr = new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8);
+                String bodyStr = new String(decryptedBody, 16, decryptedBody.length - 16, StandardCharsets.UTF_8);
                 payload = new JsonObject(bodyStr);
             } catch (Exception ex) {
                 LOGGER.error("Invalid payload in body: Data is not valid json string.");

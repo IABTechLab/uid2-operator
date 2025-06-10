@@ -5,10 +5,12 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.operator.vertx.V2PayloadHandler;
 import com.uid2.shared.IClock;
+import com.uid2.shared.InstantClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
+import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.model.KeysetKey;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
@@ -60,11 +62,19 @@ public class V2RequestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
+    public static V2Request parseRequest(RoutingContext rc, ClientKey ck, IClock clock) {
+        if (rc.request().headers().contains("Content-Type", "application/octet-stream", true)) {
+            return V2RequestUtil.parseRequestAsBuffer(rc.body().buffer(), ck, clock);
+        } else {
+            return V2RequestUtil.parseRequestAsString(rc.body().asString(), ck, clock);
+        }
+    }
+
     public static V2Request parseRequestAsBuffer(Buffer bodyBuffer, ClientKey ck, IClock clock) {
         if (bodyBuffer == null) {
             return new V2Request("Invalid body: Body is missing.");
         }
-        return parseRequest(bodyBuffer.getBytes(), ck, clock);
+        return parseRequestCommon(bodyBuffer.getBytes(), ck, clock);
     }
 
     // clock is passed in to test V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES in unit tests
@@ -78,10 +88,10 @@ public class V2RequestUtil {
         } catch (IllegalArgumentException ex) {
             return new V2Request("Invalid body: Body is not valid base64.");
         }
-        return parseRequest(bodyBytes, ck, clock);
+        return parseRequestCommon(bodyBytes, ck, clock);
     }
 
-    private static V2Request parseRequest(byte[] bodyBytes, ClientKey ck, IClock clock) {
+    private static V2Request parseRequestCommon(byte[] bodyBytes, ClientKey ck, IClock clock) {
         // Payload envelop format:
         //  byte 0: version
         //  byte 1-12: GCM IV

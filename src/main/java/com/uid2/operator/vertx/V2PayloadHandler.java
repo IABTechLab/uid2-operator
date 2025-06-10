@@ -46,20 +46,12 @@ public class V2PayloadHandler {
         this.siteProvider = siteProvider;
     }
 
-    private V2RequestUtil.V2Request buildV2Request(RoutingContext rc) {
-        if (rc.request().headers().contains("Content-Type", "application/octet-stream", true)) {
-            return V2RequestUtil.parseRequestAsBuffer(rc.body().buffer(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
-        } else {
-            return V2RequestUtil.parseRequestAsString(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
-        }
-    }
-
     public void handle(RoutingContext rc, Handler<RoutingContext> apiHandler) {
         if (!enableEncryption) {
             passThrough(rc, apiHandler);
             return;
         }
-        V2RequestUtil.V2Request request = buildV2Request(rc);
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
 
         if (!request.isValid()) {
             ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
@@ -78,7 +70,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request =  buildV2Request(rc);
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
             ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
@@ -96,7 +88,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = buildV2Request(rc);
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
             SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
             return;

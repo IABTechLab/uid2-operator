@@ -1231,7 +1231,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private Future handleLogoutAsyncV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
-        if (input.isValid()) {
+        if (input != null && input.isValid()) {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();

@@ -256,7 +256,6 @@ public class UIDOperatorVerticleTest {
                 assertEquals(expectedHttpCode, ar.result().statusCode());
 
                 if (ar.result().statusCode() == 200) {
-                    JsonObject respJson;
                     byte[] byteResp;
                     if (ar.result().headers().contains("Content-Type", "application/octet-stream", true)) {
                         byteResp = ar.result().bodyAsBuffer().getBytes();
@@ -264,8 +263,10 @@ public class UIDOperatorVerticleTest {
                         byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
                     }
                     byte[] decrypted = AesGcm.decrypt(byteResp, 0, ck.getSecretBytes());
+
                     assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
-                    respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
+
+                    JsonObject respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
                     handler.handle(respJson);
                 } else {
                     handler.handle(tryParseResponse(ar.result()));
@@ -288,12 +289,18 @@ public class UIDOperatorVerticleTest {
 
     protected void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode,
                                      Handler<JsonObject> handler) {
-        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler, true);
+        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler, true, Collections.emptyMap());
+    }
+
+
+    protected void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode,
+                                     Handler<JsonObject> handler, Map<String, String> additionalHeaders) {
+        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler, true, additionalHeaders);
     }
 
     protected void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode,
                                      Handler<JsonObject> handler, boolean additionalParams) {
-        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler, additionalParams);
+        sendTokenGenerate(apiVersion, vertx, v1GetParam, v2PostPayload, expectedHttpCode, null, handler, additionalParams, Collections.emptyMap());
     }
 
     private void sendTokenGenerate(String apiVersion, Vertx vertx, String v1GetParam, JsonObject v2PostPayload, int expectedHttpCode, String referer, Handler<JsonObject> handler, boolean additionalParams) {
@@ -315,7 +322,13 @@ public class UIDOperatorVerticleTest {
                 assertEquals(expectedHttpCode, ar.result().statusCode());
 
                 if (ar.result().statusCode() == 200) {
-                    byte[] decrypted = AesGcm.decrypt(Utils.decodeBase64String(ar.result().bodyAsString()), 0, ck.getSecretBytes());
+                    byte[] byteResp;
+                    if (ar.result().headers().contains("Content-Type", "application/octet-stream", true)) {
+                        byteResp = ar.result().bodyAsBuffer().getBytes();
+                    } else {
+                        byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
+                    }
+                    byte[] decrypted = AesGcm.decrypt(byteResp, 0, ck.getSecretBytes());
 
                     assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
 
@@ -725,8 +738,10 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void keyLatestNoAcl(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1, text/plain",
+                "v2, text/plain",
+                "v2, application/octet-stream"})
+    void keyLatestNoAcl(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(5, Role.ID_READER);
         Keyset[] keysets = {
                 new Keyset(MasterKeysetId, MasterKeySiteId, "masterKeyset", null, now.getEpochSecond(), true, true),
@@ -744,7 +759,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             checkEncryptionKeysResponse(respJson, encryptionKeys);
             testContext.completeNow();
-        });
+        }, Map.of("Content-Type", contentType));
     }
 
     @ParameterizedTest
@@ -810,8 +825,10 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void tokenGenerateBothEmailAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1, text/plain",
+                "v2, text/plain",
+                "v2, application/octet-stream"})
+    void tokenGenerateBothEmailAndHashSpecified(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         final String emailHash = TokenUtils.getIdentityHashString(emailAddress);
@@ -831,12 +848,15 @@ public class UIDOperatorVerticleTest {
 
                     assertEquals("client_error", json.getString("status"));
                     testContext.completeNow();
-                });
+                },
+        Map.of("Content-Type", contentType));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void tokenGenerateNoEmailOrHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1, text/plain",
+                "v2, text/plain",
+                "v2, application/octet-stream"})
+    void tokenGenerateNoEmailOrHashSpecified(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -848,7 +868,8 @@ public class UIDOperatorVerticleTest {
                     assertFalse(json.containsKey("body"));
                     assertEquals("client_error", json.getString("status"));
                     testContext.completeNow();
-                });
+                },
+        Map.of("Content-Type", contentType));
     }
 
     private void assertStatsCollector(String path, String referer, String apiContact, Integer siteId) {
@@ -911,8 +932,10 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void identityMapNewClientNoPolicySpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1, text/plain",
+                "v2, text/plain",
+                "v2, application/octet-stream"})
+    void identityMapNewClientNoPolicySpecified(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
         setupSalts();
@@ -935,7 +958,7 @@ public class UIDOperatorVerticleTest {
             Assertions.assertEquals(emails.getString(0), unmappedArr.getJsonObject(0).getString("identifier"));
             Assertions.assertEquals("optout", unmappedArr.getJsonObject(0).getString("reason"));
             testContext.completeNow();
-        });
+        }, Map.of("Content-Type", contentType));
     }
 
     @ParameterizedTest
@@ -1283,23 +1306,6 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @ParameterizedTest
-    @EnumSource(value = Endpoints.class, names = "V[23]_.*", mode = EnumSource.Mode.MATCH_ALL)
-    void testBinaryPayloads(Endpoints endpoint, Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
-
-        var request = new JsonObject("""
-                { "invalid": "value" }
-                """);
-
-        send("v2", vertx, String.valueOf(endpoint), false, null, request, 400, respJson -> {
-            testContext.completeNow();
-        }, Map.of("Content-Type", "application/octet-stream"));
-    }
-
-
     @Test
     void tokenGenerateNewClientNoPolicySpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
@@ -1553,8 +1559,10 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void tokenGenerateForEmail(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1, text/plain",
+                "v2, text/plain",
+                "v2, application/octet-stream"})
+    void tokenGenerateForEmail(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -1591,12 +1599,15 @@ public class UIDOperatorVerticleTest {
                     assertStatsCollector("/" + apiVersion + "/token/generate", null, "test-contact", clientSiteId);
 
                     testContext.completeNow();
-                });
+                },
+        Map.of("Content-Type", contentType));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void tokenGenerateForEmailHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1, text/plain",
+                "v2, text/plain",
+                "v2, application/octet-stream"})
+    void tokenGenerateForEmailHash(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -1631,19 +1642,23 @@ public class UIDOperatorVerticleTest {
                     assertEqualsClose(now.plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
 
                     testContext.completeNow();
-                });
+                },
+        Map.of("Content-Type", contentType));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void tokenGenerateThenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1, text/plain",
+                "v2, text/plain",
+                "v2, application/octet-stream"})
+    void tokenGenerateThenRefresh(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
 
-        Map<String, String> additionalHeaders = Map.of(ClientVersionHeader, iosClientVersionHeaderValue);
+        Map<String, String> additionalHeaders = Map.of(ClientVersionHeader, iosClientVersionHeaderValue,
+                                                    "ContentType", contentType);
 
         generateTokens(apiVersion, vertx, "email", emailAddress, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
@@ -2206,8 +2221,10 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void tokenValidateWithEmail_Mismatch(String apiVersion, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource({"v1, text/plain",
+                "v2, text/plain",
+                "v2, application/octet-stream"})
+    void tokenValidateWithEmail_Mismatch(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -2223,7 +2240,8 @@ public class UIDOperatorVerticleTest {
                     assertEquals("success", respJson.getString("status"));
 
                     testContext.completeNow();
-                });
+                },
+        Map.of("Content-Type", contentType));
     }
 
     @ParameterizedTest
@@ -2706,8 +2724,9 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void LogoutV2(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
+    void LogoutV2(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.OPTOUT);
         setupSalts();
@@ -2726,7 +2745,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", respJson.getString("status"));
             assertEquals("OK", respJson.getJsonObject("body").getString("optout"));
             testContext.completeNow();
-        });
+        }, Map.of("Content-Type", contentType));
     }
 
     @Test
@@ -3514,7 +3533,6 @@ public class UIDOperatorVerticleTest {
         }
         req.sendJsonObject(body, handler);
     }
-
     private void sendCstg(Vertx vertx, String endpoint, String httpOriginHeader, JsonObject postPayload, SecretKey secretKey, int expectedHttpCode, VertxTestContext testContext, Handler<JsonObject> handler) {
         postCstg(vertx, endpoint, httpOriginHeader, postPayload, testContext.succeeding(result -> testContext.verify(() -> {
             assertEquals(expectedHttpCode, result.statusCode());
@@ -4861,8 +4879,9 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    @Test
-    void keySharingKeysets_CorrectFiltering(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
+    void keySharingKeysets_CorrectFiltering(String contentType, Vertx vertx, VertxTestContext testContext) {
         //Call should return
         // all keys they have access in ACL
         // The master key -1
@@ -4906,7 +4925,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             checkEncryptionKeys(respJson, KeyDownloadEndpoint.SHARING, siteId, expectedKeys);
             testContext.completeNow();
-        });
+        }, Map.of("Content-Type", contentType));
     }
 
     private static Site defaultMockSite(int siteId, boolean includeDomainNames, boolean includeAppNames) {
@@ -5131,7 +5150,7 @@ public class UIDOperatorVerticleTest {
     //   SHARER has no access to a keyset that is disabled                       - direct reject
     //   SHARER has no access to a keyset with a missing allowed_sites           - reject by sharing
     //   SHARER has no access to a keyset with an empty allowed_sites            - reject by sharing
-    //   SHARER has no access to a keyset with an allowed_sites for other sites  - reject by sharing    
+    //   SHARER has no access to a keyset with an allowed_sites for other sites  - reject by sharing
     void keySharingKeysets_SHARER(boolean provideSiteDomainNames, boolean provideAppNames, Vertx vertx, VertxTestContext testContext, int expectedMaxSharingLifetimeSeconds) {
         if (!provideAppNames) {
             this.uidOperatorVerticle.setKeySharingEndpointProvideAppNames(false);
@@ -5527,8 +5546,9 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void keyBidstreamRespectsConfigValues(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
+    void keyBidstreamRespectsConfigValues(String contentType, Vertx vertx, VertxTestContext testContext) {
         int newMaxBidstreamLifetimeSeconds = 999999;
 
         this.runtimeConfig = this.runtimeConfig
@@ -5552,7 +5572,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals(newMaxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds(), body.getLong(Const.Config.MaxBidstreamLifetimeSecondsProp));
             });
             testContext.completeNow();
-        });
+        }, Map.of("Content-Type", contentType));
     }
 
     @Test
@@ -5654,4 +5674,34 @@ public class UIDOperatorVerticleTest {
         });
     }
 
+    @ParameterizedTest
+    @EnumSource(value = Endpoints.class, names = {
+            "V2_TOKEN_GENERATE",
+            "V2_TOKEN_REFRESH",
+            "V2_TOKEN_VALIDATE",
+            "V2_IDENTITY_BUCKETS",
+            "V2_IDENTITY_MAP",
+            "V2_KEY_LATEST",
+            "V2_KEY_SHARING",
+            "V2_KEY_BIDSTREAM",
+            "V2_TOKEN_LOGOUT",
+            "V2_OPTOUT_STATUS",
+            "V3_IDENTITY_MAP"
+    })
+    void binaryPayloadsTokenGenerate(Endpoints endpoint, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        fakeAuth(clientSiteId, Role.GENERATOR, Role.MAPPER, Role.ID_READER, Role.OPTOUT);
+        setupSalts();
+        setupKeys();
+
+        JsonObject payload = new JsonObject();
+
+        int expectedCode = Set.of(Endpoints.V2_KEY_LATEST, Endpoints.V2_KEY_SHARING, Endpoints.V2_KEY_BIDSTREAM).contains(endpoint) ? 200 : 400;
+
+        send("v2", vertx, endpoint.toString(), false, null, payload, expectedCode, json -> {
+            LOGGER.info(json.toString());
+            testContext.completeNow();
+        }, Map.of("Content-Type", "application/octet-stream"));
+    }
 }

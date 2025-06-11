@@ -480,6 +480,7 @@ public class Main {
 
         VertxOptions vertxOptions = new VertxOptions()
             .setMetricsOptions(metricOptions)
+                .setWorkerPoolSize(10000)
             .setBlockedThreadCheckInterval(threadBlockedCheckInterval);
 
         return Vertx.vertx(vertxOptions);

@@ -306,7 +306,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
         mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handleNonBlocking(vertx, rc, this::handleIdentityMapV2), Role.MAPPER));
         mainRouter.post(V2_KEY_LATEST.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(

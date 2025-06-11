@@ -14,6 +14,7 @@ import com.uid2.shared.middleware.AuthMiddleware;
 import com.uid2.shared.store.ISiteStore;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonObject;
@@ -59,6 +60,31 @@ public class V2PayloadHandler {
         apiHandler.handle(rc);
 
         handleResponse(rc, request);
+    }
+
+    public void handleNonBlocking(Vertx vertx, RoutingContext rc, Handler<RoutingContext> apiHandler) {
+        vertx.executeBlocking(
+        blockingPromise -> {
+                V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+                if (!request.isValid()) {
+                    ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
+                    blockingPromise.complete();
+                    return;
+                }
+                rc.data().put("request", request.payload);
+
+                apiHandler.handle(rc);
+
+                handleResponse(rc, request);
+                blockingPromise.complete(request);
+            },
+            false,
+            blockingResult -> {
+                if (blockingResult.failed()) {
+                    ResponseUtil.LogErrorAndSendResponse(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
+                }
+            });
+
     }
 
     public void handleAsync(RoutingContext rc, Function<RoutingContext, Future> apiHandler) {

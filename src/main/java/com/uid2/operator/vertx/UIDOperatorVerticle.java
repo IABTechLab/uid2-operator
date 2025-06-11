@@ -15,10 +15,7 @@ import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.operator.store.IConfigStore;
-import com.uid2.operator.util.DomainNameCheckUtil;
-import com.uid2.operator.util.PrivacyBits;
-import com.uid2.operator.util.RoutingContextUtil;
-import com.uid2.operator.util.Tuple;
+import com.uid2.operator.util.*;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
 import com.uid2.shared.audit.Audit;
@@ -2258,12 +2255,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void sendJsonResponse(RoutingContext rc, JsonObject json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON)
                 .end(json.encode());
     }
 
     private void sendJsonResponse(RoutingContext rc, JsonArray json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON)
                 .end(json.encode());
     }
 

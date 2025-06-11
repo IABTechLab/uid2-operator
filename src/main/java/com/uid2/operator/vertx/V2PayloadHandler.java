@@ -6,6 +6,7 @@ import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.ResponseUtil;
 import com.uid2.operator.service.V2RequestUtil;
+import com.uid2.operator.util.HttpMediaType;
 import com.uid2.shared.InstantClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -154,16 +155,16 @@ public class V2PayloadHandler {
                     respJson.encode().getBytes(StandardCharsets.UTF_8),
                     request.encryptionKey);
 
-                if (rc.request().headers().contains("Content-Type", "application/octet-stream", true)) {
-                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/octet-stream")
+                if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
+                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM)
                                 .end(Buffer.buffer(encryptedResp));
                 } else {
-                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain")
+                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN)
                                 .end(Utils.toBase64String(encryptedResp));
                 }
             }
             else {
-                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON)
                     .end(respJson.encode());
             }
         }
@@ -180,7 +181,7 @@ public class V2PayloadHandler {
             return;
         }
         JsonObject respJson = (JsonObject) rc.data().get("response");
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON)
             .end(respJson.encode());
     }
 
@@ -198,7 +199,7 @@ public class V2PayloadHandler {
         rc.response().putHeader(HttpHeaders.CONTENT_TYPE, rc.request().getHeader(HttpHeaders.CONTENT_TYPE));
         var response = writeResponseBody(nonce, resp, keyBytes);
 
-        if (rc.request().headers().contains("Content-Type", "application/octet-stream", true)) {
+        if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
             rc.response().end(Buffer.buffer(response));
         } else {
             rc.response().end(Utils.toBase64String(response));

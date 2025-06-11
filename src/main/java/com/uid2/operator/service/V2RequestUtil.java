@@ -2,6 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
+import com.uid2.operator.util.HttpMediaType;
 import com.uid2.shared.IClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -9,6 +10,7 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.model.KeysetKey;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
@@ -55,7 +57,7 @@ public class V2RequestUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
     public static V2Request parseRequest(RoutingContext rc, ClientKey ck, IClock clock) {
-        if (rc.request().headers().contains("Content-Type", "application/octet-stream", true)) {
+        if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
             return V2RequestUtil.parseRequestAsBuffer(rc.body().buffer(), ck, clock);
         } else {
             return V2RequestUtil.parseRequestAsString(rc.body().asString(), ck, clock);

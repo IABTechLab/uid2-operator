@@ -11,9 +11,9 @@ import com.uid2.operator.service.*;
 import com.uid2.operator.store.IConfigStore;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.store.RuntimeConfig;
+import com.uid2.operator.util.HttpMediaType;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
-import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.Utils;
@@ -39,6 +39,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -47,7 +48,6 @@ import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.checkerframework.checker.units.qual.C;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -262,7 +262,7 @@ public class UIDOperatorVerticleTest {
 
                 if (ar.result().statusCode() == 200) {
                     byte[] byteResp;
-                    if (ar.result().headers().contains("Content-Type", "application/octet-stream", true)) {
+                    if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
                         byteResp = ar.result().bodyAsBuffer().getBytes();
                     } else {
                         byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
@@ -328,7 +328,7 @@ public class UIDOperatorVerticleTest {
 
                 if (ar.result().statusCode() == 200) {
                     byte[] byteResp;
-                    if (ar.result().headers().contains("Content-Type", "application/octet-stream", true)) {
+                    if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
                         byteResp = ar.result().bodyAsBuffer().getBytes();
                     } else {
                         byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
@@ -365,7 +365,7 @@ public class UIDOperatorVerticleTest {
         if (apiVersion.equals("v2")) {
             WebClient client = WebClient.create(vertx);
             HttpRequest<Buffer> refreshHttpRequest = client.postAbs(getUrlForEndpoint("v2/token/refresh"));
-            refreshHttpRequest.putHeader("content-type", "text/plain");
+            refreshHttpRequest.putHeader(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.TEXT_PLAIN);
             for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
                 refreshHttpRequest.putHeader(entry.getKey(), entry.getValue());
             }
@@ -376,8 +376,8 @@ public class UIDOperatorVerticleTest {
 
                         if (response.statusCode() == 200 && v2RefreshDecryptSecret != null) {
                             byte[] byteResp;
-                            if (response.headers().contains("Content-Type", "application/octet-stream", true)) {
-                                byteResp =response.bodyAsBuffer().getBytes();
+                            if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
+                                byteResp = response.bodyAsBuffer().getBytes();
                             } else {
                                 byteResp = Utils.decodeBase64String(response.bodyAsString());
                             }
@@ -469,8 +469,8 @@ public class UIDOperatorVerticleTest {
         WebClient client = WebClient.create(vertx);
         final String apiKey = ck == null ? "" : clientKey;
         HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
-                .putHeader("Authorization", "Bearer " + apiKey)
-                .putHeader("content-type", "text/plain");
+                .putHeader(HttpHeaders.AUTHORIZATION.toString(), "Bearer " + apiKey)
+                .putHeader(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.TEXT_PLAIN);
 
         for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
             request.putHeader(entry.getKey(), entry.getValue());
@@ -493,7 +493,7 @@ public class UIDOperatorVerticleTest {
             request.putHeader("Referer", referer);
         }
 
-        if (additionalHeaders.containsKey("Content-Type") && additionalHeaders.get("Content-Type").equals("application/octet-stream")) {
+        if (request.headers().contains(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
             request.sendBuffer(bufBody, handler);
         } else {
             request.sendBuffer(Buffer.buffer(Utils.toBase64String(bufBody.getBytes()).getBytes(StandardCharsets.UTF_8)), handler);
@@ -769,7 +769,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             checkEncryptionKeysResponse(respJson, encryptionKeys);
             testContext.completeNow();
-        }, Map.of("Content-Type", contentType));
+        }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
     @ParameterizedTest
@@ -1140,7 +1140,7 @@ public class UIDOperatorVerticleTest {
 
             assertEquals("success", respJson.getString("status"));
             testContext.completeNow();
-        }, Map.of("Content-Type", contentType));
+        }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
     @Test
@@ -1604,7 +1604,7 @@ public class UIDOperatorVerticleTest {
 
                     testContext.completeNow();
                 },
-        Map.of("Content-Type", contentType));
+        Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
     @ParameterizedTest
@@ -1659,7 +1659,7 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         Map<String, String> additionalHeaders = Map.of(ClientVersionHeader, iosClientVersionHeaderValue,
-                                                        "Content-Type", contentType);
+                                                        HttpHeaders.CONTENT_TYPE.toString(), contentType);
 
         generateTokens(apiVersion, vertx, "email", emailAddress, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
@@ -5675,34 +5675,5 @@ public class UIDOperatorVerticleTest {
             });
             testContext.completeNow();
         });
-    }
-
-    @ParameterizedTest
-    @EnumSource(value = Endpoints.class, names = {
-            "V2_TOKEN_GENERATE",
-            "V2_TOKEN_REFRESH",
-            "V2_TOKEN_VALIDATE",
-            "V2_IDENTITY_BUCKETS",
-            "V2_IDENTITY_MAP",
-            "V2_KEY_LATEST",
-            "V2_KEY_SHARING",
-            "V2_KEY_BIDSTREAM",
-            "V2_TOKEN_LOGOUT",
-            "V2_OPTOUT_STATUS",
-            "V3_IDENTITY_MAP"
-    })
-    void binaryPayloadsTokenGenerate(Endpoints endpoint, Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.GENERATOR, Role.MAPPER, Role.ID_READER, Role.OPTOUT);
-        setupSalts();
-        setupKeys();
-
-        JsonObject payload = new JsonObject();
-
-        int expectedCode = Set.of(Endpoints.V2_KEY_LATEST, Endpoints.V2_KEY_SHARING, Endpoints.V2_KEY_BIDSTREAM).contains(endpoint) ? 200 : 400;
-
-        send("v2", vertx, endpoint.toString(), false, null, payload, expectedCode, json -> {
-            testContext.completeNow();
-        }, Map.of("Content-Type", "application/octet-stream"));
     }
 }

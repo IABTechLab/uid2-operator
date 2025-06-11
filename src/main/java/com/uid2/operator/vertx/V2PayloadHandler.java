@@ -196,13 +196,14 @@ public class V2PayloadHandler {
     }
 
     private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, rc.request().getHeader(HttpHeaders.CONTENT_TYPE));
         var response = writeResponseBody(nonce, resp, keyBytes);
 
         if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
-            rc.response().end(Buffer.buffer(response));
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM)
+                        .end(Buffer.buffer(response));
         } else {
-            rc.response().end(Utils.toBase64String(response));
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN)
+                        .end(Utils.toBase64String(response));
         }
     }
 

@@ -261,12 +261,13 @@ public class UIDOperatorVerticleTest {
                 assertEquals(expectedHttpCode, ar.result().statusCode());
 
                 if (ar.result().statusCode() == 200) {
-                    byte[] byteResp;
+                    byte[] byteResp = new byte[0];
                     if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
                         byteResp = ar.result().bodyAsBuffer().getBytes();
-                    } else {
+                    } else if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN, true)) {
                         byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
                     }
+
                     byte[] decrypted = AesGcm.decrypt(byteResp, 0, ck.getSecretBytes());
 
                     assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
@@ -327,10 +328,10 @@ public class UIDOperatorVerticleTest {
                 assertEquals(expectedHttpCode, ar.result().statusCode());
 
                 if (ar.result().statusCode() == 200) {
-                    byte[] byteResp;
+                    byte[] byteResp = new byte[0];
                     if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
                         byteResp = ar.result().bodyAsBuffer().getBytes();
-                    } else {
+                    } else if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN, true)) {
                         byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
                     }
                     byte[] decrypted = AesGcm.decrypt(byteResp, 0, ck.getSecretBytes());
@@ -375,10 +376,10 @@ public class UIDOperatorVerticleTest {
                         assertEquals(expectedHttpCode, response.statusCode());
 
                         if (response.statusCode() == 200 && v2RefreshDecryptSecret != null) {
-                            byte[] byteResp;
+                            byte[] byteResp = new byte[0];
                             if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
                                 byteResp = response.bodyAsBuffer().getBytes();
-                            } else {
+                            } else if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN, true)) {
                                 byteResp = Utils.decodeBase64String(response.bodyAsString());
                             }
                             byte[] decrypted = AesGcm.decrypt(byteResp, 0, Utils.decodeBase64String(v2RefreshDecryptSecret));

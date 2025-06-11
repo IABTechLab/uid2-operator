@@ -57,7 +57,7 @@ public class V2RequestUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
     public static V2Request parseRequest(RoutingContext rc, ClientKey ck, IClock clock) {
-        if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
+        if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
             return V2RequestUtil.parseRequestAsBuffer(rc.body().buffer(), ck, clock);
         } else {
             return V2RequestUtil.parseRequestAsString(rc.body().asString(), ck, clock);

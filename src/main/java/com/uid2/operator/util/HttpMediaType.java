@@ -1,7 +1,17 @@
 package com.uid2.operator.util;
 
-public final class HttpMediaType {
-    public static final String TEXT_PLAIN = "text/plain";
-    public static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
-    public static final String APPLICATION_JSON = "application/json";
+public enum HttpMediaType {
+    TEXT_PLAIN("text/plain"),
+    APPLICATION_JSON("application/json"),
+    APPLICATION_OCTET_STREAM("application/octet-stream");
+
+    private final String type;
+
+    HttpMediaType(String type) {
+        this.type = type;
+    }
+
+    public String getType() {
+        return type;
+    }
 }

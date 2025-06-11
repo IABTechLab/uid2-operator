@@ -262,9 +262,9 @@ public class UIDOperatorVerticleTest {
 
                 if (ar.result().statusCode() == 200) {
                     byte[] byteResp = new byte[0];
-                    if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
+                    if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
                         byteResp = ar.result().bodyAsBuffer().getBytes();
-                    } else if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN, true)) {
+                    } else if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType(), true)) {
                         byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
                     }
 
@@ -329,9 +329,9 @@ public class UIDOperatorVerticleTest {
 
                 if (ar.result().statusCode() == 200) {
                     byte[] byteResp = new byte[0];
-                    if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
+                    if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
                         byteResp = ar.result().bodyAsBuffer().getBytes();
-                    } else if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN, true)) {
+                    } else if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType(), true)) {
                         byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
                     }
                     byte[] decrypted = AesGcm.decrypt(byteResp, 0, ck.getSecretBytes());
@@ -366,7 +366,7 @@ public class UIDOperatorVerticleTest {
         if (apiVersion.equals("v2")) {
             WebClient client = WebClient.create(vertx);
             HttpRequest<Buffer> refreshHttpRequest = client.postAbs(getUrlForEndpoint("v2/token/refresh"));
-            refreshHttpRequest.putHeader(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.TEXT_PLAIN);
+            refreshHttpRequest.putHeader(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.TEXT_PLAIN.getType());
             for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
                 refreshHttpRequest.putHeader(entry.getKey(), entry.getValue());
             }
@@ -377,9 +377,9 @@ public class UIDOperatorVerticleTest {
 
                         if (response.statusCode() == 200 && v2RefreshDecryptSecret != null) {
                             byte[] byteResp = new byte[0];
-                            if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
+                            if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
                                 byteResp = response.bodyAsBuffer().getBytes();
-                            } else if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN, true)) {
+                            } else if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType(), true)) {
                                 byteResp = Utils.decodeBase64String(response.bodyAsString());
                             }
                             byte[] decrypted = AesGcm.decrypt(byteResp, 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
@@ -471,7 +471,7 @@ public class UIDOperatorVerticleTest {
         final String apiKey = ck == null ? "" : clientKey;
         HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
                 .putHeader(HttpHeaders.AUTHORIZATION.toString(), "Bearer " + apiKey)
-                .putHeader(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.TEXT_PLAIN);
+                .putHeader(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.TEXT_PLAIN.getType());
 
         for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
             request.putHeader(entry.getKey(), entry.getValue());
@@ -494,7 +494,7 @@ public class UIDOperatorVerticleTest {
             request.putHeader("Referer", referer);
         }
 
-        if (request.headers().contains(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
+        if (request.headers().contains(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
             request.sendBuffer(bufBody, handler);
         } else {
             request.sendBuffer(Buffer.buffer(Utils.toBase64String(bufBody.getBytes()).getBytes(StandardCharsets.UTF_8)), handler);

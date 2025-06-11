@@ -155,16 +155,16 @@ public class V2PayloadHandler {
                     respJson.encode().getBytes(StandardCharsets.UTF_8),
                     request.encryptionKey);
 
-                if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
-                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM)
+                if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
+                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType())
                                 .end(Buffer.buffer(encryptedResp));
                 } else {
-                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN)
+                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType())
                                 .end(Utils.toBase64String(encryptedResp));
                 }
             }
             else {
-                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON)
+                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
                     .end(respJson.encode());
             }
         }
@@ -181,7 +181,7 @@ public class V2PayloadHandler {
             return;
         }
         JsonObject respJson = (JsonObject) rc.data().get("response");
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON)
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
             .end(respJson.encode());
     }
 
@@ -198,11 +198,11 @@ public class V2PayloadHandler {
     private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
         var response = writeResponseBody(nonce, resp, keyBytes);
 
-        if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM, true)) {
-            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM)
+        if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType())
                         .end(Buffer.buffer(response));
         } else {
-            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN)
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType())
                         .end(Utils.toBase64String(response));
         }
     }

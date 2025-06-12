@@ -4,19 +4,15 @@ import com.fasterxml.jackson.annotation.*;
 
 public record IdentityMapV3Request(
         @JsonSetter(contentNulls = Nulls.FAIL)
-        @JsonProperty("email") IdentityInput[] email,
+        @JsonProperty("email") String[] email,
 
         @JsonSetter(contentNulls = Nulls.FAIL)
-        @JsonProperty("email_hash") IdentityInput[] email_hash,
+        @JsonProperty("email_hash") String[] email_hash,
 
         @JsonSetter(contentNulls = Nulls.FAIL)
-        @JsonProperty("phone") IdentityInput[] phone,
+        @JsonProperty("phone") String[] phone,
 
         @JsonSetter(contentNulls = Nulls.FAIL)
-        @JsonProperty("phone_hash") IdentityInput[] phone_hash
+        @JsonProperty("phone_hash") String[] phone_hash
 ) {
-    public record IdentityInput(
-            @JsonSetter(nulls = Nulls.FAIL)
-            @JsonProperty("i") String input
-    ) {}
 }

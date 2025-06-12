@@ -963,7 +963,7 @@ public class UIDOperatorVerticleTest {
             Assertions.assertEquals(emails.getString(0), unmappedArr.getJsonObject(0).getString("identifier"));
             Assertions.assertEquals("optout", unmappedArr.getJsonObject(0).getString("reason"));
             testContext.completeNow();
-        }, Map.of("Content-Type", contentType));
+        }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
     @ParameterizedTest
@@ -2243,7 +2243,7 @@ public class UIDOperatorVerticleTest {
 
                     testContext.completeNow();
                 },
-        Map.of("Content-Type", contentType));
+        Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
     @ParameterizedTest
@@ -2724,7 +2724,7 @@ public class UIDOperatorVerticleTest {
         send("v2", vertx, "v2/optout/status", false, null, new JsonObject(), 401, respJson -> {
             assertEquals(com.uid2.shared.Const.ResponseStatus.Unauthorized, respJson.getString("status"));
             testContext.completeNow();
-        }, Map.of("Content-Type", contentType));
+        }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
     @ParameterizedTest
@@ -2749,7 +2749,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("OK", respJson.getJsonObject("body").getString("optout"));
             testContext.completeNow();
         }, Map.of(Audit.UID_TRACE_ID_HEADER, "uid-trace-id",
-                    "Content-Type", contentType));
+                HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
     @Test
@@ -3882,7 +3882,7 @@ public class UIDOperatorVerticleTest {
         WebClient client = WebClient.create(vertx);
         client.postAbs(getUrlForEndpoint("v2/token/client-generate"))
                 .putHeader(ORIGIN_HEADER, "https://cstg.co.uk")
-                .putHeader("Content-Type", "application/json")
+                .putHeader(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.APPLICATION_JSON.getType())
                 .sendBuffer(Buffer.buffer("not a valid json payload"), result -> testContext.verify(() -> {
                     assertEquals(400, result.result().statusCode());
                     testContext.completeNow();
@@ -4929,7 +4929,7 @@ public class UIDOperatorVerticleTest {
             System.out.println(respJson);
             checkEncryptionKeys(respJson, KeyDownloadEndpoint.SHARING, siteId, expectedKeys);
             testContext.completeNow();
-        }, Map.of("Content-Type", contentType));
+        }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
     private static Site defaultMockSite(int siteId, boolean includeDomainNames, boolean includeAppNames) {
@@ -5576,7 +5576,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals(newMaxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds(), body.getLong(Const.Config.MaxBidstreamLifetimeSecondsProp));
             });
             testContext.completeNow();
-        }, Map.of("Content-Type", contentType));
+        }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
     @Test

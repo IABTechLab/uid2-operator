@@ -155,13 +155,7 @@ public class V2PayloadHandler {
                     respJson.encode().getBytes(StandardCharsets.UTF_8),
                     request.encryptionKey);
 
-                if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
-                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType())
-                                .end(Buffer.buffer(encryptedResp));
-                } else {
-                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType())
-                                .end(Utils.toBase64String(encryptedResp));
-                }
+                writeResponseBody(rc, encryptedResp);
             }
             else {
                 rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
@@ -185,7 +179,7 @@ public class V2PayloadHandler {
             .end(respJson.encode());
     }
 
-    public static byte[] writeResponseBody(byte[] nonce, JsonObject resp, byte[] keyBytes) {
+    public static byte[] encryptResponse(byte[] nonce, JsonObject resp, byte[] keyBytes) {
         Buffer buffer = Buffer.buffer();
         buffer.appendLong(EncodingUtils.NowUTCMillis().toEpochMilli());
         buffer.appendBytes(nonce);
@@ -195,16 +189,19 @@ public class V2PayloadHandler {
         return AesGcm.encrypt(response, keyBytes);
     }
 
-    private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
-        var response = writeResponseBody(nonce, resp, keyBytes);
-
+    private void writeResponseBody(RoutingContext rc, byte[] response) {
         if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
             rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType())
-                        .end(Buffer.buffer(response));
+                    .end(Buffer.buffer(response));
         } else {
             rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType())
-                        .end(Utils.toBase64String(response));
+                    .end(Utils.toBase64String(response));
         }
+    }
+
+    private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
+        var response = encryptResponse(nonce, resp, keyBytes);
+        writeResponseBody(rc, response);
     }
 
     private void handleResponse(RoutingContext rc, V2RequestUtil.V2Request request) {

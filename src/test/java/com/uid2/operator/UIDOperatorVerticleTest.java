@@ -1098,9 +1098,9 @@ public class UIDOperatorVerticleTest {
         var phoneHash = TokenUtils.getIdentityHashString("+15555555555");
         JsonObject request = new JsonObject(String.format("""
                 {
-                    "email": [{"i": "test1@uid2.com"}, {"i": "test2@uid2.com"}],
+                    "email": ["test1@uid2.com", "test2@uid2.com"],
                     "phone": [],
-                    "phone_hash": [{"i": "%s"}]
+                    "phone_hash": ["%s"]
                 }
                 """, phoneHash)
         );
@@ -1160,7 +1160,7 @@ public class UIDOperatorVerticleTest {
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
         JsonObject request = new JsonObject("""
-                { "email": [{"i": "test1@uid2.com"}, {"i": "invalid_email"}] }
+                { "email": ["test1@uid2.com", "invalid_email"] }
                 """
         );
 
@@ -1169,7 +1169,7 @@ public class UIDOperatorVerticleTest {
 
             JsonObject expected = new JsonObject("""
                     {
-                        "email": [{"e": "OPTOUT"}, {"e": "INVALID"}],
+                        "email": [{"e": "optout"}, {"e": "invalid identifier"}],
                         "email_hash": [],
                         "phone": [],
                         "phone_hash": []
@@ -1229,11 +1229,9 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"{\"invalid_key\": []}",
-                            "{\"email\": [{}]}",
-                            "{\"email\": [{\"invalid_key\": \"value\"}]}",
-                            "{\"email\": [ {\"i\": null} ]}",
-                            "{\"email\": [ {\"i\": \"some_email\"}, null ]}",
-                            "{\"email\": [ \"not_object\" ]}"})
+                            "{\"email\": [ null ]}",
+                            "{\"email\": [ \"some_email\", null ]}"
+    })
     void v3IdentityMapIncorrectInputFormats(String inputPayload, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -1261,7 +1259,7 @@ public class UIDOperatorVerticleTest {
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
         JsonObject request = new JsonObject("""
-                { "email": [{"i": "test1@uid2.com"}] }
+                { "email": ["test1@uid2.com"] }
         """);
 
         send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {
@@ -1293,7 +1291,7 @@ public class UIDOperatorVerticleTest {
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
         JsonObject request = new JsonObject("""
-                { "email": [{"i": "test1@uid2.com"}] }
+                { "email": ["test1@uid2.com"] }
         """);
 
         send("v2", vertx, "v3/identity/map", false, null, request, 200, respJson -> {

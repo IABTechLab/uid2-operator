@@ -1618,7 +1618,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                     now));
 
                     if (mappedId.isOptedOut()) {
-                        resp.put("e", IdentityMapResponseType.OPTOUT);
+                        resp.put("e", IdentityMapResponseType.OPTOUT.getValue());
                         optoutCount++;
                     } else {
                         resp.put("u", EncodingUtils.toBase64String(mappedId.advertisingId));
@@ -1626,7 +1626,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         resp.put("r", mappedId.refreshFrom / SECOND_IN_MILLIS);
                     }
                 } else {
-                    resp.put("e", IdentityMapResponseType.INVALID);
+                    resp.put("e", IdentityMapResponseType.INVALID_IDENTIFIER.getValue());
                     invalidCount++;
                 }
                 mappedIdentityList.add(resp);
@@ -2086,14 +2086,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         };
     }
 
-    private InputUtil.InputVal[] parseIdentitiesInput(IdentityMapV3Request.IdentityInput[] identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
+    private InputUtil.InputVal[] parseIdentitiesInput(String[] identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
         if (identities == null || identities.length == 0) {
             return new InputUtil.InputVal[0];
         }
         final var normalizedIdentities = new InputUtil.InputVal[identities.length];
 
         for (int i = 0; i < identities.length; i++) {
-            normalizedIdentities[i] = normalizeIdentity(identities[i].input(), identityType, inputType);
+            normalizedIdentities[i] = normalizeIdentity(identities[i], identityType, inputType);
         }
 
         return normalizedIdentities;

@@ -15,10 +15,7 @@ import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.operator.store.IConfigStore;
-import com.uid2.operator.util.DomainNameCheckUtil;
-import com.uid2.operator.util.PrivacyBits;
-import com.uid2.operator.util.RoutingContextUtil;
-import com.uid2.operator.util.Tuple;
+import com.uid2.operator.util.*;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
 import com.uid2.shared.audit.Audit;
@@ -1239,7 +1236,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
         final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
-        if (input.isValid()) {
+        if (input != null && input.isValid()) {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
@@ -2258,12 +2255,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void sendJsonResponse(RoutingContext rc, JsonObject json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
                 .end(json.encode());
     }
 
     private void sendJsonResponse(RoutingContext rc, JsonArray json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
                 .end(json.encode());
     }
 

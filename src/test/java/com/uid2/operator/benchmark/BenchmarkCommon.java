@@ -5,9 +5,11 @@ import com.uid2.operator.Main;
 import com.uid2.operator.model.*;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
+import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.CloudSyncOptOutStore;
 import com.uid2.operator.store.IOptOutStore;
+import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.Utils;
 import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.auth.ClientKey;
@@ -35,6 +37,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -70,14 +73,14 @@ public class BenchmarkCommon {
                 saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
                 /* out */ optOutPartitionFiles);
         final IOptOutStore optOutStore = new StaticOptOutStore(optOutLocalStorage, make1mOptOutEntryConfig(), optOutPartitionFiles);
-
+        final OperatorShutdownHandler shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(1), Duration.ofHours(1), Clock.systemUTC(), new ShutdownService());
         return new UIDOperatorService(
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
                 Clock.systemUTC(),
                 IdentityScope.UID2,
-                null,
+                shutdownHandler::handleSaltRetrievalResponse,
                 false,
                 new UidInstanceIdProvider("test-instance", "id")
         );

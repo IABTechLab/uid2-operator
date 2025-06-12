@@ -159,7 +159,7 @@ public class IdentityMapBenchmark {
     @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
     @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
     public void compressionBenchmarkingBinary(PayloadState state, Blackhole bh) {
-        var data = V2PayloadHandler.writeResponseBody(PayloadState.nonce, PayloadState.createDII(state.numRecords), PayloadState.clientKey.getSecretBytes());
+        var data = V2PayloadHandler.encryptResponse(PayloadState.nonce, PayloadState.createDII(state.numRecords), PayloadState.clientKey.getSecretBytes());
         bh.consume(data);
     }
 
@@ -170,7 +170,7 @@ public class IdentityMapBenchmark {
     @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
     @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
     public void compressionBenchmarkingNone(PayloadState state, Blackhole bh) {
-        var data = V2PayloadHandler.writeResponseBody(PayloadState.nonce, PayloadState.createDII(state.numRecords), PayloadState.clientKey.getSecretBytes());
+        var data = V2PayloadHandler.encryptResponse(PayloadState.nonce, PayloadState.createDII(state.numRecords), PayloadState.clientKey.getSecretBytes());
         bh.consume(data);
     }
 }

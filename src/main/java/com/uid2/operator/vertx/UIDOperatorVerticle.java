@@ -1621,7 +1621,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                     now));
 
                     if (mappedId.isOptedOut()) {
-                        resp.put("e", IdentityMapResponseType.OPTOUT);
+                        resp.put("e", IdentityMapResponseType.OPTOUT.getValue());
                         optoutCount++;
                     } else {
                         resp.put("u", EncodingUtils.toBase64String(mappedId.advertisingId));
@@ -1629,7 +1629,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         resp.put("r", mappedId.refreshFrom / SECOND_IN_MILLIS);
                     }
                 } else {
-                    resp.put("e", IdentityMapResponseType.INVALID);
+                    resp.put("e", IdentityMapResponseType.INVALID_IDENTIFIER.getValue());
                     invalidCount++;
                 }
                 mappedIdentityList.add(resp);

@@ -1130,7 +1130,7 @@ public class UIDOperatorVerticleTest {
 
             JsonObject expected = new JsonObject("""
                     {
-                        "email": [{"e": "OPTOUT"}, {"e": "INVALID"}],
+                        "email": [{"e": "optout"}, {"e": "invalid identifier"}],
                         "email_hash": [],
                         "phone": [],
                         "phone_hash": []

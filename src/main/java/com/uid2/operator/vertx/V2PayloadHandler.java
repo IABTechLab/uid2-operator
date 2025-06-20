@@ -44,6 +44,44 @@ public class V2PayloadHandler {
         this.siteProvider = siteProvider;
     }
 
+    public void handleIdentityMap(RoutingContext rc, Function<RoutingContext, Future<Void>> apiHandler) {
+        if (!enableEncryption) {
+            passThroughIdentityMap(rc, apiHandler);
+            return;
+        }
+
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        if (!request.isValid()) {
+            ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
+            return;
+        }
+        rc.data().put("request", request.payload);
+
+        Future<Void> apiHandlerFuture = apiHandler.apply(rc);
+
+        apiHandlerFuture.onComplete(ar -> {
+            if (!rc.response().ended()) {
+                handleResponse(rc, request);
+            }
+        });
+    }
+
+    private void passThroughIdentityMap(RoutingContext rc, Function<RoutingContext, Future<Void>> apiHandler) {
+        rc.data().put("request", rc.body().asJsonObject());
+        Future<Void> apiHandlerFuture = apiHandler.apply(rc);
+
+        apiHandlerFuture.onComplete(ar -> {
+            if (ar.succeeded() && !rc.response().ended()) {
+                if (rc.response().getStatusCode() != 200) {
+                    return;
+                }
+                JsonObject respJson = (JsonObject) rc.data().get("response");
+                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                        .end(respJson.encode());
+            }
+        });
+    }
+
     public void handle(RoutingContext rc, Handler<RoutingContext> apiHandler) {
         if (!enableEncryption) {
             passThrough(rc, apiHandler);

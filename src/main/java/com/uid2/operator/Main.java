@@ -457,7 +457,7 @@ public class Main {
             MBeanServer server = ManagementFactory.getPlatformMBeanServer();
             server.registerMBean(AdminApi.instance, objectName);
         } catch (InstanceAlreadyExistsException | MBeanRegistrationException | NotCompliantMBeanException | MalformedObjectNameException e) {
-            LOGGER.error("Failed to register JMX AdminApi: {}", e.getMessage(), e);
+            LOGGER.error(e.getMessage(), e);
             System.exit(-1);
         }
 

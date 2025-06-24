@@ -898,7 +898,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             CLIENT_VERSION_COUNTERS.computeIfAbsent(
                     new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion),
                     tuple -> Counter
-                            .builder("uid2.client_sdk_versions")
+                            .builder("uid2_client_sdk_versions_total")
                             .description("counter for how many http requests are processed per each operator-served sdk version")
                             .tags("site_id", tuple.getItem1(), "api_contact", apiContact, "client_version", tuple.getItem2(), "path", path)
                             .register(Metrics.globalRegistry)
@@ -1807,18 +1807,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         String apiContact = getApiContact(rc);
 
         DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2.operator.identity.map.inputs")
+                .builder("uid2_operator_identity_map_inputs")
                 .description("number of emails or email hashes passed to identity map batch endpoint")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
         ds.record(inputCount);
 
         Tuple.Tuple2<Counter, Counter> ids = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact, k -> new Tuple.Tuple2<>(
-                Counter.builder("uid2.operator.identity.map.unmapped")
+                Counter.builder("uid2_operator_identity_map_unmapped_total")
                         .description("invalid identifiers")
                         .tags("api_contact", apiContact, "reason", "invalid")
                         .register(Metrics.globalRegistry),
-                Counter.builder("uid2.operator.identity.map.unmapped")
+                Counter.builder("uid2_operator_identity_map_unmapped_total")
                         .description("optout identifiers")
                         .tags("api_contact", apiContact, "reason", "optout")
                         .register(Metrics.globalRegistry)));
@@ -1826,7 +1826,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (optoutCount > 0) ids.getItem2().increment(optoutCount);
 
         Counter rs = _identityMapRequestWithUnmapped.computeIfAbsent(apiContact, k -> Counter
-                .builder("uid2.operator.identity.map.unmapped_requests")
+                .builder("uid2_operator_identity_map_unmapped_requests_total")
                 .description("number of requests with unmapped identifiers")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
@@ -1845,7 +1845,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
             final String metricKey = serviceName + serviceLinkName;
             DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(metricKey,
-                    k -> DistributionSummary.builder("uid2.operator.identity.map.services.inputs")
+                    k -> DistributionSummary.builder("uid2_operator_identity_map_services_inputs")
                             .description("number of emails or phone numbers passed to identity map batch endpoint by services")
                             .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                     Tag.of("service_name", serviceName),
@@ -1855,14 +1855,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(metricKey,
                     k -> new Tuple.Tuple2<>(
-                            Counter.builder("uid2.operator.identity.map.services.unmapped")
+                            Counter.builder("uid2_operator_identity_map_services_unmapped_total")
                                     .description("number of invalid identifiers passed to identity map batch endpoint by services")
                                     .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                             Tag.of("reason", "invalid"),
                                             Tag.of("service_name", serviceName),
                                             Tag.of("service_link_name", serviceLinkName)))
                                     .register(Metrics.globalRegistry),
-                            Counter.builder("uid2.operator.identity.map.services.unmapped")
+                            Counter.builder("uid2_operator_identity_map_services_unmapped_total")
                                     .description("number of optout identifiers passed to identity map batch endpoint by services")
                                     .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                             Tag.of("reason", "optout"),
@@ -1928,14 +1928,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void recordOptOutStatusEndpointStats(RoutingContext rc, int inputCount, int optOutCount) {
         String apiContact = getApiContact(rc);
         DistributionSummary inputDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2.operator.optout.status.input_size")
+                .builder("uid2_operator_optout_status_input_size")
                 .description("number of UIDs received in request")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
         inputDistSummary.record(inputCount);
 
         DistributionSummary optOutDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2.operator.optout.status.optout_size")
+                .builder("uid2.operator.optout.status.optout_size") //#debug: I cannot find this metrics in grafana
                 .description("number of UIDs that have opted out")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
@@ -1956,7 +1956,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void recordRefreshTokenVersionCount(String siteId, TokenVersion tokenVersion) {
-        Counter.builder("uid2_refresh_token_received_count")
+        Counter.builder("uid2_refresh_token_received_count_total")
                 .description(String.format("Counter for the amount of refresh token %s received", tokenVersion.toString().toLowerCase()))
                 .tags("site_id", siteId)
                 .tags("refresh_token_version", tokenVersion.toString().toLowerCase())
@@ -2017,7 +2017,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader, Duration identityExpiresAfter) {
         DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(new Tuple.Tuple2<>(apiContact, hasOriginHeader), k ->
                 DistributionSummary
-                        .builder("uid2.token_refresh_duration_seconds")
+                        .builder("uid2_token_refresh_duration_seconds")
                         .description("duration between token refreshes")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("site_name", getSiteName(siteProvider, siteId))
@@ -2030,7 +2030,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         boolean isExpired = durationSinceLastRefresh.compareTo(identityExpiresAfter) > 0;
         Counter c = _advertisingTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), hasOriginHeader, isExpired), k ->
                 Counter
-                        .builder("uid2.advertising_token_expired_on_refresh")
+                        .builder("uid2_advertising_token_expired_on_refresh_total")
                         .description("status of advertiser token expiry")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("site_name", getSiteName(siteProvider, siteId))
@@ -2163,7 +2163,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void recordTokenGeneratePolicy(String apiContact, OptoutCheckPolicy policy, String policyParameterKey) {
         _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple.Tuple3<>(apiContact, policy, policyParameterKey), triple -> Counter
-                .builder("uid2.token_generate_policy_usage")
+                .builder("uid2_token_generate_policy_usage_total")
                 .description("Counter for token generate policy usage")
                 .tags("api_contact", triple.getItem1(), "policy", String.valueOf(triple.getItem2()), "policy_parameter", triple.getItem3())
                 .register(Metrics.globalRegistry)).increment();
@@ -2171,7 +2171,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void recordTokenGenerateTCFUsage(String apiContact) {
         _tokenGenerateTCFUsage.computeIfAbsent(apiContact, contact -> Counter
-                .builder("uid2.token_generate_tcf_usage")
+                .builder("uid2.token_generate_tcf_usage") //debug: cannot search in grafana
                 .description("Counter for token generate tcf usage")
                 .tags("api_contact", contact)
                 .register(Metrics.globalRegistry)).increment();

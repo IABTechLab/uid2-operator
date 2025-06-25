@@ -1935,7 +1935,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         inputDistSummary.record(inputCount);
 
         DistributionSummary optOutDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2.operator.optout.status.optout_size") //#debug: I cannot find this metrics in grafana
+                .builder("uid2_operator_optout_status_optout_size")
                 .description("number of UIDs that have opted out")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
@@ -2171,7 +2171,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void recordTokenGenerateTCFUsage(String apiContact) {
         _tokenGenerateTCFUsage.computeIfAbsent(apiContact, contact -> Counter
-                .builder("uid2.token_generate_tcf_usage") //debug: cannot search in grafana
+                .builder("uid2_token_generate_tcf_usage_total")
                 .description("Counter for token generate tcf usage")
                 .tags("api_contact", contact)
                 .register(Metrics.globalRegistry)).increment();

@@ -306,7 +306,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     public static class OptOutStoreSnapshot {
         private static final Logger LOGGER = LoggerFactory.getLogger(OptOutStoreSnapshot.class);
 
-        private static final String METRIC_NAME_PREFIX = "uid2.optout.";
+        private static final String METRIC_NAME_PREFIX = "uid2_optout_";
 
         // Metrics for processing deltas and partitions.
         private static final String OPT_OUT_PROCESSING_METRIC_NAME = METRIC_NAME_PREFIX + "processing";

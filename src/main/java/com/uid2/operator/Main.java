@@ -457,7 +457,7 @@ public class Main {
             MBeanServer server = ManagementFactory.getPlatformMBeanServer();
             server.registerMBean(AdminApi.instance, objectName);
         } catch (InstanceAlreadyExistsException | MBeanRegistrationException | NotCompliantMBeanException | MalformedObjectNameException e) {
-            LOGGER.error(e.getMessage(), e);
+            LOGGER.error("mBean initialisation failed {}", e.getMessage(), e);
             System.exit(-1);
         }
 

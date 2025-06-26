@@ -2055,13 +2055,13 @@ public class UIDOperatorVerticleTest {
             sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 assertEquals(300, Metrics.globalRegistry
-                        .get("uid2.token_refresh_duration_seconds")
+                        .get("uid2_token_refresh_duration_seconds")
                         .tag("api_contact", "test-contact")
                         .tag("site_id", String.valueOf(clientSiteId))
                         .summary().mean());
 
                 assertEquals(1, Metrics.globalRegistry
-                        .get("uid2.advertising_token_expired_on_refresh")
+                        .get("uid2_advertising_token_expired_on_refresh_total")
                         .tag("site_id", String.valueOf(clientSiteId))
                         .tag("is_expired", "false")
                         .counter().count());
@@ -2086,7 +2086,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
 
                 assertEquals(1, Metrics.globalRegistry
-                        .get("uid2.advertising_token_expired_on_refresh")
+                        .get("uid2_advertising_token_expired_on_refresh_total")
                         .tag("site_id", String.valueOf(clientSiteId))
                         .tag("is_expired", "true")
                         .counter().count());
@@ -2110,7 +2110,7 @@ public class UIDOperatorVerticleTest {
             sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, bodyJson.getString("refresh_response_key"), 400, refreshRespJson -> {
                 assertEquals("expired_token", refreshRespJson.getString("status"));
                 assertNotNull(Metrics.globalRegistry
-                        .get("uid2_refresh_token_received_count").counter());
+                        .get("uid2_refresh_token_received_count_total").counter());
                 testContext.completeNow();
             });
         });
@@ -2130,7 +2130,7 @@ public class UIDOperatorVerticleTest {
             sendTokenRefresh(apiVersion, vertx, testContext, refreshToken, "", 400, refreshRespJson -> {
                 assertEquals("error", refreshRespJson.getString("status"));
                 assertNotNull(Metrics.globalRegistry
-                        .get("uid2_refresh_token_received_count").counter());
+                        .get("uid2_refresh_token_received_count_total").counter());
                 testContext.completeNow();
             });
         });

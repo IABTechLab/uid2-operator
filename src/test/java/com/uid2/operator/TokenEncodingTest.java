@@ -82,7 +82,7 @@ public class TokenEncodingTest {
         assertEquals(Data.RefreshKeySiteId, keyManager.getSiteIdFromKeyId(keyId));
 
         assertNotNull(Metrics.globalRegistry
-                .get("uid2_refresh_token_served_count")
+                .get("uid2_refresh_token_served_count_total")
                 .counter());
     }
 

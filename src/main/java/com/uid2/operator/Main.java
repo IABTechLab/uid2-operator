@@ -527,20 +527,20 @@ public class Main {
         // retrieve image version (will unify when uid2-common is used)
         final String version = Optional.ofNullable(System.getenv("IMAGE_VERSION")).orElse("unknown");
         Gauge
-                .builder("app.status", () -> 1)
+                .builder("app_status", () -> 1)
                 .description("application version and status")
                 .tags("version", version)
                 .register(globalRegistry);
     }
 
     private void createVertxInstancesMetric() {
-        Gauge.builder("uid2.vertx_service_instances", () -> config.getInteger("service_instances"))
+        Gauge.builder("uid2_vertx_service_instances", () -> config.getInteger("service_instances"))
                 .description("gauge for number of vertx service instances requested")
                 .register(Metrics.globalRegistry);
     }
 
     private void createVertxEventLoopsMetric() {
-        Gauge.builder("uid2.vertx_event_loop_threads", () -> VertxOptions.DEFAULT_EVENT_LOOP_POOL_SIZE)
+        Gauge.builder("uid2_vertx_event_loop_threads", () -> VertxOptions.DEFAULT_EVENT_LOOP_POOL_SIZE)
                 .description("gauge for number of vertx event loop threads")
                 .register(Metrics.globalRegistry);
     }

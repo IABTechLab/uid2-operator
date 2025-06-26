@@ -50,7 +50,7 @@ public class ClientVersionCapturingHandler implements Handler<RoutingContext> {
             CLIENT_VERSION_COUNTERS.computeIfAbsent(
                     new Tuple.Tuple2<>(apiContact, clientVersion),
                     tuple -> Counter
-                            .builder("uid2.client_sdk_versions")
+                            .builder("uid2_client_sdk_versions_total")
                             .description("counter for how many http requests are processed per each client sdk version")
                             .tags("site_id", "unknown", "api_contact", tuple.getItem1(), "client_version", tuple.getItem2(), "path", path)
                             .register(Metrics.globalRegistry)

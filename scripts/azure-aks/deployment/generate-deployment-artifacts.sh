@@ -100,6 +100,7 @@ if [[ $? -ne 0 ]]; then
   echo "Failed to replace placeholders in policy file"
   exit 1
 fi
+cat ${INPUT_DIR}/generated.rego
 
 base64 -w0 < ${INPUT_DIR}/generated.rego > ${INPUT_DIR}/generated.rego.base64
 if [[ $? -ne 0 ]]; then

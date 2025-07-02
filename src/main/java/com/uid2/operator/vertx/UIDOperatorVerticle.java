@@ -86,7 +86,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
      */
     public static final Duration TOKEN_LIFETIME_TOLERANCE = Duration.ofSeconds(10);
     private static final long SECOND_IN_MILLIS = 1000;
-    private static final DateTimeFormatter API_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneOffset.UTC);
+    // Use a formatter that always prints three-digit millisecond precision (e.g. 2024-07-02T14:15:16.000)
+    private static final DateTimeFormatter API_DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
 
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");

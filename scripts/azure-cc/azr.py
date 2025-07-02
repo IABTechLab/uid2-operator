@@ -58,6 +58,7 @@ class AZR(ConfidentialCompute):
 
         config = config.replace("https://core.uidapi.com", self.configs["core_base_url"])
         config = config.replace("https://optout.uidapi.com", self.configs["optout_base_url"])
+        config = config.replace("unknown", self.configs["uid_instance_id_prefix"])
         with open(AZR.FINAL_CONFIG, "w") as file:
             file.write(config)
 

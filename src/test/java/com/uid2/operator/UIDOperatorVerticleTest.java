@@ -5677,11 +5677,10 @@ public class UIDOperatorVerticleTest {
     }
 
     private void assertLastUpdatedHasMillis(JsonArray buckets) {
-        assertFalse(buckets.isEmpty());
         for (int i = 0; i < buckets.size(); i++) {
             JsonObject bucket = buckets.getJsonObject(i);
             String lastUpdated = bucket.getString("last_updated");
-            // Expect the pattern yyyy-MM-dd'T'HH:mm:ss.SSS with millisecond component always present
+            // Verify pattern yyyy-MM-dd'T'HH:mm:ss.SSS 
             assertTrue(lastUpdated.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}"),
                     "last_updated does not contain millisecond precision: " + lastUpdated);
         }
@@ -5694,12 +5693,12 @@ public class UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
 
-        // Prepare a SaltEntry with a lastUpdated that has 0 milliseconds so we can verify formatter adds .000
+        // SaltEntry with a lastUpdated that has 0 milliseconds
         long lastUpdatedMillis = Instant.parse("2024-01-01T00:00:00Z").toEpochMilli();
         SaltEntry bucketEntry = new SaltEntry(456, "hashed456", lastUpdatedMillis, "salt456", null, null, null, null);
         when(saltProviderSnapshot.getModifiedSince(any())).thenReturn(List.of(bucketEntry));
 
-        String sinceTimestamp = "2023-12-31T00:00:00"; // earlier than bucketEntry.lastUpdated
+        String sinceTimestamp = "2023-12-31T00:00:00"; // earlier timestamp
 
         boolean isV1 = apiVersion.equals("v1");
         String v1Param = isV1 ? "since_timestamp=" + sinceTimestamp : null;
@@ -5707,6 +5706,7 @@ public class UIDOperatorVerticleTest {
 
         send(apiVersion, vertx, apiVersion + "/identity/buckets", isV1, v1Param, req, 200, respJson -> {
             JsonArray buckets = respJson.getJsonArray("body");
+            assertFalse(buckets.isEmpty());
             assertLastUpdatedHasMillis(buckets);
             testContext.completeNow();
         });

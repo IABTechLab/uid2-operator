@@ -67,6 +67,7 @@ class GCP(ConfidentialCompute):
             config = file.read()
         config = config.replace("https://core.uidapi.com", self.configs.get("core_base_url"))
         config = config.replace("https://optout.uidapi.com", self.configs.get("optout_base_url"))
+        config = config.replace("unknown", self.configs.get("uid_instance_id_prefix"))
         with open(destination, 'w') as file:
             file.write(config)
 

@@ -5,6 +5,14 @@ import com.uid2.operator.model.IdentityType;
 import com.uid2.operator.model.UserIdentity;
 
 import java.time.Instant;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class InputUtil {
 
@@ -269,6 +277,42 @@ public class InputUtil {
                     privacyBits,
                     establishedAt,
                     establishedAt);
+        }
+    }
+
+    // VULNERABILITY: SQL Injection - for CodeQL testing purposes only
+    // This method is intentionally vulnerable to demonstrate SQL injection detection
+    public static List<String> validateUserInput(String userQuery) {
+        List<String> results = new ArrayList<>();
+        try {
+            Connection conn = DriverManager.getConnection("jdbc:h2:mem:testdb");
+            Statement stmt = conn.createStatement();
+            
+            // VULNERABILITY: Direct string concatenation creates SQL injection risk
+            String sql = "SELECT username FROM users WHERE email = '" + userQuery + "'";
+            
+            ResultSet rs = stmt.executeQuery(sql);
+            while (rs.next()) {
+                results.add(rs.getString("username"));
+            }
+            stmt.close();
+            conn.close();
+        } catch (Exception e) {
+            // VULNERABILITY: Potentially leaking database error information
+            throw new RuntimeException("Database query failed: " + e.getMessage());
+        }
+        return results;
+    }
+
+    // VULNERABILITY: Path Traversal - for CodeQL testing purposes only
+    // This method is intentionally vulnerable to demonstrate directory traversal detection
+    public static String readConfigFile(String filename) {
+        try {
+            // VULNERABILITY: No validation allows directory traversal with ../
+            String content = Files.readString(Paths.get("/config/" + filename));
+            return content;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to read config file: " + filename);
         }
     }
 

@@ -169,6 +169,28 @@ public class ResponseUtil {
         return "Response to http request. " + msgJsonObject.encode();
     }
 
+    // VULNERABILITY: Cross-Site Scripting (XSS) - for CodeQL testing purposes only
+    // This method is intentionally vulnerable to demonstrate XSS detection
+    public static void SendHtmlResponse(RoutingContext rc, String userInput) {
+        // VULNERABILITY: User input directly embedded in HTML without sanitization
+        String htmlContent = "<html><body><h1>Welcome " + userInput + "</h1>" +
+                            "<p>Your search query: " + userInput + "</p></body></html>";
+        
+        rc.response()
+            .putHeader(HttpHeaders.CONTENT_TYPE, "text/html")
+            .end(htmlContent);
+    }
+
+    // VULNERABILITY: Additional XSS in JSON response - for CodeQL testing purposes only
+    public static void SendUnsafeJsonResponse(RoutingContext rc, String userMessage) {
+        // VULNERABILITY: Unescaped user input in JSON response that could be rendered as HTML
+        String jsonResponse = "{\"status\":\"success\",\"message\":\"<script>alert('" + userMessage + "')</script>\"}";
+        
+        rc.response()
+            .putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+            .end(jsonResponse);
+    }
+
     public static class ResponseStatus {
         public static final String Success = "success";
         public static final String Unauthorized = "unauthorized";

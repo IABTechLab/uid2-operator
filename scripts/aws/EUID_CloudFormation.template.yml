@@ -24,7 +24,7 @@ Parameters:
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
   InstanceType:
-    Description: EC2 instance type. Minimum 4 vCPUs needed.
+    Description: EC2 instance type. Minimum 8 vCPUs needed.
     Type: String
     Default: m5.2xlarge
     AllowedValues:
@@ -256,6 +256,11 @@ Resources:
             sudo yum update -y --security
             while ! nc -z localhost 80;do sleep 10;done
             /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}
+        MetadataOptions:
+          HttpEndpoint: enabled
+          HttpTokens: required # Enforces IMDSv2
+          HttpPutResponseHopLimit: 1
+          InstanceMetadataTags: enabled
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     DependsOn:

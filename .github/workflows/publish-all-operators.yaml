@@ -69,10 +69,11 @@ jobs:
           fetch-depth: 0
 
       - name: Scan vulnerabilities
-        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan_filesystem@v3
+        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@v3
         with:
           scan_severity: HIGH,CRITICAL
           failure_severity: CRITICAL
+          scan_type: 'fs'
 
       - name: Set version number
         id: version

@@ -160,10 +160,34 @@ runs:
       run: |
         touch uid2_AMI_measurement.txt
         echo "UID2 Enclave ID: ${{ steps.extractAmiIdAndEnclaveId.outputs.ENCLAVE_ID }}" >> uid2_AMI_measurement.txt
-        echo "AMI ID: " ${{ steps.extractAmiIdAndEnclaveId.outputs.AMI_ID }} >> uid2_AMI_measurement.txt
+        echo "AMI ID: ${{ steps.extractAmiIdAndEnclaveId.outputs.AMI_ID }}" >> uid2_AMI_measurement.txt
         echo "uid2_AMI_measurement.txt Contents:"
         cat uid2_AMI_measurement.txt
         ls -al
+    
+        # Persist to aws-ami-poc.json
+        AMI_ID="${{ steps.extractAmiIdAndEnclaveId.outputs.AMI_ID }}"
+        REGION="us-east-1"
+        FILE="aws-ami-poc.json"
+    
+        # Initialize the file if it doesn't exist
+        if [ ! -f "$FILE" ]; then
+          echo "{}" > "$FILE"
+        fi
+    
+        # Update JSON using jq
+        jq --arg region "$REGION" --arg ami "$AMI_ID" \
+          '.[$region] += [$ami] | .[$region] |= unique' "$FILE" > tmp.$FILE && mv tmp.$FILE "$FILE"
+    
+        echo "Updated $FILE:"
+        cat "$FILE"
+    
+    - name: Commit aws-ami-poc.json update
+      if: ${{ steps.checkRelease.outputs.is_release != 'true' }}
+      uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v2
+      with:
+        add: './scripts/aws/uid2-operator-ami/aws-ami-poc.json'
+        message: 'Updated AMI ID for UID2 in aws-ami-poc.json'
 
     - name: Copy AMI to us-east-1
       id: euidCopyAmi

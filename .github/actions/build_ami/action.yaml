@@ -160,7 +160,7 @@ runs:
       run: |
         touch uid2_AMI_measurement.txt
         echo "UID2 Enclave ID: ${{ steps.extractAmiIdAndEnclaveId.outputs.ENCLAVE_ID }}" >> uid2_AMI_measurement.txt
-        echo "AMI ID: ${{ steps.extractAmiIdAndEnclaveId.outputs.AMI_ID }}" >> uid2_AMI_measurement.txt
+        echo "AMI ID: " ${{ steps.extractAmiIdAndEnclaveId.outputs.AMI_ID }} >> uid2_AMI_measurement.txt
         echo "uid2_AMI_measurement.txt Contents:"
         cat uid2_AMI_measurement.txt
         ls -al

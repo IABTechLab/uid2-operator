@@ -18,6 +18,7 @@ import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
 import com.uid2.shared.attest.*;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
@@ -90,6 +91,7 @@ public class Main {
     private RotatingServiceStore serviceProvider;
     private RotatingServiceLinkStore serviceLinkProvider;
     private RotatingCloudEncryptionKeyApiProvider cloudEncryptionKeyProvider;
+    private final UidInstanceIdProvider uidInstanceIdProvider;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -111,6 +113,7 @@ public class Main {
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
         this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
         this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC(), new ShutdownService());
+        this.uidInstanceIdProvider = new UidInstanceIdProvider(config);
 
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
 
@@ -247,13 +250,13 @@ public class Main {
 
         final String vertxConfigPath = System.getProperty(Const.Config.VERTX_CONFIG_PATH_PROP);
         if (vertxConfigPath != null) {
-            System.out.format("Running CUSTOM CONFIG mode, config: %s\n", vertxConfigPath);
+            LOGGER.info("Running CUSTOM CONFIG mode, config: {}", vertxConfigPath);
         }
         else if (!Utils.isProductionEnvironment()) {
-            System.out.format("Running LOCAL DEBUG mode, config: %s\n", Const.Config.LOCAL_CONFIG_PATH);
+            LOGGER.info("Running LOCAL DEBUG mode, config: {}", Const.Config.LOCAL_CONFIG_PATH);
             System.setProperty(Const.Config.VERTX_CONFIG_PATH_PROP, Const.Config.LOCAL_CONFIG_PATH);
         } else {
-            System.out.format("Running PRODUCTION mode, config: %s\n", Const.Config.OVERRIDE_CONFIG_PATH);
+            LOGGER.info("Running PRODUCTION mode, config: {}", Const.Config.OVERRIDE_CONFIG_PATH);
         }
 
         Vertx vertx = createVertx();
@@ -325,7 +328,7 @@ public class Main {
         this.createVertxEventLoopsMetric();
 
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse, this.uidInstanceIdProvider);
             return verticle;
         };
 
@@ -454,7 +457,7 @@ public class Main {
             MBeanServer server = ManagementFactory.getPlatformMBeanServer();
             server.registerMBean(AdminApi.instance, objectName);
         } catch (InstanceAlreadyExistsException | MBeanRegistrationException | NotCompliantMBeanException | MalformedObjectNameException e) {
-            System.err.format("%s", e.getMessage());
+            LOGGER.error("mBean initialisation failed {}", e.getMessage(), e);
             System.exit(-1);
         }
 
@@ -524,28 +527,28 @@ public class Main {
         // retrieve image version (will unify when uid2-common is used)
         final String version = Optional.ofNullable(System.getenv("IMAGE_VERSION")).orElse("unknown");
         Gauge
-                .builder("app.status", () -> 1)
+                .builder("app_status", () -> 1)
                 .description("application version and status")
                 .tags("version", version)
                 .register(globalRegistry);
     }
 
     private void createVertxInstancesMetric() {
-        Gauge.builder("uid2.vertx_service_instances", () -> config.getInteger("service_instances"))
+        Gauge.builder("uid2_vertx_service_instances", () -> config.getInteger("service_instances"))
                 .description("gauge for number of vertx service instances requested")
                 .register(Metrics.globalRegistry);
     }
 
     private void createVertxEventLoopsMetric() {
-        Gauge.builder("uid2.vertx_event_loop_threads", () -> VertxOptions.DEFAULT_EVENT_LOOP_POOL_SIZE)
+        Gauge.builder("uid2_vertx_event_loop_threads", () -> VertxOptions.DEFAULT_EVENT_LOOP_POOL_SIZE)
                 .description("gauge for number of vertx event loop threads")
                 .register(Metrics.globalRegistry);
     }
 
     private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
         AttestationResponseHandler attestationResponseHandler = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
-        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler, this.encryptedCloudFilesEnabled);
-        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
+        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler, this.encryptedCloudFilesEnabled, this.uidInstanceIdProvider);
+        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler, this.uidInstanceIdProvider);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }
 
@@ -581,7 +584,7 @@ public class Main {
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));
         }
 
-        return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, operatorType, this.appVersion, attestationProvider, responseWatcher, CloudUtils.defaultProxy);
+        return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, operatorType, this.appVersion, attestationProvider, responseWatcher, CloudUtils.defaultProxy, this.uidInstanceIdProvider);
     }
 
     private IOperatorKeyRetriever createOperatorKeyRetriever() throws Exception {

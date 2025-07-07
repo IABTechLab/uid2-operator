@@ -15,12 +15,11 @@ import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.operator.store.IConfigStore;
-import com.uid2.operator.util.DomainNameCheckUtil;
-import com.uid2.operator.util.PrivacyBits;
-import com.uid2.operator.util.RoutingContextUtil;
-import com.uid2.operator.util.Tuple;
+import com.uid2.operator.util.*;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
+import com.uid2.shared.audit.Audit;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.auth.*;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
@@ -87,7 +86,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
      */
     public static final Duration TOKEN_LIFETIME_TOLERANCE = Duration.ofSeconds(10);
     private static final long SECOND_IN_MILLIS = 1000;
-    private static final DateTimeFormatter API_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneOffset.UTC);
+    // Use a formatter that always prints three-digit millisecond precision (e.g. 2024-07-02T14:15:16.000)
+    private static final DateTimeFormatter API_DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
 
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
@@ -105,6 +106,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final boolean allowLegacyAPI;
     private final boolean identityV3Enabled;
     private final boolean disableOptoutToken;
+    private final UidInstanceIdProvider uidInstanceIdProvider;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
@@ -161,7 +163,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue,
                                SecureLinkValidatorService secureLinkValidatorService,
-                               Handler<Boolean> saltRetrievalResponseHandler) {
+                               Handler<Boolean> saltRetrievalResponseHandler,
+                               UidInstanceIdProvider uidInstanceIdProvider) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -195,6 +198,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.allowLegacyAPI = config.getBoolean(Const.Config.AllowLegacyAPIProp, false);
         this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
         this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
+        this.uidInstanceIdProvider = uidInstanceIdProvider;
     }
 
     @Override
@@ -207,7 +211,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.clock,
                 this.identityScope,
                 this.saltRetrievalResponseHandler,
-                this.identityV3Enabled
+                this.identityV3Enabled,
+                this.uidInstanceIdProvider
         );
 
         final Router router = createRoutesSetup();
@@ -895,7 +900,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             CLIENT_VERSION_COUNTERS.computeIfAbsent(
                     new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion),
                     tuple -> Counter
-                            .builder("uid2.client_sdk_versions")
+                            .builder("uid2_client_sdk_versions_total")
                             .description("counter for how many http requests are processed per each operator-served sdk version")
                             .tags("site_id", tuple.getItem1(), "api_contact", apiContact, "client_version", tuple.getItem2(), "path", path)
                             .register(Metrics.globalRegistry)
@@ -1214,9 +1219,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void handleLogoutAsync(RoutingContext rc) {
         final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
+        final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
         if (input.isValid()) {
             final Instant now = Instant.now();
-            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, ar -> {
+            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, uidTraceId, ar -> {
                 if (ar.succeeded()) {
                     rc.response().end("OK");
                 } else {
@@ -1231,11 +1237,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private Future handleLogoutAsyncV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
-        if (input.isValid()) {
+        final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
+        if (input != null && input.isValid()) {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
-            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, ar -> {
+            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, uidTraceId, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
                     body.put("optout", "OK");
@@ -1613,7 +1620,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                     now));
 
                     if (mappedId.isOptedOut()) {
-                        resp.put("e", IdentityMapResponseType.OPTOUT);
+                        resp.put("e", IdentityMapResponseType.OPTOUT.getValue());
                         optoutCount++;
                     } else {
                         resp.put("u", EncodingUtils.toBase64String(mappedId.advertisingId));
@@ -1621,7 +1628,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         resp.put("r", mappedId.refreshFrom / SECOND_IN_MILLIS);
                     }
                 } else {
-                    resp.put("e", IdentityMapResponseType.INVALID);
+                    resp.put("e", IdentityMapResponseType.INVALID_IDENTIFIER.getValue());
                     invalidCount++;
                 }
                 mappedIdentityList.add(resp);
@@ -1802,18 +1809,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         String apiContact = getApiContact(rc);
 
         DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2.operator.identity.map.inputs")
+                .builder("uid2_operator_identity_map_inputs")
                 .description("number of emails or email hashes passed to identity map batch endpoint")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
         ds.record(inputCount);
 
         Tuple.Tuple2<Counter, Counter> ids = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact, k -> new Tuple.Tuple2<>(
-                Counter.builder("uid2.operator.identity.map.unmapped")
+                Counter.builder("uid2_operator_identity_map_unmapped_total")
                         .description("invalid identifiers")
                         .tags("api_contact", apiContact, "reason", "invalid")
                         .register(Metrics.globalRegistry),
-                Counter.builder("uid2.operator.identity.map.unmapped")
+                Counter.builder("uid2_operator_identity_map_unmapped_total")
                         .description("optout identifiers")
                         .tags("api_contact", apiContact, "reason", "optout")
                         .register(Metrics.globalRegistry)));
@@ -1821,7 +1828,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (optoutCount > 0) ids.getItem2().increment(optoutCount);
 
         Counter rs = _identityMapRequestWithUnmapped.computeIfAbsent(apiContact, k -> Counter
-                .builder("uid2.operator.identity.map.unmapped_requests")
+                .builder("uid2_operator_identity_map_unmapped_requests_total")
                 .description("number of requests with unmapped identifiers")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
@@ -1840,7 +1847,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
             final String metricKey = serviceName + serviceLinkName;
             DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(metricKey,
-                    k -> DistributionSummary.builder("uid2.operator.identity.map.services.inputs")
+                    k -> DistributionSummary.builder("uid2_operator_identity_map_services_inputs")
                             .description("number of emails or phone numbers passed to identity map batch endpoint by services")
                             .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                     Tag.of("service_name", serviceName),
@@ -1850,14 +1857,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(metricKey,
                     k -> new Tuple.Tuple2<>(
-                            Counter.builder("uid2.operator.identity.map.services.unmapped")
+                            Counter.builder("uid2_operator_identity_map_services_unmapped_total")
                                     .description("number of invalid identifiers passed to identity map batch endpoint by services")
                                     .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                             Tag.of("reason", "invalid"),
                                             Tag.of("service_name", serviceName),
                                             Tag.of("service_link_name", serviceLinkName)))
                                     .register(Metrics.globalRegistry),
-                            Counter.builder("uid2.operator.identity.map.services.unmapped")
+                            Counter.builder("uid2_operator_identity_map_services_unmapped_total")
                                     .description("number of optout identifiers passed to identity map batch endpoint by services")
                                     .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                             Tag.of("reason", "optout"),
@@ -1923,14 +1930,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void recordOptOutStatusEndpointStats(RoutingContext rc, int inputCount, int optOutCount) {
         String apiContact = getApiContact(rc);
         DistributionSummary inputDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2.operator.optout.status.input_size")
+                .builder("uid2_operator_optout_status_input_size")
                 .description("number of UIDs received in request")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
         inputDistSummary.record(inputCount);
 
         DistributionSummary optOutDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2.operator.optout.status.optout_size")
+                .builder("uid2_operator_optout_status_optout_size")
                 .description("number of UIDs that have opted out")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
@@ -1951,7 +1958,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void recordRefreshTokenVersionCount(String siteId, TokenVersion tokenVersion) {
-        Counter.builder("uid2_refresh_token_received_count")
+        Counter.builder("uid2_refresh_token_received_count_total")
                 .description(String.format("Counter for the amount of refresh token %s received", tokenVersion.toString().toLowerCase()))
                 .tags("site_id", siteId)
                 .tags("refresh_token_version", tokenVersion.toString().toLowerCase())
@@ -2012,7 +2019,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader, Duration identityExpiresAfter) {
         DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(new Tuple.Tuple2<>(apiContact, hasOriginHeader), k ->
                 DistributionSummary
-                        .builder("uid2.token_refresh_duration_seconds")
+                        .builder("uid2_token_refresh_duration_seconds")
                         .description("duration between token refreshes")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("site_name", getSiteName(siteProvider, siteId))
@@ -2025,7 +2032,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         boolean isExpired = durationSinceLastRefresh.compareTo(identityExpiresAfter) > 0;
         Counter c = _advertisingTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), hasOriginHeader, isExpired), k ->
                 Counter
-                        .builder("uid2.advertising_token_expired_on_refresh")
+                        .builder("uid2_advertising_token_expired_on_refresh_total")
                         .description("status of advertiser token expiry")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("site_name", getSiteName(siteProvider, siteId))
@@ -2081,14 +2088,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         };
     }
 
-    private InputUtil.InputVal[] parseIdentitiesInput(IdentityMapV3Request.IdentityInput[] identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
+    private InputUtil.InputVal[] parseIdentitiesInput(String[] identities, IdentityType identityType, InputUtil.IdentityInputType inputType, RoutingContext rc) {
         if (identities == null || identities.length == 0) {
             return new InputUtil.InputVal[0];
         }
         final var normalizedIdentities = new InputUtil.InputVal[identities.length];
 
         for (int i = 0; i < identities.length; i++) {
-            normalizedIdentities[i] = normalizeIdentity(identities[i].input(), identityType, inputType);
+            normalizedIdentities[i] = normalizeIdentity(identities[i], identityType, inputType);
         }
 
         return normalizedIdentities;
@@ -2158,7 +2165,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void recordTokenGeneratePolicy(String apiContact, OptoutCheckPolicy policy, String policyParameterKey) {
         _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple.Tuple3<>(apiContact, policy, policyParameterKey), triple -> Counter
-                .builder("uid2.token_generate_policy_usage")
+                .builder("uid2_token_generate_policy_usage_total")
                 .description("Counter for token generate policy usage")
                 .tags("api_contact", triple.getItem1(), "policy", String.valueOf(triple.getItem2()), "policy_parameter", triple.getItem3())
                 .register(Metrics.globalRegistry)).increment();
@@ -2166,7 +2173,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void recordTokenGenerateTCFUsage(String apiContact) {
         _tokenGenerateTCFUsage.computeIfAbsent(apiContact, contact -> Counter
-                .builder("uid2.token_generate_tcf_usage")
+                .builder("uid2_token_generate_tcf_usage_total")
                 .description("Counter for token generate tcf usage")
                 .tags("api_contact", contact)
                 .register(Metrics.globalRegistry)).increment();
@@ -2250,12 +2257,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void sendJsonResponse(RoutingContext rc, JsonObject json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
                 .end(json.encode());
     }
 
     private void sendJsonResponse(RoutingContext rc, JsonArray json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
                 .end(json.encode());
     }
 

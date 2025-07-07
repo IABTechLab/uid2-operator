@@ -7,6 +7,7 @@ import com.uid2.operator.Const;
 import com.uid2.operator.model.UserIdentity;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.shared.Utils;
+import com.uid2.shared.audit.Audit;
 import com.uid2.shared.cloud.CloudStorageException;
 import com.uid2.shared.cloud.DownloadCloudStorage;
 import com.uid2.shared.cloud.ICloudStorage;
@@ -19,6 +20,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
@@ -86,32 +88,38 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
-    public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
+    public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, String uidTraceId, String uidInstanceId, Handler<AsyncResult<Instant>> handler) {
         if (remoteApiHost == null) {
             handler.handle(Future.failedFuture("remote api not set"));
             return;
         }
 
-        this.webClient.get(remoteApiPort, remoteApiHost, remoteApiPath).
+        HttpRequest<String> request =this.webClient.get(remoteApiPort, remoteApiHost, remoteApiPath).
             addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.id))
             .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId))
             .putHeader("Authorization", remoteApiBearerToken)
-            .as(BodyCodec.string())
-            .send(ar -> {
-                Exception failure = null;
-                if (ar.failed()) {
-                    failure = new Exception(ar.cause());
-                } else if (ar.result().statusCode() != 200) {
-                    failure = new Exception("optout api http status: " + String.valueOf(ar.result().statusCode()));
-                }
+            .putHeader(Audit.UID_INSTANCE_ID_HEADER, uidInstanceId)
+            .as(BodyCodec.string());
 
-                if (failure == null) {
-                    handler.handle(Future.succeededFuture(Utils.nowUTCMillis()));
-                } else {
-                    LOGGER.error("CloudSyncOptOutStore.addEntry remote web request failed", failure);
-                    handler.handle(Future.failedFuture(failure));
-                }
-            });
+        if (uidTraceId != null) {
+            request = request.putHeader(Audit.UID_TRACE_ID_HEADER, uidTraceId);
+        }
+
+        request.send(ar -> {
+            Exception failure = null;
+            if (ar.failed()) {
+                failure = new Exception(ar.cause());
+            } else if (ar.result().statusCode() != 200) {
+                failure = new Exception("optout api http status: " + String.valueOf(ar.result().statusCode()));
+            }
+
+            if (failure == null) {
+                handler.handle(Future.succeededFuture(Utils.nowUTCMillis()));
+            } else {
+                LOGGER.error("CloudSyncOptOutStore.addEntry remote web request failed", failure);
+                handler.handle(Future.failedFuture(failure));
+            }
+        });
     }
 
     public void registerCloudSync(OptOutCloudSync cloudSync) {
@@ -298,7 +306,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     public static class OptOutStoreSnapshot {
         private static final Logger LOGGER = LoggerFactory.getLogger(OptOutStoreSnapshot.class);
 
-        private static final String METRIC_NAME_PREFIX = "uid2.optout.";
+        private static final String METRIC_NAME_PREFIX = "uid2_optout_";
 
         // Metrics for processing deltas and partitions.
         private static final String OPT_OUT_PROCESSING_METRIC_NAME = METRIC_NAME_PREFIX + "processing";

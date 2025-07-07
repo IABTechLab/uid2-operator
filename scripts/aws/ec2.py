@@ -51,7 +51,7 @@ class AuxiliaryConfig:
         return f"http://{cls.AWS_METADATA}/latest/dynamic/instance-identity/document"
     
 
-class EC2EntryPoint(ConfidentialCompute):
+class EC2(ConfidentialCompute):
 
     def __init__(self):
         super().__init__()
@@ -76,6 +76,21 @@ class EC2EntryPoint(ConfidentialCompute):
             return response.json()["region"]
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to fetch region: {e}")
+        
+    def __get_ec2_instance_info(self) -> tuple[str, str]:
+        """Fetches the instance ID, and AMI ID from EC2 metadata."""
+        token = self.__get_aws_token()
+        headers = {"X-aws-ec2-metadata-token": token}
+        try:
+            response = requests.get(AuxiliaryConfig.get_meta_url(), headers=headers, timeout=2)
+            response.raise_for_status()
+            data = response.json()
+            instance_id = data["instanceId"]
+            ami_id = data["imageId"]
+            return instance_id, ami_id
+
+        except requests.RequestException as e:
+            raise RuntimeError(f"Failed to fetch instance info: {e}")
         
     def __validate_aws_specific_config(self):
         if "enclave_memory_mb" in self.configs or "enclave_cpu_count" in self.configs:
@@ -104,6 +119,8 @@ class EC2EntryPoint(ConfidentialCompute):
         client = boto3.client("secretsmanager", region_name=region)
         try:
             self.configs = add_defaults(json.loads(client.get_secret_value(SecretId=secret_identifier)["SecretString"]))
+            instance_id, ami_id = self.__get_ec2_instance_info()
+            self.configs.setdefault("uid_instance_id_prefix", self.get_uid_instance_id(identifier=instance_id,version=ami_id))
             self.__validate_aws_specific_config()
         except json.JSONDecodeError as e:
             raise OperatorKeyNotFoundError(self.__class__.__name__, f"Can not parse secret {secret_identifier} in {region}")
@@ -293,7 +310,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        ec2 = EC2EntryPoint()
+        ec2 = EC2()
         if args.operation == "stop":
             ec2.cleanup()
         else:

@@ -103,7 +103,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IOptOutStore optOutStore;
     private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
-    private final boolean allowLegacyAPI;
     private final boolean identityV3Enabled;
     private final boolean disableOptoutToken;
     private final UidInstanceIdProvider uidInstanceIdProvider;
@@ -195,7 +194,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
-        this.allowLegacyAPI = config.getBoolean(Const.Config.AllowLegacyAPIProp, false);
         this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
         this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
         this.uidInstanceIdProvider = uidInstanceIdProvider;
@@ -264,32 +262,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         // Static and health check
         router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
-
-        if (this.allowLegacyAPI) {
-            // V1 APIs
-            router.get(V1_TOKEN_GENERATE.toString()).handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
-            router.get(V1_TOKEN_VALIDATE.toString()).handler(this::handleTokenValidateV1);
-            router.get(V1_TOKEN_REFRESH.toString()).handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1));
-            router.get(V1_IDENTITY_BUCKETS.toString()).handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
-            router.get(V1_IDENTITY_MAP.toString()).handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
-            router.post(V1_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handle(this::handleIdentityMapBatchV1, Role.MAPPER));
-            router.get(V1_KEY_LATEST.toString()).handler(auth.handle(this::handleKeysRequestV1, Role.ID_READER));
-
-            // Deprecated APIs
-            router.get(V0_KEY_LATEST.toString()).handler(auth.handle(this::handleKeysRequest, Role.ID_READER));
-            router.get(V0_TOKEN_GENERATE.toString()).handler(auth.handle(this::handleTokenGenerate, Role.GENERATOR));
-            router.get(V0_TOKEN_REFRESH.toString()).handler(this::handleTokenRefresh);
-            router.get(V0_TOKEN_VALIDATE.toString()).handler(this::handleValidate);
-            router.get(V0_IDENTITY_MAP.toString()).handler(auth.handle(this::handleIdentityMap, Role.MAPPER));
-            router.post(V0_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handle(this::handleIdentityMapBatch, Role.MAPPER));
-
-            // Internal service APIs
-            router.get(V0_TOKEN_LOGOUT.toString()).handler(auth.handle(this::handleLogoutAsync, Role.OPTOUT));
-
-            // only uncomment to do local testing
-            //router.get("/internal/optout/get").handler(auth.loopbackOnly(this::handleOptOutGet));
-
-        }
 
         return router;
     }

@@ -1085,25 +1085,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return true;
     }
 
-    private InputUtil.InputVal[] getIdentityBulkInput(RoutingContext rc) {
-        final JsonObject obj = rc.body().asJsonObject();
-        final JsonArray emails = obj.getJsonArray("email");
-        final JsonArray emailHashes = obj.getJsonArray("email_hash");
-        // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
-        if (emails == null && emailHashes == null) {
-            ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
-            return null;
-        } else if (emails != null && !emails.isEmpty()) {
-            if (emailHashes != null && !emailHashes.isEmpty()) {
-                ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_TWICE);
-                return null;
-            }
-            return createInputList(emails, false);
-        } else {
-            return createInputList(emailHashes, true);
-        }
-    }
-
     private JsonObject handleIdentityMapCommon(RoutingContext rc, InputUtil.InputVal[] inputList) {
         final Instant now = Instant.now();
         final JsonArray mapped = new JsonArray();

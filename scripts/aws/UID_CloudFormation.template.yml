@@ -14,7 +14,7 @@ Parameters:
       - integ
   ImageId:
     Type: AWS::EC2::Image::Id
-    Default: ami-example1234567890
+    Default: ami-0050e67a1af79f68f
   TrustNetworkCidr:
     Description: The IP address range that can be used to SSH and HTTPS to the EC2 instances
     Type: String
@@ -136,6 +136,9 @@ Resources:
               - 'kms:GenerateDataKey*'
               - 'kms:Describe*'
             Resource: '*'
+      Tags:
+        - Key: Project
+          Value: UID2
   SSMKEYAlias:
     Type: AWS::KMS::Alias
     Properties:
@@ -164,6 +167,9 @@ Resources:
           - Ref: DeployToEnvironment
           - '"'
           - '}'
+      Tags:
+        - Key: Project
+          Value: UID2
   WorkerRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -190,8 +196,41 @@ Resources:
               - Effect: Allow
                 Action: 'secretsmanager:GetSecretValue'
                 Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:uid2-config-stack-${AWS::StackName}*'
+              - Sid: EC2LaunchTemplateWrite
+                Effect: Allow
+                Action:
+                  - 'ec2:CreateLaunchTemplateVersion'
+                Resource:
+                  - !Sub 
+                    - 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/${LaunchTemplateId}'
+                    - LaunchTemplateId: !Ref LaunchTemplate
+              - Sid: AutoScalingReadPermissions
+                Effect: Allow
+                Action:
+                  - 'autoscaling:DescribeAutoScalingInstances'
+                  - 'autoscaling:DescribeAutoScalingGroups'
+                  - 'autoscaling:DescribeInstanceRefreshes'
+                Resource: '*'
+              - Sid: AutoScalingWritePermissions
+                Effect: Allow
+                Action:
+                  - 'autoscaling:UpdateAutoScalingGroup'
+                  - 'autoscaling:StartInstanceRefresh'
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    'aws:ResourceTag/Project': 'UID2'
+              - Sid: EC2DescribePermissions
+                Effect: Allow
+                Action:
+                  - 'ec2:DescribeLaunchTemplates'
+                  - 'ec2:DescribeLaunchTemplateVersions'
+                Resource: '*'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
+      Tags:
+        - Key: Project
+          Value: UID2
   WorkerInstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -230,9 +269,13 @@ Resources:
           CidrIp: 0.0.0.0/0
           Description: "Allow Outbound DNS"
       VpcId: !Ref VpcId
+      Tags:
+        - Key: Project
+          Value: UID2
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
+      LaunchTemplateName: !Sub 'uid2-launch-template-${AWS::StackName}'
       LaunchTemplateData:
         BlockDeviceMappings:
         - DeviceName: /dev/xvda
@@ -261,6 +304,15 @@ Resources:
           HttpTokens: required # Enforces IMDSv2
           HttpPutResponseHopLimit: 1
           InstanceMetadataTags: enabled
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Project
+                Value: UID2
+          - ResourceType: volume
+            Tags:
+              - Key: Project
+                Value: UID2
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     DependsOn:
@@ -282,6 +334,9 @@ Resources:
       Tags:
       - Key: Name
         Value: 'UID2 Instance'
+        PropagateAtLaunch: true
+      - Key: Project
+        Value: UID2
         PropagateAtLaunch: true
     CreationPolicy:
       ResourceSignal:

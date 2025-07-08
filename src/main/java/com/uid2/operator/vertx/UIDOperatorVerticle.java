@@ -594,15 +594,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         onSuccess.handle(getAccessibleKeysAsJson(keys, clientKey));
     }
 
-    public void handleKeysRequestV1(RoutingContext rc) {
-        try {
-            handleKeysRequestCommon(rc, keys -> ResponseUtil.Success(rc, keys));
-        } catch (Exception e) {
-            LOGGER.error("Unknown error while handling keys request v1", e);
-            rc.fail(500);
-        }
-    }
-
     public void handleKeysRequestV2(RoutingContext rc) {
         try {
             handleKeysRequestCommon(rc, keys -> ResponseUtil.SuccessV2(rc, keys));
@@ -866,35 +857,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleTokenValidateV1(RoutingContext rc) {
-        try {
-            final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
-            if (!isTokenInputValid(input, rc)) {
-                return;
-            }
-            if ((Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Email)
-                    || (Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Phone)) {
-                try {
-                    final Instant now = Instant.now();
-                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
-                        ResponseUtil.Success(rc, Boolean.TRUE);
-                    } else {
-                        ResponseUtil.Success(rc, Boolean.FALSE);
-                    }
-                } catch (Exception e) {
-                    ResponseUtil.Success(rc, Boolean.FALSE);
-                }
-            } else {
-                ResponseUtil.Success(rc, Boolean.FALSE);
-            }
-        } catch (ClientInputValidationException cie) {
-            ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
-        } catch (Exception e) {
-            LOGGER.error("Unknown error while validating token", e);
-            rc.fail(500);
-        }
-    }
-
     private void handleTokenValidateV2(RoutingContext rc) {
         try {
             final JsonObject req = (JsonObject) rc.data().get("request");
@@ -1042,23 +1004,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleLogoutAsync(RoutingContext rc) {
-        final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
-        final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
-        if (input.isValid()) {
-            final Instant now = Instant.now();
-            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, uidTraceId, ar -> {
-                if (ar.succeeded()) {
-                    rc.response().end("OK");
-                } else {
-                    rc.fail(500);
-                }
-            });
-        } else {
-            ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
-        }
-    }
-
     private Future handleLogoutAsyncV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
@@ -1081,57 +1026,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } else {
             ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
             return Future.failedFuture("");
-        }
-    }
-
-    private void handleOptOutGet(RoutingContext rc) {
-        final InputUtil.InputVal input = getTokenInputV1(rc);
-        if (input.isValid()) {
-            try {
-                final Instant now = Instant.now();
-                final UserIdentity userIdentity = input.toUserIdentity(this.identityScope, 0, now);
-                final Instant result = this.idService.getLatestOptoutEntry(userIdentity, now);
-                long timestamp = result == null ? -1 : result.getEpochSecond();
-                rc.response().setStatusCode(200)
-                        .setChunked(true)
-                        .write(String.valueOf(timestamp));
-                rc.response().end();
-            } catch (Exception ex) {
-                LOGGER.error("Unexpected error while handling optout get", ex);
-                rc.fail(500);
-            }
-        } else {
-            ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
-        }
-    }
-
-    private void handleBucketsV1(RoutingContext rc) {
-        final List<String> qp = rc.queryParam("since_timestamp");
-        if (qp != null && qp.size() > 0) {
-            final Instant sinceTimestamp;
-            try {
-                LocalDateTime ld = LocalDateTime.parse(qp.get(0), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-                sinceTimestamp = ld.toInstant(ZoneOffset.UTC);
-                LOGGER.info(String.format("identity bucket endpoint is called with since_timestamp %s and site id %s", ld, AuthMiddleware.getAuthClient(rc).getSiteId()));
-            } catch (Exception e) {
-                ResponseUtil.LogInfoAndSend400Response(rc, "invalid date, must conform to ISO 8601");
-                return;
-            }
-            final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
-            final JsonArray resp = new JsonArray();
-            if (modified != null) {
-                for (SaltEntry e : modified) {
-                    final JsonObject o = new JsonObject();
-                    o.put("bucket_id", e.hashedId());
-                    Instant lastUpdated = Instant.ofEpochMilli(e.lastUpdated());
-
-                    o.put("last_updated", API_DATE_TIME_FORMATTER.format(lastUpdated));
-                    resp.add(o);
-                }
-                ResponseUtil.Success(rc, resp);
-            }
-        } else {
-            ResponseUtil.LogInfoAndSend400Response(rc, "missing parameter since_timestamp");
         }
     }
 
@@ -1164,24 +1058,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         } else {
             ResponseUtil.LogInfoAndSend400Response(rc, "missing parameter since_timestamp");
-        }
-    }
-
-    private void handleIdentityMapV1(RoutingContext rc) {
-        final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-        if (!isTokenInputValid(input, rc)) {
-            return;
-        }
-        try {
-            final Instant now = Instant.now();
-            final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
-            final JsonObject jsonObject = new JsonObject();
-            jsonObject.put("identifier", input.getProvided());
-            jsonObject.put("advertising_id", EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-            jsonObject.put("bucket_id", mappedIdentity.bucketId);
-            ResponseUtil.Success(rc, jsonObject);
-        } catch (Exception e) {
-            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown State", e);
         }
     }
 
@@ -1254,44 +1130,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return getInput != null ? getInput.get() : null;
     }
 
-    private InputUtil.InputVal getTokenInputV1(RoutingContext rc) {
-        final List<String> emailInput = rc.queryParam("email");
-        final List<String> emailHashInput = rc.queryParam("email_hash");
-        final List<String> phoneInput = rc.queryParam("phone");
-        final List<String> phoneHashInput = rc.queryParam("phone_hash");
-
-        int validInputs = 0;
-        if (emailInput != null && emailInput.size() > 0) {
-            ++validInputs;
-        }
-        if (emailHashInput != null && emailHashInput.size() > 0) {
-            ++validInputs;
-        }
-        if (phoneInput != null && phoneInput.size() > 0) {
-            ++validInputs;
-        }
-        if (phoneHashInput != null && phoneHashInput.size() > 0) {
-            ++validInputs;
-        }
-
-        if (validInputs != 1) {
-            // there can be only 1 set of valid input
-            return null;
-        }
-
-        if (emailInput != null && emailInput.size() > 0) {
-            return InputUtil.normalizeEmail(emailInput.get(0));
-        } else if (phoneInput != null && phoneInput.size() > 0) {
-            return InputUtil.normalizePhone(phoneInput.get(0));
-        } else if (emailHashInput != null && emailHashInput.size() > 0) {
-            return InputUtil.normalizeEmailHash(emailHashInput.get(0));
-        } else if (phoneHashInput != null && phoneHashInput.size() > 0) {
-            return InputUtil.normalizePhoneHash(phoneHashInput.get(0));
-        }
-
-        return null;
-    }
-
     private boolean isTokenInputValid(InputUtil.InputVal input, RoutingContext rc) {
         if (input == null) {
             String message = this.phoneSupport ? ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_INPUT_EMAIL_MISSING;
@@ -1320,60 +1158,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return createInputList(emails, false);
         } else {
             return createInputList(emailHashes, true);
-        }
-    }
-
-
-    private InputUtil.InputVal[] getIdentityBulkInputV1(RoutingContext rc) {
-        final JsonObject obj = rc.body().asJsonObject();
-        if(obj.isEmpty()) {
-            ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
-            return null;
-        }
-        final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
-        final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
-        final JsonArray phones = JsonParseUtils.parseArray(obj,"phone", rc);
-        final JsonArray phoneHashes = JsonParseUtils.parseArray(obj,"phone_hash", rc);
-
-        if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
-            return null;
-        }
-
-        int validInputs = 0;
-        int nonEmptyInputs = 0;
-        if (emails != null) {
-            ++validInputs;
-            if (!emails.isEmpty()) ++nonEmptyInputs;
-        }
-        if (emailHashes != null) {
-            ++validInputs;
-            if (!emailHashes.isEmpty()) ++nonEmptyInputs;
-        }
-        if (phones != null) {
-            ++validInputs;
-            if (!phones.isEmpty()) ++nonEmptyInputs;
-        }
-        if (phoneHashes != null) {
-            ++validInputs;
-            if (!phoneHashes.isEmpty()) ++nonEmptyInputs;
-        }
-
-        if (validInputs == 0 || nonEmptyInputs > 1) {
-            ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT);
-            return null;
-        }
-
-        if (emails != null && !emails.isEmpty()) {
-            return createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
-        } else if (emailHashes != null && !emailHashes.isEmpty()) {
-            return createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
-        } else if (phones != null && !phones.isEmpty()) {
-            return createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
-        } else if (phoneHashes != null && !phoneHashes.isEmpty()) {
-            return createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
-        } else {
-            // handle empty array
-            return createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw);
         }
     }
 
@@ -1464,18 +1248,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         recordIdentityMapStats(rc, inputTotalCount, invalidCount, optoutCount);
 
         return mappedResponse;
-    }
-
-    private void handleIdentityMapBatchV1(RoutingContext rc) {
-        try {
-            final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
-            if (inputList == null) return;
-
-            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
-            ResponseUtil.Success(rc, resp);
-        } catch (Exception e) {
-            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping batched identity", e);
-        }
     }
 
     private boolean validateServiceLink(RoutingContext rc) {

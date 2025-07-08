@@ -160,7 +160,6 @@ class EC2AMIUpdater:
             # Check if AMI ID is already up to date
             if current_ami_id == self.new_ami_id:
                 logger.info("AMI ID is already up to date")
-                return True
             
             # Create new launch template version with updated AMI ID
             launch_template_data = current_version['LaunchTemplateData'].copy()
@@ -176,15 +175,16 @@ class EC2AMIUpdater:
             logger.info(f"Created new launch template version: {new_version}")
             
             # Update ASG to use the new launch template version
+            logger.info(f"Updating ASG {self.asg_name} to use launch template version {new_version}")
             self.autoscaling_client.update_auto_scaling_group(
                 AutoScalingGroupName=self.asg_name,
                 LaunchTemplate={
                     'LaunchTemplateId': self.launch_template_id,
-                    'Version': '$Latest'
+                    'Version': str(new_version)
                 }
             )
             
-            logger.info("Updated Auto Scaling Group to use latest launch template version")
+            logger.info(f"Updated Auto Scaling Group {self.asg_name} to use launch template version {new_version}")
             return True
             
         except ClientError as e:
@@ -312,7 +312,6 @@ def main():
     """Main function"""
     # Fetch the latest AMI ID from releases.json
     ami_id = get_latest_ami_id()
-    return
     
     if ami_id is None:
         logger.error("Failed to get latest AMI ID")

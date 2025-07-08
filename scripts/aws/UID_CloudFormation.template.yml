@@ -14,7 +14,7 @@ Parameters:
       - integ
   ImageId:
     Type: AWS::EC2::Image::Id
-    Default: ami-0f527187e107cf761
+    Default: ami-0050e67a1af79f68f
   TrustNetworkCidr:
     Description: The IP address range that can be used to SSH and HTTPS to the EC2 instances
     Type: String
@@ -201,10 +201,9 @@ Resources:
                 Action:
                   - 'ec2:CreateLaunchTemplateVersion'
                 Resource:
-                  - 'arn:aws:ec2:*:*:launch-template/*'
-                Condition:
-                  StringEquals:
-                    'aws:ResourceTag/Project': 'UID2'
+                  - !Sub 
+                    - 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/${LaunchTemplateId}'
+                    - LaunchTemplateId: !Ref LaunchTemplate
               - Sid: AutoScalingReadPermissions
                 Effect: Allow
                 Action:
@@ -217,11 +216,16 @@ Resources:
                 Action:
                   - 'autoscaling:UpdateAutoScalingGroup'
                   - 'autoscaling:StartInstanceRefresh'
-                Resource:
-                  - 'arn:aws:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/*'
+                Resource: '*'
                 Condition:
                   StringEquals:
                     'aws:ResourceTag/Project': 'UID2'
+              - Sid: EC2DescribePermissions
+                Effect: Allow
+                Action:
+                  - 'ec2:DescribeLaunchTemplates'
+                  - 'ec2:DescribeLaunchTemplateVersions'
+                Resource: '*'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
       Tags:
@@ -271,6 +275,7 @@ Resources:
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
+      LaunchTemplateName: !Sub 'uid2-launch-template-${AWS::StackName}'
       LaunchTemplateData:
         BlockDeviceMappings:
         - DeviceName: /dev/xvda

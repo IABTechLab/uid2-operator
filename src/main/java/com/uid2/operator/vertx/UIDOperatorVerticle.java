@@ -812,58 +812,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleTokenRefreshV1(RoutingContext rc) {
-        final List<String> tokenList = rc.queryParam("refresh_token");
-        TokenResponseStatsCollector.PlatformType platformType = getPlatformType(rc);
-        Integer siteId = null;
-        if (tokenList == null || tokenList.size() == 0) {
-            SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Required Parameter Missing: refresh_token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider, platformType);
-            return;
-        }
-
-        String refreshToken = tokenList.get(0);
-        if (refreshToken.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
-            // V2 token sent by V1 JSSDK. Decrypt and extract original refresh token
-            V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, this.keyManager);
-            if (v2req.isValid()) {
-                refreshToken = (String) v2req.payload;
-            } else {
-                SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, v2req.errorMessage, siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, platformType);
-                return;
-            }
-        }
-
-        RuntimeConfig config = this.getConfigFromRc(rc);
-
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
-
-        try {
-            final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
-            siteId = rc.get(Const.RoutingContextData.SiteId);
-            if (!r.isRefreshed()) {
-                if (r.isOptOut() || r.isDeprecated()) {
-                    ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
-                } else if (!AuthMiddleware.isAuthenticated(rc)) {
-                    // unauthenticated clients get a generic error
-                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
-                } else if (r.isInvalidToken()) {
-                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
-                } else if (r.isExpired()) {
-                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
-                } else {
-                    ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown State");
-                }
-            } else {
-                ResponseUtil.Success(rc, toJsonV1(r.getTokens()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
-            }
-
-            TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, r, platformType);
-        } catch (Exception e) {
-            SendServerErrorResponseAndRecordStats(rc, "Unknown error while refreshing token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, platformType);
-        }
-    }
-
     private static final Map<Tuple.Tuple2<String, String>, Counter> CLIENT_VERSION_COUNTERS = new HashMap<>();
     private void recordOperatorServedSdkUsage(RoutingContext rc, Integer siteId, String apiContact, String clientVersion) {
         if (siteId != null && apiContact != null && clientVersion != null) {
@@ -978,36 +926,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleTokenGenerateV1(RoutingContext rc) {
-        final int siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
-        TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
-
-        RuntimeConfig config = this.getConfigFromRc(rc);
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
-
-        try {
-            final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-            platformType = getPlatformType(rc);
-            if (isTokenInputValid(input, rc)) {
-                final IdentityTokens t = this.idService.generateIdentity(
-                        new IdentityRequest(
-                                new PublisherIdentity(siteId, 0, 0),
-                                input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                OptoutCheckPolicy.defaultPolicy()),
-                        refreshIdentityAfter,
-                        refreshExpiresAfter,
-                        identityExpiresAfter);
-
-                ResponseUtil.Success(rc, toJsonV1(t));
-                recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
-            }
-        } catch (Exception e) {
-            SendServerErrorResponseAndRecordStats(rc, "Unknown error while generating token v1", siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, platformType);
-        }
-    }
-
     private void handleTokenGenerateV2(RoutingContext rc) {
         final Integer siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
@@ -1098,71 +1016,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "request body contains invalid argument(s)", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider, platformType);
         } catch (Exception e) {
             SendServerErrorResponseAndRecordStats(rc, "Unknown error while generating token v2", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider, e, platformType);
-        }
-    }
-
-    private void handleTokenGenerate(RoutingContext rc) {
-        final InputUtil.InputVal input = this.getTokenInput(rc);
-        Integer siteId = null;
-
-        RuntimeConfig config = this.getConfigFromRc(rc);
-        Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
-        Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
-
-
-        if (input == null) {
-            SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, ERROR_INVALID_INPUT_EMAIL_MISSING, siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
-            return;
-        }
-        else if (!input.isValid()) {
-            SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Invalid email or email_hash", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
-            return;
-        }
-
-        try {
-            siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
-            final IdentityTokens t = this.idService.generateIdentity(
-                    new IdentityRequest(
-                            new PublisherIdentity(siteId, 0, 0),
-                            input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                            OptoutCheckPolicy.defaultPolicy()),
-                    refreshIdentityAfter,
-                    refreshExpiresAfter,
-                    identityExpiresAfter);
-
-            recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), TokenResponseStatsCollector.PlatformType.Other);
-            sendJsonResponse(rc, toJson(t));
-
-        } catch (Exception e) {
-            SendServerErrorResponseAndRecordStats(rc, "Unknown error while generating token", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, TokenResponseStatsCollector.PlatformType.Other);
-        }
-    }
-
-    private void handleTokenRefresh(RoutingContext rc) {
-        final List<String> tokenList = rc.queryParam("refresh_token");
-        Integer siteId = null;
-        if (tokenList == null || tokenList.size() == 0) {
-            SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Required Parameter Missing: refresh_token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
-            return;
-        }
-
-        RuntimeConfig config = this.getConfigFromRc(rc);
-
-        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
-
-        try {
-            final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
-
-            sendJsonResponse(rc, toJson(r.getTokens()));
-
-            siteId = rc.get(Const.RoutingContextData.SiteId);
-            if (r.isRefreshed()) {
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
-            }
-            TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, r, TokenResponseStatsCollector.PlatformType.Other);
-        } catch (Exception e) {
-            SendServerErrorResponseAndRecordStats(rc, "Unknown error while refreshing token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, TokenResponseStatsCollector.PlatformType.Other);
         }
     }
 

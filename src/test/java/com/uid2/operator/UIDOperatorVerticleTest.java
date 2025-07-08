@@ -1689,12 +1689,12 @@ public class UIDOperatorVerticleTest {
 
                 assertTokenStatusMetrics(
                         clientSiteId,
-                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.GenerateV1 : TokenResponseStatsCollector.Endpoint.GenerateV2,
+                        TokenResponseStatsCollector.Endpoint.GenerateV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
                         TokenResponseStatsCollector.PlatformType.InApp);
                 assertTokenStatusMetrics(
                         clientSiteId,
-                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                       TokenResponseStatsCollector.Endpoint.RefreshV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
                         TokenResponseStatsCollector.PlatformType.InApp);
 
@@ -1750,12 +1750,12 @@ public class UIDOperatorVerticleTest {
 
                 assertTokenStatusMetrics(
                         clientSiteId,
-                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.GenerateV1 : TokenResponseStatsCollector.Endpoint.GenerateV2,
+                        TokenResponseStatsCollector.Endpoint.GenerateV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
                         TokenResponseStatsCollector.PlatformType.InApp);
                 assertTokenStatusMetrics(
                         clientSiteId,
-                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                        TokenResponseStatsCollector.Endpoint.RefreshV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
                         TokenResponseStatsCollector.PlatformType.InApp);
 
@@ -2012,7 +2012,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
-                    apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                    TokenResponseStatsCollector.Endpoint.RefreshV2,
                     TokenResponseStatsCollector.ResponseStatus.InvalidToken,
                     TokenResponseStatsCollector.PlatformType.HasOriginHeader);
             testContext.completeNow();
@@ -2145,7 +2145,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("optout", refreshRespJson.getString("status"));
                 assertTokenStatusMetrics(
                         clientSiteId,
-                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                        TokenResponseStatsCollector.Endpoint.RefreshV2,
                         TokenResponseStatsCollector.ResponseStatus.OptOut,
                         TokenResponseStatsCollector.PlatformType.Other);
                 testContext.completeNow();

@@ -981,29 +981,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleValidate(RoutingContext rc) {
-        try {
-            final InputUtil.InputVal input = getTokenInput(rc);
-            if (input != null && input.isValid() && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput())) {
-                try {
-                    final Instant now = Instant.now();
-                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toUserIdentity(this.identityScope, 0, now), now)) {
-                        rc.response().end("true");
-                    } else {
-                        rc.response().end("false");
-                    }
-                } catch (Exception e) {
-                    rc.response().end("false");
-                }
-            } else {
-                rc.response().end("not allowed");
-            }
-        } catch (Exception e) {
-            LOGGER.error("Unknown error while validating token", e);
-            rc.fail(500);
-        }
-    }
-
     private Future handleLogoutAsyncV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
@@ -1059,40 +1036,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } else {
             ResponseUtil.LogInfoAndSend400Response(rc, "missing parameter since_timestamp");
         }
-    }
-
-    private void handleIdentityMap(RoutingContext rc) {
-        final InputUtil.InputVal input = this.getTokenInput(rc);
-
-        try {
-            if (isTokenInputValid(input, rc)) {
-                final Instant now = Instant.now();
-                final MappedIdentity mappedIdentity = this.idService.map(input.toUserIdentity(this.identityScope, 0, now), now);
-                rc.response().end(EncodingUtils.toBase64String(mappedIdentity.advertisingId));
-            }
-        } catch (Exception ex) {
-            LOGGER.error("Unexpected error while mapping identity", ex);
-            rc.fail(500);
-        }
-    }
-
-    private InputUtil.InputVal getTokenInput(RoutingContext rc) {
-        final InputUtil.InputVal input;
-        final List<String> emailInput = rc.queryParam("email");
-        final List<String> emailHashInput = rc.queryParam("email_hash");
-        if (emailInput != null && emailInput.size() > 0) {
-            if (emailHashInput != null && emailHashInput.size() > 0) {
-                // cannot specify both
-                input = null;
-            } else {
-                input = InputUtil.normalizeEmail(emailInput.get(0));
-            }
-        } else if (emailHashInput != null && emailHashInput.size() > 0) {
-            input = InputUtil.normalizeEmailHash(emailHashInput.get(0));
-        } else {
-            input = null;
-        }
-        return input;
     }
 
     private InputUtil.InputVal getTokenInputV2(JsonObject req) {

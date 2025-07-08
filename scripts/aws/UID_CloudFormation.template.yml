@@ -136,6 +136,9 @@ Resources:
               - 'kms:GenerateDataKey*'
               - 'kms:Describe*'
             Resource: '*'
+      Tags:
+        - Key: Project
+          Value: UID2
   SSMKEYAlias:
     Type: AWS::KMS::Alias
     Properties:
@@ -164,6 +167,9 @@ Resources:
           - Ref: DeployToEnvironment
           - '"'
           - '}'
+      Tags:
+        - Key: Project
+          Value: UID2
   WorkerRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -190,14 +196,46 @@ Resources:
               - Effect: Allow
                 Action: 'secretsmanager:GetSecretValue'
                 Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:uid2-config-stack-${AWS::StackName}*'
+              - Sid: EC2LaunchTemplateWrite
+                Effect: Allow
+                Action:
+                  - 'ec2:CreateLaunchTemplateVersion'
+                Resource:
+                  - 'arn:aws:ec2:*:*:launch-template/*'
+                Condition:
+                  StringEquals:
+                    'aws:ResourceTag/Project': 'UID2'
+              - Sid: AutoScalingReadPermissions
+                Effect: Allow
+                Action:
+                  - 'autoscaling:DescribeAutoScalingInstances'
+                  - 'autoscaling:DescribeAutoScalingGroups'
+                  - 'autoscaling:DescribeInstanceRefreshes'
+                Resource: '*'
+              - Sid: AutoScalingWritePermissions
+                Effect: Allow
+                Action:
+                  - 'autoscaling:UpdateAutoScalingGroup'
+                  - 'autoscaling:StartInstanceRefresh'
+                Resource:
+                  - 'arn:aws:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/*'
+                Condition:
+                  StringEquals:
+                    'aws:ResourceTag/Project': 'UID2'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
+      Tags:
+        - Key: Project
+          Value: UID2
   WorkerInstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
       Path: /
       Roles:
         - !Ref WorkerRole
+      Tags:
+        - Key: Project
+          Value: UID2
   SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -230,6 +268,9 @@ Resources:
           CidrIp: 0.0.0.0/0
           Description: "Allow Outbound DNS"
       VpcId: !Ref VpcId
+      Tags:
+        - Key: Project
+          Value: UID2
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -261,6 +302,18 @@ Resources:
           HttpTokens: required # Enforces IMDSv2
           HttpPutResponseHopLimit: 1
           InstanceMetadataTags: enabled
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Project
+                Value: UID2
+          - ResourceType: volume
+            Tags:
+              - Key: Project
+                Value: UID2
+      Tags:
+        - Key: Project
+          Value: UID2
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     DependsOn:
@@ -282,6 +335,9 @@ Resources:
       Tags:
       - Key: Name
         Value: 'UID2 Instance'
+        PropagateAtLaunch: true
+      - Key: Project
+        Value: UID2
         PropagateAtLaunch: true
     CreationPolicy:
       ResourceSignal:

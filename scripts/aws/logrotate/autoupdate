@@ -1,0 +1,5 @@
+# Run the daily autoupdate job
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+0 3 * * * root /opt/uid2operator/init/bin/python /opt/uid2operator/autoupdate.py >> /var/log/autoupdate.log 2>&1 

@@ -14,7 +14,7 @@ Parameters:
       - integ
   ImageId:
     Type: AWS::EC2::Image::Id
-    Default: ami-example1234567890
+    Default: ami-0f527187e107cf761
   TrustNetworkCidr:
     Description: The IP address range that can be used to SSH and HTTPS to the EC2 instances
     Type: String
@@ -233,9 +233,6 @@ Resources:
       Path: /
       Roles:
         - !Ref WorkerRole
-      Tags:
-        - Key: Project
-          Value: UID2
   SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -311,9 +308,6 @@ Resources:
             Tags:
               - Key: Project
                 Value: UID2
-      Tags:
-        - Key: Project
-          Value: UID2
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     DependsOn:

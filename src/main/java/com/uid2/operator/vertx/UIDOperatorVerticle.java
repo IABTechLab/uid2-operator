@@ -500,7 +500,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
         }
         else { //user not opted out and already generated valid identity token
-            response = ResponseUtil.SuccessV2(toJsonV1(identityTokens));
+            response = ResponseUtil.SuccessV2(toTokenResponseJson(identityTokens));
         }
         //if returning an optout token or a successful identity token created originally
         if (responseStatus == TokenResponseStatsCollector.ResponseStatus.Success) {
@@ -839,7 +839,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
-                ResponseUtil.SuccessV2(rc, toJsonV1(r.getTokens()));
+                ResponseUtil.SuccessV2(rc, toTokenResponseJson(r.getTokens()));
                 this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, r, platformType);
@@ -952,14 +952,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                 refreshExpiresAfter,
                                 identityExpiresAfter);
 
-                        ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
+                        ResponseUtil.SuccessV2(rc, toTokenResponseJson(optOutTokens));
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, optOutTokens.getAdvertisingTokenVersion(), platformType);
                     } else { // new participant, or legacy specified policy/optout_check=1
                         ResponseUtil.SuccessNoBodyV2("optout", rc);
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider, null, platformType);
                     }
                 } else {
-                    ResponseUtil.SuccessV2(rc, toJsonV1(t));
+                    ResponseUtil.SuccessV2(rc, toTokenResponseJson(t));
                     recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
                 }
             }
@@ -1659,7 +1659,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private JsonObject toJsonV1(IdentityTokens t) {
+    private JsonObject toTokenResponseJson(IdentityTokens t) {
         final JsonObject json = new JsonObject();
         json.put("advertising_token", t.getAdvertisingToken());
         json.put("refresh_token", t.getRefreshToken());

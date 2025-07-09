@@ -603,15 +603,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    public void handleKeysRequest(RoutingContext rc) {
-        try {
-            handleKeysRequestCommon(rc, keys -> sendJsonResponse(rc, keys));
-        } catch (Exception e) {
-            LOGGER.error("Unknown error while handling keys request", e);
-            rc.fail(500);
-        }
-    }
-
     public void handleKeysSharing(RoutingContext rc) {
         RuntimeConfig config = this.getConfigFromRc(rc);
         int sharingTokenExpirySeconds = config.getSharingTokenExpirySeconds();
@@ -1287,33 +1278,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return normalizedIdentities;
     }
 
-    private void handleIdentityMapBatch(RoutingContext rc) {
-        try {
-            final JsonObject obj = rc.body().asJsonObject();
-            final InputUtil.InputVal[] inputList;
-            final JsonArray emails = obj.getJsonArray("email");
-            final JsonArray emailHashes = obj.getJsonArray("email_hash");
-            if (emails == null && emailHashes == null) {
-                ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_MISSING);
-                return;
-            } else if (emails != null && !emails.isEmpty()) {
-                if (emailHashes != null && !emailHashes.isEmpty()) {
-                    ResponseUtil.LogInfoAndSend400Response(rc, ERROR_INVALID_INPUT_EMAIL_TWICE);
-                    return;
-                }
-                inputList = createInputList(emails, false);
-            } else {
-                inputList = createInputList(emailHashes, true);
-            }
-
-            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
-            sendJsonResponse(rc, resp);
-        } catch (Exception e) {
-            LOGGER.error("Unknown error while mapping batched identity", e);
-            rc.fail(500);
-        }
-    }
-
     private static String getApiContact(RoutingContext rc) {
         String apiContact;
         try {
@@ -1564,24 +1528,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         c.increment();
     }
 
-    private InputUtil.InputVal[] createInputList(JsonArray a, boolean inputAsHash) {
-        if (a == null || a.size() == 0) {
-            return new InputUtil.InputVal[0];
-        }
-        final int size = a.size();
-        final InputUtil.InputVal[] resp = new InputUtil.InputVal[size];
-
-        for (int i = 0; i < size; ++i) {
-            if (inputAsHash) {
-                resp[i] = InputUtil.normalizeEmailHash(a.getString(i));
-            } else {
-                resp[i] = InputUtil.normalizeEmail(a.getString(i));
-            }
-        }
-        return resp;
-
-    }
-
     private InputUtil.InputVal[] createInputListV1(JsonArray a, IdentityType identityType, InputUtil.IdentityInputType inputType) {
         if (a == null || a.isEmpty()) {
             return new InputUtil.InputVal[0];
@@ -1672,7 +1618,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         return true;
     }
-
 
     private Tuple.Tuple2<OptoutCheckPolicy, String> readOptoutCheckPolicy(JsonObject req) {
         if(req.containsKey(OPTOUT_CHECK_POLICY_PARAM)) {
@@ -1766,25 +1711,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         json.put("expires", key.getExpires().getEpochSecond());
         json.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
         return json;
-    }
-
-    private JsonObject toJson(IdentityTokens t) {
-        final JsonObject json = new JsonObject();
-        json.put("advertisement_token", t.getAdvertisingToken());
-        json.put("advertising_token", t.getAdvertisingToken());
-        json.put("refresh_token", t.getRefreshToken());
-
-        return json;
-    }
-
-    private void sendJsonResponse(RoutingContext rc, JsonObject json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
-                .end(json.encode());
-    }
-
-    private void sendJsonResponse(RoutingContext rc, JsonArray json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
-                .end(json.encode());
     }
 
     private void logInvalidOriginOrAppName(int siteId, String originOrAppName) {

@@ -154,4 +154,3 @@ runs:
       shell: bash
       run: |
         df -h
-

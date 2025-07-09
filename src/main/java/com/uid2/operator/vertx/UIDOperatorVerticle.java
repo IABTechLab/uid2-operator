@@ -1201,7 +1201,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         Supplier<InputUtil.InputVal[]> getInputList = null;
         final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
         if (emails != null && !emails.isEmpty()) {
-            getInputList = () -> createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
+            getInputList = () -> createInputList(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
         }
 
         final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
@@ -1209,7 +1209,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
+            getInputList = () -> createInputList(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
         }
 
         final JsonArray phones = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone", rc) : null;
@@ -1217,7 +1217,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
+            getInputList = () -> createInputList(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
         }
 
         final JsonArray phoneHashes = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone_hash", rc) : null;
@@ -1225,7 +1225,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
+            getInputList = () -> createInputList(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
         }
 
         if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
@@ -1233,7 +1233,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         return getInputList == null ?
-                createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
+                createInputList(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
                 getInputList.get();
     }
 
@@ -1528,7 +1528,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         c.increment();
     }
 
-    private InputUtil.InputVal[] createInputListV1(JsonArray a, IdentityType identityType, InputUtil.IdentityInputType inputType) {
+    private InputUtil.InputVal[] createInputList(JsonArray a, IdentityType identityType, InputUtil.IdentityInputType inputType) {
         if (a == null || a.isEmpty()) {
             return new InputUtil.InputVal[0];
         }

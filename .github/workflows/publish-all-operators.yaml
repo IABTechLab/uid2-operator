@@ -228,6 +228,26 @@ jobs:
           (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
+        #debug 🧪
+      - name: 🧪 List local zip files before upload
+        run: |
+          echo "Workspace content:"
+          ls -lh *.zip
+
+      - name: 🧪 Show zip contents
+        run: |
+          for f in *.zip; do
+            echo "--- $f contents ---"
+            unzip -l "$f"
+          done
+
+      - name: 🧪 List existing GitHub release assets before upload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Existing assets on v${{ needs.start.outputs.new_version }}:"
+          gh release view v${{ needs.start.outputs.new_version }} --json assets --jq '.assets[].name'
+
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:
@@ -242,6 +262,14 @@ jobs:
               ./azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip
+
+      - name: 🧪 Confirm uploaded assets on release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Assets on release after upload:"
+          gh release view v${{ needs.start.outputs.new_version }} --json assets --jq '.assets[].name'
+
   notifyFailure:
       name: Notify Slack on Failure
       runs-on: ubuntu-latest

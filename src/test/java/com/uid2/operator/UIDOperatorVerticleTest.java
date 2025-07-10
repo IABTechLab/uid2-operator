@@ -161,8 +161,6 @@ public class UIDOperatorVerticleTest {
         if(testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
         }
-        // TODO: Remove this when we remove allow_legacy_api FF
-        config.put("allow_legacy_api", true);
         when(configStore.getConfig()).thenAnswer(x -> runtimeConfig);
 
         this.uidInstanceIdProvider = new UidInstanceIdProvider("test-instance", "id");
@@ -749,8 +747,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"v1, text/plain",
-                "v2, text/plain",
+    @CsvSource({"v2, text/plain",
                 "v2, application/octet-stream"})
     void keyLatestNoAcl(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(5, Role.ID_READER);
@@ -774,7 +771,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void keyLatestWithAcl(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(5, Role.ID_READER);
         Keyset[] keysets = {
@@ -799,7 +796,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void keyLatestClientBelongsToReservedSiteId(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(AdvertisingTokenSiteId, Role.ID_READER);
         KeysetKey[] encryptionKeys = {
@@ -811,7 +808,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void keyLatestHideRefreshKey(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(5, Role.ID_READER);
         Keyset[] keysets = {
@@ -836,7 +833,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateBothEmailAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
@@ -861,7 +858,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateNoEmailOrHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -937,8 +934,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"v1, text/plain",
-                "v2, text/plain",
+    @CsvSource({"v2, text/plain",
                 "v2, application/octet-stream"})
     void identityMapNewClientNoPolicySpecified(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
@@ -1562,8 +1558,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"v1, text/plain",
-                "v2, text/plain",
+    @CsvSource({"v2, text/plain",
                 "v2, application/octet-stream"})
     void tokenGenerateForEmail(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
@@ -1607,7 +1602,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateForEmailHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
@@ -1647,8 +1642,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"v1, text/plain",
-                "v2, text/plain",
+    @CsvSource({"v2, text/plain",
                 "v2, application/octet-stream"})
     void tokenGenerateThenRefresh(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
@@ -1695,12 +1689,12 @@ public class UIDOperatorVerticleTest {
 
                 assertTokenStatusMetrics(
                         clientSiteId,
-                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.GenerateV1 : TokenResponseStatsCollector.Endpoint.GenerateV2,
+                        TokenResponseStatsCollector.Endpoint.GenerateV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
                         TokenResponseStatsCollector.PlatformType.InApp);
                 assertTokenStatusMetrics(
                         clientSiteId,
-                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                       TokenResponseStatsCollector.Endpoint.RefreshV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
                         TokenResponseStatsCollector.PlatformType.InApp);
 
@@ -1710,7 +1704,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateThenRefreshSaltsExpired(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
         final int clientSiteId = 201;
@@ -1756,12 +1750,12 @@ public class UIDOperatorVerticleTest {
 
                 assertTokenStatusMetrics(
                         clientSiteId,
-                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.GenerateV1 : TokenResponseStatsCollector.Endpoint.GenerateV2,
+                        TokenResponseStatsCollector.Endpoint.GenerateV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
                         TokenResponseStatsCollector.PlatformType.InApp);
                 assertTokenStatusMetrics(
                         clientSiteId,
-                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                        TokenResponseStatsCollector.Endpoint.RefreshV2,
                         TokenResponseStatsCollector.ResponseStatus.Success,
                         TokenResponseStatsCollector.PlatformType.InApp);
 
@@ -1804,7 +1798,7 @@ public class UIDOperatorVerticleTest {
 
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateThenValidateWithEmail_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = ValidateIdentityForEmail;
@@ -1834,7 +1828,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateThenValidateWithEmailHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -1863,7 +1857,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateThenValidateWithBothEmailAndEmailHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = ValidateIdentityForEmail;
@@ -1894,7 +1888,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateUsingCustomSiteKey(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 4;
         final int clientKeysetId = 201;
@@ -1928,7 +1922,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateSaltsExpired(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
         final int clientSiteId = 201;
@@ -1993,7 +1987,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenRefreshNoToken(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -2001,7 +1995,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
-                    apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                    TokenResponseStatsCollector.Endpoint.RefreshV2,
                     TokenResponseStatsCollector.ResponseStatus.InvalidToken,
                     TokenResponseStatsCollector.PlatformType.Other);
             testContext.completeNow();
@@ -2009,7 +2003,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"v1,asdf", "v2,asdf", "v1,invalidBase64%%%%", "v2,invalidBase64%%%%"})
+    @CsvSource({"v2,asdf", "v2,invalidBase64%%%%"})
     void tokenRefreshInvalidTokenAuthenticated(String apiVersion, String token, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -2018,7 +2012,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("invalid_token", json.getString("status"));
             assertTokenStatusMetrics(
                     clientSiteId,
-                    apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                    TokenResponseStatsCollector.Endpoint.RefreshV2,
                     TokenResponseStatsCollector.ResponseStatus.InvalidToken,
                     TokenResponseStatsCollector.PlatformType.HasOriginHeader);
             testContext.completeNow();
@@ -2026,7 +2020,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenRefreshInvalidTokenUnauthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         sendTokenRefresh(apiVersion, vertx, testContext, "abcd", "", 400, json -> {
             assertEquals("error", json.getString("status"));
@@ -2042,7 +2036,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void captureDurationsBetweenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -2072,7 +2066,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void captureExpiredAdvertisingTokenStatus(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -2097,7 +2091,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenRefreshExpiredTokenAuthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -2117,7 +2111,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenRefreshExpiredTokenUnauthenticated(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
@@ -2137,7 +2131,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenRefreshOptOut(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
@@ -2151,7 +2145,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("optout", refreshRespJson.getString("status"));
                 assertTokenStatusMetrics(
                         clientSiteId,
-                        apiVersion.equals("v1") ? TokenResponseStatsCollector.Endpoint.RefreshV1 : TokenResponseStatsCollector.Endpoint.RefreshV2,
+                        TokenResponseStatsCollector.Endpoint.RefreshV2,
                         TokenResponseStatsCollector.ResponseStatus.OptOut,
                         TokenResponseStatsCollector.PlatformType.Other);
                 testContext.completeNow();
@@ -2160,7 +2154,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenRefreshOptOutBeforeLogin(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
@@ -2180,49 +2174,8 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void v2HandleV1RefreshToken(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(201, Role.GENERATOR);
-        final String emailAddress = "test@uid2.com";
-
-        generateRefreshToken("v1", vertx, "email", emailAddress, clientSiteId, genRespJson -> {
-            JsonObject bodyJson = genRespJson.getJsonObject("body");
-            String refreshToken = bodyJson.getString("refresh_token");
-
-            sendTokenRefresh("v2", vertx, testContext, refreshToken, null, 200, refreshRespJson -> {
-                assertEquals("success", refreshRespJson.getString("status"));
-
-                JsonObject refreshBodyJson = refreshRespJson.getJsonObject("body");
-                assertNotNull(refreshBodyJson.getString("refresh_response_key"));
-
-                decodeV2RefreshToken(refreshRespJson);
-
-                testContext.completeNow();
-            });
-        });
-    }
-
-    @Test
-    void v1HandleV2RefreshToken(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(201, Role.GENERATOR);
-        final String emailAddress = "test@uid2.com";
-
-        generateRefreshToken("v2", vertx, "email", emailAddress, clientSiteId, genRespJson -> {
-            JsonObject bodyJson = genRespJson.getJsonObject("body");
-            String refreshToken = bodyJson.getString("refresh_token");
-
-            sendTokenRefresh("v1", vertx, testContext, refreshToken, null, 200, refreshRespJson -> {
-                assertEquals("success", refreshRespJson.getString("status"));
-                testContext.completeNow();
-            });
-        });
-    }
-
     @ParameterizedTest
-    @CsvSource({"v1, text/plain",
-                "v2, text/plain",
+    @CsvSource({"v2, text/plain",
                 "v2, application/octet-stream"})
     void tokenValidateWithEmail_Mismatch(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
@@ -2245,7 +2198,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenValidateWithEmailHash_Mismatch(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -2264,121 +2217,9 @@ public class UIDOperatorVerticleTest {
                 });
     }
 
-    @Test
-    void identityMapBothEmailAndHashSpecified(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String emailAddress = "test@uid2.com";
-        final String emailHash = TokenUtils.getIdentityHashString(emailAddress);
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
-        setupKeys();
-        get(vertx, "v1/identity/map?email=" + emailAddress + "&email_hash=" + urlEncode(emailHash), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse<Buffer> response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertFalse(json.containsKey("body"));
-            assertEquals("client_error", json.getString("status"));
-
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void identityMapNoEmailOrHashSpecified(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
-        setupKeys();
-        get(vertx, "v1/identity/map", ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse<Buffer> response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertFalse(json.containsKey("body"));
-            assertEquals("client_error", json.getString("status"));
-
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void identityMapForEmail(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String emailAddress = "test@uid2.com";
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
-        setupKeys();
-        get(vertx, "v1/identity/map?email=" + emailAddress, ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse<Buffer> response = ar.result();
-            assertEquals(200, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertEquals("success", json.getString("status"));
-            JsonObject body = json.getJsonObject("body");
-            assertNotNull(body);
-
-            assertEquals(emailAddress, body.getString("identifier"));
-            assertFalse(body.getString("advertising_id").isEmpty());
-            assertFalse(body.getString("bucket_id").isEmpty());
-
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void identityMapForSaltsExpired(Vertx vertx, VertxTestContext testContext) {
-        when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
-        final int clientSiteId = 201;
-        final String emailAddress = "test@uid2.com";
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
-        setupKeys();
-        get(vertx, "v1/identity/map?email=" + emailAddress, ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse<Buffer> response = ar.result();
-            assertEquals(200, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertEquals("success", json.getString("status"));
-            JsonObject body = json.getJsonObject("body");
-            assertNotNull(body);
-
-            assertEquals(emailAddress, body.getString("identifier"));
-            assertFalse(body.getString("advertising_id").isEmpty());
-            assertFalse(body.getString("bucket_id").isEmpty());
-
-            verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
-
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void identityMapForEmailHash(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String emailHash = TokenUtils.getIdentityHashString("test@uid2.com");
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
-        setupKeys();
-        get(vertx, "v1/identity/map?email_hash=" + urlEncode(emailHash), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse<Buffer> response = ar.result();
-            assertEquals(200, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertEquals("success", json.getString("status"));
-            JsonObject body = json.getJsonObject("body");
-            assertNotNull(body);
-
-            assertEquals(emailHash, body.getString("identifier"));
-            assertFalse(body.getString("advertising_id").isEmpty());
-            assertFalse(body.getString("bucket_id").isEmpty());
-
-            testContext.completeNow();
-        });
-    }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchBothEmailAndHashEmpty(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2398,7 +2239,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchBothEmailAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2422,7 +2263,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchNoEmailOrHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2440,7 +2281,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapSingleEmailProvided(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2461,7 +2302,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapSingleEmailHashProvided(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2482,7 +2323,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapSinglePhoneProvided(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2503,7 +2344,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapSinglePhoneHashProvided(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2524,7 +2365,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchEmails(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2540,7 +2381,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchEmailHashes(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2566,7 +2407,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchEmailsOneEmailInvalid(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2588,7 +2429,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchEmailsNoEmails(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2606,7 +2447,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchRequestTooLarge(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -2778,7 +2619,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateBothPhoneAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
@@ -2801,7 +2642,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateBothPhoneAndEmailSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
@@ -2824,7 +2665,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateBothPhoneHashAndEmailHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
@@ -2849,7 +2690,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
@@ -2887,7 +2728,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateForPhoneHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
@@ -2926,7 +2767,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateThenRefreshForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = "+15555555555";
@@ -2973,7 +2814,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateThenValidateWithPhone_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = ValidateIdentityForPhone;
@@ -3003,7 +2844,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateThenValidateSaltsExpired(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
         final int clientSiteId = 201;
@@ -3036,7 +2877,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateThenValidateWithPhoneHash_Match(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForPhoneHash);
@@ -3066,7 +2907,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void tokenGenerateThenValidateWithBothPhoneAndPhoneHash(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String phone = ValidateIdentityForPhone;
@@ -3097,142 +2938,9 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void tokenRefreshOptOutForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String phone = "+15555555555";
-        generateRefreshToken(apiVersion, vertx, "phone", phone, clientSiteId, genRespJson -> {
-            JsonObject bodyJson = genRespJson.getJsonObject("body");
-            String refreshToken = bodyJson.getString("refresh_token");
-
-            when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
-
-            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), testContext.succeeding(response -> testContext.verify(() -> {
-                assertEquals(200, response.statusCode());
-                JsonObject json = response.bodyAsJsonObject();
-                assertEquals("optout", json.getString("status"));
-                assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.OptOut, TokenResponseStatsCollector.PlatformType.Other);
-
-                testContext.completeNow();
-            })));
-        });
-    }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
-    void tokenRefreshOptOutBeforeLoginForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String phone = "+15555555555";
-        generateRefreshToken(apiVersion, vertx, "phone", phone, clientSiteId, genRespJson -> {
-            JsonObject bodyJson = genRespJson.getJsonObject("body");
-            String refreshToken = bodyJson.getString("refresh_token");
-
-            when(this.optOutStore.getLatestEntry(any())).thenReturn(now.minusSeconds(10));
-
-            get(vertx, "v1/token/refresh?refresh_token=" + urlEncode(refreshToken), ar -> {
-                assertTrue(ar.succeeded());
-                HttpResponse<Buffer> response = ar.result();
-                assertEquals(200, response.statusCode());
-                JsonObject json = response.bodyAsJsonObject();
-                assertEquals("optout", json.getString("status"));
-                assertNull(json.getJsonObject("body"));
-
-                testContext.completeNow();
-            });
-        });
-    }
-
-    @Test
-    void identityMapBothPhoneAndHashSpecified(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String phone = "+15555555555";
-        final String phoneHash = TokenUtils.getIdentityHashString(phone);
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
-        setupKeys();
-        get(vertx, "v1/identity/map?phone=" + urlEncode(phone) + "&phone_hash=" + urlEncode(phoneHash), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse<Buffer> response = ar.result();
-            assertEquals(400, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertFalse(json.containsKey("body"));
-            assertEquals("client_error", json.getString("status"));
-
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void identityMapForPhone(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String phone = "+15555555555";
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
-        setupKeys();
-        get(vertx, "v1/identity/map?phone=" + urlEncode(phone), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse<Buffer> response = ar.result();
-            assertEquals(200, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertEquals("success", json.getString("status"));
-            JsonObject body = json.getJsonObject("body");
-            assertNotNull(body);
-
-            assertEquals(phone, body.getString("identifier"));
-            assertFalse(body.getString("advertising_id").isEmpty());
-            assertFalse(body.getString("bucket_id").isEmpty());
-
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void identityMapForPhoneHash(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String phone = "+15555555555";
-        final String phonneHash = TokenUtils.getIdentityHashString(phone);
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
-        setupKeys();
-        get(vertx, "v1/identity/map?phone_hash=" + urlEncode(phonneHash), ar -> {
-            assertTrue(ar.succeeded());
-            HttpResponse<Buffer> response = ar.result();
-            assertEquals(200, response.statusCode());
-            JsonObject json = response.bodyAsJsonObject();
-            assertEquals("success", json.getString("status"));
-            JsonObject body = json.getJsonObject("body");
-            assertNotNull(body);
-
-            assertEquals(phonneHash, body.getString("identifier"));
-            assertFalse(body.getString("advertising_id").isEmpty());
-            assertFalse(body.getString("bucket_id").isEmpty());
-
-            testContext.completeNow();
-        });
-    }
-
-    @Test
-    void sendInformationToStatsCollector(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        final String emailAddress = "test@uid2.com";
-        fakeAuth(clientSiteId, Role.GENERATOR);
-        setupSalts();
-        setupKeys();
-
-        vertx.eventBus().consumer(Const.Config.StatsCollectorEventBus, message -> {
-            String expected = "{\"path\":\"/v1/token/generate\",\"referer\":null,\"apiContact\":null,\"siteId\":201}";
-            assertSame(message.body().toString(), expected);
-        });
-
-        get(vertx, "v1/token/generate?email=" + emailAddress, ar -> {
-            verify(statsCollectorQueue, times(1)).enqueue(any(), any());
-            testContext.completeNow();
-        });
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchBothPhoneAndHashEmpty(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -3252,7 +2960,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchBothPhoneAndHashSpecified(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -3276,7 +2984,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchPhones(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -3297,7 +3005,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchPhoneHashes(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -3323,7 +3031,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchPhonesOnePhoneInvalid(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -3345,7 +3053,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchPhonesNoPhones(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -3363,7 +3071,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapBatchRequestTooLargeForPhone(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -3413,7 +3121,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityMapDefaultOption(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -3446,8 +3154,6 @@ public class UIDOperatorVerticleTest {
 
     private static Stream<Arguments> versionAndPolicy() {
         return Stream.of(
-                Arguments.arguments("v1", "policy"),
-                Arguments.arguments("v1", "optout_check"),
                 Arguments.arguments("v2", "policy"),
                 Arguments.arguments("v2", "optout_check")
         );
@@ -3485,7 +3191,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void requestWithoutClientKeyOrReferer(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final String emailAddress = "test@uid2.com";
         setupSalts();
@@ -5687,7 +5393,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"v1", "v2"})
+    @ValueSource(strings = {"v2"})
     void identityBucketsAlwaysReturnMilliseconds(String apiVersion, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);

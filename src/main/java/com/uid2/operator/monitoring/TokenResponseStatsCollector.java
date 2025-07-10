@@ -9,11 +9,7 @@ import io.micrometer.core.instrument.Metrics;
 
 public class TokenResponseStatsCollector {
     public enum Endpoint {
-        GenerateV0,
-        GenerateV1,
         GenerateV2,
-        RefreshV0,
-        RefreshV1,
         RefreshV2,
         //it's the first version but the endpoint is v2/token/client-generate so we will call it v2
         ClientSideTokenGenerateV2,

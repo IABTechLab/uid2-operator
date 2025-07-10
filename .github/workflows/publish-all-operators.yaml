@@ -234,6 +234,7 @@ jobs:
           name: v${{ needs.start.outputs.new_version }}
           body: ${{ steps.changelog.outputs.changelog }}
           draft: true
+          overwrite: true
           files: |
               ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip

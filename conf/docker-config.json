@@ -4,7 +4,6 @@
   "storage_mock": true,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,
-  "advertising_token_v3": false,
   "refresh_token_v3": false,
   "identity_v3": false,
   "identity_scope": "uid2",
@@ -32,12 +31,17 @@
   "salts_metadata_path": "/com.uid2.core/test/salts/metadata.json",
   "services_metadata_path": "/com.uid2.core/test/services/metadata.json",
   "service_links_metadata_path": "/com.uid2.core/test/service_links/metadata.json",
+  "cloud_encryption_keys_metadata_path": "/com.uid2.core/test/cloud_encryption_keys/metadata.json",
+  "runtime_config_metadata_path": "/com.uid2.core/test/runtime_config/metadata.json",
+  "encrypted_files": false,
   "identity_token_expires_after_seconds": 3600,
   "optout_metadata_path": null,
   "optout_inmem_cache": false,
   "enclave_platform": null,
   "failure_shutdown_wait_hours": 120,
   "salts_expired_shutdown_hours": 12,
-  "operator_type": "public"
-
+  "operator_type": "public",
+  "disable_optout_token": true,
+  "enable_remote_config": false,
+  "uid_instance_id_prefix": "local-operator"
 }

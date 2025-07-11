@@ -46,9 +46,12 @@ public class SecureLinkValidatorService {
                         LOGGER.warn("Path: {} , ClientKey has ServiceId set, but LinkId in request was not authorized. ServiceId: {}, LinkId in request: {}", rc.normalizedPath(), clientKey.getServiceId(), linkId);
                         return false;
                     }
+                    if (serviceLink.isDisabled()) {
+                        LOGGER.warn("Path: {} , ServiceLink {} is disabled", rc.normalizedPath(), linkId);
+                        return false;
+                    }
                     if (!serviceLink.getRoles().contains(role)) {
                         LOGGER.warn("Path: {} , ServiceLink {} does not have role {}", rc.normalizedPath(), linkId, role);
-
                         return false;
                     }
                     Service service = rotatingServiceStore.getService(clientKey.getServiceId());

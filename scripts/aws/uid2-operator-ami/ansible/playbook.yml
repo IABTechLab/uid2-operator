@@ -70,33 +70,46 @@
       requirements: /opt/uid2operator/config-server/requirements.txt
       virtualenv_command: 'python3 -m venv'
 
+  - name: Install requirements.txt for enclave init
+    ansible.builtin.copy:
+      src: /tmp/artifacts/requirements.txt
+      dest: /opt/uid2operator/requirements.txt
+      remote_src: yes
+
   - name: Install starter script
     ansible.builtin.copy:
-      src: /tmp/artifacts/start.sh
-      dest: /opt/uid2operator/start.sh
+      src: /tmp/artifacts/ec2.py
+      dest: /opt/uid2operator/ec2.py
       remote_src: yes
 
   - name: Make starter script executable
     ansible.builtin.file:
-      path: /opt/uid2operator/start.sh
+      path: /opt/uid2operator/ec2.py
       mode: '0755'
 
-  - name: Install stopper script
+  - name: Copy confidential_compute script
     ansible.builtin.copy:
-      src: /tmp/artifacts/stop.sh
-      dest: /opt/uid2operator/stop.sh
+      src: /tmp/artifacts/confidential_compute.py
+      dest: /opt/uid2operator/confidential_compute.py
       remote_src: yes
 
-  - name: Make starter script executable
-    ansible.builtin.file:
-      path: /opt/uid2operator/stop.sh
-      mode: '0755'
+  - name: Create virtualenv for eif init
+    ansible.builtin.pip:
+      virtualenv: /opt/uid2operator/init
+      requirements: /opt/uid2operator/requirements.txt
+      virtualenv_command: 'python3.11 -m venv'
 
-  - name: Install Operator EIF
+  - name: Copy Operator EIF
     ansible.builtin.copy:
-      src: /tmp/artifacts/uid2operator.eif
-      dest: /opt/uid2operator/uid2operator.eif
+      src: /tmp/artifacts/uid2operatoreif.zip
+      dest: /opt/uid2operator/uid2operatoreif.zip
       remote_src: yes
+
+  - name: Unzip Operator EIF
+    ansible.builtin.unarchive:
+        src: /opt/uid2operator/uid2operatoreif.zip
+        dest: /opt/uid2operator/
+        remote_src: yes
 
   - name: Install Identity Scope
     ansible.builtin.copy:

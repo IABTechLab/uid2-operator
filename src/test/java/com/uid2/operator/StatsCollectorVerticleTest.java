@@ -12,6 +12,7 @@ import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import static org.assertj.core.api.Assertions.*;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -132,7 +134,7 @@ public class StatsCollectorVerticleTest {
         var messages = getMessages();
         for(String endpoint: validEndpoints) {
             String withoutVersion = endpoint;
-            if (endpoint.startsWith("/v1/") || endpoint.startsWith("/v2/")) {
+            if (endpoint.startsWith("/v1/") || endpoint.startsWith("/v2/") || endpoint.startsWith("/v3/")) {
                 withoutVersion = endpoint.substring(4);
             } else if (endpoint.startsWith("/")) {
                 withoutVersion = endpoint.substring(1);

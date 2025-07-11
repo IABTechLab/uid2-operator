@@ -30,11 +30,14 @@
   "salts_metadata_path": "salts/metadata.json",
   "services_metadata_path": "services/metadata.json",
   "service_links_metadata_path": "service_links/metadata.json",
+  "cloud_encryption_keys_metadata_path": "cloud_encryption_keys/metadata.json",
+  "encrypted_files": false,
   "optout_metadata_path": null,
   "optout_inmem_cache": false,
   "enclave_platform": null,
   "failure_shutdown_wait_hours": 120,
   "sharing_token_expiry_seconds": 2592000,
-  "operator_type": "public"
-
+  "operator_type": "public",
+  "enable_remote_config": false,
+  "uid_instance_id_prefix": "local-operator"
 }

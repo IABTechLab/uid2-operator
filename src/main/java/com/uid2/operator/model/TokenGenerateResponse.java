@@ -1,0 +1,71 @@
+package com.uid2.operator.model;
+
+import com.uid2.shared.model.TokenVersion;
+import io.vertx.core.json.JsonObject;
+
+import java.time.Instant;
+
+// this defines all the fields for the response of the /token/generate and /client/generate endpoints before they are
+// jsonified
+// todo: can be converted to record later
+public class TokenGenerateResponse {
+    public static final TokenGenerateResponse OptOutResponse = new TokenGenerateResponse("", null, "", Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
+
+    //aka UID token
+    private final String advertisingToken;
+    private final TokenVersion advertisingTokenVersion;
+    private final String refreshToken;
+    // when the advertising token/uid token expires
+    private final Instant identityExpires;
+    private final Instant refreshExpires;
+    private final Instant refreshFrom;
+
+    public TokenGenerateResponse(String advertisingToken, TokenVersion advertisingTokenVersion, String refreshToken,
+                                 Instant identityExpires, Instant refreshExpires, Instant refreshFrom) {
+        this.advertisingToken = advertisingToken;
+        this.advertisingTokenVersion = advertisingTokenVersion;
+        this.refreshToken = refreshToken;
+        this.identityExpires = identityExpires;
+        this.refreshExpires = refreshExpires;
+        this.refreshFrom = refreshFrom;
+    }
+
+    public String getAdvertisingToken() {
+        return advertisingToken;
+    }
+
+    public TokenVersion getAdvertisingTokenVersion() {
+        return advertisingTokenVersion;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public Instant getIdentityExpires() {
+        return identityExpires;
+    }
+
+    public Instant getRefreshExpires() {
+        return refreshExpires;
+    }
+
+    public Instant getRefreshFrom() {
+        return refreshFrom;
+    }
+
+    public boolean isOptedOut() {
+        return advertisingToken == null || advertisingToken.isEmpty();
+    }
+
+    public JsonObject toTokenGenerateResponseJson() {
+        final JsonObject json = new JsonObject();
+        json.put("advertising_token", this.getAdvertisingToken());
+        json.put("refresh_token", this.getRefreshToken());
+        json.put("identity_expires", this.getIdentityExpires().toEpochMilli());
+        json.put("refresh_expires", this.getRefreshExpires().toEpochMilli());
+        json.put("refresh_from", this.getRefreshFrom().toEpochMilli());
+        return json;
+    }
+}
+

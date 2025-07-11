@@ -1,23 +1,24 @@
 package com.uid2.operator.benchmark;
 
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 public class TokenEndecBenchmark {
 
     private static final IUIDOperatorService uidService;
-    private static final HashedDiiIdentity[] hashedDiiIdentities;
+    private static final HashedDii[] hashedDiiIdentities;
     private static final SourcePublisher publisher;
     private static final EncryptedTokenEncoder encoder;
-    private static final IdentityResponse[] generatedTokens;
+    private static final TokenGenerateResponse[] generatedTokens;
     private static int idx = 0;
 
     static {
@@ -35,32 +36,44 @@ public class TokenEndecBenchmark {
         }
     }
 
-    static IdentityResponse[] createAdvertisingTokens() {
-        List<IdentityResponse> tokens = new ArrayList<>();
+    static TokenGenerateResponse[] createAdvertisingTokens() {
+        List<TokenGenerateResponse> tokens = new ArrayList<>();
         for (int i = 0; i < hashedDiiIdentities.length; i++) {
             tokens.add(
-                    uidService.generateIdentity(new IdentityRequest(
+                    uidService.generateIdentity(new TokenGenerateRequest(
                             publisher,
                             hashedDiiIdentities[i],
-                            OptoutCheckPolicy.DoNotRespect)));
+                            OptoutCheckPolicy.DoNotRespect),
+                            Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                            Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                            Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS))
+            );
         }
-        return tokens.toArray(new IdentityResponse[tokens.size()]);
+        return tokens.toArray(new TokenGenerateResponse[tokens.size()]);
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public IdentityResponse TokenGenerationBenchmark() {
-        return uidService.generateIdentity(new IdentityRequest(
+    public TokenGenerateResponse TokenGenerationBenchmark() {
+        return uidService.generateIdentity(new TokenGenerateRequest(
                 publisher,
                 hashedDiiIdentities[(idx++) & 65535],
-                OptoutCheckPolicy.DoNotRespect));
+                OptoutCheckPolicy.DoNotRespect),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)
+        );
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public RefreshResponse TokenRefreshBenchmark() {
+    public TokenRefreshResponse TokenRefreshBenchmark() {
         return uidService.refreshIdentity(
                 encoder.decodeRefreshToken(
-                        generatedTokens[(idx++) & 65535].getRefreshToken()));
+                        generatedTokens[(idx++) & 65535].getRefreshToken()),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
+                Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)
+        );
     }
 }

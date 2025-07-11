@@ -1,7 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.shared.model.SaltEntry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -12,22 +12,20 @@ import java.util.List;
 
 public interface IUIDOperatorService {
 
-    IdentityResponse generateIdentity(IdentityRequest request);
+    TokenGenerateResponse generateIdentity(TokenGenerateRequest request, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter);
 
-    RefreshResponse refreshIdentity(RefreshTokenInput refreshTokenInput);
+    TokenRefreshResponse refreshIdentity(TokenRefreshRequest input, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter);
 
-    RawUidResponse mapIdentity(MapRequest request);
+    IdentityMapResponseItem mapHashedDii(IdentityMapRequestItem request);
 
     @Deprecated
-    RawUidResponse map(HashedDiiIdentity hashedDiiIdentity, Instant asOf);
+    IdentityMapResponseItem map(HashedDii hashedDii, Instant asOf);
 
     List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
 
-    void invalidateTokensAsync(HashedDiiIdentity hashedDiiIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler);
+    void invalidateTokensAsync(HashedDii hashedDii, Instant asOf, String uidTraceId, Handler<AsyncResult<Instant>> handler);
 
-    boolean advertisingTokenMatches(String advertisingToken, HashedDiiIdentity hashedDiiIdentity, Instant asOf);
+    boolean advertisingTokenMatches(String advertisingToken, HashedDii hashedDii, Instant asOf);
 
-    Instant getLatestOptoutEntry(HashedDiiIdentity hashedDiiIdentity, Instant asOf);
-
-    Duration getIdentityExpiryDuration();
+    Instant getLatestOptoutEntry(HashedDii hashedDii, Instant asOf);
 }

@@ -3,7 +3,7 @@ package com.uid2.operator.monitoring;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.model.SaltEntry;
-import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.salt.ISaltProvider;
 import io.micrometer.core.instrument.Gauge;
 
 import java.time.Instant;
@@ -26,13 +26,13 @@ public class OperatorMetrics {
         Gauge
                 .builder("uid2_second_level_salt_last_updated_max", () ->
                         Arrays.stream(saltProvider.getSnapshot(Instant.now()).getAllRotatingSalts())
-                            .map(SaltEntry::getLastUpdated).max(Long::compare).orElse(null))
+                            .map(SaltEntry::lastUpdated).max(Long::compare).orElse(null))
                 .description("max last updated timestamp within currently effective second level salts")
                 .register(globalRegistry);
         Gauge
                 .builder("uid2_second_level_salt_last_updated_min", () ->
                         Arrays.stream(saltProvider.getSnapshot(Instant.now()).getAllRotatingSalts())
-                            .map(SaltEntry::getLastUpdated).min(Long::compare).orElse(null))
+                            .map(SaltEntry::lastUpdated).min(Long::compare).orElse(null))
                 .description("max last updated timestamp within currently effective second level salts")
                 .register(globalRegistry);
 

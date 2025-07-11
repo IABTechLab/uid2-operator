@@ -1,10 +1,13 @@
 package com.uid2.operator.vertx;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.IdentityResponse;
-import com.uid2.operator.model.IdentityScope;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.model.TokenGenerateResponse;
+import com.uid2.operator.model.identities.IdentityScope;
+import com.uid2.operator.model.identities.DiiType;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.StatsCollectorHandler;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
@@ -14,11 +17,12 @@ import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
 import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
-import com.uid2.operator.util.DomainNameCheckUtil;
-import com.uid2.operator.util.PrivacyBits;
-import com.uid2.operator.util.Tuple;
+import com.uid2.operator.store.IConfigStore;
+import com.uid2.operator.util.*;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.Utils;
+import com.uid2.shared.audit.Audit;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.auth.*;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.health.HealthComponent;
@@ -29,7 +33,8 @@ import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
-import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.salt.ISaltProvider;
+import com.uid2.shared.util.Mapper;
 import com.uid2.shared.vertx.RequestCapturingHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -42,6 +47,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
@@ -68,8 +74,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import static com.uid2.operator.IdentityConst.*;
+import static com.uid2.operator.model.identities.IdentityConst.*;
+import static com.uid2.operator.Const.Config.*;
 import static com.uid2.operator.service.ResponseUtil.*;
 import static com.uid2.operator.vertx.Endpoints.*;
 
@@ -81,32 +87,39 @@ public class UIDOperatorVerticle extends AbstractVerticle {
      * is slightly longer than it should be. When validating token lifetimes, we add a small buffer to account for this.
      */
     public static final Duration TOKEN_LIFETIME_TOLERANCE = Duration.ofSeconds(10);
-    private static final DateTimeFormatter APIDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC"));
+    private static final long SECOND_IN_MILLIS = 1000;
+    // Use a formatter that always prints three-digit millisecond precision (e.g. 2024-07-02T14:15:16.000)
+    private static final DateTimeFormatter API_DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
 
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
-    private final JsonObject config;
+    private final IConfigStore configStore;
     private final boolean clientSideTokenGenerate;
     private final AuthMiddleware auth;
     private final ISiteStore siteProvider;
     private final IClientSideKeypairStore clientSideKeypairProvider;
-    private final ITokenEncoder encoder;
+    private final EncryptedTokenEncoder encoder;
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
+    private final boolean identityV3Enabled;
+    private final boolean disableOptoutToken;
+    private final UidInstanceIdProvider uidInstanceIdProvider;
     protected IUIDOperatorService idService;
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
     private final Map<Tuple.Tuple3<String, OptoutCheckPolicy, String>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
+    private final Map<String, Counter> _tokenGenerateTCFUsage = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
 
     private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
     private final IdentityScope identityScope;
-    private final V2PayloadHandler v2PayloadHandler;
+    private final V2PayloadHandler encryptedPayloadHandler;
     private final boolean phoneSupport;
     private final int tcfVendorId;
     private final IStatsCollectorQueue _statsCollectorQueue;
@@ -117,9 +130,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
     public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
     private final Handler<Boolean> saltRetrievalResponseHandler;
-    private final int maxBidstreamLifetimeSeconds;
     private final int allowClockSkewSeconds;
-    protected int maxSharingLifetimeSeconds;
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
     protected boolean keySharingEndpointProvideAppNames;
     protected Instant lastInvalidOriginProcessTime = Instant.now();
@@ -127,12 +138,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int optOutStatusMaxRequestSize;
     private final boolean optOutStatusApiEnabled;
 
+    private final static ObjectMapper OBJECT_MAPPER = Mapper.getApiInstance();
+
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
     private final static List<String> SUPPORTED_IN_APP = Arrays.asList("Android", "ios", "tvos");
+
+    private static final String ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified";
+    private static final String ERROR_INVALID_INPUT_EMAIL_MISSING = "Required Parameter Missing: exactly one of email or email_hash must be specified";
+    private static final String ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: one or more of [email, email_hash, phone, phone_hash] must be specified";
+    private static final String ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING = "Required Parameter Missing: one or more of [email, email_hash] must be specified";
+    private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
+    private static final String RC_CONFIG_KEY = "remote-config";
     public final static String ORIGIN_HEADER = "Origin";
 
-    public UIDOperatorVerticle(JsonObject config,
+    public UIDOperatorVerticle(IConfigStore configStore,
+                               JsonObject config,
                                boolean clientSideTokenGenerate,
                                ISiteStore siteProvider,
                                IClientKeyProvider clientKeyProvider,
@@ -143,7 +164,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                Clock clock,
                                IStatsCollectorQueue statsCollectorQueue,
                                SecureLinkValidatorService secureLinkValidatorService,
-                               Handler<Boolean> saltRetrievalResponseHandler) {
+                               Handler<Boolean> saltRetrievalResponseHandler,
+                               UidInstanceIdProvider uidInstanceIdProvider) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -151,7 +173,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             throw new RuntimeException(e);
         }
-        this.config = config;
+        this.configStore = configStore;
         this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
@@ -162,7 +184,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
-        this.v2PayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
+        this.encryptedPayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
         this.cstgDoDomainNameCheck = config.getBoolean("client_side_token_generate_domain_name_check_enabled", true);
@@ -170,35 +192,32 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this._statsCollectorQueue = statsCollectorQueue;
         this.clientKeyProvider = clientKeyProvider;
         this.clientSideTokenGenerateLogInvalidHttpOrigin = config.getBoolean("client_side_token_generate_log_invalid_http_origins", false);
-        final Integer identityTokenExpiresAfterSeconds = config.getInteger(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-        this.maxBidstreamLifetimeSeconds = config.getInteger(Const.Config.MaxBidstreamLifetimeSecondsProp, identityTokenExpiresAfterSeconds);
-        if (this.maxBidstreamLifetimeSeconds < identityTokenExpiresAfterSeconds) {
-            LOGGER.error("Max bidstream lifetime seconds ({} seconds) is less than identity token lifetime ({} seconds)", maxBidstreamLifetimeSeconds, identityTokenExpiresAfterSeconds);
-            throw new RuntimeException("Max bidstream lifetime seconds is less than identity token lifetime seconds");
-        }
         this.allowClockSkewSeconds = config.getInteger(Const.Config.AllowClockSkewSecondsProp, 1800);
-        this.maxSharingLifetimeSeconds = config.getInteger(Const.Config.MaxSharingLifetimeProp, config.getInteger(Const.Config.SharingTokenExpiryProp));
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
+        this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
+        this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
+        this.uidInstanceIdProvider = uidInstanceIdProvider;
     }
 
     @Override
     public void start(Promise<Void> startPromise) throws Exception {
         this.healthComponent.setHealthStatus(false, "still starting");
         this.idService = new UIDOperatorService(
-                this.config,
                 this.optOutStore,
                 this.saltProvider,
                 this.encoder,
                 this.clock,
                 this.identityScope,
-                this.saltRetrievalResponseHandler
+                this.saltRetrievalResponseHandler,
+                this.identityV3Enabled,
+                this.uidInstanceIdProvider
         );
 
         final Router router = createRoutesSetup();
         final int port = Const.Port.ServicePortForOperator + Utils.getPortOffset();
-        vertx.createHttpServer()
+        vertx.createHttpServer(new HttpServerOptions().setMaxFormBufferedBytes((int) MAX_REQUEST_BODY_SIZE))
                 .requestHandler(router)
                 .listen(port, result -> {
                     if (result.succeeded()) {
@@ -218,7 +237,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final Router router = Router.router(vertx);
 
         router.allowForward(AllowForwardHeaders.X_FORWARD);
-        router.route().handler(new RequestCapturingHandler());
+        router.route().handler(new RequestCapturingHandler(siteProvider));
+        router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js", clientKeyProvider));
         router.route().handler(CorsHandler.create()
                 .addRelativeOrigin(".*.")
                 .allowedMethod(io.vertx.core.http.HttpMethod.GET)
@@ -232,75 +252,55 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .allowedHeader("Content-Type"));
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
         router.route("/static/*").handler(StaticHandler.create("static"));
+        router.route().handler(ctx -> {
+            RuntimeConfig curConfig = configStore.getConfig();
+            ctx.put(RC_CONFIG_KEY, curConfig);
+            ctx.next();
+        });
         router.route().failureHandler(new GenericFailureHandler());
 
         final BodyHandler bodyHandler = BodyHandler.create().setHandleFileUploads(false).setBodyLimit(MAX_REQUEST_BODY_SIZE);
-        setupV2Routes(router, bodyHandler);
+        setUpEncryptedRoutes(router, bodyHandler);
 
         // Static and health check
         router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
 
-        if (this.config.getBoolean(Const.Config.AllowLegacyAPIProp, true)) {
-            // V1 APIs
-            router.get(V1_TOKEN_GENERATE.toString()).handler(auth.handleV1(this::handleTokenGenerateV1, Role.GENERATOR));
-            router.get(V1_TOKEN_VALIDATE.toString()).handler(this::handleTokenValidateV1);
-            router.get(V1_TOKEN_REFRESH.toString()).handler(auth.handleWithOptionalAuth(this::handleTokenRefreshV1));
-            router.get(V1_IDENTITY_BUCKETS.toString()).handler(auth.handle(this::handleBucketsV1, Role.MAPPER));
-            router.get(V1_IDENTITY_MAP.toString()).handler(auth.handle(this::handleIdentityMapV1, Role.MAPPER));
-            router.post(V1_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handle(this::handleIdentityMapBatchV1, Role.MAPPER));
-            router.get(V1_KEY_LATEST.toString()).handler(auth.handle(this::handleKeysRequestV1, Role.ID_READER));
-
-            // Deprecated APIs
-            router.get(V0_KEY_LATEST.toString()).handler(auth.handle(this::handleKeysRequest, Role.ID_READER));
-            router.get(V0_TOKEN_GENERATE.toString()).handler(auth.handle(this::handleTokenGenerate, Role.GENERATOR));
-            router.get(V0_TOKEN_REFRESH.toString()).handler(this::handleTokenRefresh);
-            router.get(V0_TOKEN_VALIDATE.toString()).handler(this::handleValidate);
-            router.get(V0_IDENTITY_MAP.toString()).handler(auth.handle(this::handleIdentityMap, Role.MAPPER));
-            router.post(V0_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handle(this::handleIdentityMapBatch, Role.MAPPER));
-
-            // internal API to handle user optout of UID
-            router.get(V0_TOKEN_LOGOUT.toString()).handler(auth.handle(this::handleLogoutAsync, Role.OPTOUT));
-
-            // only uncomment to do local testing
-            //router.get("/internal/optout/get").handler(auth.loopbackOnly(this::handleOptOutGet));
-
-        }
-
         return router;
     }
 
-    private void setupV2Routes(Router mainRouter, BodyHandler bodyHandler) {
+    private void setUpEncryptedRoutes(Router mainRouter, BodyHandler bodyHandler) {
 
         mainRouter.post(V2_TOKEN_GENERATE.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
+                rc -> encryptedPayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
         mainRouter.post(V2_TOKEN_REFRESH.toString()).handler(bodyHandler).handler(auth.handleWithOptionalAuth(
-                rc -> v2PayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
+                rc -> encryptedPayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
         mainRouter.post(V2_TOKEN_VALIDATE.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
         mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
         mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
         mainRouter.post(V2_KEY_LATEST.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
+                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
         mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
-        // internal API to handle user optout of UID
+                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
         mainRouter.post(V2_TOKEN_LOGOUT.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> v2PayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
+                rc -> encryptedPayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
         if (this.optOutStatusApiEnabled) {
             mainRouter.post(V2_OPTOUT_STATUS.toString()).handler(bodyHandler).handler(auth.handleV1(
-                    rc -> v2PayloadHandler.handle(rc, this::handleOptoutStatus),
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleOptoutStatus),
                     Role.MAPPER, Role.SHARER, Role.ID_READER));
         }
 
         if (this.clientSideTokenGenerate)
             mainRouter.post(V2_TOKEN_CLIENTGENERATE.toString()).handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
-    }
+        mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
+                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
 
+    }
 
     private void handleClientSideTokenGenerate(RoutingContext rc) {
         try {
@@ -310,6 +310,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private RuntimeConfig getConfigFromRc(RoutingContext rc) {
+        return rc.get(RC_CONFIG_KEY);
+    }
 
     private Set<String> getDomainNameListForClientSideTokenGenerate(ClientSideKeypair keypair) {
         Site s = siteProvider.getSite(keypair.getSiteId());
@@ -328,8 +331,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return site.getAppNames();
     }
 
+    private void logIfApiKey(String key) {
+        ClientKey clientKey = this.clientKeyProvider.getClientKey(key);
+        if (clientKey != null) {
+            LOGGER.error("Client side key is an api key with api_key_id={} for site_id={}", clientKey.getKeyId(), clientKey.getSiteId());
+        }
+    }
+
     private void handleClientSideTokenGenerateImpl(RoutingContext rc) throws NoSuchAlgorithmException, InvalidKeyException {
         final JsonObject body;
+
+        RuntimeConfig config = this.getConfigFromRc(rc);
+
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
+
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
         try {
             body = rc.body().asJsonObject();
@@ -350,14 +367,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         final ClientSideKeypair clientSideKeypair = this.clientSideKeypairProvider.getSnapshot().getKeypair(request.getSubscriptionId());
         if (clientSideKeypair == null) {
+            logIfApiKey(request.getSubscriptionId());
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "bad subscription_id",
                     null, TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadSubscriptionId, siteProvider, platformType);
             return;
         }
+        rc.put(com.uid2.shared.Const.RoutingContextData.SiteId, clientSideKeypair.getSiteId());
 
         if(clientSideKeypair.isDisabled()) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.Unauthorized, 401, rc, "Unauthorized",
-                        clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unauthorized, siteProvider, platformType);
+                    clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unauthorized, siteProvider, platformType);
             return;
         }
 
@@ -378,6 +397,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(clientPublicKeyBytes);
             clientPublicKey = kf.generatePublic(pkSpec);
         } catch (Exception e) {
+            logIfApiKey(request.getPublicKey());
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "bad public key", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPublicKey, siteProvider, platformType);
             return;
         }
@@ -452,7 +472,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             input = InputUtil.normalizePhoneHash(phoneHash);
         }
 
-        if (!checkForInvalidTokenInput(input, rc)) {
+        if (!isTokenInputValid(input, rc)) {
             return;
         }
 
@@ -460,13 +480,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         privacyBits.setLegacyBit();
         privacyBits.setClientSideTokenGenerate();
 
-        IdentityResponse identityResponse;
+        TokenGenerateResponse tokenGenerateResponse;
         try {
-            identityResponse = this.idService.generateIdentity(
-                    new IdentityRequest(
-                            new SourcePublisher(clientSideKeypair.getSiteId(), 0, 0),
-                            input.toHashedDiiIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
-                            OptoutCheckPolicy.RespectOptOut));
+            tokenGenerateResponse = this.idService.generateIdentity(
+                    new TokenGenerateRequest(
+                            new SourcePublisher(clientSideKeypair.getSiteId()),
+                            input.toHashedDii(this.identityScope),
+                            OptoutCheckPolicy.RespectOptOut, privacyBits, Instant.now()),
+                    refreshIdentityAfter,
+                    refreshExpiresAfter,
+                    identityExpiresAfter);
         } catch (KeyManager.NoActiveKeyException e){
             SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, e, platformType);
             return;
@@ -474,12 +497,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         JsonObject response;
         TokenResponseStatsCollector.ResponseStatus responseStatus = TokenResponseStatsCollector.ResponseStatus.Success;
 
-        if (identityResponse.isOptedOut()) {
+        if (tokenGenerateResponse.isOptedOut()) {
             response = ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut);
             responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
         }
         else { //user not opted out and already generated valid identity token
-            response = ResponseUtil.SuccessV2(toJsonV1(identityResponse));
+            response = ResponseUtil.SuccessV2(tokenGenerateResponse.toTokenGenerateResponseJson());
         }
         //if returning an optout token or a successful identity token created originally
         if (responseStatus == TokenResponseStatsCollector.ResponseStatus.Success) {
@@ -487,7 +510,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         final byte[] encryptedResponse = AesGcm.encrypt(response.toBuffer().getBytes(), sharedSecret);
         rc.response().setStatusCode(200).end(Buffer.buffer(Unpooled.wrappedBuffer(Base64.getEncoder().encode(encryptedResponse))));
-        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, responseStatus, siteProvider, identityResponse.getAdvertisingTokenVersion(), platformType);
+        recordTokenResponseStats(clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, responseStatus, siteProvider, tokenGenerateResponse.getAdvertisingTokenVersion(), platformType);
     }
 
     private boolean hasValidOriginOrAppName(RoutingContext rc, CstgRequest request, ClientSideKeypair keypair, TokenResponseStatsCollector.PlatformType platformType) {
@@ -565,21 +588,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
         final int clientSiteId = clientKey.getSiteId();
         if (!clientKey.hasValidSiteId()) {
-            ResponseUtil.Warning("invalid_client", 401, rc, "Unexpected client site id " + Integer.toString(clientSiteId));
+            ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidClient, 401, rc, "Unexpected client site id " + Integer.toString(clientSiteId));
             return;
         }
 
         final List<KeysetKey> keys = this.keyManager.getKeysForSharingOrDsps();
         onSuccess.handle(getAccessibleKeysAsJson(keys, clientKey));
-    }
-
-    public void handleKeysRequestV1(RoutingContext rc) {
-        try {
-            handleKeysRequestCommon(rc, keys -> ResponseUtil.Success(rc, keys));
-        } catch (Exception e) {
-            LOGGER.error("Unknown error while handling keys request v1", e);
-            rc.fail(500);
-        }
     }
 
     public void handleKeysRequestV2(RoutingContext rc) {
@@ -591,20 +605,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    public void handleKeysRequest(RoutingContext rc) {
-        try {
-            handleKeysRequestCommon(rc, keys -> sendJsonResponse(rc, keys));
-        } catch (Exception e) {
-            LOGGER.error("Unknown error while handling keys request", e);
-            rc.fail(500);
-        }
-    }
-
-    private String getSharingTokenExpirySeconds() {
-        return config.getString(Const.Config.SharingTokenExpiryProp);
-    }
-
     public void handleKeysSharing(RoutingContext rc) {
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        int sharingTokenExpirySeconds = config.getSharingTokenExpirySeconds();
+        int maxSharingLifetimeSeconds = config.getMaxSharingLifetimeSeconds();
         try {
             final ClientKey clientKey = AuthMiddleware.getAuthClient(ClientKey.class, rc);
 
@@ -613,7 +617,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             Map<Integer, Keyset> keysetMap = keyManagerSnapshot.getAllKeysets();
 
             final JsonObject resp = new JsonObject();
-            addSharingHeaderFields(resp, keyManagerSnapshot, clientKey);
+            addSharingHeaderFields(resp, keyManagerSnapshot, clientKey, maxSharingLifetimeSeconds, sharingTokenExpirySeconds);
 
             final List<KeysetKey> accessibleKeys = getAccessibleKeys(keysetKeyStore, keyManagerSnapshot, clientKey);
 
@@ -658,14 +662,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .collect(Collectors.toList());
 
         final JsonObject resp = new JsonObject();
-        addBidstreamHeaderFields(resp);
+
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        int maxBidstreamLifetimeSeconds = config.getMaxBidstreamLifetimeSeconds();
+
+
+        addBidstreamHeaderFields(resp, maxBidstreamLifetimeSeconds);
         resp.put("keys", keysJson);
         addSites(resp, accessibleKeys, keysetMap);
 
         ResponseUtil.SuccessV2(rc, resp);
     }
 
-    private void addBidstreamHeaderFields(JsonObject resp) {
+    private void addBidstreamHeaderFields(JsonObject resp, int maxBidstreamLifetimeSeconds) {
         resp.put("max_bidstream_lifetime_seconds", maxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
         addIdentityScopeField(resp);
         addAllowClockSkewSecondsField(resp);
@@ -703,7 +712,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void addSharingHeaderFields(JsonObject resp, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey) {
+    private void addSharingHeaderFields(JsonObject resp, KeyManagerSnapshot keyManagerSnapshot, ClientKey clientKey, int maxSharingLifetimeSeconds, int sharingTokenExpirySeconds) {
         resp.put("caller_site_id", clientKey.getSiteId());
         resp.put("master_keyset_id", MASTER_KEYSET_ID_FOR_SDKS);
 
@@ -718,7 +727,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // this is written out as a String, i.e. in the JSON response of key/sharing endpoint, it would show:
         // "token_expiry_seconds" : "2592000"
         // it should be an integer instead, but we can't change it until we confirm that the oldest version of each of our SDKs support this
-        resp.put("token_expiry_seconds", getSharingTokenExpirySeconds());
+        resp.put("token_expiry_seconds", String.valueOf(sharingTokenExpirySeconds));
 
         if (clientKey.hasRole(Role.SHARER)) {
             resp.put("max_sharing_lifetime_seconds", maxSharingLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
@@ -787,113 +796,56 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleTokenRefreshV1(RoutingContext rc) {
-        final List<String> tokenList = rc.queryParam("refresh_token");
-        TokenResponseStatsCollector.PlatformType platformType = getPlatformType(rc);
-        Integer siteId = null;
-        if (tokenList == null || tokenList.size() == 0) {
-            SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Required Parameter Missing: refresh_token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider, platformType);
-            return;
-        }
-
-        String refreshToken = tokenList.get(0);
-        if (refreshToken.length() == V2RequestUtil.V2_REFRESH_PAYLOAD_LENGTH) {
-            // V2 token sent by V1 JSSDK. Decrypt and extract original refresh token
-            V2RequestUtil.V2Request v2req = V2RequestUtil.parseRefreshRequest(refreshToken, this.keyManager);
-            if (v2req.isValid()) {
-                refreshToken = (String) v2req.payload;
-            } else {
-                SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, v2req.errorMessage, siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, platformType);
-                return;
-            }
-        }
-
-        try {
-            final RefreshResponse r = this.refreshIdentity(rc, refreshToken);
-            siteId = rc.get(Const.RoutingContextData.SiteId);
-            if (!r.isRefreshed()) {
-                if (r.isOptOut() || r.isDeprecated()) {
-                    ResponseUtil.SuccessNoBody(ResponseStatus.OptOut, rc);
-                } else if (!AuthMiddleware.isAuthenticated(rc)) {
-                    // unauthenticated clients get a generic error
-                    ResponseUtil.Warning(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
-                } else if (r.isInvalidToken()) {
-                    ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + tokenList.get(0));
-                } else if (r.isExpired()) {
-                    ResponseUtil.Warning(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
-                } else {
-                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
-                }
-            } else {
-                ResponseUtil.Success(rc, toJsonV1(r.getIdentityResponse()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
-            }
-
-            TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, r, platformType);
-        } catch (Exception e) {
-            SendServerErrorResponseAndRecordStats(rc, "Unknown error while refreshing token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, platformType);
+    private static final Map<Tuple.Tuple2<String, String>, Counter> CLIENT_VERSION_COUNTERS = new HashMap<>();
+    private void recordOperatorServedSdkUsage(RoutingContext rc, Integer siteId, String apiContact, String clientVersion) {
+        if (siteId != null && apiContact != null && clientVersion != null) {
+            final String path = RoutingContextUtil.getPath(rc);
+            CLIENT_VERSION_COUNTERS.computeIfAbsent(
+                    new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion),
+                    tuple -> Counter
+                            .builder("uid2_client_sdk_versions_total")
+                            .description("counter for how many http requests are processed per each operator-served sdk version")
+                            .tags("site_id", tuple.getItem1(), "api_contact", apiContact, "client_version", tuple.getItem2(), "path", path)
+                            .register(Metrics.globalRegistry)
+            ).increment();
         }
     }
 
     private void handleTokenRefreshV2(RoutingContext rc) {
         Integer siteId = null;
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
+
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
         try {
             platformType = getPlatformType(rc);
             String tokenStr = (String) rc.data().get("request");
-            final RefreshResponse r = this.refreshIdentity(rc, tokenStr);
+            final TokenRefreshResponse r = this.refreshIdentity(rc, tokenStr);
             siteId = rc.get(Const.RoutingContextData.SiteId);
+            final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
+            recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
             if (!r.isRefreshed()) {
                 if (r.isOptOut() || r.isDeprecated()) {
                     ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut, rc);
                 } else if (!AuthMiddleware.isAuthenticated(rc)) {
                     // unauthenticated clients get a generic error
-                    ResponseUtil.Warning(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
+                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.GenericError, 400, rc, "Error refreshing token");
                 } else if (r.isInvalidToken()) {
-                    ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
+                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
                 } else if (r.isExpired()) {
-                    ResponseUtil.Warning(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
+                    ResponseUtil.LogWarningAndSendResponse(ResponseStatus.ExpiredToken, 400, rc, "Expired Token presented");
                 } else if (r.noActiveKey()) {
                     SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, new KeyManager.NoActiveKeyException("No active encryption key available"), platformType);
                 } else {
-                    ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State");
+                    ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown State");
                 }
             } else {
-                ResponseUtil.SuccessV2(rc, toJsonV1(r.getIdentityResponse()));
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
+                ResponseUtil.SuccessV2(rc, r.getIdentityResponse().toTokenGenerateResponseJson());
+                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER), identityExpiresAfter);
             }
             TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, r, platformType);
         } catch (Exception e) {
             SendServerErrorResponseAndRecordStats(rc, "Unknown error while refreshing token v2", siteId, TokenResponseStatsCollector.Endpoint.RefreshV2, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, platformType);
-        }
-    }
-
-    private void handleTokenValidateV1(RoutingContext rc) {
-        try {
-            final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
-            if (!checkForInvalidTokenInput(input, rc)) {
-                return;
-            }
-            if ((Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Email)
-                    || (Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()) && input.getIdentityType() == IdentityType.Phone)) {
-                try {
-                    final Instant now = Instant.now();
-                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toHashedDiiIdentity(this.identityScope, 0, now), now)) {
-                        ResponseUtil.Success(rc, Boolean.TRUE);
-                    } else {
-                        ResponseUtil.Success(rc, Boolean.FALSE);
-                    }
-                } catch (Exception e) {
-                    ResponseUtil.Success(rc, Boolean.FALSE);
-                }
-            } else {
-                ResponseUtil.Success(rc, Boolean.FALSE);
-            }
-        } catch (ClientInputValidationException cie) {
-            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented");
-        } catch (Exception e) {
-            LOGGER.error("Unknown error while validating token", e);
-            rc.fail(500);
         }
     }
 
@@ -902,16 +854,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final JsonObject req = (JsonObject) rc.data().get("request");
 
             final InputUtil.InputVal input = getTokenInputV2(req);
-            if (!checkForInvalidTokenInput(input, rc)) {
+            if (!isTokenInputValid(input, rc)) {
                 return;
             }
-            if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()))
-                    || (input.getIdentityType() == IdentityType.Phone && Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()))) {
+            if ((input.getDiiType() == DiiType.Email && Arrays.equals(ValidateIdentityForEmailHash, input.getHashedDiiInput()))
+                    || (input.getDiiType() == DiiType.Phone && Arrays.equals(ValidateIdentityForPhoneHash, input.getHashedDiiInput()))) {
                 try {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
 
-                    if (this.idService.advertisingTokenMatches(token, input.toHashedDiiIdentity(this.identityScope, 0, now), now)) {
+                    if (this.idService.advertisingTokenMatches(token, input.toHashedDii(this.identityScope), now)) {
                         ResponseUtil.SuccessV2(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.SuccessV2(rc, Boolean.FALSE);
@@ -928,45 +880,24 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleTokenGenerateV1(RoutingContext rc) {
-        final int siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
-        TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
-        try {
-            final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-            platformType = getPlatformType(rc);
-            if (!checkForInvalidTokenInput(input, rc)) {
-                return;
-            } else {
-                final IdentityResponse t = this.idService.generateIdentity(
-                        new IdentityRequest(
-                                new SourcePublisher(siteId, 0, 0),
-                                input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
-                                OptoutCheckPolicy.defaultPolicy()));
-
-                //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
-
-                ResponseUtil.Success(rc, toJsonV1(t));
-                recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
-            }
-        } catch (Exception e) {
-            SendServerErrorResponseAndRecordStats(rc, "Unknown error while generating token v1", siteId, TokenResponseStatsCollector.Endpoint.GenerateV1, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, platformType);
-        }
-    }
-
     private void handleTokenGenerateV2(RoutingContext rc) {
         final Integer siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
+
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
+
         try {
             JsonObject req = (JsonObject) rc.data().get("request");
             platformType = getPlatformType(rc);
 
             final InputUtil.InputVal input = this.getTokenInputV2(req);
-            if (!checkForInvalidTokenInput(input, rc)) {
-                return;
-            } else {
+            if (isTokenInputValid(input, rc)) {
                 final String apiContact = getApiContact(rc);
 
-                switch (validateUserConsent(req)) {
+                switch (validateUserConsent(req, apiContact)) {
                     case INVALID: {
                         SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "User consent is invalid", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.InvalidUserConsentString, siteProvider, platformType);
                         return;
@@ -980,8 +911,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         break;
                     }
                     default: {
-                        assert false : "Please update UIDOperatorVerticle.handleTokenGenerateV2 when changing UserConsentStatus";
-                        break;
+                        final String errorMsg = "Please update UIDOperatorVerticle.handleTokenGenerateV2 when changing UserConsentStatus";
+                        LOGGER.error(errorMsg);
+                        throw new IllegalStateException(errorMsg);
                     }
                 }
 
@@ -992,16 +924,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Required opt-out policy argument for token/generate is missing or not set to 1", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, platformType);
                     return;
                 }
+                final TokenGenerateResponse response = this.idService.generateIdentity(
+                        new TokenGenerateRequest(
+                                new SourcePublisher(siteId),
+                                input.toHashedDii(this.identityScope),
+                                OptoutCheckPolicy.respectOptOut()),
+                        refreshIdentityAfter,
+                        refreshExpiresAfter,
+                        identityExpiresAfter);
 
-                final IdentityResponse t = this.idService.generateIdentity(
-                        new IdentityRequest(
-                                new SourcePublisher(siteId, 0, 0),
-                                input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
-                                OptoutCheckPolicy.respectOptOut()));
-
-                if (t.isOptedOut()) {
-                    if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect) { // only legacy can use this policy
-                        final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
+                if (response.isOptedOut()) {
+                    if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect && !this.disableOptoutToken) { // only legacy can use
+                        // this policy
+                        final InputUtil.InputVal optOutTokenInput = input.getDiiType() == DiiType.Email
                                 ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
                                 : InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone);
 
@@ -1009,21 +944,23 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         pb.setLegacyBit();
                         pb.setClientSideTokenGenerateOptout();
 
-                        final IdentityResponse optOutTokens = this.idService.generateIdentity(
-                                new IdentityRequest(
-                                        new SourcePublisher(siteId, 0, 0),
-                                        optOutTokenInput.toHashedDiiIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
-                                        OptoutCheckPolicy.DoNotRespect));
-
-                        ResponseUtil.SuccessV2(rc, toJsonV1(optOutTokens));
+                        final TokenGenerateResponse optOutTokens = this.idService.generateIdentity(
+                                new TokenGenerateRequest(
+                                        new SourcePublisher(siteId),
+                                        optOutTokenInput.toHashedDii(this.identityScope),
+                                        OptoutCheckPolicy.DoNotRespect, pb, Instant.now()),
+                                refreshIdentityAfter,
+                                refreshExpiresAfter,
+                                identityExpiresAfter);
+                        ResponseUtil.SuccessV2(rc, optOutTokens.toTokenGenerateResponseJson());
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, optOutTokens.getAdvertisingTokenVersion(), platformType);
                     } else { // new participant, or legacy specified policy/optout_check=1
                         ResponseUtil.SuccessNoBodyV2("optout", rc);
                         recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider, null, platformType);
                     }
                 } else {
-                    ResponseUtil.SuccessV2(rc, toJsonV1(t));
-                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
+                    ResponseUtil.SuccessV2(rc, response.toTokenGenerateResponseJson());
+                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, response.getAdvertisingTokenVersion(), platformType);
                 }
             }
         } catch (KeyManager.NoActiveKeyException e) {
@@ -1035,106 +972,15 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private void handleTokenGenerate(RoutingContext rc) {
-        final InputUtil.InputVal input = this.getTokenInput(rc);
-        Integer siteId = null;
-        if (input == null) {
-            SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Required Parameter Missing: exactly one of email or email_hash must be specified", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
-            return;
-        }
-        else if (!input.isValid()) {
-            SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Invalid email or email_hash", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
-            return;
-        }
-
-        try {
-            siteId = AuthMiddleware.getAuthClient(rc).getSiteId();
-            final IdentityResponse t = this.idService.generateIdentity(
-                    new IdentityRequest(
-                            new SourcePublisher(siteId, 0, 0),
-                            input.toHashedDiiIdentity(this.identityScope, 1, Instant.now()),
-                            OptoutCheckPolicy.defaultPolicy()));
-
-            //Integer.parseInt(rc.queryParam("privacy_bits").get(0))));
-
-            recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), TokenResponseStatsCollector.PlatformType.Other);
-            sendJsonResponse(rc, toJson(t));
-
-        } catch (Exception e) {
-            SendServerErrorResponseAndRecordStats(rc, "Unknown error while generating token", siteId, TokenResponseStatsCollector.Endpoint.GenerateV0, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, TokenResponseStatsCollector.PlatformType.Other);
-        }
-    }
-
-    private void handleTokenRefresh(RoutingContext rc) {
-        final List<String> tokenList = rc.queryParam("refresh_token");
-        Integer siteId = null;
-        if (tokenList == null || tokenList.size() == 0) {
-            SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Required Parameter Missing: refresh_token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
-            return;
-        }
-
-        try {
-            final RefreshResponse r = this.refreshIdentity(rc, tokenList.get(0));
-
-            sendJsonResponse(rc, toJson(r.getIdentityResponse()));
-
-            siteId = rc.get(Const.RoutingContextData.SiteId);
-            if (r.isRefreshed()) {
-                this.recordRefreshDurationStats(siteId, getApiContact(rc), r.getDurationSinceLastRefresh(), rc.request().headers().contains(ORIGIN_HEADER));
-            }
-            TokenResponseStatsCollector.recordRefresh(siteProvider, siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, r, TokenResponseStatsCollector.PlatformType.Other);
-        } catch (Exception e) {
-            SendServerErrorResponseAndRecordStats(rc, "Unknown error while refreshing token", siteId, TokenResponseStatsCollector.Endpoint.RefreshV0, TokenResponseStatsCollector.ResponseStatus.Unknown, siteProvider, e, TokenResponseStatsCollector.PlatformType.Other);
-        }
-    }
-
-    private void handleValidate(RoutingContext rc) {
-        try {
-            final InputUtil.InputVal input = getTokenInput(rc);
-            if (input != null && input.isValid() && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput())) {
-                try {
-                    final Instant now = Instant.now();
-                    if (this.idService.advertisingTokenMatches(rc.queryParam("token").get(0), input.toHashedDiiIdentity(this.identityScope, 0, now), now)) {
-                        rc.response().end("true");
-                    } else {
-                        rc.response().end("false");
-                    }
-                } catch (Exception e) {
-                    rc.response().end("false");
-                }
-            } else {
-                rc.response().end("not allowed");
-            }
-        } catch (Exception e) {
-            LOGGER.error("Unknown error while validating token", e);
-            rc.fail(500);
-        }
-    }
-
-    private void handleLogoutAsync(RoutingContext rc) {
-        final InputUtil.InputVal input = this.phoneSupport ? getTokenInputV1(rc) : getTokenInput(rc);
-        if (input.isValid()) {
-            final Instant now = Instant.now();
-            this.idService.invalidateTokensAsync(input.toHashedDiiIdentity(this.identityScope, 0, now), now, ar -> {
-                if (ar.succeeded()) {
-                    rc.response().end("OK");
-                } else {
-                    rc.fail(500);
-                }
-            });
-        } else {
-            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
-        }
-    }
-
     private Future handleLogoutAsyncV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
-        if (input.isValid()) {
+        final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
+        if (input != null && input.isValid()) {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
-            this.idService.invalidateTokensAsync(input.toHashedDiiIdentity(this.identityScope, 0, now), now, ar -> {
+            this.idService.invalidateTokensAsync(input.toHashedDii(this.identityScope), now, uidTraceId, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
                     body.put("optout", "OK");
@@ -1146,59 +992,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             });
             return promise.future();
         } else {
-            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
+            ResponseUtil.LogWarningAndSendResponse(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
             return Future.failedFuture("");
-        }
-    }
-
-    private void handleOptOutGet(RoutingContext rc) {
-        final InputUtil.InputVal input = getTokenInputV1(rc);
-        if (input.isValid()) {
-            try {
-                final Instant now = Instant.now();
-                final HashedDiiIdentity hashedDiiIdentity = input.toHashedDiiIdentity(this.identityScope, 0, now);
-                final Instant result = this.idService.getLatestOptoutEntry(hashedDiiIdentity, now);
-                long timestamp = result == null ? -1 : result.getEpochSecond();
-                rc.response().setStatusCode(200)
-                        .setChunked(true)
-                        .write(String.valueOf(timestamp));
-                rc.response().end();
-            } catch (Exception ex) {
-                LOGGER.error("Unexpected error while handling optout get", ex);
-                rc.fail(500);
-            }
-        } else {
-            ResponseUtil.Warning(ResponseStatus.InvalidToken, 400, rc, "Invalid Token presented " + input);
-        }
-    }
-
-    private void handleBucketsV1(RoutingContext rc) {
-        final List<String> qp = rc.queryParam("since_timestamp");
-        if (qp != null && qp.size() > 0) {
-            final Instant sinceTimestamp;
-            try {
-                LocalDateTime ld = LocalDateTime.parse(qp.get(0), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-                sinceTimestamp = ld.toInstant(ZoneOffset.UTC);
-                LOGGER.info(String.format("identity bucket endpoint is called with since_timestamp %s and site id %s", ld, AuthMiddleware.getAuthClient(rc).getSiteId()));
-            } catch (Exception e) {
-                ResponseUtil.ClientError(rc, "invalid date, must conform to ISO 8601");
-                return;
-            }
-            final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
-            final JsonArray resp = new JsonArray();
-            if (modified != null) {
-                for (SaltEntry e : modified) {
-                    final JsonObject o = new JsonObject();
-                    o.put("bucket_id", e.getHashedId());
-                    Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
-
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
-                    resp.add(o);
-                }
-                ResponseUtil.Success(rc, resp);
-            }
-        } else {
-            ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
         }
     }
 
@@ -1213,7 +1008,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 sinceTimestamp = ld.toInstant(ZoneOffset.UTC);
                 LOGGER.info(String.format("identity bucket endpoint is called with since_timestamp %s and site id %s", ld, AuthMiddleware.getAuthClient(rc).getSiteId()));
             } catch (Exception e) {
-                ResponseUtil.ClientError(rc, "invalid date, must conform to ISO 8601");
+                ResponseUtil.LogInfoAndSend400Response(rc, "invalid date, must conform to ISO 8601");
                 return;
             }
             final List<SaltEntry> modified = this.idService.getModifiedBuckets(sinceTimestamp);
@@ -1221,75 +1016,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (modified != null) {
                 for (SaltEntry e : modified) {
                     final JsonObject o = new JsonObject();
-                    o.put("bucket_id", e.getHashedId());
-                    Instant lastUpdated = Instant.ofEpochMilli(e.getLastUpdated());
+                    o.put("bucket_id", e.hashedId());
+                    Instant lastUpdated = Instant.ofEpochMilli(e.lastUpdated());
 
-                    o.put("last_updated", APIDateTimeFormatter.format(lastUpdated));
+                    o.put("last_updated", API_DATE_TIME_FORMATTER.format(lastUpdated));
                     resp.add(o);
                 }
                 ResponseUtil.SuccessV2(rc, resp);
             }
         } else {
-            ResponseUtil.ClientError(rc, "missing parameter since_timestamp");
+            ResponseUtil.LogInfoAndSend400Response(rc, "missing parameter since_timestamp");
         }
-    }
-
-    private void handleIdentityMapV1(RoutingContext rc) {
-        final InputUtil.InputVal input = this.phoneSupport ? this.getTokenInputV1(rc) : this.getTokenInput(rc);
-        if (!checkForInvalidTokenInput(input, rc)) {
-            return;
-        }
-        try {
-            final Instant now = Instant.now();
-            final RawUidResponse rawUidResponse = this.idService.map(input.toHashedDiiIdentity(this.identityScope, 0, now), now);
-            final JsonObject jsonObject = new JsonObject();
-            jsonObject.put("identifier", input.getProvided());
-            jsonObject.put("advertising_id", EncodingUtils.toBase64String(rawUidResponse.rawUid));
-            jsonObject.put("bucket_id", rawUidResponse.bucketId);
-            ResponseUtil.Success(rc, jsonObject);
-        } catch (Exception e) {
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown State", e);
-        }
-    }
-
-    private void handleIdentityMap(RoutingContext rc) {
-        final InputUtil.InputVal input = this.getTokenInput(rc);
-
-        try {
-            if (input == null) {
-                ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
-            }
-            else if (!input.isValid()) {
-                ResponseUtil.ClientError(rc, "Invalid email or email_hash");
-            }
-            else {
-                final Instant now = Instant.now();
-                final RawUidResponse rawUidResponse = this.idService.map(input.toHashedDiiIdentity(this.identityScope, 0, now), now);
-                rc.response().end(EncodingUtils.toBase64String(rawUidResponse.rawUid));
-            }
-        } catch (Exception ex) {
-            LOGGER.error("Unexpected error while mapping identity", ex);
-            rc.fail(500);
-        }
-    }
-
-    private InputUtil.InputVal getTokenInput(RoutingContext rc) {
-        final InputUtil.InputVal input;
-        final List<String> emailInput = rc.queryParam("email");
-        final List<String> emailHashInput = rc.queryParam("email_hash");
-        if (emailInput != null && emailInput.size() > 0) {
-            if (emailHashInput != null && emailHashInput.size() > 0) {
-                // cannot specify both
-                input = null;
-            } else {
-                input = InputUtil.normalizeEmail(emailInput.get(0));
-            }
-        } else if (emailHashInput != null && emailHashInput.size() > 0) {
-            input = InputUtil.normalizeEmailHash(emailHashInput.get(0));
-        } else {
-            input = null;
-        }
-        return input;
     }
 
     private InputUtil.InputVal getTokenInputV2(JsonObject req) {
@@ -1327,127 +1064,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return getInput != null ? getInput.get() : null;
     }
 
-    private InputUtil.InputVal getTokenInputV1(RoutingContext rc) {
-        final List<String> emailInput = rc.queryParam("email");
-        final List<String> emailHashInput = rc.queryParam("email_hash");
-        final List<String> phoneInput = rc.queryParam("phone");
-        final List<String> phoneHashInput = rc.queryParam("phone_hash");
-
-        int validInputs = 0;
-        if (emailInput != null && emailInput.size() > 0) {
-            ++validInputs;
-        }
-        if (emailHashInput != null && emailHashInput.size() > 0) {
-            ++validInputs;
-        }
-        if (phoneInput != null && phoneInput.size() > 0) {
-            ++validInputs;
-        }
-        if (phoneHashInput != null && phoneHashInput.size() > 0) {
-            ++validInputs;
-        }
-
-        if (validInputs != 1) {
-            // there can be only 1 set of valid input
-            return null;
-        }
-
-        if (emailInput != null && emailInput.size() > 0) {
-            return InputUtil.normalizeEmail(emailInput.get(0));
-        } else if (phoneInput != null && phoneInput.size() > 0) {
-            return InputUtil.normalizePhone(phoneInput.get(0));
-        } else if (emailHashInput != null && emailHashInput.size() > 0) {
-            return InputUtil.normalizeEmailHash(emailHashInput.get(0));
-        } else if (phoneHashInput != null && phoneHashInput.size() > 0) {
-            return InputUtil.normalizePhoneHash(phoneHashInput.get(0));
-        }
-
-        return null;
-    }
-
-    private boolean checkForInvalidTokenInput(InputUtil.InputVal input, RoutingContext rc) {
+    private boolean isTokenInputValid(InputUtil.InputVal input, RoutingContext rc) {
         if (input == null) {
-            String message = this.phoneSupport ? "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified" : "Required Parameter Missing: exactly one of email or email_hash must be specified";
-            ResponseUtil.ClientError(rc, message);
+            String message = this.phoneSupport ? ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_INPUT_EMAIL_MISSING;
+            ResponseUtil.LogInfoAndSend400Response(rc, message);
             return false;
         } else if (!input.isValid()) {
-            ResponseUtil.ClientError(rc, "Invalid Identifier");
+            ResponseUtil.LogInfoAndSend400Response(rc, "Invalid Identifier");
             return false;
         }
         return true;
-    }
-
-    private InputUtil.InputVal[] getIdentityBulkInput(RoutingContext rc) {
-        final JsonObject obj = rc.body().asJsonObject();
-        final JsonArray emails = obj.getJsonArray("email");
-        final JsonArray emailHashes = obj.getJsonArray("email_hash");
-        // FIXME TODO. Avoid Double Iteration. Turn to a decorator pattern
-        if (emails == null && emailHashes == null) {
-            ResponseUtil.ClientError(rc, "Exactly one of email or email_hash must be specified");
-            return null;
-        } else if (emails != null && !emails.isEmpty()) {
-            if (emailHashes != null && !emailHashes.isEmpty()) {
-                ResponseUtil.ClientError(rc, "Only one of email or email_hash can be specified");
-                return null;
-            }
-            return createInputList(emails, false);
-        } else {
-            return createInputList(emailHashes, true);
-        }
-    }
-
-
-    private InputUtil.InputVal[] getIdentityBulkInputV1(RoutingContext rc) {
-        final JsonObject obj = rc.body().asJsonObject();
-        if(obj.isEmpty()) {
-            ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
-            return null;
-        }
-        final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
-        final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
-        final JsonArray phones = JsonParseUtils.parseArray(obj,"phone", rc);
-        final JsonArray phoneHashes = JsonParseUtils.parseArray(obj,"phone_hash", rc);
-
-        if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
-            return null;
-        }
-
-        int validInputs = 0;
-        int nonEmptyInputs = 0;
-        if (emails != null) {
-            ++validInputs;
-            if (!emails.isEmpty()) ++nonEmptyInputs;
-        }
-        if (emailHashes != null) {
-            ++validInputs;
-            if (!emailHashes.isEmpty()) ++nonEmptyInputs;
-        }
-        if (phones != null) {
-            ++validInputs;
-            if (!phones.isEmpty()) ++nonEmptyInputs;
-        }
-        if (phoneHashes != null) {
-            ++validInputs;
-            if (!phoneHashes.isEmpty()) ++nonEmptyInputs;
-        }
-
-        if (validInputs == 0 || nonEmptyInputs > 1) {
-            ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
-            return null;
-        }
-
-        if (emails != null && !emails.isEmpty()) {
-            return createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
-        } else if (emailHashes != null && !emailHashes.isEmpty()) {
-            return createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
-        } else if (phones != null && !phones.isEmpty()) {
-            return createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
-        } else if (phoneHashes != null && !phoneHashes.isEmpty()) {
-            return createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
-        } else {
-            // handle empty array
-            return createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw);
-        }
     }
 
     private JsonObject handleIdentityMapCommon(RoutingContext rc, InputUtil.InputVal[] inputList) {
@@ -1460,13 +1086,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         for (int i = 0; i < count; ++i) {
             final InputUtil.InputVal input = inputList[i];
             if (input != null && input.isValid()) {
-                final RawUidResponse rawUidResponse = idService.mapIdentity(
-                        new MapRequest(
-                                input.toHashedDiiIdentity(this.identityScope, 0, now),
+                final IdentityMapResponseItem identityMapResponseItem = idService.mapHashedDii(
+                        new IdentityMapRequestItem(
+                                input.toHashedDii(this.identityScope),
                                 OptoutCheckPolicy.respectOptOut(),
                                 now));
 
-                if (rawUidResponse.isOptedOut()) {
+                if (identityMapResponseItem.isOptedOut()) {
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
                     resp.put("reason", "optout");
@@ -1475,8 +1101,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 } else {
                     final JsonObject resp = new JsonObject();
                     resp.put("identifier", input.getProvided());
-                    resp.put("advertising_id", EncodingUtils.toBase64String(rawUidResponse.rawUid));
-                    resp.put("bucket_id", rawUidResponse.bucketId);
+                    resp.put("advertising_id", EncodingUtils.toBase64String(identityMapResponseItem.rawUid));
+                    resp.put("bucket_id", identityMapResponseItem.bucketId);
                     mapped.add(resp);
                 }
             } else {
@@ -1496,39 +1122,76 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return resp;
     }
 
-    private void handleIdentityMapBatchV1(RoutingContext rc) {
-        try {
-            final InputUtil.InputVal[] inputList = this.phoneSupport ? getIdentityBulkInputV1(rc) : getIdentityBulkInput(rc);
-            if (inputList == null) return;
+    private JsonObject processIdentityMapV3Response(RoutingContext rc, Map<String, InputUtil.InputVal[]> input) {
+        final Instant now = Instant.now();
+        final JsonObject mappedResponse = new JsonObject();
+        int invalidCount = 0;
+        int optoutCount = 0;
+        int inputTotalCount = 0;
 
-            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
-            ResponseUtil.Success(rc, resp);
-        } catch (Exception e) {
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping batched identity", e);
+        for (Map.Entry<String, InputUtil.InputVal[]> identityType : input.entrySet()) {
+            JsonArray mappedIdentityList = new JsonArray();
+            final InputUtil.InputVal[] rawIdentityList = identityType.getValue();
+            inputTotalCount += rawIdentityList.length;
+
+            for (final InputUtil.InputVal rawId : rawIdentityList) {
+                final JsonObject resp = new JsonObject();
+                if (rawId != null && rawId.isValid()) {
+                    final IdentityMapResponseItem identityMapResponseItem = idService.mapHashedDii(
+                            new IdentityMapRequestItem(
+                                    rawId.toHashedDii(this.identityScope),
+                                    OptoutCheckPolicy.respectOptOut(),
+                                    now));
+
+                    if (identityMapResponseItem.isOptedOut()) {
+                        resp.put("e", IdentityMapResponseType.OPTOUT.getValue());
+                        optoutCount++;
+                    } else {
+                        resp.put("u", EncodingUtils.toBase64String(identityMapResponseItem.rawUid));
+                        resp.put("p", identityMapResponseItem.previousRawUid == null ? null : EncodingUtils.toBase64String(identityMapResponseItem.previousRawUid));
+                        resp.put("r", identityMapResponseItem.refreshFrom / SECOND_IN_MILLIS);
+                    }
+                } else {
+                    resp.put("e", IdentityMapResponseType.INVALID_IDENTIFIER.getValue());
+                    invalidCount++;
+                }
+                mappedIdentityList.add(resp);
+            }
+            mappedResponse.put(identityType.getKey(), mappedIdentityList);
         }
+
+        recordIdentityMapStats(rc, inputTotalCount, invalidCount, optoutCount);
+
+        return mappedResponse;
+    }
+
+    private boolean validateServiceLink(RoutingContext rc) {
+        JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
+        if (this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
+            return true;
+        }
+        ResponseUtil.LogErrorAndSendResponse(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
+        return false;
     }
 
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
+            final Integer siteId = RoutingContextUtil.getSiteId(rc);
+            final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
+            recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
+
             final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
             if (inputList == null) {
-                if (this.phoneSupport)
-                    ResponseUtil.ClientError(rc, "Exactly one of [email, email_hash, phone, phone_hash] must be specified");
-                else
-                    ResponseUtil.ClientError(rc, "Required Parameter Missing: exactly one of email or email_hash must be specified");
+                ResponseUtil.LogInfoAndSend400Response(rc, this.phoneSupport ? ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_INPUT_EMAIL_MISSING);
                 return;
             }
 
-            JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
-            if (!this.secureLinkValidatorService.validateRequest(rc, requestJsonObject, Role.MAPPER)) {
-                ResponseUtil.Error(ResponseStatus.Unauthorized, HttpStatus.SC_UNAUTHORIZED, rc, "Invalid link_id");
-                return;
-            }
+            if (!validateServiceLink(rc)) { return; }
 
             final JsonObject resp = handleIdentityMapCommon(rc, inputList);
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v2", e);
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v2", e);
         }
     }
 
@@ -1538,7 +1201,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         Supplier<InputUtil.InputVal[]> getInputList = null;
         final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
         if (emails != null && !emails.isEmpty()) {
-            getInputList = () -> createInputListV1(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
+            getInputList = () -> createInputList(emails, DiiType.Email, InputUtil.DiiInputType.Raw);
         }
 
         final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
@@ -1546,7 +1209,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
+            getInputList = () -> createInputList(emailHashes, DiiType.Email, InputUtil.DiiInputType.Hash);
         }
 
         final JsonArray phones = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone", rc) : null;
@@ -1554,7 +1217,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
+            getInputList = () -> createInputList(phones, DiiType.Phone, InputUtil.DiiInputType.Raw);
         }
 
         final JsonArray phoneHashes = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone_hash", rc) : null;
@@ -1562,7 +1225,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (getInputList != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputListV1(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
+            getInputList = () -> createInputList(phoneHashes, DiiType.Phone, InputUtil.DiiInputType.Hash);
         }
 
         if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
@@ -1570,35 +1233,49 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         return getInputList == null ?
-                createInputListV1(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
+                createInputList(null, DiiType.Email, InputUtil.DiiInputType.Raw) :  // handle empty array
                 getInputList.get();
     }
 
-    private void handleIdentityMapBatch(RoutingContext rc) {
+    private void handleIdentityMapV3(RoutingContext rc) {
         try {
-            final JsonObject obj = rc.body().asJsonObject();
-            final InputUtil.InputVal[] inputList;
-            final JsonArray emails = obj.getJsonArray("email");
-            final JsonArray emailHashes = obj.getJsonArray("email_hash");
-            if (emails == null && emailHashes == null) {
-                ResponseUtil.ClientError(rc, "Exactly one of email or email_hash must be specified");
+            JsonObject jsonInput = (JsonObject) rc.data().get("request");
+
+            if (jsonInput == null || jsonInput.isEmpty()) {
+                ResponseUtil.LogInfoAndSend400Response(rc, phoneSupport ? ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING);
                 return;
-            } else if (emails != null && !emails.isEmpty()) {
-                if (emailHashes != null && !emailHashes.isEmpty()) {
-                    ResponseUtil.ClientError(rc, "Only one of email or email_hash can be specified");
-                    return;
-                }
-                inputList = createInputList(emails, false);
-            } else {
-                inputList = createInputList(emailHashes, true);
             }
 
-            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
-            sendJsonResponse(rc, resp);
+            IdentityMapV3Request input = OBJECT_MAPPER.readValue(jsonInput.toString(), IdentityMapV3Request.class);
+            final Map<String, InputUtil.InputVal[]> normalizedInput = processIdentityMapMixedInput(rc, input);
+
+            if (!validateServiceLink(rc)) { return; }
+
+            final JsonObject response = processIdentityMapV3Response(rc, normalizedInput);
+            ResponseUtil.SuccessV2(rc, response);
+        } catch (ClassCastException | JsonProcessingException processingException) {
+            ResponseUtil.LogInfoAndSend400Response(rc, "Incorrect request format");
         } catch (Exception e) {
-            LOGGER.error("Unknown error while mapping batched identity", e);
-            rc.fail(500);
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v3", e);
         }
+    }
+
+    private Map<String, InputUtil.InputVal[]> processIdentityMapMixedInput(RoutingContext rc, IdentityMapV3Request input) {
+        final Map<String, InputUtil.InputVal[]> normalizedIdentities = new HashMap<>();
+
+        var normalizedEmails = parseIdentitiesInput(input.email(), DiiType.Email, InputUtil.DiiInputType.Raw, rc);
+        normalizedIdentities.put("email", normalizedEmails);
+
+        var normalizedEmailHashes = parseIdentitiesInput(input.email_hash(), DiiType.Email, InputUtil.DiiInputType.Hash, rc);
+        normalizedIdentities.put("email_hash", normalizedEmailHashes);
+
+        var normalizedPhones = parseIdentitiesInput(input.phone(), DiiType.Phone, InputUtil.DiiInputType.Raw, rc);
+        normalizedIdentities.put("phone", normalizedPhones);
+
+        var normalizedPhoneHashes = parseIdentitiesInput(input.phone_hash(), DiiType.Phone, InputUtil.DiiInputType.Hash, rc);
+        normalizedIdentities.put("phone_hash", normalizedPhoneHashes);
+
+        return normalizedIdentities;
     }
 
     private static String getApiContact(RoutingContext rc) {
@@ -1617,18 +1294,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         String apiContact = getApiContact(rc);
 
         DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2.operator.identity.map.inputs")
+                .builder("uid2_operator_identity_map_inputs")
                 .description("number of emails or email hashes passed to identity map batch endpoint")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
         ds.record(inputCount);
 
         Tuple.Tuple2<Counter, Counter> ids = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact, k -> new Tuple.Tuple2<>(
-                Counter.builder("uid2.operator.identity.map.unmapped")
+                Counter.builder("uid2_operator_identity_map_unmapped_total")
                         .description("invalid identifiers")
                         .tags("api_contact", apiContact, "reason", "invalid")
                         .register(Metrics.globalRegistry),
-                Counter.builder("uid2.operator.identity.map.unmapped")
+                Counter.builder("uid2_operator_identity_map_unmapped_total")
                         .description("optout identifiers")
                         .tags("api_contact", apiContact, "reason", "optout")
                         .register(Metrics.globalRegistry)));
@@ -1636,7 +1313,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (optoutCount > 0) ids.getItem2().increment(optoutCount);
 
         Counter rs = _identityMapRequestWithUnmapped.computeIfAbsent(apiContact, k -> Counter
-                .builder("uid2.operator.identity.map.unmapped_requests")
+                .builder("uid2_operator_identity_map_unmapped_requests_total")
                 .description("number of requests with unmapped identifiers")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
@@ -1655,30 +1332,30 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
             final String metricKey = serviceName + serviceLinkName;
             DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(metricKey,
-                    k -> DistributionSummary.builder("uid2.operator.identity.map.services.inputs")
-                .description("number of emails or phone numbers passed to identity map batch endpoint by services")
-                .tags(Arrays.asList(Tag.of("api_contact", apiContact),
-                Tag.of("service_name", serviceName),
-                Tag.of("service_link_name", serviceLinkName)))
-                .register(Metrics.globalRegistry));
+                    k -> DistributionSummary.builder("uid2_operator_identity_map_services_inputs")
+                            .description("number of emails or phone numbers passed to identity map batch endpoint by services")
+                            .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                                    Tag.of("service_name", serviceName),
+                                    Tag.of("service_link_name", serviceLinkName)))
+                            .register(Metrics.globalRegistry));
             ds.record(inputCount);
 
             Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(metricKey,
-                k -> new Tuple.Tuple2<>(
-                Counter.builder("uid2.operator.identity.map.services.unmapped")
-                .description("number of invalid identifiers passed to identity map batch endpoint by services")
-                .tags(Arrays.asList(Tag.of("api_contact", apiContact),
-                    Tag.of("reason", "invalid"),
-                    Tag.of("service_name", serviceName),
-                    Tag.of("service_link_name", serviceLinkName)))
-                .register(Metrics.globalRegistry),
-                Counter.builder("uid2.operator.identity.map.services.unmapped")
-                    .description("number of optout identifiers passed to identity map batch endpoint by services")
-                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
-                        Tag.of("reason", "optout"),
-                        Tag.of("service_name", serviceName),
-                        Tag.of("service_link_name", serviceLinkName)))
-                    .register(Metrics.globalRegistry)));
+                    k -> new Tuple.Tuple2<>(
+                            Counter.builder("uid2_operator_identity_map_services_unmapped_total")
+                                    .description("number of invalid identifiers passed to identity map batch endpoint by services")
+                                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                                            Tag.of("reason", "invalid"),
+                                            Tag.of("service_name", serviceName),
+                                            Tag.of("service_link_name", serviceLinkName)))
+                                    .register(Metrics.globalRegistry),
+                            Counter.builder("uid2_operator_identity_map_services_unmapped_total")
+                                    .description("number of optout identifiers passed to identity map batch endpoint by services")
+                                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                                            Tag.of("reason", "optout"),
+                                            Tag.of("service_name", serviceName),
+                                            Tag.of("service_link_name", serviceLinkName)))
+                                    .register(Metrics.globalRegistry)));
             if (invalidCount > 0) counterTuple.getItem1().increment(invalidCount);
             if (optOutCount > 0) counterTuple.getItem2().increment(optOutCount);
         }
@@ -1687,16 +1364,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private List<String> parseOptoutStatusRequestPayload(RoutingContext rc) {
         final JsonObject requestObj = (JsonObject) rc.data().get("request");
         if (requestObj == null) {
-            ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Invalid request body");
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Invalid request body");
             return null;
         }
         final JsonArray rawUidsJsonArray = requestObj.getJsonArray("advertising_ids");
         if (rawUidsJsonArray == null) {
-            ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Required Parameter Missing: advertising_ids");
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Required Parameter Missing: advertising_ids");
             return null;
         }
         if (rawUidsJsonArray.size() > optOutStatusMaxRequestSize) {
-            ResponseUtil.Error(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Request payload is too large");
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.ClientError, HttpStatus.SC_BAD_REQUEST, rc, "Request payload is too large");
             return null;
         }
         List<String> rawUID2sInputList = new ArrayList<>(rawUidsJsonArray.size());
@@ -1730,7 +1407,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             ResponseUtil.SuccessV2(rc, bodyJsonObj);
             recordOptOutStatusEndpointStats(rc, rawUID2sInput.size(), optedOutJsonArray.size());
         } catch (Exception e) {
-            ResponseUtil.Error(ResponseStatus.UnknownError, 500, rc,
+            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc,
                     "Unknown error while getting optout status", e);
         }
     }
@@ -1738,14 +1415,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void recordOptOutStatusEndpointStats(RoutingContext rc, int inputCount, int optOutCount) {
         String apiContact = getApiContact(rc);
         DistributionSummary inputDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2.operator.optout.status.input_size")
+                .builder("uid2_operator_optout_status_input_size")
                 .description("number of UIDs received in request")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
         inputDistSummary.record(inputCount);
 
         DistributionSummary optOutDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2.operator.optout.status.optout_size")
+                .builder("uid2_operator_optout_status_optout_size")
                 .description("number of UIDs that have opted out")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
@@ -1766,7 +1443,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void recordRefreshTokenVersionCount(String siteId, TokenVersion tokenVersion) {
-        Counter.builder("uid2_refresh_token_received_count")
+        Counter.builder("uid2_refresh_token_received_count_total")
                 .description(String.format("Counter for the amount of refresh token %s received", tokenVersion.toString().toLowerCase()))
                 .tags("site_id", siteId)
                 .tags("refresh_token_version", tokenVersion.toString().toLowerCase())
@@ -1774,26 +1451,31 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
-    private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
-        final RefreshTokenInput refreshTokenInput;
+    private TokenRefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {
+        final TokenRefreshRequest tokenRefreshRequest;
         try {
             if (AuthMiddleware.isAuthenticated(rc)) {
                 rc.put(Const.RoutingContextData.SiteId, AuthMiddleware.getAuthClient(ClientKey.class, rc).getSiteId());
             }
-            refreshTokenInput = this.encoder.decodeRefreshToken(tokenStr);
+            tokenRefreshRequest = this.encoder.decodeRefreshToken(tokenStr);
         } catch (ClientInputValidationException cie) {
             LOGGER.warn("Failed to decode refresh token for site ID: " + rc.data().get(Const.RoutingContextData.SiteId), cie);
-            return RefreshResponse.Invalid;
+            return TokenRefreshResponse.Invalid;
         }
-        if (refreshTokenInput == null) {
-            return RefreshResponse.Invalid;
+        if (tokenRefreshRequest == null) {
+            return TokenRefreshResponse.Invalid;
         }
         if (!AuthMiddleware.isAuthenticated(rc)) {
-            rc.put(Const.RoutingContextData.SiteId, refreshTokenInput.sourcePublisher.siteId);
+            rc.put(Const.RoutingContextData.SiteId, tokenRefreshRequest.sourcePublisher.siteId);
         }
         recordRefreshTokenVersionCount(String.valueOf(rc.data().get(Const.RoutingContextData.SiteId)), this.getRefreshTokenVersion(tokenStr));
 
-        return this.idService.refreshIdentity(refreshTokenInput);
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
+        Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
+        Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
+
+        return this.idService.refreshIdentity(tokenRefreshRequest, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
     }
 
     public static String getSiteName(ISiteStore siteStore, Integer siteId) {
@@ -1819,10 +1501,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return origin != null ? TokenResponseStatsCollector.PlatformType.HasOriginHeader : TokenResponseStatsCollector.PlatformType.Other;
     }
 
-    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader) {
+    private void recordRefreshDurationStats(Integer siteId, String apiContact, Duration durationSinceLastRefresh, boolean hasOriginHeader, Duration identityExpiresAfter) {
         DistributionSummary ds = _refreshDurationMetricSummaries.computeIfAbsent(new Tuple.Tuple2<>(apiContact, hasOriginHeader), k ->
                 DistributionSummary
-                        .builder("uid2.token_refresh_duration_seconds")
+                        .builder("uid2_token_refresh_duration_seconds")
                         .description("duration between token refreshes")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("site_name", getSiteName(siteProvider, siteId))
@@ -1832,10 +1514,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         );
         ds.record(durationSinceLastRefresh.getSeconds());
 
-        boolean isExpired = durationSinceLastRefresh.compareTo(this.idService.getIdentityExpiryDuration()) > 0;
+        boolean isExpired = durationSinceLastRefresh.compareTo(identityExpiresAfter) > 0;
         Counter c = _advertisingTokenExpiryStatus.computeIfAbsent(new Tuple.Tuple3<>(String.valueOf(siteId), hasOriginHeader, isExpired), k ->
                 Counter
-                        .builder("uid2.advertising_token_expired_on_refresh")
+                        .builder("uid2_advertising_token_expired_on_refresh_total")
                         .description("status of advertiser token expiry")
                         .tag("site_id", String.valueOf(siteId))
                         .tag("site_name", getSiteName(siteProvider, siteId))
@@ -1846,65 +1528,52 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         c.increment();
     }
 
-    private InputUtil.InputVal[] createInputList(JsonArray a, boolean inputAsHash) {
-        if (a == null || a.size() == 0) {
-            return new InputUtil.InputVal[0];
-        }
-        final int size = a.size();
-        final InputUtil.InputVal[] resp = new InputUtil.InputVal[size];
-
-        for (int i = 0; i < size; ++i) {
-            if (inputAsHash) {
-                resp[i] = InputUtil.normalizeEmailHash(a.getString(i));
-            } else {
-                resp[i] = InputUtil.normalizeEmail(a.getString(i));
-            }
-        }
-        return resp;
-
-    }
-
-    private InputUtil.InputVal[] createInputListV1(JsonArray a, IdentityType identityType, InputUtil.IdentityInputType inputType) {
+    private InputUtil.InputVal[] createInputList(JsonArray a, DiiType diiType, InputUtil.DiiInputType inputType) {
         if (a == null || a.isEmpty()) {
             return new InputUtil.InputVal[0];
         }
         final int size = a.size();
         final InputUtil.InputVal[] resp = new InputUtil.InputVal[size];
 
-        if (identityType == IdentityType.Email) {
-            if (inputType == InputUtil.IdentityInputType.Raw) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizeEmail(a.getString(i));
-                }
-            } else if (inputType == InputUtil.IdentityInputType.Hash) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizeEmailHash(a.getString(i));
-                }
-            } else {
-                throw new IllegalStateException("inputType");
-            }
-        } else if (identityType == IdentityType.Phone) {
-            if (inputType == InputUtil.IdentityInputType.Raw) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizePhone(a.getString(i));
-                }
-            } else if (inputType == InputUtil.IdentityInputType.Hash) {
-                for (int i = 0; i < size; ++i) {
-                    resp[i] = InputUtil.normalizePhoneHash(a.getString(i));
-                }
-            } else {
-                throw new IllegalStateException("inputType");
-            }
-        } else {
-            throw new IllegalStateException("identityType");
+        for (int i = 0; i < size; i++) {
+            resp[i] = normalizeIdentity(a.getString(i), diiType, inputType);
         }
 
         return resp;
     }
 
-    private UserConsentStatus validateUserConsent(JsonObject req) {
-        // TCF string is an optional parameter and we should only check tcf if in EUID and the string is present
+    private InputUtil.InputVal normalizeIdentity(String identity, DiiType diiType,
+                                                 InputUtil.DiiInputType inputType) {
+        return switch (diiType) {
+            case Email -> switch (inputType) {
+                case Raw -> InputUtil.normalizeEmail(identity);
+                case Hash -> InputUtil.normalizeEmailHash(identity);
+            };
+            case Phone -> switch (inputType) {
+                case Raw -> InputUtil.normalizePhone(identity);
+                case Hash -> InputUtil.normalizePhoneHash(identity);
+            };
+        };
+    }
+
+    private InputUtil.InputVal[] parseIdentitiesInput(String[] identities, DiiType identityType, InputUtil.DiiInputType inputType
+            , RoutingContext rc) {
+        if (identities == null || identities.length == 0) {
+            return new InputUtil.InputVal[0];
+        }
+        final var normalizedIdentities = new InputUtil.InputVal[identities.length];
+
+        for (int i = 0; i < identities.length; i++) {
+            normalizedIdentities[i] = normalizeIdentity(identities[i], identityType, inputType);
+        }
+
+        return normalizedIdentities;
+    }
+
+    private UserConsentStatus validateUserConsent(JsonObject req, String apiContact) {
+        // TCF string is an optional parameter, and we should only check tcf if in EUID and the string is present
         if (identityScope.equals(IdentityScope.EUID) && req.containsKey("tcf_consent_string")) {
+            recordTokenGenerateTCFUsage(apiContact);
             TransparentConsentParseResult tcResult = this.getUserConsentV2(req);
             if (!tcResult.isSuccess()) {
                 return UserConsentStatus.INVALID;
@@ -1952,7 +1621,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return true;
     }
 
-
     private Tuple.Tuple2<OptoutCheckPolicy, String> readOptoutCheckPolicy(JsonObject req) {
         if(req.containsKey(OPTOUT_CHECK_POLICY_PARAM)) {
             return new Tuple.Tuple2<>(OptoutCheckPolicy.fromValue(req.getInteger(OPTOUT_CHECK_POLICY_PARAM)), OPTOUT_CHECK_POLICY_PARAM);
@@ -1965,12 +1633,19 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void recordTokenGeneratePolicy(String apiContact, OptoutCheckPolicy policy, String policyParameterKey) {
         _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple.Tuple3<>(apiContact, policy, policyParameterKey), triple -> Counter
-                .builder("uid2.token_generate_policy_usage")
+                .builder("uid2_token_generate_policy_usage_total")
                 .description("Counter for token generate policy usage")
                 .tags("api_contact", triple.getItem1(), "policy", String.valueOf(triple.getItem2()), "policy_parameter", triple.getItem3())
                 .register(Metrics.globalRegistry)).increment();
     }
 
+    private void recordTokenGenerateTCFUsage(String apiContact) {
+        _tokenGenerateTCFUsage.computeIfAbsent(apiContact, contact -> Counter
+                .builder("uid2_token_generate_tcf_usage_total")
+                .description("Counter for token generate tcf usage")
+                .tags("api_contact", contact)
+                .register(Metrics.globalRegistry)).increment();
+    }
 
     private TransparentConsentParseResult getUserConsentV2(JsonObject req) {
         final String rawTcString = req.getString("tcf_consent_string");
@@ -1984,16 +1659,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } catch (ClientInputValidationException e) {
             return new TransparentConsentParseResult(e.getMessage());
         }
-    }
-
-    private JsonObject toJsonV1(IdentityResponse t) {
-        final JsonObject json = new JsonObject();
-        json.put("advertising_token", t.getAdvertisingToken());
-        json.put("refresh_token", t.getRefreshToken());
-        json.put("identity_expires", t.getIdentityExpires().toEpochMilli());
-        json.put("refresh_expires", t.getRefreshExpires().toEpochMilli());
-        json.put("refresh_from", t.getRefreshFrom().toEpochMilli());
-        return json;
     }
 
     private static MissingAclMode getMissingAclMode(ClientKey clientKey) {
@@ -2038,25 +1703,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         json.put("expires", key.getExpires().getEpochSecond());
         json.put("secret", EncodingUtils.toBase64String(key.getKeyBytes()));
         return json;
-    }
-
-    private JsonObject toJson(IdentityResponse t) {
-        final JsonObject json = new JsonObject();
-        json.put("advertisement_token", t.getAdvertisingToken());
-        json.put("advertising_token", t.getAdvertisingToken());
-        json.put("refresh_token", t.getRefreshToken());
-
-        return json;
-    }
-
-    private void sendJsonResponse(RoutingContext rc, JsonObject json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                .end(json.encode());
-    }
-
-    private void sendJsonResponse(RoutingContext rc, JsonArray json) {
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                .end(json.encode());
     }
 
     private void logInvalidOriginOrAppName(int siteId, String originOrAppName) {

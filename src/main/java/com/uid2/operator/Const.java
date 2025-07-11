@@ -11,7 +11,6 @@ public class Const extends com.uid2.shared.Const {
         public static final String StorageMockProp = "storage_mock";
         public static final String StatsCollectorEventBus = "StatsCollector";
         public static final String FailureShutdownWaitHoursProp = "failure_shutdown_wait_hours";
-        public static final String AllowLegacyAPIProp = "allow_legacy_api";
         public static final String SharingTokenExpiryProp = "sharing_token_expiry_seconds";
         public static final String MaxBidstreamLifetimeSecondsProp = "max_bidstream_lifetime_seconds";
         public static final String AllowClockSkewSecondsProp = "allow_clock_skew_seconds";
@@ -20,6 +19,8 @@ public class Const extends com.uid2.shared.Const {
         public static final String ValidateServiceLinks = "validate_service_links";
         public static final String OperatorTypeProp = "operator_type";
         public static final String EnclavePlatformProp = "enclave_platform";
+        public static final String EncryptedFiles = "encrypted_files";
+        public static final String PodTerminationCheckInterval = "pod_termination_check_interval";
 
         public static final String AzureVaultNameProp = "azure_vault_name";
         public static final String AzureSecretNameProp = "azure_secret_name";
@@ -29,5 +30,11 @@ public class Const extends com.uid2.shared.Const {
         public static final String OptOutStatusMaxRequestSize = "optout_status_max_request_size";
         public static final String MaxInvalidPaths = "logging_limit_max_invalid_paths_per_interval";
         public static final String MaxVersionBucketsPerSite = "logging_limit_max_version_buckets_per_site";
+
+        public static final String ConfigScanPeriodMsProp = "config_scan_period_ms";
+        public static final String IdentityV3Prop = "identity_v3";
+        public static final String DisableOptoutTokenProp = "disable_optout_token";
+        public static final String EnableRemoteConfigProp = "enable_remote_config";
+        public static final String RuntimeConfigMetadataPathProp = "runtime_config_metadata_path";
     }
 }

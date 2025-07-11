@@ -59,7 +59,7 @@ runs:
       uses: actions/checkout@v4
 
     - name: Get EIF for Release ${{ inputs.operator_release }}
-      uses: IABTechLab/uid2-operator/.github/actions/download_release_artifact@main
+      uses: ./.github/actions/download_release_artifact
       if: ${{ inputs.operator_release != '' }}
       with:
         github_token: ${{ inputs.github_token }}
@@ -87,6 +87,11 @@ runs:
         FILE=$(echo $ARTIFACTS | jq -r '.[0].name')
         unzip -o -d ./scripts/aws/uid2-operator-ami/artifacts $FILE.zip
         rm $FILE.zip
+        cd "./scripts/aws/uid2-operator-ami/artifacts/"
+        zip "uid2operatoreif.zip" "uid2operator.eif"
+        cd -
+        rm ./scripts/aws/uid2-operator-ami/artifacts/uid2operator.eif
+        ls ./scripts/aws/uid2-operator-ami/artifacts/ -al
 
     - name: Configure UID2 AWS credentials
       uses: aws-actions/configure-aws-credentials@v4

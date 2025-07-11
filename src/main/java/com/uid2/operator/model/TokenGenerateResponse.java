@@ -58,24 +58,14 @@ public class TokenGenerateResponse {
         return advertisingToken == null || advertisingToken.isEmpty();
     }
 
-    // for v1/v2 token/generate and token/refresh and client/generate (CSTG) endpoints
-    public JsonObject toJsonV1() {
+    public JsonObject toTokenGenerateResponseJson() {
         final JsonObject json = new JsonObject();
-        json.put("advertising_token", getAdvertisingToken());
-        json.put("refresh_token", getRefreshToken());
-        json.put("identity_expires", getIdentityExpires().toEpochMilli());
-        json.put("refresh_expires", getRefreshExpires().toEpochMilli());
-        json.put("refresh_from", getRefreshFrom().toEpochMilli());
-        return json;
-    }
-
-    // for the original/legacy token/generate and token/refresh endpoint
-    public JsonObject toJsonV0() {
-        final JsonObject json = new JsonObject();
-        json.put("advertisement_token", getAdvertisingToken());
-        json.put("advertising_token", getAdvertisingToken());
-        json.put("refresh_token", getRefreshToken());
-
+        json.put("advertising_token", this.getAdvertisingToken());
+        json.put("refresh_token", this.getRefreshToken());
+        json.put("identity_expires", this.getIdentityExpires().toEpochMilli());
+        json.put("refresh_expires", this.getRefreshExpires().toEpochMilli());
+        json.put("refresh_from", this.getRefreshFrom().toEpochMilli());
         return json;
     }
 }
+

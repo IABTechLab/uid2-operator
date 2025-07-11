@@ -3,9 +3,10 @@ package com.uid2.operator.service;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.identities.*;
 import com.uid2.operator.util.PrivacyBits;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
-import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.salt.ISaltProvider;
 import com.uid2.shared.model.TokenVersion;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -21,6 +22,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import static com.uid2.operator.model.identities.IdentityConst.*;
+import static java.time.temporal.ChronoUnit.DAYS;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
@@ -28,7 +30,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
 
-    private static final Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
+    private static final Instant REFRESH_CUTOFF = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
+    private static final long DAY_IN_MS = Duration.ofDays(1).toMillis();
+
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final EncryptedTokenEncoder encoder;
@@ -48,17 +52,17 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final boolean rawUidV3Enabled;
 
     private final Handler<Boolean> saltRetrievalResponseHandler;
-
+    private final UidInstanceIdProvider uidInstanceIdProvider;
 
     public UIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled) {
-
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = identityScope;
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
+        this.uidInstanceIdProvider = uidInstanceIdProvider;
 
         this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, DiiType.Email,
                 InputUtil.normalizeEmail(OptOutIdentityForEmail).getHashedDiiInput(), Instant.now());
@@ -115,7 +119,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             return TokenRefreshResponse.Invalid;
         }
 
-        if (input.firstLevelHash.establishedAt().isBefore(RefreshCutoff)) {
+        if (input.firstLevelHash.establishedAt().isBefore(REFRESH_CUTOFF)) {
             return TokenRefreshResponse.Deprecated;
         }
 
@@ -181,11 +185,11 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public void invalidateTokensAsync(HashedDii diiIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler) {
+    public void invalidateTokensAsync(HashedDii diiIdentity, Instant asOf, String uidTraceId, Handler<AsyncResult<Instant>> handler) {
         final FirstLevelHash firstLevelHash = getFirstLevelHashIdentity(diiIdentity, asOf);
         final IdentityMapResponseItem identityMapResponseItem = generateRawUid(firstLevelHash, asOf);
 
-        this.optOutStore.addEntry(firstLevelHash, identityMapResponseItem.rawUid, r -> {
+        this.optOutStore.addEntry(firstLevelHash, identityMapResponseItem.rawUid, uidTraceId, this.uidInstanceIdProvider.getInstanceId(),  r -> {
             if (r.succeeded()) {
                 handler.handle(Future.succeededFuture(r.result()));
             } else {
@@ -198,7 +202,6 @@ public class UIDOperatorService implements IUIDOperatorService {
     public boolean advertisingTokenMatches(String advertisingToken, HashedDii diiIdentity, Instant asOf) {
         final FirstLevelHash firstLevelHash = getFirstLevelHashIdentity(diiIdentity, asOf);
         final IdentityMapResponseItem identityMapResponseItem = generateRawUid(firstLevelHash, asOf);
-
         final AdvertisingTokenRequest token = this.encoder.decodeAdvertisingToken(advertisingToken);
         return Arrays.equals(identityMapResponseItem.rawUid, token.rawUid.rawUid());
     }
@@ -222,15 +225,44 @@ public class UIDOperatorService implements IUIDOperatorService {
         return TokenUtils.getFirstLevelHashFromHashedDii(hashedDii, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
     }
 
+
     private IdentityMapResponseItem generateRawUid(FirstLevelHash firstLevelHash, Instant asOf) {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHash.firstLevelHash());
+        final byte[] advertisingId = getAdvertisingId(firstLevelHash, rotatingSalt.currentSalt());
+        final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHash, rotatingSalt, asOf);
+        final long refreshFrom = getRefreshFrom(rotatingSalt, asOf);
 
         return new IdentityMapResponseItem(
-                this.rawUidV3Enabled
-                    ? TokenUtils.getRawUidV3(firstLevelHash.identityScope(),
-                        firstLevelHash.diiType(), firstLevelHash.firstLevelHash(), rotatingSalt.getSalt())
-                    : TokenUtils.getRawUidV2(firstLevelHash.firstLevelHash(), rotatingSalt.getSalt()),
-                rotatingSalt.getHashedId());
+                advertisingId,
+                rotatingSalt.hashedId(),
+                previousAdvertisingId,
+                refreshFrom);
+    }
+
+    private byte[] getAdvertisingId(FirstLevelHash firstLevelHash, String salt) {
+        return rawUidV3Enabled
+                ? TokenUtils.getRawUidV3(firstLevelHash.identityScope(), firstLevelHash.diiType(),
+                firstLevelHash.firstLevelHash(), salt)
+                : TokenUtils.getRawUidV2(firstLevelHash.firstLevelHash(), salt);
+    }
+
+    private byte[] getPreviousAdvertisingId(FirstLevelHash firstLevelHash, SaltEntry rotatingSalt, Instant asOf) {
+        long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
+        if (age / DAY_IN_MS < 90) {
+            if (rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isBlank()) {
+                return null;
+            }
+            return getAdvertisingId(firstLevelHash, rotatingSalt.previousSalt());
+        }
+        return null;
+    }
+
+    private long getRefreshFrom(SaltEntry rotatingSalt, Instant asOf) {
+        Long refreshFrom = rotatingSalt.refreshFrom();
+        if (refreshFrom == null || refreshFrom < asOf.toEpochMilli()) {
+            return asOf.truncatedTo(DAYS).plus(1, DAYS).toEpochMilli();
+        }
+        return refreshFrom;
     }
 
     private TokenGenerateResponse generateIdentity(SourcePublisher sourcePublisher,

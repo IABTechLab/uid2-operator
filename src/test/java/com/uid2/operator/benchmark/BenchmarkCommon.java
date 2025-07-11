@@ -9,10 +9,13 @@ import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
+import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.CloudSyncOptOutStore;
 import com.uid2.operator.store.IOptOutStore;
+import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.Utils;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Role;
 import com.uid2.shared.cloud.CloudStorageException;
@@ -23,7 +26,7 @@ import com.uid2.shared.optout.OptOutEntry;
 import com.uid2.shared.optout.OptOutHeap;
 import com.uid2.shared.optout.OptOutPartition;
 import com.uid2.shared.store.CloudPath;
-import com.uid2.shared.store.RotatingSaltProvider;
+import com.uid2.shared.store.salt.RotatingSaltProvider;
 import com.uid2.shared.store.reader.RotatingClientKeyProvider;
 import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
@@ -38,6 +41,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -73,15 +77,16 @@ public class BenchmarkCommon {
                 saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
                 /* out */ optOutPartitionFiles);
         final IOptOutStore optOutStore = new StaticOptOutStore(optOutLocalStorage, make1mOptOutEntryConfig(), optOutPartitionFiles);
-
+        final OperatorShutdownHandler shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(1), Duration.ofHours(1), Clock.systemUTC(), new ShutdownService());
         return new UIDOperatorService(
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
                 Clock.systemUTC(),
                 IdentityScope.UID2,
-                null,
-                false
+                shutdownHandler::handleSaltRetrievalResponse,
+                false,
+                new UidInstanceIdProvider("test-instance", "id")
         );
     }
 
@@ -192,7 +197,7 @@ public class BenchmarkCommon {
         }
 
         @Override
-        public void addEntry(FirstLevelHash firstLevelHash, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
+        public void addEntry(FirstLevelHash firstLevelHash, byte[] advertisingId, String uidTraceId, String uidInstanceId, Handler<AsyncResult<Instant>> handler) {
             // noop
         }
 

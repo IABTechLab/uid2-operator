@@ -1,5 +1,5 @@
-# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.6_7-jre-alpine/images/sha256-f184bb601f9e6068dd0a92738764d1ff447ab68c15ddbf8c303c5c29de9a1df8
-FROM eclipse-temurin@sha256:f184bb601f9e6068dd0a92738764d1ff447ab68c15ddbf8c303c5c29de9a1df8
+# sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.7_6-jre-alpine-3.21/images/sha256-62fa775039897e4420368514ba6c167741f6d45a0de9ff9125bee57e5aca8b75
+FROM eclipse-temurin@sha256:62fa775039897e4420368514ba6c167741f6d45a0de9ff9125bee57e5aca8b75
 
 # Install necessary packages and set up virtual environment
 RUN apk update && apk add --no-cache jq python3 py3-pip && \
@@ -38,7 +38,7 @@ COPY ./conf/*.xml /app/conf/
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && \
     rm -f /app/static.tar.gz
 
-COPY ./azureEntryPoint.py /app
+COPY ./azr.py /app
 COPY ./confidential_compute.py /app
 RUN chmod a+x /app/*.py
 
@@ -51,4 +51,4 @@ RUN adduser -D uid2-operator && \
 USER uid2-operator
 
 # Run the Python entry point
-CMD python3 /app/azureEntryPoint.py
+CMD python3 /app/azr.py

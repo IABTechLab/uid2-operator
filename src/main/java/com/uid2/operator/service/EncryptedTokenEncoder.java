@@ -284,7 +284,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     private void recordRefreshTokenVersionCount(String siteId, TokenVersion tokenVersion) {
-        Counter.builder("uid2_refresh_token_served_count")
+        Counter.builder("uid2_refresh_token_served_count_total")
                 .description(String.format("Counter for the amount of refresh token %s served", tokenVersion.toString().toLowerCase()))
                 .tags("site_id", String.valueOf(siteId))
                 .tags("refresh_token_version", tokenVersion.toString().toLowerCase())

@@ -36,15 +36,10 @@ public class TokenGenerateResponseTest {
         assertEquals(response1.getRefreshExpires(), refreshExpires);
         assertEquals(response1.getRefreshFrom(), refreshFrom);
 
-        JsonObject jsonV1 = response1.toJsonV1();
+        JsonObject jsonV1 = response1.toTokenGenerateResponseJson();
         assertEquals(jsonV1.getString("advertising_token"), response1.getAdvertisingToken());
         assertEquals(jsonV1.getString("refresh_token"), response1.getRefreshToken());
         assertEquals(jsonV1.getLong("refresh_expires").longValue(), response1.getRefreshExpires().toEpochMilli());
         assertEquals(jsonV1.getLong("refresh_from").longValue(), response1.getRefreshFrom().toEpochMilli());
-
-        JsonObject jsonV0 = response1.toJsonV0();
-        assertEquals(jsonV0.getString("advertisement_token"), response1.getAdvertisingToken());
-        assertEquals(jsonV0.getString("advertising_token"), response1.getAdvertisingToken());
-        assertEquals(jsonV0.getString("refresh_token"), response1.getRefreshToken());
     }
 }

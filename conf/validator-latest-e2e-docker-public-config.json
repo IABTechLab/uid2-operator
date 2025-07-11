@@ -42,6 +42,7 @@
     },
     "config_scan_period_ms": 300000
   },
-  "disable_optout_token": false,
-  "enable_remote_config": false
+  "disable_optout_token": true,
+  "enable_remote_config": false,
+  "uid_instance_id_prefix": "local-public-operator"
 }

@@ -6,11 +6,11 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.50.36</version>
-  
+    <version>5.56.31</version>
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <vertx.version>4.5.11</vertx.version>
+        <vertx.version>4.5.13</vertx.version>
         <vertx-maven-plugin.version>1.0.22</vertx-maven-plugin.version>
         <junit-jupiter.version>5.11.2</junit-jupiter.version>
         <junit-vintage.version>5.11.2</junit-vintage.version>
@@ -22,7 +22,7 @@
         <enclave-aws.version>2.1.0</enclave-aws.version>
         <enclave-azure.version>2.1.13</enclave-azure.version>
         <enclave-gcp.version>2.1.0</enclave-gcp.version>
-        <uid2-shared.version>9.0.8</uid2-shared.version>
+        <uid2-shared.version>10.8.0</uid2-shared.version>
         <image.version>${project.version}</image.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
@@ -32,8 +32,9 @@
 
     <repositories>
         <repository>
-            <id>snapshots-repo</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+            <name>Central Portal Snapshots</name>
+            <id>central-portal-snapshots</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
             <releases>
                 <enabled>false</enabled>
             </releases>
@@ -201,6 +202,12 @@
             <version>4.3.2</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>5.12.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <profiles>
@@ -301,7 +308,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
+                <version>3.2.5</version>
                 <configuration>
                     <argLine>${argLine} -Dfile.encoding=${project.build.sourceEncoding}</argLine>
                     <systemProperties>

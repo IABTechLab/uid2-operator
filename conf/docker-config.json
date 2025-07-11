@@ -32,7 +32,8 @@
   "services_metadata_path": "/com.uid2.core/test/services/metadata.json",
   "service_links_metadata_path": "/com.uid2.core/test/service_links/metadata.json",
   "cloud_encryption_keys_metadata_path": "/com.uid2.core/test/cloud_encryption_keys/metadata.json",
-  "encrypted_files": true,
+  "runtime_config_metadata_path": "/com.uid2.core/test/runtime_config/metadata.json",
+  "encrypted_files": false,
   "identity_token_expires_after_seconds": 3600,
   "optout_metadata_path": null,
   "optout_inmem_cache": false,
@@ -40,14 +41,7 @@
   "failure_shutdown_wait_hours": 120,
   "salts_expired_shutdown_hours": 12,
   "operator_type": "public",
-  "runtime_config_store": {
-    "type": "file",
-    "config" : {
-      "path": "conf/runtime-config-defaults.json",
-      "format": "json"
-    },
-    "config_scan_period_ms": 5000
-  },
-  "disable_optout_token": false,
-  "enable_remote_config": false
+  "disable_optout_token": true,
+  "enable_remote_config": false,
+  "uid_instance_id_prefix": "local-operator"
 }

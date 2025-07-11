@@ -12,6 +12,9 @@ Parameters:
     AllowedValues:
       - prod
       - integ
+  ImageId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-example1234567890
   TrustNetworkCidr:
     Description: The IP address range that can be used to SSH and HTTPS to the EC2 instances
     Type: String
@@ -21,7 +24,7 @@ Parameters:
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
   InstanceType:
-    Description: EC2 instance type. Minimum 4 vCPUs needed.
+    Description: EC2 instance type. Minimum 8 vCPUs needed.
     Type: String
     Default: m5.2xlarge
     AllowedValues:
@@ -104,48 +107,6 @@ Metadata:
         default: If choose to false for CustomizeEnclaceResource, enter memory for Enclave in MB
       EnclaveCPUCount:
         default: If choose to false for CustomizeEnclaceResource, enter CPU count for Enclave
-Mappings:
-  RegionMap:
-    us-east-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    us-east-2:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    us-west-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    us-west-2:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    eu-central-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    eu-west-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    eu-west-2:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    eu-west-3:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    eu-south-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    eu-north-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    me-south-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-east-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-south-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-northeast-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-northeast-2:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-southeast-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ap-southeast-2:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    sa-east-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    ca-central-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
-    af-south-1:
-      AMI: ami-xxxxxxxxxxxxxxxxx
 Conditions:
   IsIntegEnvironment: !Equals
     - !Ref DeployToEnvironment
@@ -281,7 +242,7 @@ Resources:
             VolumeType: gp3
         IamInstanceProfile:
           Name: !Ref WorkerInstanceProfile
-        ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
+        ImageId: !Ref ImageId
         InstanceType: !Ref InstanceType
         EnclaveOptions:
           Enabled: true
@@ -295,6 +256,11 @@ Resources:
             sudo yum update -y --security
             while ! nc -z localhost 80;do sleep 10;done
             /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}
+        MetadataOptions:
+          HttpEndpoint: enabled
+          HttpTokens: required # Enforces IMDSv2
+          HttpPutResponseHopLimit: 1
+          InstanceMetadataTags: enabled
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     DependsOn:

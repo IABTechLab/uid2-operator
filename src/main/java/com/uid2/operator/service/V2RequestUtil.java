@@ -2,6 +2,7 @@ package com.uid2.operator.service;
 
 import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.model.KeyManager;
+import com.uid2.operator.util.HttpMediaType;
 import com.uid2.shared.IClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -9,7 +10,9 @@ import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.model.KeysetKey;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,21 +56,42 @@ public class V2RequestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
+    public static V2Request parseRequest(RoutingContext rc, ClientKey ck, IClock clock) {
+        if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
+            return V2RequestUtil.parseRequestAsBuffer(rc.body().buffer(), ck, clock);
+        } else {
+            return V2RequestUtil.parseRequestAsString(rc.body().asString(), ck, clock);
+        }
+    }
+
+    public static V2Request parseRequestAsBuffer(Buffer bodyBuffer, ClientKey ck, IClock clock) {
+        if (bodyBuffer == null) {
+            return new V2Request("Invalid body: Body is missing.");
+        }
+        return parseRequestCommon(bodyBuffer.getBytes(), ck, clock);
+    }
+
     // clock is passed in to test V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES in unit tests
-    public static V2Request parseRequest(String bodyString, ClientKey ck, IClock clock) {
+    public static V2Request parseRequestAsString(String bodyString, ClientKey ck, IClock clock) {
         if (bodyString == null) {
             return new V2Request("Invalid body: Body is missing.");
         }
-
         byte[] bodyBytes;
         try {
-            // Payload envelop format:
-            //  byte 0: version
-            //  byte 1-12: GCM IV
-            //  byte 13-end: encrypted payload + GCM AUTH TAG
             bodyBytes = Utils.decodeBase64String(bodyString);
         } catch (IllegalArgumentException ex) {
             return new V2Request("Invalid body: Body is not valid base64.");
+        }
+        return parseRequestCommon(bodyBytes, ck, clock);
+    }
+
+    private static V2Request parseRequestCommon(byte[] bodyBytes, ClientKey ck, IClock clock) {
+        // Payload envelop format:
+        //  byte 0: version
+        //  byte 1-12: GCM IV
+        //  byte 13-end: encrypted payload + GCM AUTH TAG
+        if (bodyBytes == null || bodyBytes.length == 0) {
+            return new V2Request("Invalid body: Body is missing.");
         }
 
         if (bodyBytes.length < MIN_PAYLOAD_LENGTH) {

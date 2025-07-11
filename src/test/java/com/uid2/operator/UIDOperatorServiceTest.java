@@ -10,9 +10,11 @@ import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
+import com.uid2.shared.audit.UidInstanceIdProvider;
+import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.CloudPath;
-import com.uid2.shared.store.ISaltProvider;
-import com.uid2.shared.store.RotatingSaltProvider;
+import com.uid2.shared.store.salt.ISaltProvider;
+import com.uid2.shared.store.salt.RotatingSaltProvider;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
@@ -27,18 +29,18 @@ import org.junit.jupiter.api.Test;
 
 import static com.uid2.operator.service.TokenUtils.getFirstLevelHashFromHashedDii;
 import static com.uid2.operator.Const.Config.IdentityV3Prop;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -50,6 +52,7 @@ public class UIDOperatorServiceTest {
     @Mock private Clock clock;
     @Mock private OperatorShutdownHandler shutdownHandler;
     EncryptedTokenEncoder tokenEncoder;
+    UidInstanceIdProvider uidInstanceIdProvider;
     JsonObject uid2Config;
     JsonObject euidConfig;
     ExtendedUIDOperatorService uid2Service;
@@ -60,9 +63,11 @@ public class UIDOperatorServiceTest {
     final int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
     final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
 
+    final String FIRST_LEVEL_SALT = "first-level-salt";
+
     class ExtendedUIDOperatorService extends UIDOperatorService {
-        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled) {
-            super(optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler, identityV3Enabled);
+        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
+            super(optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler, identityV3Enabled, uidInstanceIdProvider);
         }
     }
 
@@ -97,6 +102,8 @@ public class UIDOperatorServiceTest {
         uid2Config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
         uid2Config.put(IdentityV3Prop, false);
 
+        uidInstanceIdProvider = new UidInstanceIdProvider("test-instance", "id");
+
         uid2Service = new ExtendedUIDOperatorService(
                 optOutStore,
                 saltProvider,
@@ -104,7 +111,8 @@ public class UIDOperatorServiceTest {
                 this.clock,
                 IdentityScope.UID2,
                 this.shutdownHandler::handleSaltRetrievalResponse,
-                uid2Config.getBoolean(IdentityV3Prop)
+                uid2Config.getBoolean(IdentityV3Prop),
+                uidInstanceIdProvider
         );
 
         euidConfig = new JsonObject();
@@ -120,7 +128,8 @@ public class UIDOperatorServiceTest {
                 this.clock,
                 IdentityScope.EUID,
                 this.shutdownHandler::handleSaltRetrievalResponse,
-                euidConfig.getBoolean(IdentityV3Prop)
+                euidConfig.getBoolean(IdentityV3Prop),
+                uidInstanceIdProvider
         );
     }
 
@@ -132,6 +141,27 @@ public class UIDOperatorServiceTest {
     private void setNow(Instant now) {
         this.now = now.truncatedTo(ChronoUnit.MILLIS);
         when(clock.instant()).thenAnswer(i -> this.now);
+    }
+
+    private RotatingSaltProvider.SaltSnapshot setUpMockSalts() {
+        RotatingSaltProvider saltProvider = mock(RotatingSaltProvider.class);
+        RotatingSaltProvider.SaltSnapshot saltSnapshot = mock(RotatingSaltProvider.SaltSnapshot.class);
+        when(saltProvider.getSnapshot(any())).thenReturn(saltSnapshot);
+        when(saltSnapshot.getExpires()).thenReturn(Instant.now().plus(1, ChronoUnit.HOURS));
+        when(saltSnapshot.getFirstLevelSalt()).thenReturn(FIRST_LEVEL_SALT);
+
+        uid2Service = new ExtendedUIDOperatorService(
+                optOutStore,
+                saltProvider,
+                tokenEncoder,
+                this.clock,
+                IdentityScope.UID2,
+                this.shutdownHandler::handleSaltRetrievalResponse,
+                uid2Config.getBoolean(IdentityV3Prop),
+                uidInstanceIdProvider
+        );
+
+        return saltSnapshot;
     }
 
     private HashedDii createHashedDii(String hashedDii, IdentityScope scope, DiiType type) {
@@ -803,7 +833,8 @@ public class UIDOperatorServiceTest {
                 this.clock,
                 IdentityScope.UID2,
                 this.shutdownHandler::handleSaltRetrievalResponse,
-                uid2Config.getBoolean(IdentityV3Prop)
+                uid2Config.getBoolean(IdentityV3Prop),
+                uidInstanceIdProvider
         );
 
         UIDOperatorService euidService = new UIDOperatorService(
@@ -813,7 +844,8 @@ public class UIDOperatorServiceTest {
                 this.clock,
                 IdentityScope.EUID,
                 this.shutdownHandler::handleSaltRetrievalResponse,
-                euidConfig.getBoolean(IdentityV3Prop)
+                euidConfig.getBoolean(IdentityV3Prop),
+                uidInstanceIdProvider
         );
 
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
@@ -877,5 +909,110 @@ public class UIDOperatorServiceTest {
         assertNotNull(identityMapResponseItem);
         assertFalse(identityMapResponseItem.isOptedOut());
 
+    }
+
+    @Test
+    void testMappedIdentityWithPreviousSaltReturnsPreviousUid() {
+        var saltSnapshot = setUpMockSalts();
+
+        long lastUpdated = this.now.minus(90, DAYS).plusMillis(1).toEpochMilli(); // 1 millis before 90 days old
+        long refreshFrom = lastUpdated + Duration.ofDays(120).toMillis();
+
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", refreshFrom, "previousSalt", null, null);
+        when(saltSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        var email = "test@uid.com";
+        InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
+        IdentityMapRequestItem mapRequest = new IdentityMapRequestItem(emailInput.toHashedDii(IdentityScope.UID2),
+                OptoutCheckPolicy.RespectOptOut, now);
+
+        IdentityMapResponseItem mappedIdentity = uid2Service.mapHashedDii(mapRequest);
+
+        var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(DiiType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
+        var expectedPreviousUID = UIDOperatorVerticleTest.getRawUid(DiiType.Email, email, FIRST_LEVEL_SALT, salt.previousSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
+        assertArrayEquals(expectedCurrentUID, mappedIdentity.rawUid);
+        assertArrayEquals(expectedPreviousUID, mappedIdentity.previousRawUid);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "1"})
+    void testMappedIdentityWithOutdatedPreviousSaltReturnsNoPreviousUid(long extraMsAfter90DaysOld) {
+        var saltSnapshot = setUpMockSalts();
+
+        long lastUpdated = this.now.minus(90, DAYS).minusMillis(extraMsAfter90DaysOld).toEpochMilli();
+        long refreshFrom = lastUpdated + Duration.ofDays(120).toMillis();
+
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", refreshFrom, "previousSalt", null, null);
+        when(saltSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        var email = "test@uid.com";
+        InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
+        IdentityMapRequestItem mapRequest = new IdentityMapRequestItem(emailInput.toHashedDii(IdentityScope.UID2), OptoutCheckPolicy.RespectOptOut, now);
+
+        IdentityMapResponseItem mappedIdentity = uid2Service.mapHashedDii(mapRequest);
+        var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(DiiType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
+        assertArrayEquals(expectedCurrentUID, mappedIdentity.rawUid);
+        assertArrayEquals(null , mappedIdentity.previousRawUid);
+    }
+
+    @Test
+    void testMappedIdentityWithNoPreviousSaltReturnsNoPreviousUid() {
+        var saltSnapshot = setUpMockSalts();
+
+        long lastUpdated = this.now.toEpochMilli();
+        long refreshFrom = this.now.plus(30, DAYS).toEpochMilli();
+
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", refreshFrom, null, null, null);
+        when(saltSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        var email = "test@uid.com";
+        InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
+        IdentityMapRequestItem mapRequest = new IdentityMapRequestItem(emailInput.toHashedDii(IdentityScope.UID2), OptoutCheckPolicy.RespectOptOut, now);
+
+        IdentityMapResponseItem mappedIdentity = uid2Service.mapHashedDii(mapRequest);
+
+        var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(DiiType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
+        assertArrayEquals(expectedCurrentUID, mappedIdentity.rawUid);
+        assertArrayEquals(null, mappedIdentity.previousRawUid);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "30"})
+    void testMappedIdentityWithValidRefreshFrom(int refreshFromDays) {
+        var saltSnapshot = setUpMockSalts();
+
+        long lastUpdated = this.now.minus(30, DAYS).toEpochMilli();
+        long refreshFrom = this.now.plus(refreshFromDays, DAYS).toEpochMilli();
+
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", refreshFrom, null, null, null);
+        when(saltSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        var email = "test@uid.com";
+        InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
+        IdentityMapRequestItem mapRequest = new IdentityMapRequestItem(emailInput.toHashedDii(IdentityScope.UID2), OptoutCheckPolicy.RespectOptOut, now);
+
+        IdentityMapResponseItem mappedIdentity = uid2Service.mapHashedDii(mapRequest);
+
+        assertEquals(refreshFrom, mappedIdentity.refreshFrom);
+    }
+
+    @Test
+    void testMappedIdentityWithOutdatedRefreshFrom() {
+        var saltSnapshot = setUpMockSalts();
+
+        long lastUpdated = this.now.minus(31, DAYS).toEpochMilli();
+        long outdatedRefreshFrom = this.now.minus(1, DAYS).toEpochMilli();
+
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", outdatedRefreshFrom, null, null, null);
+        when(saltSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        var email = "test@uid.com";
+        InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
+        IdentityMapRequestItem mapRequest = new IdentityMapRequestItem(emailInput.toHashedDii(IdentityScope.UID2), OptoutCheckPolicy.RespectOptOut, now);
+
+        IdentityMapResponseItem mappedIdentity = uid2Service.mapHashedDii(mapRequest);
+
+        long expectedRefreshFrom = this.now.truncatedTo(DAYS).plus(1, DAYS).toEpochMilli();
+        assertEquals(expectedRefreshFrom, mappedIdentity.refreshFrom);
     }
 }

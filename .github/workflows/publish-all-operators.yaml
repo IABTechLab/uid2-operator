@@ -59,7 +59,7 @@ jobs:
             GITHUB_CONTEXT: ${{ toJson(github) }}
 
       - name: Check branch and release type
-        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v3
         with:
           release_type: ${{ inputs.release_type }}
     
@@ -69,14 +69,15 @@ jobs:
           fetch-depth: 0
 
       - name: Scan vulnerabilities
-        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan_filesystem@v3
+        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@v3
         with:
           scan_severity: HIGH,CRITICAL
           failure_severity: CRITICAL
+          scan_type: 'fs'
 
       - name: Set version number
         id: version
-        uses: IABTechLab/uid2-shared-actions/actions/version_number@v2
+        uses: IABTechLab/uid2-shared-actions/actions/version_number@v3
         with:
           type: ${{ env.RELEASE_TYPE }}
           branch_name: ${{ github.ref }}

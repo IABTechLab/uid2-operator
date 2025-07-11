@@ -1,9 +1,14 @@
 package com.uid2.operator;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.identities.DiiType;
+import com.uid2.operator.model.identities.FirstLevelHash;
+import com.uid2.operator.model.identities.IdentityScope;
+import com.uid2.operator.model.identities.RawUid;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.TokenUtils;
+import com.uid2.operator.util.PrivacyBits;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.CloudPath;
@@ -51,31 +56,32 @@ public class TokenEncodingTest {
         final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
 
-        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity("test@example.com", "some-salt");
+        final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromRawDii("test@example.com", "some-salt");
 
-        final RefreshToken token = new RefreshToken(tokenVersion,
+        final TokenRefreshRequest tokenRefreshRequest = new TokenRefreshRequest(tokenVersion,
             now,
             now.plusSeconds(360),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
-            new PublisherIdentity(111, 112, 113),
-            new UserIdentity(IdentityScope.UID2, IdentityType.Email, firstLevelHash, 121, now, now.minusSeconds(122))
+            new SourcePublisher(111, 112, 113),
+            new FirstLevelHash(IdentityScope.UID2, DiiType.Email, firstLevelHash, now),
+            PrivacyBits.fromInt(121)
         );
 
         if (tokenVersion == TokenVersion.V4) {
-            Assert.assertThrows(Exception.class, () -> encoder.encode(token, now));
+            Assert.assertThrows(Exception.class, () -> encoder.encodeIntoRefreshToken(tokenRefreshRequest, now));
             return; //V4 not supported for RefreshTokens
         }
-        final byte[] encodedBytes = encoder.encode(token, now);
-        final RefreshToken decoded = encoder.decodeRefreshToken(EncodingUtils.toBase64String(encodedBytes));
+        final byte[] encodedBytes = encoder.encodeIntoRefreshToken(tokenRefreshRequest, now);
+        final TokenRefreshRequest decoded = encoder.decodeRefreshToken(EncodingUtils.toBase64String(encodedBytes));
 
         assertEquals(tokenVersion, decoded.version);
-        assertEquals(token.createdAt, decoded.createdAt);
+        assertEquals(tokenRefreshRequest.createdAt, decoded.createdAt);
         int addSeconds = (tokenVersion == TokenVersion.V2) ? 60 : 0; //todo: why is there a 60 second buffer in encodeV2() but not in encodeV3()?
-        assertEquals(token.expiresAt.plusSeconds(addSeconds), decoded.expiresAt);
-        assertTrue(token.userIdentity.matches(decoded.userIdentity));
-        assertEquals(token.userIdentity.privacyBits, decoded.userIdentity.privacyBits);
-        assertEquals(token.userIdentity.establishedAt, decoded.userIdentity.establishedAt);
-        assertEquals(token.publisherIdentity.siteId, decoded.publisherIdentity.siteId);
+        assertEquals(tokenRefreshRequest.expiresAt.plusSeconds(addSeconds), decoded.expiresAt);
+        assertTrue(tokenRefreshRequest.firstLevelHash.matches(decoded.firstLevelHash));
+        assertEquals(tokenRefreshRequest.privacyBits, decoded.privacyBits);
+        assertEquals(tokenRefreshRequest.firstLevelHash.establishedAt(), decoded.firstLevelHash.establishedAt());
+        assertEquals(tokenRefreshRequest.sourcePublisher.siteId, decoded.sourcePublisher.siteId);
 
         Buffer b = Buffer.buffer(encodedBytes);
         int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 25 : 2);
@@ -100,27 +106,29 @@ public class TokenEncodingTest {
         final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
 
-        final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, "test@example.com", IdentityScope.UID2, useRawUIDv3);
+        final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(DiiType.Email, "test@example.com", IdentityScope.UID2, useRawUIDv3);
 
-        final AdvertisingToken token = new AdvertisingToken(
+        final AdvertisingTokenRequest adTokenRequest = new AdvertisingTokenRequest(
             adTokenVersion,
             now,
             now.plusSeconds(60),
             new OperatorIdentity(101, OperatorType.Service, 102, 103),
-            new PublisherIdentity(111, 112, 113),
-            new UserIdentity(IdentityScope.UID2, IdentityType.Email, rawUid, 121, now, now.minusSeconds(122))
+            new SourcePublisher(111, 112, 113),
+            new RawUid(IdentityScope.UID2, DiiType.Email, rawUid),
+            PrivacyBits.fromInt(121),
+            now
         );
 
-        final byte[] encodedBytes = encoder.encode(token, now);
-        final AdvertisingToken decoded = encoder.decodeAdvertisingToken(EncryptedTokenEncoder.bytesToBase64Token(encodedBytes, adTokenVersion));
+        final byte[] encodedBytes = encoder.encodeIntoAdvertisingToken(adTokenRequest, now);
+        final AdvertisingTokenRequest decoded = encoder.decodeAdvertisingToken(EncryptedTokenEncoder.bytesToBase64Token(encodedBytes, adTokenVersion));
 
         assertEquals(adTokenVersion, decoded.version);
-        assertEquals(token.createdAt, decoded.createdAt);
-        assertEquals(token.expiresAt, decoded.expiresAt);
-        assertTrue(token.userIdentity.matches(decoded.userIdentity));
-        assertEquals(token.userIdentity.privacyBits, decoded.userIdentity.privacyBits);
-        assertEquals(token.userIdentity.establishedAt, decoded.userIdentity.establishedAt);
-        assertEquals(token.publisherIdentity.siteId, decoded.publisherIdentity.siteId);
+        assertEquals(adTokenRequest.createdAt, decoded.createdAt);
+        assertEquals(adTokenRequest.expiresAt, decoded.expiresAt);
+        assertTrue(adTokenRequest.rawUid.matches(decoded.rawUid));
+        assertEquals(adTokenRequest.privacyBits, decoded.privacyBits);
+        assertEquals(adTokenRequest.establishedAt, decoded.establishedAt);
+        assertEquals(adTokenRequest.sourcePublisher.siteId, decoded.sourcePublisher.siteId);
 
         Buffer b = Buffer.buffer(encodedBytes);
         int keyId = b.getInt(adTokenVersion == TokenVersion.V2 ? 1 : 2); //TODO - extract master key from token should be a helper function

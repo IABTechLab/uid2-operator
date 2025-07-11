@@ -1,6 +1,6 @@
 package com.uid2.operator.monitoring;
 
-import com.uid2.operator.model.RefreshResponse;
+import com.uid2.operator.model.TokenRefreshResponse;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.ISiteStore;
@@ -65,17 +65,17 @@ public class TokenResponseStatsCollector {
         builder.register(Metrics.globalRegistry).increment();
     }
 
-    public static void recordRefresh(ISiteStore siteStore, Integer siteId, Endpoint endpoint, RefreshResponse refreshResponse, PlatformType platformType) {
+    public static void recordRefresh(ISiteStore siteStore, Integer siteId, Endpoint endpoint, TokenRefreshResponse refreshResponse, PlatformType platformType) {
         if (!refreshResponse.isRefreshed()) {
             if (refreshResponse.isOptOut() || refreshResponse.isDeprecated()) {
-                recordInternal(siteStore, siteId, endpoint, ResponseStatus.OptOut, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.OptOut, refreshResponse.getIdentityResponse().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
             } else if (refreshResponse.isInvalidToken()) {
-                recordInternal(siteStore, siteId, endpoint, ResponseStatus.InvalidToken, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.InvalidToken, refreshResponse.getIdentityResponse().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
             } else if (refreshResponse.isExpired()) {
-                recordInternal(siteStore, siteId, endpoint, ResponseStatus.ExpiredToken, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
+                recordInternal(siteStore, siteId, endpoint, ResponseStatus.ExpiredToken, refreshResponse.getIdentityResponse().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
             }
         } else {
-            recordInternal(siteStore, siteId, endpoint, ResponseStatus.Success, refreshResponse.getTokens().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
+            recordInternal(siteStore, siteId, endpoint, ResponseStatus.Success, refreshResponse.getIdentityResponse().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);
         }
     }
 }

@@ -1,6 +1,6 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.util.HttpMediaType;
 import com.uid2.shared.IClock;

@@ -160,7 +160,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
-    needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
+    needs: start
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4

@@ -250,45 +250,6 @@ jobs:
           (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
-      - name: Cleanup assets from all previous releases
-        # Clean up assets from all releases to prevent accumulation
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          CURRENT_TAG: v${{ needs.start.outputs.new_version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Current release will be: $CURRENT_TAG"
-          
-          # Get all releases and clean up their assets
-          gh api "repos/$REPO/releases" --jq -r '.[] | select(.tag_name != null and .tag_name != "") | .tag_name' | \
-          while read -r tag; do
-            if [ "$tag" != "$CURRENT_TAG" ] && [ -n "$tag" ]; then
-              echo "Cleaning up assets from release: $tag"
-              # Check if the release exists and has assets
-              if gh release view "$tag" --repo "$REPO" >/dev/null 2>&1; then
-                # Get all asset IDs for this release and delete them
-                asset_ids=$(gh api "repos/$REPO/releases/tags/$tag" --jq -r '.assets[].id' 2>/dev/null || echo "")
-                if [ -n "$asset_ids" ]; then
-                  echo "$asset_ids" | while read -r asset_id; do
-                    if [ -n "$asset_id" ]; then
-                      asset_name=$(gh api "repos/$REPO/releases/assets/$asset_id" --jq -r '.name' 2>/dev/null || echo "unknown")
-                      echo "  Deleting asset: $asset_name from $tag"
-                      gh api "repos/$REPO/releases/assets/$asset_id" -X DELETE 2>/dev/null || echo "  Failed to delete asset $asset_id"
-                    fi
-                  done
-                else
-                  echo "  No assets found for $tag"
-                fi
-              else
-                echo "  Release $tag not found, skipping"
-              fi
-            fi
-          done
-          
-          echo "Cleanup complete - only $CURRENT_TAG will have assets"
-
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:

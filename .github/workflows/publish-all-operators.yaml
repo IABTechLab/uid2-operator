@@ -250,7 +250,7 @@ jobs:
           (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
-      – name: Cleanup old assets from this tag
+      - name: Cleanup old assets from this tag
         # requires GH CLI and contents: write
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -278,7 +278,6 @@ jobs:
           else
             echo "No existing release v$TAG to prune—moving on."
           fi
-
 
       - name: Create draft release
         uses: softprops/action-gh-release@v2

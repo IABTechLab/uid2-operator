@@ -113,7 +113,6 @@ jobs:
     secrets: inherit
 
   buildGCP:
-    if: ${{ github.event.inputs.testing_mode != 'true' }}
     name: GCP Private Operator
     needs: start
     uses: ./.github/workflows/publish-gcp-oidc-enclave-docker.yaml
@@ -174,42 +173,36 @@ jobs:
           path: ./manifests/public_operator
 
       - name: Download GCP manifest
-        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: gcp-oidc-enclave-ids-*
           path: ./manifests/gcp_oidc_operator
 
       - name: Download Azure CC manifest
-        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: azure-cc-enclave-id-*
           path: ./manifests/azure_cc_operator
 
       - name: Download Azure AKS manifest
-        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: azure-aks-enclave-id-*
           path: ./manifests/azure_aks_operator
 
       - name: Download EIF manifest
-        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: 'aws-eif-enclave-ids-*'
           path: ./manifests/aws_eif
 
       - name: Download AWS AMI manifest
-        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: 'aws-ami-ids-*'
           path: ./manifests/aws_ami
 
       - name: Download Deployment Files
-        if: inputs.testing_mode != 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: '*-deployment-files-*'

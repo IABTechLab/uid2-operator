@@ -7,17 +7,17 @@ on:
         type: choice
         description: The type of release
         options:
-        - Patch
-        - Minor
-        - Major
-        - Snapshot
+          - Patch
+          - Minor
+          - Major
+          - Snapshot
       vulnerability_severity:
         description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised.
         type: choice
         options:
-        - CRITICAL,HIGH
-        - CRITICAL,HIGH,MEDIUM
-        - CRITICAL (DO NOT use if JIRA ticket not raised)
+          - CRITICAL,HIGH
+          - CRITICAL,HIGH,MEDIUM
+          - CRITICAL (DO NOT use if JIRA ticket not raised)
       testing_mode:
         type: boolean
         default: false
@@ -30,13 +30,13 @@ jobs:
     name: Start Operator Build
     runs-on: ubuntu-latest
     outputs:
-        new_version: ${{ steps.version.outputs.new_version }}
-        commit_sha: ${{ steps.commit-and-tag.outputs.commit_sha }}
-        release_type: ${{ steps.set-env.outputs.release_type }}
-        vulnerability_severity: ${{ steps.set-env.outputs.vulnerability_severity }}
+      new_version: ${{ steps.version.outputs.new_version }}
+      commit_sha: ${{ steps.commit-and-tag.outputs.commit_sha }}
+      release_type: ${{ steps.set-env.outputs.release_type }}
+      vulnerability_severity: ${{ steps.set-env.outputs.vulnerability_severity }}
     env:
-        RELEASE_TYPE: ${{ inputs.release_type || (github.event_name == 'schedule' && 'patch') }}
-        VULNERABILITY_SEVERITY: ${{ inputs.vulnerability_severity || (github.event_name == 'schedule' && 'CRITICAL,HIGH') }}
+      RELEASE_TYPE: ${{ inputs.release_type || (github.event_name == 'schedule' && 'patch') }}
+      VULNERABILITY_SEVERITY: ${{ inputs.vulnerability_severity || (github.event_name == 'schedule' && 'CRITICAL,HIGH') }}
     steps:
       - name: Set Environment Variables
         id: set-env
@@ -59,14 +59,14 @@ jobs:
           printenv
           echo "$GITHUB_CONTEXT"
         shell: bash
-        env: 
-            GITHUB_CONTEXT: ${{ toJson(github) }}
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
 
       - name: Check branch and release type
         uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v3
         with:
           release_type: ${{ inputs.release_type }}
-    
+
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
@@ -100,7 +100,7 @@ jobs:
         with:
           add: 'pom.xml version.json'
           message: 'Released ${{ env.RELEASE_TYPE }} version: ${{ steps.version.outputs.new_version }}'
-          tag: v${{ steps.version.outputs.new_version }} 
+          tag: v${{ steps.version.outputs.new_version }}
 
   buildPublic:
     if: ${{ github.event.inputs.testing_mode != 'true' }}
@@ -151,7 +151,7 @@ jobs:
   buildAMI:
     if: ${{ github.event.inputs.testing_mode != 'true' }}
     name: Build AWS AMI
-    needs: [start, buildAWS]
+    needs: [ start, buildAWS ]
     uses: ./.github/workflows/build-uid2-ami.yaml
     with:
       operator_run_number: ${{ github.run_id }}
@@ -169,14 +169,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      # Delete any existing draft for this tag (so old assets go away)
-      - name: Delete existing draft (clean slate)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release delete "v${{ needs.start.outputs.new_version }}" --yes \
-            || echo "No existing draft to delete
 
       - name: Download public manifest
         if: ${{ github.event.inputs.testing_mode != 'true' }}
@@ -258,6 +250,36 @@ jobs:
           (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
+      – name: Cleanup old assets from this tag
+        # requires GH CLI and contents: write
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: v${{ needs.start.outputs.new_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Fetch the release ID for our tag (if it exists)
+          release_id=$(gh api "repos/$REPO/releases/tags/$TAG" --jq .id || echo "")
+          if [ -n "$release_id" ]; then
+            echo "Found existing release $TAG (id=$release_id), pruning assets…"
+            # Loop through all assets on that release
+            gh api "repos/$REPO/releases/$release_id/assets" --jq '.[].id' | \
+            while read asset_id; do
+              name=$(gh api "repos/$REPO/releases/assets/$asset_id" --jq .name)
+              # If the name does NOT contain our tag, delete it
+              if [[ "$name" != *"$TAG"* ]]; then
+                echo "Deleting old asset: $name"
+                gh api "repos/$REPO/releases/assets/$asset_id" -X DELETE
+              else
+                echo "Keeping current asset: $name"
+              fi
+            done
+          else
+            echo "No existing release v$TAG to prune—moving on."
+          fi
+
+
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:
@@ -266,10 +288,10 @@ jobs:
           overwrite_files: true
           draft: true
           files: |
-              ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip
-              ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip
-              ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip
-              ./azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip
-              ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
-              ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip
+            ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip
+            ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip
+            ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip
+            ./azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip
+            ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
+            ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip
 

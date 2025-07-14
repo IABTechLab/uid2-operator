@@ -250,8 +250,9 @@ jobs:
           (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
-      - name: Delete existing release if it exists
-        # Delete the entire release first to ensure clean state
+
+      - name: Cleanup old assets from existing release
+        # Clean up all assets from existing release to ensure only current assets are included
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -259,12 +260,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Check if release exists and delete it
+          # Check if release exists
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-            echo "Deleting existing release $TAG"
-            gh release delete "$TAG" --repo "$REPO" --yes
+            echo "Found existing release $TAG, cleaning up all assets..."
+            # Get all asset IDs and delete them
+            gh api "repos/$REPO/releases/tags/$TAG" --jq '.assets[].id' | \
+            while read -r asset_id; do
+              asset_name=$(gh api "repos/$REPO/releases/assets/$asset_id" --jq -r '.name')
+              echo "Deleting asset: $asset_name (ID: $asset_id)"
+              gh api "repos/$REPO/releases/assets/$asset_id" -X DELETE
+            done
+            echo "All assets cleaned up for release $TAG"
           else
-            echo "No existing release $TAG found"
+            echo "No existing release $TAG found - will create new release"
           fi
 
       - name: Create draft release

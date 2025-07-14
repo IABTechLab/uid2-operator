@@ -168,7 +168,6 @@ jobs:
           fetch-depth: 0
 
       - name: Download public manifest
-        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: public-image-*
@@ -237,7 +236,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Zip files
-        if: ${{ github.event.inputs.testing_mode != 'true' }}
         run: |
           (cd ./deployment/aws-euid-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd ./deployment/aws-uid2-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip . )

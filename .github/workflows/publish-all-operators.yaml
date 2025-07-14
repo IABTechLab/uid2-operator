@@ -251,30 +251,33 @@ jobs:
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
 
-      - name: Cleanup old assets from existing release
-        # Clean up all assets from existing release to ensure only current assets are included
+      - name: Cleanup assets from all previous releases
+        # Clean up assets from all releases to prevent accumulation
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          TAG: v${{ needs.start.outputs.new_version }}
+          CURRENT_TAG: v${{ needs.start.outputs.new_version }}
         shell: bash
         run: |
           set -euo pipefail
-          # Check if release exists
-          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-            echo "Found existing release $TAG, cleaning up all assets..."
-            # Get all asset IDs and delete them
-            gh api "repos/$REPO/releases/tags/$TAG" --jq '.assets[].id' | \
-            while read -r asset_id; do
-              asset_name=$(gh api "repos/$REPO/releases/assets/$asset_id" --jq -r '.name')
-              echo "Deleting asset: $asset_name (ID: $asset_id)"
-              gh api "repos/$REPO/releases/assets/$asset_id" -X DELETE
-            done
-            echo "All assets cleaned up for release $TAG"
-          else
-            echo "No existing release $TAG found - will create new release"
-          fi
-
+          echo "Current release will be: $CURRENT_TAG"
+          
+          # Get all releases and clean up their assets
+          gh api "repos/$REPO/releases" --jq '.[].tag_name' | \
+          while read -r tag; do
+            if [ "$tag" != "$CURRENT_TAG" ]; then
+              echo "Cleaning up assets from release: $tag"
+              # Get all asset IDs for this release and delete them
+              gh api "repos/$REPO/releases/tags/$tag" --jq '.assets[].id' | \
+              while read -r asset_id; do
+                asset_name=$(gh api "repos/$REPO/releases/assets/$asset_id" --jq -r '.name')
+                echo "  Deleting asset: $asset_name from $tag"
+                gh api "repos/$REPO/releases/assets/$asset_id" -X DELETE
+              done
+            fi
+          done
+          
+          echo "Cleanup complete - only $CURRENT_TAG will have assets"
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:

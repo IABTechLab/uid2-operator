@@ -73,6 +73,7 @@ jobs:
           fetch-depth: 0
 
       - name: Scan vulnerabilities
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@v3
         with:
           scan_severity: HIGH,CRITICAL
@@ -168,54 +169,63 @@ jobs:
           fetch-depth: 0
 
       - name: Download public manifest
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: public-image-*
           path: ./manifests/public_operator
 
       - name: Download GCP manifest
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: gcp-oidc-enclave-ids-*
           path: ./manifests/gcp_oidc_operator
 
       - name: Download Azure CC manifest
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: azure-cc-enclave-id-*
           path: ./manifests/azure_cc_operator
 
       - name: Download Azure AKS manifest
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: azure-aks-enclave-id-*
           path: ./manifests/azure_aks_operator
 
       - name: Download EIF manifest
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: 'aws-eif-enclave-ids-*'
           path: ./manifests/aws_eif
 
       - name: Download AWS AMI manifest
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: 'aws-ami-ids-*'
           path: ./manifests/aws_ami
 
       - name: Download Deployment Files
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: '*-deployment-files-*'
           path: ./deployment
 
       - name: Upload artifacts
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: uid2-operator-release-${{ needs.start.outputs.new_version }}-manifests
           path: ./manifests
 
       - name: Build changelog
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v4
         with:
@@ -229,6 +239,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Zip files
+        if: ${{ github.event.inputs.testing_mode != 'true' }}
         run: |
           (cd ./deployment/aws-euid-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd ./deployment/aws-uid2-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
@@ -250,3 +261,12 @@ jobs:
               ./azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip
+
+      - name: Debug release outputs
+        run: |
+          echo "Release URL: ${{ steps.create_release.outputs.url }}"
+          echo "Release ID: ${{ steps.create_release.outputs.id }}"
+          echo "Raw assets JSON:"
+          echo "${{ steps.create_release.outputs.assets }}"
+          echo "First asset download URL:"
+          echo "${{ fromJSON(steps.create_release.outputs.assets)[0].browser_download_url }}"

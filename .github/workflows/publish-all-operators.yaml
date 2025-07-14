@@ -250,8 +250,8 @@ jobs:
           (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
-      - name: Cleanup old assets from this tag
-        # requires GH CLI and contents: write
+      - name: Delete existing release if it exists
+        # Delete the entire release first to ensure clean state
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -259,24 +259,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Fetch the release ID for our tag (if it exists)
-          release_id=$(gh api "repos/$REPO/releases/tags/$TAG" --jq .id || echo "")
-          if [ -n "$release_id" ]; then
-            echo "Found existing release $TAG (id=$release_id), pruning assets…"
-            # Loop through all assets on that release
-            gh api "repos/$REPO/releases/$release_id/assets" --jq '.[].id' | \
-            while read asset_id; do
-              name=$(gh api "repos/$REPO/releases/assets/$asset_id" --jq .name)
-              # If the name does NOT contain our tag, delete it
-              if [[ "$name" != *"$TAG"* ]]; then
-                echo "Deleting old asset: $name"
-                gh api "repos/$REPO/releases/assets/$asset_id" -X DELETE
-              else
-                echo "Keeping current asset: $name"
-              fi
-            done
+          # Check if release exists and delete it
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Deleting existing release $TAG"
+            gh release delete "$TAG" --repo "$REPO" --yes
           else
-            echo "No existing release v$TAG to prune—moving on."
+            echo "No existing release $TAG found"
           fi
 
       - name: Create draft release
@@ -284,7 +272,6 @@ jobs:
         with:
           name: v${{ needs.start.outputs.new_version }}
           body: ${{ steps.changelog.outputs.changelog }}
-          overwrite_files: true
           draft: true
           files: |
             ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip

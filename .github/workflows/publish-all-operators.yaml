@@ -262,11 +262,29 @@ jobs:
               ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip
 
+      - name: Debug first asset URL
+        if: ${{ steps.create_release.outputs.assets != '' }}
+        run: |
+          echo "First asset download URL:"
+          echo "${{ fromJSON(steps.create_release.outputs.assets)[0].browser_download_url }}"
+
       - name: Debug release outputs
         run: |
           echo "Release URL: ${{ steps.create_release.outputs.url }}"
           echo "Release ID: ${{ steps.create_release.outputs.id }}"
-          echo "Raw assets JSON:"
-          echo "${{ steps.create_release.outputs.assets }}"
-          echo "First asset download URL:"
-          echo "${{ fromJSON(steps.create_release.outputs.assets)[0].browser_download_url }}"
+      
+          # Grab the raw assets JSON into a shell variable
+          ASSETS='${{ steps.create_release.outputs.assets }}'
+          echo "Raw assets JSON: $ASSETS"
+      
+          # If empty or “[]”, nothing to do
+          if [[ -z "$ASSETS" || "$ASSETS" == "[]" ]]; then
+            echo "No assets found"
+            exit 0
+          fi
+      
+          # Otherwise use jq (available on Ubuntu runners) to extract the first browser_download_url
+          FIRST_URL=$(echo "$ASSETS" | jq -r '.[0].browser_download_url')
+          echo "First asset download URL: $FIRST_URL"
+        shell: bash
+

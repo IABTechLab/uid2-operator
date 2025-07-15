@@ -91,7 +91,6 @@ if [[ $? -ne 0 ]]; then
 fi
 
 sed --in-place \
-  -e "s#allow_environment_variable_dropping := true#allow_environment_variable_dropping := false#g" \
   -e 's#{"pattern":"DEPLOYMENT_ENVIRONMENT=DEPLOYMENT_ENVIRONMENT_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"DEPLOYMENT_ENVIRONMENT=.+","required":false,"strategy":"re2"}#g' \
   -e 's#{"pattern":"VAULT_NAME=VAULT_NAME_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"VAULT_NAME=.+","required":false,"strategy":"re2"}#g' \
   -e 's#{"pattern":"OPERATOR_KEY_SECRET_NAME=OPERATOR_KEY_SECRET_NAME_PLACEHOLDER","required":false,"strategy":"string"}#{"pattern":"OPERATOR_KEY_SECRET_NAME=.+","required":false,"strategy":"re2"}#g' \

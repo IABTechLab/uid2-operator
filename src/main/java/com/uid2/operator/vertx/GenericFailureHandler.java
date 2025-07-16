@@ -22,23 +22,18 @@ public class GenericFailureHandler implements Handler<RoutingContext> {
         String url = ctx.normalizedPath();
         Throwable t = ctx.failure();
 
-        final IAuthorizable profile = AuthMiddleware.getAuthClient(ctx);
-        final OperatorKey operatorKey = profile instanceof OperatorKey ? (OperatorKey) profile : null;
-        String participant = "unknown";
-        if (operatorKey != null) {
-            participant = operatorKey.getName();
-        }
+        final String contact = AuthMiddleware.getAuthClient(ctx).getContact();
 
         if (t != null) {
             // Because Vert.x swallows stack traces so cannot log stack trace
             // And we want to ignore HttpClosedException errors as it is (usually) caused by users and no impact
             if (t instanceof HttpClosedException) {
-                LOGGER.warn("Ignoring exception - URL: [{}], Participant: [{}] - Error:", url, participant, t);
+                LOGGER.warn("Ignoring exception - URL: [{}], Participant: [{}] - Error:", url, contact, t);
                 response.end();
             } else if (statusCode >= 500 && statusCode < 600) { // 5xx is server error, so error
-                LOGGER.error("URL: [{}], Participant: [{}] - Error response code: [{}] - Error:", url, participant, statusCode, t);
+                LOGGER.error("URL: [{}], Participant: [{}] - Error response code: [{}] - Error:", url, contact, statusCode, t);
             } else if (statusCode >= 400 && statusCode < 500) { // 4xx is user error, so just warn
-                LOGGER.warn("URL: [{}], Participant: [{}] - Error response code: [{}] - Error:", url, participant, statusCode, t);
+                LOGGER.warn("URL: [{}], Participant: [{}] - Error response code: [{}] - Error:", url, contact, statusCode, t);
             }
         }
 

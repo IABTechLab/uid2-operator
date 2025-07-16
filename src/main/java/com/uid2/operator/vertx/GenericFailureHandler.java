@@ -3,6 +3,7 @@ package com.uid2.operator.vertx;
 import com.uid2.shared.auth.IAuthorizable;
 import com.uid2.shared.auth.OperatorKey;
 import com.uid2.shared.middleware.AuthMiddleware;
+import com.uid2.shared.auth.ClientKey;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpClosedException;
 import io.vertx.core.http.HttpServerResponse;
@@ -22,7 +23,11 @@ public class GenericFailureHandler implements Handler<RoutingContext> {
         String url = ctx.normalizedPath();
         Throwable t = ctx.failure();
 
-        final String contact = AuthMiddleware.getAuthClient(ctx).getContact();
+        String contact = "unknown";
+        final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(ctx);
+        if (clientKey != null) {
+            contact = clientKey.getContact();
+        }
 
         if (t != null) {
             // Because Vert.x swallows stack traces so cannot log stack trace

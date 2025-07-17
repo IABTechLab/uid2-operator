@@ -1,18 +1,16 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
-import com.uid2.operator.model.userIdentity.RawUidIdentity;
+import com.uid2.operator.model.identities.*;
 import com.uid2.operator.util.PrivacyBits;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
-import com.uid2.shared.store.ISaltProvider;
+import com.uid2.shared.store.salt.ISaltProvider;
 import com.uid2.shared.model.TokenVersion;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,9 +21,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-
-import static com.uid2.operator.IdentityConst.*;
-import static com.uid2.operator.service.TokenUtils.getSiteIdsUsingV4Tokens;
+import static com.uid2.operator.model.identities.IdentityConst.*;
+import static java.time.temporal.ChronoUnit.DAYS;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
@@ -33,147 +30,143 @@ public class UIDOperatorService implements IUIDOperatorService {
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
 
-    private static final Instant RefreshCutoff = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
+    private static final Instant REFRESH_CUTOFF = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
+    private static final long DAY_IN_MS = Duration.ofDays(1).toMillis();
+
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
-    private final ITokenEncoder encoder;
+    private final EncryptedTokenEncoder encoder;
     private final Clock clock;
     private final IdentityScope identityScope;
-    private final FirstLevelHashIdentity testOptOutIdentityForEmail;
-    private final FirstLevelHashIdentity testOptOutIdentityForPhone;
-    private final FirstLevelHashIdentity testValidateIdentityForEmail;
-    private final FirstLevelHashIdentity testValidateIdentityForPhone;
-    private final FirstLevelHashIdentity testRefreshOptOutIdentityForEmail;
-    private final FirstLevelHashIdentity testRefreshOptOutIdentityForPhone;
-    private final Duration identityExpiresAfter;
-    private final Duration refreshExpiresAfter;
-    private final Duration refreshIdentityAfter;
+
+    private final FirstLevelHash testOptOutIdentityForEmail;
+    private final FirstLevelHash testOptOutIdentityForPhone;
+    private final FirstLevelHash testValidateIdentityForEmail;
+    private final FirstLevelHash testValidateIdentityForPhone;
+    private final FirstLevelHash testRefreshOptOutIdentityForEmail;
+    private final FirstLevelHash testRefreshOptOutIdentityForPhone;
 
     private final OperatorIdentity operatorIdentity;
-    private final TokenVersion tokenVersionToUseIfNotV4;
-    private final int advertisingTokenV4Percentage;
-    private final Set<Integer> siteIdsUsingV4Tokens;
     private final TokenVersion refreshTokenVersion;
-    private final boolean identityV3Enabled;
+    // if we use Raw UID v3 format for the raw UID2/EUIDs generated in this operator
+    private final boolean rawUidV3Enabled;
 
     private final Handler<Boolean> saltRetrievalResponseHandler;
+    private final UidInstanceIdProvider uidInstanceIdProvider;
 
-    public UIDOperatorService(JsonObject config, IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler) {
+    public UIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, EncryptedTokenEncoder encoder, Clock clock,
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = identityScope;
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
+        this.uidInstanceIdProvider = uidInstanceIdProvider;
 
-        this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail(OptOutIdentityForEmail).getIdentityInput(), Instant.now());
-        this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone(OptOutIdentityForPhone).getIdentityInput(), Instant.now());
-        this.testValidateIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail(ValidateIdentityForEmail).getIdentityInput(), Instant.now());
-        this.testValidateIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone(ValidateIdentityForPhone).getIdentityInput(), Instant.now());
-        this.testRefreshOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
-                InputUtil.normalizeEmail(RefreshOptOutIdentityForEmail).getIdentityInput(), Instant.now());
-        this.testRefreshOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
-                InputUtil.normalizePhone(RefreshOptOutIdentityForPhone).getIdentityInput(), Instant.now());
+        this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, DiiType.Email,
+                InputUtil.normalizeEmail(OptOutIdentityForEmail).getHashedDiiInput(), Instant.now());
+        this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, DiiType.Phone,
+                InputUtil.normalizePhone(OptOutIdentityForPhone).getHashedDiiInput(), Instant.now());
+        this.testValidateIdentityForEmail = getFirstLevelHashIdentity(identityScope, DiiType.Email,
+                InputUtil.normalizeEmail(ValidateIdentityForEmail).getHashedDiiInput(), Instant.now());
+        this.testValidateIdentityForPhone = getFirstLevelHashIdentity(identityScope, DiiType.Phone,
+                InputUtil.normalizePhone(ValidateIdentityForPhone).getHashedDiiInput(), Instant.now());
+        this.testRefreshOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, DiiType.Email,
+                InputUtil.normalizeEmail(RefreshOptOutIdentityForEmail).getHashedDiiInput(), Instant.now());
+        this.testRefreshOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, DiiType.Phone,
+                InputUtil.normalizePhone(RefreshOptOutIdentityForPhone).getHashedDiiInput(), Instant.now());
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
-        this.identityExpiresAfter = Duration.ofSeconds(config.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
-        this.refreshExpiresAfter = Duration.ofSeconds(config.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS));
-        this.refreshIdentityAfter = Duration.ofSeconds(config.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS));
-
-        if (this.identityExpiresAfter.compareTo(this.refreshExpiresAfter) > 0) {
-            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-        }
-        if (this.refreshIdentityAfter.compareTo(this.identityExpiresAfter) > 0) {
-            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        }
-        if (this.refreshIdentityAfter.compareTo(this.refreshExpiresAfter) > 0) {
-            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " must be >= " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
-        }
-
-        this.advertisingTokenV4Percentage = config.getInteger("advertising_token_v4_percentage", 0); //0 indicates token v4 will not be used
-        this.siteIdsUsingV4Tokens = getSiteIdsUsingV4Tokens(config.getString("site_ids_using_v4_tokens", ""));
-        this.tokenVersionToUseIfNotV4 = config.getBoolean("advertising_token_v3", false) ? TokenVersion.V3 : TokenVersion.V2;
-
         this.refreshTokenVersion = TokenVersion.V3;
-        this.identityV3Enabled = config.getBoolean("identity_v3", false);
+        this.rawUidV3Enabled = identityV3Enabled;
+    }
+
+    private void validateTokenDurations(Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        if (identityExpiresAfter.compareTo(refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ")");
+        }
+        if (refreshIdentityAfter.compareTo(identityExpiresAfter) > 0) {
+            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
+        }
+        if (refreshIdentityAfter.compareTo(refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
+        }
     }
 
     @Override
-    public IdentityResponse generateIdentity(IdentityRequest request) {
+    public TokenGenerateResponse generateIdentity(TokenGenerateRequest request, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        this.validateTokenDurations(refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
-        final byte[] firstLevelHash = getFirstLevelHash(request.hashedDiiIdentity.hashedDii, now);
-        final FirstLevelHashIdentity firstLevelHashIdentity = new FirstLevelHashIdentity(
-                request.hashedDiiIdentity.identityScope, request.hashedDiiIdentity.identityType, firstLevelHash, request.hashedDiiIdentity.privacyBits,
-                request.hashedDiiIdentity.establishedAt, request.hashedDiiIdentity.refreshedAt);
+        final byte[] firstLevelHash = getFirstLevelHash(request.hashedDii.hashedDii(), now);
+        final FirstLevelHash firstLevelHashIdentity = new FirstLevelHash(
+                request.hashedDii.identityScope(), request.hashedDii.diiType(), firstLevelHash,
+                request.establishedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
-            return IdentityResponse.OptOutIdentityResponse;
+            return TokenGenerateResponse.OptOutResponse;
         } else {
-            return generateIdentity(request.sourcePublisher, firstLevelHashIdentity);
+            return this.generateIdentity(request.sourcePublisher, firstLevelHashIdentity, request.privacyBits, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
         }
     }
 
     @Override
-    public RefreshResponse refreshIdentity(RefreshTokenInput token) {
+    public TokenRefreshResponse refreshIdentity(TokenRefreshRequest input, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        this.validateTokenDurations(refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
         // should not be possible as different scopes should be using different keys, but just in case
-        if (token.firstLevelHashIdentity.identityScope != this.identityScope) {
-            return RefreshResponse.Invalid;
+        if (input.firstLevelHash.identityScope() != this.identityScope) {
+            return TokenRefreshResponse.Invalid;
         }
 
-        if (token.firstLevelHashIdentity.establishedAt.isBefore(RefreshCutoff)) {
-            return RefreshResponse.Deprecated;
+        if (input.firstLevelHash.establishedAt().isBefore(REFRESH_CUTOFF)) {
+            return TokenRefreshResponse.Deprecated;
         }
 
         final Instant now = clock.instant();
 
-        if (token.expiresAt.isBefore(now)) {
-            return RefreshResponse.Expired;
+        if (input.expiresAt.isBefore(now)) {
+            return TokenRefreshResponse.Expired;
         }
 
-        final PrivacyBits privacyBits = PrivacyBits.fromInt(token.firstLevelHashIdentity.privacyBits);
-        final boolean isCstg = privacyBits.isClientSideTokenGenerated();
+        final boolean isCstg = input.privacyBits.isClientSideTokenGenerated();
 
         try {
-            final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(token.firstLevelHashIdentity, true);
+            final GlobalOptoutResult logoutEntry = getGlobalOptOutResult(input.firstLevelHash, true);
             final boolean optedOut = logoutEntry.isOptedOut();
 
-            final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
+            final Duration durationSinceLastRefresh = Duration.between(input.createdAt, now);
 
             if (!optedOut) {
-                IdentityResponse identityResponse = this.generateIdentity(token.sourcePublisher, token.firstLevelHashIdentity);
-
-                return RefreshResponse.createRefreshedResponse(identityResponse, durationSinceLastRefresh, isCstg);
+                TokenGenerateResponse tokenGenerateResponse = this.generateIdentity(input.sourcePublisher,
+                        input.firstLevelHash,
+                        input.privacyBits, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
+                return TokenRefreshResponse.createRefreshedResponse(tokenGenerateResponse, durationSinceLastRefresh, isCstg);
             } else {
-                return RefreshResponse.Optout;
+                return TokenRefreshResponse.Optout;
             }
         } catch (KeyManager.NoActiveKeyException e) {
-            return RefreshResponse.NoActiveKey;
+            return TokenRefreshResponse.NoActiveKey;
         } catch (Exception ex) {
-            return RefreshResponse.Invalid;
+            return TokenRefreshResponse.Invalid;
         }
     }
 
     @Override
-    public RawUidResponse mapIdentity(MapRequest request) {
-        final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.hashedDiiIdentity,
+    public IdentityMapResponseItem mapHashedDii(IdentityMapRequestItem request) {
+        final FirstLevelHash firstLevelHash = getFirstLevelHashIdentity(request.hashedDii,
                 request.asOf);
-        if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
-            return RawUidResponse.OptoutIdentity;
+        if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHash, false).isOptedOut()) {
+            return IdentityMapResponseItem.OptoutIdentity;
         } else {
-            return generateRawUid(firstLevelHashIdentity, request.asOf);
+            return generateRawUid(firstLevelHash, request.asOf);
         }
     }
 
     @Override
-    public RawUidResponse map(HashedDiiIdentity diiIdentity, Instant asOf) {
-        final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(diiIdentity, asOf);
-        return generateRawUid(firstLevelHashIdentity, asOf);
+    public IdentityMapResponseItem map(HashedDii hashedDii, Instant asOf) {
+        final FirstLevelHash firstLevelHash = getFirstLevelHashIdentity(hashedDii, asOf);
+        return generateRawUid(firstLevelHash, asOf);
     }
 
     @Override
@@ -192,11 +185,11 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public void invalidateTokensAsync(HashedDiiIdentity diiIdentity, Instant asOf, Handler<AsyncResult<Instant>> handler) {
-        final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(diiIdentity, asOf);
-        final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, asOf);
+    public void invalidateTokensAsync(HashedDii diiIdentity, Instant asOf, String uidTraceId, Handler<AsyncResult<Instant>> handler) {
+        final FirstLevelHash firstLevelHash = getFirstLevelHashIdentity(diiIdentity, asOf);
+        final IdentityMapResponseItem identityMapResponseItem = generateRawUid(firstLevelHash, asOf);
 
-        this.optOutStore.addEntry(firstLevelHashIdentity, rawUidResponse.rawUid, r -> {
+        this.optOutStore.addEntry(firstLevelHash, identityMapResponseItem.rawUid, uidTraceId, this.uidInstanceIdProvider.getInstanceId(),  r -> {
             if (r.succeeded()) {
                 handler.handle(Future.succeededFuture(r.result()));
             } else {
@@ -206,92 +199,111 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public boolean advertisingTokenMatches(String advertisingToken, HashedDiiIdentity diiIdentity, Instant asOf) {
-        final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(diiIdentity, asOf);
-        final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, asOf);
-
-        final AdvertisingTokenInput token = this.encoder.decodeAdvertisingToken(advertisingToken);
-        return Arrays.equals(rawUidResponse.rawUid, token.rawUidIdentity.rawUid);
+    public boolean advertisingTokenMatches(String advertisingToken, HashedDii diiIdentity, Instant asOf) {
+        final FirstLevelHash firstLevelHash = getFirstLevelHashIdentity(diiIdentity, asOf);
+        final IdentityMapResponseItem identityMapResponseItem = generateRawUid(firstLevelHash, asOf);
+        final AdvertisingTokenRequest token = this.encoder.decodeAdvertisingToken(advertisingToken);
+        return Arrays.equals(identityMapResponseItem.rawUid, token.rawUid.rawUid());
     }
 
     @Override
-    public Instant getLatestOptoutEntry(HashedDiiIdentity hashedDiiIdentity, Instant asOf) {
-        final FirstLevelHashIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(hashedDiiIdentity, asOf);
-        return this.optOutStore.getLatestEntry(firstLevelHashIdentity);
+    public Instant getLatestOptoutEntry(HashedDii hashedDii, Instant asOf) {
+        final FirstLevelHash firstLevelHash = getFirstLevelHashIdentity(hashedDii, asOf);
+        return this.optOutStore.getLatestEntry(firstLevelHash);
     }
 
-    @Override
-    public Duration getIdentityExpiryDuration() {
-        return this.identityExpiresAfter;
+    private FirstLevelHash getFirstLevelHashIdentity(HashedDii hashedDii, Instant asOf) {
+        return getFirstLevelHashIdentity(hashedDii.identityScope(), hashedDii.diiType(), hashedDii.hashedDii(), asOf);
     }
 
-    private FirstLevelHashIdentity getFirstLevelHashIdentity(HashedDiiIdentity hashedDiiIdentity, Instant asOf) {
-        return getFirstLevelHashIdentity(hashedDiiIdentity.identityScope, hashedDiiIdentity.identityType, hashedDiiIdentity.hashedDii, asOf);
+    private FirstLevelHash getFirstLevelHashIdentity(IdentityScope identityScope, DiiType diiType, byte[] hashedDii, Instant asOf) {
+        final byte[] firstLevelHash = getFirstLevelHash(hashedDii, asOf);
+        return new FirstLevelHash(identityScope, diiType, firstLevelHash, null);
     }
 
-    private FirstLevelHashIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf) {
-        final byte[] firstLevelHash = getFirstLevelHash(identityHash, asOf);
-        return new FirstLevelHashIdentity(identityScope, identityType, firstLevelHash, 0, null, null);
+    private byte[] getFirstLevelHash(byte[] hashedDii, Instant asOf) {
+        return TokenUtils.getFirstLevelHashFromHashedDii(hashedDii, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
     }
 
-    private byte[] getFirstLevelHash(byte[] identityHash, Instant asOf) {
-        return TokenUtils.getFirstLevelHash(identityHash, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
+
+    private IdentityMapResponseItem generateRawUid(FirstLevelHash firstLevelHash, Instant asOf) {
+        final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHash.firstLevelHash());
+        final byte[] advertisingId = getAdvertisingId(firstLevelHash, rotatingSalt.currentSalt());
+        final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHash, rotatingSalt, asOf);
+        final long refreshFrom = getRefreshFrom(rotatingSalt, asOf);
+
+        return new IdentityMapResponseItem(
+                advertisingId,
+                rotatingSalt.hashedId(),
+                previousAdvertisingId,
+                refreshFrom);
     }
 
-    private RawUidResponse generateRawUid(FirstLevelHashIdentity firstLevelHashIdentity, Instant asOf) {
-        final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.firstLevelHash);
-
-        return new RawUidResponse(
-                this.identityV3Enabled
-                    ? TokenUtils.getRawUidV3(firstLevelHashIdentity.identityScope,
-                        firstLevelHashIdentity.identityType, firstLevelHashIdentity.firstLevelHash, rotatingSalt.getSalt())
-                    : TokenUtils.getRawUidV2(firstLevelHashIdentity.firstLevelHash, rotatingSalt.getSalt()),
-                rotatingSalt.getHashedId());
+    private byte[] getAdvertisingId(FirstLevelHash firstLevelHash, String salt) {
+        return rawUidV3Enabled
+                ? TokenUtils.getRawUidV3(firstLevelHash.identityScope(), firstLevelHash.diiType(),
+                firstLevelHash.firstLevelHash(), salt)
+                : TokenUtils.getRawUidV2(firstLevelHash.firstLevelHash(), salt);
     }
 
-    private IdentityResponse generateIdentity(SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity) {
+    private byte[] getPreviousAdvertisingId(FirstLevelHash firstLevelHash, SaltEntry rotatingSalt, Instant asOf) {
+        long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
+        if (age / DAY_IN_MS < 90) {
+            if (rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isBlank()) {
+                return null;
+            }
+            return getAdvertisingId(firstLevelHash, rotatingSalt.previousSalt());
+        }
+        return null;
+    }
+
+    private long getRefreshFrom(SaltEntry rotatingSalt, Instant asOf) {
+        Long refreshFrom = rotatingSalt.refreshFrom();
+        if (refreshFrom == null || refreshFrom < asOf.toEpochMilli()) {
+            return asOf.truncatedTo(DAYS).plus(1, DAYS).toEpochMilli();
+        }
+        return refreshFrom;
+    }
+
+    private TokenGenerateResponse generateIdentity(SourcePublisher sourcePublisher,
+                                                   FirstLevelHash firstLevelHash, PrivacyBits privacyBits,
+                                                   Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
-        final RawUidResponse rawUidResponse = generateRawUid(firstLevelHashIdentity, nowUtc);
-        final RawUidIdentity rawUidIdentity = new RawUidIdentity(firstLevelHashIdentity.identityScope,
-                firstLevelHashIdentity.identityType,
-                rawUidResponse.rawUid, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
+        final IdentityMapResponseItem identityMapResponseItem = generateRawUid(firstLevelHash, nowUtc);
+        final RawUid rawUid = new RawUid(firstLevelHash.identityScope(),
+                firstLevelHash.diiType(),
+                identityMapResponseItem.rawUid);
 
         return this.encoder.encodeIntoIdentityResponse(
-                this.createAdvertisingTokenInput(sourcePublisher, rawUidIdentity, nowUtc),
-                this.createRefreshTokenInput(sourcePublisher, firstLevelHashIdentity, nowUtc),
+                this.createAdvertisingTokenRequest(sourcePublisher, rawUid, nowUtc, privacyBits,
+                        firstLevelHash.establishedAt(), identityExpiresAfter),
+                this.createTokenRefreshRequest(sourcePublisher, firstLevelHash, nowUtc, privacyBits, refreshExpiresAfter),
                 nowUtc.plusMillis(refreshIdentityAfter.toMillis()),
                 nowUtc
         );
     }
 
-    private RefreshTokenInput createRefreshTokenInput(SourcePublisher sourcePublisher, FirstLevelHashIdentity firstLevelHashIdentity,
-                                                      Instant now) {
-        return new RefreshTokenInput(
+    private TokenRefreshRequest createTokenRefreshRequest(SourcePublisher sourcePublisher,
+                                                          FirstLevelHash firstLevelHash,
+                                                          Instant now,
+                                                          PrivacyBits privacyBits, Duration refreshExpiresAfter) {
+        return new TokenRefreshRequest(
                 this.refreshTokenVersion,
                 now,
                 now.plusMillis(refreshExpiresAfter.toMillis()),
                 this.operatorIdentity,
                 sourcePublisher,
-                firstLevelHashIdentity);
+                firstLevelHash,
+                privacyBits);
     }
 
-    private AdvertisingTokenInput createAdvertisingTokenInput(SourcePublisher sourcePublisher, RawUidIdentity rawUidIdentity,
-                                                              Instant now) {
-        TokenVersion tokenVersion;
-        if (siteIdsUsingV4Tokens.contains(sourcePublisher.siteId)) {
-            tokenVersion = TokenVersion.V4;
-        } else {
-            int pseudoRandomNumber = 1;
-            final var rawUid = rawUidIdentity.rawUid;
-            if (rawUid.length > 2)
-            {
-                int hash = ((rawUid[0] & 0xFF) << 12) | ((rawUid[1] & 0xFF) << 4) | ((rawUid[2] & 0xFF) & 0xF); //using same logic as ModBasedSaltEntryIndexer.getIndex() in uid2-shared
-                pseudoRandomNumber = (hash % 100) + 1; //1 to 100
-            }
-            tokenVersion = (pseudoRandomNumber <= this.advertisingTokenV4Percentage) ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
-        }
-        return new AdvertisingTokenInput(tokenVersion, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, sourcePublisher, rawUidIdentity);
+    private AdvertisingTokenRequest createAdvertisingTokenRequest(SourcePublisher sourcePublisher, RawUid rawUidIdentity,
+                                                                  Instant now, PrivacyBits privacyBits, Instant establishedAt, Duration identityExpiresAfter) {
+
+        return new AdvertisingTokenRequest(TokenVersion.V4, now, now.plusMillis(identityExpiresAfter.toMillis()),
+                this.operatorIdentity, sourcePublisher, rawUidIdentity,
+                privacyBits, establishedAt);
     }
 
     static protected class GlobalOptoutResult {
@@ -315,24 +327,16 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
     }
 
-    private GlobalOptoutResult getGlobalOptOutResult(FirstLevelHashIdentity firstLevelHashIdentity, boolean forRefresh) {
-        if (forRefresh && (firstLevelHashIdentity.matches(testRefreshOptOutIdentityForEmail) || firstLevelHashIdentity.matches(testRefreshOptOutIdentityForPhone))) {
+    private GlobalOptoutResult getGlobalOptOutResult(FirstLevelHash firstLevelHash, boolean forRefresh) {
+        if (forRefresh && (firstLevelHash.matches(testRefreshOptOutIdentityForEmail) || firstLevelHash.matches(testRefreshOptOutIdentityForPhone))) {
             return new GlobalOptoutResult(Instant.now());
-        } else if (firstLevelHashIdentity.matches(testValidateIdentityForEmail) || firstLevelHashIdentity.matches(testValidateIdentityForPhone)
-        || firstLevelHashIdentity.matches(testRefreshOptOutIdentityForEmail) || firstLevelHashIdentity.matches(testRefreshOptOutIdentityForPhone)) {
+        } else if (firstLevelHash.matches(testValidateIdentityForEmail) || firstLevelHash.matches(testValidateIdentityForPhone)
+        || firstLevelHash.matches(testRefreshOptOutIdentityForEmail) || firstLevelHash.matches(testRefreshOptOutIdentityForPhone)) {
             return new GlobalOptoutResult(null);
-        } else if (firstLevelHashIdentity.matches(testOptOutIdentityForEmail) || firstLevelHashIdentity.matches(testOptOutIdentityForPhone)) {
+        } else if (firstLevelHash.matches(testOptOutIdentityForEmail) || firstLevelHash.matches(testOptOutIdentityForPhone)) {
             return new GlobalOptoutResult(Instant.now());
         }
-        Instant result = this.optOutStore.getLatestEntry(firstLevelHashIdentity);
+        Instant result = this.optOutStore.getLatestEntry(firstLevelHash);
         return new GlobalOptoutResult(result);
-    }
-
-    public TokenVersion getAdvertisingTokenVersionForTests(int siteId) {
-        assert this.advertisingTokenV4Percentage == 0 || this.advertisingTokenV4Percentage == 100; //we want tests to be deterministic
-        if (this.siteIdsUsingV4Tokens.contains(siteId)) {
-            return TokenVersion.V4;
-        }
-        return this.advertisingTokenV4Percentage == 100 ? TokenVersion.V4 : this.tokenVersionToUseIfNotV4;
     }
 }

@@ -4,9 +4,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
-import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
+import com.uid2.operator.model.identities.FirstLevelHash;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.shared.Utils;
+import com.uid2.shared.audit.Audit;
 import com.uid2.shared.cloud.CloudStorageException;
 import com.uid2.shared.cloud.DownloadCloudStorage;
 import com.uid2.shared.cloud.ICloudStorage;
@@ -19,6 +20,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
@@ -74,8 +76,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
-    public Instant getLatestEntry(FirstLevelHashIdentity firstLevelHashIdentity) {
-        long epochSecond = this.snapshot.get().getOptOutTimestamp(firstLevelHashIdentity.firstLevelHash);
+    public Instant getLatestEntry(FirstLevelHash firstLevelHash) {
+        long epochSecond = this.snapshot.get().getOptOutTimestamp(firstLevelHash.firstLevelHash());
         Instant instant = epochSecond > 0 ? Instant.ofEpochSecond(epochSecond) : null;
         return instant;
     }
@@ -86,32 +88,38 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
-    public void addEntry(FirstLevelHashIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
+    public void addEntry(FirstLevelHash firstLevelHash, byte[] advertisingId, String uidTraceId, String uidInstanceId, Handler<AsyncResult<Instant>> handler) {
         if (remoteApiHost == null) {
             handler.handle(Future.failedFuture("remote api not set"));
             return;
         }
 
-        this.webClient.get(remoteApiPort, remoteApiHost, remoteApiPath).
-            addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.firstLevelHash))
+        HttpRequest<String> request =this.webClient.get(remoteApiPort, remoteApiHost, remoteApiPath).
+            addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHash.firstLevelHash()))
             .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId)) // advertising id aka raw UID
             .putHeader("Authorization", remoteApiBearerToken)
-            .as(BodyCodec.string())
-            .send(ar -> {
-                Exception failure = null;
-                if (ar.failed()) {
-                    failure = new Exception(ar.cause());
-                } else if (ar.result().statusCode() != 200) {
-                    failure = new Exception("optout api http status: " + String.valueOf(ar.result().statusCode()));
-                }
+            .putHeader(Audit.UID_INSTANCE_ID_HEADER, uidInstanceId)
+            .as(BodyCodec.string());
 
-                if (failure == null) {
-                    handler.handle(Future.succeededFuture(Utils.nowUTCMillis()));
-                } else {
-                    LOGGER.error("CloudSyncOptOutStore.addEntry remote web request failed", failure);
-                    handler.handle(Future.failedFuture(failure));
-                }
-            });
+        if (uidTraceId != null) {
+            request = request.putHeader(Audit.UID_TRACE_ID_HEADER, uidTraceId);
+        }
+
+        request.send(ar -> {
+            Exception failure = null;
+            if (ar.failed()) {
+                failure = new Exception(ar.cause());
+            } else if (ar.result().statusCode() != 200) {
+                failure = new Exception("optout api http status: " + String.valueOf(ar.result().statusCode()));
+            }
+
+            if (failure == null) {
+                handler.handle(Future.succeededFuture(Utils.nowUTCMillis()));
+            } else {
+                LOGGER.error("CloudSyncOptOutStore.addEntry remote web request failed", failure);
+                handler.handle(Future.failedFuture(failure));
+            }
+        });
     }
 
     public void registerCloudSync(OptOutCloudSync cloudSync) {
@@ -298,7 +306,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     public static class OptOutStoreSnapshot {
         private static final Logger LOGGER = LoggerFactory.getLogger(OptOutStoreSnapshot.class);
 
-        private static final String METRIC_NAME_PREFIX = "uid2.optout.";
+        private static final String METRIC_NAME_PREFIX = "uid2_optout_";
 
         // Metrics for processing deltas and partitions.
         private static final String OPT_OUT_PROCESSING_METRIC_NAME = METRIC_NAME_PREFIX + "processing";
@@ -525,7 +533,11 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                     ium.addDeltaFile(f);
                 else if (OptOutUtils.isPartitionFile(f))
                     ium.addPartitionFile(f);
-                else assert false;
+                else {
+                    final String errorMsg = "File to index " + f + " is not of type delta or partition";
+                    LOGGER.error(errorMsg);
+                    throw new IllegalStateException(errorMsg);
+                }
             }
 
             Collection<String> indexedNonSynthetic = indexedFiles.stream()
@@ -538,7 +550,12 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
             Instant tsOld = OptOutUtils.lastPartitionTimestamp(indexedNonSynthetic);
             Instant tsNew = OptOutUtils.lastPartitionTimestamp(newNonSynthetic);
-            assert tsOld == Instant.EPOCH || tsNew == Instant.EPOCH || tsOld.isBefore(tsNew);
+            if (tsOld != Instant.EPOCH && tsNew != Instant.EPOCH && !tsOld.isBefore(tsNew)) {
+                final String errorMsg = "Last partition timestamp of indexed files " + tsOld.getEpochSecond()
+                + " is after last partition of non-indexed files " + tsNew.getEpochSecond();
+                // Leaving this as a warning until issue is fixed permanently
+                LOGGER.warn(errorMsg);
+            }
             // if there are new partitions in this update, let index delete some in-mem delta caches that is old
             if (tsNew != Instant.EPOCH) {
                 tsNew = tsNew.minusSeconds(fileUtils.lookbackGracePeriod());
@@ -594,15 +611,21 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             try {
                 if (numPartitions == 0) {
                     // if update doesn't have a new partition, simply update heap with new log data
-                    assert iuc.getDeltasToRemove().size() == 0;
+                    if (!iuc.getDeltasToRemove().isEmpty()) {
+                        final String errorMsg = "Invalid number of Deltas to remove=" + iuc.getDeltasToRemove().size()
+                                + " when there are 0 new partitions to index";
+                        LOGGER.error(errorMsg);
+                        throw new IllegalStateException(errorMsg);
+                    }
                     return this.processDeltas(iuc);
                 } else if (numPartitions > 1) {
-                    // should not load more than 1 partition at a time, unless during service bootstrap
-                    assert this.iteration == 0;
+                    if (this.iteration != 0) {
+                        final String errorMsg = "Should not load more than 1 partition at a time, unless during service bootstrap. Current iteration " + this.iteration;
+                        // Leaving this as a warning as this condition is true in production
+                        LOGGER.warn(errorMsg);
+                    }
                     return this.processPartitions(iuc);
                 } else {
-                    // array size cannot be a negative value
-                    assert numPartitions == 1;
                     return this.processPartitions(iuc);
                 }
             } finally {
@@ -628,7 +651,11 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             // this is thread-safe, as heap is not being used
             // and bloomfilter can tolerate false positive
             for (byte[] data : loadedData) {
-                assert data.length != 0;
+                if (data.length == 0) {
+                    final String errorMsg = "Loaded delta file has 0 size";
+                    LOGGER.error(errorMsg);
+                    throw new IllegalStateException(errorMsg);
+                }
 
                 OptOutCollection newLog = new OptOutCollection(data);
                 this.heap.add(newLog);
@@ -679,7 +706,11 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             }
             for (String key : sortedPartitionFiles) {
                 byte[] data = iuc.loadedPartitions.get(key);
-                assert data.length != 0;
+                if (data.length == 0) {
+                    final String errorMsg = "Loaded partition file has 0 size";
+                    LOGGER.error(errorMsg);
+                    throw new IllegalStateException(errorMsg);
+                }
                 newPartitions[snapIndex++] = new OptOutPartition(data);
             }
 

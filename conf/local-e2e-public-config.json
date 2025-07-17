@@ -13,10 +13,12 @@
   "salts_metadata_path": "http://localhost:8088/salt/refresh",
   "services_metadata_path": "http://localhost:8088/services/refresh",
   "service_links_metadata_path": "http://localhost:8088/service_links/refresh",
+  "cloud_encryption_keys_metadata_path": "http://localhost:8088/cloud_encryption_keys/retrieve",
+  "runtime_config_metadata_path": "http://localhost:8088/operator/config",
+  "encrypted_files": true,
   "identity_token_expires_after_seconds": 3600,
   "refresh_token_expires_after_seconds": 86400,
   "refresh_identity_token_after_seconds": 900,
-  "advertising_token_v3": false,
   "refresh_token_v3": true,
   "identity_v3": false,
   "identity_scope": "uid2",
@@ -40,6 +42,8 @@
   "key_sharing_endpoint_provide_app_names": true,
   "client_side_token_generate_log_invalid_http_origins": true,
   "salts_expired_shutdown_hours": 12,
-  "operator_type": "public"
-
+  "operator_type": "public",
+  "disable_optout_token": true,
+  "enable_remote_config": false,
+  "uid_instance_id_prefix": "local-public-operator"
 }

@@ -71,9 +71,12 @@ jobs:
       jar_version: ${{ steps.update_version.outputs.new_version }}
       image_tag: ${{ steps.update_version.outputs.image_tag }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Update Operator Version
         id: update_version
-        uses: IABTechLab/uid2-operator/.github/actions/update_operator_version@main
+        uses: ./.github/actions/update_operator_version
         with:
           release_type: ${{ inputs.release_type }}
           version_number_input: ${{ inputs.version_number_input }}
@@ -93,6 +96,7 @@ jobs:
           echo "jar_version=$(mvn help:evaluate -Dexpression=project.version | grep -e '^[1-9][^\[]')" >> $GITHUB_OUTPUT
           echo "git_commit=$(git show --format="%h" --no-patch)" >> $GITHUB_OUTPUT
           cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
+          cp scripts/confidential_compute.py ${{ env.DOCKER_CONTEXT_PATH }}/
 
       - name: Log in to the Docker container registry
         uses: docker/login-action@v3
@@ -155,31 +159,13 @@ jobs:
             IMAGE_VERSION=${{ steps.update_version.outputs.new_version }}
             BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
 
-      - name: Generate Trivy vulnerability scan report
-        uses: aquasecurity/trivy-action@0.14.0
+      - name: Vulnerability Scan
+        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@v3
         with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'sarif'
-          exit-code: '0'
-          ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
-          output: 'trivy-results.sarif'
-          hide-progress: true
-
-      - name: Upload Trivy scan report to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-      - name: Test with Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.14.0
-        with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: ${{ inputs.vulnerability_severity }}
-          hide-progress: true
+          image_ref: ${{ steps.meta.outputs.tags }}
+          scan_type: 'image'
+          skip_files: '/venv/lib/python3.12/site-packages/google/auth/crypt/__pycache__/_python_rsa.cpython-312.pyc' # Skip scanning this file as per UID2-4968
+          failure_severity: ${{ (inputs.vulnerability_severity == 'CRITICAL (DO NOT use if JIRA ticket not raised)' && 'CRITICAL') || inputs.vulnerability_severity }}
 
       - name: Push to Docker
         id: push-to-docker

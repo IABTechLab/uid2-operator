@@ -3,14 +3,19 @@ package com.uid2.operator.benchmark;
 import com.uid2.operator.Const;
 import com.uid2.operator.Main;
 import com.uid2.operator.model.*;
-import com.uid2.operator.model.userIdentity.FirstLevelHashIdentity;
-import com.uid2.operator.model.userIdentity.HashedDiiIdentity;
+import com.uid2.operator.model.identities.DiiType;
+import com.uid2.operator.model.identities.FirstLevelHash;
+import com.uid2.operator.model.identities.HashedDii;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
+import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.service.UIDOperatorService;
 import com.uid2.operator.store.CloudSyncOptOutStore;
 import com.uid2.operator.store.IOptOutStore;
+import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.Utils;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.auth.Role;
 import com.uid2.shared.cloud.CloudStorageException;
@@ -21,7 +26,7 @@ import com.uid2.shared.optout.OptOutEntry;
 import com.uid2.shared.optout.OptOutHeap;
 import com.uid2.shared.optout.OptOutPartition;
 import com.uid2.shared.store.CloudPath;
-import com.uid2.shared.store.RotatingSaltProvider;
+import com.uid2.shared.store.salt.RotatingSaltProvider;
 import com.uid2.shared.store.reader.RotatingClientKeyProvider;
 import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
@@ -36,6 +41,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -45,30 +51,25 @@ import java.util.Random;
 
 public class BenchmarkCommon {
 
-     static IUIDOperatorService createUidOperatorService() throws Exception {
+    final static int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
+    final static int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
+    final static int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
+
+    static IUIDOperatorService createUidOperatorService() throws Exception {
         RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
                 new EmbeddedResourceStorage(Main.class),
                 new GlobalScope(new CloudPath("/com.uid2.core/test/keyset_keys/metadata.json")));
         keysetKeyStore.loadContent();
 
-         RotatingKeysetProvider keysetProvider = new RotatingKeysetProvider(
-                 new EmbeddedResourceStorage(Main.class),
-                 new GlobalScope(new CloudPath("/com.uid2.core/test/keysets/metadata.json")));
-         keysetProvider.loadContent();
+        RotatingKeysetProvider keysetProvider = new RotatingKeysetProvider(
+                new EmbeddedResourceStorage(Main.class),
+                new GlobalScope(new CloudPath("/com.uid2.core/test/keysets/metadata.json")));
+        keysetProvider.loadContent();
 
         RotatingSaltProvider saltProvider = new RotatingSaltProvider(
                 new EmbeddedResourceStorage(Main.class),
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
-
-        final int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
-        final int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
-        final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
-
-        final JsonObject config = new JsonObject();
-        config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS);
-        config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, REFRESH_TOKEN_EXPIRES_AFTER_SECONDS);
-        config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, REFRESH_IDENTITY_TOKEN_AFTER_SECONDS);
 
         final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
         final List<String> optOutPartitionFiles = new ArrayList<>();
@@ -76,15 +77,16 @@ public class BenchmarkCommon {
                 saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
                 /* out */ optOutPartitionFiles);
         final IOptOutStore optOutStore = new StaticOptOutStore(optOutLocalStorage, make1mOptOutEntryConfig(), optOutPartitionFiles);
-
+        final OperatorShutdownHandler shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(1), Duration.ofHours(1), Clock.systemUTC(), new ShutdownService());
         return new UIDOperatorService(
-                config,
                 optOutStore,
                 saltProvider,
                 tokenEncoder,
                 Clock.systemUTC(),
                 IdentityScope.UID2,
-                null
+                shutdownHandler::handleSaltRetrievalResponse,
+                false,
+                new UidInstanceIdProvider("test-instance", "id")
         );
     }
 
@@ -150,13 +152,12 @@ public class BenchmarkCommon {
         return storage;
     }
 
-    static HashedDiiIdentity[] createHashedDiiIdentities() {
-        HashedDiiIdentity[] arr = new HashedDiiIdentity[65536];
+    static HashedDii[] createHashedDiiIdentities() {
+        HashedDii[] arr = new HashedDii[65536];
         for (int i = 0; i < 65536; i++) {
             final byte[] diiHash = new byte[33];
             new Random().nextBytes(diiHash);
-            arr[i] = new HashedDiiIdentity(IdentityScope.UID2, IdentityType.Email, diiHash, 0,
-                    Instant.now().minusSeconds(120), Instant.now().minusSeconds(60));
+            arr[i] = new HashedDii(IdentityScope.UID2, DiiType.Email, diiHash);
         }
         return arr;
     }
@@ -169,7 +170,7 @@ public class BenchmarkCommon {
 
         for (ClientKey client : clients.getAll()) {
             if (client.hasRole(Role.GENERATOR)) {
-                return new SourcePublisher(client.getSiteId(), 0, 0);
+                return new SourcePublisher(client.getSiteId());
             }
         }
         throw new IllegalStateException("embedded resource does not include any publisher key");
@@ -189,14 +190,14 @@ public class BenchmarkCommon {
         }
 
         @Override
-        public Instant getLatestEntry(FirstLevelHashIdentity firstLevelHashIdentity) {
-            long epochSecond = this.snapshot.getOptOutTimestamp(firstLevelHashIdentity.firstLevelHash);
+        public Instant getLatestEntry(FirstLevelHash firstLevelHash) {
+            long epochSecond = this.snapshot.getOptOutTimestamp(firstLevelHash.firstLevelHash());
             Instant instant = epochSecond > 0 ? Instant.ofEpochSecond(epochSecond) : null;
             return instant;
         }
 
         @Override
-        public void addEntry(FirstLevelHashIdentity firstLevelHashIdentity, byte[] advertisingId, Handler<AsyncResult<Instant>> handler) {
+        public void addEntry(FirstLevelHash firstLevelHash, byte[] advertisingId, String uidTraceId, String uidInstanceId, Handler<AsyncResult<Instant>> handler) {
             // noop
         }
 

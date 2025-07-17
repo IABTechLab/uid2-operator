@@ -13,7 +13,11 @@
   "core_api_token": "trusted-partner-key",
   "optout_api_token": "test-operator-key",
   "optout_api_uri": "http://localhost:8081/optout/replicate",
+  "cloud_encryption_keys_metadata_path": "http://localhost:8088/cloud_encryption_keys/retrieve",
+  "runtime_config_metadata_path": "http://localhost:8088/operator/config",
   "salts_expired_shutdown_hours": 12,
-  "operator_type": "public"
-
+  "operator_type": "public",
+  "disable_optout_token": true,
+  "enable_remote_config": false,
+  "uid_instance_id_prefix": "local-operator"
 }

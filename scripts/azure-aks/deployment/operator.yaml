@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operator-deployment 
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: operator 
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: operator
+      annotations:
+        microsoft.containerinstance.virtualnode.ccepolicy: CCE_POLICY_PLACEHOLDER
+        microsoft.containerinstance.virtualnode.identity: IDENTITY_PLACEHOLDER
+        microsoft.containerinstance.virtualnode.injectdns: "false"
+    spec:
+      containers:
+        - image: "mcr.microsoft.com/aci/skr:2.7"
+          imagePullPolicy: Always
+          name: skr
+          resources:
+            limits:
+              cpu: 2250m
+              memory: 2256Mi
+            requests:
+              cpu: 100m
+              memory: 512Mi
+          env:
+            - name: Port
+              value: "9000"
+          volumeMounts:
+            - mountPath: /opt/confidential-containers/share/kata-containers/reference-info-base64
+              name: endorsement-location
+          command:
+            - /skr.sh
+        - name: uid2-operator
+          image: IMAGE_PLACEHOLDER
+          resources:
+            limits:
+              memory: "8Gi"
+          imagePullPolicy: Always
+          securityContext:
+            runAsUser: 1000
+          env:
+            - name: VAULT_NAME
+              value: VAULT_NAME_PLACEHOLDER
+            - name: OPERATOR_KEY_SECRET_NAME
+              value: OPERATOR_KEY_SECRET_NAME_PLACEHOLDER
+            - name: DEPLOYMENT_ENVIRONMENT
+              value: DEPLOYMENT_ENVIRONMENT_PLACEHOLDER
+            - name: IMAGE_NAME
+              value: IMAGE_PLACEHOLDER
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+            - name: prometheus
+              containerPort: 9080
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ops/healthcheck
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+      volumes:
+        - name: endorsement-location
+          hostPath:
+            path: /opt/confidential-containers/share/kata-containers/reference-info-base64
+      nodeSelector:
+        virtualization: virtualnode2
+      tolerations:
+      - effect: NoSchedule
+        key: virtual-kubelet.io/provider
+        operator: Exists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: operator-svc
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: operator
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080

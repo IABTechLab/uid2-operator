@@ -54,16 +54,16 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         this.maxInvalidPaths = maxInvalidPaths;
 
         logCycleSkipperCounter = Counter
-                .builder("uid2.api_usage_log_cycle_skipped")
+                .builder("uid2_api_usage_log_cycle_skipped_total")
                 .description("counter for how many log cycles are skipped because the thread is still running")
                 .register(Metrics.globalRegistry);
 
         domainMissedCounter = Counter
-                .builder("uid2.api_usage_domain_missed")
+                .builder("uid2_api_usage_domain_missed_total")
                 .description("counter for how many domains are missed because the dictionary is full")
                 .register(Metrics.globalRegistry);
         queueFullCounter = Counter
-                .builder("uid2.api_usage_queue_full")
+                .builder("uid2_api_usage_queue_full_total")
                 .description("counter for how many usage messages are dropped because the queue is full")
                 .register(Metrics.globalRegistry);
 
@@ -87,8 +87,6 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
             LOGGER.error(e.getMessage(), e);
             return;
         }
-
-        assert messageItem != null;
 
         String path = messageItem.getPath();
         String apiVersion = "v0";

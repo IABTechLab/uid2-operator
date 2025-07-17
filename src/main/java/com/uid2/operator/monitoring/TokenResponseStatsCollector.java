@@ -1,6 +1,6 @@
 package com.uid2.operator.monitoring;
 
-import com.uid2.operator.model.RefreshResponse;
+import com.uid2.operator.model.TokenRefreshResponse;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.model.TokenVersion;
 import com.uid2.shared.store.ISiteStore;
@@ -9,11 +9,7 @@ import io.micrometer.core.instrument.Metrics;
 
 public class TokenResponseStatsCollector {
     public enum Endpoint {
-        GenerateV0,
-        GenerateV1,
         GenerateV2,
-        RefreshV0,
-        RefreshV1,
         RefreshV2,
         //it's the first version but the endpoint is v2/token/client-generate so we will call it v2
         ClientSideTokenGenerateV2,
@@ -69,7 +65,7 @@ public class TokenResponseStatsCollector {
         builder.register(Metrics.globalRegistry).increment();
     }
 
-    public static void recordRefresh(ISiteStore siteStore, Integer siteId, Endpoint endpoint, RefreshResponse refreshResponse, PlatformType platformType) {
+    public static void recordRefresh(ISiteStore siteStore, Integer siteId, Endpoint endpoint, TokenRefreshResponse refreshResponse, PlatformType platformType) {
         if (!refreshResponse.isRefreshed()) {
             if (refreshResponse.isOptOut() || refreshResponse.isDeprecated()) {
                 recordInternal(siteStore, siteId, endpoint, ResponseStatus.OptOut, refreshResponse.getIdentityResponse().getAdvertisingTokenVersion(), refreshResponse.isCstg(), platformType);

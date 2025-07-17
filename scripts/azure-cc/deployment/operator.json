@@ -54,6 +54,16 @@
       "metadata": {
         "description": "Operator Key"
       }
+    },
+    "skipValidations": {
+      "type": "string",
+      "metadata": {
+        "description": "Whether to skip pre-init validations"
+      },
+      "allowedValues": [
+        "true",
+        "false"
+      ]
     }
   },
   "variables": {
@@ -112,6 +122,10 @@
               },
               "environmentVariables": [
                 {
+                  "name": "IMAGE_NAME",
+                  "value": "IMAGE_PLACEHOLDER"
+                },
+                {
                   "name": "VAULT_NAME",
                   "value": "[parameters('vaultName')]"
                 },
@@ -122,6 +136,10 @@
                 {
                   "name": "DEPLOYMENT_ENVIRONMENT",
                   "value": "[parameters('deploymentEnvironment')]"
+                },
+                {
+                  "name": "SKIP_VALIDATIONS",
+                  "value": "[parameters('skipValidations')]"
                 }
               ]
             }

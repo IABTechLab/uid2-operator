@@ -1,11 +1,12 @@
 package com.uid2.operator.vertx;
 
-import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.ResponseUtil;
 import com.uid2.operator.service.V2RequestUtil;
+import com.uid2.operator.util.HttpMediaType;
 import com.uid2.shared.InstantClock;
 import com.uid2.shared.Utils;
 import com.uid2.shared.auth.ClientKey;
@@ -48,10 +49,10 @@ public class V2PayloadHandler {
             passThrough(rc, apiHandler);
             return;
         }
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
-            ResponseUtil.ClientError(rc, request.errorMessage);
+            ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
         }
         rc.data().put("request", request.payload);
@@ -67,9 +68,9 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
-            ResponseUtil.ClientError(rc, request.errorMessage);
+            ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
         }
         rc.data().put("request", request.payload);
@@ -85,7 +86,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc.body().asString(), AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
         if (!request.isValid()) {
             SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
             return;
@@ -110,7 +111,7 @@ public class V2PayloadHandler {
         }
         catch (Exception ex){
             LOGGER.error("Failed to generate token", ex);
-            ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.LogErrorAndSendResponse(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 
@@ -149,21 +150,21 @@ public class V2PayloadHandler {
                 V2RequestUtil.handleRefreshTokenInResponseBody(bodyJson, this.keyManager, this.identityScope);
 
             if (request != null) {
-                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
                 // Encrypt whole payload using key shared with client.
                 byte[] encryptedResp = AesGcm.encrypt(
                     respJson.encode().getBytes(StandardCharsets.UTF_8),
                     request.encryptionKey);
-                rc.response().end(Utils.toBase64String(encryptedResp));
+
+                writeResponseBody(rc, encryptedResp);
             }
             else {
-                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
                     .end(respJson.encode());
             }
         }
         catch (Exception ex){
             LOGGER.error("Failed to refresh token", ex);
-            ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.LogErrorAndSendResponse(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 
@@ -174,18 +175,33 @@ public class V2PayloadHandler {
             return;
         }
         JsonObject respJson = (JsonObject) rc.data().get("response");
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_JSON.getType())
             .end(respJson.encode());
     }
 
-    private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
+    public static byte[] encryptResponse(byte[] nonce, JsonObject resp, byte[] keyBytes) {
         Buffer buffer = Buffer.buffer();
         buffer.appendLong(EncodingUtils.NowUTCMillis().toEpochMilli());
         buffer.appendBytes(nonce);
         buffer.appendBytes(resp.encode().getBytes(StandardCharsets.UTF_8));
 
-        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/plain");
-        rc.response().end(Utils.toBase64String(AesGcm.encrypt(buffer.getBytes(), keyBytes)));
+        byte[] response = buffer.getBytes();
+        return AesGcm.encrypt(response, keyBytes);
+    }
+
+    private void writeResponseBody(RoutingContext rc, byte[] response) {
+        if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType())
+                    .end(Buffer.buffer(response));
+        } else {
+            rc.response().putHeader(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType())
+                    .end(Utils.toBase64String(response));
+        }
+    }
+
+    private void writeResponse(RoutingContext rc, byte[] nonce, JsonObject resp, byte[] keyBytes) {
+        var response = encryptResponse(nonce, resp, keyBytes);
+        writeResponseBody(rc, response);
     }
 
     private void handleResponse(RoutingContext rc, V2RequestUtil.V2Request request) {
@@ -199,7 +215,7 @@ public class V2PayloadHandler {
             writeResponse(rc, request.nonce, respJson, request.encryptionKey);
         } catch (Exception ex) {
             LOGGER.error("Failed to generate response", ex);
-            ResponseUtil.Error(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
+            ResponseUtil.LogErrorAndSendResponse(ResponseUtil.ResponseStatus.GenericError, 500, rc, "");
         }
     }
 }

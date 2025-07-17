@@ -34,7 +34,7 @@ runs:
   steps:
     - name: Check branch and release type
       id: checkRelease
-      uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v2
+      uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v3
       with:
         release_type: ${{ inputs.release_type }}
 
@@ -43,7 +43,7 @@ runs:
       uses: trstringer/manual-approval@v1
       with:
         secret: ${{ github.token }}
-        approvers: thomasm-ttd,atarassov-ttd,cody-constine-ttd
+        approvers: atarassov-ttd,vishalegbert-ttd,sunnywu,cody-constine-ttd
         minimum-approvals: 1
         issue-title: Creating Major version of UID2-Operator
 
@@ -81,7 +81,7 @@ runs:
 
     - name: Set version number
       id: version
-      uses: IABTechLab/uid2-shared-actions/actions/version_number@v2
+      uses: IABTechLab/uid2-shared-actions/actions/version_number@v3
       with:
         type: ${{ inputs.release_type }}
         version_number: ${{ inputs.version_number_input }}

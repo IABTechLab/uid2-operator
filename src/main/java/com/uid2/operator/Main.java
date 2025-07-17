@@ -8,27 +8,32 @@ import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
 import com.uid2.operator.monitoring.OperatorMetrics;
 import com.uid2.operator.monitoring.StatsCollectorVerticle;
-import com.uid2.operator.service.SecureLinkValidatorService;
-import com.uid2.operator.service.ShutdownService;
+import com.uid2.operator.reader.RotatingCloudEncryptionKeyApiProvider;
+import com.uid2.operator.service.*;
+import com.uid2.operator.store.*;
+import com.uid2.operator.store.BootstrapConfigStore;
 import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
-import com.uid2.operator.store.CloudSyncOptOutStore;
-import com.uid2.operator.store.OptOutCloudStorage;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.ApplicationVersion;
 import com.uid2.shared.Utils;
 import com.uid2.shared.attest.*;
+import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.cloud.*;
 import com.uid2.shared.jmx.AdminApi;
 import com.uid2.shared.optout.OptOutCloudSync;
 import com.uid2.shared.store.CloudPath;
-import com.uid2.shared.store.RotatingSaltProvider;
+import com.uid2.shared.store.salt.EncryptedRotatingSaltProvider;
+import com.uid2.shared.store.salt.RotatingSaltProvider;
 import com.uid2.shared.store.reader.*;
 import com.uid2.shared.store.scope.GlobalScope;
+import com.uid2.shared.util.HTTPPathMetricFilter;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
 import com.uid2.shared.vertx.RotatingStoreVerticle;
 import com.uid2.shared.vertx.VertxUtils;
+import com.uid2.shared.health.HealthManager;
+import com.uid2.shared.health.PodTerminationMonitor;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -37,9 +42,9 @@ import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
+import io.vertx.config.ConfigRetriever;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.http.impl.HttpUtils;
 import io.vertx.core.json.JsonObject;
 import io.vertx.micrometer.*;
 import io.vertx.micrometer.backends.BackendRegistries;
@@ -57,6 +62,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
 
+import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class Main {
@@ -67,6 +73,7 @@ public class Main {
     private final ApplicationVersion appVersion;
     private final ICloudStorage fsLocal;
     private final ICloudStorage fsOptOut;
+    private final IConfigStore configStore;
     private final RotatingSiteStore siteProvider;
     private final RotatingClientKeyProvider clientKeyProvider;
     private final RotatingKeysetKeyStore keysetKeyStore;
@@ -74,19 +81,24 @@ public class Main {
     private final RotatingClientSideKeypairStore clientSideKeypairProvider;
     private final RotatingSaltProvider saltProvider;
     private final CloudSyncOptOutStore optOutStore;
+    private final boolean encryptedCloudFilesEnabled;
     private OperatorShutdownHandler shutdownHandler = null;
     private final OperatorMetrics metrics;
+    private final boolean useRemoteConfig;
     private final boolean clientSideTokenGenerate;
     private final boolean validateServiceLinks;
     private IStatsCollectorQueue _statsCollectorQueue;
     private RotatingServiceStore serviceProvider;
     private RotatingServiceLinkStore serviceLinkProvider;
+    private RotatingCloudEncryptionKeyApiProvider cloudEncryptionKeyProvider;
+    private final UidInstanceIdProvider uidInstanceIdProvider;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
         this.config = config;
 
         this.appVersion = ApplicationVersion.load("uid2-operator", "uid2-shared", "uid2-attestation-api");
+        HealthManager.instance.registerGenericComponent(new PodTerminationMonitor(config.getInteger(Const.Config.PodTerminationCheckInterval, 3000)));
 
         // allow to switch between in-mem optout file cache and on-disk file cache
         if (config.getBoolean(Const.Config.OptOutInMemCacheProp)) {
@@ -96,9 +108,12 @@ public class Main {
         }
 
         boolean useStorageMock = config.getBoolean(Const.Config.StorageMockProp, false);
+        this.useRemoteConfig = config.getBoolean(EnableRemoteConfigProp, false);
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
+        this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
         this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC(), new ShutdownService());
+        this.uidInstanceIdProvider = new UidInstanceIdProvider(config);
 
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
 
@@ -132,18 +147,54 @@ public class Main {
             this.fsOptOut = configureCloudOptOutStore();
         }
 
-        String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
-        String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
-        this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
-        String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
-        this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
-        String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
-        this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)));
-        String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
-        this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
-        String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
-        this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
+        if (this.encryptedCloudFilesEnabled) {
+            String cloudEncryptionKeyMdPath = this.config.getString(Const.Config.CloudEncryptionKeysMetadataPathProp);
+            this.cloudEncryptionKeyProvider = new RotatingCloudEncryptionKeyApiProvider(fsStores,
+                    new GlobalScope(new CloudPath(cloudEncryptionKeyMdPath)));
+
+            String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
+            this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores,
+                    new GlobalScope(new CloudPath(keypairMdPath)), cloudEncryptionKeyProvider);
+            String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
+            this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)),
+                    cloudEncryptionKeyProvider);
+            String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
+            this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)),
+                    cloudEncryptionKeyProvider);
+            String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
+            this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)),
+                    cloudEncryptionKeyProvider);
+            String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
+            this.saltProvider = new EncryptedRotatingSaltProvider(fsStores, cloudEncryptionKeyProvider,
+                    new GlobalScope(new CloudPath(saltsMdPath)));
+            String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
+            this.siteProvider = clientSideTokenGenerate
+                    ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath)),
+                    cloudEncryptionKeyProvider)
+                    : null;
+        } else {
+            String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
+            this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
+            String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
+            this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
+            String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
+            this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)));
+            String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
+            this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
+            String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
+            this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
+            String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
+            this.siteProvider = clientSideTokenGenerate ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath))) : null;
+        }
+
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
+        
+        if (useRemoteConfig) {
+            String configMdPath = this.config.getString(Const.Config.RuntimeConfigMetadataPathProp);
+            this.configStore = new RuntimeConfigStore(fsStores, configMdPath);
+        } else {
+            this.configStore = new BootstrapConfigStore(this.config);
+        }
 
         if (this.validateServiceLinks) {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
@@ -152,22 +203,28 @@ public class Main {
             this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
         }
 
-        this.siteProvider = clientSideTokenGenerate ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath))) : null;
-
         if (useStorageMock && coreAttestUrl == null) {
             if (clientSideTokenGenerate) {
                 this.siteProvider.loadContent();
                 this.clientSideKeypairProvider.loadContent();
             }
-            this.clientKeyProvider.loadContent();
-            this.saltProvider.loadContent();
-            this.keysetProvider.loadContent();
-            this.keysetKeyStore.loadContent();
+            if (useRemoteConfig) {
+                this.configStore.loadContent();
+            }
 
             if (this.validateServiceLinks) {
                 this.serviceProvider.loadContent();
                 this.serviceLinkProvider.loadContent();
             }
+
+            if (this.encryptedCloudFilesEnabled) {
+                this.cloudEncryptionKeyProvider.loadContent();
+            }
+
+            this.clientKeyProvider.loadContent();
+            this.saltProvider.loadContent();
+            this.keysetProvider.loadContent();
+            this.keysetKeyStore.loadContent();
 
             try {
                 getKeyManager().getMasterKey();
@@ -193,17 +250,19 @@ public class Main {
 
         final String vertxConfigPath = System.getProperty(Const.Config.VERTX_CONFIG_PATH_PROP);
         if (vertxConfigPath != null) {
-            System.out.format("Running CUSTOM CONFIG mode, config: %s\n", vertxConfigPath);
+            LOGGER.info("Running CUSTOM CONFIG mode, config: {}", vertxConfigPath);
         }
         else if (!Utils.isProductionEnvironment()) {
-            System.out.format("Running LOCAL DEBUG mode, config: %s\n", Const.Config.LOCAL_CONFIG_PATH);
+            LOGGER.info("Running LOCAL DEBUG mode, config: {}", Const.Config.LOCAL_CONFIG_PATH);
             System.setProperty(Const.Config.VERTX_CONFIG_PATH_PROP, Const.Config.LOCAL_CONFIG_PATH);
         } else {
-            System.out.format("Running PRODUCTION mode, config: %s\n", Const.Config.OVERRIDE_CONFIG_PATH);
+            LOGGER.info("Running PRODUCTION mode, config: {}", Const.Config.OVERRIDE_CONFIG_PATH);
         }
 
         Vertx vertx = createVertx();
-        VertxUtils.createConfigRetriever(vertx).getConfig(ar -> {
+        ConfigRetriever configRetriever = VertxUtils.createConfigRetriever(vertx);
+
+        configRetriever.getConfig(ar -> {
             if (ar.failed()) {
                 LOGGER.error("Unable to read config: " + ar.cause().getMessage(), ar.cause());
                 return;
@@ -265,8 +324,11 @@ public class Main {
     }
 
     private void run() throws Exception {
+        this.createVertxInstancesMetric();
+        this.createVertxEventLoopsMetric();
+
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse, this.uidInstanceIdProvider);
             return verticle;
         };
 
@@ -285,19 +347,19 @@ public class Main {
         });
 
         compositePromise.future()
-            .compose(v -> {
-                metrics.setup();
-                vertx.setPeriodic(60000, id -> metrics.update());
+                .compose(v -> {
+                    metrics.setup();
+                    vertx.setPeriodic(60000, id -> metrics.update());
 
-                Promise<String> promise = Promise.promise();
-                vertx.deployVerticle(operatorVerticleSupplier, options, promise);
-                return promise.future();
-            })
-            .onFailure(t -> {
-                LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
-                vertx.close();
-                System.exit(1);
-            });
+                    Promise<String> promise = Promise.promise();
+                    vertx.deployVerticle(operatorVerticleSupplier, options, promise);
+                    return promise.future();
+                })
+                .onFailure(t -> {
+                    LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
+                    vertx.close();
+                    System.exit(1);
+                });
     }
 
     private Future<Void> createStoreVerticles() throws Exception {
@@ -306,15 +368,20 @@ public class Main {
             siteProvider.getMetadata();
             clientSideKeypairProvider.getMetadata();
         }
-        clientKeyProvider.getMetadata();
-        keysetKeyStore.getMetadata();
-        keysetProvider.getMetadata();
-        saltProvider.getMetadata();
 
         if (validateServiceLinks) {
             serviceProvider.getMetadata();
             serviceLinkProvider.getMetadata();
         }
+
+        if (encryptedCloudFilesEnabled) {
+            cloudEncryptionKeyProvider.getMetadata();
+        }
+
+        clientKeyProvider.getMetadata();
+        keysetKeyStore.getMetadata();
+        keysetProvider.getMetadata();
+        saltProvider.getMetadata();
 
         // create cloud sync for optout store
         OptOutCloudSync optOutCloudSync = new OptOutCloudSync(config, false);
@@ -323,9 +390,23 @@ public class Main {
         // create rotating store verticles to poll for updates
         Promise<Void> promise = Promise.promise();
         List<Future> fs = new ArrayList<>();
+
         if (clientSideTokenGenerate) {
             fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, "site_refresh_ms"));
             fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, "client_side_keypairs_refresh_ms"));
+        }
+
+        if (validateServiceLinks) {
+            fs.add(createAndDeployRotatingStoreVerticle("service", serviceProvider, "service_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("service_link", serviceLinkProvider, "service_link_refresh_ms"));
+        }
+
+        if (encryptedCloudFilesEnabled) {
+            fs.add(createAndDeployRotatingStoreVerticle("cloud_encryption_keys", cloudEncryptionKeyProvider, "cloud_encryption_keys_refresh_ms"));
+        }
+
+        if (useRemoteConfig) {
+            fs.add(createAndDeployRotatingStoreVerticle("runtime_config", (RuntimeConfigStore) configStore, Const.Config.ConfigScanPeriodMsProp));
         }
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
@@ -337,10 +418,6 @@ public class Main {
             else promise.complete();
         });
 
-        if (validateServiceLinks) {
-            fs.add(createAndDeployRotatingStoreVerticle("service", serviceProvider, "service_refresh_ms"));
-            fs.add(createAndDeployRotatingStoreVerticle("service_link", serviceLinkProvider, "service_link_refresh_ms"));
-        }
 
         return promise.future();
     }
@@ -349,26 +426,21 @@ public class Main {
         final int intervalMs = config.getInteger(storeRefreshConfigMs, 10000);
 
         RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
-        Promise<String> promise = Promise.promise();
-        vertx.deployVerticle(rotatingStoreVerticle, promise);
-        return promise.future();
+        return vertx.deployVerticle(rotatingStoreVerticle);
     }
 
     private Future<String> createAndDeployCloudSyncStoreVerticle(String name, ICloudStorage fsCloud,
                                                                  ICloudSync cloudSync) {
-        Promise<String> promise = Promise.promise();
         CloudSyncVerticle cloudSyncVerticle = new CloudSyncVerticle(name, fsCloud, fsLocal, cloudSync, config);
-        vertx.deployVerticle(cloudSyncVerticle, promise);
-        return promise.future()
+        return vertx.deployVerticle(cloudSyncVerticle)
             .onComplete(v -> setupTimerEvent(cloudSyncVerticle.eventRefresh()));
     }
 
     private Future<String> createAndDeployStatsCollector() {
-        Promise<String> promise = Promise.promise();
         StatsCollectorVerticle statsCollectorVerticle = new StatsCollectorVerticle(60000, config.getInteger(Const.Config.MaxInvalidPaths, 50), config.getInteger(Const.Config.MaxVersionBucketsPerSite, 50));
-        vertx.deployVerticle(statsCollectorVerticle, promise);
+        Future<String> result = vertx.deployVerticle(statsCollectorVerticle);
         _statsCollectorQueue = statsCollectorVerticle;
-        return promise.future();
+        return result;
     }
 
     private void setupTimerEvent(String eventCloudRefresh) {
@@ -385,7 +457,7 @@ public class Main {
             MBeanServer server = ManagementFactory.getPlatformMBeanServer();
             server.registerMBean(AdminApi.instance, objectName);
         } catch (InstanceAlreadyExistsException | MBeanRegistrationException | NotCompliantMBeanException | MalformedObjectNameException e) {
-            System.err.format("%s", e.getMessage());
+            LOGGER.error("mBean initialisation failed {}", e.getMessage(), e);
             System.exit(-1);
         }
 
@@ -414,7 +486,7 @@ public class Main {
     }
 
     private static void setupMetrics(MicrometerMetricsOptions metricOptions) {
-        BackendRegistries.setupBackend(metricOptions);
+        BackendRegistries.setupBackend(metricOptions, null);
 
         MeterRegistry backendRegistry = BackendRegistries.getDefaultNow();
         if (backendRegistry instanceof PrometheusMeterRegistry) {
@@ -425,14 +497,8 @@ public class Main {
             prometheusRegistry.config()
                 // providing common renaming for prometheus metric, e.g. "hello.world" to "hello_world"
                 .meterFilter(new PrometheusRenameFilter())
-                .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(), actualPath -> {
-                    try {
-                        String normalized = HttpUtils.normalizePath(actualPath).split("\\?")[0];
-                        return Endpoints.pathSet().contains(normalized) ? normalized : "/unknown";
-                    } catch (IllegalArgumentException e) {
-                        return actualPath;
-                    }
-                }))
+                .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(),
+                        actualPath -> HTTPPathMetricFilter.filterPath(actualPath, Endpoints.pathSet())))
                 // Don't record metrics for 404s.
                 .meterFilter(MeterFilter.deny(id ->
                     id.getName().startsWith(MetricsDomain.HTTP_SERVER.getPrefix()) &&
@@ -461,20 +527,32 @@ public class Main {
         // retrieve image version (will unify when uid2-common is used)
         final String version = Optional.ofNullable(System.getenv("IMAGE_VERSION")).orElse("unknown");
         Gauge
-                .builder("app.status", () -> 1)
+                .builder("app_status", () -> 1)
                 .description("application version and status")
                 .tags("version", version)
                 .register(globalRegistry);
     }
 
-    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
+    private void createVertxInstancesMetric() {
+        Gauge.builder("uid2_vertx_service_instances", () -> config.getInteger("service_instances"))
+                .description("gauge for number of vertx service instances requested")
+                .register(Metrics.globalRegistry);
+    }
+
+    private void createVertxEventLoopsMetric() {
+        Gauge.builder("uid2_vertx_event_loop_threads", () -> VertxOptions.DEFAULT_EVENT_LOOP_POOL_SIZE)
+                .description("gauge for number of vertx event loop threads")
+                .register(Metrics.globalRegistry);
+    }
+
+    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
         AttestationResponseHandler attestationResponseHandler = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
-        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
-        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler);
+        UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler, this.encryptedCloudFilesEnabled, this.uidInstanceIdProvider);
+        UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler, this.uidInstanceIdProvider);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);
     }
 
-    private AttestationResponseHandler getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<Integer, String>> responseWatcher) throws Exception {
+    private AttestationResponseHandler getAttestationTokenRetriever(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
         String enclavePlatform = this.config.getString(Const.Config.EnclavePlatformProp);
         String operatorType = this.config.getString(Const.Config.OperatorTypeProp, "");
 
@@ -506,7 +584,7 @@ public class Main {
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));
         }
 
-        return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, operatorType, this.appVersion, attestationProvider, responseWatcher, CloudUtils.defaultProxy);
+        return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, operatorType, this.appVersion, attestationProvider, responseWatcher, CloudUtils.defaultProxy, this.uidInstanceIdProvider);
     }
 
     private IOperatorKeyRetriever createOperatorKeyRetriever() throws Exception {

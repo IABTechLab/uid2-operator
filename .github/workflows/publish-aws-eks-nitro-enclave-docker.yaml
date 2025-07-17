@@ -1,4 +1,4 @@
-name: Publish EKS Operator Docker Images
+name: Publish EKS Enclave Operator Docker Images
 run-name: >-
   ${{ inputs.operator_release == '' && format('Publish EKS Operator Docker Images for Operator Run Number: {0}', inputs.operator_run_number) || format('Publish EKS Operator Docker Images for Operator Release: {0}', inputs.operator_release)}}
 on:
@@ -36,9 +36,12 @@ jobs:
       security-events: write
       packages: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build Docker Image for EKS Pod
         id: build_docker_image_uid
-        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@main
+        uses: ./.github/actions/build_eks_docker_image
         with:
           identity_scope: uid2
           artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
@@ -61,9 +64,12 @@ jobs:
       security-events: write
       packages: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build Docker Image for EKS Pod
         id: build_docker_image_euid
-        uses: IABTechLab/uid2-operator/.github/actions/build_eks_docker_image@main
+        uses: ./.github/actions/build_eks_docker_image
         with:
           identity_scope: euid
           artifacts_output_dir: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid

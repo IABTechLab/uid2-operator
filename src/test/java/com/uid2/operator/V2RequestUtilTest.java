@@ -3,7 +3,7 @@ package com.uid2.operator;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
-import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.service.V2RequestUtil;
 import com.uid2.shared.IClock;

@@ -1,6 +1,6 @@
 package com.uid2.operator.vertx;
 
-import com.uid2.operator.model.IdentityScope;
+import com.uid2.operator.model.identities.IdentityScope;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.service.EncodingUtils;

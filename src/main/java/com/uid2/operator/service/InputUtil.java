@@ -1,10 +1,8 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.model.IdentityScope;
-import com.uid2.operator.model.IdentityType;
-import com.uid2.operator.model.UserIdentity;
-
-import java.time.Instant;
+import com.uid2.operator.model.identities.IdentityScope;
+import com.uid2.operator.model.identities.DiiType;
+import com.uid2.operator.model.identities.HashedDii;
 
 public class InputUtil {
 
@@ -169,7 +167,7 @@ public class InputUtil {
         return addressPartToUse.append('@').append(domainPart).toString();
     }
 
-    public enum IdentityInputType {
+    public enum DiiInputType {
         Raw,
         Hash
     }
@@ -185,62 +183,63 @@ public class InputUtil {
     public static class InputVal {
         private final String provided;
         private final String normalized;
-        private final IdentityType identityType;
-        private final IdentityInputType inputType;
+        //Directly Identifying Information (DII) (email or phone) see https://unifiedid.com/docs/ref-info/glossary-uid#gl-dii
+        private final DiiType diiType;
+        private final DiiInputType inputType;
         private final boolean valid;
-        private final byte[] identityInput;
+        private final byte[] diiInput;
 
-        public InputVal(String provided, String normalized, IdentityType identityType, IdentityInputType inputType, boolean valid) {
+        public InputVal(String provided, String normalized, DiiType diiType, DiiInputType inputType, boolean valid) {
             this.provided = provided;
             this.normalized = normalized;
-            this.identityType = identityType;
+            this.diiType = diiType;
             this.inputType = inputType;
             this.valid = valid;
             if (valid) {
-                if (this.inputType == IdentityInputType.Raw) {
-                    this.identityInput = TokenUtils.getIdentityHash(this.normalized);
+                if (this.inputType == DiiInputType.Raw) {
+                    this.diiInput = TokenUtils.getHashedDii(this.normalized);
                 } else {
-                    this.identityInput = EncodingUtils.fromBase64(this.normalized);
+                    this.diiInput = EncodingUtils.fromBase64(this.normalized);
                 }
             } else {
-                this.identityInput = null;
+                this.diiInput = null;
             }
         }
 
         public static InputVal validEmail(String input, String normalized) {
-            return new InputVal(input, normalized, IdentityType.Email, IdentityInputType.Raw, true);
+            return new InputVal(input, normalized, DiiType.Email, DiiInputType.Raw, true);
         }
 
         public static InputVal invalidEmail(String input) {
-            return new InputVal(input, null, IdentityType.Email, IdentityInputType.Raw, false);
+            return new InputVal(input, null, DiiType.Email, DiiInputType.Raw, false);
         }
 
         public static InputVal validEmailHash(String input, String normalized) {
-            return new InputVal(input, normalized, IdentityType.Email, IdentityInputType.Hash, true);
+            return new InputVal(input, normalized, DiiType.Email, DiiInputType.Hash, true);
         }
 
         public static InputVal invalidEmailHash(String input) {
-            return new InputVal(input, null, IdentityType.Email, IdentityInputType.Hash, false);
+            return new InputVal(input, null, DiiType.Email, DiiInputType.Hash, false);
         }
 
         public static InputVal validPhone(String input, String normalized) {
-            return new InputVal(input, normalized, IdentityType.Phone, IdentityInputType.Raw, true);
+            return new InputVal(input, normalized, DiiType.Phone, DiiInputType.Raw, true);
         }
 
         public static InputVal invalidPhone(String input) {
-            return new InputVal(input, null, IdentityType.Phone, IdentityInputType.Raw, false);
+            return new InputVal(input, null, DiiType.Phone, DiiInputType.Raw, false);
         }
 
         public static InputVal validPhoneHash(String input, String normalized) {
-            return new InputVal(input, normalized, IdentityType.Phone, IdentityInputType.Hash, true);
+            return new InputVal(input, normalized, DiiType.Phone, DiiInputType.Hash, true);
         }
 
         public static InputVal invalidPhoneHash(String input) {
-            return new InputVal(input, null, IdentityType.Phone, IdentityInputType.Hash, false);
+            return new InputVal(input, null, DiiType.Phone, DiiInputType.Hash, false);
         }
 
-        public byte[] getIdentityInput() {
-            return this.identityInput;
+        public byte[] getHashedDiiInput() {
+            return this.diiInput;
         }
 
         public String getProvided() {
@@ -251,24 +250,21 @@ public class InputUtil {
             return normalized;
         }
 
-        public IdentityType getIdentityType() {
-            return identityType;
+        public DiiType getDiiType() {
+            return diiType;
         }
 
-        public IdentityInputType getInputType() { return inputType; }
+        public DiiInputType getInputType() { return inputType; }
 
         public boolean isValid() {
             return valid;
         }
 
-        public UserIdentity toUserIdentity(IdentityScope identityScope, int privacyBits, Instant establishedAt) {
-            return new UserIdentity(
+        public HashedDii toHashedDii(IdentityScope identityScope) {
+            return new HashedDii(
                     identityScope,
-                    this.identityType,
-                    getIdentityInput(),
-                    privacyBits,
-                    establishedAt,
-                    establishedAt);
+                    this.diiType,
+                    getHashedDiiInput());
         }
     }
 

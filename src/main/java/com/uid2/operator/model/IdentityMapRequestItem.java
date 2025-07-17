@@ -1,18 +1,19 @@
 package com.uid2.operator.model;
 
+import com.uid2.operator.model.identities.HashedDii;
+
 import java.time.Instant;
 
-public final class MapRequest {
-    public final UserIdentity userIdentity;
+public final class IdentityMapRequestItem {
+    public final HashedDii hashedDii;
     public final OptoutCheckPolicy optoutCheckPolicy;
     public final Instant asOf;
 
-    public MapRequest(
-            UserIdentity userIdentity,
+    public IdentityMapRequestItem(
+            HashedDii hashedDii,
             OptoutCheckPolicy optoutCheckPolicy,
-            Instant asOf)
-    {
-        this.userIdentity = userIdentity;
+            Instant asOf) {
+        this.hashedDii = hashedDii;
         this.optoutCheckPolicy = optoutCheckPolicy;
         this.asOf = asOf;
     }

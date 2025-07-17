@@ -1,6 +1,7 @@
 package com.uid2.operator.benchmark;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.identities.HashedDii;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.V2RequestUtil;
 import com.uid2.operator.vertx.V2PayloadHandler;
@@ -25,13 +26,13 @@ import java.util.concurrent.TimeUnit;
 
 public class IdentityMapBenchmark {
     private static final IUIDOperatorService uidService;
-    private static final UserIdentity[] userIdentities;
+    private static final HashedDii[] hashedDiiIdentities;
     private static int idx = 0;
 
     static {
         try {
             uidService = BenchmarkCommon.createUidOperatorService();
-            userIdentities = BenchmarkCommon.createUserIdentities();
+            hashedDiiIdentities = BenchmarkCommon.createHashedDiiIdentities();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -120,14 +121,14 @@ public class IdentityMapBenchmark {
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public MappedIdentity IdentityMapRawThroughput() {
-        return uidService.map(userIdentities[(idx++) & 65535], Instant.now());
+    public IdentityMapResponseItem IdentityMapRawThroughput() {
+        return uidService.map(hashedDiiIdentities[(idx++) & 65535], Instant.now());
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public MappedIdentity IdentityMapWithOptOutThroughput() {
-        return uidService.mapIdentity(new MapRequest(userIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
+    public IdentityMapResponseItem IdentityMapWithOptOutThroughput() {
+        return uidService.mapHashedDii(new IdentityMapRequestItem(hashedDiiIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
     }
 
     @Benchmark

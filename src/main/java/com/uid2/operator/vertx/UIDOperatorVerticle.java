@@ -277,7 +277,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
         mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handleIdentityMap(rc, this::handleIdentityMapV2), Role.MAPPER));
         mainRouter.post(V2_KEY_LATEST.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
@@ -1174,7 +1174,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return false;
     }
 
-    private void handleIdentityMapV2(RoutingContext rc) {
+    private Future<Void> handleIdentityMapV2(RoutingContext rc) {
+        final Promise<Void> promise = Promise.promise();
         try {
             final Integer siteId = RoutingContextUtil.getSiteId(rc);
             final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
@@ -1183,16 +1184,39 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
             if (inputList == null) {
                 ResponseUtil.LogInfoAndSend400Response(rc, this.phoneSupport ? ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_INPUT_EMAIL_MISSING);
-                return;
+                promise.complete();
+                return promise.future();
             }
 
-            if (!validateServiceLink(rc)) { return; }
+            if (!validateServiceLink(rc)) {
+                promise.complete();
+                return promise.future();
+            }
 
-            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
-            ResponseUtil.SuccessV2(rc, resp);
+            vertx.executeBlocking(
+                    blockingPromise -> {
+                        try {
+                            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
+                            blockingPromise.complete(resp);
+                        } catch (Exception e) {
+                            blockingPromise.fail(e);
+                        }},
+                    false,
+                    resp -> {
+                        if (resp.succeeded()) {
+                            if (!rc.response().ended()) {
+                                ResponseUtil.SuccessV2(rc, resp.result());
+                            }
+                        } else {
+                            ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v2", (Exception) resp.cause());
+                        }
+                        promise.complete();
+                });
         } catch (Exception e) {
             ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v2", e);
+            promise.fail(e);
         }
+        return promise.future();
     }
 
     private InputUtil.InputVal[] getIdentityMapV2Input(RoutingContext rc) {

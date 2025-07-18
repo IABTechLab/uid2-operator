@@ -34,10 +34,7 @@ import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import com.uid2.shared.store.salt.ISaltProvider;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonArray;
@@ -2233,8 +2230,12 @@ public class UIDOperatorVerticleTest {
         req.put("email_hash", emailHashes);
 
         send(apiVersion, vertx, apiVersion + "/identity/map", false, null, req, 200, respJson -> {
-            checkIdentityMapResponse(respJson);
-            testContext.completeNow();
+            try {
+                checkIdentityMapResponse(respJson);
+                testContext.completeNow();
+            } catch (Throwable ex) {
+                testContext.failNow(ex);
+            }
         });
     }
 

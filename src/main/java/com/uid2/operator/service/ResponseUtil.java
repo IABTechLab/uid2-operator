@@ -123,7 +123,9 @@ public class ResponseUtil {
 
     public static void LogInfoAndSendResponse(String status, int statusCode, RoutingContext rc, String message) {
         String msg = ComposeMessage(status, statusCode, message, new RoutingContextReader(rc), rc.request().remoteAddress().hostAddress());
-        LOGGER.info(msg);
+        String contentType = rc.request().getHeader(HttpHeaders.CONTENT_TYPE);
+        String contentTypeStr = " Content-Type: " + (contentType != null ? contentType : "null");
+        LOGGER.warn(msg + contentTypeStr);
         final JsonObject json = Response(status, message);
         rc.response().setStatusCode(statusCode).putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
                 .end(json.encode());

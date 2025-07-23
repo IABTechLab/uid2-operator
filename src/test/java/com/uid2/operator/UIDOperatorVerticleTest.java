@@ -461,10 +461,14 @@ public class UIDOperatorVerticleTest {
     }
 
     private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, String referer, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
-        postV2(ck, vertx, endpoint, body, nonce, referer, handler, Collections.emptyMap());
+        postV2(ck, vertx, endpoint, body, nonce, referer, handler, Collections.emptyMap(), false);
     }
 
     private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, String referer, Handler<AsyncResult<HttpResponse<Buffer>>> handler, Map<String, String> additionalHeaders) {
+        postV2(ck, vertx, endpoint, body, nonce, referer, handler, additionalHeaders, false);
+    }
+
+    private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, String referer, Handler<AsyncResult<HttpResponse<Buffer>>> handler, Map<String, String> additionalHeaders, boolean forceBase64RequestBody) {
         WebClient client = WebClient.create(vertx);
         final String apiKey = ck == null ? "" : clientKey;
         HttpRequest<Buffer> request = client.postAbs(getUrlForEndpoint(endpoint))
@@ -492,7 +496,7 @@ public class UIDOperatorVerticleTest {
             request.putHeader("Referer", referer);
         }
 
-        if (request.headers().contains(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
+        if (request.headers().contains(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true) && !forceBase64RequestBody) {
             request.sendBuffer(bufBody, handler);
         } else {
             request.sendBuffer(Buffer.buffer(Utils.toBase64String(bufBody.getBytes()).getBytes(StandardCharsets.UTF_8)), handler);
@@ -960,6 +964,39 @@ public class UIDOperatorVerticleTest {
             Assertions.assertEquals("optout", unmappedArr.getJsonObject(0).getString("reason"));
             testContext.completeNow();
         }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
+    }
+
+    @Test
+    void fallbackToBase64DecodingIfBinaryEnvelopeDecodeFails(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+        ClientKey ck = (ClientKey) clientKeyProvider.get("");
+        long nonce = new BigInteger(Random.getBytes(8)).longValue();
+
+        JsonObject req = new JsonObject();
+        JsonArray emails = new JsonArray();
+        req.put("email", emails);
+        emails.add("test1@uid2.com");
+
+        postV2(ck, vertx, "v2/identity/map", req, nonce, null, ar -> {
+            assertTrue(ar.succeeded());
+            assertEquals(200, ar.result().statusCode());
+
+            byte[] byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
+            byte[] decrypted = AesGcm.decrypt(byteResp, 0, ck.getSecretBytes());
+
+            JsonObject respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
+            assertEquals("success", respJson.getString("status"));
+
+            // Check that response content type is text/plain
+            assertEquals(HttpMediaType.TEXT_PLAIN.getType(), ar.result().getHeader(HttpHeaders.CONTENT_TYPE.toString()));
+
+            testContext.completeNow();
+
+           // Set request content type header to application/octet-stream, but force a base64 encoded request envelope
+        }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), "application/octet-stream"), true);
     }
 
     @ParameterizedTest

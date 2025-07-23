@@ -160,7 +160,7 @@ class ResponseUtilTest {
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"," +
                 "\"origin\":\"testOriginHeader\"" +
-                "}";
+                "} Content-Type: null";
         ILoggingEvent loggingEvent = testAppender.list.get(0);
         assertThat(loggingEvent.getMessage()).isEqualTo(expected);
     }
@@ -180,7 +180,7 @@ class ResponseUtilTest {
                 "\"statusCode\":400," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"" +
-                "}";
+                "} Content-Type: null";
         ILoggingEvent loggingEvent = testAppender.list.get(0);
         assertThat(loggingEvent.getMessage()).isEqualTo(expected);
     }
@@ -201,7 +201,7 @@ class ResponseUtilTest {
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"," +
                 "\"referer\":\"testRefererHeader\"" +
-                "}";
+                "} Content-Type: null";
         ILoggingEvent loggingEvent = testAppender.list.get(0);
         assertThat(loggingEvent.getMessage()).isEqualTo(expected);
     }
@@ -221,8 +221,81 @@ class ResponseUtilTest {
                 "\"statusCode\":400," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"" +
-                "}";
+                "} Content-Type: null";
         ILoggingEvent loggingEvent = testAppender.list.get(0);
         assertThat(loggingEvent.getMessage()).isEqualTo(expected);
+    }
+
+    @Test
+    void logsWarningWithContentType() {
+        when(request.getHeader(io.vertx.core.http.HttpHeaders.CONTENT_TYPE)).thenReturn("application/json");
+        when(rc.request()).thenReturn(request);
+
+        ResponseUtil.LogWarningAndSendResponse("Some error status", 400, rc, "Some error message");
+
+        String expectedBase = "Response to http request. {" +
+                "\"errorStatus\":\"Some error status\"," +
+                "\"contact\":null," +
+                "\"siteId\":null," +
+                "\"path\":null," +
+                "\"statusCode\":400," +
+                "\"clientAddress\":null," +
+                "\"message\":\"Some error message\"" +
+                "}";
+        String expectedWithContentType = expectedBase + " Content-Type: application/json";
+        
+        assertThat(testAppender.list).hasSize(1);
+        ILoggingEvent loggingEvent = testAppender.list.get(0);
+        assertThat(loggingEvent.getMessage()).isEqualTo(expectedWithContentType);
+        assertThat(loggingEvent.getLevel()).isEqualTo(Level.WARN);
+    }
+
+    @Test
+    void logsWarningWithNullContentType() {
+        when(request.getHeader(io.vertx.core.http.HttpHeaders.CONTENT_TYPE)).thenReturn(null);
+        when(rc.request()).thenReturn(request);
+
+        ResponseUtil.LogWarningAndSendResponse("Some error status", 400, rc, "Some error message");
+
+        String expectedBase = "Response to http request. {" +
+                "\"errorStatus\":\"Some error status\"," +
+                "\"contact\":null," +
+                "\"siteId\":null," +
+                "\"path\":null," +
+                "\"statusCode\":400," +
+                "\"clientAddress\":null," +
+                "\"message\":\"Some error message\"" +
+                "}";
+        String expectedWithContentType = expectedBase + " Content-Type: null";
+        
+        assertThat(testAppender.list).hasSize(1);
+        ILoggingEvent loggingEvent = testAppender.list.get(0);
+        assertThat(loggingEvent.getMessage()).isEqualTo(expectedWithContentType);
+        assertThat(loggingEvent.getLevel()).isEqualTo(Level.WARN);
+    }
+
+    @Test
+    void logsErrorDoesNotIncludeContentType() {
+        when(request.getHeader(io.vertx.core.http.HttpHeaders.CONTENT_TYPE)).thenReturn("application/json");
+        when(rc.request()).thenReturn(request);
+
+        ResponseUtil.LogErrorAndSendResponse("Some error status", 500, rc, "Some error message");
+
+        String expectedMessage = "Response to http request. {" +
+                "\"errorStatus\":\"Some error status\"," +
+                "\"contact\":null," +
+                "\"siteId\":null," +
+                "\"path\":null," +
+                "\"statusCode\":500," +
+                "\"clientAddress\":null," +
+                "\"message\":\"Some error message\"" +
+                "}";
+        
+        assertThat(testAppender.list).hasSize(1);
+        ILoggingEvent loggingEvent = testAppender.list.get(0);
+        assertThat(loggingEvent.getMessage()).isEqualTo(expectedMessage);
+        assertThat(loggingEvent.getLevel()).isEqualTo(Level.ERROR);
+        // Verify content type is NOT included
+        assertThat(loggingEvent.getMessage()).doesNotContain("Content-Type:");
     }
 }

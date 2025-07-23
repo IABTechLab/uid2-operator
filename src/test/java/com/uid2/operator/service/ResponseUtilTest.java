@@ -180,7 +180,7 @@ class ResponseUtilTest {
                 "\"statusCode\":400," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"" +
-                "}";
+                "} Content-Type: null";
         ILoggingEvent loggingEvent = testAppender.list.get(0);
         assertThat(loggingEvent.getMessage()).isEqualTo(expected);
     }
@@ -221,7 +221,7 @@ class ResponseUtilTest {
                 "\"statusCode\":400," +
                 "\"clientAddress\":null," +
                 "\"message\":\"Some error message\"" +
-                "}";
+                "} Content-Type: null";
         ILoggingEvent loggingEvent = testAppender.list.get(0);
         assertThat(loggingEvent.getMessage()).isEqualTo(expected);
     }

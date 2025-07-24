@@ -58,7 +58,31 @@ public class V2RequestUtil {
 
     public static V2Request parseRequest(RoutingContext rc, ClientKey ck, IClock clock) {
         if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
-            return V2RequestUtil.parseRequestAsBuffer(rc.body().buffer(), ck, clock);
+            V2Request requestAsBuffer = V2RequestUtil.parseRequestAsBuffer(rc.body().buffer(), ck, clock);
+
+            if (requestAsBuffer.isValid()) {
+                // If the binary request is valid, use the binary request buffer
+                return requestAsBuffer;
+            } else {
+                RoutingContextReader rcReader = new RoutingContextReader(rc);
+
+                // If the binary request is invalid, try to parse it as a base64 encoded string
+                V2Request requestAsString = V2RequestUtil.parseRequestAsString(rc.body().asString(), ck, clock);
+                if (requestAsString.isValid()) {
+                    // TODO: Delete this log line after fix is verified
+                    LOGGER.info("Fallback successful for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
+
+                    // If the base64 request is valid, set the request content type to text/plain, use the base64 request string
+                    rc.request().headers().set(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType());
+                    return requestAsString;
+                } else {
+                    // TODO: Delete this log line after fix is verified
+                    LOGGER.info("Fallback failed for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
+
+                    // If both binary and base64 requests are invalid, return the original binary request buffer error
+                    return requestAsBuffer;
+                }
+            }
         } else {
             return V2RequestUtil.parseRequestAsString(rc.body().asString(), ck, clock);
         }

@@ -89,16 +89,14 @@ public class StatsCollectorVerticle extends AbstractVerticle implements IStatsCo
         }
 
         String path = messageItem.getPath();
-        String apiVersion = "v0";
-        String endpoint = path.substring(1);
+        String apiVersion = "unknown";
+        String endpoint = path.startsWith("/") ? path.substring(1) : path;
 
-        if(path.length() > 1 && path.charAt(1) == 'v') {
+        if (path.length() > 1 && path.charAt(1) == 'v') {
             int apiVIndex = path.indexOf("/", 1);
             if (apiVIndex > 1) {
-                apiVersion = path.substring(1, apiVIndex);
+                apiVersion = path.substring(1, apiVIndex);  // e.g., "v2", "v3", "v4"
                 endpoint = path.substring(apiVIndex + 1);
-            } else {
-                apiVersion = "unknown";
             }
         }
 

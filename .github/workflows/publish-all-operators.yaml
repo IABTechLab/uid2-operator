@@ -18,6 +18,11 @@ on:
         - CRITICAL,HIGH
         - CRITICAL,HIGH,MEDIUM
         - CRITICAL (DO NOT use if JIRA ticket not raised)
+  workflow_call:
+      inputs:
+        release_branch:
+          required: true
+          type: string
   schedule:
     - cron: "0 0 * * *"
 

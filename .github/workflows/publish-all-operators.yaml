@@ -19,25 +19,25 @@ on:
         - CRITICAL,HIGH,MEDIUM
         - CRITICAL (DO NOT use if JIRA ticket not raised)
   workflow_call:
-      inputs:
-        release_branch:
-          required: true
-          type: string
-        release_type:
-          type: choice
-          description: The type of release
-          options:
-            - Patch
-            - Minor
-            - Major
-            - Snapshot
-        vulnerability_severity:
-          description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised.
-          type: choice
-          options:
-            - CRITICAL,HIGH
-            - CRITICAL,HIGH,MEDIUM
-            - CRITICAL (DO NOT use if JIRA ticket not raised)
+    inputs:
+      release_branch:
+        required: true
+        type: string
+      release_type:
+        type: choice
+        description: The type of release
+        options:
+          - Patch
+          - Minor
+          - Major
+          - Snapshot
+      vulnerability_severity:
+        description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised.
+        type: choice
+        options:
+          - CRITICAL,HIGH
+          - CRITICAL,HIGH,MEDIUM
+          - CRITICAL (DO NOT use if JIRA ticket not raised)
   schedule:
     - cron: "0 0 * * *"
 

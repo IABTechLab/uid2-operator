@@ -235,7 +235,7 @@ jobs:
 
   e2e:
     name: E2E
-    uses: ./.github/workflows/run-e2e-tests-on-operator.yaml
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v3
     needs: buildImage
     with:
       operator_type: gcp

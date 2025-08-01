@@ -1,10 +1,10 @@
 package com.uid2.operator.service;
 
+import com.uid2.operator.model.IdentityEnvironment;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.IdentityType;
-
-import java.util.HashSet;
-import java.util.Set;
+import com.uid2.operator.model.IdentityVersion;
+import com.uid2.shared.model.SaltEntry;
 
 public class TokenUtils {
     public static byte[] getIdentityHash(String identityString) {
@@ -55,11 +55,18 @@ public class TokenUtils {
         return getAdvertisingIdV3(scope, type, getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
     }
 
-    public static byte encodeIdentityScope(IdentityScope identityScope) {
-        return (byte) (identityScope.value << 4);
+    public static byte[] getAdvertisingIdV4(IdentityScope scope, IdentityType type, IdentityEnvironment environment, byte[] firstLevelHash, SaltEntry.KeyMaterial encryptingKey, String rotatingSalt) throws Exception {
+        byte metadata = (byte) (encodeIdentityVersion(IdentityVersion.V4) | encodeIdentityScope(scope) | encodeIdentityType(type) | encodeIdentityEnvironment(environment));
+        return V4TokenUtils.buildAdvertisingIdV4(metadata, firstLevelHash, encryptingKey.id(), encryptingKey.key(), rotatingSalt);
     }
+
+    public static byte encodeIdentityScope(IdentityScope identityScope) { return (byte) (identityScope.value << 4); }
 
     public static byte encodeIdentityType(IdentityType identityType) {
         return (byte) (identityType.value << 2);
     }
+
+    public static byte encodeIdentityVersion(IdentityVersion identityVersion) { return (byte) (identityVersion.value << 6); }
+
+    public static byte encodeIdentityEnvironment(IdentityEnvironment identityEnvironment) { return (byte) (identityEnvironment.value); }
 }

@@ -409,25 +409,6 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void get(Vertx vertx, String endpoint, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
-        get(vertx, endpoint, handler, Collections.emptyMap());
-    }
-
-    private void get(Vertx vertx, String endpoint, Handler<AsyncResult<HttpResponse<Buffer>>> handler, Map<String, String> additionalHeaders) {
-        WebClient client = WebClient.create(vertx);
-        ClientKey ck = clientKeyProvider.getClientKey("");
-        HttpRequest<Buffer> req = client.getAbs(getUrlForEndpoint(endpoint));
-        if (ck != null) {
-            req.putHeader("Authorization", "Bearer " + clientKey);
-        }
-
-        for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
-            req.putHeader(entry.getKey(), entry.getValue());
-        }
-
-        req.send(handler);
-    }
-
     private void post(Vertx vertx, String endpoint, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler, Map<String, String> additionalHeaders) {
         WebClient client = WebClient.create(vertx);
         ClientKey ck = clientKeyProvider.getClientKey("");

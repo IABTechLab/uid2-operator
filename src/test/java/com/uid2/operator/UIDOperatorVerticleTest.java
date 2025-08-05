@@ -249,8 +249,8 @@ public class UIDOperatorVerticleTest {
     }
 
     private void send(String apiVersion, Vertx vertx, String endpoint, JsonObject postPayload, int expectedHttpCode, Handler<JsonObject> handler, Map<String, String> additionalHeaders) {
-        if (apiVersion.equals("v2")) {
-            ClientKey ck = (ClientKey) clientKeyProvider.get("");
+        assertEquals("v2", apiVersion);
+        ClientKey ck = (ClientKey) clientKeyProvider.get("");
 
             long nonce = new BigInteger(Random.getBytes(8)).longValue();
 
@@ -276,13 +276,6 @@ public class UIDOperatorVerticleTest {
                     handler.handle(tryParseResponse(ar.result()));
                 }
             }, additionalHeaders);
-        } else {
-            post(vertx, endpoint, postPayload, ar -> {
-                assertTrue(ar.succeeded());
-                assertEquals(expectedHttpCode, ar.result().statusCode());
-                handler.handle(tryParseResponse(ar.result()));
-            }, additionalHeaders);
-        }
     }
 
     protected void sendTokenGenerate(String apiVersion, Vertx vertx, JsonObject v2PostPayload, int expectedHttpCode,
@@ -349,37 +342,36 @@ public class UIDOperatorVerticleTest {
 
     private void sendTokenRefresh(String apiVersion, Vertx vertx, VertxTestContext testContext, String refreshToken, String v2RefreshDecryptSecret, int expectedHttpCode,
                                   Handler<JsonObject> handler, Map<String, String> additionalHeaders) {
-        if (apiVersion.equals("v2")) {
-            WebClient client = WebClient.create(vertx);
-            HttpRequest<Buffer> refreshHttpRequest = client.postAbs(getUrlForEndpoint("v2/token/refresh"));
-            refreshHttpRequest.putHeader(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.TEXT_PLAIN.getType());
-            for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
-                refreshHttpRequest.putHeader(entry.getKey(), entry.getValue());
-            }
-
-            refreshHttpRequest
-                    .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), testContext.succeeding(response -> testContext.verify(() -> {
-                        assertEquals(expectedHttpCode, response.statusCode());
-
-                        if (response.statusCode() == 200 && v2RefreshDecryptSecret != null) {
-                            byte[] byteResp = new byte[0];
-                            if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
-                                byteResp = response.bodyAsBuffer().getBytes();
-                            } else if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType(), true)) {
-                                byteResp = Utils.decodeBase64String(response.bodyAsString());
-                            }
-                            byte[] decrypted = AesGcm.decrypt(byteResp, 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
-                            JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
-
-                            if (respJson.getString("status").equals("success"))
-                                decodeV2RefreshToken(respJson);
-
-                            handler.handle(respJson);
-                        } else {
-                            handler.handle(tryParseResponse(response));
-                        }
-                    })));
+        WebClient client = WebClient.create(vertx);
+        HttpRequest<Buffer> refreshHttpRequest = client.postAbs(getUrlForEndpoint("v2/token/refresh"));
+        refreshHttpRequest.putHeader(HttpHeaders.CONTENT_TYPE.toString(), HttpMediaType.TEXT_PLAIN.getType());
+        for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
+            refreshHttpRequest.putHeader(entry.getKey(), entry.getValue());
         }
+
+        refreshHttpRequest
+                .sendBuffer(Buffer.buffer(refreshToken.getBytes(StandardCharsets.UTF_8)), testContext.succeeding(response -> testContext.verify(() -> {
+                    assertEquals(expectedHttpCode, response.statusCode());
+
+                    if (response.statusCode() == 200 && v2RefreshDecryptSecret != null) {
+                        byte[] byteResp = new byte[0];
+                        if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
+                            byteResp = response.bodyAsBuffer().getBytes();
+                        } else if (response.headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType(), true)) {
+                            byteResp = Utils.decodeBase64String(response.bodyAsString());
+                        }
+                        byte[] decrypted = AesGcm.decrypt(byteResp, 0, Utils.decodeBase64String(v2RefreshDecryptSecret));
+                        JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
+
+                        if (respJson.getString("status").equals("success"))
+                            decodeV2RefreshToken(respJson);
+
+                        handler.handle(respJson);
+                    } else {
+                        handler.handle(tryParseResponse(response));
+                    }
+                })));
+
     }
 
     private String decodeV2RefreshToken(JsonObject respJson) {
@@ -407,20 +399,6 @@ public class UIDOperatorVerticleTest {
         } catch (Exception ex) {
             return null;
         }
-    }
-
-    private void post(Vertx vertx, String endpoint, JsonObject body, Handler<AsyncResult<HttpResponse<Buffer>>> handler, Map<String, String> additionalHeaders) {
-        WebClient client = WebClient.create(vertx);
-        ClientKey ck = clientKeyProvider.getClientKey("");
-        HttpRequest<Buffer> req = client.postAbs(getUrlForEndpoint(endpoint));
-        if (ck != null)
-            req.putHeader("Authorization", "Bearer " + clientKey);
-
-        for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
-            req.putHeader(entry.getKey(), entry.getValue());
-        }
-
-        req.sendJsonObject(body, handler);
     }
 
     private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, String referer, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {

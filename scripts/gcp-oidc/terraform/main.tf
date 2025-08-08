@@ -102,16 +102,21 @@ resource "google_compute_instance_template" "uid_operator" {
     source_image = data.google_compute_image.confidential_space_image.self_link
   }
 
-  metadata = {
-    tee-image-reference            = var.uid_operator_image
-    tee-container-log-redirect     = true
-    tee-restart-policy             = "Never"
-    tee-env-DEBUG_MODE             = var.debug_mode
-    tee-env-DEPLOYMENT_ENVIRONMENT = var.uid_deployment_env
-    tee-env-API_TOKEN_SECRET_NAME  = module.secret-manager.secret_versions[0]
-    tee-env-CORE_BASE_URL          = var.uid_deployment_env == "integ" ? "https://core-integ.uidapi.com" : "https://core-prod.uidapi.com"
-    tee-env-OPTOUT_BASE_URL        = var.uid_deployment_env == "integ" ? "https://optout-integ.uidapi.com" : "https://optout-prod.uidapi.com"
-  }
+  metadata = merge(
+    {
+      tee-image-reference            = var.uid_operator_image
+      tee-container-log-redirect     = true
+      tee-restart-policy             = "Never"
+      tee-env-DEPLOYMENT_ENVIRONMENT = var.uid_deployment_env
+      tee-env-API_TOKEN_SECRET_NAME  = var.uid_operator_key_secret_name
+      tee-env-CORE_BASE_URL          = var.uid_deployment_env == "integ" ? "https://core-integ.uidapi.com" : "https://core-prod.uidapi.com"
+      tee-env-OPTOUT_BASE_URL        = var.uid_deployment_env == "integ" ? "https://optout-integ.uidapi.com" : "https://optout-prod.uidapi.com"
+    },
+    var.uid_deployment_env != "prod" ? {
+      tee-env-DEBUG_MODE = var.debug_mode
+    } : {}
+  )
+
 
   network_interface {
     network    = google_compute_network.default.name

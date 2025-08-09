@@ -40,7 +40,7 @@ public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
         final JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", emailAddress);
         v2Payload.put("tcf_consent_string", "invalid_consent_string");
-        sendTokenGenerate("v2", vertx, v2Payload, 400, json -> testContext.completeNow());
+        sendTokenGenerate(vertx, v2Payload, 400, json -> testContext.completeNow());
     }
 
     @Test
@@ -53,7 +53,7 @@ public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
         final String emailAddress = "test@uid2.com";
         final JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", emailAddress);
-        sendTokenGenerate("v2", vertx,  v2Payload, 200, json -> testContext.completeNow(), false);
+        sendTokenGenerate(vertx,  v2Payload, 200, json -> testContext.completeNow(), false);
 
     }
 
@@ -69,7 +69,7 @@ public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
         v2Payload.put("email", emailAddress);
         // this TCString is missing consent for purpose #1
         v2Payload.put("tcf_consent_string", "CPehXK9PehXK9ABAMBFRACBoADAAAEJAAIYgAKwAQAKgArABAAqAAA");
-        sendTokenGenerate("v2", vertx, v2Payload, 200, json -> {
+        sendTokenGenerate(vertx, v2Payload, 200, json -> {
             assertFalse(json.containsKey("body"));
             assertEquals("insufficient_user_consent", json.getString("status"));
             testContext.completeNow();

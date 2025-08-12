@@ -1605,9 +1605,11 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"v2, text/plain",
-                "v2, application/octet-stream"})
-    void tokenGenerateThenRefresh(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
+    @ValueSource(strings = {
+            "text/plain",
+            "application/octet-stream"
+    })
+    void tokenGenerateThenRefresh(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         fakeAuth(clientSiteId, Role.GENERATOR);
@@ -1762,7 +1764,6 @@ public class UIDOperatorVerticleTest {
     @Test
     void tokenGenerateThenValidateWithEmail_Match(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String apiVersion = "v2";
         final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -1779,7 +1780,7 @@ public class UIDOperatorVerticleTest {
             v2Payload.put("token", advertisingTokenString);
             v2Payload.put("email", emailAddress);
 
-            send(vertx, apiVersion + "/token/validate", v2Payload, 200, json -> {
+            send(vertx,  "v2/token/validate", v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
                 assertEquals("success", json.getString("status"));
 
@@ -1818,7 +1819,6 @@ public class UIDOperatorVerticleTest {
     @Test
     void tokenGenerateThenValidateWithBothEmailAndEmailHash(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String apiVersion = "v2";
         final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -1836,7 +1836,7 @@ public class UIDOperatorVerticleTest {
             v2Payload.put("email", emailAddress);
             v2Payload.put("email_hash", emailAddress);
 
-            send(vertx, apiVersion + "/token/validate", v2Payload, 400, json -> {
+            send(vertx, "v2/token/validate", v2Payload, 400, json -> {
                 assertFalse(json.containsKey("body"));
                 assertEquals("client_error", json.getString("status"));
 
@@ -2120,16 +2120,18 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"v2, text/plain",
-                "v2, application/octet-stream"})
-    void tokenValidateWithEmail_Mismatch(String apiVersion, String contentType, Vertx vertx, VertxTestContext testContext) {
+    @ValueSource(strings = {
+            "text/plain",
+            "application/octet-stream"
+    })
+    void tokenValidateWithEmail_Mismatch(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
 
-        send(vertx, apiVersion + "/token/validate", new JsonObject().put("token", "abcdef").put("email", emailAddress),
+        send(vertx, "v2/token/validate", new JsonObject().put("token", "abcdef").put("email", emailAddress),
                 200,
                 respJson -> {
                     assertFalse(respJson.getBoolean("body"));
@@ -2688,7 +2690,6 @@ public class UIDOperatorVerticleTest {
     @Test
     void tokenGenerateThenRefreshForPhone(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String apiVersion = "v2";
         final String phone = "+15555555555";
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -2735,7 +2736,6 @@ public class UIDOperatorVerticleTest {
     @Test
     void tokenGenerateThenValidateWithPhone_Match(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String apiVersion = "v2";
         final String phone = ValidateIdentityForPhone;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -2752,7 +2752,7 @@ public class UIDOperatorVerticleTest {
             v2Payload.put("token", advertisingTokenString);
             v2Payload.put("phone", phone);
 
-            send(vertx, apiVersion + "/token/validate", v2Payload, 200, json -> {
+            send(vertx, "v2/token/validate", v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
                 assertEquals("success", json.getString("status"));
 
@@ -3076,7 +3076,6 @@ public class UIDOperatorVerticleTest {
     void identityMapRespectOptOutOption(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String apiVersion = "v2";
-
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
         setupKeys();
@@ -3108,7 +3107,6 @@ public class UIDOperatorVerticleTest {
     void requestWithoutClientKeyOrReferer(Vertx vertx, VertxTestContext testContext) {
         final String emailAddress = "test@uid2.com";
         final String apiVersion = "v2";
-
         setupSalts();
         setupKeys();
 

@@ -250,31 +250,30 @@ public class UIDOperatorVerticleTest {
 
     private void send(Vertx vertx, String endpoint, JsonObject postPayload, int expectedHttpCode, Handler<JsonObject> handler, Map<String, String> additionalHeaders) {
         ClientKey ck = (ClientKey) clientKeyProvider.get("");
+        long nonce = new BigInteger(Random.getBytes(8)).longValue();
 
-            long nonce = new BigInteger(Random.getBytes(8)).longValue();
+        postV2(ck, vertx, endpoint, postPayload, nonce, null, ar -> {
+            assertTrue(ar.succeeded());
+            assertEquals(expectedHttpCode, ar.result().statusCode());
 
-            postV2(ck, vertx, endpoint, postPayload, nonce, null, ar -> {
-                assertTrue(ar.succeeded());
-                assertEquals(expectedHttpCode, ar.result().statusCode());
-
-                if (ar.result().statusCode() == 200) {
-                    byte[] byteResp = new byte[0];
-                    if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
-                        byteResp = ar.result().bodyAsBuffer().getBytes();
-                    } else if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType(), true)) {
-                        byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
-                    }
-
-                    byte[] decrypted = AesGcm.decrypt(byteResp, 0, ck.getSecretBytes());
-
-                    assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
-
-                    JsonObject respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
-                    handler.handle(respJson);
-                } else {
-                    handler.handle(tryParseResponse(ar.result()));
+            if (ar.result().statusCode() == 200) {
+                byte[] byteResp = new byte[0];
+                if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
+                    byteResp = ar.result().bodyAsBuffer().getBytes();
+                } else if (ar.result().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType(), true)) {
+                    byteResp = Utils.decodeBase64String(ar.result().bodyAsString());
                 }
-            }, additionalHeaders);
+
+                byte[] decrypted = AesGcm.decrypt(byteResp, 0, ck.getSecretBytes());
+
+                assertArrayEquals(Buffer.buffer().appendLong(nonce).getBytes(), Buffer.buffer(decrypted).slice(8, 16).getBytes());
+
+                JsonObject respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
+                handler.handle(respJson);
+            } else {
+                handler.handle(tryParseResponse(ar.result()));
+            }
+        }, additionalHeaders);
     }
 
     protected void sendTokenGenerate(Vertx vertx, JsonObject v2PostPayload, int expectedHttpCode,
@@ -2763,7 +2762,6 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void tokenGenerateThenValidateSaltsExpired(Vertx vertx, VertxTestContext testContext) {
-        final String apiVersion = "v2";
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
         final int clientSiteId = 201;
         final String phone = ValidateIdentityForPhone;
@@ -2782,7 +2780,7 @@ public class UIDOperatorVerticleTest {
             v2Payload.put("token", advertisingTokenString);
             v2Payload.put("phone", phone);
 
-            send(vertx, apiVersion + "/token/validate", v2Payload, 200, json -> {
+            send(vertx, "v2/token/validate", v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
                 assertEquals("success", json.getString("status"));
 
@@ -2796,7 +2794,6 @@ public class UIDOperatorVerticleTest {
     @Test
     void tokenGenerateThenValidateWithPhoneHash_Match(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
-        final String apiVersion = "v2";
         final String phoneHash = EncodingUtils.toBase64String(ValidateIdentityForPhoneHash);
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -2813,7 +2810,7 @@ public class UIDOperatorVerticleTest {
             v2Payload.put("token", advertisingTokenString);
             v2Payload.put("phone_hash", phoneHash);
 
-            send(vertx, apiVersion + "/token/validate", v2Payload, 200, json -> {
+            send(vertx, "v2/token/validate", v2Payload, 200, json -> {
                 assertTrue(json.getBoolean("body"));
                 assertEquals("success", json.getString("status"));
 
@@ -5299,7 +5296,6 @@ public class UIDOperatorVerticleTest {
 
     @Test
     void identityBucketsAlwaysReturnMilliseconds(Vertx vertx, VertxTestContext testContext) {
-        final String apiVersion = "v2";
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
         setupSalts();
@@ -5313,7 +5309,7 @@ public class UIDOperatorVerticleTest {
 
         JsonObject req =  new JsonObject().put("since_timestamp", sinceTimestamp);
 
-        send(vertx, apiVersion + "/identity/buckets", req, 200, respJson -> {
+        send(vertx, "v2/identity/buckets", req, 200, respJson -> {
             JsonArray buckets = respJson.getJsonArray("body");
             assertFalse(buckets.isEmpty());
             assertLastUpdatedHasMillis(buckets);

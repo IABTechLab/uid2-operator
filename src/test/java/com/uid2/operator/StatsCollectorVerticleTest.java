@@ -112,7 +112,7 @@ public class StatsCollectorVerticleTest {
         var messages = getMessages();
         for(String endpoint: validEndpoints) {
             String withoutVersion = endpoint;
-            if (endpoint.matches("^/v\\d+/.*")) {
+            if (endpoint.startsWith("/v2/") || endpoint.startsWith("/v3/")) {
                 withoutVersion = endpoint.substring(endpoint.indexOf("/", 1) + 1);
             } else if (endpoint.startsWith("/")) {
                 withoutVersion = endpoint.substring(1);

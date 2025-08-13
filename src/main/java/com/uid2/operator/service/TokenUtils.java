@@ -6,7 +6,10 @@ import com.uid2.operator.model.IdentityType;
 import com.uid2.operator.model.IdentityVersion;
 import com.uid2.shared.model.SaltEntry;
 
-public class TokenUtils {
+public final class TokenUtils {
+    private TokenUtils() {
+    }
+
     public static byte[] getIdentityHash(String identityString) {
         return EncodingUtils.getSha256Bytes(identityString);
     }
@@ -42,7 +45,7 @@ public class TokenUtils {
     public static byte[] getAdvertisingIdV3(IdentityScope scope, IdentityType type, byte[] firstLevelHash, String rotatingSalt) {
         final byte[] sha = EncodingUtils.getSha256Bytes(EncodingUtils.toBase64String(firstLevelHash), rotatingSalt);
         final byte[] id = new byte[33];
-        id[0] = (byte)(encodeIdentityScope(scope) | encodeIdentityType(type));
+        id[0] = (byte) (encodeIdentityScope(scope) | encodeIdentityType(type));
         System.arraycopy(sha, 0, id, 1, 32);
         return id;
     }
@@ -60,13 +63,19 @@ public class TokenUtils {
         return V4TokenUtils.buildAdvertisingIdV4(metadata, firstLevelHash, encryptingKey.id(), encryptingKey.key(), rotatingSalt);
     }
 
-    public static byte encodeIdentityScope(IdentityScope identityScope) { return (byte) (identityScope.value << 4); }
-
-    public static byte encodeIdentityType(IdentityType identityType) {
-        return (byte) (identityType.value << 2);
+    public static byte encodeIdentityVersion(IdentityVersion identityVersion) {
+        return (byte) (identityVersion.getValue() << 6);
     }
 
-    public static byte encodeIdentityVersion(IdentityVersion identityVersion) { return (byte) (identityVersion.value << 6); }
+    public static byte encodeIdentityScope(IdentityScope identityScope) {
+        return (byte) (identityScope.getValue() << 4);
+    }
 
-    public static byte encodeIdentityEnvironment(IdentityEnvironment identityEnvironment) { return (byte) (identityEnvironment.value); }
+    public static byte encodeIdentityType(IdentityType identityType) {
+        return (byte) (identityType.getValue() << 2);
+    }
+
+    public static byte encodeIdentityEnvironment(IdentityEnvironment identityEnvironment) {
+        return (byte) (identityEnvironment.getValue());
+    }
 }

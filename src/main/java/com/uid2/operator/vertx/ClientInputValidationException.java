@@ -1,6 +1,6 @@
 package com.uid2.operator.vertx;
 
-public class ClientInputValidationException extends RuntimeException  {
+public class ClientInputValidationException extends RuntimeException {
     public ClientInputValidationException(String message) {
         super(message);
     }

@@ -1,13 +1,19 @@
 package com.uid2.operator.model;
 
 import com.uid2.operator.vertx.ClientInputValidationException;
+import lombok.Getter;
 
+@Getter
 public enum IdentityEnvironment {
-    Test(0), Integ(1), Prod(2);
+    Test(0),
+    Integ(1),
+    Prod(2);
 
-    public final int value;
+    private final int value;
 
-    IdentityEnvironment(int value) { this.value = value; }
+    IdentityEnvironment(int value) {
+        this.value = value;
+    }
 
     public static IdentityEnvironment fromValue(int value) {
         return switch (value) {

@@ -1,6 +1,8 @@
-package com.uid2.operator;
+package com.uid2.operator.vertx;
 
+import com.uid2.operator.Main;
 import com.uid2.operator.model.*;
+import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.TokenUtils;

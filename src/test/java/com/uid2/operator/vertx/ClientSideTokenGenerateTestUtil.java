@@ -1,4 +1,4 @@
-package com.uid2.operator;
+package com.uid2.operator.vertx;
 
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;

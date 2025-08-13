@@ -1,7 +1,5 @@
-package com.uid2.operator;
+package com.uid2.operator.reader;
 
-import com.uid2.operator.reader.ApiStoreReader;
-import com.uid2.operator.reader.RotatingCloudEncryptionKeyApiProvider;
 import com.uid2.shared.model.CloudEncryptionKey;
 import com.uid2.shared.store.CloudPath;
 import io.vertx.core.json.JsonObject;

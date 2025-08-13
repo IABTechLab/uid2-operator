@@ -1,4 +1,4 @@
-package com.uid2.operator;
+package com.uid2.operator.vertx;
 
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -6,7 +6,6 @@ import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.IConfigStore;
 import com.uid2.operator.store.IOptOutStore;
-import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.salt.ISaltProvider;

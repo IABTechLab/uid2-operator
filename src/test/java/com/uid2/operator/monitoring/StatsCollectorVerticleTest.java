@@ -1,12 +1,12 @@
-package com.uid2.operator;
+package com.uid2.operator.monitoring;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.uid2.operator.Const;
 import com.uid2.operator.model.StatsCollectorMessageItem;
-import com.uid2.operator.monitoring.StatsCollectorVerticle;
 import com.uid2.operator.vertx.Endpoints;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;

@@ -1,8 +1,9 @@
-package com.uid2.operator;
+package com.uid2.operator.vertx;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.uid2.operator.Const;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -14,8 +15,6 @@ import com.uid2.operator.store.RuntimeConfig;
 import com.uid2.operator.util.HttpMediaType;
 import com.uid2.operator.util.PrivacyBits;
 import com.uid2.operator.util.Tuple;
-import com.uid2.operator.vertx.OperatorShutdownHandler;
-import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.Utils;
 import com.uid2.shared.audit.Audit;
 import com.uid2.shared.audit.UidInstanceIdProvider;
@@ -74,7 +73,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.uid2.operator.ClientSideTokenGenerateTestUtil.decrypt;
+import static com.uid2.operator.vertx.ClientSideTokenGenerateTestUtil.decrypt;
 import static com.uid2.operator.IdentityConst.*;
 import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.*;
@@ -3468,9 +3467,9 @@ public class UIDOperatorVerticleTest {
         when(clientSideKeypairSnapshot.getKeypair(subscriptionID)).thenReturn(keypairDisabled);
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
-        final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
-        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
-        final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
+        final PublicKey serverPublicKey = TokenEncodingTest.ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
+        final PrivateKey clientPrivateKey = TokenEncodingTest.ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
+        final SecretKey secretKey = TokenEncodingTest.ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
         final long timestamp = Instant.now().toEpochMilli();
 
 
@@ -3641,14 +3640,14 @@ public class UIDOperatorVerticleTest {
         identityPayload.put("email_hash", getSha256(rawId));
 
         final KeyFactory kf = KeyFactory.getInstance("EC");
-        final PublicKey serverPublicKey = ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
-        final PrivateKey clientPrivateKey = ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
-        final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
+        final PublicKey serverPublicKey = TokenEncodingTest.ClientSideTokenGenerateTestUtil.stringToPublicKey(clientSideTokenGeneratePublicKey, kf);
+        final PrivateKey clientPrivateKey = TokenEncodingTest.ClientSideTokenGenerateTestUtil.stringToPrivateKey("MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDsqxZicsGytVqN2HZqNDHtV422Lxio8m1vlflq4Jb47Q==", kf);
+        final SecretKey secretKey = TokenEncodingTest.ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
 
         final byte[] iv = Random.getBytes(12);
         final long timestamp = Instant.now().toEpochMilli();
         final byte[] aad = new JsonArray(List.of(timestamp)).toBuffer().getBytes();
-        byte[] payloadBytes = ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad);
+        byte[] payloadBytes = com.uid2.operator.vertx.TokenEncodingTest.ClientSideTokenGenerateTestUtil.encrypt(identityPayload.toString().getBytes(), secretKey.getEncoded(), iv, aad);
         final String payload = EncodingUtils.toBase64String(payloadBytes);
 
         JsonObject requestJson = new JsonObject();

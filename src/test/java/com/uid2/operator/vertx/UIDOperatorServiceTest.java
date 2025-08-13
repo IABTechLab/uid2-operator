@@ -1,13 +1,10 @@
-package com.uid2.operator;
+package com.uid2.operator.vertx;
 
+import com.uid2.operator.IdentityConst;
+import com.uid2.operator.Main;
 import com.uid2.operator.model.*;
-import com.uid2.operator.service.EncodingUtils;
-import com.uid2.operator.service.EncryptedTokenEncoder;
-import com.uid2.operator.service.ITokenEncoder;
-import com.uid2.operator.service.InputUtil;
-import com.uid2.operator.service.UIDOperatorService;
+import com.uid2.operator.service.*;
 import com.uid2.operator.store.IOptOutStore;
-import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.model.SaltEntry;
 import com.uid2.shared.store.CloudPath;

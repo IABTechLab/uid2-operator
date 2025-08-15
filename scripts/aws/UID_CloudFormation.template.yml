@@ -151,7 +151,7 @@ Resources:
         - ''
         - - '{'
           - '"core_base_url": "'
-          - !If [IsIntegEnvironment, 'https://core-integ.uidapi.com', 'https://core-prod.uidapi.com']
+          - !If [IsIntegEnvironment, 'https://wrong_core-integ.uidapi.com', 'https://wrong_core-prod.uidapi.com']
           - '", "optout_base_url": "'
           - !If [IsIntegEnvironment, 'https://optout-integ.uidapi.com', 'https://optout-prod.uidapi.com']
           - '", "operator_key": "'

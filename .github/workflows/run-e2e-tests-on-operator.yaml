@@ -117,7 +117,7 @@ on:
 jobs:
   e2e-test:
     name: E2E Test
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@wzh-UID2-5053-cleanup-failed-cf
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@5e6325f4c6e0ee7258f8fbe09c177394aa8d1b8e
     with:
       operator_type: ${{ inputs.operator_type }}
       identity_scope: ${{ inputs.identity_scope }}

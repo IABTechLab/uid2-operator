@@ -18,7 +18,7 @@ class V4TokenUtilsTest {
                 "salt1234salt1234salt1234salt1234"
         );
         byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity("test@example.com", encryptionKey.salt());
-        byte metadata = (byte) 0b10110101;
+        byte metadata = (byte) 0b00100000;
         byte[] v4UID = buildAdvertisingIdV4(metadata, firstLevelHash, encryptionKey.id(), encryptionKey.key(), encryptionKey.salt());
         assertEquals(33, v4UID.length);
 

@@ -43,7 +43,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.DecodeException;
@@ -78,17 +77,18 @@ import static com.uid2.operator.service.ResponseUtil.*;
 import static com.uid2.operator.vertx.Endpoints.*;
 
 public class UIDOperatorVerticle extends AbstractVerticle {
-    private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
     public static final long MAX_REQUEST_BODY_SIZE = 1 << 20; // 1MB
     /**
      * There is currently an issue with v2 tokens (and possibly also other ad token versions) where the token lifetime
      * is slightly longer than it should be. When validating token lifetimes, we add a small buffer to account for this.
      */
     public static final Duration TOKEN_LIFETIME_TOLERANCE = Duration.ofSeconds(10);
-    private static final long SECOND_IN_MILLIS = 1000;
+    private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
     // Use a formatter that always prints three-digit millisecond precision (e.g. 2024-07-02T14:15:16.000)
     private static final DateTimeFormatter API_DATE_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
+    private static final ObjectMapper OBJECT_MAPPER = Mapper.getApiInstance();
+    private static final long SECOND_IN_MILLIS = 1000;
 
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
@@ -107,6 +107,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final boolean disableOptoutToken;
     private final UidInstanceIdProvider uidInstanceIdProvider;
     protected IUIDOperatorService idService;
+
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
@@ -117,6 +118,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
     private final IdentityScope identityScope;
+    private final IdentityEnvironment identityEnvironment;
     private final V2PayloadHandler encryptedPayloadHandler;
     private final boolean phoneSupport;
     private final int tcfVendorId;
@@ -125,8 +127,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final SecureLinkValidatorService secureLinkValidatorService;
     private final boolean cstgDoDomainNameCheck;
     private final boolean clientSideTokenGenerateLogInvalidHttpOrigin;
-    public final static int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
-    public final static long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
+    public static final int MASTER_KEYSET_ID_FOR_SDKS = 9999999; //this is because SDKs have an issue where they assume keyset ids are always positive; that will be fixed.
+    public static final long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
     private final Handler<Boolean> saltRetrievalResponseHandler;
     private final int allowClockSkewSeconds;
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
@@ -136,19 +138,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int optOutStatusMaxRequestSize;
     private final boolean optOutStatusApiEnabled;
 
-    private final static ObjectMapper OBJECT_MAPPER = Mapper.getApiInstance();
-
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
-    private final static List<String> SUPPORTED_IN_APP = Arrays.asList("Android", "ios", "tvos");
+    private static final List<String> SUPPORTED_IN_APP = Arrays.asList("Android", "ios", "tvos");
 
+    public static final String ORIGIN_HEADER = "Origin";
     private static final String ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: exactly one of [email, email_hash, phone, phone_hash] must be specified";
     private static final String ERROR_INVALID_INPUT_EMAIL_MISSING = "Required Parameter Missing: exactly one of email or email_hash must be specified";
     private static final String ERROR_INVALID_MIXED_INPUT_WITH_PHONE_SUPPORT = "Required Parameter Missing: one or more of [email, email_hash, phone, phone_hash] must be specified";
     private static final String ERROR_INVALID_MIXED_INPUT_EMAIL_MISSING = "Required Parameter Missing: one or more of [email, email_hash] must be specified";
-    private static final String ERROR_INVALID_INPUT_EMAIL_TWICE = "Only one of email or email_hash can be specified";
     private static final String RC_CONFIG_KEY = "remote-config";
-    public final static String ORIGIN_HEADER = "Origin";
 
     public UIDOperatorVerticle(IConfigStore configStore,
                                JsonObject config,
@@ -164,6 +163,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                SecureLinkValidatorService secureLinkValidatorService,
                                Handler<Boolean> saltRetrievalResponseHandler,
                                UidInstanceIdProvider uidInstanceIdProvider) {
+        this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
+
+
+
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -175,13 +178,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
-        this.encoder = new EncryptedTokenEncoder(keyManager);
         this.siteProvider = siteProvider;
         this.clientSideKeypairProvider = clientSideKeypairProvider;
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
-        this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
+        this.identityEnvironment = IdentityEnvironment.fromString(config.getString("identity_environment", "test"));
+        this.encoder = new EncryptedTokenEncoder(keyManager, identityEnvironment);
         this.encryptedPayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
@@ -208,6 +211,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.encoder,
                 this.clock,
                 this.identityScope,
+                this.identityEnvironment,
                 this.saltRetrievalResponseHandler,
                 this.identityV3Enabled,
                 this.uidInstanceIdProvider
@@ -267,7 +271,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void setUpEncryptedRoutes(Router mainRouter, BodyHandler bodyHandler) {
-
         mainRouter.post(V2_TOKEN_GENERATE.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handleTokenGenerate(rc, this::handleTokenGenerateV2), Role.GENERATOR));
         mainRouter.post(V2_TOKEN_REFRESH.toString()).handler(bodyHandler).handler(auth.handleWithOptionalAuth(
@@ -297,7 +300,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
-
     }
 
     private void handleClientSideTokenGenerate(RoutingContext rc) {
@@ -372,7 +374,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
         rc.put(com.uid2.shared.Const.RoutingContextData.SiteId, clientSideKeypair.getSiteId());
 
-        if(clientSideKeypair.isDisabled()) {
+        if (clientSideKeypair.isDisabled()) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.Unauthorized, 401, rc, "Unauthorized",
                     clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.Unauthorized, siteProvider, platformType);
             return;
@@ -448,7 +450,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final String phoneHash = requestPayload.getString("phone_hash");
         final InputUtil.InputVal input;
 
-
         if (phoneHash != null && !phoneSupport) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "phone support not enabled", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, platformType);
             return;
@@ -458,15 +459,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (emailHash == null && phoneHash == null) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, errString, clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.MissingParams, siteProvider, platformType);
             return;
-        }
-        else if (emailHash != null && phoneHash != null) {
+        } else if (emailHash != null && phoneHash != null) {
             SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, errString, clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, platformType);
             return;
-        }
-        else if(emailHash != null) {
+        } else if (emailHash != null) {
             input = InputUtil.normalizeEmailHash(emailHash);
-        }
-        else {
+        } else {
             input = InputUtil.normalizePhoneHash(phoneHash);
         }
 
@@ -483,12 +481,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             identityTokens = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
-                            input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
+                            input.toUserIdentity(this.identityScope, this.identityEnvironment, privacyBits.getAsInt(), Instant.now()),
                             OptoutCheckPolicy.RespectOptOut),
                     refreshIdentityAfter,
                     refreshExpiresAfter,
                     identityExpiresAfter);
-        } catch (KeyManager.NoActiveKeyException e){
+        } catch (KeyManager.NoActiveKeyException e) {
             SendServerErrorResponseAndRecordStats(rc, "No active encryption key available", clientSideKeypair.getSiteId(), TokenResponseStatsCollector.Endpoint.ClientSideTokenGenerateV2, TokenResponseStatsCollector.ResponseStatus.NoActiveKey, siteProvider, e, platformType);
             return;
         }
@@ -498,8 +496,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (identityTokens.isEmptyToken()) {
             response = ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut);
             responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
-        }
-        else { //user not opted out and already generated valid identity token
+        } else { //user not opted out and already generated valid identity token
             response = ResponseUtil.SuccessV2(toTokenResponseJson(identityTokens));
         }
         //if returning an optout token or a successful identity token created originally
@@ -862,7 +859,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
 
-                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(this.identityScope, 0, now), now)) {
+                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(this.identityScope, this.identityEnvironment, 0, now), now)) {
                         ResponseUtil.SuccessV2(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.SuccessV2(rc, Boolean.FALSE);
@@ -927,7 +924,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
-                                input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                                input.toUserIdentity(this.identityScope, this.identityEnvironment, 1, Instant.now()),
                                 OptoutCheckPolicy.respectOptOut()),
                         refreshIdentityAfter,
                         refreshExpiresAfter,
@@ -946,7 +943,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         final IdentityTokens optOutTokens = this.idService.generateIdentity(
                                 new IdentityRequest(
                                         new PublisherIdentity(siteId, 0, 0),
-                                        optOutTokenInput.toUserIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
+                                        optOutTokenInput.toUserIdentity(this.identityScope, this.identityEnvironment, pb.getAsInt(), Instant.now()),
                                         OptoutCheckPolicy.DoNotRespect),
                                 refreshIdentityAfter,
                                 refreshExpiresAfter,
@@ -980,7 +977,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
-            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, uidTraceId, ar -> {
+            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, this.identityEnvironment, 0, now), now, uidTraceId, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
                     body.put("optout", "OK");
@@ -1088,7 +1085,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (input != null && input.isValid()) {
                 final MappedIdentity mappedIdentity = idService.mapIdentity(
                         new MapRequest(
-                                input.toUserIdentity(this.identityScope, 0, now),
+                                input.toUserIdentity(this.identityScope, this.identityEnvironment, 0, now),
                                 OptoutCheckPolicy.respectOptOut(),
                                 now));
 
@@ -1139,7 +1136,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 if (rawId != null && rawId.isValid()) {
                     final MappedIdentity mappedId = idService.mapIdentity(
                             new MapRequest(
-                                    rawId.toUserIdentity(this.identityScope, 0, now),
+                                    rawId.toUserIdentity(this.identityScope, this.identityEnvironment, 0, now),
                                     OptoutCheckPolicy.respectOptOut(),
                                     now));
 

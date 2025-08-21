@@ -4,13 +4,10 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import io.vertx.core.buffer.Buffer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
 public final class V4TokenUtils {
-    private static final Logger LOGGER = LoggerFactory.getLogger(V4TokenUtils.class);
     private static final int IV_LENGTH = 12;
 
     private V4TokenUtils() {
@@ -61,7 +58,6 @@ public final class V4TokenUtils {
         for (byte b : data) {
             checksum ^= b;
         }
-        LOGGER.debug("Checksum: 0x{}", String.format("%02X", checksum));
         return checksum;
     }
 

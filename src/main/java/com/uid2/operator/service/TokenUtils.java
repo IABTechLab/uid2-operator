@@ -6,7 +6,10 @@ import com.uid2.operator.model.IdentityType;
 import com.uid2.operator.model.IdentityVersion;
 import com.uid2.shared.model.SaltEntry;
 
-public class TokenUtils {
+public final class TokenUtils {
+    private TokenUtils() {
+    }
+
     public static byte[] getIdentityHash(String identityString) {
         return EncodingUtils.getSha256Bytes(identityString);
     }
@@ -42,7 +45,7 @@ public class TokenUtils {
     public static byte[] getAdvertisingIdV3(IdentityScope scope, IdentityType type, byte[] firstLevelHash, String rotatingSalt) {
         final byte[] sha = EncodingUtils.getSha256Bytes(EncodingUtils.toBase64String(firstLevelHash), rotatingSalt);
         final byte[] id = new byte[33];
-        id[0] = (byte)(encodeIdentityScope(scope) | encodeIdentityType(type));
+        id[0] = (byte) (encodeIdentityScope(scope) | encodeIdentityType(type));
         System.arraycopy(sha, 0, id, 1, 32);
         return id;
     }
@@ -55,9 +58,9 @@ public class TokenUtils {
         return getAdvertisingIdV3(scope, type, getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
     }
 
-    public static byte[] getAdvertisingIdV4(IdentityScope scope, IdentityType type, IdentityEnvironment environment, byte[] firstLevelHash, SaltEntry.KeyMaterial encryptingKey, String rotatingSalt) throws Exception {
+    public static byte[] getAdvertisingIdV4(IdentityScope scope, IdentityType type, IdentityEnvironment environment, byte[] firstLevelHash, SaltEntry.KeyMaterial encryptingKey) throws Exception {
         byte metadata = (byte) (encodeIdentityVersion(IdentityVersion.V4) | encodeIdentityScope(scope) | encodeIdentityType(type) | encodeIdentityEnvironment(environment));
-        return V4TokenUtils.buildAdvertisingIdV4(metadata, firstLevelHash, encryptingKey.id(), encryptingKey.key(), rotatingSalt);
+        return V4TokenUtils.buildAdvertisingIdV4(metadata, firstLevelHash, encryptingKey.id(), encryptingKey.key(), encryptingKey.salt());
     }
 
     public static byte encodeIdentityScope(IdentityScope identityScope) { return (byte) (identityScope.value << 4); }

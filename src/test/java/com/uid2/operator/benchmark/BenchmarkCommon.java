@@ -45,13 +45,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
-public class BenchmarkCommon {
+public final class BenchmarkCommon {
+    public static final int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
+    public static final int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
+    public static final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
 
-    final static int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
-    final static int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
-    final static int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
+    private BenchmarkCommon() {
+    }
 
-    static IUIDOperatorService createUidOperatorService() throws Exception {
+    public static IUIDOperatorService createUidOperatorService() throws Exception {
         RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
                 new EmbeddedResourceStorage(Main.class),
                 new GlobalScope(new CloudPath("/com.uid2.core/test/keyset_keys/metadata.json")));
@@ -67,7 +69,7 @@ public class BenchmarkCommon {
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
 
-        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
         final List<String> optOutPartitionFiles = new ArrayList<>();
         final ICloudStorage optOutLocalStorage = make1mOptOutEntryStorage(
                 saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
@@ -80,13 +82,14 @@ public class BenchmarkCommon {
                 tokenEncoder,
                 Clock.systemUTC(),
                 IdentityScope.UID2,
+                IdentityEnvironment.Test,
                 shutdownHandler::handleSaltRetrievalResponse,
                 false,
                 new UidInstanceIdProvider("test-instance", "id")
         );
     }
 
-    static EncryptedTokenEncoder createTokenEncoder() throws Exception {
+    public static EncryptedTokenEncoder createTokenEncoder() throws Exception {
         RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
                 new EmbeddedResourceStorage(Main.class),
                 new GlobalScope(new CloudPath("/com.uid2.core/test/keyset_keys/metadata.json")));
@@ -97,10 +100,10 @@ public class BenchmarkCommon {
                 new GlobalScope(new CloudPath("/com.uid2.core/test/keysets/metadata.json")));
         keysetKeyStore.loadContent();
 
-        return new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+        return new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
     }
 
-    static JsonObject make1mOptOutEntryConfig() {
+    public static JsonObject make1mOptOutEntryConfig() {
         final JsonObject config = new JsonObject();
         config.put(Const.Config.OptOutBloomFilterSizeProp, 100000); // 1:10 bloomfilter
         config.put(Const.Config.OptOutHeapDefaultCapacityProp, 1000000); // 1MM record
@@ -110,7 +113,7 @@ public class BenchmarkCommon {
         return config;
     }
 
-    static ICloudStorage make1mOptOutEntryStorage(String salt, List<String> out_generatedFiles) throws Exception {
+    public static ICloudStorage make1mOptOutEntryStorage(String salt, List<String> out_generatedFiles) throws Exception {
         final InMemoryStorageMock storage = new InMemoryStorageMock();
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
         final int numEntriesPerPartition = 1000000;
@@ -148,18 +151,20 @@ public class BenchmarkCommon {
         return storage;
     }
 
-    static UserIdentity[] createUserIdentities() {
+    public static UserIdentity[] createUserIdentities() {
         UserIdentity[] arr = new UserIdentity[65536];
         for (int i = 0; i < 65536; i++) {
             final byte[] id = new byte[33];
             new Random().nextBytes(id);
-            arr[i] = new UserIdentity(IdentityScope.UID2, IdentityType.Email, id, 0,
-                    Instant.now().minusSeconds(120), Instant.now().minusSeconds(60));
+            arr[i] = new UserIdentity(
+                    IdentityScope.UID2, IdentityType.Email, IdentityEnvironment.Test,
+                    id, 0, Instant.now().minusSeconds(120), Instant.now().minusSeconds(60)
+            );
         }
         return arr;
     }
 
-    static PublisherIdentity createPublisherIdentity() throws Exception {
+    public static PublisherIdentity createPublisherIdentity() throws Exception {
         RotatingClientKeyProvider clients = new RotatingClientKeyProvider(
                 new EmbeddedResourceStorage(Main.class),
                 new GlobalScope(new CloudPath("/com.uid2.core/test/clients/metadata.json")));
@@ -173,11 +178,10 @@ public class BenchmarkCommon {
         throw new IllegalStateException("embedded resource does not include any publisher key");
     }
 
-
     /**
      * In memory optout store. Initialize with everything. Does not support modification
      */
-    static class StaticOptOutStore implements IOptOutStore {
+    private static class StaticOptOutStore implements IOptOutStore {
         private CloudSyncOptOutStore.OptOutStoreSnapshot snapshot;
 
         public StaticOptOutStore(ICloudStorage storage, JsonObject jsonConfig, Collection<String> partitions) throws CloudStorageException, IOException {
@@ -189,8 +193,7 @@ public class BenchmarkCommon {
         @Override
         public Instant getLatestEntry(UserIdentity firstLevelHashIdentity) {
             long epochSecond = this.snapshot.getOptOutTimestamp(firstLevelHashIdentity.id);
-            Instant instant = epochSecond > 0 ? Instant.ofEpochSecond(epochSecond) : null;
-            return instant;
+            return epochSecond > 0 ? Instant.ofEpochSecond(epochSecond) : null;
         }
 
         @Override
@@ -203,5 +206,4 @@ public class BenchmarkCommon {
             return -1;
         }
     }
-
 }

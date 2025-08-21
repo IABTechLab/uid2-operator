@@ -42,28 +42,28 @@ import java.time.temporal.ChronoUnit;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-public class UIDOperatorServiceTest {
+class UIDOperatorServiceTest {
+    private static final String FIRST_LEVEL_SALT = "first-level-salt";
+    private static final int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
+    private static final int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
+    private static final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
+
     private AutoCloseable mocks;
     @Mock private IOptOutStore optOutStore;
     @Mock private Clock clock;
     @Mock private OperatorShutdownHandler shutdownHandler;
-    EncryptedTokenEncoder tokenEncoder;
-    UidInstanceIdProvider uidInstanceIdProvider;
-    JsonObject uid2Config;
-    JsonObject euidConfig;
-    ExtendedUIDOperatorService uid2Service;
-    ExtendedUIDOperatorService euidService;
-    Instant now;
 
-    final int IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = 600;
-    final int REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = 900;
-    final int REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = 300;
+    private EncryptedTokenEncoder tokenEncoder;
+    private UidInstanceIdProvider uidInstanceIdProvider;
+    private JsonObject uid2Config;
+    private JsonObject euidConfig;
+    private ExtendedUIDOperatorService uid2Service;
+    private ExtendedUIDOperatorService euidService;
+    private Instant now;
 
-    final String FIRST_LEVEL_SALT = "first-level-salt";
-
-    class ExtendedUIDOperatorService extends UIDOperatorService {
-        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
-            super(optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler, identityV3Enabled, uidInstanceIdProvider);
+    static class ExtendedUIDOperatorService extends UIDOperatorService {
+        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope, IdentityEnvironment identityEnvironment, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
+            super(optOutStore, saltProvider, encoder, clock, identityScope, identityEnvironment, saltRetrievalResponseHandler, identityV3Enabled, uidInstanceIdProvider);
         }
     }
 
@@ -88,7 +88,7 @@ public class UIDOperatorServiceTest {
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
 
-        tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+        tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
 
         setNow(Instant.now());
 
@@ -106,6 +106,7 @@ public class UIDOperatorServiceTest {
                 tokenEncoder,
                 this.clock,
                 IdentityScope.UID2,
+                IdentityEnvironment.Test,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 uid2Config.getBoolean(IdentityV3Prop),
                 uidInstanceIdProvider
@@ -123,6 +124,7 @@ public class UIDOperatorServiceTest {
                 tokenEncoder,
                 this.clock,
                 IdentityScope.EUID,
+                IdentityEnvironment.Test,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 euidConfig.getBoolean(IdentityV3Prop),
                 uidInstanceIdProvider
@@ -152,6 +154,7 @@ public class UIDOperatorServiceTest {
                 tokenEncoder,
                 this.clock,
                 IdentityScope.UID2,
+                IdentityEnvironment.Test,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 uid2Config.getBoolean(IdentityV3Prop),
                 uidInstanceIdProvider
@@ -160,10 +163,11 @@ public class UIDOperatorServiceTest {
         return saltSnapshot;
     }
 
-    private UserIdentity createUserIdentity(String rawIdentityHash, IdentityScope scope, IdentityType type) {
+    private UserIdentity createUserIdentity(String rawIdentityHash, IdentityScope scope, IdentityType type, IdentityEnvironment environment) {
         return new UserIdentity(
                 scope,
                 type,
+                environment,
                 rawIdentityHash.getBytes(StandardCharsets.UTF_8),
                 0,
                 this.now.minusSeconds(234),
@@ -183,11 +187,11 @@ public class UIDOperatorServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"123, V4","127, V4","128, V4"})
-    public void testGenerateAndRefresh(int siteId, TokenVersion tokenVersion) {
+    @CsvSource({"123, V4", "127, V4", "128, V4"})
+    void testGenerateAndRefresh(int siteId, TokenVersion tokenVersion) {
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(siteId, 124, 125),
-                createUserIdentity("test-email-hash", IdentityScope.UID2, IdentityType.Email),
+                createUserIdentity("test-email-hash", IdentityScope.UID2, IdentityType.Email, IdentityEnvironment.Test),
                 OptoutCheckPolicy.DoNotRespect
         );
         final IdentityTokens tokens = uid2Service.generateIdentity(
@@ -200,7 +204,8 @@ public class UIDOperatorServiceTest {
         assertNotNull(tokens);
 
         UIDOperatorVerticleTest.validateAdvertisingToken(tokens.getAdvertisingToken(), tokenVersion, IdentityScope.UID2, IdentityType.Email);
-        AdvertisingToken advertisingToken = tokenEncoder.decodeAdvertisingToken(tokens.getAdvertisingToken());assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken.expiresAt);
+        AdvertisingToken advertisingToken = tokenEncoder.decodeAdvertisingToken(tokens.getAdvertisingToken());
+        assertEquals(this.now.plusSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS), advertisingToken.expiresAt);
         assertEquals(identityRequest.publisherIdentity.siteId, advertisingToken.publisherIdentity.siteId);
         assertIdentityScopeIdentityTypeAndEstablishedAt(identityRequest.userIdentity, advertisingToken.userIdentity);
 
@@ -240,12 +245,12 @@ public class UIDOperatorServiceTest {
     }
 
     @Test
-    public void testTestOptOutKey_DoNotRespectOptout() {
+    void testTestOptOutKey_DoNotRespectOptout() {
         final InputUtil.InputVal inputVal = InputUtil.normalizeEmail(IdentityConst.OptOutIdentityForEmail);
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(IdentityScope.UID2, 0, this.now),
+                inputVal.toUserIdentity(IdentityScope.UID2, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.DoNotRespect
         );
         final IdentityTokens tokens = uid2Service.generateIdentity(
@@ -267,12 +272,12 @@ public class UIDOperatorServiceTest {
     }
 
     @Test
-    public void testTestOptOutKey_RespectOptout() {
+    void testTestOptOutKey_RespectOptout() {
         final InputUtil.InputVal inputVal = InputUtil.normalizeEmail(IdentityConst.OptOutIdentityForEmail);
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(IdentityScope.UID2, 0, this.now),
+                inputVal.toUserIdentity(IdentityScope.UID2, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
         final IdentityTokens tokens = uid2Service.generateIdentity(
@@ -286,13 +291,13 @@ public class UIDOperatorServiceTest {
     }
 
     @Test
-    public void testTestOptOutKeyIdentityScopeMismatch() {
+    void testTestOptOutKeyIdentityScopeMismatch() {
         final String email = "optout@example.com";
         final InputUtil.InputVal inputVal = InputUtil.normalizeEmail(email);
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(IdentityScope.EUID, 0, this.now),
+                inputVal.toUserIdentity(IdentityScope.EUID, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.DoNotRespect
         );
         final IdentityTokens tokens = euidService.generateIdentity(
@@ -315,12 +320,14 @@ public class UIDOperatorServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"Email,test@example.com,UID2",
-            "Email,test@example.com,EUID",
-            "Phone,+01010101010,UID2",
-            "Phone,+01010101010,EUID"})
-    public void testGenerateTokenForOptOutUser(IdentityType type, String identity, IdentityScope scope) {
-        final UserIdentity userIdentity = createUserIdentity(identity, scope, type);
+    @CsvSource({
+            "Email,test@example.com,UID2,Test",
+            "Email,test@example.com,EUID,Test",
+            "Phone,+01010101010,UID2,Test",
+            "Phone,+01010101010,EUID,Test"
+    })
+    void testGenerateTokenForOptOutUser(IdentityType type, String identity, IdentityScope scope, IdentityEnvironment environment) {
+        final UserIdentity userIdentity = createUserIdentity(identity, scope, type, environment);
 
         final IdentityRequest identityRequestForceGenerate = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
@@ -381,12 +388,12 @@ public class UIDOperatorServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"Email,test@example.com,UID2",
-            "Email,test@example.com,EUID",
-            "Phone,+01010101010,UID2",
-            "Phone,+01010101010,EUID"})
-    public void testIdentityMapForOptOutUser(IdentityType type, String identity, IdentityScope scope) {
-        final UserIdentity userIdentity = createUserIdentity(identity, scope, type);
+    @CsvSource({"Email,test@example.com,UID2,Test",
+            "Email,test@example.com,EUID,Test",
+            "Phone,+01010101010,UID2,Test",
+            "Phone,+01010101010,EUID,Test"})
+    void testIdentityMapForOptOutUser(IdentityType type, String identity, IdentityScope scope, IdentityEnvironment environment) {
+        final UserIdentity userIdentity = createUserIdentity(identity, scope, type, environment);
         final Instant now = Instant.now();
 
         final MapRequest mapRequestForceMap = new MapRequest(
@@ -471,7 +478,7 @@ public class UIDOperatorServiceTest {
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(scope, 0, this.now),
+                inputVal.toUserIdentity(scope, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
 
@@ -511,7 +518,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final MapRequest mapRequestRespectOptOut = new MapRequest(
-                inputVal.toUserIdentity(scope, 0, this.now),
+                inputVal.toUserIdentity(scope, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
@@ -545,7 +552,7 @@ public class UIDOperatorServiceTest {
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(scope, 0, this.now),
+                inputVal.toUserIdentity(scope, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.DoNotRespect
         );
 
@@ -596,7 +603,7 @@ public class UIDOperatorServiceTest {
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(scope, 0, this.now),
+                inputVal.toUserIdentity(scope, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
 
@@ -649,7 +656,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final MapRequest mapRequestRespectOptOut = new MapRequest(
-                inputVal.toUserIdentity(scope, 0, this.now),
+                inputVal.toUserIdentity(scope, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
@@ -683,7 +690,7 @@ public class UIDOperatorServiceTest {
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(scope, 0, this.now),
+                inputVal.toUserIdentity(scope, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut
         );
 
@@ -728,7 +735,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
 
         final MapRequest mapRequestRespectOptOut = new MapRequest(
-                inputVal.toUserIdentity(scope, 0, this.now),
+                inputVal.toUserIdentity(scope, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut,
                 now);
 
@@ -759,7 +766,7 @@ public class UIDOperatorServiceTest {
         InputUtil.InputVal inputVal = generateInputVal(type, id);
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(scope, 0, this.now),
+                inputVal.toUserIdentity(scope, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.DoNotRespect
         );
         IdentityTokens tokens;
@@ -794,12 +801,14 @@ public class UIDOperatorServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"Email,blah@unifiedid.com,UID2",
+    @CsvSource({
+            "Email,blah@unifiedid.com,UID2",
             "EmailHash,blah@unifiedid.com,UID2",
             "Phone,+61401234567,EUID",
             "PhoneHash,+61401234567,EUID",
             "Email,blah@unifiedid.com,EUID",
-            "EmailHash,blah@unifiedid.com,EUID"})
+            "EmailHash,blah@unifiedid.com,EUID"
+    })
     void testExpiredSaltsNotifiesShutdownHandler(TestIdentityInputType type, String id, IdentityScope scope) throws Exception {
         RotatingSaltProvider saltProvider = new RotatingSaltProvider(
                 new EmbeddedResourceStorage(Main.class),
@@ -812,6 +821,7 @@ public class UIDOperatorServiceTest {
                 tokenEncoder,
                 this.clock,
                 IdentityScope.UID2,
+                IdentityEnvironment.Test,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 uid2Config.getBoolean(IdentityV3Prop),
                 uidInstanceIdProvider
@@ -823,6 +833,7 @@ public class UIDOperatorServiceTest {
                 tokenEncoder,
                 this.clock,
                 IdentityScope.EUID,
+                IdentityEnvironment.Test,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 euidConfig.getBoolean(IdentityV3Prop),
                 uidInstanceIdProvider
@@ -834,21 +845,20 @@ public class UIDOperatorServiceTest {
 
         final IdentityRequest identityRequest = new IdentityRequest(
                 new PublisherIdentity(123, 124, 125),
-                inputVal.toUserIdentity(scope, 0, this.now),
+                inputVal.toUserIdentity(scope, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut);
 
         IdentityTokens tokens;
         AdvertisingToken advertisingToken;
         reset(shutdownHandler);
-        if(scope == IdentityScope.EUID) {
+        if (scope == IdentityScope.EUID) {
             tokens = euidService.generateIdentity(
                     identityRequest,
                     Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
                     Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
                     Duration.ofSeconds(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS));
             advertisingToken = validateAndGetToken(tokenEncoder, tokens.getAdvertisingToken(), IdentityScope.EUID, identityRequest.userIdentity.identityType, identityRequest.publisherIdentity.siteId);
-        }
-        else {
+        } else {
             tokens = uid2Service.generateIdentity(
                     identityRequest,
                     Duration.ofSeconds(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
@@ -876,15 +886,15 @@ public class UIDOperatorServiceTest {
         assertNotEquals(RefreshResponse.Optout, refreshResponse);
 
         final MapRequest mapRequest = new MapRequest(
-                inputVal.toUserIdentity(scope, 0, this.now),
+                inputVal.toUserIdentity(scope, IdentityEnvironment.Test, 0, this.now),
                 OptoutCheckPolicy.RespectOptOut,
-                now);
+                now
+        );
         final MappedIdentity mappedIdentity;
         reset(shutdownHandler);
-        if(scope == IdentityScope.EUID) {
+        if (scope == IdentityScope.EUID) {
             mappedIdentity = euidService.mapIdentity(mapRequest);
-        }
-        else {
+        } else {
             mappedIdentity = uid2Service.mapIdentity(mapRequest);
         }
         verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
@@ -906,7 +916,7 @@ public class UIDOperatorServiceTest {
 
         var email = "test@uid.com";
         InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
-        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
+        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, IdentityEnvironment.Test, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 
@@ -929,7 +939,7 @@ public class UIDOperatorServiceTest {
 
         var email = "test@uid.com";
         InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
-        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
+        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, IdentityEnvironment.Test, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
         var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
@@ -949,7 +959,7 @@ public class UIDOperatorServiceTest {
 
         var email = "test@uid.com";
         InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
-        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
+        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, IdentityEnvironment.Test, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 
@@ -971,7 +981,7 @@ public class UIDOperatorServiceTest {
 
         var email = "test@uid.com";
         InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
-        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
+        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, IdentityEnvironment.Test, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 
@@ -990,7 +1000,7 @@ public class UIDOperatorServiceTest {
 
         var email = "test@uid.com";
         InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
-        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
+        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, IdentityEnvironment.Test, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 

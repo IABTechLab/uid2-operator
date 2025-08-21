@@ -1,17 +1,19 @@
 package com.uid2.operator.service;
 
+import com.uid2.operator.model.IdentityEnvironment;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.IdentityType;
 import com.uid2.operator.model.UserIdentity;
 
 import java.time.Instant;
 
-public class InputUtil {
+public final class InputUtil {
+    private static final String GMAILDOMAIN = "gmail.com";
+    private static final int MIN_PHONENUMBER_DIGITS = 10;
+    private static final int MAX_PHONENUMBER_DIGITS = 15;
 
-    private static String GMAILDOMAIN = "gmail.com";
-
-    private static int MIN_PHONENUMBER_DIGITS = 10;
-    private static int MAX_PHONENUMBER_DIGITS = 15;
+    private InputUtil() {
+    }
 
     public static InputVal normalizeEmailHash(String input) {
         final int inputLength = input.length();
@@ -65,8 +67,7 @@ public class InputUtil {
 
         // count the digits, return false if non-digit character is found
         int totalDigits = 0;
-        for (int i = 1; i < phoneNumber.length(); ++i)
-        {
+        for (int i = 1; i < phoneNumber.length(); ++i) {
             if (!InputUtil.isAsciiDigit(phoneNumber.charAt(i)))
                 return false;
             ++totalDigits;
@@ -80,7 +81,7 @@ public class InputUtil {
 
     public static InputVal normalizeEmail(String email) {
         final String normalize = normalizeEmailString(email);
-        if (normalize != null && normalize.length() > 0) {
+        if (normalize != null && !normalize.isEmpty()) {
             return InputVal.validEmail(email, normalize);
         }
         return InputVal.invalidEmail(email);
@@ -143,15 +144,15 @@ public class InputUtil {
                         wsBuffer.append(c);
                         break;
                     }
-                    if (wsBuffer.length() > 0) {
-                        sb.append(wsBuffer.toString());
+                    if (!wsBuffer.isEmpty()) {
+                        sb.append(wsBuffer);
                         wsBuffer = new StringBuilder();
                     }
                     sb.append(c);
                 }
             }
         }
-        if (sb.length() == 0) {
+        if (sb.isEmpty()) {
             return null;
         }
         final String domainPart = sb.toString();
@@ -162,7 +163,7 @@ public class InputUtil {
         } else {
             addressPartToUse = preSb;
         }
-        if (addressPartToUse.length() == 0) {
+        if (addressPartToUse.isEmpty()) {
             return null;
         }
 
@@ -174,7 +175,7 @@ public class InputUtil {
         Hash
     }
 
-    private static enum EmailParsingState {
+    private enum EmailParsingState {
         Starting,
         Pre,
         SubDomain,
@@ -255,16 +256,19 @@ public class InputUtil {
             return identityType;
         }
 
-        public IdentityInputType getInputType() { return inputType; }
+        public IdentityInputType getInputType() {
+            return inputType;
+        }
 
         public boolean isValid() {
             return valid;
         }
 
-        public UserIdentity toUserIdentity(IdentityScope identityScope, int privacyBits, Instant establishedAt) {
+        public UserIdentity toUserIdentity(IdentityScope identityScope, IdentityEnvironment identityEnvironment, int privacyBits, Instant establishedAt) {
             return new UserIdentity(
                     identityScope,
                     this.identityType,
+                    identityEnvironment,
                     getIdentityInput(),
                     privacyBits,
                     establishedAt,

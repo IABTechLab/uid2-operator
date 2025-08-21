@@ -23,14 +23,13 @@ import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TokenEncodingTest {
-
+class TokenEncodingTest {
     private final KeyManager keyManager;
 
     public TokenEncodingTest() throws Exception {
         RotatingKeysetKeyStore keysetKeyStore = new RotatingKeysetKeyStore(
-            new EmbeddedResourceStorage(Main.class),
-            new GlobalScope(new CloudPath("/com.uid2.core/test/keyset_keys/metadata.json")));
+                new EmbeddedResourceStorage(Main.class),
+                new GlobalScope(new CloudPath("/com.uid2.core/test/keyset_keys/metadata.json")));
 
         JsonObject m1 = keysetKeyStore.getMetadata();
         keysetKeyStore.loadContent(m1);
@@ -47,18 +46,18 @@ public class TokenEncodingTest {
 
     @ParameterizedTest
     @EnumSource(value = TokenVersion.class, names = {"V3", "V4"})
-    public void testRefreshTokenEncoding(TokenVersion tokenVersion) {
-        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
+    void testRefreshTokenEncoding(TokenVersion tokenVersion) {
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager, IdentityEnvironment.Test);
         final Instant now = EncodingUtils.NowUTCMillis();
 
         final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity("test@example.com", "some-salt");
 
         final RefreshToken token = new RefreshToken(tokenVersion,
-            now,
-            now.plusSeconds(360),
-            new OperatorIdentity(101, OperatorType.Service, 102, 103),
-            new PublisherIdentity(111, 112, 113),
-            new UserIdentity(IdentityScope.UID2, IdentityType.Email, firstLevelHash, 121, now, now.minusSeconds(122))
+                now,
+                now.plusSeconds(360),
+                new OperatorIdentity(101, OperatorType.Service, 102, 103),
+                new PublisherIdentity(111, 112, 113),
+                new UserIdentity(IdentityScope.UID2, IdentityType.Email, IdentityEnvironment.Test, firstLevelHash, 121, now, now.minusSeconds(122))
         );
 
         if (tokenVersion == TokenVersion.V4) {
@@ -87,28 +86,28 @@ public class TokenEncodingTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"false, V4", //same as current UID2 prod (as at 2024-12-10)
+    @CsvSource({
+            "false, V4", //same as current UID2 prod (as at 2024-12-10)
             "true, V4", //same as current EUID prod  (as at 2024-12-10)
             //the following combinations aren't used in any UID2/EUID environments but just testing them regardless
             "false, V3",
             "true, V3",
             "false, V2",
             "true, V2",
-        }
-    )
-    public void testAdvertisingTokenEncodings(boolean useRawUIDv3, TokenVersion adTokenVersion) {
-        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
+    })
+    void testAdvertisingTokenEncodings(boolean useRawUIDv3, TokenVersion adTokenVersion) {
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager, IdentityEnvironment.Test);
         final Instant now = EncodingUtils.NowUTCMillis();
 
         final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, "test@example.com", IdentityScope.UID2, useRawUIDv3);
 
         final AdvertisingToken token = new AdvertisingToken(
-            adTokenVersion,
-            now,
-            now.plusSeconds(60),
-            new OperatorIdentity(101, OperatorType.Service, 102, 103),
-            new PublisherIdentity(111, 112, 113),
-            new UserIdentity(IdentityScope.UID2, IdentityType.Email, rawUid, 121, now, now.minusSeconds(122))
+                adTokenVersion,
+                now,
+                now.plusSeconds(60),
+                new OperatorIdentity(101, OperatorType.Service, 102, 103),
+                new PublisherIdentity(111, 112, 113),
+                new UserIdentity(IdentityScope.UID2, IdentityType.Email, IdentityEnvironment.Test, rawUid, 121, now, now.minusSeconds(122))
         );
 
         final byte[] encodedBytes = encoder.encode(token, now);

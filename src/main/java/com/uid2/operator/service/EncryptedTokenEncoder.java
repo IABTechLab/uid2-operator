@@ -17,9 +17,11 @@ import java.util.Base64;
 
 public class EncryptedTokenEncoder implements ITokenEncoder {
     private final KeyManager keyManager;
+    private final IdentityEnvironment identityEnvironment;
 
-    public EncryptedTokenEncoder(KeyManager keyManager) {
+    public EncryptedTokenEncoder(KeyManager keyManager, IdentityEnvironment identityEnvironment) {
         this.keyManager = keyManager;
+        this.identityEnvironment = identityEnvironment;
     }
 
     public byte[] encode(AdvertisingToken t, Instant asOf) {
@@ -124,7 +126,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                 TokenVersion.V2, createdAt, validTill,
                 new OperatorIdentity(0, OperatorType.Service, 0, 0),
                 new PublisherIdentity(siteId, 0, 0),
-                new UserIdentity(IdentityScope.UID2, IdentityType.Email, identity, privacyBits, Instant.ofEpochMilli(establishedMillis), null));
+                new UserIdentity(IdentityScope.UID2, IdentityType.Email, this.identityEnvironment, identity, privacyBits, Instant.ofEpochMilli(establishedMillis), null));
     }
 
     private RefreshToken decodeRefreshTokenV3(Buffer b, byte[] bytes) {
@@ -157,7 +159,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new RefreshToken(
                 TokenVersion.V3, createdAt, expiresAt, operatorIdentity, publisherIdentity,
-                new UserIdentity(identityScope, identityType, id, privacyBits, establishedAt, null));
+                new UserIdentity(identityScope, identityType, this.identityEnvironment, id, privacyBits, establishedAt, null));
     }
 
     @Override
@@ -225,13 +227,12 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                     Instant.ofEpochMilli(expiresMillis),
                     new OperatorIdentity(0, OperatorType.Service, 0, masterKeyId),
                     new PublisherIdentity(siteId, siteKeyId, 0),
-                    new UserIdentity(IdentityScope.UID2, IdentityType.Email, advertisingId, privacyBits, Instant.ofEpochMilli(establishedMillis), null)
+                    new UserIdentity(IdentityScope.UID2, IdentityType.Email, this.identityEnvironment, advertisingId, privacyBits, Instant.ofEpochMilli(establishedMillis), null)
             );
 
         } catch (Exception e) {
             throw new RuntimeException("Couldn't decode advertisingTokenV2", e);
         }
-
     }
 
     public AdvertisingToken decodeAdvertisingTokenV3orV4(Buffer b, byte[] bytes, TokenVersion tokenVersion) {
@@ -253,8 +254,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final IdentityScope identityScope = id.length == 32 ? IdentityScope.UID2 : decodeIdentityScopeV3(id[0]);
         final IdentityType identityType = id.length == 32 ? IdentityType.Email : decodeIdentityTypeV3(id[0]);
 
-        if (id.length > 32)
-        {
+        if (id.length > 32) {
             if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
                 throw new ClientInputValidationException("Failed decoding advertisingTokenV3: Identity scope mismatch");
             }
@@ -265,7 +265,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new AdvertisingToken(
                 tokenVersion, createdAt, expiresAt, operatorIdentity, publisherIdentity,
-                new UserIdentity(identityScope, identityType, id, privacyBits, establishedAt, refreshedAt)
+                new UserIdentity(identityScope, identityType, this.identityEnvironment, id, privacyBits, establishedAt, refreshedAt)
         );
     }
 
@@ -338,7 +338,6 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     @Override
     public IdentityTokens encode(AdvertisingToken advertisingToken, RefreshToken refreshToken, Instant refreshFrom, Instant asOf) {
-
         final byte[] advertisingTokenBytes = encode(advertisingToken, asOf);
         final String base64AdvertisingToken = bytesToBase64Token(advertisingTokenBytes, advertisingToken.version);
 
@@ -367,16 +366,16 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         }
     }
 
-    static private byte encodeIdentityTypeV3(UserIdentity userIdentity) {
+    private static byte encodeIdentityTypeV3(UserIdentity userIdentity) {
         return (byte) (TokenUtils.encodeIdentityScope(userIdentity.identityScope) | (userIdentity.identityType.value << 2) | 3);
         // "| 3" is used so that the 2nd char matches the version when V3 or higher. Eg "3" for V3 and "4" for V4
     }
 
-    static private IdentityScope decodeIdentityScopeV3(byte value) {
+    private static IdentityScope decodeIdentityScopeV3(byte value) {
         return IdentityScope.fromValue((value & 0x10) >> 4);
     }
 
-    static private IdentityType decodeIdentityTypeV3(byte value) {
+    private static IdentityType decodeIdentityTypeV3(byte value) {
         return IdentityType.fromValue((value & 0xf) >> 2);
     }
 
@@ -392,7 +391,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     static void encodeOperatorIdentityV3(Buffer b, OperatorIdentity operatorIdentity) {
         b.appendInt(operatorIdentity.siteId);
-        b.appendByte((byte)operatorIdentity.operatorType.value);
+        b.appendByte((byte) operatorIdentity.operatorType.value);
         b.appendInt(operatorIdentity.operatorVersion);
         b.appendInt(operatorIdentity.operatorKeyId);
     }

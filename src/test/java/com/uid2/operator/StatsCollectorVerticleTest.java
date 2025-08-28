@@ -73,28 +73,6 @@ public class StatsCollectorVerticleTest {
         testContext.awaitCompletion(LOG_WAIT_INTERVAL, TimeUnit.MILLISECONDS);
     }
 
-    @Test
-    void testJSONSerializeWithV0AndV1Paths(Vertx vertx, VertxTestContext testContext) throws InterruptedException, JsonProcessingException {
-        StatsCollectorMessageItem messageItem = new StatsCollectorMessageItem("/test", "https://test.com", "test", 1, CLIENT_VERSION);
-        sendStatMessage(messageItem);
-        sendStatMessage(messageItem);
-        sendStatMessage(messageItem);
-
-        messageItem = new StatsCollectorMessageItem("/v1/test", "https://test.com", "test", 1, CLIENT_VERSION);
-        sendStatMessage(messageItem);
-        sendStatMessage(messageItem);
-        waitForLogInterval(testContext);
-
-        triggerSerializeAndWait(testContext);
-
-        var expectedList = List.of("{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v1\",\"domainList\":[{\"domain\":\"test.com\",\"count\":2,\"apiContact\":\"test\"}]}",
-                            "{\"endpoint\":\"test\",\"siteId\":1,\"apiVersion\":\"v0\",\"domainList\":[{\"domain\":\"test.com\",\"count\":3,\"apiContact\":\"test\"}]}");
-        var messages = getMessages();
-        assertThat(messages).containsAll(expectedList);
-
-        testContext.completeNow();
-    }
-
     private static void waitForLogInterval(VertxTestContext testContext) throws InterruptedException {
         testContext.awaitCompletion(JSON_INTERVAL*2, TimeUnit.MILLISECONDS);
     }
@@ -134,7 +112,7 @@ public class StatsCollectorVerticleTest {
         var messages = getMessages();
         for(String endpoint: validEndpoints) {
             String withoutVersion = endpoint;
-            if (endpoint.startsWith("/v1/") || endpoint.startsWith("/v2/") || endpoint.startsWith("/v3/")) {
+            if (endpoint.startsWith("/v2/") || endpoint.startsWith("/v3/")) {
                 withoutVersion = endpoint.substring(4);
             } else if (endpoint.startsWith("/")) {
                 withoutVersion = endpoint.substring(1);
@@ -160,11 +138,11 @@ public class StatsCollectorVerticleTest {
         var messages = getMessages();
         // MAX_INVALID_PATHS is not the hard limit. The maximum paths that can be recorded, including valid ones, is MAX_INVALID_PATHS + validPaths.size * 2
         for(int i = 0; i < MAX_INVALID_PATHS + Endpoints.pathSet().size(); i++) {
-            String expected = "{\"endpoint\":\"bad" + i + "\",\"siteId\":1,\"apiVersion\":\"v0\",\"domainList\":[{\"domain\":\"test.com\",\"count\":1,\"apiContact\":\"test\"}]}";
+            String expected = "{\"endpoint\":\"bad" + i + "\",\"siteId\":1,\"apiVersion\":\"unknown\",\"domainList\":[{\"domain\":\"test.com\",\"count\":1,\"apiContact\":\"test\"}]}";
             assertThat(messages).contains(expected);
         }
         for(int i = MAX_INVALID_PATHS + Endpoints.pathSet().size(); i < MAX_INVALID_PATHS + 5; i++) {
-            String expected = "{\"endpoint\":\"bad" + i + "\",\"siteId\":1,\"apiVersion\":\"v0\",\"domainList\":[{\"domain\":\"test.com\",\"count\":1,\"apiContact\":\"test\"}]}";
+            String expected = "{\"endpoint\":\"bad" + i + "\",\"siteId\":1,\"apiVersion\":\"unknown\",\"domainList\":[{\"domain\":\"test.com\",\"count\":1,\"apiContact\":\"test\"}]}";
             assertThat(messages).contains(expected);
         }
         assertThat(getMessages()).contains("max invalid paths reached; a large number of invalid paths have been requested from authenticated participants");

@@ -80,7 +80,7 @@ describe('cookiePath option', () => {
 
 describe('baseUrl option', () => {
   const identity = makeIdentity({
-    refresh_from: Date.now()- 100000
+    refresh_from: Date.now() - 100000
   });
 
   describe('when using default value', () => {

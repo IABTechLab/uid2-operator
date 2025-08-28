@@ -772,6 +772,7 @@ public class UIDOperatorVerticleTest {
                 new KeysetKey(102, "key102".getBytes(), now, now, now.plusSeconds(10), RefreshKeysetId),
                 new KeysetKey(103, "key103".getBytes(), now, now, now.plusSeconds(10), 10),
         };
+        MultipleKeysetsTests test = new MultipleKeysetsTests(Arrays.asList(keysets), Arrays.asList(encryptionKeys));
         Arrays.sort(encryptionKeys, Comparator.comparing(KeysetKey::getId));
 
         send(vertx, "v2/key/latest", null, 200, respJson -> {
@@ -2341,7 +2342,7 @@ public class UIDOperatorVerticleTest {
         }
 
         send(vertx, "v2/identity/map", req, 200, json -> {
-            checkIdentityMapResponse(json, email_hashes);
+            checkIdentityMapResponse(json, emailHashes);
             testContext.completeNow();
         });
     }

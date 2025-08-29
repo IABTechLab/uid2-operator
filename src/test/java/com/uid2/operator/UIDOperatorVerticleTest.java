@@ -64,7 +64,6 @@ import static org.assertj.core.api.Assertions.*;
 
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.time.*;
@@ -91,7 +90,7 @@ public class UIDOperatorVerticleTest {
     private static final Instant legacyClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).minus(1, ChronoUnit.SECONDS);
     private static final Instant newClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).plus(1, ChronoUnit.SECONDS);
     private static final String firstLevelSalt = "first-level-salt";
-    private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123", null, null, null, null);
+    private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123", 1000L, "prevSalt123", null, null);
     private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
     private static final Duration refreshExpiresAfter = Duration.ofMinutes(15);
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
@@ -105,7 +104,6 @@ public class UIDOperatorVerticleTest {
     private static final String iosClientVersionHeaderValue = "ios-1.2.3";
     private static final String tvosClientVersionHeaderValue = "tvos-1.2.3";
     private static final int clientSideTokenGenerateSiteId = 123;
-
     private static final int optOutStatusMaxRequestSize = 1000;
 
     @Mock
@@ -144,7 +142,7 @@ public class UIDOperatorVerticleTest {
     private final JsonObject config = new JsonObject();
 
     @BeforeEach
-    public void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
+    void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().plus(1, ChronoUnit.HOURS));
         when(clock.instant()).thenAnswer(i -> now);
@@ -174,7 +172,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @AfterEach
-    public void teardown() throws Exception {
+    void teardown() {
         Metrics.globalRegistry.remove(registry);
     }
 
@@ -232,14 +230,6 @@ public class UIDOperatorVerticleTest {
         when(clientKeyProvider.get(any())).thenReturn(null);
     }
 
-    private static String urlEncode(String value) {
-        try {
-            return URLEncoder.encode(value, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     private String getUrlForEndpoint(String endpoint) {
         return String.format("http://127.0.0.1:%d/%s", Const.Port.ServicePortForOperator + Utils.getPortOffset(), endpoint);
     }
@@ -281,7 +271,6 @@ public class UIDOperatorVerticleTest {
         sendTokenGenerate(vertx, v2PostPayload, expectedHttpCode, null, handler, true, Collections.emptyMap());
     }
 
-
     protected void sendTokenGenerate(Vertx vertx, JsonObject v2PostPayload, int expectedHttpCode,
                                      Handler<JsonObject> handler, Map<String, String> additionalHeaders) {
         sendTokenGenerate(vertx, v2PostPayload, expectedHttpCode, null, handler, true, additionalHeaders);
@@ -297,7 +286,6 @@ public class UIDOperatorVerticleTest {
     }
 
     private void sendTokenGenerate(Vertx vertx, JsonObject v2PostPayload, int expectedHttpCode, String referer, Handler<JsonObject> handler, boolean additionalParams, Map<String, String> additionalHeaders) {
-
         ClientKey ck = (ClientKey) clientKeyProvider.get("");
 
         long nonce = new BigInteger(Random.getBytes(8)).longValue();
@@ -1203,7 +1191,8 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"{\"invalid_key\": []}",
+    @ValueSource(strings = {
+            "{\"invalid_key\": []}",
             "{\"email\": [ null ]}",
             "{\"email\": [ \"some_email\", null ]}"
     })
@@ -1408,10 +1397,12 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest // TODO: remove test after optout check phase 3
-    @CsvSource({"policy,someoptout@example.com,Email",
+    @CsvSource({
+            "policy,someoptout@example.com,Email",
             "policy,+01234567890,Phone",
             "optout_check,someoptout@example.com,Email",
-            "optout_check,+01234567890,Phone"})
+            "optout_check,+01234567890,Phone"
+    })
     void tokenGenerateOptOutToken(String policyParameterKey, String identity, IdentityType identityType,
                                   Vertx vertx, VertxTestContext testContext) {
         ClientKey oldClientKey = new ClientKey(
@@ -1475,8 +1466,7 @@ public class UIDOperatorVerticleTest {
                             TokenResponseStatsCollector.ResponseStatus.Success,
                             TokenResponseStatsCollector.PlatformType.Other);
 
-                    sendTokenRefresh(vertx, testContext, body.getString("refresh_token"), body.getString("refresh_response_key"), 200, refreshRespJson ->
-                    {
+                    sendTokenRefresh(vertx, testContext, body.getString("refresh_token"), body.getString("refresh_response_key"), 200, refreshRespJson -> {
                         assertEquals("optout", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                         assertNull(refreshBody);
@@ -1491,10 +1481,12 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest // TODO: remove test after optout check phase 3
-    @CsvSource({"policy,someoptout@example.com,Email",
+    @CsvSource({
+            "policy,someoptout@example.com,Email",
             "policy,+01234567890,Phone",
             "optout_check,someoptout@example.com,Email",
-            "optout_check,+01234567890,Phone"})
+            "optout_check,+01234567890,Phone"
+    })
     void tokenGenerateOptOutTokenWithDisableOptoutTokenFF(String policyParameterKey, String identity, IdentityType identityType,
                                                           Vertx vertx, VertxTestContext testContext) {
         ClientKey oldClientKey = new ClientKey(
@@ -1637,8 +1629,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
-            {
+            sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
@@ -1697,8 +1688,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
-            {
+            sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
@@ -1760,15 +1750,13 @@ public class UIDOperatorVerticleTest {
                     String genRefreshToken = bodyJson.getString("refresh_token");
 
                     setupKeys(true);
-                    sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 500, refreshRespJson ->
-                    {
+                    sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 500, refreshRespJson -> {
                         assertFalse(refreshRespJson.containsKey("body"));
                         assertEquals("No active encryption key available", refreshRespJson.getString("message"));
                         testContext.completeNow();
                     }, Map.of(ClientVersionHeader, androidClientVersionHeaderValue));
                 });
     }
-
 
     @Test
     void tokenGenerateThenValidateWithEmail_Match(Vertx vertx, VertxTestContext testContext) {
@@ -2713,8 +2701,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
-            {
+            sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
@@ -3216,7 +3203,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @CsvSource({
             "https://blahblah.com",
-            "http://local1host:8080", //intentionally spelling localhost wrong here!
+            "http://local1host:8080" //intentionally spelling localhost wrong here!
     })
     void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
@@ -3245,7 +3232,7 @@ public class UIDOperatorVerticleTest {
     @CsvSource({
             "''", // An empty quoted value results in the empty string.
             "com.123",
-            "com.",
+            "com."
     })
     void cstgAppNameCheckFails(String appName, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend(Collections.emptyList(), List.of("com.123.Game.App.android"));
@@ -3275,7 +3262,7 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "http://gototest.com",
+            "http://gototest.com"
     })
     void cstgDomainNameCheckFailsAndLogInvalidHttpOrigin(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
@@ -3382,7 +3369,7 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "http://gototest.com",
+            "http://gototest.com"
     })
     void cstgDomainNameCheckFailsAndLogSeveralInvalidHttpOrigin(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
@@ -3425,7 +3412,7 @@ public class UIDOperatorVerticleTest {
     @CsvSource({
             "https://cstg.co.uk",
             "https://cstg2.com",
-            "http://localhost:8080",
+            "http://localhost:8080"
     })
     void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk", "cstg2.com", "localhost");
@@ -3452,7 +3439,7 @@ public class UIDOperatorVerticleTest {
     @CsvSource({
             "com.123.Game.App.android",
             "com.123.game.app.android",
-            "123456789",
+            "123456789"
     })
     void cstgAppNameCheckPasses(String appName, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend(Collections.emptyList(), List.of("com.123.Game.App.android", "123456789"));
@@ -4034,7 +4021,7 @@ public class UIDOperatorVerticleTest {
             "true,abc@abc.com,Email",
             "true,+61400000000,Phone",
             "false,abc@abc.com,Email",
-            "false,+61400000000,Phone",
+            "false,+61400000000,Phone"
     })
     void cstgSuccessForBothOptedAndNonOptedOutTest(boolean optOutExpected, String id, IdentityType identityType,
                                                    Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
@@ -4088,8 +4075,7 @@ public class UIDOperatorVerticleTest {
 
                     String genRefreshToken = genBody.getString("refresh_token");
                     //test a subsequent refresh from this cstg call and see if it still works
-                    sendTokenRefresh(vertx, testContext, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson ->
-                    {
+                    sendTokenRefresh(vertx, testContext, genRefreshToken, genBody.getString("refresh_response_key"), 200, refreshRespJson -> {
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                         assertNotNull(refreshBody);
@@ -4122,7 +4108,7 @@ public class UIDOperatorVerticleTest {
     @CsvSource({
             "https://cstg.co.uk",
             "https://cstg2.com",
-            "http://localhost:8080",
+            "http://localhost:8080"
     })
     void cstgSaltsExpired(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
@@ -4171,7 +4157,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @CsvSource({
             "email_hash,random@unifiedid.com",
-            "phone_hash,1234567890",
+            "phone_hash,1234567890"
     })
     void cstgInvalidInput(String identityType, String rawUID, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");

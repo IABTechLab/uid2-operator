@@ -4,15 +4,18 @@ import java.time.Instant;
 
 public final class MapRequest {
     public final UserIdentity userIdentity;
+    public final IdentityEnvironment identityEnvironment;
     public final OptoutCheckPolicy optoutCheckPolicy;
     public final Instant asOf;
 
     public MapRequest(
             UserIdentity userIdentity,
+            IdentityEnvironment identityEnvironment,
             OptoutCheckPolicy optoutCheckPolicy,
             Instant asOf)
     {
         this.userIdentity = userIdentity;
+        this.identityEnvironment = identityEnvironment;
         this.optoutCheckPolicy = optoutCheckPolicy;
         this.asOf = asOf;
     }

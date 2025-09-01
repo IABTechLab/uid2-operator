@@ -69,7 +69,7 @@ public final class BenchmarkCommon {
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
 
-        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
         final List<String> optOutPartitionFiles = new ArrayList<>();
         final ICloudStorage optOutLocalStorage = make1mOptOutEntryStorage(
                 saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
@@ -82,7 +82,6 @@ public final class BenchmarkCommon {
                 tokenEncoder,
                 Clock.systemUTC(),
                 IdentityScope.UID2,
-                IdentityEnvironment.Test,
                 shutdownHandler::handleSaltRetrievalResponse,
                 false,
                 new UidInstanceIdProvider("test-instance", "id")
@@ -100,7 +99,7 @@ public final class BenchmarkCommon {
                 new GlobalScope(new CloudPath("/com.uid2.core/test/keysets/metadata.json")));
         keysetKeyStore.loadContent();
 
-        return new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+        return new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
     }
 
     public static JsonObject make1mOptOutEntryConfig() {
@@ -157,7 +156,7 @@ public final class BenchmarkCommon {
             final byte[] id = new byte[33];
             new Random().nextBytes(id);
             arr[i] = new UserIdentity(
-                    IdentityScope.UID2, IdentityType.Email, IdentityEnvironment.Test,
+                    IdentityScope.UID2, IdentityType.Email,
                     id, 0, Instant.now().minusSeconds(120), Instant.now().minusSeconds(60)
             );
         }

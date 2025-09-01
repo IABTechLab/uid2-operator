@@ -69,7 +69,7 @@ public final class TokenUtils {
         return (byte) (identityType.value << 2);
     }
 
-    public static byte encodeIdentityVersion(IdentityVersion identityVersion) { return (byte) (identityVersion.value << 6); }
+    public static byte encodeIdentityVersion(IdentityVersion identityVersion) { return (byte) (identityVersion.value << 5); }
 
-    public static byte encodeIdentityEnvironment(IdentityEnvironment identityEnvironment) { return (byte) (identityEnvironment.value); }
+    public static byte encodeIdentityEnvironment(IdentityEnvironment identityEnvironment) { return (byte) (identityEnvironment.value << 6); }
 }

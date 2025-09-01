@@ -17,11 +17,8 @@ import java.util.Base64;
 
 public class EncryptedTokenEncoder implements ITokenEncoder {
     private final KeyManager keyManager;
-    private final IdentityEnvironment identityEnvironment;
-
-    public EncryptedTokenEncoder(KeyManager keyManager, IdentityEnvironment identityEnvironment) {
+    public EncryptedTokenEncoder(KeyManager keyManager) {
         this.keyManager = keyManager;
-        this.identityEnvironment = identityEnvironment;
     }
 
     public byte[] encode(AdvertisingToken t, Instant asOf) {
@@ -126,7 +123,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                 TokenVersion.V2, createdAt, validTill,
                 new OperatorIdentity(0, OperatorType.Service, 0, 0),
                 new PublisherIdentity(siteId, 0, 0),
-                new UserIdentity(IdentityScope.UID2, IdentityType.Email, this.identityEnvironment, identity, privacyBits, Instant.ofEpochMilli(establishedMillis), null));
+                new UserIdentity(IdentityScope.UID2, IdentityType.Email, identity, privacyBits, Instant.ofEpochMilli(establishedMillis), null));
     }
 
     private RefreshToken decodeRefreshTokenV3(Buffer b, byte[] bytes) {
@@ -148,6 +145,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final Instant establishedAt = Instant.ofEpochMilli(b2.getLong(49));
         final IdentityScope identityScope = decodeIdentityScopeV3(b2.getByte(57));
         final IdentityType identityType = decodeIdentityTypeV3(b2.getByte(57));
+
         final byte[] id = b2.getBytes(58, 90);
 
         if (identityScope != decodeIdentityScopeV3(b.getByte(0))) {
@@ -159,7 +157,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new RefreshToken(
                 TokenVersion.V3, createdAt, expiresAt, operatorIdentity, publisherIdentity,
-                new UserIdentity(identityScope, identityType, this.identityEnvironment, id, privacyBits, establishedAt, null));
+                new UserIdentity(identityScope, identityType, id, privacyBits, establishedAt, null));
     }
 
     @Override
@@ -227,7 +225,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                     Instant.ofEpochMilli(expiresMillis),
                     new OperatorIdentity(0, OperatorType.Service, 0, masterKeyId),
                     new PublisherIdentity(siteId, siteKeyId, 0),
-                    new UserIdentity(IdentityScope.UID2, IdentityType.Email, this.identityEnvironment, advertisingId, privacyBits, Instant.ofEpochMilli(establishedMillis), null)
+                    new UserIdentity(IdentityScope.UID2, IdentityType.Email, advertisingId, privacyBits, Instant.ofEpochMilli(establishedMillis), null)
             );
 
         } catch (Exception e) {
@@ -265,7 +263,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new AdvertisingToken(
                 tokenVersion, createdAt, expiresAt, operatorIdentity, publisherIdentity,
-                new UserIdentity(identityScope, identityType, this.identityEnvironment, id, privacyBits, establishedAt, refreshedAt)
+                new UserIdentity(identityScope, identityType, id, privacyBits, establishedAt, refreshedAt)
         );
     }
 

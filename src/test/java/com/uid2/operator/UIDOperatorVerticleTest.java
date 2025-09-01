@@ -201,6 +201,8 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.OptOutStatusMaxRequestSize, optOutStatusMaxRequestSize);
         config.put(Const.Config.DisableOptoutTokenProp, false);
         config.put(Const.Config.ConfigScanPeriodMsProp, 10000);
+
+        config.put(Const.Config.IdentityEnvironmentProp, "test");
     }
 
     private static byte[] makeAesKey(String prefix) {
@@ -1286,6 +1288,42 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
+    void testIdentityEnvironment(Vertx vertx, VertxTestContext testContext) {
+        config.put(Const.Config.IdentityEnvironmentProp, "integ");
+        runtimeConfig = setupRuntimeConfig(config);
+        when(configStore.getConfig()).thenAnswer(x -> runtimeConfig);
+
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+
+        Instant asOf = Instant.now();
+        var lastUpdated = asOf.minus(120, DAYS).toEpochMilli();
+        var outdatedRefreshFrom = asOf.minus(30, DAYS).toEpochMilli();
+
+        SaltEntry salt = new SaltEntry(1, "1", lastUpdated, "salt", outdatedRefreshFrom, null, null, null);
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        JsonObject request = new JsonObject("""
+                        { "email": ["test1@uid2.com"] }
+                """);
+
+        send(vertx, "v3/identity/map", request, 200, respJson -> {
+            JsonObject body = respJson.getJsonObject("body");
+            var mappedEmails = body.getJsonArray("email");
+
+            var expectedMappedEmails = JsonObject.of(
+                    "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentSalt())),
+                    "p", null,
+                    "r", asOf.truncatedTo(DAYS).plus(1, DAYS).getEpochSecond()
+            );
+            assertEquals(expectedMappedEmails, mappedEmails.getJsonObject(0));
+
+            testContext.completeNow();
+        });
+    }
+
+    @Test
     void tokenGenerateNewClientNoPolicySpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.GENERATOR);
@@ -1452,7 +1490,7 @@ public class UIDOperatorVerticleTest {
 
                     decodeV2RefreshToken(json);
 
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, identityType);
                     RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString("decrypted_refresh_token"));
@@ -1467,11 +1505,10 @@ public class UIDOperatorVerticleTest {
                     String advertisingTokenString = body.getString("advertising_token");
                     final Instant now = Instant.now();
                     final String token = advertisingTokenString;
-                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, optOutTokenInput.toUserIdentity(getIdentityScope(), IdentityEnvironment.Test, 0, now), now);
+                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, optOutTokenInput.toUserIdentity(getIdentityScope(),0, now), now, IdentityEnvironment.Test);
                     assertTrue(matchedOptedOutIdentity);
                     assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
                     assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
-
                     assertTokenStatusMetrics(
                             201,
                             TokenResponseStatsCollector.Endpoint.GenerateV2,
@@ -1557,7 +1594,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("success", json.getString("status"));
                     JsonObject body = json.getJsonObject("body");
                     assertNotNull(body);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
 
@@ -1597,7 +1634,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("success", json.getString("status"));
                     JsonObject body = json.getJsonObject("body");
                     assertNotNull(body);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
 
@@ -1646,7 +1683,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                 AdvertisingToken advertisingToken = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
 
@@ -1706,7 +1743,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                 AdvertisingToken advertisingToken = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
 
@@ -1874,7 +1911,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
@@ -1905,7 +1942,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("success", json.getString("status"));
                     JsonObject body = json.getJsonObject("body");
                     assertNotNull(body);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
 
@@ -2639,7 +2676,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Phone);
 
@@ -2676,7 +2713,7 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Phone);
 
@@ -2718,7 +2755,7 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                 AdvertisingToken advertisingToken = validateAndGetToken(encoder, refreshBody, IdentityType.Phone);
 
@@ -3442,7 +3479,7 @@ public class UIDOperatorVerticleTest {
 
                     JsonObject refreshBody = respJson.getJsonObject("body");
                     assertNotNull(refreshBody);
-                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
                     validateAndGetToken(encoder, refreshBody, IdentityType.Email); //to validate token version is correct
                     testContext.completeNow();
                 });
@@ -3469,7 +3506,7 @@ public class UIDOperatorVerticleTest {
 
                     JsonObject refreshBody = respJson.getJsonObject("body");
                     assertNotNull(refreshBody);
-                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
                     validateAndGetToken(encoder, refreshBody, IdentityType.Email); //to validate token version is correct
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
@@ -3992,7 +4029,7 @@ public class UIDOperatorVerticleTest {
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
                 .thenReturn(null);
 
-        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
         final ArgumentCaptor<UserIdentity> argumentCaptor = ArgumentCaptor.forClass(UserIdentity.class);
 
         sendCstg(vertx,
@@ -4069,7 +4106,7 @@ public class UIDOperatorVerticleTest {
                     assertNotNull(genBody);
 
                     decodeV2RefreshToken(respJson);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
 
@@ -4092,7 +4129,7 @@ public class UIDOperatorVerticleTest {
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                         assertNotNull(refreshBody);
-                        EncryptedTokenEncoder encoder2 = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                        EncryptedTokenEncoder encoder2 = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                         //make sure the new advertising token from refresh looks right
                         AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, identityType);
@@ -4139,7 +4176,7 @@ public class UIDOperatorVerticleTest {
 
                     JsonObject refreshBody = respJson.getJsonObject("body");
                     assertNotNull(refreshBody);
-                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
                     validateAndGetToken(encoder, refreshBody, IdentityType.Email); //to validate token version is correct
 
                     verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
@@ -4452,7 +4489,7 @@ public class UIDOperatorVerticleTest {
                     assertEquals("success", json.getString("status"));
                     JsonObject body = json.getJsonObject("body");
                     assertNotNull(body);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);

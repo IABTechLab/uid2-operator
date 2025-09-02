@@ -1,6 +1,5 @@
 package com.uid2.operator;
 
-import com.uid2.shared.model.TokenVersion;
 import org.junit.jupiter.api.Test;
 
 import com.uid2.operator.model.IdentityScope;
@@ -10,18 +9,19 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.junit5.VertxTestContext;
 
-import java.io.IOException;
-
 import static org.junit.jupiter.api.Assertions.*;
 
-public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
-    public EUIDOperatorVerticleTest() throws IOException {
+class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
+    @Override
+    protected IdentityScope getIdentityScope() {
+        return IdentityScope.EUID;
     }
 
     @Override
-    protected IdentityScope getIdentityScope() { return IdentityScope.EUID; }
-    @Override
-    protected boolean useRawUidV3() { return true; }
+    protected boolean useRawUidV3() {
+        return true;
+    }
+
     @Override
     protected void addAdditionalTokenGenerateParams(JsonObject payload) {
         if (payload != null && !payload.containsKey("tcf_consent_string")) {
@@ -35,7 +35,7 @@ public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
-        
+
         final String emailAddress = "test@uid2.com";
         final JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", emailAddress);
@@ -53,7 +53,7 @@ public class EUIDOperatorVerticleTest extends UIDOperatorVerticleTest {
         final String emailAddress = "test@uid2.com";
         final JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", emailAddress);
-        sendTokenGenerate(vertx,  v2Payload, 200, json -> testContext.completeNow(), false);
+        sendTokenGenerate(vertx, v2Payload, 200, json -> testContext.completeNow(), false);
 
     }
 

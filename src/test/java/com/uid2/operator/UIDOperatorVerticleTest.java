@@ -59,18 +59,15 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.slf4j.LoggerFactory;
 
-import static java.time.temporal.ChronoUnit.DAYS;
-import static org.assertj.core.api.Assertions.*;
-
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.time.*;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -80,6 +77,8 @@ import static com.uid2.operator.service.EncodingUtils.getSha256;
 import static com.uid2.operator.vertx.UIDOperatorVerticle.*;
 import static com.uid2.shared.Const.Data.*;
 import static com.uid2.shared.Const.Http.ClientVersionHeader;
+import static java.time.temporal.ChronoUnit.DAYS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -87,7 +86,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith({VertxExtension.class, MockitoExtension.class})
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class UIDOperatorVerticleTest {
-    private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
     private static final Instant legacyClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).minus(1, ChronoUnit.SECONDS);
     private static final Instant newClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).plus(1, ChronoUnit.SECONDS);
     private static final String firstLevelSalt = "first-level-salt";
@@ -105,8 +103,9 @@ public class UIDOperatorVerticleTest {
     private static final String iosClientVersionHeaderValue = "ios-1.2.3";
     private static final String tvosClientVersionHeaderValue = "tvos-1.2.3";
     private static final int clientSideTokenGenerateSiteId = 123;
-
     private static final int optOutStatusMaxRequestSize = 1000;
+
+    private final Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
     @Mock
     private ISiteStore siteProvider;
@@ -144,7 +143,7 @@ public class UIDOperatorVerticleTest {
     private final JsonObject config = new JsonObject();
 
     @BeforeEach
-    public void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
+    void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
         when(saltProvider.getSnapshot(any())).thenReturn(saltProviderSnapshot);
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().plus(1, ChronoUnit.HOURS));
         when(clock.instant()).thenAnswer(i -> now);
@@ -166,7 +165,6 @@ public class UIDOperatorVerticleTest {
         this.uidInstanceIdProvider = new UidInstanceIdProvider("test-instance", "id");
 
         this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse, uidInstanceIdProvider);
-
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 
         this.registry = new SimpleMeterRegistry();
@@ -174,7 +172,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @AfterEach
-    public void teardown() throws Exception {
+    void teardown() {
         Metrics.globalRegistry.remove(registry);
     }
 
@@ -230,14 +228,6 @@ public class UIDOperatorVerticleTest {
 
     private void clearAuth() {
         when(clientKeyProvider.get(any())).thenReturn(null);
-    }
-
-    private static String urlEncode(String value) {
-        try {
-            return URLEncoder.encode(value, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private String getUrlForEndpoint(String endpoint) {
@@ -297,7 +287,6 @@ public class UIDOperatorVerticleTest {
     }
 
     private void sendTokenGenerate(Vertx vertx, JsonObject v2PostPayload, int expectedHttpCode, String referer, Handler<JsonObject> handler, boolean additionalParams, Map<String, String> additionalHeaders) {
-
         ClientKey ck = (ClientKey) clientKeyProvider.get("");
 
         long nonce = new BigInteger(Random.getBytes(8)).longValue();
@@ -399,10 +388,6 @@ public class UIDOperatorVerticleTest {
         }
     }
 
-    private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, String referer, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
-        postV2(ck, vertx, endpoint, body, nonce, referer, handler, Collections.emptyMap(), false);
-    }
-
     private void postV2(ClientKey ck, Vertx vertx, String endpoint, JsonObject body, long nonce, String referer, Handler<AsyncResult<HttpResponse<Buffer>>> handler, Map<String, String> additionalHeaders) {
         postV2(ck, vertx, endpoint, body, nonce, referer, handler, additionalHeaders, false);
     }
@@ -497,7 +482,7 @@ public class UIDOperatorVerticleTest {
         SHARING("/key/sharing"),
         BIDSTREAM("/key/bidstream");
 
-        private String path;
+        private final String path;
 
         KeyDownloadEndpoint(String path) {
             this.path = path;
@@ -636,19 +621,27 @@ public class UIDOperatorVerticleTest {
     }
 
     private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
-        return getRawUid(identityType, identityString, firstLevelSalt, rotatingSalt, getIdentityScope(), useRawUidV3());
+        return getRawUid(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt, useRawUidV3());
     }
 
-    public static byte[] getRawUid(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt, IdentityScope identityScope, boolean useRawUidV3) {
+    private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial rotatingKey) throws Exception {
+        return getRawUidV4(getIdentityScope(), identityType, IdentityEnvironment.Test, identityString, firstLevelSalt, rotatingKey);
+    }
+
+    public static byte[] getRawUid(IdentityScope identityScope, IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt, boolean useRawUidV3) {
         return !useRawUidV3
                 ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt)
                 : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt);
     }
 
-    public static byte[] getRawUid(IdentityType identityType, String identityString, IdentityScope identityScope, boolean useRawUidV3) {
+    public static byte[] getRawUid(IdentityScope identityScope, IdentityType identityType, String identityString, boolean useRawUidV3) {
         return !useRawUidV3
                 ? TokenUtils.getAdvertisingIdV2FromIdentity(identityString, firstLevelSalt, rotatingSalt123.currentSalt())
                 : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt123.currentSalt());
+    }
+
+    public static byte[] getRawUidV4(IdentityScope identityScope, IdentityType identityType, IdentityEnvironment identityEnvironment, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial rotatingKey) throws Exception {
+        return TokenUtils.getAdvertisingIdV4FromIdentity(identityScope, identityType, identityEnvironment, identityString, firstLevelSalt, rotatingKey);
     }
 
     private byte[] getAdvertisingIdFromIdentityHash(IdentityType identityType, String identityString, String firstLevelSalt, String rotatingSalt) {
@@ -698,10 +691,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "text/plain",
-            "application/octet-stream"
-    })
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
     void keyLatestNoAcl(String contentType, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(5, Role.ID_READER);
         Keyset[] keysets = {
@@ -879,10 +869,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "text/plain",
-            "application/octet-stream"
-    })
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
     void identityMapNewClientNoPolicySpecified(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
@@ -1056,10 +1043,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "text/plain",
-            "application/octet-stream"
-    })
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
     void v3IdentityMapMixedInputSuccess(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
@@ -1285,6 +1269,118 @@ public class UIDOperatorVerticleTest {
         });
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
+    void v3IdentityMapWithV4UidAndV3PrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+
+        setupSalts();
+
+        var lastUpdated = Instant.now().minus(1, DAYS);
+        var refreshFrom = lastUpdated.plus(30, DAYS);
+
+        SaltEntry salt = new SaltEntry(
+                1,
+                "1",
+                lastUpdated.toEpochMilli(),
+                null,
+                refreshFrom.toEpochMilli(),
+                "salt123",
+                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
+                null);
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        JsonObject request = new JsonObject("""
+                {
+                    "email": ["test1@uid2.com"]
+                }
+                """);
+
+        send(vertx, "v3/identity/map", request, 200, respJson -> {
+            JsonObject body = respJson.getJsonObject("body");
+            assertEquals(Set.of("email", "email_hash", "phone", "phone_hash"), body.fieldNames());
+
+            var mappedEmails = body.getJsonArray("email");
+            assertEquals(1, mappedEmails.size());
+
+            try {
+                var mappedEmailExpected = JsonObject.of(
+                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKey())),
+                        "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.previousSalt())),
+                        "r", refreshFrom.getEpochSecond()
+                );
+                assertEquals(mappedEmailExpected, mappedEmails.getJsonObject(0));
+            } catch (Exception e) {
+                org.junit.jupiter.api.Assertions.fail(e.getMessage());
+            }
+
+            assertEquals(0, body.getJsonArray("email_hash").size());
+            assertEquals(0, body.getJsonArray("phone").size());
+            var mappedPhoneHash = body.getJsonArray("phone_hash");
+            assertEquals(0, mappedPhoneHash.size());
+
+            assertEquals("success", respJson.getString("status"));
+            testContext.completeNow();
+        }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
+    void v3IdentityMapWithV4UidAndV4PrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+
+        setupSalts();
+
+        var lastUpdated = Instant.now().minus(1, DAYS);
+        var refreshFrom = lastUpdated.plus(30, DAYS);
+
+        SaltEntry salt = new SaltEntry(
+                1,
+                "1",
+                lastUpdated.toEpochMilli(),
+                null,
+                refreshFrom.toEpochMilli(),
+                null,
+                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
+                new SaltEntry.KeyMaterial(1000001, "key12345key12345key12345key12346", "salt1234salt1234salt1234salt1235"));
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        JsonObject request = new JsonObject("""
+                {
+                    "email": ["test1@uid2.com"]
+                }
+                """);
+
+        send(vertx, "v3/identity/map", request, 200, respJson -> {
+            JsonObject body = respJson.getJsonObject("body");
+            assertEquals(Set.of("email", "email_hash", "phone", "phone_hash"), body.fieldNames());
+
+            var mappedEmails = body.getJsonArray("email");
+            assertEquals(1, mappedEmails.size());
+
+            try {
+                var mappedEmailExpected = JsonObject.of(
+                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKey())),
+                        "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.previousKey())),
+                        "r", refreshFrom.getEpochSecond()
+                );
+                assertEquals(mappedEmailExpected, mappedEmails.getJsonObject(0));
+            } catch (Exception e) {
+                org.junit.jupiter.api.Assertions.fail(e.getMessage());
+            }
+
+            assertEquals(0, body.getJsonArray("email_hash").size());
+            assertEquals(0, body.getJsonArray("phone").size());
+            var mappedPhoneHash = body.getJsonArray("phone_hash");
+            assertEquals(0, mappedPhoneHash.size());
+
+            assertEquals("success", respJson.getString("status"));
+            testContext.completeNow();
+        }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
+    }
+
     @Test
     void tokenGenerateNewClientNoPolicySpecified(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
@@ -1478,8 +1574,7 @@ public class UIDOperatorVerticleTest {
                             TokenResponseStatsCollector.ResponseStatus.Success,
                             TokenResponseStatsCollector.PlatformType.Other);
 
-                    sendTokenRefresh(vertx, testContext, body.getString("refresh_token"), body.getString("refresh_response_key"), 200, refreshRespJson ->
-                    {
+                    sendTokenRefresh(vertx, testContext, body.getString("refresh_token"), body.getString("refresh_response_key"), 200, refreshRespJson -> {
                         assertEquals("optout", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                         assertNull(refreshBody);
@@ -1619,10 +1714,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "text/plain",
-            "application/octet-stream"
-    })
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
     void tokenGenerateThenRefresh(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
@@ -1701,8 +1793,7 @@ public class UIDOperatorVerticleTest {
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
 
-            sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson ->
-            {
+            sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
@@ -2131,10 +2222,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "text/plain",
-            "application/octet-stream"
-    })
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
     void tokenValidateWithEmail_Mismatch(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = ValidateIdentityForEmail;
@@ -2505,10 +2593,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "text/plain",
-            "application/octet-stream"
-    })
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
     void logoutV2(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.OPTOUT);
@@ -3216,7 +3301,7 @@ public class UIDOperatorVerticleTest {
     @ParameterizedTest
     @CsvSource({
             "https://blahblah.com",
-            "http://local1host:8080", //intentionally spelling localhost wrong here!
+            "http://local1host:8080" //intentionally spelling localhost wrong here!
     })
     void cstgDomainNameCheckFails(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend();
@@ -3245,7 +3330,7 @@ public class UIDOperatorVerticleTest {
     @CsvSource({
             "''", // An empty quoted value results in the empty string.
             "com.123",
-            "com.",
+            "com."
     })
     void cstgAppNameCheckFails(String appName, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend(Collections.emptyList(), List.of("com.123.Game.App.android"));
@@ -3275,7 +3360,7 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "http://gototest.com",
+            "http://gototest.com"
     })
     void cstgDomainNameCheckFailsAndLogInvalidHttpOrigin(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
@@ -3353,7 +3438,6 @@ public class UIDOperatorVerticleTest {
         final SecretKey secretKey = ClientSideTokenGenerateTestUtil.deriveKey(serverPublicKey, clientPrivateKey);
         final long timestamp = Instant.now().toEpochMilli();
 
-
         JsonObject requestJson = new JsonObject();
         requestJson.put("payload", "");
         requestJson.put("iv", "");
@@ -3382,7 +3466,7 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "http://gototest.com",
+            "http://gototest.com"
     })
     void cstgDomainNameCheckFailsAndLogSeveralInvalidHttpOrigin(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
@@ -3425,7 +3509,7 @@ public class UIDOperatorVerticleTest {
     @CsvSource({
             "https://cstg.co.uk",
             "https://cstg2.com",
-            "http://localhost:8080",
+            "http://localhost:8080"
     })
     void cstgDomainNameCheckPasses(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk", "cstg2.com", "localhost");
@@ -3452,7 +3536,7 @@ public class UIDOperatorVerticleTest {
     @CsvSource({
             "com.123.Game.App.android",
             "com.123.game.app.android",
-            "123456789",
+            "123456789"
     })
     void cstgAppNameCheckPasses(String appName, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend(Collections.emptyList(), List.of("com.123.Game.App.android", "123456789"));

@@ -93,13 +93,13 @@ class TokenEncodingTest {
             "false, V3",
             "true, V3",
             "false, V2",
-            "true, V2",
+            "true, V2"
     })
     void testAdvertisingTokenEncodings(boolean useRawUIDv3, TokenVersion adTokenVersion) {
         final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
 
-        final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, "test@example.com", IdentityScope.UID2, useRawUIDv3);
+        final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityScope.UID2, IdentityType.Email, "test@example.com", useRawUIDv3);
 
         final AdvertisingToken token = new AdvertisingToken(
                 adTokenVersion,

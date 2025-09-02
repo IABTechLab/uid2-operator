@@ -63,6 +63,10 @@ public final class TokenUtils {
         return V4TokenUtils.buildAdvertisingIdV4(metadata, firstLevelHash, encryptingKey.id(), encryptingKey.key(), encryptingKey.salt());
     }
 
+    public static byte[] getAdvertisingIdV4FromIdentity(IdentityScope scope, IdentityType type, IdentityEnvironment environment, String identity, String firstLevelSalt, SaltEntry.KeyMaterial encryptingKey) throws Exception {
+        return getAdvertisingIdV4(scope, type, environment, getFirstLevelHashFromIdentity(identity, firstLevelSalt), encryptingKey);
+    }
+
     public static byte encodeIdentityScope(IdentityScope identityScope) {
         return (byte) (identityScope.value << 4);
     }

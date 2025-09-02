@@ -919,8 +919,8 @@ class UIDOperatorServiceTest {
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 
-        var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
-        var expectedPreviousUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.previousSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
+        var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityScope.UID2, IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), uid2Config.getBoolean(IdentityV3Prop));
+        var expectedPreviousUID = UIDOperatorVerticleTest.getRawUid(IdentityScope.UID2, IdentityType.Email, email, FIRST_LEVEL_SALT, salt.previousSalt(), uid2Config.getBoolean(IdentityV3Prop));
         assertArrayEquals(expectedCurrentUID, mappedIdentity.advertisingId);
         assertArrayEquals(expectedPreviousUID, mappedIdentity.previousAdvertisingId);
     }
@@ -941,7 +941,7 @@ class UIDOperatorServiceTest {
         MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, IdentityEnvironment.Test, 0, this.now), OptoutCheckPolicy.RespectOptOut, now);
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
-        var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
+        var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityScope.UID2, IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), uid2Config.getBoolean(IdentityV3Prop));
         assertArrayEquals(expectedCurrentUID, mappedIdentity.advertisingId);
         assertArrayEquals(null , mappedIdentity.previousAdvertisingId);
     }
@@ -962,7 +962,7 @@ class UIDOperatorServiceTest {
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 
-        var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), IdentityScope.UID2, uid2Config.getBoolean(IdentityV3Prop));
+        var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityScope.UID2, IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), uid2Config.getBoolean(IdentityV3Prop));
         assertArrayEquals(expectedCurrentUID, mappedIdentity.advertisingId);
         assertArrayEquals(null, mappedIdentity.previousAdvertisingId);
     }

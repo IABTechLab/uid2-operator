@@ -43,7 +43,8 @@ public class TokenEndecBenchmark {
                             new IdentityRequest(
                                     publisher,
                                     userIdentities[i],
-                                    OptoutCheckPolicy.DoNotRespect),
+                                    OptoutCheckPolicy.DoNotRespect,
+                                    IdentityEnvironment.TEST),
                             Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
                             Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
                             Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS))
@@ -58,7 +59,8 @@ public class TokenEndecBenchmark {
         return uidService.generateIdentity(new IdentityRequest(
                         publisher,
                         userIdentities[(idx++) & 65535],
-                        OptoutCheckPolicy.DoNotRespect),
+                        OptoutCheckPolicy.DoNotRespect,
+                        IdentityEnvironment.TEST),
                 Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
                 Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
                 Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)
@@ -73,7 +75,8 @@ public class TokenEndecBenchmark {
                         generatedTokens[(idx++) & 65535].getRefreshToken()),
                 Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
                 Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
-                Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)
+                Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS),
+                IdentityEnvironment.TEST
         );
     }
 }

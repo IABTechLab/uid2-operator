@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+import com.uid2.operator.model.IdentityEnvironment;
 
 @JsonDeserialize(builder = RuntimeConfig.Builder.class)
 public class RuntimeConfig {
@@ -15,6 +16,7 @@ public class RuntimeConfig {
     private final Integer sharingTokenExpirySeconds;
     private final Integer maxBidstreamLifetimeSeconds;
     private final Integer maxSharingLifetimeSeconds;
+    private final IdentityEnvironment identityEnvironment;
 
     public Integer getIdentityTokenExpiresAfterSeconds() {
         return identityTokenExpiresAfterSeconds;
@@ -48,6 +50,10 @@ public class RuntimeConfig {
         return sharingTokenExpirySeconds;
     }
 
+    public IdentityEnvironment getIdentityEnvironment() {
+        return identityEnvironment;
+    }
+
     private RuntimeConfig(Builder builder) {
         this.identityTokenExpiresAfterSeconds = builder.identityTokenExpiresAfterSeconds;
         this.refreshTokenExpiresAfterSeconds = builder.refreshTokenExpiresAfterSeconds;
@@ -55,10 +61,12 @@ public class RuntimeConfig {
         this.sharingTokenExpirySeconds = builder.sharingTokenExpirySeconds;
         this.maxBidstreamLifetimeSeconds = builder.maxBidstreamLifetimeSeconds;
         this.maxSharingLifetimeSeconds = builder.maxSharingLifetimeSeconds;
+        this.identityEnvironment = builder.identityEnvironment;
 
         validateIdentityRefreshTokens();
         validateBidstreamLifetime();
         validateSharingTokenExpiry();
+        validateIdentityEnvironment();
     }
     
     public RuntimeConfig.Builder toBuilder() {
@@ -68,7 +76,8 @@ public class RuntimeConfig {
                 .withRefreshIdentityTokenAfterSeconds(this.refreshIdentityTokenAfterSeconds)
                 .withSharingTokenExpirySeconds(this.sharingTokenExpirySeconds)
                 .withMaxBidstreamLifetimeSeconds(this.maxBidstreamLifetimeSeconds)
-                .withMaxSharingLifetimeSeconds(this.maxSharingLifetimeSeconds);
+                .withMaxSharingLifetimeSeconds(this.maxSharingLifetimeSeconds)
+                .withIdentityEnvironment(this.identityEnvironment);
     }
     
     private void validateIdentityRefreshTokens() {
@@ -104,6 +113,12 @@ public class RuntimeConfig {
             throw new IllegalArgumentException("sharing_token_expiry_seconds is required");
         }
     }
+
+    private void validateIdentityEnvironment() {
+        if (this.identityEnvironment == null) {
+            throw new IllegalArgumentException("identity_environment is required");
+        }
+    }
     
     @JsonPOJOBuilder
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -121,6 +136,8 @@ public class RuntimeConfig {
         private Integer maxBidstreamLifetimeSeconds;
         @JsonProperty
         private Integer maxSharingLifetimeSeconds;
+        @JsonProperty
+        private IdentityEnvironment identityEnvironment;
 
         public Builder withIdentityTokenExpiresAfterSeconds(Integer identityTokenExpiresAfterSeconds) {
             this.identityTokenExpiresAfterSeconds = identityTokenExpiresAfterSeconds;
@@ -149,6 +166,11 @@ public class RuntimeConfig {
 
         public Builder withMaxSharingLifetimeSeconds(Integer maxSharingLifetimeSeconds) {
             this.maxSharingLifetimeSeconds = maxSharingLifetimeSeconds;
+            return this;
+        }
+
+        public Builder withIdentityEnvironment(IdentityEnvironment identityEnvironment) {
+            this.identityEnvironment = identityEnvironment;
             return this;
         }
 

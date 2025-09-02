@@ -39,6 +39,7 @@ public class RuntimeConfigStoreTest {
         config.put("refresh_token_expires_after_seconds", 86400);
         config.put("refresh_identity_token_after_seconds", 900);
         config.put("sharing_token_expiry_seconds", 2592000);
+        config.put("identity_environment", "test");
     }
 
     private RuntimeConfig setupRuntimeConfig(JsonObject config) {

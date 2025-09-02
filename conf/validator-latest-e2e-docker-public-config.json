@@ -44,5 +44,6 @@
   },
   "disable_optout_token": true,
   "enable_remote_config": false,
-  "uid_instance_id_prefix": "local-public-operator"
+  "uid_instance_id_prefix": "local-public-operator",
+  "identity_environment": "test"
 }

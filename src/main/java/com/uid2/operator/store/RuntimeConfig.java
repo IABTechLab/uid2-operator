@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.uid2.operator.model.IdentityEnvironment;
 
+import java.time.Duration;
+
 @JsonDeserialize(builder = RuntimeConfig.Builder.class)
 public class RuntimeConfig {
     private final Integer identityTokenExpiresAfterSeconds;
@@ -17,6 +19,18 @@ public class RuntimeConfig {
     private final Integer maxBidstreamLifetimeSeconds;
     private final Integer maxSharingLifetimeSeconds;
     private final IdentityEnvironment identityEnvironment;
+
+    public Duration getIdentityTokenExpires() {
+        return Duration.ofSeconds(identityTokenExpiresAfterSeconds);
+    }
+
+    public Duration getRefreshTokenExpires() {
+        return Duration.ofSeconds(refreshTokenExpiresAfterSeconds);
+    }
+
+    public Duration getRefreshIdentityTokenExpires() {
+        return Duration.ofSeconds(refreshIdentityTokenAfterSeconds);
+    }
 
     public Integer getIdentityTokenExpiresAfterSeconds() {
         return identityTokenExpiresAfterSeconds;

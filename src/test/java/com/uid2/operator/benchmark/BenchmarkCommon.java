@@ -7,8 +7,7 @@ import com.uid2.operator.service.EncryptedTokenEncoder;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.service.UIDOperatorService;
-import com.uid2.operator.store.CloudSyncOptOutStore;
-import com.uid2.operator.store.IOptOutStore;
+import com.uid2.operator.store.*;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.Utils;
 import com.uid2.shared.audit.UidInstanceIdProvider;
@@ -27,6 +26,7 @@ import com.uid2.shared.store.reader.RotatingClientKeyProvider;
 import com.uid2.shared.store.reader.RotatingKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import com.uid2.shared.store.scope.GlobalScope;
+import io.vertx.config.spi.ConfigStore;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
@@ -67,6 +67,7 @@ public class BenchmarkCommon {
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
 
+        final IConfigStore configStore = new BootstrapConfigStore(new JsonObject());
         final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
         final List<String> optOutPartitionFiles = new ArrayList<>();
         final ICloudStorage optOutLocalStorage = make1mOptOutEntryStorage(
@@ -82,7 +83,8 @@ public class BenchmarkCommon {
                 IdentityScope.UID2,
                 shutdownHandler::handleSaltRetrievalResponse,
                 false,
-                new UidInstanceIdProvider("test-instance", "id")
+                new UidInstanceIdProvider("test-instance", "id"),
+                configStore
         );
     }
 

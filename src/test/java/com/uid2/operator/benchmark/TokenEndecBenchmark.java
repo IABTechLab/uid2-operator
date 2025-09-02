@@ -35,7 +35,7 @@ public class TokenEndecBenchmark {
         }
     }
 
-    static IdentityTokens[] createAdvertisingTokens() {
+    static IdentityTokens[] createAdvertisingTokens() throws Exception {
         List<IdentityTokens> tokens = new ArrayList<>();
         for (int i = 0; i < userIdentities.length; i++) {
             tokens.add(
@@ -43,11 +43,7 @@ public class TokenEndecBenchmark {
                             new IdentityRequest(
                                     publisher,
                                     userIdentities[i],
-                                    OptoutCheckPolicy.DoNotRespect,
-                                    IdentityEnvironment.TEST),
-                            Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
-                            Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
-                            Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS))
+                                    OptoutCheckPolicy.DoNotRespect))
             );
         }
         return tokens.toArray(new IdentityTokens[tokens.size()]);
@@ -55,28 +51,19 @@ public class TokenEndecBenchmark {
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public IdentityTokens TokenGenerationBenchmark() {
+    public IdentityTokens TokenGenerationBenchmark() throws Exception {
         return uidService.generateIdentity(new IdentityRequest(
                         publisher,
                         userIdentities[(idx++) & 65535],
-                        OptoutCheckPolicy.DoNotRespect,
-                        IdentityEnvironment.TEST),
-                Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
-                Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
-                Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)
+                        OptoutCheckPolicy.DoNotRespect)
         );
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public RefreshResponse TokenRefreshBenchmark() {
+    public RefreshResponse TokenRefreshBenchmark() throws Exception {
         return uidService.refreshIdentity(
-                encoder.decodeRefreshToken(
-                        generatedTokens[(idx++) & 65535].getRefreshToken()),
-                Duration.ofSeconds(BenchmarkCommon.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
-                Duration.ofSeconds(BenchmarkCommon.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
-                Duration.ofSeconds(BenchmarkCommon.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS),
-                IdentityEnvironment.TEST
+                encoder.decodeRefreshToken(generatedTokens[(idx++) & 65535].getRefreshToken())
         );
     }
 }

@@ -88,7 +88,7 @@ class UIDOperatorServiceTest {
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
 
-        tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider), IdentityEnvironment.Test);
+        tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
         setNow(Instant.now());
 
@@ -167,7 +167,6 @@ class UIDOperatorServiceTest {
         return new UserIdentity(
                 scope,
                 type,
-                environment,
                 rawIdentityHash.getBytes(StandardCharsets.UTF_8),
                 0,
                 this.now.minusSeconds(234),

@@ -47,7 +47,7 @@ class TokenEncodingTest {
     @ParameterizedTest
     @EnumSource(value = TokenVersion.class, names = {"V3", "V4"})
     void testRefreshTokenEncoding(TokenVersion tokenVersion) {
-        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager, IdentityEnvironment.Test);
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
 
         final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity("test@example.com", "some-salt");
@@ -57,7 +57,7 @@ class TokenEncodingTest {
                 now.plusSeconds(360),
                 new OperatorIdentity(101, OperatorType.Service, 102, 103),
                 new PublisherIdentity(111, 112, 113),
-                new UserIdentity(IdentityScope.UID2, IdentityType.Email, IdentityEnvironment.Test, firstLevelHash, 121, now, now.minusSeconds(122))
+                new UserIdentity(IdentityScope.UID2, IdentityType.Email, firstLevelHash, 121, now, now.minusSeconds(122))
         );
 
         if (tokenVersion == TokenVersion.V4) {
@@ -96,7 +96,7 @@ class TokenEncodingTest {
             "true, V2",
     })
     void testAdvertisingTokenEncodings(boolean useRawUIDv3, TokenVersion adTokenVersion) {
-        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager, IdentityEnvironment.Test);
+        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
 
         final byte[] rawUid = UIDOperatorVerticleTest.getRawUid(IdentityType.Email, "test@example.com", IdentityScope.UID2, useRawUIDv3);
@@ -107,7 +107,7 @@ class TokenEncodingTest {
                 now.plusSeconds(60),
                 new OperatorIdentity(101, OperatorType.Service, 102, 103),
                 new PublisherIdentity(111, 112, 113),
-                new UserIdentity(IdentityScope.UID2, IdentityType.Email, IdentityEnvironment.Test, rawUid, 121, now, now.minusSeconds(122))
+                new UserIdentity(IdentityScope.UID2, IdentityType.Email, rawUid, 121, now, now.minusSeconds(122))
         );
 
         final byte[] encodedBytes = encoder.encode(token, now);

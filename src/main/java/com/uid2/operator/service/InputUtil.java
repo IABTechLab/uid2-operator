@@ -268,7 +268,6 @@ public final class InputUtil {
             return new UserIdentity(
                     identityScope,
                     this.identityType,
-                    identityEnvironment,
                     getIdentityInput(),
                     privacyBits,
                     establishedAt,

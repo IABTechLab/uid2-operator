@@ -184,7 +184,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityEnvironment = IdentityEnvironment.fromString(config.getString("identity_environment", "test"));
-        this.encoder = new EncryptedTokenEncoder(keyManager, identityEnvironment);
+        this.encoder = new EncryptedTokenEncoder(keyManager);
         this.encryptedPayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);

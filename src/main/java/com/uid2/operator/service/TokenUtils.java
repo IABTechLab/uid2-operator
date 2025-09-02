@@ -63,13 +63,19 @@ public final class TokenUtils {
         return V4TokenUtils.buildAdvertisingIdV4(metadata, firstLevelHash, encryptingKey.id(), encryptingKey.key(), encryptingKey.salt());
     }
 
-    public static byte encodeIdentityScope(IdentityScope identityScope) { return (byte) (identityScope.value << 4); }
+    public static byte encodeIdentityScope(IdentityScope identityScope) {
+        return (byte) (identityScope.value << 4);
+    }
 
     public static byte encodeIdentityType(IdentityType identityType) {
         return (byte) (identityType.value << 2);
     }
 
-    public static byte encodeIdentityVersion(IdentityVersion identityVersion) { return (byte) (identityVersion.value << 6); }
+    public static byte encodeIdentityVersion(IdentityVersion identityVersion) {
+        return (byte) (identityVersion.value << 6);
+    }
 
-    public static byte encodeIdentityEnvironment(IdentityEnvironment identityEnvironment) { return (byte) (identityEnvironment.value); }
+    public static byte encodeIdentityEnvironment(IdentityEnvironment identityEnvironment) {
+        return (byte) (identityEnvironment.value);
+    }
 }

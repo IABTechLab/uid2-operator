@@ -66,17 +66,17 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.uidInstanceIdProvider = uidInstanceIdProvider;
 
-        this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email, identityEnvironment,
+        this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
                 InputUtil.normalizeEmail(OptOutIdentityForEmail).getIdentityInput(), Instant.now());
-        this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone, identityEnvironment,
+        this.testOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
                 InputUtil.normalizePhone(OptOutIdentityForPhone).getIdentityInput(), Instant.now());
-        this.testValidateIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email, identityEnvironment,
+        this.testValidateIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
                 InputUtil.normalizeEmail(ValidateIdentityForEmail).getIdentityInput(), Instant.now());
-        this.testValidateIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone, identityEnvironment,
+        this.testValidateIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
                 InputUtil.normalizePhone(ValidateIdentityForPhone).getIdentityInput(), Instant.now());
-        this.testRefreshOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email, identityEnvironment,
+        this.testRefreshOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
                 InputUtil.normalizeEmail(RefreshOptOutIdentityForEmail).getIdentityInput(), Instant.now());
-        this.testRefreshOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone, identityEnvironment,
+        this.testRefreshOptOutIdentityForPhone = getFirstLevelHashIdentity(identityScope, IdentityType.Phone,
                 InputUtil.normalizePhone(RefreshOptOutIdentityForPhone).getIdentityInput(), Instant.now());
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
@@ -103,7 +103,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.userIdentity.id, now);
         final UserIdentity firstLevelHashIdentity = new UserIdentity(
-                request.userIdentity.identityScope, request.userIdentity.identityType, request.userIdentity.identityEnvironment,
+                request.userIdentity.identityScope, request.userIdentity.identityType,
                 firstLevelHash, request.userIdentity.privacyBits,
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt
         );
@@ -119,7 +119,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     public RefreshResponse refreshIdentity(RefreshToken token, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
         this.validateTokenDurations(refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
         // should not be possible as different scopes/environments should be using different keys, but just in case
-        if (token.userIdentity.identityScope != this.identityScope || token.userIdentity.identityEnvironment != this.identityEnvironment) {
+        if (token.userIdentity.identityScope != this.identityScope) {
             return RefreshResponse.Invalid;
         }
 
@@ -211,12 +211,12 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private UserIdentity getFirstLevelHashIdentity(UserIdentity userIdentity, Instant asOf) {
-        return getFirstLevelHashIdentity(userIdentity.identityScope, userIdentity.identityType, userIdentity.identityEnvironment, userIdentity.id, asOf);
+        return getFirstLevelHashIdentity(userIdentity.identityScope, userIdentity.identityType, userIdentity.id, asOf);
     }
 
-    private UserIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, IdentityEnvironment identityEnvironment, byte[] identityHash, Instant asOf) {
+    private UserIdentity getFirstLevelHashIdentity(IdentityScope identityScope, IdentityType identityType, byte[] identityHash, Instant asOf) {
         final byte[] firstLevelHash = getFirstLevelHash(identityHash, asOf);
-        return new UserIdentity(identityScope, identityType, identityEnvironment, firstLevelHash, 0, null, null);
+        return new UserIdentity(identityScope, identityType, firstLevelHash, 0, null, null);
     }
 
     private byte[] getFirstLevelHash(byte[] identityHash, Instant asOf) {
@@ -244,7 +244,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                     : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, salt);
         } else {
             try {
-                return TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.identityEnvironment, firstLevelHashIdentity.id, key);
+                return TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, this.identityEnvironment, firstLevelHashIdentity.id, key);
             } catch (Exception e) {
                 LOGGER.error("Exception when generating V4 advertising ID", e);
                 return null;
@@ -281,7 +281,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, nowUtc);
         final UserIdentity advertisingIdentity = new UserIdentity(
-                firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.identityEnvironment,
+                firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType,
                 mappedIdentity.advertisingId, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc
         );
 
@@ -314,8 +314,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         private final Instant time;
 
         // providedTime can be null if isOptedOut is false!
-        GlobalOptoutResult(Instant providedTime)
-        {
+        GlobalOptoutResult(Instant providedTime) {
             isOptedOut = providedTime != null;
             time = providedTime;
         }

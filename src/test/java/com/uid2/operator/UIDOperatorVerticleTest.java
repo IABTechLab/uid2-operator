@@ -271,7 +271,6 @@ public class UIDOperatorVerticleTest {
         sendTokenGenerate(vertx, v2PostPayload, expectedHttpCode, null, handler, true, Collections.emptyMap());
     }
 
-
     protected void sendTokenGenerate(Vertx vertx, JsonObject v2PostPayload, int expectedHttpCode,
                                      Handler<JsonObject> handler, Map<String, String> additionalHeaders) {
         sendTokenGenerate(vertx, v2PostPayload, expectedHttpCode, null, handler, true, additionalHeaders);
@@ -358,7 +357,6 @@ public class UIDOperatorVerticleTest {
                         handler.handle(tryParseResponse(response));
                     }
                 })));
-
     }
 
     private String decodeV2RefreshToken(JsonObject respJson) {
@@ -495,10 +493,12 @@ public class UIDOperatorVerticleTest {
 
     private void checkIdentityMapResponse(JsonObject response, String... expectedIdentifiers) {
         assertEquals("success", response.getString("status"));
+
         JsonObject body = response.getJsonObject("body");
         JsonArray mapped = body.getJsonArray("mapped");
         assertNotNull(mapped);
         assertEquals(expectedIdentifiers.length, mapped.size());
+
         for (int i = 0; i < expectedIdentifiers.length; ++i) {
             String expectedIdentifier = expectedIdentifiers[i];
             JsonObject actualMap = mapped.getJsonObject(i);
@@ -508,9 +508,84 @@ public class UIDOperatorVerticleTest {
         }
     }
 
+    private void checkIdentityMapResponseWithV4Uid(JsonObject response, SaltEntry salt, String... expectedIdentifiers) {
+        assertEquals("success", response.getString("status"));
+
+        JsonObject body = response.getJsonObject("body");
+        JsonArray mapped = body.getJsonArray("mapped");
+        assertNotNull(mapped);
+        assertEquals(expectedIdentifiers.length, mapped.size());
+
+        for (int i = 0; i < expectedIdentifiers.length; ++i) {
+            String expectedIdentifier = expectedIdentifiers[i];
+            JsonObject actualMap = mapped.getJsonObject(i);
+            assertEquals(expectedIdentifier, actualMap.getString("identifier"));
+            try {
+                assertEquals(actualMap.getString("advertising_id"), EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, expectedIdentifier, firstLevelSalt, salt.currentKey())));
+            } catch (Exception e) {
+                org.junit.jupiter.api.Assertions.fail(e.getMessage());
+            }
+            assertFalse(actualMap.getString("bucket_id").isEmpty());
+        }
+    }
+
     protected void setupSalts() {
         when(saltProviderSnapshot.getFirstLevelSalt()).thenReturn(firstLevelSalt);
         when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(rotatingSalt123);
+    }
+
+    protected SaltEntry setupSaltForV4UidAndV4PrevUid() {
+        when(saltProviderSnapshot.getFirstLevelSalt()).thenReturn(firstLevelSalt);
+
+        var lastUpdated = Instant.now().minus(1, DAYS);
+        var refreshFrom = lastUpdated.plus(30, DAYS);
+        SaltEntry salt = new SaltEntry(
+                1,
+                "1",
+                lastUpdated.toEpochMilli(),
+                null,
+                refreshFrom.toEpochMilli(),
+                null,
+                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
+                new SaltEntry.KeyMaterial(1000001, "key12345key12345key12345key12346", "salt1234salt1234salt1234salt1235"));
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+        return salt;
+    }
+
+    protected SaltEntry setupSaltForV4UidAndV3PrevUid() {
+        when(saltProviderSnapshot.getFirstLevelSalt()).thenReturn(firstLevelSalt);
+
+        var lastUpdated = Instant.now().minus(1, DAYS);
+        var refreshFrom = lastUpdated.plus(30, DAYS);
+        SaltEntry salt = new SaltEntry(
+                1,
+                "1",
+                lastUpdated.toEpochMilli(),
+                null,
+                refreshFrom.toEpochMilli(),
+                "salt123",
+                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
+                null);
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+        return salt;
+    }
+
+    protected SaltEntry setupSaltForV4UidAndNoPrevUid() {
+        when(saltProviderSnapshot.getFirstLevelSalt()).thenReturn(firstLevelSalt);
+
+        var lastUpdated = Instant.now().minus(1, DAYS);
+        var refreshFrom = lastUpdated.plus(30, DAYS);
+        SaltEntry salt = new SaltEntry(
+                1,
+                "1",
+                lastUpdated.toEpochMilli(),
+                null,
+                refreshFrom.toEpochMilli(),
+                null,
+                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
+                null);
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+        return salt;
     }
 
     private HashMap<Integer, Keyset> keysetsToMap(Keyset... keysets) {
@@ -1188,7 +1263,8 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"{\"invalid_key\": []}",
+    @ValueSource(strings = {
+            "{\"invalid_key\": []}",
             "{\"email\": [ null ]}",
             "{\"email\": [ \"some_email\", null ]}"
     })
@@ -1271,24 +1347,11 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"text/plain", "application/octet-stream"})
-    void v3IdentityMapWithV4UidAndNoPrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
+    void v3IdentityMapWithV4UidAndV4PrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
 
-        var lastUpdated = Instant.now().minus(1, DAYS);
-        var refreshFrom = lastUpdated.plus(30, DAYS);
-
-        SaltEntry salt = new SaltEntry(
-                1,
-                "1",
-                lastUpdated.toEpochMilli(),
-                null,
-                refreshFrom.toEpochMilli(),
-                null,
-                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
-                null);
-        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+        SaltEntry salt = setupSaltForV4UidAndV4PrevUid();
 
         JsonObject request = new JsonObject("""
                 {
@@ -1306,8 +1369,8 @@ public class UIDOperatorVerticleTest {
             try {
                 var mappedEmailExpected = JsonObject.of(
                         "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKey())),
-                        "p", null,
-                        "r", refreshFrom.getEpochSecond()
+                        "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.previousKey())),
+                        "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
                 );
                 assertEquals(mappedEmailExpected, mappedEmails.getJsonObject(0));
             } catch (Exception e) {
@@ -1329,21 +1392,8 @@ public class UIDOperatorVerticleTest {
     void v3IdentityMapWithV4UidAndV3PrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
 
-        var lastUpdated = Instant.now().minus(1, DAYS);
-        var refreshFrom = lastUpdated.plus(30, DAYS);
-
-        SaltEntry salt = new SaltEntry(
-                1,
-                "1",
-                lastUpdated.toEpochMilli(),
-                null,
-                refreshFrom.toEpochMilli(),
-                "salt123",
-                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
-                null);
-        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+        SaltEntry salt = setupSaltForV4UidAndV3PrevUid();
 
         JsonObject request = new JsonObject("""
                 {
@@ -1362,7 +1412,7 @@ public class UIDOperatorVerticleTest {
                 var mappedEmailExpected = JsonObject.of(
                         "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKey())),
                         "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.previousSalt())),
-                        "r", refreshFrom.getEpochSecond()
+                        "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
                 );
                 assertEquals(mappedEmailExpected, mappedEmails.getJsonObject(0));
             } catch (Exception e) {
@@ -1381,24 +1431,11 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"text/plain", "application/octet-stream"})
-    void v3IdentityMapWithV4UidAndV4PrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
+    void v3IdentityMapWithV4UidAndNoPrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
 
-        var lastUpdated = Instant.now().minus(1, DAYS);
-        var refreshFrom = lastUpdated.plus(30, DAYS);
-
-        SaltEntry salt = new SaltEntry(
-                1,
-                "1",
-                lastUpdated.toEpochMilli(),
-                null,
-                refreshFrom.toEpochMilli(),
-                null,
-                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
-                new SaltEntry.KeyMaterial(1000001, "key12345key12345key12345key12346", "salt1234salt1234salt1234salt1235"));
-        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+        SaltEntry salt = setupSaltForV4UidAndNoPrevUid();
 
         JsonObject request = new JsonObject("""
                 {
@@ -1416,8 +1453,8 @@ public class UIDOperatorVerticleTest {
             try {
                 var mappedEmailExpected = JsonObject.of(
                         "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKey())),
-                        "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.previousKey())),
-                        "r", refreshFrom.getEpochSecond()
+                        "p", null,
+                        "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
                 );
                 assertEquals(mappedEmailExpected, mappedEmails.getJsonObject(0));
             } catch (Exception e) {
@@ -1694,22 +1731,9 @@ public class UIDOperatorVerticleTest {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
         fakeAuth(clientSiteId, Role.GENERATOR);
-        setupSalts();
         setupKeys();
 
-        var lastUpdated = Instant.now().minus(1, DAYS);
-        var refreshFrom = lastUpdated.plus(30, DAYS);
-
-        SaltEntry salt = new SaltEntry(
-                1,
-                "1",
-                lastUpdated.toEpochMilli(),
-                null,
-                refreshFrom.toEpochMilli(),
-                null,
-                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
-                new SaltEntry.KeyMaterial(1000001, "key12345key12345key12345key12346", "salt1234salt1234salt1234salt1235"));
-        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+        SaltEntry salt = setupSaltForV4UidAndV4PrevUid();
 
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", emailAddress);
@@ -1982,6 +2006,35 @@ public class UIDOperatorVerticleTest {
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
+
+        generateTokens(vertx, "email", emailAddress, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject genBody = genRespJson.getJsonObject("body");
+            assertNotNull(genBody);
+
+            String advertisingTokenString = genBody.getString("advertising_token");
+
+            JsonObject v2Payload = new JsonObject();
+            v2Payload.put("token", advertisingTokenString);
+            v2Payload.put("email", emailAddress);
+
+            send(vertx, "v2/token/validate", v2Payload, 200, json -> {
+                assertTrue(json.getBoolean("body"));
+                assertEquals("success", json.getString("status"));
+
+                testContext.completeNow();
+            });
+        });
+    }
+
+    @Test
+    void tokenGenerateThenValidateWithEmailAndV4Uid_Match(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = ValidateIdentityForEmail;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupKeys();
+
+        setupSaltForV4UidAndV4PrevUid();
 
         generateTokens(vertx, "email", emailAddress, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
@@ -2518,6 +2571,21 @@ public class UIDOperatorVerticleTest {
 
         send(vertx, "v2/identity/map", req, 200, json -> {
             checkIdentityMapResponse(json, "test1@uid2.com", "test2@uid2.com");
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityMapBatchEmailsWithV4Uid(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+
+        SaltEntry salt = setupSaltForV4UidAndV4PrevUid();
+
+        JsonObject req = createBatchEmailsRequestPayload();
+
+        send(vertx, "v2/identity/map", req, 200, json -> {
+            checkIdentityMapResponseWithV4Uid(json, salt, "test1@uid2.com", "test2@uid2.com");
             testContext.completeNow();
         });
     }

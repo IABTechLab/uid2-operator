@@ -1271,6 +1271,61 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"text/plain", "application/octet-stream"})
+    void v3IdentityMapWithV4UidAndNoPrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.MAPPER);
+        setupSalts();
+
+        var lastUpdated = Instant.now().minus(1, DAYS);
+        var refreshFrom = lastUpdated.plus(30, DAYS);
+
+        SaltEntry salt = new SaltEntry(
+                1,
+                "1",
+                lastUpdated.toEpochMilli(),
+                null,
+                refreshFrom.toEpochMilli(),
+                null,
+                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
+                null);
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        JsonObject request = new JsonObject("""
+                {
+                    "email": ["test1@uid2.com"]
+                }
+                """);
+
+        send(vertx, "v3/identity/map", request, 200, respJson -> {
+            JsonObject body = respJson.getJsonObject("body");
+            assertEquals(Set.of("email", "email_hash", "phone", "phone_hash"), body.fieldNames());
+
+            var mappedEmails = body.getJsonArray("email");
+            assertEquals(1, mappedEmails.size());
+
+            try {
+                var mappedEmailExpected = JsonObject.of(
+                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKey())),
+                        "p", null,
+                        "r", refreshFrom.getEpochSecond()
+                );
+                assertEquals(mappedEmailExpected, mappedEmails.getJsonObject(0));
+            } catch (Exception e) {
+                org.junit.jupiter.api.Assertions.fail(e.getMessage());
+            }
+
+            assertEquals(0, body.getJsonArray("email_hash").size());
+            assertEquals(0, body.getJsonArray("phone").size());
+            var mappedPhoneHash = body.getJsonArray("phone_hash");
+            assertEquals(0, mappedPhoneHash.size());
+
+            assertEquals("success", respJson.getString("status"));
+            testContext.completeNow();
+        }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
     void v3IdentityMapWithV4UidAndV3PrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);

@@ -1274,7 +1274,6 @@ public class UIDOperatorVerticleTest {
     void v3IdentityMapWithV4UidAndV3PrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
-
         setupSalts();
 
         var lastUpdated = Instant.now().minus(1, DAYS);
@@ -1330,7 +1329,6 @@ public class UIDOperatorVerticleTest {
     void v3IdentityMapWithV4UidAndV4PrevUid(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
-
         setupSalts();
 
         var lastUpdated = Instant.now().minus(1, DAYS);
@@ -1633,6 +1631,65 @@ public class UIDOperatorVerticleTest {
 
                     testContext.completeNow();
                 });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
+    void tokenGenerateForEmailWithV4Uid(String contentType, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        var lastUpdated = Instant.now().minus(1, DAYS);
+        var refreshFrom = lastUpdated.plus(30, DAYS);
+
+        SaltEntry salt = new SaltEntry(
+                1,
+                "1",
+                lastUpdated.toEpochMilli(),
+                null,
+                refreshFrom.toEpochMilli(),
+                null,
+                new SaltEntry.KeyMaterial(1000000, "key12345key12345key12345key12345", "salt1234salt1234salt1234salt1234"),
+                new SaltEntry.KeyMaterial(1000001, "key12345key12345key12345key12346", "salt1234salt1234salt1234salt1235"));
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        JsonObject v2Payload = new JsonObject();
+        v2Payload.put("email", emailAddress);
+
+        sendTokenGenerate(vertx, v2Payload, 200,
+                json -> {
+                    assertEquals("success", json.getString("status"));
+                    JsonObject body = json.getJsonObject("body");
+                    assertNotNull(body);
+                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+
+                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
+
+                    assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
+                    assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                    assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
+                    try {
+                        assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKey()), advertisingToken.userIdentity.id);
+                    } catch (Exception e) {
+                        org.junit.jupiter.api.Assertions.fail(e.getMessage());
+                    }
+
+                    RefreshToken refreshToken = decodeRefreshToken(encoder, body.getString("decrypted_refresh_token"));
+                    assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
+                    assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
+
+                    assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("identity_expires")), 10);
+                    assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_expires")), 10);
+                    assertEqualsClose(now.plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(body.getLong("refresh_from")), 10);
+
+                    assertStatsCollector("/v2/token/generate", null, "test-contact", clientSiteId);
+
+                    testContext.completeNow();
+                },
+                Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
     @ParameterizedTest

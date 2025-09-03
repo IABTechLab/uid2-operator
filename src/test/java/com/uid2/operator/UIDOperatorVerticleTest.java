@@ -1909,6 +1909,147 @@ public class UIDOperatorVerticleTest {
         }, additionalHeaders);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
+    void tokenGenerateThenRefreshWithV4UidAndRefreshedV4Uid(String contentType, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupKeys();
+
+        SaltEntry salt = setupSaltForV4UidAndV4PrevUid();
+        EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+
+        Map<String, String> additionalHeaders = Map.of(ClientVersionHeader, iosClientVersionHeaderValue,
+                HttpHeaders.CONTENT_TYPE.toString(), contentType);
+
+        generateTokens(vertx, "email", emailAddress, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject bodyJson = genRespJson.getJsonObject("body");
+            assertNotNull(bodyJson);
+
+            AdvertisingToken advertisingToken = validateAndGetToken(encoder, bodyJson, IdentityType.Email);
+            try {
+                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKey()), advertisingToken.userIdentity.id);
+            } catch (Exception e) {
+                org.junit.jupiter.api.Assertions.fail(e.getMessage());
+            }
+
+            String genRefreshToken = bodyJson.getString("refresh_token");
+
+            when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
+
+            sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+                assertEquals("success", refreshRespJson.getString("status"));
+                JsonObject refreshBody = refreshRespJson.getJsonObject("body");
+                assertNotNull(refreshBody);
+
+                AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
+
+                assertFalse(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
+                assertFalse(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                assertEquals(clientSiteId, adTokenFromRefresh.publisherIdentity.siteId);
+                try {
+                    assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKey()), adTokenFromRefresh.userIdentity.id);
+                } catch (Exception e) {
+                    org.junit.jupiter.api.Assertions.fail(e.getMessage());
+                }
+
+                String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
+                assertNotEquals(genRefreshToken, refreshTokenStringNew);
+                RefreshToken refreshToken = decodeRefreshToken(encoder, refreshTokenStringNew);
+                assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
+                assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
+
+                assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
+                assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
+                assertEqualsClose(now.plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_from")), 10);
+
+                assertTokenStatusMetrics(
+                        clientSiteId,
+                        TokenResponseStatsCollector.Endpoint.GenerateV2,
+                        TokenResponseStatsCollector.ResponseStatus.Success,
+                        TokenResponseStatsCollector.PlatformType.InApp);
+                assertTokenStatusMetrics(
+                        clientSiteId,
+                        TokenResponseStatsCollector.Endpoint.RefreshV2,
+                        TokenResponseStatsCollector.ResponseStatus.Success,
+                        TokenResponseStatsCollector.PlatformType.InApp);
+
+                testContext.completeNow();
+            }, additionalHeaders);
+        }, additionalHeaders);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"text/plain", "application/octet-stream"})
+    void tokenGenerateThenRefreshWithV3UidAndRefreshedV4Uid(String contentType, Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        final String emailAddress = "test@uid2.com";
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupKeys();
+        setupSalts();
+
+        EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+
+        Map<String, String> additionalHeaders = Map.of(ClientVersionHeader, iosClientVersionHeaderValue,
+                HttpHeaders.CONTENT_TYPE.toString(), contentType);
+
+        generateTokens(vertx, "email", emailAddress, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject bodyJson = genRespJson.getJsonObject("body");
+            assertNotNull(bodyJson);
+
+            AdvertisingToken advertisingToken = validateAndGetToken(encoder, bodyJson, IdentityType.Email);
+            assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, rotatingSalt123.currentSalt()), advertisingToken.userIdentity.id);
+
+            String genRefreshToken = bodyJson.getString("refresh_token");
+
+            when(this.optOutStore.getLatestEntry(any())).thenReturn(null);
+
+            SaltEntry salt = setupSaltForV4UidAndV4PrevUid();
+            sendTokenRefresh(vertx, testContext, genRefreshToken, bodyJson.getString("refresh_response_key"), 200, refreshRespJson -> {
+                assertEquals("success", refreshRespJson.getString("status"));
+                JsonObject refreshBody = refreshRespJson.getJsonObject("body");
+                assertNotNull(refreshBody);
+
+                AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
+
+                assertFalse(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
+                assertFalse(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
+                assertEquals(clientSiteId, adTokenFromRefresh.publisherIdentity.siteId);
+                try {
+                    assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKey()), adTokenFromRefresh.userIdentity.id);
+                } catch (Exception e) {
+                    org.junit.jupiter.api.Assertions.fail(e.getMessage());
+                }
+
+                String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
+                assertNotEquals(genRefreshToken, refreshTokenStringNew);
+                RefreshToken refreshToken = decodeRefreshToken(encoder, refreshTokenStringNew);
+                assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
+                assertArrayEquals(TokenUtils.getFirstLevelHashFromIdentity(emailAddress, firstLevelSalt), refreshToken.userIdentity.id);
+
+                assertEqualsClose(now.plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
+                assertEqualsClose(now.plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
+                assertEqualsClose(now.plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_from")), 10);
+
+                assertTokenStatusMetrics(
+                        clientSiteId,
+                        TokenResponseStatsCollector.Endpoint.GenerateV2,
+                        TokenResponseStatsCollector.ResponseStatus.Success,
+                        TokenResponseStatsCollector.PlatformType.InApp);
+                assertTokenStatusMetrics(
+                        clientSiteId,
+                        TokenResponseStatsCollector.Endpoint.RefreshV2,
+                        TokenResponseStatsCollector.ResponseStatus.Success,
+                        TokenResponseStatsCollector.PlatformType.InApp);
+
+                testContext.completeNow();
+            }, additionalHeaders);
+        }, additionalHeaders);
+    }
+
     @Test
     void tokenGenerateThenRefreshSaltsExpired(Vertx vertx, VertxTestContext testContext) {
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
@@ -4314,6 +4455,7 @@ public class UIDOperatorVerticleTest {
     void cstgSuccessForBothOptedAndNonOptedOutTest(boolean optOutExpected, String id, IdentityType identityType,
                                                    Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
+        EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
 
@@ -4343,7 +4485,6 @@ public class UIDOperatorVerticleTest {
                     assertNotNull(genBody);
 
                     decodeV2RefreshToken(respJson);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
 
@@ -4366,10 +4507,9 @@ public class UIDOperatorVerticleTest {
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                         assertNotNull(refreshBody);
-                        EncryptedTokenEncoder encoder2 = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                         //make sure the new advertising token from refresh looks right
-                        AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, identityType);
+                        AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
 
                         String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
@@ -4402,6 +4542,7 @@ public class UIDOperatorVerticleTest {
                                                                              Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
         SaltEntry salt = setupSaltForV4UidAndV4PrevUid();
+        EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
 
@@ -4431,7 +4572,6 @@ public class UIDOperatorVerticleTest {
                     assertNotNull(genBody);
 
                     decodeV2RefreshToken(respJson);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
                     try {
@@ -4459,10 +4599,9 @@ public class UIDOperatorVerticleTest {
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                         assertNotNull(refreshBody);
-                        EncryptedTokenEncoder encoder2 = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                         //make sure the new advertising token from refresh looks right
-                        AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, identityType);
+                        AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
                         try {
                             assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt.currentKey()), adTokenFromRefresh.userIdentity.id);
                         } catch (Exception e) {
@@ -4499,6 +4638,7 @@ public class UIDOperatorVerticleTest {
     void cstgSuccessForBothOptedAndNonOptedOutTestWithV3UidAndRefreshedV4Uid(boolean optOutExpected, String id, IdentityType identityType,
                                                                              Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
+        EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
 
@@ -4528,7 +4668,6 @@ public class UIDOperatorVerticleTest {
                     assertNotNull(genBody);
 
                     decodeV2RefreshToken(respJson);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
                     try {
@@ -4557,10 +4696,9 @@ public class UIDOperatorVerticleTest {
                         assertEquals("success", refreshRespJson.getString("status"));
                         JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                         assertNotNull(refreshBody);
-                        EncryptedTokenEncoder encoder2 = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                         //make sure the new advertising token from refresh looks right
-                        AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder2, refreshBody, identityType);
+                        AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
                         try {
                             assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt.currentKey()), adTokenFromRefresh.userIdentity.id);
                         } catch (Exception e) {
@@ -4596,7 +4734,9 @@ public class UIDOperatorVerticleTest {
     void cstgSaltsExpired(String httpOrigin, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         when(saltProviderSnapshot.getExpires()).thenReturn(Instant.now().minus(1, ChronoUnit.HOURS));
         setupCstgBackend("cstg.co.uk", "cstg2.com", "localhost");
+
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
+
         sendCstg(vertx,
                 "v2/token/client-generate",
                 httpOrigin,
@@ -4622,7 +4762,9 @@ public class UIDOperatorVerticleTest {
     void cstgNoActiveKey(Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
         setupKeys(true);
+
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(IdentityType.Email, "random@unifiedid.com", Instant.now().toEpochMilli());
+
         sendCstg(vertx,
                 "v2/token/client-generate",
                 "http://cstg.co.uk",

@@ -6,10 +6,14 @@ import com.uid2.operator.vertx.ClientInputValidationException;
 public enum IdentityEnvironment {
     TEST(0), INTEG(1), PROD(2);
 
-    public final int value;
+    private final int value;
 
     IdentityEnvironment(int value) {
         this.value = value;
+    }
+
+    public int getValue() {
+        return value;
     }
 
     public static IdentityEnvironment fromValue(int value) {

@@ -2805,12 +2805,23 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"text/plain", "application/octet-stream"})
-    void logoutV2(String contentType, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource(value = {
+            "true,text/plain",
+            "true,application/octet-stream",
+
+            "false,text/plain",
+            "false,application/octet-stream"
+    })
+    void logoutV2(boolean useV4Uid, String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.OPTOUT);
-        setupSalts();
         setupKeys();
+
+        if (useV4Uid) {
+            setupSaltsForV4UidAndV4PrevUid();
+        } else {
+            setupSalts();
+        }
 
         JsonObject req = new JsonObject();
         req.put("email", "test@uid2.com");

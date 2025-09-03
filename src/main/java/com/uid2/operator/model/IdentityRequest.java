@@ -10,8 +10,7 @@ public final class IdentityRequest {
             PublisherIdentity publisherIdentity,
             UserIdentity userIdentity,
             OptoutCheckPolicy tokenGeneratePolicy,
-            IdentityEnvironment identityEnvironment)
-    {
+            IdentityEnvironment identityEnvironment) {
         this.publisherIdentity = publisherIdentity;
         this.userIdentity = userIdentity;
         this.optoutCheckPolicy = tokenGeneratePolicy;

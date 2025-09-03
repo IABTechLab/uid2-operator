@@ -12,8 +12,7 @@ public final class MapRequest {
             UserIdentity userIdentity,
             OptoutCheckPolicy optoutCheckPolicy,
             Instant asOf,
-            IdentityEnvironment identityEnvironment)
-    {
+            IdentityEnvironment identityEnvironment) {
         this.userIdentity = userIdentity;
         this.optoutCheckPolicy = optoutCheckPolicy;
         this.asOf = asOf;

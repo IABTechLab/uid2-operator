@@ -13,18 +13,18 @@ public interface IUIDOperatorService {
 
     IdentityTokens generateIdentity(IdentityRequest request, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter);
 
-    RefreshResponse refreshIdentity(RefreshToken token, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter);
+    RefreshResponse refreshIdentity(RefreshToken token, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter, IdentityEnvironment env);
 
     MappedIdentity mapIdentity(MapRequest request);
 
     @Deprecated
-    MappedIdentity map(UserIdentity userIdentity, Instant asOf);
+    MappedIdentity map(UserIdentity userIdentity, Instant asOf, IdentityEnvironment env);
 
     List<SaltEntry> getModifiedBuckets(Instant sinceTimestamp);
 
-    void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, Handler<AsyncResult<Instant>> handler);
+    void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, IdentityEnvironment env, Handler<AsyncResult<Instant>> handler);
 
-    boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf);
+    boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf, IdentityEnvironment env);
 
     Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf);
 }

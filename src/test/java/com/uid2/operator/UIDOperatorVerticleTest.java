@@ -184,6 +184,7 @@ public class UIDOperatorVerticleTest {
         config.put(UIDOperatorService.IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, identityExpiresAfter.toMillis() / 1000);
         config.put(UIDOperatorService.REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, refreshExpiresAfter.toMillis() / 1000);
         config.put(UIDOperatorService.REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, refreshIdentityAfter.toMillis() / 1000);
+        config.put(Const.Config.IdentityEnvironmentProp, "test");
 
         config.put(Const.Config.FailureShutdownWaitHoursProp, 24);
         config.put(Const.Config.SharingTokenExpiryProp, 60 * 60 * 24 * 30);
@@ -1455,7 +1456,7 @@ public class UIDOperatorVerticleTest {
                     String advertisingTokenString = body.getString("advertising_token");
                     final Instant now = Instant.now();
                     final String token = advertisingTokenString;
-                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, optOutTokenInput.toUserIdentity(getIdentityScope(), 0, now), now);
+                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, optOutTokenInput.toUserIdentity(getIdentityScope(), 0, now), now, IdentityEnvironment.TEST);
                     assertTrue(matchedOptedOutIdentity);
                     assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
                     assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());

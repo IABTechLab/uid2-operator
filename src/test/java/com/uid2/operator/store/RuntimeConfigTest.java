@@ -1,10 +1,12 @@
 package com.uid2.operator.store;
 
+import com.uid2.operator.model.IdentityEnvironment;
 import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.stream.Stream;
 
@@ -18,7 +20,8 @@ public class RuntimeConfigTest {
             .put(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS, 259200)
             .put(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS, 2592000)
             .put(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS, 3600)
-            .put(SharingTokenExpiryProp,  2592000);
+            .put(SharingTokenExpiryProp,  2592000)
+            .put(IdentityEnvironmentProp, "test");
 
     @Test
     void validConfigDoesNotThrow() {
@@ -33,6 +36,7 @@ public class RuntimeConfigTest {
         assertEquals(validConfig.getInteger(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS), config.getRefreshTokenExpiresAfterSeconds());
         assertEquals(validConfig.getInteger(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS), config.getRefreshIdentityTokenAfterSeconds());
         assertEquals(validConfig.getInteger(SharingTokenExpiryProp), config.getSharingTokenExpirySeconds());
+        assertEquals(validConfig.getString(IdentityEnvironmentProp).toLowerCase(), config.getIdentityEnvironment().toString().toLowerCase());
     }
 
     @Test
@@ -98,7 +102,8 @@ public class RuntimeConfigTest {
                 Arguments.of(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS),
                 Arguments.of(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS),
                 Arguments.of(REFRESH_IDENTITY_TOKEN_AFTER_SECONDS),
-                Arguments.of(SharingTokenExpiryProp)
+                Arguments.of(SharingTokenExpiryProp),
+                Arguments.of(IdentityEnvironmentProp)
         );
     }
 
@@ -128,7 +133,24 @@ public class RuntimeConfigTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
         assertThat(ex.getMessage()).contains(String.format("max_bidstream_lifetime_seconds (%d) must be >= identity_token_expires_after_seconds (%d)", newMaxBidStreamLifetimeSeconds, validConfig.getInteger(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS)));
     }
-    
+
+    @ParameterizedTest
+    @ValueSource(strings={"test", "integ", "prod"})
+    void identityEnvironmentValidValueIsReturned(String environment) {
+        validConfig.put(IdentityEnvironmentProp, environment);
+
+        RuntimeConfig config = mapToRuntimeConfig();
+
+        assertEquals(IdentityEnvironment.fromString(environment), config.getIdentityEnvironment());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings={"invalid", ""})
+    void identityEnvironmentInvalidValueThrows(String environment) {
+        validConfig.put(IdentityEnvironmentProp, environment);
+        assertThrows(IllegalArgumentException.class, this::mapToRuntimeConfig);
+    }
+
     @Test
     void toBuilderBuildReturnsEquivalentObject() {
         RuntimeConfig config = mapToRuntimeConfig();

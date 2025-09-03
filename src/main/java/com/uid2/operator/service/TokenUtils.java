@@ -72,15 +72,15 @@ public final class TokenUtils {
     }
 
     public static byte encodeIdentityScope(IdentityScope identityScope) {
-        return (byte) (identityScope.value << 4);
+        return (byte) (identityScope.getValue() << 4);
     }
 
     public static byte encodeIdentityType(IdentityType identityType) {
-        return (byte) (identityType.value << 2);
+        return (byte) (identityType.getValue() << 2);
     }
 
     public static byte encodeIdentityVersion(IdentityVersion identityVersion) {
-        return (byte) (identityVersion.value << 6);
+        return (byte) (identityVersion.getValue() << 6);
     }
 
     public static byte encodeIdentityEnvironment(IdentityEnvironment identityEnvironment) {

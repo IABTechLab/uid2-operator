@@ -365,7 +365,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
     }
 
     private static byte encodeIdentityTypeV3(UserIdentity userIdentity) {
-        return (byte) (TokenUtils.encodeIdentityScope(userIdentity.identityScope) | (userIdentity.identityType.value << 2) | 3);
+        return (byte) (TokenUtils.encodeIdentityScope(userIdentity.identityScope) | (userIdentity.identityType.getValue() << 2) | 3);
         // "| 3" is used so that the 2nd char matches the version when V3 or higher. Eg "3" for V3 and "4" for V4
     }
 

@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.uid2.operator.vertx.ClientInputValidationException;
 
 public enum IdentityEnvironment {
-    TEST(0), INTEG(1), PROD(2);
+    TEST(0),
+    INTEG(1),
+    PROD(2);
 
     private final int value;
 

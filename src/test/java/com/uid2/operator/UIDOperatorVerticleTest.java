@@ -2378,10 +2378,18 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenRefreshOptOut(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void tokenRefreshOptOut(boolean useV4Uid, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
+
+        if (useV4Uid) {
+            setupSaltsForV4UidAndV4PrevUid();
+        } else {
+            setupSalts();
+        }
+
         generateRefreshToken(vertx, "email", emailAddress, clientSiteId, genRespJson -> {
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             String refreshToken = bodyJson.getString("refresh_token");
@@ -3294,12 +3302,23 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"policy", "optout_check"})
-    void tokenGenerateRespectOptOutOption(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource(value = {
+            "true,policy",
+            "true,optout_check",
+
+            "false,policy",
+            "false,optout_check"
+    })
+    void tokenGenerateRespectOptOutOption(boolean useV4Uid, String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
-        setupSalts();
         setupKeys();
+
+        if (useV4Uid) {
+            setupSaltsForV4UidAndV4PrevUid();
+        } else {
+            setupSalts();
+        }
 
         // the clock value shouldn't matter here
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
@@ -3333,8 +3352,7 @@ public class UIDOperatorVerticleTest {
 
         if (useV4Uid) {
             setupSaltsForV4UidAndV4PrevUid();
-        }
-        else {
+        } else {
             setupSalts();
         }
 

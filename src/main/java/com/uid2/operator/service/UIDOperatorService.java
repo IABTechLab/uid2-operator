@@ -10,8 +10,6 @@ import com.uid2.shared.model.TokenVersion;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -28,7 +26,6 @@ public class UIDOperatorService implements IUIDOperatorService {
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
     public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
-    private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
 
     private static final Instant REFRESH_CUTOFF = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private static final long DAY_IN_MS = Duration.ofDays(1).toMillis();
@@ -174,7 +171,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private ISaltProvider.ISaltSnapshot getSaltProviderSnapshot(Instant asOf) {
         ISaltProvider.ISaltSnapshot snapshot = this.saltProvider.getSnapshot(asOf);
-        if(snapshot.getExpires().isBefore(Instant.now())) {
+        if (snapshot.getExpires().isBefore(Instant.now())) {
             saltRetrievalResponseHandler.handle(true);
         } else {
             saltRetrievalResponseHandler.handle(false);
@@ -255,8 +252,8 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private long getRefreshFrom(SaltEntry rotatingSalt, Instant asOf) {
-        Long refreshFrom = rotatingSalt.refreshFrom();
-        if (refreshFrom == null || refreshFrom < asOf.toEpochMilli()) {
+        long refreshFrom = rotatingSalt.refreshFrom();
+        if (refreshFrom < asOf.toEpochMilli()) {
             return asOf.truncatedTo(DAYS).plus(1, DAYS).toEpochMilli();
         }
         return refreshFrom;
@@ -297,8 +294,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         private final Instant time;
 
         //providedTime can be null if isOptedOut is false!
-        GlobalOptoutResult(Instant providedTime)
-        {
+        GlobalOptoutResult(Instant providedTime) {
             isOptedOut = providedTime != null;
             time = providedTime;
         }

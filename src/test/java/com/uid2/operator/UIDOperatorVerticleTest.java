@@ -5293,7 +5293,7 @@ public class UIDOperatorVerticleTest {
 
         // SaltEntry with a lastUpdated that has 0 milliseconds
         long lastUpdatedMillis = Instant.parse("2024-01-01T00:00:00Z").toEpochMilli();
-        SaltEntry bucketEntry = new SaltEntry(456, "hashed456", lastUpdatedMillis, "salt456", null, null, null, null);
+        SaltEntry bucketEntry = new SaltEntry(456, "hashed456", lastUpdatedMillis, "salt456", 1000L, null, null, null);
         when(saltProviderSnapshot.getModifiedSince(any())).thenReturn(List.of(bucketEntry));
 
         String sinceTimestamp = "2023-12-31T00:00:00"; // earlier timestamp

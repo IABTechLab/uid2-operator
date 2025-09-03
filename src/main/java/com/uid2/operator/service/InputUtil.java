@@ -50,8 +50,7 @@ public final class InputUtil {
         return InputVal.invalidPhoneHash(input);
     }
 
-    public static boolean isAsciiDigit(char d)
-    {
+    public static boolean isAsciiDigit(char d) {
         return d >= '0' && d <= '9';
     }
 
@@ -80,7 +79,7 @@ public final class InputUtil {
 
     public static InputVal normalizeEmail(String email) {
         final String normalize = normalizeEmailString(email);
-        if (normalize != null && !normalize.isEmpty()) {
+        if (normalize != null && normalize.length() > 0) {
             return InputVal.validEmail(email, normalize);
         }
         return InputVal.invalidEmail(email);
@@ -143,15 +142,15 @@ public final class InputUtil {
                         wsBuffer.append(c);
                         break;
                     }
-                    if (!wsBuffer.isEmpty()) {
-                        sb.append(wsBuffer);
+                    if (wsBuffer.length() > 0) {
+                        sb.append(wsBuffer.toString());
                         wsBuffer = new StringBuilder();
                     }
                     sb.append(c);
                 }
             }
         }
-        if (sb.isEmpty()) {
+        if (sb.length() == 0) {
             return null;
         }
         final String domainPart = sb.toString();
@@ -162,7 +161,7 @@ public final class InputUtil {
         } else {
             addressPartToUse = preSb;
         }
-        if (addressPartToUse.isEmpty()) {
+        if (addressPartToUse.length() == 0) {
             return null;
         }
 
@@ -179,7 +178,7 @@ public final class InputUtil {
         Pre,
         SubDomain,
         Domain,
-        Terminal,
+        Terminal
     }
 
     public static class InputVal {
@@ -273,5 +272,4 @@ public final class InputUtil {
                     establishedAt);
         }
     }
-
 }

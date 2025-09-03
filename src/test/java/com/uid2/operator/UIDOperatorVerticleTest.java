@@ -1124,7 +1124,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource(value = {
+    @CsvSource({
             // After - V4 UID, V4 previous UID
             "true,true,text/plain",
             "true,true,application/octet-stream",
@@ -1761,7 +1761,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource(value = {
+    @CsvSource({
             "true,text/plain",
             "true,application/octet-stream",
 
@@ -1856,7 +1856,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource(value = {
+    @CsvSource({
             // Before - v4 UID, v4 refreshed UID
             "true,true,text/plain",
             "true,true,application/octet-stream",
@@ -2806,7 +2806,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource(value = {
+    @CsvSource({
             "true,text/plain",
             "true,application/octet-stream",
 
@@ -3314,7 +3314,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource(value = {
+    @CsvSource({
             "true,policy",
             "true,optout_check",
 
@@ -3393,7 +3393,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource(value = {
+    @CsvSource({
             "true,policy",
             "true,optout_check",
 
@@ -4286,7 +4286,7 @@ public class UIDOperatorVerticleTest {
             identity.put("email_hash", getSha256(rawId));
         } else if (identityType == IdentityType.Phone) {
             identity.put("phone_hash", getSha256(rawId));
-        } else { //can't be other types
+        } else { // can't be other types
             org.junit.jupiter.api.Assertions.fail("Identity type is not: [email_hash,phone_hash]");
         }
 
@@ -4297,7 +4297,6 @@ public class UIDOperatorVerticleTest {
         JsonObject identity = new JsonObject();
         return createClientSideTokenGenerateRequestWithPayload(identity, timestamp, null);
     }
-
 
     @ParameterizedTest
     @CsvSource({
@@ -4347,9 +4346,9 @@ public class UIDOperatorVerticleTest {
     }
 
     // tests for opted out user should lead to generating ad tokens with optout success response
-// tests for non-opted out user should generate the UID2 identity and the generated refresh token can be
-// refreshed again
-// tests for all email/phone combos
+    // tests for non-opted out user should generate the UID2 identity and the generated refresh token can be
+    // refreshed again
+    // tests for all email/phone combos
     @ParameterizedTest
     @CsvSource({
             // After - v4 UID, refreshed v4 UID

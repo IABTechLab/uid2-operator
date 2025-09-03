@@ -323,12 +323,10 @@ class UIDOperatorServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({
-            "Email,test@example.com,UID2",
+    @CsvSource({"Email,test@example.com,UID2",
             "Email,test@example.com,EUID",
             "Phone,+01010101010,UID2",
-            "Phone,+01010101010,EUID"
-    })
+            "Phone,+01010101010,EUID"})
     void testGenerateTokenForOptOutUser(IdentityType type, String identity, IdentityScope scope) {
         final UserIdentity userIdentity = createUserIdentity(identity, scope, type);
 
@@ -802,14 +800,12 @@ class UIDOperatorServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({
-            "Email,blah@unifiedid.com,UID2",
+    @CsvSource({"Email,blah@unifiedid.com,UID2",
             "EmailHash,blah@unifiedid.com,UID2",
             "Phone,+61401234567,EUID",
             "PhoneHash,+61401234567,EUID",
             "Email,blah@unifiedid.com,EUID",
-            "EmailHash,blah@unifiedid.com,EUID"
-    })
+            "EmailHash,blah@unifiedid.com,EUID"})
     void testExpiredSaltsNotifiesShutdownHandler(TestIdentityInputType type, String id, IdentityScope scope) throws Exception {
         RotatingSaltProvider saltProvider = new RotatingSaltProvider(
                 new EmbeddedResourceStorage(Main.class),

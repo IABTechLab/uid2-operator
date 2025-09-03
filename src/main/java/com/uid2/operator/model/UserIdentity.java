@@ -11,8 +11,7 @@ public class UserIdentity {
     public final Instant establishedAt;
     public final Instant refreshedAt;
 
-    public UserIdentity(IdentityScope identityScope, IdentityType identityType,
-                        byte[] id, int privacyBits,
+    public UserIdentity(IdentityScope identityScope, IdentityType identityType, byte[] id, int privacyBits,
                         Instant establishedAt, Instant refreshedAt) {
         this.identityScope = identityScope;
         this.identityType = identityType;

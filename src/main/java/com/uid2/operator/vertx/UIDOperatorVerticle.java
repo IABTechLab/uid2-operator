@@ -162,10 +162,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                SecureLinkValidatorService secureLinkValidatorService,
                                Handler<Boolean> saltRetrievalResponseHandler,
                                UidInstanceIdProvider uidInstanceIdProvider) {
-        this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
-
-
-
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -177,12 +173,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.clientSideTokenGenerate = clientSideTokenGenerate;
         this.healthComponent.setHealthStatus(false, "not started");
         this.auth = new AuthMiddleware(clientKeyProvider);
+        this.encoder = new EncryptedTokenEncoder(keyManager);
         this.siteProvider = siteProvider;
         this.clientSideKeypairProvider = clientSideKeypairProvider;
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
-        this.encoder = new EncryptedTokenEncoder(keyManager);
+        this.identityScope = IdentityScope.fromString(config.getString("identity_scope", "uid2"));
         this.encryptedPayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
         this.tcfVendorId = config.getInteger("tcf_vendor_id", 21);
@@ -496,10 +493,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (identityTokens.isEmptyToken()) {
             response = ResponseUtil.SuccessNoBodyV2(ResponseStatus.OptOut);
             responseStatus = TokenResponseStatsCollector.ResponseStatus.OptOut;
-        } else { //user not opted out and already generated valid identity token
+        } else { // user not opted out and already generated valid identity token
             response = ResponseUtil.SuccessV2(toTokenResponseJson(identityTokens));
         }
-        //if returning an optout token or a successful identity token created originally
+        // if returning an optout token or a successful identity token created originally
         if (responseStatus == TokenResponseStatsCollector.ResponseStatus.Success) {
             V2RequestUtil.handleRefreshTokenInResponseBody(response.getJsonObject("body"), keyManager, this.identityScope);
         }

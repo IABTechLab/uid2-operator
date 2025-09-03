@@ -54,8 +54,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final UidInstanceIdProvider uidInstanceIdProvider;
 
     public UIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope,
-                              Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
@@ -101,10 +100,8 @@ public class UIDOperatorService implements IUIDOperatorService {
         final Instant now = EncodingUtils.NowUTCMillis(this.clock);
         final byte[] firstLevelHash = getFirstLevelHash(request.userIdentity.id, now);
         final UserIdentity firstLevelHashIdentity = new UserIdentity(
-                request.userIdentity.identityScope, request.userIdentity.identityType,
-                firstLevelHash, request.userIdentity.privacyBits,
-                request.userIdentity.establishedAt, request.userIdentity.refreshedAt
-        );
+                request.userIdentity.identityScope, request.userIdentity.identityType, firstLevelHash, request.userIdentity.privacyBits,
+                request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
 
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return IdentityTokens.LogoutToken;
@@ -231,8 +228,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 advertisingId,
                 rotatingSalt.hashedId(),
                 previousAdvertisingId,
-                refreshFrom
-        );
+                refreshFrom);
     }
 
     private byte[] getAdvertisingId(UserIdentity firstLevelHashIdentity, String salt, SaltEntry.KeyMaterial key, IdentityEnvironment env) {
@@ -296,8 +292,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 now.plusMillis(refreshExpiresAfter.toMillis()),
                 this.operatorIdentity,
                 publisherIdentity,
-                userIdentity
-        );
+                userIdentity);
     }
 
     private AdvertisingToken createAdvertisingToken(PublisherIdentity publisherIdentity, UserIdentity userIdentity, Instant now, Duration identityExpiresAfter) {

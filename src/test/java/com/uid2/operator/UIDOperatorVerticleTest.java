@@ -89,7 +89,7 @@ public class UIDOperatorVerticleTest {
     private static final Instant legacyClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).minus(1, ChronoUnit.SECONDS);
     private static final Instant newClientCreationDateTime = Instant.ofEpochSecond(OPT_OUT_CHECK_CUTOFF_DATE).plus(1, ChronoUnit.SECONDS);
     private static final String firstLevelSalt = "first-level-salt";
-    private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123", null, null, null, null);
+    private static final SaltEntry rotatingSalt123 = new SaltEntry(123, "hashed123", 0, "salt123", 1000L, "prevSalt123", null, null);
     private static final Duration identityExpiresAfter = Duration.ofMinutes(10);
     private static final Duration refreshExpiresAfter = Duration.ofMinutes(15);
     private static final Duration refreshIdentityAfter = Duration.ofMinutes(5);
@@ -521,7 +521,7 @@ public class UIDOperatorVerticleTest {
             JsonObject actualMap = mapped.getJsonObject(i);
             assertEquals(expectedIdentifier, actualMap.getString("identifier"));
             try {
-                assertEquals(actualMap.getString("advertising_id"), EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, expectedIdentifier, firstLevelSalt, salt.currentKey())));
+                assertEquals(actualMap.getString("advertising_id"), EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, expectedIdentifier, firstLevelSalt, salt.currentKeySalt())));
             } catch (Exception e) {
                 org.junit.jupiter.api.Assertions.fail(e.getMessage());
             }
@@ -1368,8 +1368,8 @@ public class UIDOperatorVerticleTest {
 
             try {
                 var mappedEmailExpected = JsonObject.of(
-                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKey())),
-                        "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.previousKey())),
+                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKeySalt())),
+                        "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.previousKeySalt())),
                         "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
                 );
                 assertEquals(mappedEmailExpected, mappedEmails.getJsonObject(0));
@@ -1410,7 +1410,7 @@ public class UIDOperatorVerticleTest {
 
             try {
                 var mappedEmailExpected = JsonObject.of(
-                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKey())),
+                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKeySalt())),
                         "p", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.previousSalt())),
                         "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
                 );
@@ -1452,7 +1452,7 @@ public class UIDOperatorVerticleTest {
 
             try {
                 var mappedEmailExpected = JsonObject.of(
-                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKey())),
+                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt.currentKeySalt())),
                         "p", null,
                         "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
                 );
@@ -1792,7 +1792,7 @@ public class UIDOperatorVerticleTest {
                     assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                     try {
-                        assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKey()), advertisingToken.userIdentity.id);
+                        assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKeySalt()), advertisingToken.userIdentity.id);
                     } catch (Exception e) {
                         org.junit.jupiter.api.Assertions.fail(e.getMessage());
                     }
@@ -1930,7 +1930,7 @@ public class UIDOperatorVerticleTest {
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, bodyJson, IdentityType.Email);
             try {
-                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKey()), advertisingToken.userIdentity.id);
+                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKeySalt()), advertisingToken.userIdentity.id);
             } catch (Exception e) {
                 org.junit.jupiter.api.Assertions.fail(e.getMessage());
             }
@@ -1950,7 +1950,7 @@ public class UIDOperatorVerticleTest {
                 assertFalse(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
                 assertEquals(clientSiteId, adTokenFromRefresh.publisherIdentity.siteId);
                 try {
-                    assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKey()), adTokenFromRefresh.userIdentity.id);
+                    assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKeySalt()), adTokenFromRefresh.userIdentity.id);
                 } catch (Exception e) {
                     org.junit.jupiter.api.Assertions.fail(e.getMessage());
                 }
@@ -2019,7 +2019,7 @@ public class UIDOperatorVerticleTest {
                 assertFalse(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
                 assertEquals(clientSiteId, adTokenFromRefresh.publisherIdentity.siteId);
                 try {
-                    assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKey()), adTokenFromRefresh.userIdentity.id);
+                    assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKeySalt()), adTokenFromRefresh.userIdentity.id);
                 } catch (Exception e) {
                     org.junit.jupiter.api.Assertions.fail(e.getMessage());
                 }
@@ -2191,7 +2191,7 @@ public class UIDOperatorVerticleTest {
             assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
             try {
-                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKey()), advertisingToken.userIdentity.id);
+                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt.currentKeySalt()), advertisingToken.userIdentity.id);
             } catch (Exception e) {
                 org.junit.jupiter.api.Assertions.fail(e.getMessage());
             }
@@ -4450,7 +4450,7 @@ public class UIDOperatorVerticleTest {
             "true,abc@abc.com,Email",
             "true,+61400000000,Phone",
             "false,abc@abc.com,Email",
-            "false,+61400000000,Phone",
+            "false,+61400000000,Phone"
     })
     void cstgSuccessForBothOptedAndNonOptedOutTest(boolean optOutExpected, String id, IdentityType identityType,
                                                    Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
@@ -4575,14 +4575,14 @@ public class UIDOperatorVerticleTest {
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
                     try {
-                        assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt.currentKey()), advertisingToken.userIdentity.id);
+                        assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt.currentKeySalt()), advertisingToken.userIdentity.id);
                     } catch (Exception e) {
                         org.junit.jupiter.api.Assertions.fail(e.getMessage());
                     }
 
                     RefreshToken refreshToken = decodeRefreshToken(encoder, genBody.getString("decrypted_refresh_token"), identityType);
 
-                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id, salt.currentKey(), false);
+                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id, salt.currentKeySalt(), false);
                     assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("identity_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_expires")), 10);
                     assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(genBody.getLong("refresh_from")), 10);
@@ -4603,7 +4603,7 @@ public class UIDOperatorVerticleTest {
                         //make sure the new advertising token from refresh looks right
                         AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
                         try {
-                            assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt.currentKey()), adTokenFromRefresh.userIdentity.id);
+                            assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt.currentKeySalt()), adTokenFromRefresh.userIdentity.id);
                         } catch (Exception e) {
                             org.junit.jupiter.api.Assertions.fail(e.getMessage());
                         }
@@ -4612,7 +4612,7 @@ public class UIDOperatorVerticleTest {
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
                         RefreshToken refreshTokenAfterRefresh = decodeRefreshToken(encoder, refreshTokenStringNew, identityType);
 
-                        assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id, salt.currentKey(), false);
+                        assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id, salt.currentKeySalt(), false);
                         assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
                         assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
                         assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_from")), 10);
@@ -4700,7 +4700,7 @@ public class UIDOperatorVerticleTest {
                         //make sure the new advertising token from refresh looks right
                         AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
                         try {
-                            assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt.currentKey()), adTokenFromRefresh.userIdentity.id);
+                            assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt.currentKeySalt()), adTokenFromRefresh.userIdentity.id);
                         } catch (Exception e) {
                             org.junit.jupiter.api.Assertions.fail(e.getMessage());
                         }
@@ -4709,7 +4709,7 @@ public class UIDOperatorVerticleTest {
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
                         RefreshToken refreshTokenAfterRefresh = decodeRefreshToken(encoder, refreshTokenStringNew, identityType);
 
-                        assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id, salt.currentKey(), false);
+                        assertAreClientSideGeneratedTokens(adTokenFromRefresh, refreshTokenAfterRefresh, clientSideTokenGenerateSiteId, identityType, id, salt.currentKeySalt(), false);
                         assertEqualsClose(Instant.now().plusMillis(identityExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("identity_expires")), 10);
                         assertEqualsClose(Instant.now().plusMillis(refreshExpiresAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_expires")), 10);
                         assertEqualsClose(Instant.now().plusMillis(refreshIdentityAfter.toMillis()), Instant.ofEpochMilli(refreshBody.getLong("refresh_from")), 10);
@@ -5929,7 +5929,7 @@ public class UIDOperatorVerticleTest {
 
         // SaltEntry with a lastUpdated that has 0 milliseconds
         long lastUpdatedMillis = Instant.parse("2024-01-01T00:00:00Z").toEpochMilli();
-        SaltEntry bucketEntry = new SaltEntry(456, "hashed456", lastUpdatedMillis, "salt456", null, null, null, null);
+        SaltEntry bucketEntry = new SaltEntry(456, "hashed456", lastUpdatedMillis, "salt456", 1000L, null, null, null);
         when(saltProviderSnapshot.getModifiedSince(any())).thenReturn(List.of(bucketEntry));
 
         String sinceTimestamp = "2023-12-31T00:00:00"; // earlier timestamp

@@ -25,10 +25,10 @@ import static com.uid2.operator.IdentityConst.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 public class UIDOperatorService implements IUIDOperatorService {
+    public static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
     public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
-    private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
 
     private static final Instant REFRESH_CUTOFF = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private static final long DAY_IN_MS = Duration.ofDays(1).toMillis();
@@ -225,7 +225,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private MappedIdentity getMappedIdentity(UserIdentity firstLevelHashIdentity, Instant asOf) {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
-        final byte[] advertisingId = getAdvertisingId(firstLevelHashIdentity, rotatingSalt.currentSalt(), rotatingSalt.currentKey());
+        final byte[] advertisingId = getAdvertisingId(firstLevelHashIdentity, rotatingSalt.currentSalt(), rotatingSalt.currentKeySalt());
         final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHashIdentity, rotatingSalt, asOf);
         final long refreshFrom = getRefreshFrom(rotatingSalt, asOf);
 
@@ -256,21 +256,21 @@ public class UIDOperatorService implements IUIDOperatorService {
         long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
         if (age / DAY_IN_MS < 90) {
             boolean missingSalt = rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isBlank();
-            boolean missingKey = rotatingSalt.previousKey() == null
-                    || rotatingSalt.previousKey().key() == null || rotatingSalt.previousKey().key().isBlank()
-                    || rotatingSalt.previousKey().salt() == null || rotatingSalt.previousKey().salt().isBlank();
+            boolean missingKey = rotatingSalt.previousKeySalt() == null
+                    || rotatingSalt.previousKeySalt().key() == null || rotatingSalt.previousKeySalt().key().isBlank()
+                    || rotatingSalt.previousKeySalt().salt() == null || rotatingSalt.previousKeySalt().salt().isBlank();
 
             if (missingSalt && missingKey) {
                 return null;
             }
-            return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt(), rotatingSalt.previousKey());
+            return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt(), rotatingSalt.previousKeySalt());
         }
         return null;
     }
 
     private long getRefreshFrom(SaltEntry rotatingSalt, Instant asOf) {
-        Long refreshFrom = rotatingSalt.refreshFrom();
-        if (refreshFrom == null || refreshFrom < asOf.toEpochMilli()) {
+        long refreshFrom = rotatingSalt.refreshFrom();
+        if (refreshFrom < asOf.toEpochMilli()) {
             return asOf.truncatedTo(DAYS).plus(1, DAYS).toEpochMilli();
         }
         return refreshFrom;

@@ -59,7 +59,6 @@ public class IdentityMapBenchmark {
         static byte[] nonce = com.uid2.shared.encryption.Random.getBytes(8);
         private static final Random RANDOM = new Random();
 
-
         @Setup
         public void setup() {
             this.payloadBinary = Buffer.buffer(createEncryptedPayload(this.numRecords));
@@ -121,13 +120,15 @@ public class IdentityMapBenchmark {
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
     public MappedIdentity IdentityMapRawThroughput() {
-        return uidService.map(userIdentities[(idx++) & 65535], Instant.now());
+        return uidService.map(userIdentities[(idx++) & 65535], Instant.now(), IdentityEnvironment.TEST);
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
     public MappedIdentity IdentityMapWithOptOutThroughput() {
-        return uidService.mapIdentity(new MapRequest(userIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now()));
+        return uidService.mapIdentity(
+                new MapRequest(userIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now(), IdentityEnvironment.TEST)
+        );
     }
 
     @Benchmark

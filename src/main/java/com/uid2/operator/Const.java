@@ -36,5 +36,7 @@ public class Const extends com.uid2.shared.Const {
         public static final String DisableOptoutTokenProp = "disable_optout_token";
         public static final String EnableRemoteConfigProp = "enable_remote_config";
         public static final String RuntimeConfigMetadataPathProp = "runtime_config_metadata_path";
+
+        public static final String IdentityEnvironmentProp = "identity_environment";
     }
 }

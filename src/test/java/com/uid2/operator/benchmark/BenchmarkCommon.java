@@ -82,7 +82,6 @@ public final class BenchmarkCommon {
                 tokenEncoder,
                 Clock.systemUTC(),
                 IdentityScope.UID2,
-                IdentityEnvironment.Test,
                 shutdownHandler::handleSaltRetrievalResponse,
                 false,
                 new UidInstanceIdProvider("test-instance", "id")

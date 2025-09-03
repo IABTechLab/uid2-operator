@@ -1,6 +1,5 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.model.IdentityEnvironment;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.IdentityType;
 import com.uid2.operator.model.UserIdentity;
@@ -264,7 +263,7 @@ public final class InputUtil {
             return valid;
         }
 
-        public UserIdentity toUserIdentity(IdentityScope identityScope, IdentityEnvironment identityEnvironment, int privacyBits, Instant establishedAt) {
+        public UserIdentity toUserIdentity(IdentityScope identityScope, int privacyBits, Instant establishedAt) {
             return new UserIdentity(
                     identityScope,
                     this.identityType,

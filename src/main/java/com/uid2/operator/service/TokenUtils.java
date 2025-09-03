@@ -84,6 +84,6 @@ public final class TokenUtils {
     }
 
     public static byte encodeIdentityEnvironment(IdentityEnvironment identityEnvironment) {
-        return (byte) (identityEnvironment.value);
+        return (byte) (identityEnvironment.getValue());
     }
 }

@@ -118,7 +118,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
     private final IdentityScope identityScope;
-    private final IdentityEnvironment identityEnvironment;
     private final V2PayloadHandler encryptedPayloadHandler;
     private final boolean phoneSupport;
     private final int tcfVendorId;
@@ -183,7 +182,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.saltProvider = saltProvider;
         this.optOutStore = optOutStore;
         this.clock = clock;
-        this.identityEnvironment = IdentityEnvironment.fromString(config.getString("identity_environment", "test"));
         this.encoder = new EncryptedTokenEncoder(keyManager);
         this.encryptedPayloadHandler = new V2PayloadHandler(keyManager, config.getBoolean("enable_v2_encryption", true), this.identityScope, siteProvider);
         this.phoneSupport = config.getBoolean("enable_phone_support", true);
@@ -211,7 +209,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.encoder,
                 this.clock,
                 this.identityScope,
-                this.identityEnvironment,
                 this.saltRetrievalResponseHandler,
                 this.identityV3Enabled,
                 this.uidInstanceIdProvider
@@ -346,6 +343,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
         Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
         Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
+        IdentityEnvironment identityEnvironment = config.getIdentityEnvironment();
 
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
         try {
@@ -481,8 +479,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             identityTokens = this.idService.generateIdentity(
                     new IdentityRequest(
                             new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
-                            input.toUserIdentity(this.identityScope, this.identityEnvironment, privacyBits.getAsInt(), Instant.now()),
-                            OptoutCheckPolicy.RespectOptOut),
+                            input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
+                            OptoutCheckPolicy.RespectOptOut,
+                            identityEnvironment
+                    ),
                     refreshIdentityAfter,
                     refreshExpiresAfter,
                     identityExpiresAfter);
@@ -846,6 +846,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private void handleTokenValidateV2(RoutingContext rc) {
+        RuntimeConfig config = this.getConfigFromRc(rc);
+        IdentityEnvironment env = config.getIdentityEnvironment();
+
         try {
             final JsonObject req = (JsonObject) rc.data().get("request");
 
@@ -859,7 +862,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final Instant now = Instant.now();
                     final String token = req.getString("token");
 
-                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(this.identityScope, this.identityEnvironment, 0, now), now)) {
+                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(this.identityScope, 0, now), now, env)) {
                         ResponseUtil.SuccessV2(rc, Boolean.TRUE);
                     } else {
                         ResponseUtil.SuccessV2(rc, Boolean.FALSE);
@@ -884,6 +887,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
         Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
         Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
+        IdentityEnvironment identityEnvironment = config.getIdentityEnvironment();
 
         try {
             JsonObject req = (JsonObject) rc.data().get("request");
@@ -924,8 +928,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
-                                input.toUserIdentity(this.identityScope, this.identityEnvironment, 1, Instant.now()),
-                                OptoutCheckPolicy.respectOptOut()),
+                                input.toUserIdentity(this.identityScope, 1, Instant.now()),
+                                OptoutCheckPolicy.respectOptOut(),
+                                identityEnvironment),
                         refreshIdentityAfter,
                         refreshExpiresAfter,
                         identityExpiresAfter);
@@ -943,8 +948,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         final IdentityTokens optOutTokens = this.idService.generateIdentity(
                                 new IdentityRequest(
                                         new PublisherIdentity(siteId, 0, 0),
-                                        optOutTokenInput.toUserIdentity(this.identityScope, this.identityEnvironment, pb.getAsInt(), Instant.now()),
-                                        OptoutCheckPolicy.DoNotRespect),
+                                        optOutTokenInput.toUserIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
+                                        OptoutCheckPolicy.DoNotRespect,
+                                        identityEnvironment),
                                 refreshIdentityAfter,
                                 refreshExpiresAfter,
                                 identityExpiresAfter);
@@ -970,6 +976,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private Future handleLogoutAsyncV2(RoutingContext rc) {
+        RuntimeConfig config = getConfigFromRc(rc);
+        IdentityEnvironment env = config.getIdentityEnvironment();
+
         final JsonObject req = (JsonObject) rc.data().get("request");
         final InputUtil.InputVal input = getTokenInputV2(req);
         final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
@@ -977,7 +986,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
-            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, this.identityEnvironment, 0, now), now, uidTraceId, ar -> {
+            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, uidTraceId, env, ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
                     body.put("optout", "OK");
@@ -1074,6 +1083,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private JsonObject handleIdentityMapCommon(RoutingContext rc, InputUtil.InputVal[] inputList) {
+        RuntimeConfig config = getConfigFromRc(rc);
+        IdentityEnvironment env = config.getIdentityEnvironment();
+
         final Instant now = Instant.now();
         final JsonArray mapped = new JsonArray();
         final JsonArray unmapped = new JsonArray();
@@ -1085,9 +1097,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             if (input != null && input.isValid()) {
                 final MappedIdentity mappedIdentity = idService.mapIdentity(
                         new MapRequest(
-                                input.toUserIdentity(this.identityScope, this.identityEnvironment, 0, now),
+                                input.toUserIdentity(this.identityScope, 0, now),
                                 OptoutCheckPolicy.respectOptOut(),
-                                now));
+                                now,
+                                env));
 
                 if (mappedIdentity.isOptedOut()) {
                     final JsonObject resp = new JsonObject();
@@ -1120,6 +1133,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private JsonObject processIdentityMapV3Response(RoutingContext rc, Map<String, InputUtil.InputVal[]> input) {
+        RuntimeConfig config = getConfigFromRc(rc);
+        IdentityEnvironment env = config.getIdentityEnvironment();
+
         final Instant now = Instant.now();
         final JsonObject mappedResponse = new JsonObject();
         int invalidCount = 0;
@@ -1136,9 +1152,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 if (rawId != null && rawId.isValid()) {
                     final MappedIdentity mappedId = idService.mapIdentity(
                             new MapRequest(
-                                    rawId.toUserIdentity(this.identityScope, this.identityEnvironment, 0, now),
+                                    rawId.toUserIdentity(this.identityScope, 0, now),
                                     OptoutCheckPolicy.respectOptOut(),
-                                    now));
+                                    now,
+                                    env));
 
                     if (mappedId.isOptedOut()) {
                         resp.put("e", IdentityMapResponseType.OPTOUT.getValue());
@@ -1471,8 +1488,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         Duration refreshIdentityAfter = Duration.ofSeconds(config.getRefreshIdentityTokenAfterSeconds());
         Duration refreshExpiresAfter = Duration.ofSeconds(config.getRefreshTokenExpiresAfterSeconds());
         Duration identityExpiresAfter = Duration.ofSeconds(config.getIdentityTokenExpiresAfterSeconds());
+        IdentityEnvironment identityEnvironment = config.getIdentityEnvironment();
 
-        return this.idService.refreshIdentity(refreshToken, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
+        return this.idService.refreshIdentity(refreshToken, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter, identityEnvironment);
     }
 
     public static String getSiteName(ISiteStore siteStore, Integer siteId) {

@@ -38,7 +38,6 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final ITokenEncoder encoder;
     private final Clock clock;
     private final IdentityScope identityScope;
-    private final IdentityEnvironment identityEnvironment;
     private final UserIdentity testOptOutIdentityForEmail;
     private final UserIdentity testOptOutIdentityForPhone;
     private final UserIdentity testValidateIdentityForEmail;
@@ -55,14 +54,13 @@ public class UIDOperatorService implements IUIDOperatorService {
     private final UidInstanceIdProvider uidInstanceIdProvider;
 
     public UIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, IdentityEnvironment identityEnvironment,
+                              IdentityScope identityScope,
                               Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
         this.clock = clock;
         this.identityScope = identityScope;
-        this.identityEnvironment = identityEnvironment;
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.uidInstanceIdProvider = uidInstanceIdProvider;
 
@@ -111,12 +109,12 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return IdentityTokens.LogoutToken;
         } else {
-            return this.generateIdentity(request.publisherIdentity, firstLevelHashIdentity, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
+            return this.generateIdentity(request.publisherIdentity, firstLevelHashIdentity, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter, request.identityEnvironment);
         }
     }
 
     @Override
-    public RefreshResponse refreshIdentity(RefreshToken token, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+    public RefreshResponse refreshIdentity(RefreshToken token, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter, IdentityEnvironment env) {
         this.validateTokenDurations(refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
         // should not be possible as different scopes/environments should be using different keys, but just in case
         if (token.userIdentity.identityScope != this.identityScope) {
@@ -143,7 +141,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             final Duration durationSinceLastRefresh = Duration.between(token.createdAt, now);
 
             if (!optedOut) {
-                IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
+                IdentityTokens identityTokens = this.generateIdentity(token.publisherIdentity, token.userIdentity, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter, env);
 
                 return RefreshResponse.createRefreshedResponse(identityTokens, durationSinceLastRefresh, isCstg);
             } else {
@@ -162,14 +160,14 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return MappedIdentity.LogoutIdentity;
         } else {
-            return getMappedIdentity(firstLevelHashIdentity, request.asOf);
+            return getMappedIdentity(firstLevelHashIdentity, request.asOf, request.identityEnvironment);
         }
     }
 
     @Override
-    public MappedIdentity map(UserIdentity userIdentity, Instant asOf) {
+    public MappedIdentity map(UserIdentity userIdentity, Instant asOf, IdentityEnvironment env) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        return getMappedIdentity(firstLevelHashIdentity, asOf);
+        return getMappedIdentity(firstLevelHashIdentity, asOf, env);
     }
 
     @Override
@@ -188,9 +186,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, Handler<AsyncResult<Instant>> handler) {
+    public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, IdentityEnvironment env, Handler<AsyncResult<Instant>> handler) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf);
+        final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf, env);
 
         this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.advertisingId, uidTraceId, this.uidInstanceIdProvider.getInstanceId(), r -> {
             if (r.succeeded()) {
@@ -202,9 +200,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf) {
+    public boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf, IdentityEnvironment env) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf);
+        final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf, env);
 
         final AdvertisingToken token = this.encoder.decodeAdvertisingToken(advertisingToken);
         return Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id);
@@ -223,10 +221,10 @@ public class UIDOperatorService implements IUIDOperatorService {
         return TokenUtils.getFirstLevelHash(identityHash, getSaltProviderSnapshot(asOf).getFirstLevelSalt());
     }
 
-    private MappedIdentity getMappedIdentity(UserIdentity firstLevelHashIdentity, Instant asOf) {
+    private MappedIdentity getMappedIdentity(UserIdentity firstLevelHashIdentity, Instant asOf, IdentityEnvironment env) {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
-        final byte[] advertisingId = getAdvertisingId(firstLevelHashIdentity, rotatingSalt.currentSalt(), rotatingSalt.currentKeySalt());
-        final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHashIdentity, rotatingSalt, asOf);
+        final byte[] advertisingId = getAdvertisingId(firstLevelHashIdentity, rotatingSalt.currentSalt(), rotatingSalt.currentKeySalt(), env);
+        final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHashIdentity, rotatingSalt, asOf, env);
         final long refreshFrom = getRefreshFrom(rotatingSalt, asOf);
 
         return new MappedIdentity(
@@ -237,14 +235,14 @@ public class UIDOperatorService implements IUIDOperatorService {
         );
     }
 
-    private byte[] getAdvertisingId(UserIdentity firstLevelHashIdentity, String salt, SaltEntry.KeyMaterial key) {
+    private byte[] getAdvertisingId(UserIdentity firstLevelHashIdentity, String salt, SaltEntry.KeyMaterial key, IdentityEnvironment env) {
         if (salt != null) {
             return rawUidV3Enabled
                     ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, salt)
                     : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, salt);
         } else {
             try {
-                return TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, this.identityEnvironment, firstLevelHashIdentity.id, key);
+                return TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, env, firstLevelHashIdentity.id, key);
             } catch (Exception e) {
                 LOGGER.error("Exception when generating V4 advertising ID", e);
                 return null;
@@ -252,7 +250,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         }
     }
 
-    private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf) {
+    private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf, IdentityEnvironment env) {
         long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
         if (age / DAY_IN_MS < 90) {
             boolean missingSalt = rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isBlank();
@@ -263,7 +261,7 @@ public class UIDOperatorService implements IUIDOperatorService {
             if (missingSalt && missingKey) {
                 return null;
             }
-            return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt(), rotatingSalt.previousKeySalt());
+            return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt(), rotatingSalt.previousKeySalt(), env);
         }
         return null;
     }
@@ -276,14 +274,12 @@ public class UIDOperatorService implements IUIDOperatorService {
         return refreshFrom;
     }
 
-    private IdentityTokens generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+    private IdentityTokens generateIdentity(PublisherIdentity publisherIdentity, UserIdentity firstLevelHashIdentity, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter, IdentityEnvironment env) {
         final Instant nowUtc = EncodingUtils.NowUTCMillis(this.clock);
 
-        final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, nowUtc);
-        final UserIdentity advertisingIdentity = new UserIdentity(
-                firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType,
-                mappedIdentity.advertisingId, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc
-        );
+        final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, nowUtc, env);
+        final UserIdentity advertisingIdentity = new UserIdentity(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType,
+                mappedIdentity.advertisingId, firstLevelHashIdentity.privacyBits, firstLevelHashIdentity.establishedAt, nowUtc);
 
         return this.encoder.encode(
                 this.createAdvertisingToken(publisherIdentity, advertisingIdentity, nowUtc, identityExpiresAfter),

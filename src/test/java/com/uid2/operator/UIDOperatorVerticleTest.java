@@ -1010,7 +1010,7 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @MethodSource("policyParameters")
+    @ValueSource(strings = {"policy", "optout_check"})
     void identityMapNewClientWrongPolicySpecified(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
@@ -1339,20 +1339,20 @@ public class UIDOperatorVerticleTest {
         }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
     }
 
-    @Test
-    void v3IdentityMapUnmappedIdentitiesOptoutAndInvalid(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void v3IdentityMapUnmappedIdentitiesOptoutAndInvalid(boolean useV4Uid, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
+
+        if (useV4Uid) {
+            setupSaltsForV4UidAndV4PrevUid();
+        } else {
+            setupSalts();
+        }
 
         // optout
         when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
-
-        Instant lastUpdated = Instant.now().minus(1, DAYS);
-        Instant refreshFrom = lastUpdated.plus(30, DAYS);
-
-        SaltEntry salt = new SaltEntry(1, "1", lastUpdated.toEpochMilli(), "salt", refreshFrom.toEpochMilli(), "previousSalt", null, null);
-        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
 
         JsonObject request = new JsonObject("""
                 { "email": ["test1@uid2.com", "invalid_email"] }
@@ -3324,12 +3324,19 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void identityMapDefaultOption(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void identityMapOptoutDefaultOption(boolean useV4Uid, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
         setupKeys();
+
+        if (useV4Uid) {
+            setupSaltsForV4UidAndV4PrevUid();
+        }
+        else {
+            setupSalts();
+        }
 
         // the clock value shouldn't matter here
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
@@ -3355,17 +3362,24 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    private static Stream<String> policyParameters() {
-        return Stream.of("policy", "optout_check");
-    }
-
     @ParameterizedTest
-    @MethodSource("policyParameters")
-    void identityMapRespectOptOutOption(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
+    @CsvSource(value = {
+            "true,policy",
+            "true,optout_check",
+
+            "false,policy",
+            "false,optout_check"
+    })
+    void identityMapRespectOptOutOption(boolean useV4Uid, String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);
-        setupSalts();
         setupKeys();
+
+        if (useV4Uid) {
+            setupSaltsForV4UidAndV4PrevUid();
+        } else {
+            setupSalts();
+        }
 
         // the clock value shouldn't matter here
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))

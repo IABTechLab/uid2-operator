@@ -38,7 +38,6 @@
   "failure_shutdown_wait_hours": 120,
   "sharing_token_expiry_seconds": 2592000,
   "operator_type": "public",
-  "enable_remote_config": false,
-  "identity_environment": "test",
+  "enable_remote_config": true,
   "uid_instance_id_prefix": "local-operator"
 }

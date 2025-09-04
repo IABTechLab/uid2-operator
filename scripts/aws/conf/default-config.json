@@ -39,5 +39,5 @@
   "refresh_identity_token_after_seconds": 3600,
   "operator_type": "private",
   "uid_instance_id_prefix": "unknown",
-  "identity_environment": "test"
+  "enable_remote_config": true
 }

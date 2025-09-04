@@ -39,5 +39,5 @@
     "validate_service_links": false,
     "operator_type": "private",
     "uid_instance_id_prefix": "unknown",
-    "identity_environment": "test"
+    "enable_remote_config": true
 }

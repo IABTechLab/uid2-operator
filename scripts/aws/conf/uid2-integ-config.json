@@ -11,6 +11,13 @@
   "service_links_metadata_path": "https://core-integ.uidapi.com/service_links/refresh",
   "optout_metadata_path": "https://optout-integ.uidapi.com/optout/refresh",
   "cloud_encryption_keys_metadata_path": "https://core-integ.uidapi.com/cloud_encryption_keys/retrieve",
+  "runtime_config_metadata_path": "https://core-integ.uidapi.com/operator/config",
   "optout_s3_folder": "uid-optout-integ/",
-  "identity_scope": "uid2"
-}
+  "identity_scope": "uid2",
+  "runtime_config_store": {
+    "type": "http",
+    "config" : {
+      "url": "https://core-integ.uidapi.com/operator/config"
+    },
+    "config_scan_period_ms": 300000
+  }}

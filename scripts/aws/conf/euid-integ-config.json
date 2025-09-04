@@ -12,5 +12,12 @@
   "optout_api_uri": "https://optout.integ.euid.eu/optout/replicate",
   "cloud_encryption_keys_metadata_path": "https://core.integ.euid.eu/cloud_encryption_keys/retrieve",
   "optout_s3_folder": "optout/",
-  "identity_scope": "euid"
+  "identity_scope": "euid",
+  "runtime_config_store": {
+    "type": "http",
+    "config" : {
+      "url": "https://core.integ.euid.eu/operator/config"
+    },
+    "config_scan_period_ms": 300000
+  }
 }

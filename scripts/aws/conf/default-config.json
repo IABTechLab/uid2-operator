@@ -28,6 +28,7 @@
   "salts_metadata_path": "salts/metadata.json",
   "services_metadata_path": "services/metadata.json",
   "service_links_metadata_path": "service_links/metadata.json",
+  "runtime_config_metadata_path": "runtime_config/metadata.json",
   "optout_metadata_path": null,
   "optout_inmem_cache": false,
   "enclave_platform": "aws-nitro",

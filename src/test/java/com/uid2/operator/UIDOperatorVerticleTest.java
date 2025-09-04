@@ -137,10 +137,11 @@ public class UIDOperatorVerticleTest {
     private IConfigStore configStore;
     private UidInstanceIdProvider uidInstanceIdProvider;
 
+    private final JsonObject config = new JsonObject();
     private SimpleMeterRegistry registry;
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
     private RuntimeConfig runtimeConfig;
-    private final JsonObject config = new JsonObject();
+    private EncryptedTokenEncoder encoder;
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
@@ -169,6 +170,8 @@ public class UIDOperatorVerticleTest {
 
         this.registry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(registry);
+
+        this.encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
     }
 
     @AfterEach
@@ -1673,8 +1676,6 @@ public class UIDOperatorVerticleTest {
 
                     decodeV2RefreshToken(json);
 
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
-
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, identityType);
                     RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString("decrypted_refresh_token"));
                     final byte[] advertisingId = getAdvertisingIdFromIdentity(identityType,
@@ -1775,7 +1776,6 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         SaltEntry salt = useV4Uid ? setupSaltsForV4UidAndV4PrevUid() : setupSalts();
-        EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", emailAddress);
@@ -1834,7 +1834,6 @@ public class UIDOperatorVerticleTest {
                     assertEquals("success", json.getString("status"));
                     JsonObject body = json.getJsonObject("body");
                     assertNotNull(body);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
 
@@ -1882,7 +1881,6 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         SaltEntry salt = useV4Uid ? setupSaltsForV4UidAndV4PrevUid() : setupSalts();
-        EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
         Map<String, String> additionalHeaders = Map.of(ClientVersionHeader, iosClientVersionHeaderValue,
                 HttpHeaders.CONTENT_TYPE.toString(), contentType);
@@ -1982,7 +1980,6 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                 AdvertisingToken advertisingToken = validateAndGetToken(encoder, refreshBody, IdentityType.Email);
 
@@ -2057,7 +2054,6 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         SaltEntry salt = useV4Uid ? setupSaltsForV4UidAndV4PrevUid() : setupSalts();
-        EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
         generateTokens(vertx, "email", emailAddress, genRespJson -> {
             assertEquals("success", genRespJson.getString("status"));
@@ -2165,7 +2161,6 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
             assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
@@ -2196,7 +2191,6 @@ public class UIDOperatorVerticleTest {
                     assertEquals("success", json.getString("status"));
                     JsonObject body = json.getJsonObject("body");
                     assertNotNull(body);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
 
@@ -2281,11 +2275,21 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    private void generateRefreshToken(Vertx vertx, String identityType, String identity, int siteId, Handler<JsonObject> handler) {
+    private void generateRefreshToken(Vertx vertx, String identityType, String identity, int siteId, boolean useV4Uid, Handler<JsonObject> handler) {
         fakeAuth(siteId, Role.GENERATOR);
-        setupSalts();
         setupKeys();
+
+        if (useV4Uid) {
+            setupSaltsForV4UidAndV4PrevUid();
+        } else {
+            setupSalts();
+        }
+
         generateTokens(vertx, identityType, identity, handler);
+    }
+
+    private void generateRefreshToken(Vertx vertx, String identityType, String identity, int siteId, Handler<JsonObject> handler) {
+        generateRefreshToken(vertx, identityType, identity, siteId, false, handler);
     }
 
     @Test
@@ -2409,16 +2413,28 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenRefreshOptOutBeforeLogin(Vertx vertx, VertxTestContext testContext) {
+    @ParameterizedTest
+    @CsvSource({
+            "true,true",
+            "true,false",
+            "false,true",
+            "false,false"
+    })
+    void tokenRefreshOptOutBeforeLogin(boolean useV4Uid, boolean useRefreshedV4Uid, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = "test@uid2.com";
-        generateRefreshToken(vertx, "email", emailAddress, clientSiteId, genRespJson -> {
+        generateRefreshToken(vertx, "email", emailAddress, clientSiteId, useV4Uid, genRespJson -> {
             JsonObject bodyJson = genRespJson.getJsonObject("body");
             String refreshToken = bodyJson.getString("refresh_token");
             String refreshTokenDecryptSecret = bodyJson.getString("refresh_response_key");
 
             when(this.optOutStore.getLatestEntry(any())).thenReturn(now.minusSeconds(10));
+
+            if (useRefreshedV4Uid) {
+                setupSaltsForV4UidAndV4PrevUid();
+            } else {
+                setupSalts();
+            }
 
             sendTokenRefresh(vertx, testContext, refreshToken, refreshTokenDecryptSecret, 200, refreshRespJson -> {
                 assertEquals("optout", refreshRespJson.getString("status"));
@@ -2948,7 +2964,6 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Phone);
 
@@ -2985,7 +3000,6 @@ public class UIDOperatorVerticleTest {
             assertEquals("success", json.getString("status"));
             JsonObject body = json.getJsonObject("body");
             assertNotNull(body);
-            EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Phone);
 
@@ -3027,7 +3041,6 @@ public class UIDOperatorVerticleTest {
                 assertEquals("success", refreshRespJson.getString("status"));
                 JsonObject refreshBody = refreshRespJson.getJsonObject("body");
                 assertNotNull(refreshBody);
-                EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                 AdvertisingToken advertisingToken = validateAndGetToken(encoder, refreshBody, IdentityType.Phone);
 
@@ -3764,7 +3777,6 @@ public class UIDOperatorVerticleTest {
 
                     JsonObject refreshBody = respJson.getJsonObject("body");
                     assertNotNull(refreshBody);
-                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
                     validateAndGetToken(encoder, refreshBody, IdentityType.Email); //to validate token version is correct
                     testContext.completeNow();
                 });
@@ -3791,7 +3803,6 @@ public class UIDOperatorVerticleTest {
 
                     JsonObject refreshBody = respJson.getJsonObject("body");
                     assertNotNull(refreshBody);
-                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
                     validateAndGetToken(encoder, refreshBody, IdentityType.Email); //to validate token version is correct
                     assertTokenStatusMetrics(
                             clientSideTokenGenerateSiteId,
@@ -4300,11 +4311,24 @@ public class UIDOperatorVerticleTest {
 
     @ParameterizedTest
     @CsvSource({
-            "test@example.com,Email",
-            "+61400000000,Phone"
+            "true,true,test@example.com,Email",
+            "true,true,+61400000000,Phone",
+
+            "true,false,test@example.com,Email",
+            "true,false,+61400000000,Phone",
+
+            "false,true,test@example.com,Email",
+            "false,true,+61400000000,Phone",
+
+            "false,false,test@example.com,Email",
+            "false,false,+61400000000,Phone"
     })
-    void cstgUserOptsOutAfterTokenGenerate(String id, IdentityType identityType, Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
+    void cstgUserOptsOutAfterTokenGenerate(
+            boolean useV4Uid, boolean useRefreshedV4Uid, String id, IdentityType identityType,
+            Vertx vertx, VertxTestContext testContext) throws NoSuchAlgorithmException, InvalidKeyException {
         setupCstgBackend("cstg.co.uk");
+
+        SaltEntry salt = useV4Uid ? setupSaltsForV4UidAndV4PrevUid() : setupSalts();
 
         final Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
 
@@ -4312,7 +4336,6 @@ public class UIDOperatorVerticleTest {
         when(optOutStore.getLatestEntry(any(UserIdentity.class)))
                 .thenReturn(null);
 
-        final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
         final ArgumentCaptor<UserIdentity> argumentCaptor = ArgumentCaptor.forClass(UserIdentity.class);
 
         sendCstg(vertx,
@@ -4332,11 +4355,21 @@ public class UIDOperatorVerticleTest {
                     final AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
                     final RefreshToken refreshToken = decodeRefreshToken(encoder, decodeV2RefreshToken(response), identityType);
 
-                    assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
+                    if (useV4Uid) {
+                        assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id, salt.currentKeySalt(), false);
+                    } else {
+                        assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id);
+                    }
 
                     // When we refresh the token the user has opted out.
                     when(optOutStore.getLatestEntry(any(UserIdentity.class)))
                             .thenReturn(advertisingToken.userIdentity.establishedAt.plusSeconds(1));
+
+                    if (useRefreshedV4Uid) {
+                        setupSaltsForV4UidAndV4PrevUid();
+                    } else {
+                        setupSalts();
+                    }
 
                     sendTokenRefresh(vertx, testContext, genBody.getString("refresh_token"), genBody.getString("refresh_response_key"), 200, refreshRespJson -> {
                         assertEquals("optout", refreshRespJson.getString("status"));
@@ -4382,7 +4415,6 @@ public class UIDOperatorVerticleTest {
         setupCstgBackend("cstg.co.uk");
 
         SaltEntry salt = useV4Uid ? setupSaltsForV4UidAndV4PrevUid() : setupSalts();
-        EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequest(identityType, id, Instant.now().toEpochMilli());
 
@@ -4513,7 +4545,6 @@ public class UIDOperatorVerticleTest {
 
                     JsonObject refreshBody = respJson.getJsonObject("body");
                     assertNotNull(refreshBody);
-                    var encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
                     validateAndGetToken(encoder, refreshBody, IdentityType.Email); //to validate token version is correct
 
                     verify(shutdownHandler, atLeastOnce()).handleSaltRetrievalResponse(true);
@@ -4842,7 +4873,6 @@ public class UIDOperatorVerticleTest {
                     assertEquals("success", json.getString("status"));
                     JsonObject body = json.getJsonObject("body");
                     assertNotNull(body);
-                    EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
@@ -5026,7 +5056,6 @@ public class UIDOperatorVerticleTest {
             });
         }
     }
-
 
     private static Stream<Arguments> testKeyDownloadEndpointKeysetsData_IDREADER() {
         int[] expectedSiteIds = new int[]{101, 102};

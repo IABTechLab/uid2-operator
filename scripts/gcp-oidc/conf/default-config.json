@@ -39,6 +39,6 @@
     "sharing_token_expiry_seconds": 2592000,
     "validate_service_links": false,
     "operator_type": "private",
-    "uid_instance_id_prefix": "unknown",
-    "enable_remote_config": true
+    "enable_remote_config": true,
+    "uid_instance_id_prefix": "unknown"
 }

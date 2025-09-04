@@ -28,6 +28,7 @@
     "salts_metadata_path": "salts/metadata.json",
     "services_metadata_path": "services/metadata.json",
     "service_links_metadata_path": "service_links/metadata.json",
+    "runtime_config_metadata_path": "runtime_config/metadata.json",
     "optout_metadata_path": null,
     "enclave_platform": "gcp-oidc",
     "optout_inmem_cache": true,
@@ -38,5 +39,6 @@
     "sharing_token_expiry_seconds": 2592000,
     "validate_service_links": false,
     "operator_type": "private",
+    "enable_remote_config": true,
     "uid_instance_id_prefix": "unknown"
 }

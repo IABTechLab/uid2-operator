@@ -44,7 +44,6 @@
   "salts_expired_shutdown_hours": 12,
   "operator_type": "public",
   "disable_optout_token": true,
-  "enable_remote_config": false,
-  "uid_instance_id_prefix": "local-public-operator",
-  "identity_environment": "test"
+  "enable_remote_config": true,
+  "uid_instance_id_prefix": "local-public-operator"
 }

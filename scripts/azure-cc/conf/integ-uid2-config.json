@@ -11,6 +11,7 @@
   "core_attest_url": "https://core.uidapi.com/attest",
   "optout_api_uri": "https://optout.uidapi.com/optout/replicate",
   "cloud_encryption_keys_metadata_path": "https://core.uidapi.com/cloud_encryption_keys/retrieve",
+  "runtime_config_metadata_path": "https://core.uidapi.com/operator/config",
   "optout_s3_folder": "uid-optout-integ/",
   "uid_instance_id_prefix": "unknown",
   "runtime_config_store": {

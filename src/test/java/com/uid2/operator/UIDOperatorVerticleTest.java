@@ -2737,19 +2737,29 @@ public class UIDOperatorVerticleTest {
         optedOutIdsCase2.put(rawUIDS.get(2), -1L);
         optedOutIdsCase2.put(rawUIDS.get(3), -1L);
         return Stream.of(
-                Arguments.arguments(optedOutIdsCase1, 2, Role.MAPPER),
-                Arguments.arguments(optedOutIdsCase1, 2, Role.ID_READER),
-                Arguments.arguments(optedOutIdsCase1, 2, Role.SHARER),
-                Arguments.arguments(optedOutIdsCase2, 0, Role.MAPPER)
+                Arguments.arguments(true, optedOutIdsCase1, 2, Role.MAPPER),
+                Arguments.arguments(true, optedOutIdsCase1, 2, Role.ID_READER),
+                Arguments.arguments(true, optedOutIdsCase1, 2, Role.SHARER),
+                Arguments.arguments(true, optedOutIdsCase2, 0, Role.MAPPER),
+
+                Arguments.arguments(false, optedOutIdsCase1, 2, Role.MAPPER),
+                Arguments.arguments(false, optedOutIdsCase1, 2, Role.ID_READER),
+                Arguments.arguments(false, optedOutIdsCase1, 2, Role.SHARER),
+                Arguments.arguments(false, optedOutIdsCase2, 0, Role.MAPPER)
         );
     }
 
     @ParameterizedTest
     @MethodSource("optOutStatusRequestData")
-    void optOutStatusRequest(Map<String, Long> optedOutIds, int optedOutCount, Role role, Vertx vertx, VertxTestContext testContext) {
+    void optOutStatusRequest(boolean useV4Uid, Map<String, Long> optedOutIds, int optedOutCount, Role role, Vertx vertx, VertxTestContext testContext) {
         fakeAuth(126, role);
-        setupSalts();
         setupKeys();
+
+        if (useV4Uid) {
+            setupSaltsForV4UidAndV4PrevUid();
+        } else {
+            setupSalts();
+        }
 
         JsonArray rawUIDs = new JsonArray();
         for (String rawUID2 : optedOutIds.keySet()) {

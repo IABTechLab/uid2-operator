@@ -39,5 +39,6 @@
   "sharing_token_expiry_seconds": 2592000,
   "operator_type": "public",
   "enable_remote_config": false,
+  "identity_environment": "test",
   "uid_instance_id_prefix": "local-operator"
 }

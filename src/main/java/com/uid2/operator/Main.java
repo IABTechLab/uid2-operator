@@ -68,6 +68,9 @@ import static io.micrometer.core.instrument.Metrics.globalRegistry;
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
+    // Startup timing field
+    private static volatile Instant startupBeginTime;
+
     private final JsonObject config;
     private final Vertx vertx;
     private final ApplicationVersion appVersion;
@@ -244,7 +247,43 @@ public class Main {
         return new KeyManager(this.keysetKeyStore, this.keysetProvider);
     }
 
+    /**
+     * Calculate startup duration following established codebase patterns.
+     * @return Duration from startup begin to completion, or null if timing data is invalid
+     */
+    private static Duration getStartupDuration() {
+        if (startupBeginTime == null) {
+            return null;
+        }
+        return Duration.between(startupBeginTime, Instant.now());
+    }
+
+    /**
+     * Record startup completion and register startup duration metric.
+     * Called when the HTTP server successfully starts listening.
+     */
+    public static void recordStartupComplete() {
+        final Duration startupDuration = getStartupDuration();
+        
+        // Register startup duration metric following existing pattern
+        final String version = Optional.ofNullable(System.getenv("IMAGE_VERSION")).orElse("unknown");
+        final double durationSeconds = startupDuration != null ? startupDuration.toMillis() / 1000.0 : -1.0;
+        
+        Gauge.builder("uid2_operator_startup_duration_seconds", () -> durationSeconds)
+                .description("Time taken for operator to start up and begin serving requests")
+                .tags("version", version)
+                .register(globalRegistry);
+                
+        if (startupDuration != null) {
+            LOGGER.info("UID2 Operator startup completed in {:.3f} seconds", durationSeconds);
+        } else {
+            LOGGER.warn("UID2 Operator startup completed but timing measurement failed");
+        }
+    }
+
     public static void main(String[] args) throws Exception {
+        // Record startup begin time following established patterns
+        startupBeginTime = Instant.now();
 
         java.security.Security.setProperty("networkaddress.cache.ttl" , "60");
 

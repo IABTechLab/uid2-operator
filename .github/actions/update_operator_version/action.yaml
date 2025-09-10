@@ -43,7 +43,7 @@ runs:
       uses: trstringer/manual-approval@v1
       with:
         secret: ${{ github.token }}
-        approvers: atarassov-ttd,vishalegbert-ttd,sunnywu,cody-constine-ttd
+        approvers: atarassov-ttd,vishalegbert-ttd,sunnywu,clarkxuyang
         minimum-approvals: 1
         issue-title: Creating Major version of UID2-Operator
 

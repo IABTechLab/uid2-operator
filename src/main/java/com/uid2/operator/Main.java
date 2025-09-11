@@ -68,8 +68,9 @@ import static io.micrometer.core.instrument.Metrics.globalRegistry;
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
-    // Startup timing field
+    // Startup timing fields
     private static volatile Instant startupBeginTime;
+    private static volatile Instant metadataLoadingBeginTime;
 
     private final JsonObject config;
     private final Vertx vertx;
@@ -275,15 +276,69 @@ public class Main {
                 .register(globalRegistry);
                 
         if (startupDuration != null) {
-            LOGGER.info("UID2 Operator startup completed in {:.3f} seconds", durationSeconds);
+            LOGGER.info("UID2 Operator startup completed in {} seconds", String.format("%.3f", durationSeconds));
         } else {
             LOGGER.warn("UID2 Operator startup completed but timing measurement failed");
         }
     }
 
+    /**
+     * Record timing for individual store loading operations.
+     * @param storeName Name of the store that was loaded
+     * @param startTime When the store loading started
+     */
+    private static void recordStoreLoadingTime(String storeName, Instant startTime) {
+        final Duration duration = Duration.between(startTime, Instant.now());
+        final double durationMs = duration.toMillis();
+        
+        LOGGER.info("Store '{}' content loading completed in {} ms", storeName, durationMs);
+        
+        // Register individual store loading time metric  
+        Gauge.builder("uid2_operator_store_loading_duration_ms", () -> durationMs)
+                .description("Time taken to load individual store content during startup")
+                .tags("store_name", storeName)
+                .register(globalRegistry);
+    }
+
+    /**
+     * Record timing for major startup phases.
+     * @param phaseName Name of the startup phase
+     * @param duration Duration of the phase
+     */
+    private static void recordPhaseTime(String phaseName, Duration duration) {
+        final double durationMs = duration.toMillis();
+        
+        LOGGER.info("Startup phase '{}' completed in {} ms", phaseName, durationMs);
+        
+        // Register startup phase timing metric
+        Gauge.builder("uid2_operator_startup_phase_duration_ms", () -> durationMs)
+                .description("Time taken for major startup phases")
+                .tags("phase_name", phaseName)
+                .register(globalRegistry);
+    }
+
+    /**
+     * Record timing for individual store metadata loading operations.
+     * @param storeName Name of the store that had its metadata loaded
+     * @param startTime When the metadata loading started
+     */
+    private static void recordMetadataLoadingTime(String storeName, Instant startTime) {
+        final Duration duration = Duration.between(startTime, Instant.now());
+        final double durationMs = duration.toMillis();
+        
+        LOGGER.info("Store '{}' metadata loading completed in {} ms", storeName, durationMs);
+        
+        // Register individual store metadata loading time metric
+        Gauge.builder("uid2_operator_store_metadata_duration_ms", () -> durationMs)
+                .description("Time taken to load individual store metadata during startup")
+                .tags("store_name", storeName)
+                .register(globalRegistry);
+    }
+
     public static void main(String[] args) throws Exception {
         // Record startup begin time following established patterns
         startupBeginTime = Instant.now();
+        LOGGER.info("UID2 Operator startup initiated at {}", startupBeginTime);
 
         java.security.Security.setProperty("networkaddress.cache.ttl" , "60");
 
@@ -402,30 +457,73 @@ public class Main {
     }
 
     private Future<Void> createStoreVerticles() throws Exception {
+        // Time the metadata loading phase - critical S3 operations
+        metadataLoadingBeginTime = Instant.now();
+        LOGGER.info("Starting store metadata loading phase");
+        
         // load metadatas for the first time
         if (clientSideTokenGenerate) {
+            Instant start = Instant.now();
             siteProvider.getMetadata();
+            recordMetadataLoadingTime("site", start);
+            
+            start = Instant.now();
             clientSideKeypairProvider.getMetadata();
+            recordMetadataLoadingTime("client_side_keypair", start);
         }
 
         if (validateServiceLinks) {
+            Instant start = Instant.now();
             serviceProvider.getMetadata();
+            recordMetadataLoadingTime("service", start);
+            
+            start = Instant.now();
             serviceLinkProvider.getMetadata();
+            recordMetadataLoadingTime("service_link", start);
         }
 
         if (encryptedCloudFilesEnabled) {
+            Instant start = Instant.now();
             cloudEncryptionKeyProvider.getMetadata();
+            recordMetadataLoadingTime("cloud_encryption_key", start);
         }
 
+        Instant start = Instant.now();
         clientKeyProvider.getMetadata();
+        recordMetadataLoadingTime("client_key", start);
+        
+        start = Instant.now();
         keysetKeyStore.getMetadata();
+        recordMetadataLoadingTime("keyset_key", start);
+        
+        start = Instant.now();
         keysetProvider.getMetadata();
+        recordMetadataLoadingTime("keyset", start);
+        
+        start = Instant.now();
         saltProvider.getMetadata();
+        recordMetadataLoadingTime("salt", start);
+        
+        Duration totalMetadataLoadingTime = Duration.between(metadataLoadingBeginTime, Instant.now());
+        LOGGER.info("Store metadata loading phase completed in {} ms", totalMetadataLoadingTime.toMillis());
+        recordPhaseTime("store_metadata_loading", totalMetadataLoadingTime);
 
+        // Time the cloud sync setup
+        Instant cloudSyncStart = Instant.now();
+        LOGGER.info("Setting up optout cloud sync");
+        
         // create cloud sync for optout store
         OptOutCloudSync optOutCloudSync = new OptOutCloudSync(config, false);
         this.optOutStore.registerCloudSync(optOutCloudSync);
+        
+        Duration cloudSyncSetupTime = Duration.between(cloudSyncStart, Instant.now());
+        LOGGER.info("OptOut cloud sync setup completed in {} ms", cloudSyncSetupTime.toMillis());
+        recordPhaseTime("optout_cloud_sync_setup", cloudSyncSetupTime);
 
+        // Time the rotating store verticles deployment
+        Instant rotatingStoresStart = Instant.now();
+        LOGGER.info("Starting rotating store verticles deployment");
+        
         // create rotating store verticles to poll for updates
         Promise<Void> promise = Promise.promise();
         List<Future> fs = new ArrayList<>();
@@ -454,7 +552,12 @@ public class Main {
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));
-            else promise.complete();
+            else {
+                Duration rotatingStoresTime = Duration.between(rotatingStoresStart, Instant.now());
+                LOGGER.info("Rotating store verticles deployment completed in {} ms", rotatingStoresTime.toMillis());
+                recordPhaseTime("rotating_store_verticles_deployment", rotatingStoresTime);
+                promise.complete();
+            }
         });
 
 

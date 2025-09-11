@@ -3,6 +3,7 @@ package com.uid2.operator.vertx;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
+import com.uid2.operator.Main;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -219,6 +220,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .listen(port, result -> {
                     if (result.succeeded()) {
                         this.healthComponent.setHealthStatus(true);
+                        // Record startup completion now that HTTP server is ready
+                        Main.recordStartupComplete();
                         startPromise.complete();
                     } else {
                         this.healthComponent.setHealthStatus(false, result.cause().getMessage());

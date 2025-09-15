@@ -1,5 +1,6 @@
-package com.uid2.operator;
+package com.uid2.operator.shared;
 
+import com.uid2.operator.Main;
 import com.uid2.shared.auth.Role;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.model.Service;
@@ -15,9 +16,9 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ServiceStoreTest {
+class ServiceStoreTest {
     @Test
-    public void loadFromEmbeddedResourceStorage() throws Exception {
+    void loadFromEmbeddedResourceStorage() throws Exception {
         RotatingServiceStore serviceProvider = new RotatingServiceStore(
                 new EmbeddedResourceStorage(Main.class),
                 new GlobalScope(new CloudPath("/com.uid2.core/test/services/metadata.json")));

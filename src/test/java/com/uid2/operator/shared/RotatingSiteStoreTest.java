@@ -1,5 +1,6 @@
-package com.uid2.operator;
+package com.uid2.operator.shared;
 
+import com.uid2.operator.Main;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.reader.RotatingSiteStore;
@@ -9,9 +10,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
-public class RotatingSiteStoreTest {
+class RotatingSiteStoreTest {
     @Test
-    public void loadFromEmbeddedResourceStorage() throws Exception {
+    void loadFromEmbeddedResourceStorage() throws Exception {
         RotatingSiteStore siteProvider = new RotatingSiteStore(
                 new EmbeddedResourceStorage(Main.class),
                 new GlobalScope(new CloudPath("/com.uid2.core/test/sites/metadata.json")));

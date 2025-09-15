@@ -1,16 +1,13 @@
-package com.uid2.operator;
+package com.uid2.operator.store;
 
-import com.uid2.operator.store.RuntimeConfig;
-import com.uid2.operator.store.RuntimeConfigStore;
 import com.uid2.shared.cloud.ICloudStorage;
 import io.vertx.core.json.JsonObject;
 import io.vertx.junit5.VertxExtension;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -19,17 +16,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(VertxExtension.class)
-public class RuntimeConfigStoreTest {
-    private AutoCloseable mocks;
-    private RuntimeConfig runtimeConfig;
-    private JsonObject config = new JsonObject();
+@ExtendWith({VertxExtension.class, MockitoExtension.class})
+class RuntimeConfigStoreTest {
     @Mock
     private ICloudStorage cloudStorage;
 
+    private final JsonObject config = new JsonObject();
+    private RuntimeConfig runtimeConfig;
+
     @BeforeEach
-    public void setup() {
-        mocks = MockitoAnnotations.openMocks(this);
+    void setup() {
         setupConfig(config);
         runtimeConfig = setupRuntimeConfig(config);
     }
@@ -46,13 +42,8 @@ public class RuntimeConfigStoreTest {
         return config.mapTo(RuntimeConfig.class);
     }
 
-    @AfterEach
-    public void teardown() throws Exception {
-        mocks.close();
-    }
-
     @Test
-    public void loadRuntimeConfigSingleVersion() throws Exception {
+    void loadRuntimeConfigSingleVersion() throws Exception {
         final JsonObject metadataJson = new JsonObject()
                 .put("version", 2)
                 .put("runtime_config", this.config);
@@ -71,7 +62,7 @@ public class RuntimeConfigStoreTest {
     }
 
     @Test
-    public void testFirstInvalidConfigThrowsRuntimeException() throws Exception {
+    void testFirstInvalidConfigThrowsRuntimeException() throws Exception {
         JsonObject invalidConfig = new JsonObject()
                 .put("identity_token_expires_after_seconds", 1000)
                 .put("refresh_token_expires_after_seconds", 2000);
@@ -92,7 +83,7 @@ public class RuntimeConfigStoreTest {
     }
 
     @Test
-    public void testInvalidConfigRevertsToPrevious() throws Exception {
+    void testInvalidConfigRevertsToPrevious() throws Exception {
         JsonObject invalidConfig = new JsonObject()
                 .put("identity_token_expires_after_seconds", 1000)
                 .put("refresh_token_expires_after_seconds", 2000);

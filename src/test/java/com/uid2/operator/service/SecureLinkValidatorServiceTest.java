@@ -8,10 +8,10 @@ import com.uid2.shared.store.reader.RotatingServiceLinkStore;
 import com.uid2.shared.store.reader.RotatingServiceStore;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -21,19 +21,14 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
-public class SecureLinkValidatorServiceTest {
+@ExtendWith(MockitoExtension.class)
+class SecureLinkValidatorServiceTest {
     @Mock
     private RotatingServiceLinkStore rotatingServiceLinkStore;
-
     @Mock
     private RotatingServiceStore rotatingServiceStore;
     @Mock
     private RoutingContext routingContext;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
 
     @Test
     void validateRequest_serviceIdNotSet_returnsTrue() {

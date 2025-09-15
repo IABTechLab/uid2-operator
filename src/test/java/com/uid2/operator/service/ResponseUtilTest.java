@@ -23,7 +23,7 @@ class ResponseUtilTest {
     private HttpServerRequest request;
 
     @BeforeEach
-    void setUp() {
+    void setup() {
         logger = (Logger) LoggerFactory.getLogger(ResponseUtil.class);
         testAppender = new ListAppender<>();
         testAppender.start();
@@ -35,7 +35,7 @@ class ResponseUtilTest {
     }
 
     @AfterEach
-    void tearDown() {
+    void teardown() {
         testAppender.stop();
         logger.detachAppender(testAppender);
     }

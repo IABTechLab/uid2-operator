@@ -1,5 +1,6 @@
-package com.uid2.operator;
+package com.uid2.operator.shared;
 
+import com.uid2.operator.Main;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.model.ServiceLink;
 import com.uid2.shared.store.CloudPath;
@@ -13,9 +14,9 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ServiceLinkStoreTest {
+class ServiceLinkStoreTest {
     @Test
-    public void loadFromEmbeddedResourceStorage() throws Exception {
+    void loadFromEmbeddedResourceStorage() throws Exception {
         RotatingServiceLinkStore serviceLinkProvider = new RotatingServiceLinkStore(
                 new EmbeddedResourceStorage(Main.class),
                 new GlobalScope(new CloudPath("/com.uid2.core/test/service_links/metadata.json")));

@@ -1,7 +1,5 @@
-package com.uid2.operator;
+package com.uid2.operator.reader;
 
-import com.uid2.operator.reader.ApiStoreReader;
-import com.uid2.operator.reader.RotatingCloudEncryptionKeyApiProvider;
 import com.uid2.shared.model.CloudEncryptionKey;
 import com.uid2.shared.store.CloudPath;
 import io.vertx.core.json.JsonObject;
@@ -18,19 +16,19 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class RotatingCloudEncryptionKeyApiProviderTest {
+class RotatingCloudEncryptionKeyApiProviderTest {
     @Mock
     private ApiStoreReader<Map<Integer, CloudEncryptionKey>> mockApiStoreReader;
 
     private RotatingCloudEncryptionKeyApiProvider rotatingCloudEncryptionKeyApiProvider;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         rotatingCloudEncryptionKeyApiProvider = new RotatingCloudEncryptionKeyApiProvider(mockApiStoreReader);
     }
 
     @Test
-    public void testGetMetadata() throws Exception {
+    void testGetMetadata() throws Exception {
         JsonObject expectedMetadata = new JsonObject().put("version", 1L);
         when(mockApiStoreReader.getMetadata()).thenReturn(expectedMetadata);
 
@@ -41,7 +39,7 @@ public class RotatingCloudEncryptionKeyApiProviderTest {
     }
 
     @Test
-    public void testGetMetadataPath() {
+    void testGetMetadataPath() {
         CloudPath expectedPath = new CloudPath("test/path");
         when(mockApiStoreReader.getMetadataPath()).thenReturn(expectedPath);
 
@@ -52,7 +50,7 @@ public class RotatingCloudEncryptionKeyApiProviderTest {
     }
 
     @Test
-    public void testLoadContentWithMetadata() throws Exception {
+    void testLoadContentWithMetadata() throws Exception {
         JsonObject metadata = new JsonObject();
         when(mockApiStoreReader.loadContent(metadata, "cloud_encryption_keys")).thenReturn(1L);
 
@@ -63,7 +61,7 @@ public class RotatingCloudEncryptionKeyApiProviderTest {
     }
 
     @Test
-    public void testGetAll() {
+    void testGetAll() {
         Map<Integer, CloudEncryptionKey> expectedKeys = new HashMap<>();
         CloudEncryptionKey key = new CloudEncryptionKey(1, 123, 1687635529, 1687808329, "secret");
         expectedKeys.put(1, key);
@@ -76,7 +74,7 @@ public class RotatingCloudEncryptionKeyApiProviderTest {
     }
 
     @Test
-    public void testGetAllWithNullSnapshot() {
+    void testGetAllWithNullSnapshot() {
         when(mockApiStoreReader.getSnapshot()).thenReturn(null);
 
         Map<Integer, CloudEncryptionKey> keys = rotatingCloudEncryptionKeyApiProvider.getAll();
@@ -87,7 +85,7 @@ public class RotatingCloudEncryptionKeyApiProviderTest {
     }
 
     @Test
-    public void testLoadContent() throws Exception {
+    void testLoadContent() throws Exception {
         JsonObject metadata = new JsonObject().put("version", 1L);
         when(mockApiStoreReader.getMetadata()).thenReturn(metadata);
         when(mockApiStoreReader.loadContent(metadata, "cloud_encryption_keys")).thenReturn(1L);

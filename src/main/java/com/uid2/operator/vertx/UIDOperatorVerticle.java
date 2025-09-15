@@ -30,6 +30,7 @@ import com.uid2.shared.store.*;
 import com.uid2.shared.store.ACLMode.MissingAclMode;
 import com.uid2.shared.store.IClientKeyProvider;
 import com.uid2.shared.store.IClientSideKeypairStore;
+import com.uid2.shared.store.salt.EncryptedRotatingSaltProvider;
 import com.uid2.shared.store.salt.ISaltProvider;
 import com.uid2.shared.util.Mapper;
 import com.uid2.shared.vertx.RequestCapturingHandler;
@@ -1261,6 +1262,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final Map<String, InputUtil.InputVal[]> normalizedInput = processIdentityMapMixedInput(rc, input);
 
             if (!validateServiceLink(rc)) { return; }
+
+            ((EncryptedRotatingSaltProvider) (this.saltProvider)).loadContent();
 
             final JsonObject response = processIdentityMapV3Response(rc, normalizedInput);
             ResponseUtil.SuccessV2(rc, response);

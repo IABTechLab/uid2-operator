@@ -1,20 +1,20 @@
-package com.uid2.operator;
+package com.uid2.operator.shared;
 
+import com.uid2.operator.Main;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.shared.cloud.EmbeddedResourceStorage;
 import com.uid2.shared.store.CloudPath;
 import com.uid2.shared.store.reader.RotatingClientKeyProvider;
 import com.uid2.shared.store.scope.GlobalScope;
 import io.vertx.core.json.JsonObject;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
-
-public class ClientKeyProviderTest {
+class ClientKeyProviderTest {
     @Test
-    public void generateNewClientKeys() throws NoSuchAlgorithmException {
+    void generateNewClientKeys() throws NoSuchAlgorithmException {
         if (System.getenv("SLOW_DEV_URANDOM") != null) {
             System.err.println("ignore this test since environment variable SLOW_DEV_URANDOM is set");
             return;
@@ -29,7 +29,7 @@ public class ClientKeyProviderTest {
     }
 
     @Test
-    public void loadFromEmbeddedResourceStorage() throws Exception {
+    void loadFromEmbeddedResourceStorage() throws Exception {
         RotatingClientKeyProvider fileProvider = new RotatingClientKeyProvider(
             new EmbeddedResourceStorage(Main.class),
             new GlobalScope(new CloudPath("/com.uid2.core/test/clients/metadata.json")));

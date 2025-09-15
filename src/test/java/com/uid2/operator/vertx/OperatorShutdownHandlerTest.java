@@ -1,25 +1,21 @@
-package com.uid2.operator;
+package com.uid2.operator.vertx;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.uid2.operator.service.ShutdownService;
-import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.attest.AttestationResponseCode;
-import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
 
-import java.security.Permission;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -28,27 +24,20 @@ import java.time.temporal.ChronoUnit;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(VertxExtension.class)
-public class OperatorShutdownHandlerTest {
+@ExtendWith({VertxExtension.class, MockitoExtension.class})
+class OperatorShutdownHandlerTest {
+    @Mock
+    private Clock clock;
+    @Mock
+    private ShutdownService shutdownService;
 
-    private AutoCloseable mocks;
-    @Mock private Clock clock;
-    @Mock private ShutdownService shutdownService;
     private OperatorShutdownHandler operatorShutdownHandler;
-
-
 
     @BeforeEach
     void beforeEach() {
-        mocks = MockitoAnnotations.openMocks(this);
         when(clock.instant()).thenAnswer(i -> Instant.now());
         doThrow(new RuntimeException()).when(shutdownService).Shutdown(1);
         this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), clock, shutdownService);
-    }
-
-    @AfterEach
-    void afterEach() throws Exception {
-        mocks.close();
     }
 
     @Test
@@ -63,7 +52,7 @@ public class OperatorShutdownHandlerTest {
         } catch (RuntimeException e) {
             verify(shutdownService).Shutdown(1);
             String message = logWatcher.list.get(0).getFormattedMessage();
-            Assertions.assertEquals("core attestation failed with AttestationFailure, shutting down operator, core response: Unauthorized", logWatcher.list.get(0).getFormattedMessage());
+            Assertions.assertEquals("core attestation failed with AttestationFailure, shutting down operator, core response: Unauthorized", message);
             testContext.completeNow();
         }
     }

@@ -1,17 +1,15 @@
-package com.uid2.operator;
+package com.uid2.operator.service;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
-import com.uid2.operator.service.V2RequestUtil;
 import com.uid2.shared.IClock;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.model.KeysetKey;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.RequestBody;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +43,7 @@ public class V2RequestUtilTest {
     private MemoryAppender memoryAppender;
 
     private void setupMemoryAppender() {
-        Logger logger = (Logger)LoggerFactory.getLogger(LOGGER_NAME);
+        Logger logger = (Logger) LoggerFactory.getLogger(LOGGER_NAME);
         memoryAppender = new MemoryAppender();
         memoryAppender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
         logger.setLevel(Level.DEBUG);

@@ -1,4 +1,4 @@
-package com.uid2.operator;
+package com.uid2.operator.service;
 
 import java.util.Collections;
 import java.util.List;
@@ -8,7 +8,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 
-public class MemoryAppender  extends ListAppender<ILoggingEvent> {
+public class MemoryAppender extends ListAppender<ILoggingEvent> {
     public void reset() {
         this.list.clear();
     }

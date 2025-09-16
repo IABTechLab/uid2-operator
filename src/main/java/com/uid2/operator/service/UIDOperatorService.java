@@ -249,10 +249,9 @@ public class UIDOperatorService implements IUIDOperatorService {
     private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf, IdentityEnvironment env) {
         long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
         if (age / DAY_IN_MS < 90) {
-            boolean missingSalt = rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isBlank();
+            boolean missingSalt = rotatingSalt.previousSalt() == null;
             boolean missingKey = rotatingSalt.previousKeySalt() == null
-                    || rotatingSalt.previousKeySalt().key() == null || rotatingSalt.previousKeySalt().key().isBlank()
-                    || rotatingSalt.previousKeySalt().salt() == null || rotatingSalt.previousKeySalt().salt().isBlank();
+                    || rotatingSalt.previousKeySalt().key() == null || rotatingSalt.previousKeySalt().salt() == null;
 
             if (missingSalt && missingKey) {
                 return null;

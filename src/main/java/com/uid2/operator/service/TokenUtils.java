@@ -59,7 +59,7 @@ public final class TokenUtils {
     }
 
     public static byte[] getAdvertisingIdV4(IdentityScope scope, IdentityType type, IdentityEnvironment environment, byte[] firstLevelHash, SaltEntry.KeyMaterial encryptingKey) throws Exception {
-        byte metadata = (byte) (encodeIdentityVersion(IdentityVersion.V4) | encodeIdentityScope(scope) | encodeIdentityType(type) | encodeIdentityEnvironment(environment));
+        byte metadata = encodeV4Metadata(scope, type, environment);
         return V4TokenUtils.buildAdvertisingIdV4(metadata, firstLevelHash, encryptingKey.id(), encryptingKey.key(), encryptingKey.salt());
     }
 
@@ -71,6 +71,10 @@ public final class TokenUtils {
         return getAdvertisingIdV4(scope, type, environment, getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), encryptingKey);
     }
 
+    public static byte encodeV4Metadata(IdentityScope scope, IdentityType type, IdentityEnvironment environment) {
+        return (byte) (encodeIdentityVersion(IdentityVersion.V4) | encodeIdentityScope(scope) | encodeIdentityType(type) | encodeIdentityEnvironment(environment));
+    }
+
     public static byte encodeIdentityScope(IdentityScope identityScope) {
         return (byte) (identityScope.getValue() << 4);
     }
@@ -80,10 +84,10 @@ public final class TokenUtils {
     }
 
     public static byte encodeIdentityVersion(IdentityVersion identityVersion) {
-        return (byte) (identityVersion.getValue() << 6);
+        return (byte) (identityVersion.getValue() << 5);
     }
 
     public static byte encodeIdentityEnvironment(IdentityEnvironment identityEnvironment) {
-        return (byte) (identityEnvironment.getValue());
+        return (byte) (identityEnvironment.getValue() << 6);
     }
 }

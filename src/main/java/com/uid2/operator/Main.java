@@ -275,9 +275,9 @@ public class Main {
                 .register(globalRegistry);
                 
         if (startupDuration != null) {
-            LOGGER.info("UID2 Operator startup completed in {:.3f} seconds", durationSeconds);
+            LOGGER.info("Operator startup completed in {} seconds", String.format("%.3f", durationSeconds));
         } else {
-            LOGGER.warn("UID2 Operator startup completed but timing measurement failed");
+            LOGGER.warn("Operator startup completed but timing measurement failed");
         }
     }
 

@@ -36,7 +36,7 @@ public final class V4TokenUtils {
 
     public static byte[] generateIV(String salt, byte[] firstLevelHashLast16Bytes, byte metadata, int keyId) {
         String ivBase = salt
-                .concat(Arrays.toString(firstLevelHashLast16Bytes))
+                .concat(EncodingUtils.toBase64String(firstLevelHashLast16Bytes))
                 .concat(Byte.toString(metadata))
                 .concat(String.valueOf(keyId));
         return Arrays.copyOfRange(EncodingUtils.getSha256Bytes(ivBase), 0, IV_LENGTH);

@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.util.List;
 
 public interface IUIDOperatorService {
-
     IdentityTokens generateIdentity(IdentityRequest request, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter);
 
     RefreshResponse refreshIdentity(RefreshToken token, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter, IdentityEnvironment env);
@@ -25,6 +24,4 @@ public interface IUIDOperatorService {
     void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, IdentityEnvironment env, Handler<AsyncResult<Instant>> handler);
 
     boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf, IdentityEnvironment env);
-
-    Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf);
 }

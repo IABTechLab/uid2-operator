@@ -6,12 +6,13 @@ import com.uid2.operator.model.UserIdentity;
 
 import java.time.Instant;
 
-public class InputUtil {
+public final class InputUtil {
+    private static final String GMAILDOMAIN = "gmail.com";
+    private static final int MIN_PHONENUMBER_DIGITS = 10;
+    private static final int MAX_PHONENUMBER_DIGITS = 15;
 
-    private static String GMAILDOMAIN = "gmail.com";
-
-    private static int MIN_PHONENUMBER_DIGITS = 10;
-    private static int MAX_PHONENUMBER_DIGITS = 15;
+    private InputUtil() {
+    }
 
     public static InputVal normalizeEmailHash(String input) {
         final int inputLength = input.length();
@@ -49,8 +50,7 @@ public class InputUtil {
         return InputVal.invalidPhoneHash(input);
     }
 
-    public static boolean isAsciiDigit(char d)
-    {
+    public static boolean isAsciiDigit(char d) {
         return d >= '0' && d <= '9';
     }
 
@@ -65,8 +65,7 @@ public class InputUtil {
 
         // count the digits, return false if non-digit character is found
         int totalDigits = 0;
-        for (int i = 1; i < phoneNumber.length(); ++i)
-        {
+        for (int i = 1; i < phoneNumber.length(); ++i) {
             if (!InputUtil.isAsciiDigit(phoneNumber.charAt(i)))
                 return false;
             ++totalDigits;
@@ -174,12 +173,12 @@ public class InputUtil {
         Hash
     }
 
-    private static enum EmailParsingState {
+    private enum EmailParsingState {
         Starting,
         Pre,
         SubDomain,
         Domain,
-        Terminal,
+        Terminal
     }
 
     public static class InputVal {
@@ -255,7 +254,9 @@ public class InputUtil {
             return identityType;
         }
 
-        public IdentityInputType getInputType() { return inputType; }
+        public IdentityInputType getInputType() {
+            return inputType;
+        }
 
         public boolean isValid() {
             return valid;
@@ -271,5 +272,4 @@ public class InputUtil {
                     establishedAt);
         }
     }
-
 }

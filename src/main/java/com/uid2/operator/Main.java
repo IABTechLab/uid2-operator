@@ -68,6 +68,8 @@ import static io.micrometer.core.instrument.Metrics.globalRegistry;
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
+    private static volatile Instant startupBeginTime;
+
     private final JsonObject config;
     private final Vertx vertx;
     private final ApplicationVersion appVersion;
@@ -244,7 +246,29 @@ public class Main {
         return new KeyManager(this.keysetKeyStore, this.keysetProvider);
     }
 
+    private static Duration getStartupDuration() {
+        return startupBeginTime != null ? Duration.between(startupBeginTime, Instant.now()) : null;
+    }
+
+    public static void recordStartupComplete() {
+        final Duration startupDuration = getStartupDuration();
+        final String version = Optional.ofNullable(System.getenv("IMAGE_VERSION")).orElse("unknown");
+        final double durationSeconds = startupDuration != null ? startupDuration.toMillis() / 1000.0 : -1.0;
+        
+        Gauge.builder("uid2_operator_startup_duration_seconds", () -> durationSeconds)
+                .description("Time taken for operator to start up and begin serving requests")
+                .tags("version", version)
+                .register(globalRegistry);
+                
+        if (startupDuration != null) {
+            LOGGER.info("Operator startup completed in {} seconds", String.format("%.3f", durationSeconds));
+        } else {
+            LOGGER.warn("Operator startup completed but timing measurement failed");
+        }
+    }
+
     public static void main(String[] args) throws Exception {
+        startupBeginTime = Instant.now();
 
         java.security.Security.setProperty("networkaddress.cache.ttl" , "60");
 

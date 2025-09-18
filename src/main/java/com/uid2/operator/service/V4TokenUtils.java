@@ -5,6 +5,7 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import io.vertx.core.buffer.Buffer;
 
+import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 
 public final class V4TokenUtils {
@@ -34,12 +35,13 @@ public final class V4TokenUtils {
         return buffer.getBytes();
     }
 
-    public static byte[] generateIV(String salt, byte[] firstLevelHashLast16Bytes, byte metadata, int keyId) {
-        String ivBase = salt
-                .concat(EncodingUtils.toBase64String(firstLevelHashLast16Bytes))
-                .concat(Byte.toString(metadata))
-                .concat(String.valueOf(keyId));
-        return Arrays.copyOfRange(EncodingUtils.getSha256Bytes(ivBase), 0, IV_LENGTH);
+    public static byte[] generateIV(String salt, byte[] firstLevelHashLast16Bytes, byte metadata, int keyId) throws Exception {
+        ByteArrayOutputStream ivBase = new ByteArrayOutputStream();
+        ivBase.write(salt.getBytes());
+        ivBase.write(firstLevelHashLast16Bytes);
+        ivBase.write(metadata);
+        ivBase.write(keyId);
+        return Arrays.copyOfRange(EncodingUtils.getSha256Bytes(ivBase.toByteArray()), 0, IV_LENGTH);
     }
 
     public static byte[] encryptHash(String encryptionKey, byte[] hash, byte[] iv) throws Exception {

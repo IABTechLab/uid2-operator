@@ -36,6 +36,7 @@ import com.uid2.shared.health.HealthManager;
 import com.uid2.shared.health.PodTerminationMonitor;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.config.MeterFilter;
@@ -68,6 +69,7 @@ import static io.micrometer.core.instrument.Metrics.globalRegistry;
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
+    // Startup timing field
     private static volatile Instant startupBeginTime;
 
     private final JsonObject config;
@@ -246,28 +248,29 @@ public class Main {
         return new KeyManager(this.keysetKeyStore, this.keysetProvider);
     }
 
+    /**
+     * Calculate startup duration following established codebase patterns.
+     * @return Duration from startup begin to completion, or null if timing data is invalid
+     */
     private static Duration getStartupDuration() {
-        return startupBeginTime != null ? Duration.between(startupBeginTime, Instant.now()) : null;
+        if (startupBeginTime == null) {
+            return null;
+        }
+        return Duration.between(startupBeginTime, Instant.now());
     }
 
     public static void recordStartupComplete() {
-        final Duration startupDuration = getStartupDuration();
-        final String version = Optional.ofNullable(System.getenv("IMAGE_VERSION")).orElse("unknown");
-        final double durationSeconds = startupDuration != null ? startupDuration.toMillis() / 1000.0 : -1.0;
-        
-        Gauge.builder("uid2_operator_startup_duration_seconds", () -> durationSeconds)
-                .description("Time taken for operator to start up and begin serving requests")
-                .tags("version", version)
-                .register(globalRegistry);
-                
-        if (startupDuration != null) {
-            LOGGER.info("Operator startup completed in {} seconds", String.format("%.3f", durationSeconds));
-        } else {
-            LOGGER.warn("Operator startup completed but timing measurement failed");
-        }
+        final Duration d = getStartupDuration();
+        if (d == null) return;
+        Timer
+            .builder("uid2_operator_startup_duration")
+            .register(globalRegistry)
+            .record(d);
+        LOGGER.info("Operator startup completed in {} seconds", String.format("%.3f", d.toMillis() / 1000.0));
     }
 
     public static void main(String[] args) throws Exception {
+        // Record startup begin time following established patterns
         startupBeginTime = Instant.now();
 
         java.security.Security.setProperty("networkaddress.cache.ttl" , "60");

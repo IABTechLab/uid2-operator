@@ -578,7 +578,6 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                 return this;
             }
 
-            final long optoutLoadingStart = System.currentTimeMillis();
             IndexUpdateContext iuc = IndexUpdateContext.fromMessage(ium);
 
             // load all partition files
@@ -603,7 +602,6 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                 }
                 iuc.addLoadedDelta(filePath, data);
             }
-
 
             return this.updateIndexInternal(iuc);
         }

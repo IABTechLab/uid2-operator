@@ -596,22 +596,14 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             List<String> addDeltaFiles = ium.getDeltasToAdd();
             for (String filePath : addDeltaFiles) {
                 LOGGER.trace("Reading optout delta file : " + filePath);
-                final long fileStart = System.currentTimeMillis();
                 byte[] data = loadFile(filePath);
-                final long fileEnd = System.currentTimeMillis();
                 if (data.length == 0) {
                     LOGGER.warn("OptOut delta file is empty: " + filePath);
                     continue;
                 }
-                LOGGER.trace("OptOut delta file {} loaded in {} ms, {} bytes", filePath, fileEnd - fileStart, data.length);
                 iuc.addLoadedDelta(filePath, data);
             }
 
-            final long optoutLoadingEnd = System.currentTimeMillis();
-            final int totalPartitionFiles = ium.getPartitionsToAdd().size();
-            final int totalDeltaFiles = addDeltaFiles.size();
-            LOGGER.info("OptOut files loading completed in {} ms, {} partition files, {} delta files", 
-                    optoutLoadingEnd - optoutLoadingStart, totalPartitionFiles, totalDeltaFiles);
 
             return this.updateIndexInternal(iuc);
         }

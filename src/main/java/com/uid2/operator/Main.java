@@ -69,9 +69,7 @@ import static io.micrometer.core.instrument.Metrics.globalRegistry;
 public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
-    // Startup timing field
     private static volatile Instant startupBeginTime;
-
     private final JsonObject config;
     private final Vertx vertx;
     private final ApplicationVersion appVersion;
@@ -248,25 +246,11 @@ public class Main {
         return new KeyManager(this.keysetKeyStore, this.keysetProvider);
     }
 
-    /**
-     * Calculate startup duration following established codebase patterns.
-     * @return Duration from startup begin to completion, or null if timing data is invalid
-     */
-    private static Duration getStartupDuration() {
-        if (startupBeginTime == null) {
-            return null;
-        }
-        return Duration.between(startupBeginTime, Instant.now());
-    }
-
     public static void recordStartupComplete() {
-        final Duration d = getStartupDuration();
-        if (d == null) return;
-        Timer
-            .builder("uid2_operator_startup_duration")
-            .register(globalRegistry)
-            .record(d);
-        LOGGER.info("Operator startup completed in {} seconds", String.format("%.3f", d.toMillis() / 1000.0));
+        if (startupBeginTime == null) return;
+        final Duration d = Duration.between(startupBeginTime, Instant.now());
+        Timer.builder("uid2_operator_startup_duration").register(globalRegistry).record(d);
+        LOGGER.info("Startup in {} ms", d.toMillis());
     }
 
     public static void main(String[] args) throws Exception {

@@ -254,7 +254,6 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        // Record startup begin time following established patterns
         startupBeginTime = Instant.now();
 
         java.security.Security.setProperty("networkaddress.cache.ttl" , "60");

@@ -584,14 +584,11 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             // load all partition files
             for (String filePath : ium.getPartitionsToAdd()) {
                 LOGGER.info("Reading optout partition file : " + filePath);
-                final long fileStart = System.currentTimeMillis();
                 byte[] data = this.loadFile(filePath);
-                final long fileEnd = System.currentTimeMillis();
                 if (data.length == 0) {
                     LOGGER.warn("OptOut partition file is empty: " + filePath);
                     continue;
                 }
-                LOGGER.info("OptOut partition file {} loaded in {} ms, {} bytes", filePath, fileEnd - fileStart, data.length);
                 iuc.addLoadedPartition(filePath, data);
             }
 

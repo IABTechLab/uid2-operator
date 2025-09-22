@@ -28,7 +28,7 @@ class V4TokenUtilsTest {
 
         byte extractedMetadata = v4UID[0];
         byte[] keyIdBytes = Arrays.copyOfRange(v4UID, 1, 4);
-        int extractedKeyId = (keyIdBytes[0] & 0xFF) | ((keyIdBytes[1] & 0xFF) << 8) | ((keyIdBytes[2] & 0xFF) << 16);
+        int extractedKeyId = ((keyIdBytes[0] & 0xFF) << 16) | ((keyIdBytes[1] & 0xFF) << 8) | (keyIdBytes[2] & 0xFF);
         byte[] extractedIV = Arrays.copyOfRange(v4UID, 4, 16);
         byte[] extractedEncryptedHash = Arrays.copyOfRange(v4UID, 16, 32);
         byte extractedChecksum = v4UID[32];

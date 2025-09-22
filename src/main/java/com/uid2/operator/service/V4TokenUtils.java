@@ -4,7 +4,6 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import io.vertx.core.buffer.Buffer;
-
 import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 
@@ -14,6 +13,14 @@ public final class V4TokenUtils {
     private V4TokenUtils() {
     }
 
+    private static byte[] getKeyIdBytes(int keyId) {
+        return new byte[] {
+                (byte) ((keyId >> 16) & 0xFF),   // MSB
+                (byte) ((keyId >> 8) & 0xFF),    // Middle
+                (byte) (keyId & 0xFF),           // LSB
+        };
+    }
+
     public static byte[] buildAdvertisingIdV4(byte metadata, byte[] firstLevelHash, int keyId, String key, String salt) throws Exception {
         byte[] firstLevelHashLast16Bytes = Arrays.copyOfRange(firstLevelHash, firstLevelHash.length - 16, firstLevelHash.length);
         byte[] iv = V4TokenUtils.generateIV(salt, firstLevelHashLast16Bytes, metadata, keyId);
@@ -21,11 +28,7 @@ public final class V4TokenUtils {
 
         Buffer buffer = Buffer.buffer();
         buffer.appendByte(metadata);
-        buffer.appendBytes(new byte[] {
-                (byte) (keyId & 0xFF),           // LSB
-                (byte) ((keyId >> 8) & 0xFF),    // Middle
-                (byte) ((keyId >> 16) & 0xFF)    // MSB
-        });
+        buffer.appendBytes(getKeyIdBytes(keyId));
         buffer.appendBytes(iv);
         buffer.appendBytes(encryptedFirstLevelHash);
 
@@ -40,7 +43,7 @@ public final class V4TokenUtils {
         ivBase.write(salt.getBytes());
         ivBase.write(firstLevelHashLast16Bytes);
         ivBase.write(metadata);
-        ivBase.write(keyId);
+        ivBase.write(getKeyIdBytes(keyId));
         return Arrays.copyOfRange(EncodingUtils.getSha256Bytes(ivBase.toByteArray()), 0, IV_LENGTH);
     }
 

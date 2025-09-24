@@ -3,6 +3,7 @@ package com.uid2.operator.vertx;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uid2.operator.Const;
+import com.uid2.operator.Main;
 import com.uid2.operator.model.*;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
@@ -115,6 +116,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<String, Counter> _tokenGenerateTCFUsage = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
+    private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersions = new HashMap<>();
 
     private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
     private final IdentityScope identityScope;
@@ -218,6 +220,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .listen(port, result -> {
                     if (result.succeeded()) {
                         this.healthComponent.setHealthStatus(true);
+                        // Record startup completion now that HTTP server is ready
+                        Main.recordStartupComplete();
                         startPromise.complete();
                     } else {
                         this.healthComponent.setHealthStatus(false, result.cause().getMessage());
@@ -788,12 +792,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private static final Map<Tuple.Tuple2<String, String>, Counter> CLIENT_VERSION_COUNTERS = new HashMap<>();
     private void recordOperatorServedSdkUsage(RoutingContext rc, Integer siteId, String apiContact, String clientVersion) {
         if (siteId != null && apiContact != null && clientVersion != null) {
             final String path = RoutingContextUtil.getPath(rc);
 
-            CLIENT_VERSION_COUNTERS.computeIfAbsent(
+            _clientVersions.computeIfAbsent(
                     new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion),
                     tuple -> Counter
                             .builder("uid2_client_sdk_versions_total")

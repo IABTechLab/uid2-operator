@@ -114,6 +114,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<String, Counter> _tokenGenerateTCFUsage = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
+    private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersions = new HashMap<>();
 
     private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
     private final IdentityScope identityScope;
@@ -799,12 +800,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private static final Map<Tuple.Tuple2<String, String>, Counter> CLIENT_VERSION_COUNTERS = new HashMap<>();
     private void recordOperatorServedSdkUsage(RoutingContext rc, Integer siteId, String apiContact, String clientVersion) {
         if (siteId != null && apiContact != null && clientVersion != null) {
             final String path = RoutingContextUtil.getPath(rc);
 
-            CLIENT_VERSION_COUNTERS.computeIfAbsent(
+            _clientVersions.computeIfAbsent(
                     new Tuple.Tuple2<>(Integer.toString(siteId), clientVersion),
                     tuple -> Counter
                             .builder("uid2_client_sdk_versions_total")

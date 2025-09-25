@@ -113,7 +113,7 @@ public class Main {
         this.useRemoteConfig = config.getBoolean(EnableRemoteConfigProp, false);
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
-        this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
+        this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, true);
         this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC(), new ShutdownService());
         this.uidInstanceIdProvider = new UidInstanceIdProvider(config);
 

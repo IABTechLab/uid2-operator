@@ -87,6 +87,17 @@
       path: /opt/uid2operator/ec2.py
       mode: '0755'
 
+  - name: Install autoupdate script
+    ansible.builtin.copy:
+      src: /tmp/artifacts/autoupdate.py
+      dest: /opt/uid2operator/autoupdate.py
+      remote_src: yes
+
+  - name: Make autoupdate script executable
+    ansible.builtin.file:
+      path: /opt/uid2operator/autoupdate.py
+      mode: '0755'
+
   - name: Copy confidential_compute script
     ansible.builtin.copy:
       src: /tmp/artifacts/confidential_compute.py
@@ -228,6 +239,13 @@
       src: /tmp/artifacts/logrotateDaily
       dest: /etc/cron.daily/logrotate
       mode: 0700
+      remote_src: yes
+
+  - name: Run autoupdate under cron.d
+    ansible.builtin.copy:
+      src: /tmp/artifacts/autoupdate
+      dest: /etc/cron.d/autoupdate
+      mode: 0644
       remote_src: yes
 
   - name: Ensure syslog-ng is enabled at boot

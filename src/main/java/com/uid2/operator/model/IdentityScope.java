@@ -6,23 +6,29 @@ public enum IdentityScope {
     UID2(0),
     EUID(1);
 
-    public final int value;
+    private final int value;
 
-    IdentityScope(int value) { this.value = value; }
+    IdentityScope(int value) {
+        this.value = value;
+    }
+
+    public int getValue() {
+        return value;
+    }
 
     public static IdentityScope fromValue(int value) {
-        switch (value) {
-            case 0: return UID2;
-            case 1: return EUID;
-            default: throw new ClientInputValidationException("Invalid value for IdentityScope: " + value);
-        }
+        return switch (value) {
+            case 0 -> UID2;
+            case 1 -> EUID;
+            default -> throw new ClientInputValidationException("Invalid value for IdentityScope: " + value);
+        };
     }
 
     public static IdentityScope fromString(String str) {
-        switch (str.toLowerCase()) {
-            case "uid2": return UID2;
-            case "euid": return EUID;
-            default: throw new ClientInputValidationException("Invalid string for IdentityScope: " + str);
-        }
+        return switch (str.toLowerCase()) {
+            case "uid2" -> UID2;
+            case "euid" -> EUID;
+            default -> throw new ClientInputValidationException("Invalid string for IdentityScope: " + str);
+        };
     }
 }

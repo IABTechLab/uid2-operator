@@ -10,6 +10,8 @@ import com.uid2.shared.model.TokenVersion;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -23,6 +25,7 @@ import static com.uid2.operator.IdentityConst.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 public class UIDOperatorService implements IUIDOperatorService {
+    public static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
     public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
@@ -110,7 +113,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public RefreshResponse refreshIdentity(RefreshToken token, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter, IdentityEnvironment env) {
         this.validateTokenDurations(refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
-        // should not be possible as different scopes should be using different keys, but just in case
+        // should not be possible as different scopes/environments should be using different keys, but just in case
         if (token.userIdentity.identityScope != this.identityScope) {
             return RefreshResponse.Invalid;
         }
@@ -180,7 +183,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, IdentityEnvironment env,  Handler<AsyncResult<Instant>> handler) {
+    public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, IdentityEnvironment env, Handler<AsyncResult<Instant>> handler) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
         final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf, env);
 
@@ -202,12 +205,6 @@ public class UIDOperatorService implements IUIDOperatorService {
         return Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id);
     }
 
-    @Override
-    public Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf) {
-        final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        return this.optOutStore.getLatestEntry(firstLevelHashIdentity);
-    }
-
     private UserIdentity getFirstLevelHashIdentity(UserIdentity userIdentity, Instant asOf) {
         return getFirstLevelHashIdentity(userIdentity.identityScope, userIdentity.identityType, userIdentity.id, asOf);
     }
@@ -223,8 +220,8 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private MappedIdentity getMappedIdentity(UserIdentity firstLevelHashIdentity, Instant asOf, IdentityEnvironment env) {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
-        final byte[] advertisingId = getAdvertisingId(firstLevelHashIdentity, rotatingSalt.currentSalt());
-        final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHashIdentity, rotatingSalt, asOf);
+        final byte[] advertisingId = getAdvertisingId(firstLevelHashIdentity, rotatingSalt.currentSalt(), rotatingSalt.currentKeySalt(), env);
+        final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHashIdentity, rotatingSalt, asOf, env);
         final long refreshFrom = getRefreshFrom(rotatingSalt, asOf);
 
         return new MappedIdentity(
@@ -234,19 +231,32 @@ public class UIDOperatorService implements IUIDOperatorService {
                 refreshFrom);
     }
 
-    private byte[] getAdvertisingId(UserIdentity firstLevelHashIdentity, String salt) {
-        return rawUidV3Enabled
-                ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, salt)
-                : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, salt);
-    }
-
-    private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf) {
-        long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
-        if (age / DAY_IN_MS < 90) {
-            if (rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isBlank()) {
+    private byte[] getAdvertisingId(UserIdentity firstLevelHashIdentity, String salt, SaltEntry.KeyMaterial key, IdentityEnvironment env) {
+        if (salt != null) {
+            return rawUidV3Enabled
+                    ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, salt)
+                    : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, salt);
+        } else {
+            try {
+                return TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, env, firstLevelHashIdentity.id, key);
+            } catch (Exception e) {
+                LOGGER.error("Exception when generating V4 advertising ID", e);
                 return null;
             }
-            return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt());
+        }
+    }
+
+    private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf, IdentityEnvironment env) {
+        long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
+        if (age / DAY_IN_MS < 90) {
+            boolean missingSalt = rotatingSalt.previousSalt() == null;
+            boolean missingKey = rotatingSalt.previousKeySalt() == null
+                    || rotatingSalt.previousKeySalt().key() == null || rotatingSalt.previousKeySalt().salt() == null;
+
+            if (missingSalt && missingKey) {
+                return null;
+            }
+            return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt(), rotatingSalt.previousKeySalt(), env);
         }
         return null;
     }
@@ -288,12 +298,12 @@ public class UIDOperatorService implements IUIDOperatorService {
         return new AdvertisingToken(TokenVersion.V4, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
     }
 
-    static protected class GlobalOptoutResult {
+    protected static class GlobalOptoutResult {
         private final boolean isOptedOut;
-        //can be null if isOptedOut is false!
+        // can be null if isOptedOut is false!
         private final Instant time;
 
-        //providedTime can be null if isOptedOut is false!
+        // providedTime can be null if isOptedOut is false!
         GlobalOptoutResult(Instant providedTime) {
             isOptedOut = providedTime != null;
             time = providedTime;

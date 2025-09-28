@@ -25,6 +25,7 @@ USER uid2-operator
 
 CMD java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal -XX:-OmitStackTraceInFastThrow \
+    -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints \
     -Djava.security.egd=file:/dev/./urandom \
     -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
     -Dlogback.configurationFile=/app/conf/logback.xml \

@@ -1,5 +1,5 @@
 # sha from https://hub.docker.com/layers/amd64/eclipse-temurin/21.0.7_6-jre-alpine-3.21/images/sha256-62fa775039897e4420368514ba6c167741f6d45a0de9ff9125bee57e5aca8b75
-FROM eclipse-temurin@sha256:62fa775039897e4420368514ba6c167741f6d45a0de9ff9125bee57e5aca8b75
+FROM eclipse-temurin@sha256:6cce70eb218d6d3622739bbf607c8d135ea31b28fdc53182fcbdb1ae0429c452
 
 WORKDIR /app
 EXPOSE 8080
@@ -25,6 +25,7 @@ USER uid2-operator
 
 CMD java \
     -XX:MaxRAMPercentage=95 -XX:-UseCompressedOops -XX:+PrintFlagsFinal -XX:-OmitStackTraceInFastThrow \
+    -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints \
     -Djava.security.egd=file:/dev/./urandom \
     -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory \
     -Dlogback.configurationFile=/app/conf/logback.xml \

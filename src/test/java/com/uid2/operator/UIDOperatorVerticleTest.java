@@ -680,11 +680,11 @@ public class UIDOperatorVerticleTest {
         assertEquals(1, actual);
     }
 
-    private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry salt, boolean useV4Uid, boolean usePrevUid) throws Exception {
-        if (useV4Uid) {
-            return getAdvertisingIdFromIdentity(identityType, identityString, firstLevelSalt, usePrevUid ? salt.previousKeySalt() : salt.currentKeySalt());
+    private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry salt, boolean getV4Uid, boolean getPrevUid) throws Exception {
+        if (getV4Uid) {
+            return getAdvertisingIdFromIdentity(identityType, identityString, firstLevelSalt, getPrevUid ? salt.previousKeySalt() : salt.currentKeySalt());
         } else {
-            return getAdvertisingIdFromIdentity(identityType, identityString, firstLevelSalt, usePrevUid ? salt.previousSalt() : salt.currentSalt());
+            return getAdvertisingIdFromIdentity(identityType, identityString, firstLevelSalt, getPrevUid ? salt.previousSalt() : salt.currentSalt());
         }
     }
 

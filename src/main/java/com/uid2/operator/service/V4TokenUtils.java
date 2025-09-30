@@ -5,9 +5,17 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import io.vertx.core.buffer.Buffer;
 import java.io.ByteArrayOutputStream;
+import java.security.GeneralSecurityException;
 import java.util.Arrays;
 
 public final class V4TokenUtils {
+    private static final ThreadLocal<Cipher> CIPHER = ThreadLocal.withInitial(() -> {
+        try {
+            return Cipher.getInstance("AES/CTR/NoPadding");
+        } catch (GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        }
+    });
     private static final int IV_LENGTH = 12;
 
     private V4TokenUtils() {
@@ -49,7 +57,7 @@ public final class V4TokenUtils {
 
     public static byte[] encryptHash(String encryptionKey, byte[] hash, byte[] iv) throws Exception {
         // Set up AES256-CTR cipher
-        Cipher aesCtr = Cipher.getInstance("AES/CTR/NoPadding");
+        Cipher aesCtr = CIPHER.get();
         SecretKeySpec secretKey = new SecretKeySpec(encryptionKey.getBytes(), "AES");
         IvParameterSpec ivSpec = new IvParameterSpec(padIV16Bytes(iv));
 

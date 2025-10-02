@@ -117,6 +117,7 @@ public class KeyManager {
             if (keyAvailabilityHandler != null) keyAvailabilityHandler.accept(false);
             throw new NoActiveKeyException(String.format("Cannot get a master key with keyset ID %d.", Const.Data.MasterKeysetId));
         }
+        if (keyAvailabilityHandler != null) keyAvailabilityHandler.accept(true);
         return key;
     }
 
@@ -130,6 +131,7 @@ public class KeyManager {
             if (keyAvailabilityHandler != null) keyAvailabilityHandler.accept(false);
             throw new NoActiveKeyException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
         }
+        if (keyAvailabilityHandler != null) keyAvailabilityHandler.accept(true);
         return key;
     }
 

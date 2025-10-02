@@ -190,7 +190,7 @@ public class OperatorShutdownHandlerTest {
         Assertions.assertAll("Keyset Key Failure Log Messages",
                 () -> verify(shutdownService).Shutdown(1),
                 () -> Assertions.assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("keyset keys sync failing")),
-                () -> Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("keyset keys have been in failed state for too long. shutting down operator")),
+                () -> Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("keyset keys have been failing to sync for too long. shutting down operator")),
                 () -> Assertions.assertEquals(3, logWatcher.list.size()));
 
         testContext.completeNow();

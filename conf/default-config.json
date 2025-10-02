@@ -37,7 +37,6 @@
   "optout_inmem_cache": false,
   "enclave_platform": null,
   "failure_shutdown_wait_hours": 120,
-  "keyset_key_shutdown_hours": 2,
   "sharing_token_expiry_seconds": 2592000,
   "operator_type": "public",
   "enable_remote_config": true,

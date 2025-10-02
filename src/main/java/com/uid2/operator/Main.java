@@ -114,7 +114,7 @@ public class Main {
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
         this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
-        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Duration.ofHours(config.getInteger(Const.Config.KeysetKeyShutdownHours, 2)), Clock.systemUTC(), new ShutdownService());
+        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Duration.ofHours(2), Clock.systemUTC(), new ShutdownService());
         this.uidInstanceIdProvider = new UidInstanceIdProvider(config);
 
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);

@@ -26,7 +26,7 @@
   "clients_metadata_path": "clients/metadata.json",
   "client_side_keypairs_metadata_path": "client_side_keypairs/metadata.json",
   "keysets_metadata_path": "keysets/metadata.json",
-  "keyset_keys_metadata_path": "keyset_keys/metadata.json",
+  "keyset_keys_metadata_path": "keyset_keys-invalid/metadata.json",
   "salts_metadata_path": "salts/metadata.json",
   "services_metadata_path": "services/metadata.json",
   "service_links_metadata_path": "service_links/metadata.json",

@@ -22,7 +22,6 @@ public class KeyManager {
     private final RotatingKeysetProvider keysetProvider;
     private final Consumer<Boolean> keyAvailabilityHandler;
 
-    // Backward compatible constructor for tests
     public KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider) {
         this(keysetKeyStore, keysetProvider, null);
     }

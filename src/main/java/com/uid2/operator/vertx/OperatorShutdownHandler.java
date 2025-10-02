@@ -27,6 +27,11 @@ public class OperatorShutdownHandler {
     private final Clock clock;
     private final ShutdownService shutdownService;
 
+    // Backward compatible constructor for tests (default 2 hours for keyset key shutdown)
+    public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
+        this(attestShutdownWaitTime, saltShutdownWaitTime, Duration.ofHours(2), clock, shutdownService);
+    }
+    
     public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime, Duration keysetKeyShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
         this.attestShutdownWaitTime = attestShutdownWaitTime;
         this.saltShutdownWaitTime = saltShutdownWaitTime;

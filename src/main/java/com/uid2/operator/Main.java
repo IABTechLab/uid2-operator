@@ -243,8 +243,7 @@ public class Main {
     }
 
     private KeyManager getKeyManager() {
-        return new KeyManager(this.keysetKeyStore, this.keysetProvider, 
-            hasKeys -> shutdownHandler.handleKeysetKeyRefreshResponse(hasKeys));
+        return new KeyManager(this.keysetKeyStore, this.keysetProvider, this.shutdownHandler::handleKeysetKeyRefreshResponse);
     }
 
     public static void recordStartupComplete() {

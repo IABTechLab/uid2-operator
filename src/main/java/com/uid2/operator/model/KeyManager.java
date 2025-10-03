@@ -117,7 +117,11 @@ public class KeyManager {
     }
 
     public KeysetKey getRefreshKey(Instant asOf) {
-        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.RefreshKeysetId, asOf);
+        // TEMPORARY: Simulate keyset key unavailability to reproduce Univision issue
+        KeysetKey key = null; // Force key to be null to trigger NoActiveKeyException
+        
+        // Original line commented out:
+        // KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.RefreshKeysetId, asOf);
         if (key == null) {
             throw new NoActiveKeyException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
         }

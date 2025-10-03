@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class KeyManager {
-    private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KeyManager.class);
     private final IKeysetKeyStore keysetKeyStore;
     private final RotatingKeysetProvider keysetProvider;
 
@@ -75,7 +75,6 @@ public class KeyManager {
     public KeysetKey getKey(int keyId) {
         return this.keysetKeyStore.getSnapshot().getKey(keyId);
     }
-
 
     public List<KeysetKey> getKeysForSharingOrDsps() {
         Map<Integer, Keyset> keysetMap = this.keysetProvider.getSnapshot().getAllKeysets();

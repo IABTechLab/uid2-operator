@@ -9,6 +9,10 @@
         </encoder>
     </appender>
 
+    <logger name="com.uid2.shared.vertx.RotatingStoreVerticle" level="TRACE"/>
+    <logger name="com.uid2.shared.attest.UidCoreClient" level="DEBUG"/>
+    <logger name="com.uid2.shared.store" level="DEBUG"/>
+    
     <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>

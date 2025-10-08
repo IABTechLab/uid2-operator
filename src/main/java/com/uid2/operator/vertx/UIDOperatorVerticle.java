@@ -1462,7 +1462,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .tags("site_id", siteId)
                 .tags("refresh_token_version", tokenVersion.toString().toLowerCase())
                 .register(Metrics.globalRegistry).increment();
-
     }
 
     private RefreshResponse refreshIdentity(RoutingContext rc, String tokenStr) {

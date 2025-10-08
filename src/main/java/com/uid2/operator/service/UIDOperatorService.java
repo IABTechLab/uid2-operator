@@ -7,6 +7,8 @@ import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.salt.ISaltProvider;
 import com.uid2.shared.model.TokenVersion;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -26,6 +28,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 public class UIDOperatorService implements IUIDOperatorService {
     public static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
+
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
     public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
@@ -232,18 +235,35 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private byte[] getAdvertisingId(UserIdentity firstLevelHashIdentity, String salt, SaltEntry.KeyMaterial key, IdentityEnvironment env) {
+        byte[] advertisingId;
+
         if (salt != null) {
-            return rawUidV3Enabled
-                    ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, salt)
-                    : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, salt);
+            if (rawUidV3Enabled) {
+                advertisingId = TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, salt);
+                incrementAdvertisingIdVersionCounter("v3");
+            } else {
+                advertisingId = TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, salt);
+                incrementAdvertisingIdVersionCounter("v2");
+            }
         } else {
             try {
-                return TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, env, firstLevelHashIdentity.id, key);
+                advertisingId = TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, env, firstLevelHashIdentity.id, key);
+                incrementAdvertisingIdVersionCounter("v4");
             } catch (Exception e) {
                 LOGGER.error("Exception when generating V4 advertising ID", e);
-                return null;
+                advertisingId = null;
             }
         }
+
+        return advertisingId;
+    }
+
+    private void incrementAdvertisingIdVersionCounter(String version) {
+        Counter.builder("uid2_raw_uid_version_total")
+                .description("counter for raw UID version")
+                .tag("version", version)
+                .register(Metrics.globalRegistry)
+                .increment();
     }
 
     private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf, IdentityEnvironment env) {

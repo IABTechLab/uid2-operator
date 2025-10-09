@@ -252,13 +252,8 @@ public class UIDOperatorService implements IUIDOperatorService {
                 incrementAdvertisingIdVersionCounter(IdentityVersion.V2);
             }
         } else {
-            try {
-                advertisingId = TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, env, firstLevelHashIdentity.id, key);
-                incrementAdvertisingIdVersionCounter(IdentityVersion.V4);
-            } catch (Exception e) {
-                LOGGER.error("Exception when generating V4 advertising ID", e);
-                advertisingId = null;
-            }
+            advertisingId = TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, env, firstLevelHashIdentity.id, key);
+            incrementAdvertisingIdVersionCounter(IdentityVersion.V4);
         }
 
         return advertisingId;

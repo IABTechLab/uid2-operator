@@ -29,21 +29,25 @@ public final class V4TokenUtils {
         };
     }
 
-    public static byte[] buildAdvertisingIdV4(byte metadata, byte[] firstLevelHash, int keyId, String key, String salt) throws Exception {
-        byte[] firstLevelHashLast16Bytes = Arrays.copyOfRange(firstLevelHash, firstLevelHash.length - 16, firstLevelHash.length);
-        byte[] iv = V4TokenUtils.generateIV(salt, firstLevelHashLast16Bytes, metadata, keyId);
-        byte[] encryptedFirstLevelHash = V4TokenUtils.encryptHash(key, firstLevelHashLast16Bytes, iv);
+    public static byte[] buildAdvertisingIdV4(byte metadata, byte[] firstLevelHash, int keyId, String key, String salt) {
+        try {
+            byte[] firstLevelHashLast16Bytes = Arrays.copyOfRange(firstLevelHash, firstLevelHash.length - 16, firstLevelHash.length);
+            byte[] iv = V4TokenUtils.generateIV(salt, firstLevelHashLast16Bytes, metadata, keyId);
+            byte[] encryptedFirstLevelHash = V4TokenUtils.encryptHash(key, firstLevelHashLast16Bytes, iv);
 
-        Buffer buffer = Buffer.buffer();
-        buffer.appendByte(metadata);
-        buffer.appendBytes(getKeyIdBytes(keyId));
-        buffer.appendBytes(iv);
-        buffer.appendBytes(encryptedFirstLevelHash);
+            Buffer buffer = Buffer.buffer();
+            buffer.appendByte(metadata);
+            buffer.appendBytes(getKeyIdBytes(keyId));
+            buffer.appendBytes(iv);
+            buffer.appendBytes(encryptedFirstLevelHash);
 
-        byte checksum = generateChecksum(buffer.getBytes());
-        buffer.appendByte(checksum);
+            byte checksum = generateChecksum(buffer.getBytes());
+            buffer.appendByte(checksum);
 
-        return buffer.getBytes();
+            return buffer.getBytes();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static byte[] generateIV(String salt, byte[] firstLevelHashLast16Bytes, byte metadata, int keyId) throws Exception {

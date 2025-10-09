@@ -58,16 +58,16 @@ public final class TokenUtils {
         return getAdvertisingIdV3(scope, type, getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), rotatingSalt);
     }
 
-    public static byte[] getAdvertisingIdV4(IdentityScope scope, IdentityType type, IdentityEnvironment environment, byte[] firstLevelHash, SaltEntry.KeyMaterial encryptingKey) throws Exception {
+    public static byte[] getAdvertisingIdV4(IdentityScope scope, IdentityType type, IdentityEnvironment environment, byte[] firstLevelHash, SaltEntry.KeyMaterial encryptingKey) {
         byte metadata = encodeV4Metadata(scope, type, environment);
         return V4TokenUtils.buildAdvertisingIdV4(metadata, firstLevelHash, encryptingKey.id(), encryptingKey.key(), encryptingKey.salt());
     }
 
-    public static byte[] getAdvertisingIdV4FromIdentity(IdentityScope scope, IdentityType type, IdentityEnvironment environment, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial encryptingKey) throws Exception {
+    public static byte[] getAdvertisingIdV4FromIdentity(IdentityScope scope, IdentityType type, IdentityEnvironment environment, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial encryptingKey) {
         return getAdvertisingIdV4(scope, type, environment, getFirstLevelHashFromIdentity(identityString, firstLevelSalt), encryptingKey);
     }
 
-    public static byte[] getAdvertisingIdV4FromIdentityHash(IdentityScope scope, IdentityType type, IdentityEnvironment environment, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial encryptingKey) throws Exception {
+    public static byte[] getAdvertisingIdV4FromIdentityHash(IdentityScope scope, IdentityType type, IdentityEnvironment environment, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial encryptingKey) {
         return getAdvertisingIdV4(scope, type, environment, getFirstLevelHashFromIdentityHash(identityString, firstLevelSalt), encryptingKey);
     }
 

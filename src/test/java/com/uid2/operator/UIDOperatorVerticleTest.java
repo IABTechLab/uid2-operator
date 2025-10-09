@@ -507,14 +507,10 @@ public class UIDOperatorVerticleTest {
             String expectedIdentifier = expectedIdentifiers[i];
             JsonObject actualMap = mapped.getJsonObject(i);
             assertEquals(expectedIdentifier, actualMap.getString("identifier"));
-            try {
-                if (useHash) {
-                    assertEquals(EncodingUtils.toBase64String(getAdvertisingIdFromIdentityHash(identityType, expectedIdentifier, firstLevelSalt, salt, useV4Uid, false)), actualMap.getString("advertising_id"));
-                } else {
-                    assertEquals(EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(identityType, expectedIdentifier, firstLevelSalt, salt, useV4Uid, false)), actualMap.getString("advertising_id"));
-                }
-            } catch (Exception e) {
-                org.junit.jupiter.api.Assertions.fail(e.getMessage());
+            if (useHash) {
+                assertEquals(EncodingUtils.toBase64String(getAdvertisingIdFromIdentityHash(identityType, expectedIdentifier, firstLevelSalt, salt, useV4Uid, false)), actualMap.getString("advertising_id"));
+            } else {
+                assertEquals(EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(identityType, expectedIdentifier, firstLevelSalt, salt, useV4Uid, false)), actualMap.getString("advertising_id"));
             }
             assertFalse(actualMap.getString("bucket_id").isEmpty());
         }
@@ -680,7 +676,7 @@ public class UIDOperatorVerticleTest {
         assertEquals(1, actual);
     }
 
-    private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry salt, boolean getV4Uid, boolean getPrevUid) throws Exception {
+    private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry salt, boolean getV4Uid, boolean getPrevUid) {
         if (getV4Uid) {
             return getAdvertisingIdFromIdentity(identityType, identityString, firstLevelSalt, getPrevUid ? salt.previousKeySalt() : salt.currentKeySalt());
         } else {
@@ -692,7 +688,7 @@ public class UIDOperatorVerticleTest {
         return getRawUid(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt, useRawUidV3());
     }
 
-    private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial rotatingKey) throws Exception {
+    private byte[] getAdvertisingIdFromIdentity(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial rotatingKey) {
         return getRawUidV4(getIdentityScope(), identityType, IdentityEnvironment.TEST, identityString, firstLevelSalt, rotatingKey);
     }
 
@@ -708,11 +704,11 @@ public class UIDOperatorVerticleTest {
                 : TokenUtils.getAdvertisingIdV3FromIdentity(identityScope, identityType, identityString, firstLevelSalt, rotatingSalt123.currentSalt());
     }
 
-    public static byte[] getRawUidV4(IdentityScope identityScope, IdentityType identityType, IdentityEnvironment identityEnvironment, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial rotatingKey) throws Exception {
+    public static byte[] getRawUidV4(IdentityScope identityScope, IdentityType identityType, IdentityEnvironment identityEnvironment, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial rotatingKey) {
         return TokenUtils.getAdvertisingIdV4FromIdentity(identityScope, identityType, identityEnvironment, identityString, firstLevelSalt, rotatingKey);
     }
 
-    private byte[] getAdvertisingIdFromIdentityHash(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry salt, boolean useV4Uid, boolean usePrevUid) throws Exception {
+    private byte[] getAdvertisingIdFromIdentityHash(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry salt, boolean useV4Uid, boolean usePrevUid) {
         if (useV4Uid) {
             return getAdvertisingIdFromIdentityHash(identityType, identityString, firstLevelSalt, usePrevUid ? salt.previousKeySalt() : salt.currentKeySalt());
         } else {
@@ -726,7 +722,7 @@ public class UIDOperatorVerticleTest {
                 : TokenUtils.getAdvertisingIdV3FromIdentityHash(getIdentityScope(), identityType, identityString, firstLevelSalt, rotatingSalt);
     }
 
-    private byte[] getAdvertisingIdFromIdentityHash(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial rotatingKey) throws Exception {
+    private byte[] getAdvertisingIdFromIdentityHash(IdentityType identityType, String identityString, String firstLevelSalt, SaltEntry.KeyMaterial rotatingKey) {
         return TokenUtils.getAdvertisingIdV4FromIdentityHash(getIdentityScope(), identityType, IdentityEnvironment.TEST, identityString, firstLevelSalt, rotatingKey);
     }
 
@@ -1180,29 +1176,23 @@ public class UIDOperatorVerticleTest {
             assertEquals(1, mappedPhoneHash.size());
             JsonObject mappedPhoneHashExpected;
 
-            try {
-                mappedEmailExpected1 = JsonObject.of(
-                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt, useV4Uid, false)),
-                        "p", useV4PrevUid == null ? null : EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt, useV4PrevUid, true)),
-                        "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
-                );
+            mappedEmailExpected1 = JsonObject.of(
+                    "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt, useV4Uid, false)),
+                    "p", useV4PrevUid == null ? null : EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test1@uid2.com", firstLevelSalt, salt, useV4PrevUid, true)),
+                    "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
+            );
 
-                mappedEmailExpected2 = JsonObject.of(
-                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test2@uid2.com", firstLevelSalt, salt, useV4Uid, false)),
-                        "p", useV4PrevUid == null ? null : EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test2@uid2.com", firstLevelSalt, salt, useV4PrevUid, true)),
-                        "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
-                );
+            mappedEmailExpected2 = JsonObject.of(
+                    "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test2@uid2.com", firstLevelSalt, salt, useV4Uid, false)),
+                    "p", useV4PrevUid == null ? null : EncodingUtils.toBase64String(getAdvertisingIdFromIdentity(IdentityType.Email, "test2@uid2.com", firstLevelSalt, salt, useV4PrevUid, true)),
+                    "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
+            );
 
-                mappedPhoneHashExpected = JsonObject.of(
-                        "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentityHash(IdentityType.Phone, phoneHash, firstLevelSalt, salt, useV4Uid, false)),
-                        "p", useV4PrevUid == null ? null : EncodingUtils.toBase64String(getAdvertisingIdFromIdentityHash(IdentityType.Phone, phoneHash, firstLevelSalt, salt, useV4PrevUid, true)),
-                        "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
-                );
-            } catch (Exception e) {
-                org.junit.jupiter.api.Assertions.fail(e.getMessage());
-                testContext.failNow(e);
-                return;
-            }
+            mappedPhoneHashExpected = JsonObject.of(
+                    "u", EncodingUtils.toBase64String(getAdvertisingIdFromIdentityHash(IdentityType.Phone, phoneHash, firstLevelSalt, salt, useV4Uid, false)),
+                    "p", useV4PrevUid == null ? null : EncodingUtils.toBase64String(getAdvertisingIdFromIdentityHash(IdentityType.Phone, phoneHash, firstLevelSalt, salt, useV4PrevUid, true)),
+                    "r", Instant.ofEpochMilli(salt.refreshFrom()).getEpochSecond()
+            );
             assertEquals(mappedEmailExpected1, mappedEmails.getJsonObject(0));
             assertEquals(mappedEmailExpected2, mappedEmails.getJsonObject(1));
             assertEquals(mappedPhoneHashExpected, mappedPhoneHash.getJsonObject(0));
@@ -1658,13 +1648,7 @@ public class UIDOperatorVerticleTest {
                     assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
                     assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-                    try {
-                        assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt, useV4Uid, false), advertisingToken.userIdentity.id);
-                    } catch (Exception e) {
-                        org.junit.jupiter.api.Assertions.fail(e.getMessage());
-                        testContext.failNow(e);
-                        return;
-                    }
+                    assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt, useV4Uid, false), advertisingToken.userIdentity.id);
 
                     RefreshToken refreshToken = decodeRefreshToken(encoder, body.getString("decrypted_refresh_token"));
                     assertEquals(clientSiteId, refreshToken.publisherIdentity.siteId);
@@ -1754,13 +1738,7 @@ public class UIDOperatorVerticleTest {
             assertNotNull(bodyJson);
 
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, bodyJson, IdentityType.Email);
-            try {
-                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt, useV4Uid, false), advertisingToken.userIdentity.id);
-            } catch (Exception e) {
-                org.junit.jupiter.api.Assertions.fail(e.getMessage());
-                testContext.failNow(e);
-                return;
-            }
+            assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt, useV4Uid, false), advertisingToken.userIdentity.id);
 
             String genRefreshToken = bodyJson.getString("refresh_token");
 
@@ -1777,13 +1755,7 @@ public class UIDOperatorVerticleTest {
                 assertFalse(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenGenerated());
                 assertFalse(PrivacyBits.fromInt(adTokenFromRefresh.userIdentity.privacyBits).isClientSideTokenOptedOut());
                 assertEquals(clientSiteId, adTokenFromRefresh.publisherIdentity.siteId);
-                try {
-                    assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, refreshSalt, useRefreshedV4Uid, false), adTokenFromRefresh.userIdentity.id);
-                } catch (Exception e) {
-                    org.junit.jupiter.api.Assertions.fail(e.getMessage());
-                    testContext.failNow(e);
-                    return;
-                }
+                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, refreshSalt, useRefreshedV4Uid, false), adTokenFromRefresh.userIdentity.id);
 
                 String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
                 assertNotEquals(genRefreshToken, refreshTokenStringNew);
@@ -1917,13 +1889,7 @@ public class UIDOperatorVerticleTest {
 
             String advertisingTokenString = genBody.getString("advertising_token");
             AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, IdentityType.Email);
-            try {
-                assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt, useV4Uid, false), advertisingToken.userIdentity.id);
-            } catch (Exception e) {
-                org.junit.jupiter.api.Assertions.fail(e.getMessage());
-                testContext.failNow(e);
-                return;
-            }
+            assertArrayEquals(getAdvertisingIdFromIdentity(IdentityType.Email, emailAddress, firstLevelSalt, salt, useV4Uid, false), advertisingToken.userIdentity.id);
 
             JsonObject v2Payload = new JsonObject();
             v2Payload.put("token", advertisingTokenString);
@@ -4192,9 +4158,9 @@ public class UIDOperatorVerticleTest {
     }
 
     // tests for opted out user should lead to generating ad tokens with optout success response
-    // tests for non-opted out user should generate the UID2 identity and the generated refresh token can be
-    // refreshed again
-    // tests for all email/phone combos
+// tests for non-opted out user should generate the UID2 identity and the generated refresh token can be
+// refreshed again
+// tests for all email/phone combos
     @ParameterizedTest
     @CsvSource({
             // After - v4 UID, refreshed v4 UID
@@ -4259,13 +4225,7 @@ public class UIDOperatorVerticleTest {
                     decodeV2RefreshToken(respJson);
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
-                    try {
-                        assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt, useV4Uid, false), advertisingToken.userIdentity.id);
-                    } catch (Exception e) {
-                        org.junit.jupiter.api.Assertions.fail(e.getMessage());
-                        testContext.failNow(e);
-                        return;
-                    }
+                    assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt, useV4Uid, false), advertisingToken.userIdentity.id);
 
                     RefreshToken refreshToken = decodeRefreshToken(encoder, genBody.getString("decrypted_refresh_token"), identityType);
 
@@ -4290,13 +4250,7 @@ public class UIDOperatorVerticleTest {
 
                         //make sure the new advertising token from refresh looks right
                         AdvertisingToken adTokenFromRefresh = validateAndGetToken(encoder, refreshBody, identityType);
-                        try {
-                            assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, refreshSalt, useRefreshedV4Uid, false), adTokenFromRefresh.userIdentity.id);
-                        } catch (Exception e) {
-                            org.junit.jupiter.api.Assertions.fail(e.getMessage());
-                            testContext.failNow(e);
-                            return;
-                        }
+                        assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, refreshSalt, useRefreshedV4Uid, false), adTokenFromRefresh.userIdentity.id);
 
                         String refreshTokenStringNew = refreshBody.getString("decrypted_refresh_token");
                         assertNotEquals(genRefreshToken, refreshTokenStringNew);
@@ -4413,20 +4367,9 @@ public class UIDOperatorVerticleTest {
 
         final byte[] advertisingId;
         if (key == null) {
-            advertisingId = getAdvertisingIdFromIdentity(identityType,
-                    identityString,
-                    firstLevelSalt,
-                    rotatingSalt123.currentSalt());
+            advertisingId = getAdvertisingIdFromIdentity(identityType, identityString, firstLevelSalt, rotatingSalt123.currentSalt());
         } else {
-            try {
-                advertisingId = getAdvertisingIdFromIdentity(identityType,
-                        identityString,
-                        firstLevelSalt,
-                        key);
-            } catch (Exception e) {
-                org.junit.jupiter.api.Assertions.fail(e.getMessage());
-                return;
-            }
+            advertisingId = getAdvertisingIdFromIdentity(identityType, identityString, firstLevelSalt, key);
         }
 
         final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(identityString, firstLevelSalt);

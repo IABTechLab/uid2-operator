@@ -36,6 +36,8 @@ public class UIDOperatorService implements IUIDOperatorService {
     private static final Instant REFRESH_CUTOFF = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private static final long DAY_IN_MS = Duration.ofDays(1).toMillis();
 
+    private static final Map<IdentityVersion, Counter> ADVERTISING_ID_VERSION_COUNTERS = new HashMap<>();
+
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
     private final ITokenEncoder encoder;
@@ -83,18 +85,10 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         this.refreshTokenVersion = TokenVersion.V3;
         this.rawUidV3Enabled = identityV3Enabled;
-    }
 
-    private void validateTokenDurations(Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
-        if (identityExpiresAfter.compareTo(refreshExpiresAfter) > 0) {
-            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ")");
-        }
-        if (refreshIdentityAfter.compareTo(identityExpiresAfter) > 0) {
-            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
-        }
-        if (refreshIdentityAfter.compareTo(refreshExpiresAfter) > 0) {
-            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
-        }
+        registerAdvertisingIdVersionCounter(IdentityVersion.V2);
+        registerAdvertisingIdVersionCounter(IdentityVersion.V3);
+        registerAdvertisingIdVersionCounter(IdentityVersion.V4);
     }
 
     @Override
@@ -208,6 +202,18 @@ public class UIDOperatorService implements IUIDOperatorService {
         return Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id);
     }
 
+    private void validateTokenDurations(Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        if (identityExpiresAfter.compareTo(refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ")");
+        }
+        if (refreshIdentityAfter.compareTo(identityExpiresAfter) > 0) {
+            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
+        }
+        if (refreshIdentityAfter.compareTo(refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
+        }
+    }
+
     private UserIdentity getFirstLevelHashIdentity(UserIdentity userIdentity, Instant asOf) {
         return getFirstLevelHashIdentity(userIdentity.identityScope, userIdentity.identityType, userIdentity.id, asOf);
     }
@@ -240,15 +246,15 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (salt != null) {
             if (rawUidV3Enabled) {
                 advertisingId = TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, salt);
-                incrementAdvertisingIdVersionCounter("v3");
+                incrementAdvertisingIdVersionCounter(IdentityVersion.V3);
             } else {
                 advertisingId = TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, salt);
-                incrementAdvertisingIdVersionCounter("v2");
+                incrementAdvertisingIdVersionCounter(IdentityVersion.V2);
             }
         } else {
             try {
                 advertisingId = TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, env, firstLevelHashIdentity.id, key);
-                incrementAdvertisingIdVersionCounter("v4");
+                incrementAdvertisingIdVersionCounter(IdentityVersion.V4);
             } catch (Exception e) {
                 LOGGER.error("Exception when generating V4 advertising ID", e);
                 advertisingId = null;
@@ -258,12 +264,17 @@ public class UIDOperatorService implements IUIDOperatorService {
         return advertisingId;
     }
 
-    private void incrementAdvertisingIdVersionCounter(String version) {
-        Counter.builder("uid2_raw_uid_version_total")
+    private void registerAdvertisingIdVersionCounter(IdentityVersion version) {
+        Counter counter = Counter.builder("uid2_raw_uid_version_total")
                 .description("counter for raw UID version")
-                .tag("version", version)
-                .register(Metrics.globalRegistry)
-                .increment();
+                .tag("version", version.toString())
+                .register(Metrics.globalRegistry);
+
+        ADVERTISING_ID_VERSION_COUNTERS.put(version, counter);
+    }
+
+    private void incrementAdvertisingIdVersionCounter(IdentityVersion version) {
+        ADVERTISING_ID_VERSION_COUNTERS.get(version).increment();
     }
 
     private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf, IdentityEnvironment env) {

@@ -188,13 +188,11 @@ public class Main {
             String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);
             this.saltProvider = new RotatingSaltProvider(fsStores, saltsMdPath);
             String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
-            this.siteProvider = clientSideTokenGenerate
-                    ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath)))
-                    : null;
+            this.siteProvider = clientSideTokenGenerate ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath))) : null;
         }
 
         this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
-
+        
         if (useRemoteConfig) {
             String configMdPath = this.config.getString(Const.Config.RuntimeConfigMetadataPathProp);
             this.configStore = new RuntimeConfigStore(fsStores, configMdPath);

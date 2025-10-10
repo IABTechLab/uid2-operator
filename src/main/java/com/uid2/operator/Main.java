@@ -174,18 +174,15 @@ public class Main {
             String sitesMdPath = this.config.getString(Const.Config.SitesMetadataPathProp);
             this.siteProvider = clientSideTokenGenerate
                     ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath)),
-                            cloudEncryptionKeyProvider)
+                    cloudEncryptionKeyProvider)
                     : null;
         } else {
             String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
-            this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores,
-                    new GlobalScope(new CloudPath(keypairMdPath)));
+            this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores, new GlobalScope(new CloudPath(keypairMdPath)));
             String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
-            this.clientKeyProvider = new RotatingClientKeyProvider(fsStores,
-                    new GlobalScope(new CloudPath(clientsMdPath)));
+            this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)));
             String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
-            this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores,
-                    new GlobalScope(new CloudPath(keysetKeysMdPath)));
+            this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)));
             String keysetMdPath = this.config.getString(Const.Config.KeysetsMetadataPathProp);
             this.keysetProvider = new RotatingKeysetProvider(fsStores, new GlobalScope(new CloudPath(keysetMdPath)));
             String saltsMdPath = this.config.getString(Const.Config.SaltsMetadataPathProp);

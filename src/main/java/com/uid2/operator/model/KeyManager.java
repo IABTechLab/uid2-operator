@@ -13,24 +13,16 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class KeyManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
     private final IKeysetKeyStore keysetKeyStore;
     private final RotatingKeysetProvider keysetProvider;
-    private final Consumer<Boolean> keyAvailabilityHandler;
 
     public KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider) {
-        this(keysetKeyStore, keysetProvider, null);
-    }
-
-    public KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider,
-            Consumer<Boolean> keyAvailabilityHandler) {
         this.keysetKeyStore = keysetKeyStore;
         this.keysetProvider = keysetProvider;
-        this.keyAvailabilityHandler = keyAvailabilityHandler;
     }
 
     public KeyManagerSnapshot getKeyManagerSnapshot(int siteId) {
@@ -44,11 +36,9 @@ public class KeyManager {
 
     public KeysetKey getActiveKeyBySiteIdWithFallback(int siteId, int fallbackSiteId, Instant asOf) {
         KeysetKey key = getActiveKeyBySiteId(siteId, asOf);
-        if (key == null)
-            key = getActiveKeyBySiteId(fallbackSiteId, asOf);
+        if (key == null) key = getActiveKeyBySiteId(fallbackSiteId, asOf);
         if (key == null) {
-            throw new NoActiveKeyException(String
-                    .format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId));
+            throw new NoActiveKeyException(String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId));
         }
         return key;
     }
@@ -61,8 +51,7 @@ public class KeyManager {
         }
 
         if (keysets.size() > 1) {
-            throw new IllegalArgumentException(
-                    String.format("Multiple default keysets are enabled with SITE ID %d.", siteId));
+            throw new IllegalArgumentException(String.format("Multiple default keysets are enabled with SITE ID %d.", siteId));
         }
 
         return keysets.get(0);
@@ -87,12 +76,12 @@ public class KeyManager {
         return this.keysetKeyStore.getSnapshot().getKey(keyId);
     }
 
+
     public List<KeysetKey> getKeysForSharingOrDsps() {
         Map<Integer, Keyset> keysetMap = this.keysetProvider.getSnapshot().getAllKeysets();
         List<KeysetKey> keys = keysetKeyStore.getSnapshot().getAllKeysetKeys();
         return keys
-                .stream()
-                .filter(k -> keysetMap.containsKey(k.getKeysetId()) && k.getKeysetId() != Const.Data.RefreshKeysetId)
+                .stream().filter(k -> keysetMap.containsKey(k.getKeysetId()) && k.getKeysetId() != Const.Data.RefreshKeysetId)
                 .sorted(Comparator.comparing(KeysetKey::getId)).collect(Collectors.toList());
     }
 
@@ -118,12 +107,8 @@ public class KeyManager {
     public KeysetKey getMasterKey(Instant asOf) {
         KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.MasterKeysetId, asOf);
         if (key == null) {
-            throw new NoActiveKeyException(
-                    String.format("Cannot get a master key with keyset ID %d.", Const.Data.MasterKeysetId));
+            throw new NoActiveKeyException(String.format("Cannot get a master key with keyset ID %d.", Const.Data.MasterKeysetId));
         }
-        // Reset shutdown timer on successful key retrieval
-        if (keyAvailabilityHandler != null)
-            keyAvailabilityHandler.accept(true);
         return key;
     }
 
@@ -134,12 +119,8 @@ public class KeyManager {
     public KeysetKey getRefreshKey(Instant asOf) {
         KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.RefreshKeysetId, asOf);
         if (key == null) {
-            throw new NoActiveKeyException(
-                    String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
+            throw new NoActiveKeyException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
         }
-        // Reset shutdown timer on successful key retrieval
-        if (keyAvailabilityHandler != null)
-            keyAvailabilityHandler.accept(true);
         return key;
     }
 

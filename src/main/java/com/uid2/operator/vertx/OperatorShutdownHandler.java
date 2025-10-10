@@ -28,11 +28,13 @@ public class OperatorShutdownHandler {
     private final Clock clock;
     private final ShutdownService shutdownService;
 
-    public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
-        this(attestShutdownWaitTime, saltShutdownWaitTime, Duration.ofHours(2), clock, shutdownService);
+    public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime, Clock clock,
+            ShutdownService shutdownService) {
+        this(attestShutdownWaitTime, saltShutdownWaitTime, Duration.ofDays(7), clock, shutdownService);
     }
-    
-    public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime, Duration keysetKeyShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
+
+    public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime,
+            Duration keysetKeyShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
         this.attestShutdownWaitTime = attestShutdownWaitTime;
         this.saltShutdownWaitTime = saltShutdownWaitTime;
         this.keysetKeyShutdownWaitTime = keysetKeyShutdownWaitTime;
@@ -41,14 +43,14 @@ public class OperatorShutdownHandler {
     }
 
     public void handleSaltRetrievalResponse(Boolean expired) {
-        if(!expired) {
+        if (!expired) {
             saltFailureStartTime.set(null);
         } else {
             logSaltFailureAtInterval();
             Instant t = saltFailureStartTime.get();
             if (t == null) {
                 saltFailureStartTime.set(clock.instant());
-            } else if(Duration.between(t, clock.instant()).compareTo(this.saltShutdownWaitTime) > 0) {
+            } else if (Duration.between(t, clock.instant()).compareTo(this.saltShutdownWaitTime) > 0) {
                 LOGGER.error("salts have been in expired state for too long. shutting down operator");
                 this.shutdownService.Shutdown(1);
             }
@@ -57,7 +59,7 @@ public class OperatorShutdownHandler {
 
     public void logSaltFailureAtInterval() {
         Instant t = lastSaltFailureLogTime.get();
-        if(t == null || clock.instant().isAfter(t.plus(SALT_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
+        if (t == null || clock.instant().isAfter(t.plus(SALT_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
             LOGGER.error("all salts are expired");
             lastSaltFailureLogTime.set(Instant.now());
         }
@@ -65,12 +67,23 @@ public class OperatorShutdownHandler {
 
     public void handleKeysetKeyRefreshResponse(Boolean success) {
         if (success) {
-            keysetKeyFailureStartTime.set(null);
+            Instant previousFailureTime = keysetKeyFailureStartTime.getAndSet(null);
+            if (previousFailureTime != null) {
+                Duration failureDuration = Duration.between(previousFailureTime, clock.instant());
+                // can remove later
+                LOGGER.info("keyset keys sync recovered after {} ({}d {}h {}m). shutdown timer reset.",
+                        failureDuration,
+                        failureDuration.toDays(),
+                        failureDuration.toHoursPart(),
+                        failureDuration.toMinutesPart());
+            }
         } else {
             logKeysetKeyFailureAtInterval();
             Instant t = keysetKeyFailureStartTime.get();
             if (t == null) {
                 keysetKeyFailureStartTime.set(clock.instant());
+                LOGGER.warn(
+                        "keyset keys sync started failing. shutdown timer started (will shutdown in 7 days if not recovered)");
             } else if (Duration.between(t, clock.instant()).compareTo(this.keysetKeyShutdownWaitTime) > 0) {
                 LOGGER.error("keyset keys have been failing to sync for too long. shutting down operator");
                 this.shutdownService.Shutdown(1);
@@ -88,7 +101,8 @@ public class OperatorShutdownHandler {
 
     public void handleAttestResponse(Pair<AttestationResponseCode, String> response) {
         if (response.left() == AttestationResponseCode.AttestationFailure) {
-            LOGGER.error("core attestation failed with AttestationFailure, shutting down operator, core response: {}", response.right());
+            LOGGER.error("core attestation failed with AttestationFailure, shutting down operator, core response: {}",
+                    response.right());
             this.shutdownService.Shutdown(1);
         }
         if (response.left() == AttestationResponseCode.Success) {

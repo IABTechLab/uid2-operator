@@ -32,18 +32,19 @@ import static org.mockito.Mockito.*;
 public class OperatorShutdownHandlerTest {
 
     private AutoCloseable mocks;
-    @Mock private Clock clock;
-    @Mock private ShutdownService shutdownService;
+    @Mock
+    private Clock clock;
+    @Mock
+    private ShutdownService shutdownService;
     private OperatorShutdownHandler operatorShutdownHandler;
-
-
 
     @BeforeEach
     void beforeEach() {
         mocks = MockitoAnnotations.openMocks(this);
         when(clock.instant()).thenAnswer(i -> Instant.now());
         doThrow(new RuntimeException()).when(shutdownService).Shutdown(1);
-        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), clock, shutdownService);
+        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), clock,
+                shutdownService);
     }
 
     @AfterEach
@@ -59,11 +60,14 @@ public class OperatorShutdownHandlerTest {
 
         // Revoke auth
         try {
-            this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.AttestationFailure, "Unauthorized"));
+            this.operatorShutdownHandler
+                    .handleAttestResponse(Pair.of(AttestationResponseCode.AttestationFailure, "Unauthorized"));
         } catch (RuntimeException e) {
             verify(shutdownService).Shutdown(1);
             String message = logWatcher.list.get(0).getFormattedMessage();
-            Assertions.assertEquals("core attestation failed with AttestationFailure, shutting down operator, core response: Unauthorized", logWatcher.list.get(0).getFormattedMessage());
+            Assertions.assertEquals(
+                    "core attestation failed with AttestationFailure, shutting down operator, core response: Unauthorized",
+                    logWatcher.list.get(0).getFormattedMessage());
             testContext.completeNow();
         }
     }
@@ -81,7 +85,8 @@ public class OperatorShutdownHandlerTest {
             this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.RetryableFailure, ""));
         } catch (RuntimeException e) {
             verify(shutdownService).Shutdown(1);
-            Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("core attestation has been in failed state for too long. shutting down operator"));
+            Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage()
+                    .contains("core attestation has been in failed state for too long. shutting down operator"));
             testContext.completeNow();
         }
     }
@@ -119,8 +124,10 @@ public class OperatorShutdownHandlerTest {
         });
         Assertions.assertAll("Expired Salts Log Messages",
                 () -> verify(shutdownService).Shutdown(1),
-                () -> Assertions.assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("all salts are expired")),
-                () -> Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("salts have been in expired state for too long. shutting down operator")),
+                () -> Assertions
+                        .assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("all salts are expired")),
+                () -> Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage()
+                        .contains("salts have been in expired state for too long. shutting down operator")),
                 () -> Assertions.assertEquals(3, logWatcher.list.size()));
 
         testContext.completeNow();
@@ -175,18 +182,22 @@ public class OperatorShutdownHandlerTest {
 
         this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
         Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("keyset keys sync failing"));
+        Assertions
+                .assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("keyset keys sync started failing"));
 
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(2, ChronoUnit.HOURS).plusSeconds(60));
-        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(7, ChronoUnit.DAYS).plusSeconds(60));
+
         Assertions.assertThrows(RuntimeException.class, () -> {
             this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
         });
-        
+
         Assertions.assertAll("Keyset Key Failure Log Messages",
                 () -> verify(shutdownService).Shutdown(1),
-                () -> Assertions.assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("keyset keys sync failing")),
-                () -> Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("keyset keys have been failing to sync for too long. shutting down operator")),
-                () -> Assertions.assertEquals(3, logWatcher.list.size()));
+                () -> Assertions
+                        .assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("keyset keys sync failing")),
+                () -> Assertions.assertTrue(logWatcher.list.get(3).getFormattedMessage()
+                        .contains("keyset keys have been failing to sync for too long. shutting down operator")),
+                () -> Assertions.assertEquals(4, logWatcher.list.size()));
 
         testContext.completeNow();
     }
@@ -199,15 +210,19 @@ public class OperatorShutdownHandlerTest {
 
         this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
         Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("keyset keys sync failing"));
-        
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(1, ChronoUnit.HOURS));
-        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
+        Assertions
+                .assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("keyset keys sync started failing"));
 
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(3, ChronoUnit.HOURS));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(3, ChronoUnit.DAYS));
+        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
+        Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("keyset keys sync recovered"));
+        Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("shutdown timer reset"));
+
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(8, ChronoUnit.DAYS));
         assertDoesNotThrow(() -> {
             this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
         });
-        
+
         verify(shutdownService, never()).Shutdown(anyInt());
         testContext.completeNow();
     }
@@ -220,15 +235,17 @@ public class OperatorShutdownHandlerTest {
 
         this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
         Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("keyset keys sync failing"));
-        
+        Assertions
+                .assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("keyset keys sync started failing"));
+
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(9, ChronoUnit.MINUTES));
         this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
-        Assertions.assertEquals(1, logWatcher.list.size());
-        
+        Assertions.assertEquals(2, logWatcher.list.size()); // No new logs within 10 min interval
+
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.MINUTES));
         this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
-        Assertions.assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("keyset keys sync failing"));
-        Assertions.assertEquals(2, logWatcher.list.size());
+        Assertions.assertTrue(logWatcher.list.get(2).getFormattedMessage().contains("keyset keys sync failing"));
+        Assertions.assertEquals(3, logWatcher.list.size()); // One new log after 10 min interval
 
         testContext.completeNow();
     }

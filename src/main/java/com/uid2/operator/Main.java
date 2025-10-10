@@ -157,12 +157,11 @@ public class Main {
                     new GlobalScope(new CloudPath(cloudEncryptionKeyMdPath)));
 
             String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
-            this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)),
-                cloudEncryptionKeyProvider);
+            this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores,
+                    new GlobalScope(new CloudPath(keypairMdPath)), cloudEncryptionKeyProvider);
             String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
-            this.clientKeyProvider = new RotatingClientKeyProvider(fsStores,
-                    new GlobalScope(new CloudPath(clientsMdPath)),
-                cloudEncryptionKeyProvider);
+            this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)),
+                    cloudEncryptionKeyProvider);
             String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
             this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)),
                     cloudEncryptionKeyProvider);

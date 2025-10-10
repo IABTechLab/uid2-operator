@@ -101,7 +101,7 @@ public class Main {
 
         this.appVersion = ApplicationVersion.load("uid2-operator", "uid2-shared", "uid2-attestation-api");
         HealthManager.instance.registerGenericComponent(new PodTerminationMonitor(config.getInteger(Const.Config.PodTerminationCheckInterval, 3000)));
-        
+
         // allow to switch between in-mem optout file cache and on-disk file cache
         if (config.getBoolean(Const.Config.OptOutInMemCacheProp)) {
             this.fsLocal = new MemCachedStorage();
@@ -157,12 +157,12 @@ public class Main {
                     new GlobalScope(new CloudPath(cloudEncryptionKeyMdPath)));
 
             String keypairMdPath = this.config.getString(Const.Config.ClientSideKeypairsMetadataPathProp);
-            this.clientSideKeypairProvider = new RotatingClientSideKeypairStore(fsStores,
-                    new GlobalScope(new CloudPath(keypairMdPath)), cloudEncryptionKeyProvider);
+            this.clientKeyProvider = new RotatingClientKeyProvider(fsStores, new GlobalScope(new CloudPath(clientsMdPath)),
+                cloudEncryptionKeyProvider);
             String clientsMdPath = this.config.getString(Const.Config.ClientsMetadataPathProp);
             this.clientKeyProvider = new RotatingClientKeyProvider(fsStores,
                     new GlobalScope(new CloudPath(clientsMdPath)),
-                    cloudEncryptionKeyProvider);
+                cloudEncryptionKeyProvider);
             String keysetKeysMdPath = this.config.getString(Const.Config.KeysetKeysMetadataPathProp);
             this.keysetKeyStore = new RotatingKeysetKeyStore(fsStores, new GlobalScope(new CloudPath(keysetKeysMdPath)),
                     cloudEncryptionKeyProvider);

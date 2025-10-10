@@ -249,8 +249,7 @@ public class Main {
     }
 
     public static void recordStartupComplete() {
-        if (startupBeginTime == null)
-            return;
+        if (startupBeginTime == null) return;
         final Duration d = Duration.between(startupBeginTime, Instant.now());
         Timer.builder("uid2_operator_startup_duration").register(globalRegistry).record(d);
         LOGGER.info("Startup in {} ms", d.toMillis());
@@ -259,12 +258,13 @@ public class Main {
     public static void main(String[] args) throws Exception {
         startupBeginTime = Instant.now();
 
-        java.security.Security.setProperty("networkaddress.cache.ttl", "60");
+        java.security.Security.setProperty("networkaddress.cache.ttl" , "60");
 
         final String vertxConfigPath = System.getProperty(Const.Config.VERTX_CONFIG_PATH_PROP);
         if (vertxConfigPath != null) {
             LOGGER.info("Running CUSTOM CONFIG mode, config: {}", vertxConfigPath);
-        } else if (!Utils.isProductionEnvironment()) {
+        }
+        else if (!Utils.isProductionEnvironment()) {
             LOGGER.info("Running LOCAL DEBUG mode, config: {}", Const.Config.LOCAL_CONFIG_PATH);
             System.setProperty(Const.Config.VERTX_CONFIG_PATH_PROP, Const.Config.LOCAL_CONFIG_PATH);
         } else {
@@ -309,8 +309,7 @@ public class Main {
     private ICloudStorage configureAttestedOptOutStore(UidOptOutClient optOutClient, String coreAttestUrl) {
         String optOutMdPath = this.config.getString(Const.Config.OptOutMetadataPathProp);
         LOGGER.info("OptOut stores- Using uid2-core attestation endpoint: " + coreAttestUrl);
-        return this
-                .wrapCloudStorageForOptOut(new OptOutCloudStorage(optOutClient, optOutMdPath, CloudUtils.defaultProxy));
+        return this.wrapCloudStorageForOptOut(new OptOutCloudStorage(optOutClient, optOutMdPath, CloudUtils.defaultProxy));
     }
 
     private ICloudStorage wrapCloudStorageForOptOut(ICloudStorage cloudStorage) {

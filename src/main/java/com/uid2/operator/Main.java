@@ -204,8 +204,7 @@ public class Main {
             String serviceMdPath = this.config.getString(Const.Config.ServiceMetadataPathProp);
             this.serviceProvider = new RotatingServiceStore(fsStores, new GlobalScope(new CloudPath(serviceMdPath)));
             String serviceLinkMdPath = this.config.getString(Const.Config.ServiceLinkMetadataPathProp);
-            this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores,
-                    new GlobalScope(new CloudPath(serviceLinkMdPath)));
+            this.serviceLinkProvider = new RotatingServiceLinkStore(fsStores, new GlobalScope(new CloudPath(serviceLinkMdPath)));
         }
 
         if (useStorageMock && coreAttestUrl == null) {

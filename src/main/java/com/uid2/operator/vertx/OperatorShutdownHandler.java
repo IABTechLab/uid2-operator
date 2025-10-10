@@ -43,14 +43,14 @@ public class OperatorShutdownHandler {
     }
 
     public void handleSaltRetrievalResponse(Boolean expired) {
-        if (!expired) {
+        if(!expired) {
             saltFailureStartTime.set(null);
         } else {
             logSaltFailureAtInterval();
             Instant t = saltFailureStartTime.get();
             if (t == null) {
                 saltFailureStartTime.set(clock.instant());
-            } else if (Duration.between(t, clock.instant()).compareTo(this.saltShutdownWaitTime) > 0) {
+            } else if(Duration.between(t, clock.instant()).compareTo(this.saltShutdownWaitTime) > 0) {
                 LOGGER.error("salts have been in expired state for too long. shutting down operator");
                 this.shutdownService.Shutdown(1);
             }
@@ -59,7 +59,7 @@ public class OperatorShutdownHandler {
 
     public void logSaltFailureAtInterval() {
         Instant t = lastSaltFailureLogTime.get();
-        if (t == null || clock.instant().isAfter(t.plus(SALT_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
+        if(t == null || clock.instant().isAfter(t.plus(SALT_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
             LOGGER.error("all salts are expired");
             lastSaltFailureLogTime.set(Instant.now());
         }

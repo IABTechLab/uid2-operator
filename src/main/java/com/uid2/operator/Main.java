@@ -285,7 +285,7 @@ public class Main {
                 app.run();
             } catch (Exception e) {
                 LOGGER.error("Error: " + e.getMessage(), e);
-                ((LoggerContext) org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
+                ((LoggerContext)org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
                 vertx.close();
                 System.exit(1);
             }
@@ -339,11 +339,7 @@ public class Main {
         this.createVertxEventLoopsMetric();
 
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate,
-                    siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider,
-                    optOutStore, Clock.systemUTC(), _statsCollectorQueue,
-                    new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider),
-                    this.shutdownHandler::handleSaltRetrievalResponse, this.uidInstanceIdProvider);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse, this.uidInstanceIdProvider);
             return verticle;
         };
 

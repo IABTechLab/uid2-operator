@@ -101,6 +101,7 @@ public class Main {
 
         this.appVersion = ApplicationVersion.load("uid2-operator", "uid2-shared", "uid2-attestation-api");
         HealthManager.instance.registerGenericComponent(new PodTerminationMonitor(config.getInteger(Const.Config.PodTerminationCheckInterval, 3000)));
+        
         // allow to switch between in-mem optout file cache and on-disk file cache
         if (config.getBoolean(Const.Config.OptOutInMemCacheProp)) {
             this.fsLocal = new MemCachedStorage();
@@ -126,8 +127,7 @@ public class Main {
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
 
-            var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey,
-                    this.shutdownHandler::handleAttestResponse);
+            var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);
             UidCoreClient coreClient = clients.getKey();
             UidOptOutClient optOutClient = clients.getValue();
             fsStores = coreClient;

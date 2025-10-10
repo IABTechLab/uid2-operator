@@ -101,8 +101,7 @@ public class OperatorShutdownHandler {
 
     public void handleAttestResponse(Pair<AttestationResponseCode, String> response) {
         if (response.left() == AttestationResponseCode.AttestationFailure) {
-            LOGGER.error("core attestation failed with AttestationFailure, shutting down operator, core response: {}",
-                    response.right());
+            LOGGER.error("core attestation failed with AttestationFailure, shutting down operator, core response: {}", response.right());
             this.shutdownService.Shutdown(1);
         }
         if (response.left() == AttestationResponseCode.Success) {

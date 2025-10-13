@@ -61,6 +61,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
@@ -245,7 +246,8 @@ public class Main {
     }
 
     private KeyManager getKeyManager() {
-        return new KeyManager(this.keysetKeyStore, this.keysetProvider);
+        return new KeyManager(this.keysetKeyStore, this.keysetProvider, 
+                hasKeys -> shutdownHandler.handleKeysetKeyRefreshResponse(hasKeys));
     }
 
     public static void recordStartupComplete() {
@@ -427,7 +429,8 @@ public class Main {
         }
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
-        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms",
+                this.shutdownHandler::handleKeysetKeyRefreshResponse));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
@@ -442,9 +445,14 @@ public class Main {
 
     private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store,
             String storeRefreshConfigMs) {
+        return createAndDeployRotatingStoreVerticle(name, store, storeRefreshConfigMs, null);
+    }
+
+    private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store,
+            String storeRefreshConfigMs, Consumer<Boolean> refreshCallback) {
         final int intervalMs = config.getInteger(storeRefreshConfigMs, 10000);
 
-        RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
+        RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store, refreshCallback);
         return vertx.deployVerticle(rotatingStoreVerticle);
     }
 

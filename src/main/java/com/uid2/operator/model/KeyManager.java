@@ -13,16 +13,23 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class KeyManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorVerticle.class);
     private final IKeysetKeyStore keysetKeyStore;
     private final RotatingKeysetProvider keysetProvider;
+    private final Consumer<Boolean> keyAvailabilityHandler;
 
     public KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider) {
+        this(keysetKeyStore, keysetProvider, null);
+    }
+
+    public KeyManager(IKeysetKeyStore keysetKeyStore, RotatingKeysetProvider keysetProvider, Consumer<Boolean> keyAvailabilityHandler) {
         this.keysetKeyStore = keysetKeyStore;
         this.keysetProvider = keysetProvider;
+        this.keyAvailabilityHandler = keyAvailabilityHandler;
     }
 
     public KeyManagerSnapshot getKeyManagerSnapshot(int siteId) {
@@ -105,11 +112,22 @@ public class KeyManager {
     }
 
     public KeysetKey getMasterKey(Instant asOf) {
-        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.MasterKeysetId, asOf);
-        if (key == null) {
-            throw new NoActiveKeyException(String.format("Cannot get a master key with keyset ID %d.", Const.Data.MasterKeysetId));
+        try {
+            KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.MasterKeysetId, asOf);
+            if (key == null) {
+                throw new NoActiveKeyException(String.format("Cannot get a master key with keyset ID %d.", Const.Data.MasterKeysetId));
+            }
+            // Reset timer on successful key retrieval
+            if (keyAvailabilityHandler != null) {
+                keyAvailabilityHandler.accept(true);
+            }
+            return key;
+        } catch (NoActiveKeyException e) {
+            if (keyAvailabilityHandler != null) {
+                keyAvailabilityHandler.accept(false);
+            }
+            throw e;
         }
-        return key;
     }
 
     public KeysetKey getRefreshKey() {
@@ -117,11 +135,22 @@ public class KeyManager {
     }
 
     public KeysetKey getRefreshKey(Instant asOf) {
-        KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.RefreshKeysetId, asOf);
-        if (key == null) {
-            throw new NoActiveKeyException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
+        try {
+            KeysetKey key = this.keysetKeyStore.getSnapshot().getActiveKey(Const.Data.RefreshKeysetId, asOf);
+            if (key == null) {
+                throw new NoActiveKeyException(String.format("Cannot get a refresh key with keyset ID %d.", Const.Data.RefreshKeysetId));
+            }
+            // Reset timer on successful key retrieval
+            if (keyAvailabilityHandler != null) {
+                keyAvailabilityHandler.accept(true);
+            }
+            return key;
+        } catch (NoActiveKeyException e) {
+            if (keyAvailabilityHandler != null) {
+                keyAvailabilityHandler.accept(false);
+            }
+            throw e;
         }
-        return key;
     }
 
     public static class NoActiveKeyException extends RuntimeException {

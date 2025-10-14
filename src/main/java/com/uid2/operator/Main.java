@@ -577,10 +577,6 @@ public class Main {
                 LOGGER.info("creating uid core client with aws attestation protocol");
                 attestationProvider = AttestationFactory.getNitroAttestation();
                 break;
-            case "gcp-vmid":
-                LOGGER.info("creating uid core client with gcp vmid attestation protocol");
-                attestationProvider = AttestationFactory.getGcpVmidAttestation();
-                break;
             case "gcp-oidc":
                 LOGGER.info("creating uid core client with gcp oidc attestation protocol");
                 attestationProvider = AttestationFactory.getGcpOidcAttestation();

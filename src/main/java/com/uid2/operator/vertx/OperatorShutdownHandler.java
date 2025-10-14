@@ -63,13 +63,11 @@ public class OperatorShutdownHandler {
     public void handleKeysetKeyRefreshResponse(Boolean success) {
         if (success) {
             keysetKeyFailureStartTime.set(null);
-            lastKeysetKeyFailureLogTime.set(null);
             LOGGER.debug("keyset keys sync successful"); 
         } else {
             Instant t = keysetKeyFailureStartTime.get();
             if (t == null) {
                 keysetKeyFailureStartTime.set(clock.instant());
-                lastKeysetKeyFailureLogTime.set(clock.instant());
                 LOGGER.warn("keyset keys sync started failing. shutdown timer started");
             } else {
                 logKeysetKeyFailureProgressAtInterval(t);

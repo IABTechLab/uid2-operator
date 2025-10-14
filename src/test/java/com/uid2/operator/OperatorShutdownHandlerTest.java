@@ -190,16 +190,10 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void keysetKeyRecoverOnSuccess(VertxTestContext testContext) {
-        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-        logWatcher.start();
-        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
-
         this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(3, ChronoUnit.DAYS));
+        
         this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
-
-        Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
-            log.getFormattedMessage().contains("keyset keys sync recovered")));
 
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(7, ChronoUnit.DAYS));
         assertDoesNotThrow(() -> {

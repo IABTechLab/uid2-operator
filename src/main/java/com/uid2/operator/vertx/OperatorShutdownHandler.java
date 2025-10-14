@@ -16,7 +16,6 @@ import java.util.concurrent.atomic.AtomicReference;
 public class OperatorShutdownHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorShutdownHandler.class);
     private static final int SALT_FAILURE_LOG_INTERVAL_MINUTES = 10;
-    private static final int KEYSET_KEY_FAILURE_LOG_INTERVAL_MINUTES = 10;
     private final Duration attestShutdownWaitTime;
     private final Duration saltShutdownWaitTime;
     private final Duration keysetKeyShutdownWaitTime;
@@ -24,7 +23,6 @@ public class OperatorShutdownHandler {
     private final AtomicReference<Instant> saltFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> keysetKeyFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> lastSaltFailureLogTime = new AtomicReference<>(null);
-    private final AtomicReference<Instant> lastKeysetKeyFailureLogTime = new AtomicReference<>(null);
     private final Clock clock;
     private final ShutdownService shutdownService;
 
@@ -65,7 +63,6 @@ public class OperatorShutdownHandler {
             keysetKeyFailureStartTime.set(null);
             LOGGER.debug("keyset keys sync successful"); 
         } else {
-            logKeysetKeyFailureAtInterval();
             Instant t = keysetKeyFailureStartTime.get();
             if (t == null) {
                 keysetKeyFailureStartTime.set(clock.instant());
@@ -81,14 +78,6 @@ public class OperatorShutdownHandler {
                     this.shutdownService.Shutdown(1);
                 }
             }
-        }
-    }
-
-    public void logKeysetKeyFailureAtInterval() {
-        Instant t = lastKeysetKeyFailureLogTime.get();
-        if (t == null || clock.instant().isAfter(t.plus(KEYSET_KEY_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
-            LOGGER.error("keyset keys sync failing");
-            lastKeysetKeyFailureLogTime.set(Instant.now());
         }
     }
 

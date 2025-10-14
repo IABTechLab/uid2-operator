@@ -9,6 +9,8 @@
         </encoder>
     </appender>
 
+    <logger name="com.uid2.operator.vertx.OperatorShutdownHandler" level="DEBUG"/>
+
     <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>

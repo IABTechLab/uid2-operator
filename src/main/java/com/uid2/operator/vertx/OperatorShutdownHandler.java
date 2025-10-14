@@ -75,6 +75,8 @@ public class OperatorShutdownHandler {
                         failureDuration.toDays(),
                         failureDuration.toHoursPart(),
                         failureDuration.toMinutesPart());
+            } else {
+                LOGGER.debug("keyset keys sync successful - timer remains null");
             }
         } else {
             logKeysetKeyFailureAtInterval();

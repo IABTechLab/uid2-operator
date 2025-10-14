@@ -222,13 +222,13 @@ public class OperatorShutdownHandlerTest {
         long warnLogCount1 = logWatcher.list.stream().filter(log -> 
             log.getFormattedMessage().contains("keyset keys sync still failing")).count();
         
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(30, ChronoUnit.MINUTES));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(5, ChronoUnit.MINUTES));
         this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
         long warnLogCount2 = logWatcher.list.stream().filter(log -> 
             log.getFormattedMessage().contains("keyset keys sync still failing")).count();
         Assertions.assertEquals(warnLogCount1, warnLogCount2);
         
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(61, ChronoUnit.MINUTES));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.MINUTES));
         this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
         long warnLogCount3 = logWatcher.list.stream().filter(log -> 
             log.getFormattedMessage().contains("keyset keys sync still failing")).count();

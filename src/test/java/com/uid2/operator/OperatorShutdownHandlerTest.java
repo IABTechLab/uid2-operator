@@ -43,7 +43,7 @@ public class OperatorShutdownHandlerTest {
         mocks = MockitoAnnotations.openMocks(this);
         when(clock.instant()).thenAnswer(i -> Instant.now());
         doThrow(new RuntimeException()).when(shutdownService).Shutdown(1);
-        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), clock, shutdownService);
+        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Duration.ofHours(168), clock, shutdownService);
     }
 
     @AfterEach

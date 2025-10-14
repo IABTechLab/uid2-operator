@@ -73,7 +73,7 @@ public class BenchmarkCommon {
                 saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
                 /* out */ optOutPartitionFiles);
         final IOptOutStore optOutStore = new StaticOptOutStore(optOutLocalStorage, make1mOptOutEntryConfig(), optOutPartitionFiles);
-        final OperatorShutdownHandler shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(1), Duration.ofHours(1), Clock.systemUTC(), new ShutdownService());
+        final OperatorShutdownHandler shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(1), Duration.ofHours(1), Duration.ofHours(1), Clock.systemUTC(), new ShutdownService());
         return new UIDOperatorService(
                 optOutStore,
                 saltProvider,

@@ -67,28 +67,17 @@ public class OperatorShutdownHandler {
 
     public void handleKeysetKeyRefreshResponse(Boolean success) {
         if (success) {
-            Instant previousFailureTime = keysetKeyFailureStartTime.getAndSet(null);
-            if (previousFailureTime != null) {
-                Duration failureDuration = Duration.between(previousFailureTime, clock.instant());
-                LOGGER.info("keyset keys sync recovered after {} ({}d {}h {}m). shutdown timer reset.",
-                        failureDuration,
-                        failureDuration.toDays(),
-                        failureDuration.toHoursPart(),
-                        failureDuration.toMinutesPart());
-            } else {
-                LOGGER.debug("keyset keys sync successful - timer remains null");
-            }
+            keysetKeyFailureStartTime.set(null);
+            LOGGER.debug("keyset keys sync successful"); 
         } else {
             logKeysetKeyFailureAtInterval();
             Instant t = keysetKeyFailureStartTime.get();
             if (t == null) {
                 keysetKeyFailureStartTime.set(clock.instant());
-                LOGGER.warn(
-                        "keyset keys sync started failing. shutdown timer started (will shutdown in 7 days if not recovered)");
+                LOGGER.warn("keyset keys sync started failing. shutdown timer started");
             } else {
                 Duration elapsed = Duration.between(t, clock.instant());
-                LOGGER.debug("keyset keys sync still failing - timer at {} ({}d {}h {}m) / 7 days",
-                        elapsed,
+                LOGGER.debug("keyset keys sync still failing - elapsed time: {}d {}h {}m",
                         elapsed.toDays(),
                         elapsed.toHoursPart(),
                         elapsed.toMinutesPart());

@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class OperatorShutdownHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorShutdownHandler.class);
     private static final int SALT_FAILURE_LOG_INTERVAL_MINUTES = 10;
+    private static final int KEYSET_KEY_FAILURE_LOG_INTERVAL_MINUTES = 10;
     private final Duration attestShutdownWaitTime;
     private final Duration saltShutdownWaitTime;
     private final Duration keysetKeyShutdownWaitTime;
@@ -23,6 +24,7 @@ public class OperatorShutdownHandler {
     private final AtomicReference<Instant> saltFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> keysetKeyFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> lastSaltFailureLogTime = new AtomicReference<>(null);
+    private final AtomicReference<Instant> lastKeysetKeyFailureLogTime = new AtomicReference<>(null);
     private final Clock clock;
     private final ShutdownService shutdownService;
 
@@ -61,23 +63,34 @@ public class OperatorShutdownHandler {
     public void handleKeysetKeyRefreshResponse(Boolean success) {
         if (success) {
             keysetKeyFailureStartTime.set(null);
+            lastKeysetKeyFailureLogTime.set(null);
             LOGGER.debug("keyset keys sync successful"); 
         } else {
             Instant t = keysetKeyFailureStartTime.get();
             if (t == null) {
                 keysetKeyFailureStartTime.set(clock.instant());
+                lastKeysetKeyFailureLogTime.set(clock.instant());
                 LOGGER.warn("keyset keys sync started failing. shutdown timer started");
             } else {
+                logKeysetKeyFailureProgressAtInterval(t);
                 Duration elapsed = Duration.between(t, clock.instant());
-                LOGGER.debug("keyset keys sync still failing - elapsed time: {}d {}h {}m",
-                        elapsed.toDays(),
-                        elapsed.toHoursPart(),
-                        elapsed.toMinutesPart());
                 if (elapsed.compareTo(this.keysetKeyShutdownWaitTime) > 0) {
                     LOGGER.error("keyset keys have been failing to sync for too long. shutting down operator");
                     this.shutdownService.Shutdown(1);
                 }
             }
+        }
+    }
+
+    private void logKeysetKeyFailureProgressAtInterval(Instant failureStartTime) {
+        Instant lastLogTime = lastKeysetKeyFailureLogTime.get();
+        if (lastLogTime == null || clock.instant().isAfter(lastLogTime.plus(KEYSET_KEY_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
+            Duration elapsed = Duration.between(failureStartTime, clock.instant());
+            LOGGER.warn("keyset keys sync still failing - elapsed time: {}d {}h {}m",
+                    elapsed.toDays(),
+                    elapsed.toHoursPart(),
+                    elapsed.toMinutesPart());
+            lastKeysetKeyFailureLogTime.set(clock.instant());
         }
     }
 

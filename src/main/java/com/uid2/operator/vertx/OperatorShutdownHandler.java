@@ -84,10 +84,7 @@ public class OperatorShutdownHandler {
         Instant lastLogTime = lastKeysetKeyFailureLogTime.get();
         if (lastLogTime == null || clock.instant().isAfter(lastLogTime.plus(KEYSET_KEY_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
             Duration elapsed = Duration.between(failureStartTime, clock.instant());
-            LOGGER.warn("keyset keys sync still failing - elapsed time: {}d {}h {}m",
-                    elapsed.toDays(),
-                    elapsed.toHoursPart(),
-                    elapsed.toMinutesPart());
+            LOGGER.warn("keyset keys sync still failing - elapsed time: {}d {}h {}m", elapsed.toDays(), elapsed.toHoursPart(), elapsed.toMinutesPart());
             lastKeysetKeyFailureLogTime.set(clock.instant());
         }
     }

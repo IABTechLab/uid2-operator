@@ -166,4 +166,81 @@ public class OperatorShutdownHandlerTest {
 
         testContext.completeNow();
     }
+
+    @Test
+    void shutdownOnKeysetKeyFailedTooLong(VertxTestContext testContext) {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
+        Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("keyset keys sync failing"));
+        Assertions.assertTrue(logWatcher.list.get(1).getFormattedMessage().contains("keyset keys sync started failing"));
+
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(7, ChronoUnit.DAYS).plusSeconds(60));
+        try {
+            this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
+        } catch (RuntimeException e) {
+            verify(shutdownService).Shutdown(1);
+            Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
+                log.getFormattedMessage().contains("keyset keys have been failing to sync for too long")));
+            testContext.completeNow();
+        }
+    }
+
+    @Test
+    void keysetKeyRecoverOnSuccess(VertxTestContext testContext) {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(3, ChronoUnit.DAYS));
+        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
+
+        Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
+            log.getFormattedMessage().contains("keyset keys sync recovered")));
+
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(7, ChronoUnit.DAYS));
+        assertDoesNotThrow(() -> {
+            this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
+        });
+        verify(shutdownService, never()).Shutdown(anyInt());
+        testContext.completeNow();
+    }
+
+    @Test
+    void keysetKeyLogErrorAtInterval(VertxTestContext testContext) {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
+        long errorLogCount1 = logWatcher.list.stream().filter(log -> 
+            log.getFormattedMessage().contains("keyset keys sync failing")).count();
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(9, ChronoUnit.MINUTES));
+        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
+        long errorLogCount2 = logWatcher.list.stream().filter(log -> 
+            log.getFormattedMessage().contains("keyset keys sync failing")).count();
+        Assertions.assertEquals(errorLogCount1, errorLogCount2);
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.MINUTES));
+        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
+        long errorLogCount3 = logWatcher.list.stream().filter(log -> 
+            log.getFormattedMessage().contains("keyset keys sync failing")).count();
+        Assertions.assertTrue(errorLogCount3 > errorLogCount2);
+
+        testContext.completeNow();
+    }
+
+    @Test
+    void keysetKeyNoShutdownWhenAlwaysSuccessful(VertxTestContext testContext) {
+        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
+        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
+        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
+
+        verify(shutdownService, never()).Shutdown(anyInt());
+        testContext.completeNow();
+    }
 }

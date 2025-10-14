@@ -85,9 +85,17 @@ public class OperatorShutdownHandler {
                 keysetKeyFailureStartTime.set(clock.instant());
                 LOGGER.warn(
                         "keyset keys sync started failing. shutdown timer started (will shutdown in 7 days if not recovered)");
-            } else if (Duration.between(t, clock.instant()).compareTo(this.keysetKeyShutdownWaitTime) > 0) {
-                LOGGER.error("keyset keys have been failing to sync for too long. shutting down operator");
-                this.shutdownService.Shutdown(1);
+            } else {
+                Duration elapsed = Duration.between(t, clock.instant());
+                LOGGER.debug("keyset keys sync still failing - timer at {} ({}d {}h {}m) / 7 days",
+                        elapsed,
+                        elapsed.toDays(),
+                        elapsed.toHoursPart(),
+                        elapsed.toMinutesPart());
+                if (elapsed.compareTo(this.keysetKeyShutdownWaitTime) > 0) {
+                    LOGGER.error("keyset keys have been failing to sync for too long. shutting down operator");
+                    this.shutdownService.Shutdown(1);
+                }
             }
         }
     }

@@ -36,6 +36,7 @@
   "optout_status_api_enabled": true,
   "cloud_refresh_interval": 30,
   "salts_expired_shutdown_hours": 12,
+  "keysetkeys_failed_shutdown_hours": 168,
   "operator_type": "public",
   "disable_optout_token": true,
   "enable_remote_config": true,

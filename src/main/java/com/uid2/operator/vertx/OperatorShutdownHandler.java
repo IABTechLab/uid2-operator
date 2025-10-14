@@ -16,17 +16,23 @@ import java.util.concurrent.atomic.AtomicReference;
 public class OperatorShutdownHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorShutdownHandler.class);
     private static final int SALT_FAILURE_LOG_INTERVAL_MINUTES = 10;
+    private static final int KEYSET_KEY_FAILURE_LOG_INTERVAL_MINUTES = 10;
     private final Duration attestShutdownWaitTime;
     private final Duration saltShutdownWaitTime;
+    private final Duration keysetKeyShutdownWaitTime;
     private final AtomicReference<Instant> attestFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> saltFailureStartTime = new AtomicReference<>(null);
+    private final AtomicReference<Instant> keysetKeyFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> lastSaltFailureLogTime = new AtomicReference<>(null);
+    private final AtomicReference<Instant> lastKeysetKeyFailureLogTime = new AtomicReference<>(null);
     private final Clock clock;
     private final ShutdownService shutdownService;
 
-    public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
+    public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime,
+            Duration keysetKeyShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
         this.attestShutdownWaitTime = attestShutdownWaitTime;
         this.saltShutdownWaitTime = saltShutdownWaitTime;
+        this.keysetKeyShutdownWaitTime = keysetKeyShutdownWaitTime;
         this.clock = clock;
         this.shutdownService = shutdownService;
     }
@@ -51,6 +57,37 @@ public class OperatorShutdownHandler {
         if(t == null || clock.instant().isAfter(t.plus(SALT_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
             LOGGER.error("all salts are expired");
             lastSaltFailureLogTime.set(Instant.now());
+        }
+    }
+
+    public void handleKeysetKeyRefreshResponse(Boolean success) {
+        if (success) {
+            keysetKeyFailureStartTime.set(null);
+            lastKeysetKeyFailureLogTime.set(null);
+            LOGGER.debug("keyset keys sync successful"); 
+        } else {
+            Instant t = keysetKeyFailureStartTime.get();
+            if (t == null) {
+                keysetKeyFailureStartTime.set(clock.instant());
+                lastKeysetKeyFailureLogTime.set(clock.instant());
+                LOGGER.warn("keyset keys sync started failing. shutdown timer started");
+            } else {
+                Duration elapsed = Duration.between(t, clock.instant());
+                if (elapsed.compareTo(this.keysetKeyShutdownWaitTime) > 0) {
+                    LOGGER.error("keyset keys have been failing to sync for too long. shutting down operator");
+                    this.shutdownService.Shutdown(1);
+                } else {
+                    logKeysetKeyFailureProgressAtInterval(t, elapsed);
+                }
+            }
+        }
+    }
+
+    private void logKeysetKeyFailureProgressAtInterval(Instant failureStartTime, Duration elapsed) {
+        Instant lastLogTime = lastKeysetKeyFailureLogTime.get();
+        if (lastLogTime == null || clock.instant().isAfter(lastLogTime.plus(KEYSET_KEY_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
+            LOGGER.warn("keyset keys sync still failing - elapsed time: {}d {}h {}m", elapsed.toDays(), elapsed.toHoursPart(), elapsed.toMinutesPart());
+            lastKeysetKeyFailureLogTime.set(clock.instant());
         }
     }
 

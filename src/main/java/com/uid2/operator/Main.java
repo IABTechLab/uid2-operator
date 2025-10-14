@@ -61,6 +61,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
@@ -114,7 +115,10 @@ public class Main {
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
         this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
-        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)), Clock.systemUTC(), new ShutdownService());
+        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12),
+                Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)),
+                Duration.ofHours(config.getInteger(Const.Config.KeysetKeysFailedShutdownHours, 168)),
+                Clock.systemUTC(), new ShutdownService());
         this.uidInstanceIdProvider = new UidInstanceIdProvider(config);
 
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
@@ -420,7 +424,8 @@ public class Main {
         }
         fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
         fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
-        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms",
+                this.shutdownHandler::handleKeysetKeyRefreshResponse));
         fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
@@ -433,9 +438,13 @@ public class Main {
     }
 
     private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, String storeRefreshConfigMs) {
+        return createAndDeployRotatingStoreVerticle(name, store, storeRefreshConfigMs, null);
+    }
+
+    private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, String storeRefreshConfigMs, Consumer<Boolean> refreshCallback) {
         final int intervalMs = config.getInteger(storeRefreshConfigMs, 10000);
 
-        RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store);
+        RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store, refreshCallback);
         return vertx.deployVerticle(rotatingStoreVerticle);
     }
 

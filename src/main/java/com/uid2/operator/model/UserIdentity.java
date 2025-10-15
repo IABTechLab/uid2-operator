@@ -2,7 +2,6 @@ package com.uid2.operator.model;
 
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Objects;
 
 public class UserIdentity {
     public final IdentityScope identityScope;

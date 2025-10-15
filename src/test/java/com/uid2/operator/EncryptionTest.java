@@ -5,8 +5,7 @@ import com.uid2.shared.encryption.Random;
 import com.uid2.shared.model.EncryptedPayload;
 import com.uid2.shared.encryption.AesGcm;
 import com.uid2.shared.model.KeysetKey;
-import junit.framework.TestCase;
-import org.junit.Assert;
+import org.junit.jupiter.api.Test;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -16,12 +15,14 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class EncryptionTest extends TestCase {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 
+class EncryptionTest {
     private int count = 0;
 
-    public void testEncryption() throws Exception {
-
+    @Test
+    void testEncryption() {
         final KeysetKey key = new KeysetKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), 10);
         final String testString = "foo@bar.comasdadsjahjhafjhjkfhakjhfkjshdkjfhaskdjfh";
 
@@ -29,10 +30,11 @@ public class EncryptionTest extends TestCase {
         final byte[] decrypted = AesCbc.decrypt(payload.getPayload(), key);
 
         final String decryptedString = new String(decrypted, StandardCharsets.UTF_8);
-        Assert.assertEquals(testString, decryptedString);
+        assertEquals(testString, decryptedString);
     }
 
-    public void testBenchmark() throws Exception {
+    @Test
+    void testBenchmark() {
         if (System.getenv("SLOW_DEV_URANDOM") != null) {
             System.err.println("ignore this test since environment variable SLOW_DEV_URANDOM is set");
             return;
@@ -73,10 +75,14 @@ public class EncryptionTest extends TestCase {
         System.out.println("Decryption Overhead per Entry (ms) = " + overheadPerEntry / (1000000 * 1.0));
 
         // System.out.println("Entries = "+runs+", Base Operation Execution Time (ms) = " + baseTime/(1000000*1.0) + ", With Decryption(ms) = " + decryptTime/(1000000*1.0) + ", Overhead/Entry (ms) = "  + ((decryptTime-baseTime)/(runs*1.0)/(1000000*1.0)));
-
     }
 
-    public void testSecureRandom() throws NoSuchAlgorithmException {
+    private void doSomething(EncryptedPayload ep) {
+        count++;
+    }
+
+    @Test
+    void testSecureRandom() {
         if (System.getenv("SLOW_DEV_URANDOM") != null) {
             System.err.println("ignore this test since environment variable SLOW_DEV_URANDOM is set");
             return;
@@ -109,17 +115,15 @@ public class EncryptionTest extends TestCase {
         }
     }
 
-    public void testNewInstancesReturned() throws NoSuchAlgorithmException {
+    @Test
+    void testNewInstancesReturned() throws NoSuchAlgorithmException {
         SecureRandom r1 = SecureRandom.getInstance("SHA1PRNG");
         SecureRandom r2 = SecureRandom.getInstance("SHA1PRNG");
         assertNotSame(r1, r2);
     }
 
-    public void doSomething(EncryptedPayload loag) {
-        count++;
-    }
-
-    public void testGCMEncryptionDecryption() {
+    @Test
+    void testGCMEncryptionDecryption() {
         final KeysetKey key = new KeysetKey(1, Random.getRandomKeyBytes(), Instant.now(), Instant.now(), Instant.now(), 10);
         String plaintxt = "hello world";
         EncryptedPayload payload = AesGcm.encrypt(plaintxt.getBytes(StandardCharsets.UTF_8), key);

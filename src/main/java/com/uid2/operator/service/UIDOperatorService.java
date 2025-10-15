@@ -7,9 +7,13 @@ import com.uid2.shared.model.SaltEntry;
 import com.uid2.operator.store.IOptOutStore;
 import com.uid2.shared.store.salt.ISaltProvider;
 import com.uid2.shared.model.TokenVersion;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -23,12 +27,16 @@ import static com.uid2.operator.IdentityConst.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 public class UIDOperatorService implements IUIDOperatorService {
+    public static final Logger LOGGER = LoggerFactory.getLogger(UIDOperatorService.class);
+
     public static final String IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS = "identity_token_expires_after_seconds";
     public static final String REFRESH_TOKEN_EXPIRES_AFTER_SECONDS = "refresh_token_expires_after_seconds";
     public static final String REFRESH_IDENTITY_TOKEN_AFTER_SECONDS = "refresh_identity_token_after_seconds";
 
     private static final Instant REFRESH_CUTOFF = LocalDateTime.parse("2021-03-08T17:00:00", DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
     private static final long DAY_IN_MS = Duration.ofDays(1).toMillis();
+
+    private static final Map<IdentityVersion, Counter> ADVERTISING_ID_VERSION_COUNTERS = new HashMap<>();
 
     private final ISaltProvider saltProvider;
     private final IOptOutStore optOutStore;
@@ -77,18 +85,10 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         this.refreshTokenVersion = TokenVersion.V3;
         this.rawUidV3Enabled = identityV3Enabled;
-    }
 
-    private void validateTokenDurations(Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
-        if (identityExpiresAfter.compareTo(refreshExpiresAfter) > 0) {
-            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ")");
-        }
-        if (refreshIdentityAfter.compareTo(identityExpiresAfter) > 0) {
-            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
-        }
-        if (refreshIdentityAfter.compareTo(refreshExpiresAfter) > 0) {
-            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
-        }
+        registerAdvertisingIdVersionCounter(IdentityVersion.V2);
+        registerAdvertisingIdVersionCounter(IdentityVersion.V3);
+        registerAdvertisingIdVersionCounter(IdentityVersion.V4);
     }
 
     @Override
@@ -110,7 +110,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public RefreshResponse refreshIdentity(RefreshToken token, Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter, IdentityEnvironment env) {
         this.validateTokenDurations(refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter);
-        // should not be possible as different scopes should be using different keys, but just in case
+        // should not be possible as different scopes/environments should be using different keys, but just in case
         if (token.userIdentity.identityScope != this.identityScope) {
             return RefreshResponse.Invalid;
         }
@@ -180,7 +180,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, IdentityEnvironment env,  Handler<AsyncResult<Instant>> handler) {
+    public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, IdentityEnvironment env, Handler<AsyncResult<Instant>> handler) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
         final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf, env);
 
@@ -202,10 +202,16 @@ public class UIDOperatorService implements IUIDOperatorService {
         return Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id);
     }
 
-    @Override
-    public Instant getLatestOptoutEntry(UserIdentity userIdentity, Instant asOf) {
-        final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
-        return this.optOutStore.getLatestEntry(firstLevelHashIdentity);
+    private void validateTokenDurations(Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {
+        if (identityExpiresAfter.compareTo(refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ")");
+        }
+        if (refreshIdentityAfter.compareTo(identityExpiresAfter) > 0) {
+            throw new IllegalStateException(IDENTITY_TOKEN_EXPIRES_AFTER_SECONDS + " (" + identityExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
+        }
+        if (refreshIdentityAfter.compareTo(refreshExpiresAfter) > 0) {
+            throw new IllegalStateException(REFRESH_TOKEN_EXPIRES_AFTER_SECONDS + " (" + refreshExpiresAfter.toSeconds() + ") < " + REFRESH_IDENTITY_TOKEN_AFTER_SECONDS + " (" + refreshIdentityAfter.toSeconds() + ")");
+        }
     }
 
     private UserIdentity getFirstLevelHashIdentity(UserIdentity userIdentity, Instant asOf) {
@@ -223,8 +229,8 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private MappedIdentity getMappedIdentity(UserIdentity firstLevelHashIdentity, Instant asOf, IdentityEnvironment env) {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
-        final byte[] advertisingId = getAdvertisingId(firstLevelHashIdentity, rotatingSalt.currentSalt());
-        final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHashIdentity, rotatingSalt, asOf);
+        final byte[] advertisingId = getAdvertisingId(firstLevelHashIdentity, rotatingSalt.currentSalt(), rotatingSalt.currentKeySalt(), env);
+        final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHashIdentity, rotatingSalt, asOf, env);
         final long refreshFrom = getRefreshFrom(rotatingSalt, asOf);
 
         return new MappedIdentity(
@@ -234,19 +240,49 @@ public class UIDOperatorService implements IUIDOperatorService {
                 refreshFrom);
     }
 
-    private byte[] getAdvertisingId(UserIdentity firstLevelHashIdentity, String salt) {
-        return rawUidV3Enabled
-                ? TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, salt)
-                : TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, salt);
+    private byte[] getAdvertisingId(UserIdentity firstLevelHashIdentity, String salt, SaltEntry.KeyMaterial key, IdentityEnvironment env) {
+        byte[] advertisingId;
+
+        if (salt != null) {
+            if (rawUidV3Enabled) {
+                advertisingId = TokenUtils.getAdvertisingIdV3(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, firstLevelHashIdentity.id, salt);
+                incrementAdvertisingIdVersionCounter(IdentityVersion.V3);
+            } else {
+                advertisingId = TokenUtils.getAdvertisingIdV2(firstLevelHashIdentity.id, salt);
+                incrementAdvertisingIdVersionCounter(IdentityVersion.V2);
+            }
+        } else {
+            advertisingId = TokenUtils.getAdvertisingIdV4(firstLevelHashIdentity.identityScope, firstLevelHashIdentity.identityType, env, firstLevelHashIdentity.id, key);
+            incrementAdvertisingIdVersionCounter(IdentityVersion.V4);
+        }
+
+        return advertisingId;
     }
 
-    private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf) {
+    private void registerAdvertisingIdVersionCounter(IdentityVersion version) {
+        Counter counter = Counter.builder("uid2_raw_uid_version_total")
+                .description("counter for raw UID version")
+                .tag("version", version.toString())
+                .register(Metrics.globalRegistry);
+
+        ADVERTISING_ID_VERSION_COUNTERS.put(version, counter);
+    }
+
+    private void incrementAdvertisingIdVersionCounter(IdentityVersion version) {
+        ADVERTISING_ID_VERSION_COUNTERS.get(version).increment();
+    }
+
+    private byte[] getPreviousAdvertisingId(UserIdentity firstLevelHashIdentity, SaltEntry rotatingSalt, Instant asOf, IdentityEnvironment env) {
         long age = asOf.toEpochMilli() - rotatingSalt.lastUpdated();
         if (age / DAY_IN_MS < 90) {
-            if (rotatingSalt.previousSalt() == null || rotatingSalt.previousSalt().isBlank()) {
+            boolean missingSalt = rotatingSalt.previousSalt() == null;
+            boolean missingKey = rotatingSalt.previousKeySalt() == null
+                    || rotatingSalt.previousKeySalt().key() == null || rotatingSalt.previousKeySalt().salt() == null;
+
+            if (missingSalt && missingKey) {
                 return null;
             }
-            return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt());
+            return getAdvertisingId(firstLevelHashIdentity, rotatingSalt.previousSalt(), rotatingSalt.previousKeySalt(), env);
         }
         return null;
     }
@@ -288,12 +324,12 @@ public class UIDOperatorService implements IUIDOperatorService {
         return new AdvertisingToken(TokenVersion.V4, now, now.plusMillis(identityExpiresAfter.toMillis()), this.operatorIdentity, publisherIdentity, userIdentity);
     }
 
-    static protected class GlobalOptoutResult {
+    protected static class GlobalOptoutResult {
         private final boolean isOptedOut;
-        //can be null if isOptedOut is false!
+        // can be null if isOptedOut is false!
         private final Instant time;
 
-        //providedTime can be null if isOptedOut is false!
+        // providedTime can be null if isOptedOut is false!
         GlobalOptoutResult(Instant providedTime) {
             isOptedOut = providedTime != null;
             time = providedTime;

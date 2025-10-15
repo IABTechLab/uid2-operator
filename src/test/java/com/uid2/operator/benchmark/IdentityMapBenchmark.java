@@ -59,7 +59,6 @@ public class IdentityMapBenchmark {
         static byte[] nonce = com.uid2.shared.encryption.Random.getBytes(8);
         private static final Random RANDOM = new Random();
 
-
         @Setup
         public void setup() {
             this.payloadBinary = Buffer.buffer(createEncryptedPayload(this.numRecords));

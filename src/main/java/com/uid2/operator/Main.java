@@ -118,6 +118,7 @@ public class Main {
         this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12),
                 Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)),
                 Duration.ofHours(config.getInteger(Const.Config.KeysetKeysFailedShutdownHours, 168)),
+                Duration.ofMinutes(config.getInteger(Const.Config.KeyAvailabilityFailedShutdownMinutes, 15)),
                 Clock.systemUTC(), new ShutdownService());
         this.uidInstanceIdProvider = new UidInstanceIdProvider(config);
 
@@ -247,7 +248,7 @@ public class Main {
     }
 
     private KeyManager getKeyManager() {
-        return new KeyManager(this.keysetKeyStore, this.keysetProvider);
+        return new KeyManager(this.keysetKeyStore, this.keysetProvider, this.shutdownHandler::handleKeyAvailability);
     }
 
     public static void recordStartupComplete() {

@@ -2,7 +2,6 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.service.ShutdownService;
 import com.uid2.shared.attest.AttestationResponseCode;
-import lombok.extern.java.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
@@ -20,19 +19,22 @@ public class OperatorShutdownHandler {
     private final Duration attestShutdownWaitTime;
     private final Duration saltShutdownWaitTime;
     private final Duration keysetKeyShutdownWaitTime;
+    private final Duration keyAvailabilityShutdownWaitTime;
     private final AtomicReference<Instant> attestFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> saltFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> keysetKeyFailureStartTime = new AtomicReference<>(null);
+    private final AtomicReference<Instant> keyAvailabilityFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> lastSaltFailureLogTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> lastKeysetKeyFailureLogTime = new AtomicReference<>(null);
     private final Clock clock;
     private final ShutdownService shutdownService;
 
     public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime,
-            Duration keysetKeyShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
+            Duration keysetKeyShutdownWaitTime, Duration keyAvailabilityShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
         this.attestShutdownWaitTime = attestShutdownWaitTime;
         this.saltShutdownWaitTime = saltShutdownWaitTime;
         this.keysetKeyShutdownWaitTime = keysetKeyShutdownWaitTime;
+        this.keyAvailabilityShutdownWaitTime = keyAvailabilityShutdownWaitTime;
         this.clock = clock;
         this.shutdownService = shutdownService;
     }
@@ -88,6 +90,22 @@ public class OperatorShutdownHandler {
         if (lastLogTime == null || clock.instant().isAfter(lastLogTime.plus(KEYSET_KEY_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
             LOGGER.warn("keyset keys sync still failing - elapsed time: {}d {}h {}m", elapsed.toDays(), elapsed.toHoursPart(), elapsed.toMinutesPart());
             lastKeysetKeyFailureLogTime.set(clock.instant());
+        }
+    }
+
+    public void handleKeyAvailability(Boolean hasActiveKeys) {
+        if (hasActiveKeys) {
+            keyAvailabilityFailureStartTime.set(null);
+        } else {
+            Instant t = keyAvailabilityFailureStartTime.get();
+            if (t == null) {
+                keyAvailabilityFailureStartTime.set(clock.instant());
+                LOGGER.error("No active keys available. shutdown timer started (will shutdown in {} minutes if not recovered)", 
+                    keyAvailabilityShutdownWaitTime.toMinutes());
+            } else if (Duration.between(t, clock.instant()).compareTo(this.keyAvailabilityShutdownWaitTime) > 0) {
+                LOGGER.error("No active keys for too long. shutting down operator");
+                this.shutdownService.Shutdown(1);
+            }
         }
     }
 

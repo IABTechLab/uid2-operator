@@ -6,7 +6,6 @@ import ch.qos.logback.core.read.ListAppender;
 import com.uid2.operator.service.ShutdownService;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.shared.attest.AttestationResponseCode;
-import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.AfterEach;
@@ -19,7 +18,6 @@ import org.mockito.MockitoAnnotations;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
 
-import java.security.Permission;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -43,7 +41,7 @@ public class OperatorShutdownHandlerTest {
         mocks = MockitoAnnotations.openMocks(this);
         when(clock.instant()).thenAnswer(i -> Instant.now());
         doThrow(new RuntimeException()).when(shutdownService).Shutdown(1);
-        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Duration.ofHours(168), clock, shutdownService);
+        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Duration.ofHours(168), Duration.ofMinutes(15), clock, shutdownService);
     }
 
     @AfterEach
@@ -62,7 +60,6 @@ public class OperatorShutdownHandlerTest {
             this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.AttestationFailure, "Unauthorized"));
         } catch (RuntimeException e) {
             verify(shutdownService).Shutdown(1);
-            String message = logWatcher.list.get(0).getFormattedMessage();
             Assertions.assertEquals("core attestation failed with AttestationFailure, shutting down operator, core response: Unauthorized", logWatcher.list.get(0).getFormattedMessage());
             testContext.completeNow();
         }
@@ -236,4 +233,55 @@ public class OperatorShutdownHandlerTest {
 
         testContext.completeNow();
     }
+
+    @Test
+    void shutdownWhenNoActiveKeys(VertxTestContext testContext) {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+        // No active keys available
+        this.operatorShutdownHandler.handleKeyAvailability(false);
+        Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("No active keys available"));
+
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(15, ChronoUnit.MINUTES).plusSeconds(60));
+        try {
+            this.operatorShutdownHandler.handleKeyAvailability(false);
+        } catch (RuntimeException e) {
+            verify(shutdownService).Shutdown(1);
+            Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
+                log.getFormattedMessage().contains("No active keys for too long")));
+            testContext.completeNow();
+        }
+    }
+
+    @Test
+    void recoverWhenActiveKeysBecomesAvailable(VertxTestContext testContext) {
+        // Start with no active keys
+        this.operatorShutdownHandler.handleKeyAvailability(false);
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(10, ChronoUnit.MINUTES));
+        
+        // Keys become available
+        this.operatorShutdownHandler.handleKeyAvailability(true);
+
+        // Should not shutdown even after total time exceeds threshold
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(20, ChronoUnit.MINUTES));
+        assertDoesNotThrow(() -> {
+            this.operatorShutdownHandler.handleKeyAvailability(false);
+        });
+        verify(shutdownService, never()).Shutdown(anyInt());
+        testContext.completeNow();
+    }
+
+    @Test
+    void keyAvailabilityNoShutdownWhenAlwaysAvailable(VertxTestContext testContext) {
+        // Keys are always available
+        this.operatorShutdownHandler.handleKeyAvailability(true);
+        this.operatorShutdownHandler.handleKeyAvailability(true);
+        this.operatorShutdownHandler.handleKeyAvailability(true);
+
+        verify(shutdownService, never()).Shutdown(anyInt());
+        testContext.completeNow();
+    }
+
 }

@@ -2,7 +2,7 @@ package com.uid2.operator.vertx;
 
 import com.uid2.operator.service.ShutdownService;
 import com.uid2.shared.attest.AttestationResponseCode;
-import lombok.extern.java.Log;
+import io.vertx.core.Vertx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
@@ -11,28 +11,30 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class OperatorShutdownHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorShutdownHandler.class);
     private static final int SALT_FAILURE_LOG_INTERVAL_MINUTES = 10;
-    private static final int KEYSET_KEY_FAILURE_LOG_INTERVAL_MINUTES = 10;
+    private static final int STORE_REFRESH_STALENESS_CHECK_INTERVAL_MINUTES = 60;
     private final Duration attestShutdownWaitTime;
     private final Duration saltShutdownWaitTime;
-    private final Duration keysetKeyShutdownWaitTime;
+    private final Duration storeRefreshStaleTimeout;
     private final AtomicReference<Instant> attestFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> saltFailureStartTime = new AtomicReference<>(null);
-    private final AtomicReference<Instant> keysetKeyFailureStartTime = new AtomicReference<>(null);
     private final AtomicReference<Instant> lastSaltFailureLogTime = new AtomicReference<>(null);
-    private final AtomicReference<Instant> lastKeysetKeyFailureLogTime = new AtomicReference<>(null);
+    private final Map<String, AtomicReference<Instant>> lastSuccessfulRefreshTimes = new ConcurrentHashMap<>();
     private final Clock clock;
     private final ShutdownService shutdownService;
+    private long periodicCheckTimerId = -1;
 
     public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime,
-            Duration keysetKeyShutdownWaitTime, Clock clock, ShutdownService shutdownService) {
+            Duration storeRefreshStaleTimeout, Clock clock, ShutdownService shutdownService) {
         this.attestShutdownWaitTime = attestShutdownWaitTime;
         this.saltShutdownWaitTime = saltShutdownWaitTime;
-        this.keysetKeyShutdownWaitTime = keysetKeyShutdownWaitTime;
+        this.storeRefreshStaleTimeout = storeRefreshStaleTimeout;
         this.clock = clock;
         this.shutdownService = shutdownService;
     }
@@ -60,37 +62,6 @@ public class OperatorShutdownHandler {
         }
     }
 
-    public void handleKeysetKeyRefreshResponse(Boolean success) {
-        if (success) {
-            keysetKeyFailureStartTime.set(null);
-            lastKeysetKeyFailureLogTime.set(null);
-            LOGGER.debug("keyset keys sync successful"); 
-        } else {
-            Instant t = keysetKeyFailureStartTime.get();
-            if (t == null) {
-                keysetKeyFailureStartTime.set(clock.instant());
-                lastKeysetKeyFailureLogTime.set(clock.instant());
-                LOGGER.warn("keyset keys sync started failing. shutdown timer started");
-            } else {
-                Duration elapsed = Duration.between(t, clock.instant());
-                if (elapsed.compareTo(this.keysetKeyShutdownWaitTime) > 0) {
-                    LOGGER.error("keyset keys have been failing to sync for too long. shutting down operator");
-                    this.shutdownService.Shutdown(1);
-                } else {
-                    logKeysetKeyFailureProgressAtInterval(t, elapsed);
-                }
-            }
-        }
-    }
-
-    private void logKeysetKeyFailureProgressAtInterval(Instant failureStartTime, Duration elapsed) {
-        Instant lastLogTime = lastKeysetKeyFailureLogTime.get();
-        if (lastLogTime == null || clock.instant().isAfter(lastLogTime.plus(KEYSET_KEY_FAILURE_LOG_INTERVAL_MINUTES, ChronoUnit.MINUTES))) {
-            LOGGER.warn("keyset keys sync still failing - elapsed time: {}d {}h {}m", elapsed.toDays(), elapsed.toHoursPart(), elapsed.toMinutesPart());
-            lastKeysetKeyFailureLogTime.set(clock.instant());
-        }
-    }
-
     public void handleAttestResponse(Pair<AttestationResponseCode, String> response) {
         if (response.left() == AttestationResponseCode.AttestationFailure) {
             LOGGER.error("core attestation failed with AttestationFailure, shutting down operator, core response: {}", response.right());
@@ -107,5 +78,53 @@ public class OperatorShutdownHandler {
                 this.shutdownService.Shutdown(1);
             }
         }
+    }
+
+    public void handleStoreRefresh(String storeName, Boolean success) {
+        if (success) {
+            lastSuccessfulRefreshTimes.computeIfAbsent(storeName, k -> new AtomicReference<>())
+                    .set(clock.instant());
+            LOGGER.trace("Store {} refresh successful at {}", storeName, clock.instant());
+        } else {
+            LOGGER.debug("Store {} refresh failed, timestamp not updated", storeName);
+        }
+    }
+
+    public void checkStoreRefreshStaleness() {
+        Instant now = clock.instant();
+        for (Map.Entry<String, AtomicReference<Instant>> entry : lastSuccessfulRefreshTimes.entrySet()) {
+            String storeName = entry.getKey();
+            Instant lastSuccess = entry.getValue().get();
+
+            if (lastSuccess == null) {
+                // Store hasn't had a successful refresh yet - might be during startup
+                // Don't trigger shutdown for stores that haven't initialized
+                continue;
+            }
+
+            Duration timeSinceLastRefresh = Duration.between(lastSuccess, now);
+            if (timeSinceLastRefresh.compareTo(storeRefreshStaleTimeout) > 0) {
+                LOGGER.error("Store '{}' has not refreshed successfully for {} hours ({}). Shutting down operator",
+                        storeName, timeSinceLastRefresh.toHours(), timeSinceLastRefresh);
+                shutdownService.Shutdown(1);
+                return; // Exit after triggering shutdown for first stale store
+            }
+        }
+    }
+
+    public void startPeriodicStaleCheck(Vertx vertx) {
+        if (periodicCheckTimerId != -1) {
+            LOGGER.warn("Periodic store staleness check already started");
+            return;
+        }
+
+        long intervalMs = STORE_REFRESH_STALENESS_CHECK_INTERVAL_MINUTES * 60 * 1000L;
+        periodicCheckTimerId = vertx.setPeriodic(intervalMs, id -> {
+            LOGGER.debug("Running periodic store staleness check");
+            checkStoreRefreshStaleness();
+        });
+        LOGGER.info("Started periodic store staleness check (interval: {} minutes, timeout: {} hours)",
+                STORE_REFRESH_STALENESS_CHECK_INTERVAL_MINUTES,
+                storeRefreshStaleTimeout.toHours());
     }
 }

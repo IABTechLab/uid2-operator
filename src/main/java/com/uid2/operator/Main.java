@@ -117,7 +117,7 @@ public class Main {
         this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
         this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12),
                 Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)),
-                Duration.ofHours(config.getInteger(Const.Config.KeysetKeysFailedShutdownHours, 168)),
+                Duration.ofHours(config.getInteger(Const.Config.StoreRefreshStaleShutdownHours, 12)),
                 Clock.systemUTC(), new ShutdownService());
         this.uidInstanceIdProvider = new UidInstanceIdProvider(config);
 
@@ -406,31 +406,43 @@ public class Main {
         List<Future> fs = new ArrayList<>();
 
         if (clientSideTokenGenerate) {
-            fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, "site_refresh_ms"));
-            fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, "client_side_keypairs_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, "site_refresh_ms",
+                    refreshSucceeded -> this.shutdownHandler.handleStoreRefresh("site", refreshSucceeded)));
+            fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, "client_side_keypairs_refresh_ms",
+                    refreshSucceeded -> this.shutdownHandler.handleStoreRefresh("client_side_keypairs", refreshSucceeded)));
         }
 
         if (validateServiceLinks) {
-            fs.add(createAndDeployRotatingStoreVerticle("service", serviceProvider, "service_refresh_ms"));
-            fs.add(createAndDeployRotatingStoreVerticle("service_link", serviceLinkProvider, "service_link_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("service", serviceProvider, "service_refresh_ms",
+                    refreshSucceeded -> this.shutdownHandler.handleStoreRefresh("service", refreshSucceeded)));
+            fs.add(createAndDeployRotatingStoreVerticle("service_link", serviceLinkProvider, "service_link_refresh_ms",
+                    refreshSucceeded -> this.shutdownHandler.handleStoreRefresh("service_link", refreshSucceeded)));
         }
 
         if (encryptedCloudFilesEnabled) {
-            fs.add(createAndDeployRotatingStoreVerticle("cloud_encryption_keys", cloudEncryptionKeyProvider, "cloud_encryption_keys_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("cloud_encryption_keys", cloudEncryptionKeyProvider, "cloud_encryption_keys_refresh_ms",
+                    refreshSucceeded -> this.shutdownHandler.handleStoreRefresh("cloud_encryption_keys", refreshSucceeded)));
         }
 
         if (useRemoteConfig) {
-            fs.add(createAndDeployRotatingStoreVerticle("runtime_config", (RuntimeConfigStore) configStore, Const.Config.ConfigScanPeriodMsProp));
+            fs.add(createAndDeployRotatingStoreVerticle("runtime_config", (RuntimeConfigStore) configStore, Const.Config.ConfigScanPeriodMsProp,
+                    refreshSucceeded -> this.shutdownHandler.handleStoreRefresh("runtime_config", refreshSucceeded)));
         }
-        fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
-        fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
+        fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms",
+                refreshSucceeded -> this.shutdownHandler.handleStoreRefresh("auth", refreshSucceeded)));
+        fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms",
+                refreshSucceeded -> this.shutdownHandler.handleStoreRefresh("keyset", refreshSucceeded)));
         fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms",
-                this.shutdownHandler::handleKeysetKeyRefreshResponse));
-        fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
+                refreshSucceeded -> this.shutdownHandler.handleStoreRefresh("keysetkey", refreshSucceeded)));
+        fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms",
+                refreshSucceeded -> this.shutdownHandler.handleStoreRefresh("salt", refreshSucceeded)));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));
-            else promise.complete();
+            else {
+                promise.complete();
+                this.shutdownHandler.startPeriodicStaleCheck(this.vertx);
+            }
         });
 
 

@@ -171,17 +171,14 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void storeRefreshRecordsSuccessTimestamp(VertxTestContext testContext) {
-        // Record successful refresh at baseTime
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        // Advance time by 11 hours (still under threshold) - should NOT trigger shutdown
         when(clock.instant()).thenReturn(baseTime.plus(11, ChronoUnit.HOURS));
         assertDoesNotThrow(() -> {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
         });
         verify(shutdownService, never()).Shutdown(anyInt());
         
-        // Now advance time to 13 hours from original success - SHOULD trigger shutdown
         when(clock.instant()).thenReturn(baseTime.plus(13, ChronoUnit.HOURS));
         try {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
@@ -193,22 +190,17 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void storeRefreshFailureDoesNotResetTimestamp(VertxTestContext testContext) {
-        // Record successful refresh at baseTime
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        // Advance time by 2 hours
         when(clock.instant()).thenReturn(baseTime.plus(2, ChronoUnit.HOURS));
         
-        // Record multiple failures - these should NOT reset the timestamp
         this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
         this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
         this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
         
-        // Advance time to 13 hours from ORIGINAL success (not from failures)
-        // This proves failures didn't reset the timestamp
+
         when(clock.instant()).thenReturn(baseTime.plus(13, ChronoUnit.HOURS));
         
-        // Should trigger shutdown based on original success timestamp
         try {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
         } catch (RuntimeException e) {
@@ -223,13 +215,10 @@ public class OperatorShutdownHandlerTest {
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
-        // Initial successful refresh at baseTime
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        // Move time forward by 12 hours + 1 second from baseTime
         when(clock.instant()).thenReturn(baseTime.plus(12, ChronoUnit.HOURS).plusSeconds(1));
         
-        // Check staleness - should trigger shutdown
         try {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
         } catch (RuntimeException e) {
@@ -243,19 +232,14 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void storeRefreshRecoverBeforeStale(VertxTestContext testContext) {
-        // Initial successful refresh at baseTime
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        // Move time forward by 11 hours from baseTime
         when(clock.instant()).thenReturn(baseTime.plus(11, ChronoUnit.HOURS));
         
-        // Another successful refresh before timeout (at baseTime + 11 hours)
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        // Move time forward another 12 hours from original time (but only 1 hour from last refresh at baseTime + 11h)
         when(clock.instant()).thenReturn(baseTime.plus(12, ChronoUnit.HOURS));
         
-        // Check staleness - should NOT trigger shutdown (only 1 hour since last refresh)
         assertDoesNotThrow(() -> {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
         });
@@ -269,22 +253,18 @@ public class OperatorShutdownHandlerTest {
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
-        // Multiple stores succeed at baseTime
+
         this.operatorShutdownHandler.handleStoreRefresh("store1", true);
         this.operatorShutdownHandler.handleStoreRefresh("store2", true);
         this.operatorShutdownHandler.handleStoreRefresh("store3", true);
         
-        // Move time forward by 6 hours from baseTime
         when(clock.instant()).thenReturn(baseTime.plus(6, ChronoUnit.HOURS));
         
-        // Store1 and Store2 refresh successfully at baseTime+6h, but Store3 doesn't
         this.operatorShutdownHandler.handleStoreRefresh("store1", true);
         this.operatorShutdownHandler.handleStoreRefresh("store2", true);
         
-        // Move time forward 12 hours from baseTime (store3 hasn't refreshed for 12 hours)
         when(clock.instant()).thenReturn(baseTime.plus(12, ChronoUnit.HOURS).plusSeconds(1));
         
-        // Check staleness - should trigger shutdown for store3
         try {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
         } catch (RuntimeException e) {
@@ -298,8 +278,7 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void noShutdownWhenStoreNeverInitialized(VertxTestContext testContext) {
-        // Don't register any successful refresh for a store
-        // Just check staleness immediately
+
         assertDoesNotThrow(() -> {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
         });
@@ -325,11 +304,9 @@ public class OperatorShutdownHandlerTest {
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
-        // Start the periodic check twice
         this.operatorShutdownHandler.startPeriodicStaleCheck(vertx);
         this.operatorShutdownHandler.startPeriodicStaleCheck(vertx);
         
-        // Should log a warning
         Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
             log.getFormattedMessage().contains("already started")));
         testContext.completeNow();

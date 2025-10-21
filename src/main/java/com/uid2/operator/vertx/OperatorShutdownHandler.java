@@ -28,7 +28,7 @@ public class OperatorShutdownHandler {
     private final Map<String, AtomicReference<Instant>> lastSuccessfulRefreshTimes = new ConcurrentHashMap<>();
     private final Clock clock;
     private final ShutdownService shutdownService;
-    private long periodicCheckTimerId = -1;
+    private boolean isStalenessCheckScheduled = false;
 
     public OperatorShutdownHandler(Duration attestShutdownWaitTime, Duration saltShutdownWaitTime,
             Duration storeRefreshStaleTimeout, Clock clock, ShutdownService shutdownService) {
@@ -113,16 +113,17 @@ public class OperatorShutdownHandler {
     }
 
     public void startPeriodicStaleCheck(Vertx vertx) {
-        if (periodicCheckTimerId != -1) {
+        if (isStalenessCheckScheduled) {
             LOGGER.warn("Periodic store staleness check already started");
             return;
         }
 
         long intervalMs = STORE_REFRESH_STALENESS_CHECK_INTERVAL_MINUTES * 60 * 1000L;
-        periodicCheckTimerId = vertx.setPeriodic(intervalMs, id -> {
+        vertx.setPeriodic(intervalMs, id -> {
             LOGGER.debug("Running periodic store staleness check");
             checkStoreRefreshStaleness();
         });
+        isStalenessCheckScheduled = true;
         LOGGER.info("Started periodic store staleness check (interval: {} minutes, timeout: {} hours)",
                 STORE_REFRESH_STALENESS_CHECK_INTERVAL_MINUTES,
                 storeRefreshStaleTimeout.toHours());

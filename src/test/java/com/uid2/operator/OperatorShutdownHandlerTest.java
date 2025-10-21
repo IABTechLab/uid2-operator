@@ -169,24 +169,19 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void storeRefreshRecordsSuccessTimestamp(VertxTestContext testContext) {
-        // Simulate successful store refresh
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        // Verify no shutdown is triggered
         verify(shutdownService, never()).Shutdown(anyInt());
         testContext.completeNow();
     }
 
     @Test
     void storeRefreshFailureDoesNotResetTimestamp(VertxTestContext testContext) {
-        // First successful refresh
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        // Then failures - shouldn't reset the timestamp
         this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
         this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
         
-        // Verify no shutdown is triggered yet
         verify(shutdownService, never()).Shutdown(anyInt());
         testContext.completeNow();
     }

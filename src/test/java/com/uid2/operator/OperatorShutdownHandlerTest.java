@@ -272,6 +272,29 @@ public class OperatorShutdownHandlerTest {
     }
 
     @Test
+    void multipleStoresFailSimultaneouslyTriggersShutdown(VertxTestContext testContext) {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+        this.operatorShutdownHandler.handleStoreRefresh("keyset");
+        this.operatorShutdownHandler.handleStoreRefresh("keysetkey");
+        this.operatorShutdownHandler.handleStoreRefresh("salt");
+        this.operatorShutdownHandler.handleStoreRefresh("auth");
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(1));
+        
+        try {
+            this.operatorShutdownHandler.checkStoreRefreshStaleness();
+        } catch (RuntimeException e) {
+            verify(shutdownService).Shutdown(1);
+            Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
+                log.getFormattedMessage().contains("has not refreshed successfully")));
+            testContext.completeNow();
+        }
+    }
+
+    @Test
     void noShutdownWhenStoreNeverInitialized(VertxTestContext testContext) {
 
         assertDoesNotThrow(() -> {

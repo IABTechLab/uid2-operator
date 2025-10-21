@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class OperatorShutdownHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorShutdownHandler.class);
     private static final int SALT_FAILURE_LOG_INTERVAL_MINUTES = 10;
-    private static final int STORE_REFRESH_STALENESS_CHECK_INTERVAL_MINUTES = 60;
+    private static final int STORE_REFRESH_STALENESS_CHECK_INTERVAL_MINUTES = 5; // Temporarily reduced to 5 min for testing
     private final Duration attestShutdownWaitTime;
     private final Duration saltShutdownWaitTime;
     private final Duration storeRefreshStaleTimeout;
@@ -81,15 +81,27 @@ public class OperatorShutdownHandler {
     }
 
     public void handleStoreRefresh(String storeName) {
+        Instant now = clock.instant();
         lastSuccessfulRefreshTimes.computeIfAbsent(storeName, k -> new AtomicReference<>())
-                .set(clock.instant());
+                .set(now);
+        LOGGER.debug("Recorded successful refresh for store '{}' at {}", storeName, now);
     }
 
     public void checkStoreRefreshStaleness() {
         Instant now = clock.instant();
+        LOGGER.debug("Checking store refresh staleness at {}", now);
+        
         for (Map.Entry<String, AtomicReference<Instant>> entry : lastSuccessfulRefreshTimes.entrySet()) {
             String storeName = entry.getKey();
             Instant lastSuccess = entry.getValue().get();
+            
+            if (lastSuccess != null) {
+                Duration timeSinceLastRefresh = Duration.between(lastSuccess, now);
+                LOGGER.debug("Store '{}': last successful refresh at {}, {} hours ago", 
+                    storeName, lastSuccess, timeSinceLastRefresh.toHours());
+            } else {
+                LOGGER.debug("Store '{}': no successful refresh recorded yet", storeName);
+            }
 
             if (lastSuccess == null) {
                 // Store hasn't had a successful refresh yet

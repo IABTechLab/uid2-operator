@@ -80,11 +80,9 @@ public class OperatorShutdownHandler {
         }
     }
 
-    public void handleStoreRefresh(String storeName, Boolean success) {
-        if (success) {
-            lastSuccessfulRefreshTimes.computeIfAbsent(storeName, k -> new AtomicReference<>())
-                    .set(clock.instant());
-        }
+    public void handleStoreRefresh(String storeName) {
+        lastSuccessfulRefreshTimes.computeIfAbsent(storeName, k -> new AtomicReference<>())
+                .set(clock.instant());
     }
 
     public void checkStoreRefreshStaleness() {

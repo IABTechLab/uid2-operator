@@ -19,7 +19,6 @@ import org.mockito.MockitoAnnotations;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
 
-import java.security.Permission;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -62,7 +61,6 @@ public class OperatorShutdownHandlerTest {
             this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.AttestationFailure, "Unauthorized"));
         } catch (RuntimeException e) {
             verify(shutdownService).Shutdown(1);
-            String message = logWatcher.list.get(0).getFormattedMessage();
             Assertions.assertEquals("core attestation failed with AttestationFailure, shutting down operator, core response: Unauthorized", logWatcher.list.get(0).getFormattedMessage());
             testContext.completeNow();
         }
@@ -169,7 +167,7 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void storeRefreshRecordsSuccessTimestamp(VertxTestContext testContext) {
-        this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
+        this.operatorShutdownHandler.handleStoreRefresh("test_store");
         
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.HOURS));
         assertDoesNotThrow(() -> {
@@ -188,15 +186,13 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void storeRefreshFailureDoesNotResetTimestamp(VertxTestContext testContext) {
-        this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
+        this.operatorShutdownHandler.handleStoreRefresh("test_store");
         
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(2, ChronoUnit.HOURS));
         
-        this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
-        this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
-        this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
+        // Simulate multiple refresh failures by NOT calling handleStoreRefresh
+        // (failures don't invoke the callback anymore)
         
-
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(13, ChronoUnit.HOURS));
         
         try {
@@ -213,7 +209,7 @@ public class OperatorShutdownHandlerTest {
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
-        this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
+        this.operatorShutdownHandler.handleStoreRefresh("test_store");
         
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(1));
         
@@ -230,11 +226,11 @@ public class OperatorShutdownHandlerTest {
 
     @Test
     void storeRefreshRecoverBeforeStale(VertxTestContext testContext) {
-        this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
+        this.operatorShutdownHandler.handleStoreRefresh("test_store");
         
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.HOURS));
         
-        this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
+        this.operatorShutdownHandler.handleStoreRefresh("test_store");
         
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
         
@@ -252,14 +248,14 @@ public class OperatorShutdownHandlerTest {
         ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
 
-        this.operatorShutdownHandler.handleStoreRefresh("store1", true);
-        this.operatorShutdownHandler.handleStoreRefresh("store2", true);
-        this.operatorShutdownHandler.handleStoreRefresh("store3", true);
+        this.operatorShutdownHandler.handleStoreRefresh("store1");
+        this.operatorShutdownHandler.handleStoreRefresh("store2");
+        this.operatorShutdownHandler.handleStoreRefresh("store3");
         
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(6, ChronoUnit.HOURS));
         
-        this.operatorShutdownHandler.handleStoreRefresh("store1", true);
-        this.operatorShutdownHandler.handleStoreRefresh("store2", true);
+        this.operatorShutdownHandler.handleStoreRefresh("store1");
+        this.operatorShutdownHandler.handleStoreRefresh("store2");
         
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(1));
         

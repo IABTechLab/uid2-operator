@@ -84,9 +84,6 @@ public class OperatorShutdownHandler {
         if (success) {
             lastSuccessfulRefreshTimes.computeIfAbsent(storeName, k -> new AtomicReference<>())
                     .set(clock.instant());
-            LOGGER.trace("Store {} refresh successful at {}", storeName, clock.instant());
-        } else {
-            LOGGER.debug("Store {} refresh failed, timestamp not updated", storeName);
         }
     }
 

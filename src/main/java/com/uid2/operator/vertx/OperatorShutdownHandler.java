@@ -101,7 +101,7 @@ public class OperatorShutdownHandler {
             if (timeSinceLastRefresh.compareTo(storeRefreshStaleTimeout) > 0) {
                 LOGGER.error("Store '{}' has not refreshed successfully for {} hours ({}). Shutting down operator",
                         storeName, timeSinceLastRefresh.toHours(), timeSinceLastRefresh);
-                shutdownService.Shutdown(1);
+                this.shutdownService.Shutdown(1);
                 return; // Exit after triggering shutdown for first stale store
             }
         }

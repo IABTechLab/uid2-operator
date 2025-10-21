@@ -19,6 +19,7 @@ import org.mockito.MockitoAnnotations;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
 
+import java.security.Permission;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -61,6 +62,7 @@ public class OperatorShutdownHandlerTest {
             this.operatorShutdownHandler.handleAttestResponse(Pair.of(AttestationResponseCode.AttestationFailure, "Unauthorized"));
         } catch (RuntimeException e) {
             verify(shutdownService).Shutdown(1);
+            String message = logWatcher.list.get(0).getFormattedMessage();
             Assertions.assertEquals("core attestation failed with AttestationFailure, shutting down operator, core response: Unauthorized", logWatcher.list.get(0).getFormattedMessage());
             testContext.completeNow();
         }
@@ -191,8 +193,7 @@ public class OperatorShutdownHandlerTest {
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(2, ChronoUnit.HOURS));
         
         // Simulate multiple refresh failures by NOT calling handleStoreRefresh
-        // (failures don't invoke the callback anymore)
-        
+ 
         when(clock.instant()).thenAnswer(i -> Instant.now().plus(13, ChronoUnit.HOURS));
         
         try {

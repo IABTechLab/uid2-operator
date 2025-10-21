@@ -34,17 +34,13 @@ public class OperatorShutdownHandlerTest {
     @Mock private Clock clock;
     @Mock private ShutdownService shutdownService;
     private OperatorShutdownHandler operatorShutdownHandler;
-    
-    // Fixed base time for predictable testing
-    private Instant baseTime;
 
 
 
     @BeforeEach
     void beforeEach() {
         mocks = MockitoAnnotations.openMocks(this);
-        baseTime = Instant.now(); // Capture a fixed base time
-        when(clock.instant()).thenReturn(baseTime); // Use thenReturn for fixed value
+        when(clock.instant()).thenAnswer(i -> Instant.now());
         doThrow(new RuntimeException()).when(shutdownService).Shutdown(1);
         this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Duration.ofHours(12), clock, shutdownService);
     }
@@ -173,13 +169,13 @@ public class OperatorShutdownHandlerTest {
     void storeRefreshRecordsSuccessTimestamp(VertxTestContext testContext) {
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        when(clock.instant()).thenReturn(baseTime.plus(11, ChronoUnit.HOURS));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.HOURS));
         assertDoesNotThrow(() -> {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
         });
         verify(shutdownService, never()).Shutdown(anyInt());
         
-        when(clock.instant()).thenReturn(baseTime.plus(13, ChronoUnit.HOURS));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(13, ChronoUnit.HOURS));
         try {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
         } catch (RuntimeException e) {
@@ -192,14 +188,14 @@ public class OperatorShutdownHandlerTest {
     void storeRefreshFailureDoesNotResetTimestamp(VertxTestContext testContext) {
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        when(clock.instant()).thenReturn(baseTime.plus(2, ChronoUnit.HOURS));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(2, ChronoUnit.HOURS));
         
         this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
         this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
         this.operatorShutdownHandler.handleStoreRefresh("test_store", false);
         
 
-        when(clock.instant()).thenReturn(baseTime.plus(13, ChronoUnit.HOURS));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(13, ChronoUnit.HOURS));
         
         try {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
@@ -217,7 +213,7 @@ public class OperatorShutdownHandlerTest {
 
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        when(clock.instant()).thenReturn(baseTime.plus(12, ChronoUnit.HOURS).plusSeconds(1));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(1));
         
         try {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
@@ -234,11 +230,11 @@ public class OperatorShutdownHandlerTest {
     void storeRefreshRecoverBeforeStale(VertxTestContext testContext) {
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        when(clock.instant()).thenReturn(baseTime.plus(11, ChronoUnit.HOURS));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.HOURS));
         
         this.operatorShutdownHandler.handleStoreRefresh("test_store", true);
         
-        when(clock.instant()).thenReturn(baseTime.plus(12, ChronoUnit.HOURS));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
         
         assertDoesNotThrow(() -> {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();
@@ -258,12 +254,12 @@ public class OperatorShutdownHandlerTest {
         this.operatorShutdownHandler.handleStoreRefresh("store2", true);
         this.operatorShutdownHandler.handleStoreRefresh("store3", true);
         
-        when(clock.instant()).thenReturn(baseTime.plus(6, ChronoUnit.HOURS));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(6, ChronoUnit.HOURS));
         
         this.operatorShutdownHandler.handleStoreRefresh("store1", true);
         this.operatorShutdownHandler.handleStoreRefresh("store2", true);
         
-        when(clock.instant()).thenReturn(baseTime.plus(12, ChronoUnit.HOURS).plusSeconds(1));
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(1));
         
         try {
             this.operatorShutdownHandler.checkStoreRefreshStaleness();

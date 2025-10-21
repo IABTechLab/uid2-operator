@@ -92,8 +92,9 @@ public class OperatorShutdownHandler {
             Instant lastSuccess = entry.getValue().get();
 
             if (lastSuccess == null) {
-                // Store hasn't had a successful refresh yet - might be during startup
-                // Don't trigger shutdown for stores that haven't initialized
+                // Store hasn't had a successful refresh yet
+                // This should rarely happen since startup success also records timestamp, but keep as defensive guard for edge cases
+                LOGGER.warn("Store '{}' has no recorded successful refresh - skipping staleness check", storeName);
                 continue;
             }
 

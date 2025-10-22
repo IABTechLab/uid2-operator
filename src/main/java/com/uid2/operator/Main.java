@@ -406,36 +406,26 @@ public class Main {
         List<Future> fs = new ArrayList<>();
 
         if (clientSideTokenGenerate) {
-            fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, "site_refresh_ms",
-                    () -> this.shutdownHandler.handleStoreRefresh("site")));
-            fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, "client_side_keypairs_refresh_ms",
-                    () -> this.shutdownHandler.handleStoreRefresh("client_side_keypairs")));
+            fs.add(createAndDeployRotatingStoreVerticle("site", siteProvider, "site_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("client_side_keypairs", clientSideKeypairProvider, "client_side_keypairs_refresh_ms"));
         }
 
         if (validateServiceLinks) {
-            fs.add(createAndDeployRotatingStoreVerticle("service", serviceProvider, "service_refresh_ms",
-                    () -> this.shutdownHandler.handleStoreRefresh("service")));
-            fs.add(createAndDeployRotatingStoreVerticle("service_link", serviceLinkProvider, "service_link_refresh_ms",
-                    () -> this.shutdownHandler.handleStoreRefresh("service_link")));
+            fs.add(createAndDeployRotatingStoreVerticle("service", serviceProvider, "service_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("service_link", serviceLinkProvider, "service_link_refresh_ms"));
         }
 
         if (encryptedCloudFilesEnabled) {
-            fs.add(createAndDeployRotatingStoreVerticle("cloud_encryption_keys", cloudEncryptionKeyProvider, "cloud_encryption_keys_refresh_ms",
-                    () -> this.shutdownHandler.handleStoreRefresh("cloud_encryption_keys")));
+            fs.add(createAndDeployRotatingStoreVerticle("cloud_encryption_keys", cloudEncryptionKeyProvider, "cloud_encryption_keys_refresh_ms"));
         }
 
         if (useRemoteConfig) {
-            fs.add(createAndDeployRotatingStoreVerticle("runtime_config", (RuntimeConfigStore) configStore, Const.Config.ConfigScanPeriodMsProp,
-                    () -> this.shutdownHandler.handleStoreRefresh("runtime_config")));
+            fs.add(createAndDeployRotatingStoreVerticle("runtime_config", (RuntimeConfigStore) configStore, Const.Config.ConfigScanPeriodMsProp));
         }
-        fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms",
-                () -> this.shutdownHandler.handleStoreRefresh("auth")));
-            fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms",
-                () -> this.shutdownHandler.handleStoreRefresh("keyset")));
-            fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms",
-                () -> this.shutdownHandler.handleStoreRefresh("keysetkey")));
-            fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms",
-                () -> this.shutdownHandler.handleStoreRefresh("salt")));
+        fs.add(createAndDeployRotatingStoreVerticle("auth", clientKeyProvider, "auth_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("keyset", keysetProvider, "keyset_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("keysetkey", keysetKeyStore, "keysetkey_refresh_ms"));
+            fs.add(createAndDeployRotatingStoreVerticle("salt", saltProvider, "salt_refresh_ms"));
         fs.add(createAndDeployCloudSyncStoreVerticle("optout", fsOptOut, optOutCloudSync));
         CompositeFuture.all(fs).onComplete(ar -> {
             if (ar.failed()) promise.fail(new Exception(ar.cause()));
@@ -450,11 +440,9 @@ public class Main {
     }
 
     private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, String storeRefreshConfigMs) {
-        return createAndDeployRotatingStoreVerticle(name, store, storeRefreshConfigMs, null);
-    }
-
-    private Future<String> createAndDeployRotatingStoreVerticle(String name, IMetadataVersionedStore store, String storeRefreshConfigMs, Runnable refreshCallback) {
         final long intervalMs = config.getInteger(storeRefreshConfigMs, 10000);
+        
+        Runnable refreshCallback = () -> this.shutdownHandler.handleStoreRefresh(name);
 
         RotatingStoreVerticle rotatingStoreVerticle = new RotatingStoreVerticle(name, intervalMs, store, refreshCallback);
         return vertx.deployVerticle(rotatingStoreVerticle);

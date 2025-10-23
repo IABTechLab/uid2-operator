@@ -99,6 +99,7 @@ public class OperatorShutdownHandler {
             }
 
             Duration timeSinceLastRefresh = Duration.between(lastSuccess, now);
+            LOGGER.debug("Store '{}' last successful refresh {} ago", storeName, timeSinceLastRefresh);
             if (timeSinceLastRefresh.compareTo(storeRefreshStaleTimeout) > 0) {
                 LOGGER.error("Store '{}' has not refreshed successfully for {} hours ({}). Shutting down operator",
                         storeName, timeSinceLastRefresh.toHours(), timeSinceLastRefresh);

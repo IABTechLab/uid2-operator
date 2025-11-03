@@ -30,7 +30,7 @@
   "optout_delta_rotate_interval": 60,
   "cloud_refresh_interval": 30,
   "salts_expired_shutdown_hours": 12,
-  "keysetkeys_failed_shutdown_hours": 168,
+  "store_refresh_stale_shutdown_hours": 12,
   "operator_type": "private",
   "enable_remote_config": true,
   "uid_instance_id_prefix": "local-private-operator"

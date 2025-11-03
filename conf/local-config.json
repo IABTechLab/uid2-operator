@@ -38,7 +38,7 @@
   "key_sharing_endpoint_provide_app_names": true,
   "client_side_token_generate_log_invalid_http_origins": true,
   "salts_expired_shutdown_hours": 12,
-  "keysetkeys_failed_shutdown_hours": 168,
+  "store_refresh_stale_shutdown_hours": 12,
   "operator_type": "public",
   "encrypted_files": false,
   "disable_optout_token": true,

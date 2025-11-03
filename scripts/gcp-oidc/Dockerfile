@@ -8,7 +8,7 @@ LABEL "tee.launch_policy.log_redirect"="always"
 RUN apk update && apk add --no-cache jq python3 py3-pip && \
     python3 -m venv /venv && \
     . /venv/bin/activate && \
-    pip install --no-cache-dir google-cloud-secret-manager google-auth google-api-core && \
+    pip install --no-cache-dir google-cloud-secret-manager google-auth google-api-core packaging && \
     rm -rf /var/cache/apk/*
 
 WORKDIR /app

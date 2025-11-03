@@ -43,7 +43,7 @@ public class OperatorShutdownHandlerTest {
         mocks = MockitoAnnotations.openMocks(this);
         when(clock.instant()).thenAnswer(i -> Instant.now());
         doThrow(new RuntimeException()).when(shutdownService).Shutdown(1);
-        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Duration.ofHours(168), clock, shutdownService);
+        this.operatorShutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12), Duration.ofHours(12), Duration.ofHours(12), clock, shutdownService);
     }
 
     @AfterEach
@@ -168,72 +168,165 @@ public class OperatorShutdownHandlerTest {
     }
 
     @Test
-    void shutdownOnKeysetKeyFailedTooLong(VertxTestContext testContext) {
-        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
-        logWatcher.start();
-        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
-
-        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
-        Assertions.assertTrue(logWatcher.list.get(0).getFormattedMessage().contains("keyset keys sync started failing"));
-
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(7, ChronoUnit.DAYS).plusSeconds(60));
+    void storeRefreshRecordsSuccessTimestamp(VertxTestContext testContext) {
+        this.operatorShutdownHandler.handleStoreRefresh("test_store");
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.HOURS));
+        assertDoesNotThrow(() -> {
+            this.operatorShutdownHandler.checkStoreRefreshStaleness();
+        });
+        verify(shutdownService, never()).Shutdown(anyInt());
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(13, ChronoUnit.HOURS));
         try {
-            this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
+            this.operatorShutdownHandler.checkStoreRefreshStaleness();
         } catch (RuntimeException e) {
             verify(shutdownService).Shutdown(1);
-            Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
-                log.getFormattedMessage().contains("keyset keys have been failing to sync for too long")));
             testContext.completeNow();
         }
     }
 
     @Test
-    void keysetKeyRecoverOnSuccess(VertxTestContext testContext) {
-        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(3, ChronoUnit.DAYS));
+    void storeRefreshFailureDoesNotResetTimestamp(VertxTestContext testContext) {
+        this.operatorShutdownHandler.handleStoreRefresh("test_store");
         
-        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(2, ChronoUnit.HOURS));
+        
+        // Simulate multiple refresh failures by NOT calling handleStoreRefresh
+ 
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(13, ChronoUnit.HOURS));
+        
+        try {
+            this.operatorShutdownHandler.checkStoreRefreshStaleness();
+        } catch (RuntimeException e) {
+            verify(shutdownService).Shutdown(1);
+            testContext.completeNow();
+        }
+    }
 
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(7, ChronoUnit.DAYS));
+    @Test
+    void storeRefreshStaleShutdown(VertxTestContext testContext) {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+        this.operatorShutdownHandler.handleStoreRefresh("test_store");
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(1));
+        
+        try {
+            this.operatorShutdownHandler.checkStoreRefreshStaleness();
+        } catch (RuntimeException e) {
+            verify(shutdownService).Shutdown(1);
+            Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
+                log.getFormattedMessage().contains("has not refreshed successfully") && 
+                log.getFormattedMessage().contains("test_store")));
+            testContext.completeNow();
+        }
+    }
+
+    @Test
+    void storeRefreshRecoverBeforeStale(VertxTestContext testContext) {
+        this.operatorShutdownHandler.handleStoreRefresh("test_store");
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.HOURS));
+        
+        this.operatorShutdownHandler.handleStoreRefresh("test_store");
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS));
+        
         assertDoesNotThrow(() -> {
-            this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
+            this.operatorShutdownHandler.checkStoreRefreshStaleness();
         });
         verify(shutdownService, never()).Shutdown(anyInt());
         testContext.completeNow();
     }
 
     @Test
-    void keysetKeyNoShutdownWhenAlwaysSuccessful(VertxTestContext testContext) {
-        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
-        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
-        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(true);
+    void multipleStoresOneStaleTriggers(VertxTestContext testContext) {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
+
+        this.operatorShutdownHandler.handleStoreRefresh("store1");
+        this.operatorShutdownHandler.handleStoreRefresh("store2");
+        this.operatorShutdownHandler.handleStoreRefresh("store3");
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(6, ChronoUnit.HOURS));
+        
+        this.operatorShutdownHandler.handleStoreRefresh("store1");
+        this.operatorShutdownHandler.handleStoreRefresh("store2");
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(1));
+        
+        try {
+            this.operatorShutdownHandler.checkStoreRefreshStaleness();
+        } catch (RuntimeException e) {
+            verify(shutdownService).Shutdown(1);
+            Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
+                log.getFormattedMessage().contains("store3") && 
+                log.getFormattedMessage().contains("has not refreshed successfully")));
+            testContext.completeNow();
+        }
+    }
+
+    @Test
+    void multipleStoresFailSimultaneouslyTriggersShutdown(VertxTestContext testContext) {
+        ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
+        logWatcher.start();
+        ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
+
+        this.operatorShutdownHandler.handleStoreRefresh("keyset");
+        this.operatorShutdownHandler.handleStoreRefresh("keysetkey");
+        this.operatorShutdownHandler.handleStoreRefresh("salt");
+        this.operatorShutdownHandler.handleStoreRefresh("auth");
+        
+        when(clock.instant()).thenAnswer(i -> Instant.now().plus(12, ChronoUnit.HOURS).plusSeconds(1));
+        
+        try {
+            this.operatorShutdownHandler.checkStoreRefreshStaleness();
+        } catch (RuntimeException e) {
+            verify(shutdownService).Shutdown(1);
+            Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
+                log.getFormattedMessage().contains("has not refreshed successfully")));
+            testContext.completeNow();
+        }
+    }
+
+    @Test
+    void noShutdownWhenStoreNeverInitialized(VertxTestContext testContext) {
+
+        assertDoesNotThrow(() -> {
+            this.operatorShutdownHandler.checkStoreRefreshStaleness();
+        });
         verify(shutdownService, never()).Shutdown(anyInt());
         testContext.completeNow();
     }
 
     @Test
-    void keysetKeyLogProgressAtInterval(VertxTestContext testContext) {
+    void periodicCheckStartsSuccessfully(Vertx vertx, VertxTestContext testContext) {
+        // Start the periodic check
+        assertDoesNotThrow(() -> {
+            this.operatorShutdownHandler.startPeriodicStaleCheck(vertx);
+        });
+        
+        // Verify it doesn't crash and doesn't trigger shutdown immediately
+        verify(shutdownService, never()).Shutdown(anyInt());
+        testContext.completeNow();
+    }
+
+    @Test
+    void periodicCheckOnlyStartsOnce(Vertx vertx, VertxTestContext testContext) {
         ListAppender<ILoggingEvent> logWatcher = new ListAppender<>();
         logWatcher.start();
         ((Logger) LoggerFactory.getLogger(OperatorShutdownHandler.class)).addAppender(logWatcher);
 
-        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
-        long warnLogCount1 = logWatcher.list.stream().filter(log -> 
-            log.getFormattedMessage().contains("keyset keys sync still failing")).count();
+        this.operatorShutdownHandler.startPeriodicStaleCheck(vertx);
+        this.operatorShutdownHandler.startPeriodicStaleCheck(vertx);
         
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(5, ChronoUnit.MINUTES));
-        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
-        long warnLogCount2 = logWatcher.list.stream().filter(log -> 
-            log.getFormattedMessage().contains("keyset keys sync still failing")).count();
-        Assertions.assertEquals(warnLogCount1, warnLogCount2);
-        
-        when(clock.instant()).thenAnswer(i -> Instant.now().plus(11, ChronoUnit.MINUTES));
-        this.operatorShutdownHandler.handleKeysetKeyRefreshResponse(false);
-        long warnLogCount3 = logWatcher.list.stream().filter(log -> 
-            log.getFormattedMessage().contains("keyset keys sync still failing")).count();
-        Assertions.assertTrue(warnLogCount3 > warnLogCount2);
-
+        Assertions.assertTrue(logWatcher.list.stream().anyMatch(log -> 
+            log.getFormattedMessage().contains("already started")));
         testContext.completeNow();
     }
 }

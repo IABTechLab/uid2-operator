@@ -2645,10 +2645,22 @@ public class UIDOperatorVerticleTest {
         req.put("email", "test@uid2.com");
 
         doAnswer(invocation -> {
-            Handler<AsyncResult<Instant>> handler = invocation.getArgument(4);
+            String passedTrace = invocation.getArgument(2);
+            String passedInstanceId = invocation.getArgument(3);
+            String passedEmail = invocation.getArgument(4);
+            String passedPhone = invocation.getArgument(5);
+            String passedClientIp = invocation.getArgument(6);
+
+            assertEquals("uid-trace-id", passedTrace);
+            assertEquals("test-instance-id", passedInstanceId);
+            assertEquals("test@uid2.com", passedEmail);
+            assertNull(passedClientIp);
+            assertNull(passedPhone);
+
+            Handler<AsyncResult<Instant>> handler = invocation.getArgument(7);
             handler.handle(Future.succeededFuture(Instant.now()));
             return null;
-        }).when(this.optOutStore).addEntry(any(), any(), eq("uid-trace-id"), eq("test-instance-id"), any());
+        }).when(this.optOutStore).addEntry(any(), any(), any(), any(), any(), any(), any(), any());
 
         send(vertx, "v2/token/logout", req, 200, respJson -> {
             assertEquals("success", respJson.getString("status"));
@@ -2656,6 +2668,42 @@ public class UIDOperatorVerticleTest {
             testContext.completeNow();
         }, Map.of(Audit.UID_TRACE_ID_HEADER, "uid-trace-id",
                 HttpHeaders.CONTENT_TYPE.toString(), contentType));
+    }
+
+    @Test
+    void logoutV2_withClientIp(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.OPTOUT);
+        setupKeys();
+        setupSalts();
+
+        JsonObject req = new JsonObject();
+        req.put("email", "iptest@uid2.com");
+        req.put("clientIp", "127.0.0.1");
+
+        doAnswer(invocation -> {
+            String passedTrace = invocation.getArgument(2);
+            String passedInstanceId = invocation.getArgument(3);
+            String passedEmail = invocation.getArgument(4);
+            String passedPhone = invocation.getArgument(5);
+            String passedClientIp = invocation.getArgument(6);
+
+            assertEquals("uid-trace-id", passedTrace);
+            assertEquals("test-instance-id", passedInstanceId);
+            assertEquals("iptest@uid2.com", passedEmail);
+            assertNull(passedPhone);
+            assertEquals("127.0.0.1", passedClientIp);
+
+            Handler<AsyncResult<Instant>> handler = invocation.getArgument(7);
+            handler.handle(Future.succeededFuture(Instant.now()));
+            return null;
+        }).when(this.optOutStore).addEntry(any(), any(), any(), any(), any(), any(), any(), any());
+
+        send(vertx, "v2/token/logout", req, 200, respJson -> {
+            assertEquals("success", respJson.getString("status"));
+            assertEquals("OK", respJson.getJsonObject("body").getString("optout"));
+            testContext.completeNow();
+        }, Map.of(Audit.UID_TRACE_ID_HEADER, "uid-trace-id"));
     }
 
     @Test
@@ -2670,10 +2718,10 @@ public class UIDOperatorVerticleTest {
         req.put("email", "test@uid2.com");
 
         doAnswer(invocation -> {
-            Handler<AsyncResult<Instant>> handler = invocation.getArgument(4);
+            Handler<AsyncResult<Instant>> handler = invocation.getArgument(7);
             handler.handle(Future.succeededFuture(Instant.now()));
             return null;
-        }).when(this.optOutStore).addEntry(any(), any(), any(), any(), any());
+        }).when(this.optOutStore).addEntry(any(), any(), any(), any(), any(), any(), any(), any());
 
         send(vertx, "v2/token/logout", req, 200, respJson -> {
             assertEquals("success", respJson.getString("status"));

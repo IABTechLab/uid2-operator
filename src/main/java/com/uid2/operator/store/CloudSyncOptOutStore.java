@@ -88,24 +88,36 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     }
 
     @Override
-    public void addEntry(UserIdentity firstLevelHashIdentity, byte[] advertisingId, String uidTraceId, String uidInstanceId, Handler<AsyncResult<Instant>> handler) {
+    public void addEntry(UserIdentity firstLevelHashIdentity,
+                         byte[] advertisingId,
+                         String uidTraceId,
+                         String uidInstanceId,
+                         String email,
+                         String phone,
+                         String clientIp,
+                         Handler<AsyncResult<Instant>> handler) {
         if (remoteApiHost == null) {
             handler.handle(Future.failedFuture("remote api not set"));
             return;
         }
 
-        HttpRequest<String> request =this.webClient.get(remoteApiPort, remoteApiHost, remoteApiPath).
+        HttpRequest<String> request = this.webClient.post(remoteApiPort, remoteApiHost, remoteApiPath).
             addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.id))
             .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId))
             .putHeader("Authorization", remoteApiBearerToken)
             .putHeader(Audit.UID_INSTANCE_ID_HEADER, uidInstanceId)
             .as(BodyCodec.string());
 
+        JsonObject payload = new JsonObject();
+        if (email != null) payload.put("email", email);
+        if (phone != null) payload.put("phone", phone);
+        if (clientIp != null) payload.put("client_ip", clientIp);
+
         if (uidTraceId != null) {
             request = request.putHeader(Audit.UID_TRACE_ID_HEADER, uidTraceId);
         }
 
-        request.send(ar -> {
+        request.sendJson(payload, ar -> {
             Exception failure = null;
             if (ar.failed()) {
                 failure = new Exception(ar.cause());

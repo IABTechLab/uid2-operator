@@ -986,7 +986,13 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
-            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, uidTraceId, env, ar -> {
+            final String email = req == null ? null : req.getString("email");
+            final String phone = req == null ? null : req.getString("phone");
+            final String clientIp = req == null ? null : req.getString("clientIp");
+
+            this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, uidTraceId, env,
+                    email, phone, clientIp,
+                    ar -> {
                 if (ar.succeeded()) {
                     JsonObject body = new JsonObject();
                     body.put("optout", "OK");

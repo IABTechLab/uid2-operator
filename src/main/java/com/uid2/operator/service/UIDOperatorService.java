@@ -180,11 +180,14 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, IdentityEnvironment env, Handler<AsyncResult<Instant>> handler) {
+    public void invalidateTokensAsync(UserIdentity userIdentity, Instant asOf, String uidTraceId, IdentityEnvironment env,
+                                      String email, String phone, String clientIp,
+                                      Handler<AsyncResult<Instant>> handler) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
         final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf, env);
 
-        this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.advertisingId, uidTraceId, this.uidInstanceIdProvider.getInstanceId(), r -> {
+        this.optOutStore.addEntry(firstLevelHashIdentity, mappedIdentity.advertisingId, uidTraceId,
+                this.uidInstanceIdProvider.getInstanceId(), email, phone, clientIp, r -> {
             if (r.succeeded()) {
                 handler.handle(Future.succeededFuture(r.result()));
             } else {

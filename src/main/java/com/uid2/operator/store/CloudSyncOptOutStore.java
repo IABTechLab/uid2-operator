@@ -23,7 +23,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
-import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.codec.BodyCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,15 +53,18 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     private final String remoteApiHost;
     private final String remoteApiPath;
     private final String remoteApiBearerToken;
+    private final boolean remoteApiSsl;
 
     public CloudSyncOptOutStore(Vertx vertx, ICloudStorage fsLocal, JsonObject jsonConfig, String operatorKey, Clock clock) throws MalformedURLException {
         this.fsLocal = fsLocal;
-        this.webClient = WebClient.create(vertx, new WebClientOptions().setFollowRedirects(true));
+        this.webClient = WebClient.create(vertx);
 
         String remoteApi = jsonConfig.getString(Const.Config.OptOutApiUriProp);
         if (remoteApi != null) {
             URL url = new URL(remoteApi);
-            this.remoteApiPort = -1 == url.getPort() ? 80 : url.getPort();
+            boolean isHttps = "https".equalsIgnoreCase(url.getProtocol());
+            this.remoteApiSsl = isHttps;
+            this.remoteApiPort = -1 == url.getPort() ? (isHttps ? 443 : 80) : url.getPort();
             this.remoteApiHost = url.getHost();
             this.remoteApiPath = url.getPath();
             this.remoteApiBearerToken = "Bearer " + operatorKey;
@@ -71,6 +73,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             this.remoteApiHost = null;
             this.remoteApiPath = null;
             this.remoteApiBearerToken = null;
+            this.remoteApiSsl = false;
         }
 
         this.snapshot.set(new OptOutStoreSnapshot(fsLocal, jsonConfig, clock));
@@ -109,6 +112,12 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             .putHeader(Audit.UID_INSTANCE_ID_HEADER, uidInstanceId)
             .as(BodyCodec.string());
 
+        if (remoteApiSsl) {
+            request = request.ssl(true);
+        }
+
+        LOGGER.info("OptOut replicate request: method=POST host={} port={} ssl={} path={} uidTraceId={}", remoteApiHost, remoteApiPort, remoteApiSsl, remoteApiPath, uidTraceId);
+
         JsonObject payload = new JsonObject();
         if (email != null) payload.put("email", email);
         if (phone != null) payload.put("phone", phone);
@@ -123,7 +132,10 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             if (ar.failed()) {
                 failure = new Exception(ar.cause());
             } else if (ar.result().statusCode() != 200) {
-                failure = new Exception("optout api http status: " + String.valueOf(ar.result().statusCode()));
+                int status = ar.result().statusCode();
+                String location = ar.result().headers() != null ? ar.result().headers().get("Location") : null;
+                String more = (location != null) ? ", location: " + location : "";
+                failure = new Exception("optout api http status: " + status + more);
             }
 
             if (failure == null) {

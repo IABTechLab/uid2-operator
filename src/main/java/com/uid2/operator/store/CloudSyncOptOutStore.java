@@ -23,6 +23,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.codec.BodyCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +57,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
     public CloudSyncOptOutStore(Vertx vertx, ICloudStorage fsLocal, JsonObject jsonConfig, String operatorKey, Clock clock) throws MalformedURLException {
         this.fsLocal = fsLocal;
-        this.webClient = WebClient.create(vertx);
+        this.webClient = WebClient.create(vertx, new WebClientOptions().setFollowRedirects(true));
 
         String remoteApi = jsonConfig.getString(Const.Config.OptOutApiUriProp);
         if (remoteApi != null) {

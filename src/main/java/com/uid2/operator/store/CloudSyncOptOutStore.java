@@ -53,6 +53,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     private final String remoteApiHost;
     private final String remoteApiPath;
     private final String remoteApiBearerToken;
+    private final boolean remoteApiSsl;
 
     public CloudSyncOptOutStore(Vertx vertx, ICloudStorage fsLocal, JsonObject jsonConfig, String operatorKey, Clock clock) throws MalformedURLException {
         this.fsLocal = fsLocal;
@@ -61,7 +62,9 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         String remoteApi = jsonConfig.getString(Const.Config.OptOutApiUriProp);
         if (remoteApi != null) {
             URL url = new URL(remoteApi);
-            this.remoteApiPort = -1 == url.getPort() ? 80 : url.getPort();
+            boolean isHttps = "https".equalsIgnoreCase(url.getProtocol());
+            this.remoteApiSsl = isHttps;
+            this.remoteApiPort = -1 == url.getPort() ? (isHttps ? 443 : 80) : url.getPort();
             this.remoteApiHost = url.getHost();
             this.remoteApiPath = url.getPath();
             this.remoteApiBearerToken = "Bearer " + operatorKey;
@@ -70,6 +73,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             this.remoteApiHost = null;
             this.remoteApiPath = null;
             this.remoteApiBearerToken = null;
+            this.remoteApiSsl = false;
         }
 
         this.snapshot.set(new OptOutStoreSnapshot(fsLocal, jsonConfig, clock));
@@ -101,12 +105,16 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             return;
         }
 
-        HttpRequest<String> request = this.webClient.post(remoteApiPort, remoteApiHost, remoteApiPath).
-            addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.id))
+        HttpRequest<String> request = this.webClient.post(remoteApiPort, remoteApiHost, remoteApiPath)
+            .addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.id))
             .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId))
             .putHeader("Authorization", remoteApiBearerToken)
             .putHeader(Audit.UID_INSTANCE_ID_HEADER, uidInstanceId)
             .as(BodyCodec.string());
+
+        if (remoteApiSsl) {
+            request = request.ssl(true);
+        }
 
         JsonObject payload = new JsonObject();
         if (email != null) payload.put("email", email);

@@ -64,7 +64,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             URL url = new URL(remoteApi);
             boolean isHttps = "https".equalsIgnoreCase(url.getProtocol());
             this.remoteApiSsl = isHttps;
-            this.remoteApiPort = -1 == url.getPort() ? (isHttps ? 443 : 80) : url.getPort();
+            this.remoteApiPort = url.getPort() != -1 ? url.getPort() : url.getDefaultPort();
             this.remoteApiHost = url.getHost();
             this.remoteApiPath = url.getPath();
             this.remoteApiBearerToken = "Bearer " + operatorKey;

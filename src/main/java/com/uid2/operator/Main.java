@@ -1,6 +1,5 @@
 package com.uid2.operator;
 
-import ch.qos.logback.classic.LoggerContext;
 import com.google.common.base.Strings;
 import com.uid2.enclave.IAttestationProvider;
 import com.uid2.enclave.IOperatorKeyRetriever;
@@ -282,12 +281,23 @@ public class Main {
                 return;
             }
 
+            boolean errorQuit = false;
+
             try {
                 Main app = new Main(vertx, ar.result());
                 app.run();
             } catch (Exception e) {
                 LOGGER.error("Error: " + e.getMessage(), e);
-                ((LoggerContext)org.slf4j.LoggerFactory.getILoggerFactory()).stop(); // flush logs before shutdown
+                errorQuit = true;
+            }
+
+            if(errorQuit){
+                // allow log to be flushed before quit app.
+                try {
+                    Thread.sleep(1000);
+                } catch (Exception e) {
+                    // swallow
+                }
                 vertx.close();
                 System.exit(1);
             }

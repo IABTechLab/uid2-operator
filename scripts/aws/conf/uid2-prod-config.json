@@ -24,12 +24,5 @@
   "identity_scope": "uid2",
   "identity_token_expires_after_seconds": 259200,
   "refresh_token_expires_after_seconds": 2592000,
-  "refresh_identity_token_after_seconds": 3600,
-  "runtime_config_store": {
-    "type": "http",
-    "config" : {
-      "url": "https://core-prod.uidapi.com/operator/config"
-    },
-    "config_scan_period_ms": 300000
-  }
+  "refresh_identity_token_after_seconds": 3600
 }

@@ -24,5 +24,6 @@
   "identity_scope": "uid2",
   "identity_token_expires_after_seconds": 259200,
   "refresh_token_expires_after_seconds": 2592000,
-  "refresh_identity_token_after_seconds": 3600
+  "refresh_identity_token_after_seconds": 3600,
+  "encrypted_files": true
 }

@@ -40,5 +40,6 @@
   "refresh_identity_token_after_seconds": 3600,
   "operator_type": "private",
   "enable_remote_config": true,
-  "uid_instance_id_prefix": "unknown"
+  "uid_instance_id_prefix": "unknown",
+  "encrypted_files": false
 }

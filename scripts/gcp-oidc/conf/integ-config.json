@@ -13,5 +13,6 @@
     "runtime_config_metadata_path": "https://core.uidapi.com/operator/config",
     "optout_api_uri": "https://optout.uidapi.com/optout/replicate",
     "uid_instance_id_prefix": "unknown",
-    "optout_s3_folder": "uid-optout-integ/"
+    "optout_s3_folder": "uid-optout-integ/",
+    "encrypted_files": true
 }

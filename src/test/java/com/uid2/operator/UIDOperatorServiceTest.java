@@ -54,6 +54,7 @@ class UIDOperatorServiceTest {
     @Mock private OperatorShutdownHandler shutdownHandler;
 
     private EncryptedTokenEncoder tokenEncoder;
+    private KeyManager keyManager;
     private UidInstanceIdProvider uidInstanceIdProvider;
     private JsonObject uid2Config;
     private JsonObject euidConfig;
@@ -62,8 +63,8 @@ class UIDOperatorServiceTest {
     private Instant now;
 
     static class ExtendedUIDOperatorService extends UIDOperatorService {
-        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
-            super(optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler, identityV3Enabled, uidInstanceIdProvider);
+        public ExtendedUIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock, IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider, KeyManager keyManager) {
+            super(optOutStore, saltProvider, encoder, clock, identityScope, saltRetrievalResponseHandler, identityV3Enabled, uidInstanceIdProvider, keyManager);
         }
     }
 
@@ -88,7 +89,8 @@ class UIDOperatorServiceTest {
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
 
-        tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+        keyManager = new KeyManager(keysetKeyStore, keysetProvider);
+        tokenEncoder = new EncryptedTokenEncoder(keyManager);
 
         setNow(Instant.now());
 
@@ -108,7 +110,8 @@ class UIDOperatorServiceTest {
                 IdentityScope.UID2,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 uid2Config.getBoolean(IdentityV3Prop),
-                uidInstanceIdProvider
+                uidInstanceIdProvider,
+                keyManager
         );
 
         euidConfig = new JsonObject();
@@ -125,7 +128,8 @@ class UIDOperatorServiceTest {
                 IdentityScope.EUID,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 euidConfig.getBoolean(IdentityV3Prop),
-                uidInstanceIdProvider
+                uidInstanceIdProvider,
+                keyManager
         );
     }
 
@@ -154,7 +158,8 @@ class UIDOperatorServiceTest {
                 IdentityScope.UID2,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 uid2Config.getBoolean(IdentityV3Prop),
-                uidInstanceIdProvider
+                uidInstanceIdProvider,
+                keyManager
         );
 
         return saltSnapshot;
@@ -820,7 +825,8 @@ class UIDOperatorServiceTest {
                 IdentityScope.UID2,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 uid2Config.getBoolean(IdentityV3Prop),
-                uidInstanceIdProvider
+                uidInstanceIdProvider,
+                keyManager
         );
 
         UIDOperatorService euidService = new UIDOperatorService(
@@ -831,7 +837,8 @@ class UIDOperatorServiceTest {
                 IdentityScope.EUID,
                 this.shutdownHandler::handleSaltRetrievalResponse,
                 euidConfig.getBoolean(IdentityV3Prop),
-                uidInstanceIdProvider
+                uidInstanceIdProvider,
+                keyManager
         );
 
         when(this.optOutStore.getLatestEntry(any())).thenReturn(null);

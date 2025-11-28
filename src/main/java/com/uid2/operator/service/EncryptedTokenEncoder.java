@@ -225,7 +225,8 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
                     Instant.ofEpochMilli(expiresMillis),
                     new OperatorIdentity(0, OperatorType.Service, 0, masterKeyId),
                     new PublisherIdentity(siteId, siteKeyId, 0),
-                    new UserIdentity(IdentityScope.UID2, IdentityType.Email, advertisingId, privacyBits, Instant.ofEpochMilli(establishedMillis), null)
+                    new UserIdentity(IdentityScope.UID2, IdentityType.Email, advertisingId, privacyBits, Instant.ofEpochMilli(establishedMillis), null),
+                    siteKeyId
             );
 
         } catch (Exception e) {
@@ -263,7 +264,8 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
         return new AdvertisingToken(
                 tokenVersion, createdAt, expiresAt, operatorIdentity, publisherIdentity,
-                new UserIdentity(identityScope, identityType, id, privacyBits, establishedAt, refreshedAt)
+                new UserIdentity(identityScope, identityType, id, privacyBits, establishedAt, refreshedAt),
+                siteKeyId
         );
     }
 

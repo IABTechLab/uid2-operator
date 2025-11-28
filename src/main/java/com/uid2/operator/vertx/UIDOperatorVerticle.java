@@ -254,7 +254,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         router.route().handler(new RequestCapturingHandler(siteProvider));
         router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js", clientKeyProvider));
 
-        router.route(Endpoints.V2_TOKEN_VALIDATE.toString()).handler(createCorsHandler().allowedHeader("Authorization"));
+        router.route(V2_TOKEN_VALIDATE.toString()).handler(createCorsHandler().allowedHeader("Authorization"));
         router.route().handler(createCorsHandler());
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
         router.route("/static/*").handler(StaticHandler.create("static"));

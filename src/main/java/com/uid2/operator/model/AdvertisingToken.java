@@ -7,6 +7,7 @@ public class AdvertisingToken extends VersionedToken {
     public final OperatorIdentity operatorIdentity;
     public final PublisherIdentity publisherIdentity;
     public final UserIdentity userIdentity;
+    public Integer siteKeyId;
 
     public AdvertisingToken(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
                             PublisherIdentity publisherIdentity, UserIdentity userIdentity) {
@@ -14,6 +15,13 @@ public class AdvertisingToken extends VersionedToken {
         this.operatorIdentity = operatorIdentity;
         this.publisherIdentity = publisherIdentity;
         this.userIdentity = userIdentity;
+        this.siteKeyId = null;
+    }
+
+    public AdvertisingToken(TokenVersion version, Instant createdAt, Instant expiresAt, OperatorIdentity operatorIdentity,
+                            PublisherIdentity publisherIdentity, UserIdentity userIdentity, Integer siteKeyId) {
+        this(version, createdAt, expiresAt, operatorIdentity, publisherIdentity, userIdentity);
+        this.siteKeyId = siteKeyId;
     }
 }
 

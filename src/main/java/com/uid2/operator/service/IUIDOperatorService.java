@@ -25,5 +25,5 @@ public interface IUIDOperatorService {
                                String email, String phone, String clientIp,
                                Handler<AsyncResult<Instant>> handler);
 
-    boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf, IdentityEnvironment env);
+    TokenValidateResult validateAdvertisingToken(int participantSiteId, String advertisingToken, UserIdentity userIdentity, Instant asOf, IdentityEnvironment env);
 }

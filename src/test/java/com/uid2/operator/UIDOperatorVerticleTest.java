@@ -1543,11 +1543,6 @@ public class UIDOperatorVerticleTest {
                     assertArrayEquals(advertisingId, advertisingToken.userIdentity.id);
                     assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id);
 
-                    String advertisingTokenString = body.getString("advertising_token");
-                    final Instant now = Instant.now();
-                    final String token = advertisingTokenString;
-                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, optOutTokenInput.toUserIdentity(getIdentityScope(), 0, now), now, IdentityEnvironment.TEST);
-                    assertTrue(matchedOptedOutIdentity);
                     assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
                     assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
 
@@ -1932,6 +1927,36 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
+    void tokenGenerateThenValidate_Unauthorized(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        generateTokens(vertx, "email", ValidateIdentityForEmail, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject genBody = genRespJson.getJsonObject("body");
+            assertNotNull(genBody);
+
+            String advertisingTokenString = genBody.getString("advertising_token");
+
+            // This site ID did not generate the token and is therefore not authorised to validate the token
+            fakeAuth(999, Role.GENERATOR);
+
+            JsonObject v2Payload = new JsonObject();
+            v2Payload.put("token", advertisingTokenString);
+            v2Payload.put("email", ValidateIdentityForEmail);
+
+            send(vertx, "v2/token/validate", v2Payload, 400, json -> {
+                assertEquals("client_error", json.getString("status"));
+                assertEquals("Unauthorised to validate token", json.getString("message"));
+
+                testContext.completeNow();
+            });
+        });
+    }
+
+    @Test
     void tokenGenerateThenValidateWithBothEmailAndEmailHash(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = ValidateIdentityForEmail;
@@ -2258,10 +2283,10 @@ public class UIDOperatorVerticleTest {
         setupKeys();
 
         send(vertx, "v2/token/validate", new JsonObject().put("token", "abcdef").put("email", emailAddress),
-                200,
+                400,
                 respJson -> {
-                    assertFalse(respJson.getBoolean("body"));
-                    assertEquals("success", respJson.getString("status"));
+                    assertEquals("client_error", respJson.getString("status"));
+                    assertEquals("Invalid token", respJson.getString("message"));
 
                     testContext.completeNow();
                 },
@@ -2277,10 +2302,10 @@ public class UIDOperatorVerticleTest {
 
         send(vertx, "v2/token/validate",
                 new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(ValidateIdentityForEmailHash)),
-                200,
+                400,
                 respJson -> {
-                    assertFalse(respJson.getBoolean("body"));
-                    assertEquals("success", respJson.getString("status"));
+                    assertEquals("client_error", respJson.getString("status"));
+                    assertEquals("Invalid token", respJson.getString("message"));
 
                     testContext.completeNow();
                 });

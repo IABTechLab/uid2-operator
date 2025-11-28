@@ -57,9 +57,10 @@ public class UIDOperatorService implements IUIDOperatorService {
 
     private final Handler<Boolean> saltRetrievalResponseHandler;
     private final UidInstanceIdProvider uidInstanceIdProvider;
+    private final KeyManager keyManager;
 
     public UIDOperatorService(IOptOutStore optOutStore, ISaltProvider saltProvider, ITokenEncoder encoder, Clock clock,
-                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider) {
+                              IdentityScope identityScope, Handler<Boolean> saltRetrievalResponseHandler, boolean identityV3Enabled, UidInstanceIdProvider uidInstanceIdProvider, KeyManager keyManager) {
         this.saltProvider = saltProvider;
         this.encoder = encoder;
         this.optOutStore = optOutStore;
@@ -67,6 +68,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         this.identityScope = identityScope;
         this.saltRetrievalResponseHandler = saltRetrievalResponseHandler;
         this.uidInstanceIdProvider = uidInstanceIdProvider;
+        this.keyManager = keyManager;
 
         this.testOptOutIdentityForEmail = getFirstLevelHashIdentity(identityScope, IdentityType.Email,
                 InputUtil.normalizeEmail(OptOutIdentityForEmail).getIdentityInput(), Instant.now());
@@ -197,12 +199,27 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     @Override
-    public boolean advertisingTokenMatches(String advertisingToken, UserIdentity userIdentity, Instant asOf, IdentityEnvironment env) {
+    public TokenValidateResult validateAdvertisingToken(int participantSiteId, String advertisingToken, UserIdentity userIdentity, Instant asOf, IdentityEnvironment env) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(userIdentity, asOf);
         final MappedIdentity mappedIdentity = getMappedIdentity(firstLevelHashIdentity, asOf, env);
 
-        final AdvertisingToken token = this.encoder.decodeAdvertisingToken(advertisingToken);
-        return Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id);
+        final AdvertisingToken token;
+        try {
+            token = this.encoder.decodeAdvertisingToken(advertisingToken);
+        } catch (Exception e) {
+            return TokenValidateResult.INVALID_TOKEN;
+        }
+
+        int tokenSiteId = this.keyManager.getSiteIdFromKeyId(token.siteKeyId);
+        if (tokenSiteId != participantSiteId) {
+            return TokenValidateResult.UNAUTHORIZED;
+        }
+
+        if (!Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id)) {
+            return TokenValidateResult.MISMATCH;
+        }
+
+        return TokenValidateResult.MATCH;
     }
 
     private void validateTokenDurations(Duration refreshIdentityAfter, Duration refreshExpiresAfter, Duration identityExpiresAfter) {

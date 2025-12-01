@@ -208,18 +208,15 @@ class EC2(ConfidentialCompute):
             
             logging.info(f"Detected primary network interface: {primary_interface}")
             
-            # Read the current sockd.conf
             with open('/etc/sockd.conf', 'r') as f:
                 config = f.read()
             
-            # Replace any external interface declaration
             new_config = re.sub(
                 r'external:\s+\w+',
                 f'external: {primary_interface}',
                 config
             )
             
-            # Write back the updated config
             with open('/etc/sockd.conf', 'w') as f:
                 f.write(new_config)
             
@@ -232,7 +229,6 @@ class EC2(ConfidentialCompute):
     def __run_socks_proxy(self) -> None:
         logging.info("Starts the SOCKS proxy service")
         
-        # Fix network interface for R7i compatibility
         self.__fix_network_interface_in_sockd_conf()
         
         command = ["sockd", "-D"]

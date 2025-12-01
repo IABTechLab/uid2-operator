@@ -235,13 +235,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
-    private Router createRoutesSetup() throws IOException {
-        final Router router = Router.router(vertx);
-
-        router.allowForward(AllowForwardHeaders.X_FORWARD);
-        router.route().handler(new RequestCapturingHandler(siteProvider));
-        router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js", clientKeyProvider));
-        router.route().handler(CorsHandler.create()
+    private CorsHandler createCorsHandler() {
+        return CorsHandler.create()
                 .addRelativeOrigin(".*.")
                 .allowedMethod(io.vertx.core.http.HttpMethod.GET)
                 .allowedMethod(io.vertx.core.http.HttpMethod.POST)
@@ -251,7 +246,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .allowedHeader("Access-Control-Allow-Credentials")
                 .allowedHeader("Access-Control-Allow-Origin")
                 .allowedHeader("Access-Control-Allow-Headers")
-                .allowedHeader("Content-Type"));
+                .allowedHeader("Content-Type");
+    }
+
+    private Router createRoutesSetup() throws IOException {
+        final Router router = Router.router(vertx);
+
+        router.allowForward(AllowForwardHeaders.X_FORWARD);
+        router.route().handler(new RequestCapturingHandler(siteProvider));
+        router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js", clientKeyProvider));
+        router.route(V2_TOKEN_VALIDATE.toString()).handler(createCorsHandler().allowedHeader("Authorization"));
+        router.route().handler(createCorsHandler());
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
         router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().handler(ctx -> {

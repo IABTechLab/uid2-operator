@@ -2312,6 +2312,50 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
+    void corsTokenValidateAllowsAuthorizationHeader(Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        client.requestAbs(io.vertx.core.http.HttpMethod.OPTIONS, getUrlForEndpoint("v2/token/validate"))
+                .putHeader("Origin", "https://example.com")
+                .putHeader("Access-Control-Request-Method", "POST")
+                .putHeader("Access-Control-Request-Headers", "Content-Type, Authorization")
+                .send(ar -> {
+                    assertTrue(ar.succeeded());
+                    HttpResponse<Buffer> response = ar.result();
+                    assertEquals(204, response.statusCode());
+
+                    String allowedHeaders = response.getHeader("Access-Control-Allow-Headers");
+                    assertNotNull(allowedHeaders, "Access-Control-Allow-Headers header should be present");
+                    assertTrue(allowedHeaders.contains("Content-Type"), "Content-Type should be allowed");
+                    assertTrue(allowedHeaders.contains(ClientVersionHeader), "Client version header should be allowed");
+                    assertTrue(allowedHeaders.contains("Authorization"), "Authorization header should be allowed for token/validate");
+
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void corsTokenGenerateDoesNotAllowAuthorizationHeader(Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        client.requestAbs(io.vertx.core.http.HttpMethod.OPTIONS, getUrlForEndpoint("v2/token/generate"))
+                .putHeader("Origin", "https://example.com")
+                .putHeader("Access-Control-Request-Method", "POST")
+                .putHeader("Access-Control-Request-Headers", "Content-Type, Authorization")
+                .send(ar -> {
+                    assertTrue(ar.succeeded());
+                    HttpResponse<Buffer> response = ar.result();
+                    assertEquals(204, response.statusCode());
+
+                    String allowedHeaders = response.getHeader("Access-Control-Allow-Headers");
+                    assertNotNull(allowedHeaders, "Access-Control-Allow-Headers header should be present");
+                    assertTrue(allowedHeaders.contains("Content-Type"), "Content-Type should be allowed");
+                    assertTrue(allowedHeaders.contains(ClientVersionHeader), "Client version header should be allowed");
+                    assertFalse(allowedHeaders.contains("Authorization"), "Authorization header should NOT be allowed for token/generate");
+
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
     void identityMapBatchBothEmailAndHashEmpty(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);

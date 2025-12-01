@@ -58,7 +58,7 @@ public class KeyManager {
                 .description("counts site keyset status by site ID")
                 .tags(
                     "site_id", tuple.getItem1(),
-                    "status", tuple.getItem1()
+                    "status", tuple.getItem2()
                 )
                 .register(Metrics.globalRegistry)
         ).increment();

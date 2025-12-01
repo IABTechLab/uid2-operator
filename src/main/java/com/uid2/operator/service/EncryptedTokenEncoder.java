@@ -1,6 +1,7 @@
 package com.uid2.operator.service;
 
 import com.uid2.operator.model.*;
+import com.uid2.operator.util.Tuple;
 import com.uid2.operator.vertx.ClientInputValidationException;
 import com.uid2.shared.Const.Data;
 import com.uid2.shared.encryption.AesCbc;
@@ -14,9 +15,12 @@ import io.micrometer.core.instrument.Metrics;
 
 import java.time.Instant;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 public class EncryptedTokenEncoder implements ITokenEncoder {
     private final KeyManager keyManager;
+    private final Map<Tuple.Tuple2<String, String>, Counter> siteKeysetStatusMetrics = new HashMap<>();
 
     public EncryptedTokenEncoder(KeyManager keyManager) {
         this.keyManager = keyManager;
@@ -24,7 +28,7 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
 
     public byte[] encode(AdvertisingToken t, Instant asOf) {
         final KeysetKey masterKey = this.keyManager.getMasterKey(asOf);
-        final KeysetKey siteEncryptionKey = this.keyManager.getActiveKeyBySiteIdWithFallback(t.publisherIdentity.siteId, Data.AdvertisingTokenSiteId, asOf);
+        final KeysetKey siteEncryptionKey = this.keyManager.getActiveKeyBySiteIdWithFallback(t.publisherIdentity.siteId, Data.AdvertisingTokenSiteId, asOf, siteKeysetStatusMetrics);
 
         return t.version == TokenVersion.V2
                 ? encodeV2(t, masterKey, siteEncryptionKey)

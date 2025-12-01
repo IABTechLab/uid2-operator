@@ -2277,24 +2277,34 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"text/plain", "application/octet-stream"})
     void tokenValidateWithEmail_Mismatch(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
+        final String phone = ValidateIdentityForPhone;
         final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
 
-        send(vertx, "v2/token/validate", new JsonObject().put("token", "abcdef").put("email", emailAddress),
-                400,
-                respJson -> {
-                    assertEquals("client_error", respJson.getString("status"));
-                    assertEquals("Invalid token", respJson.getString("message"));
+        generateTokens(vertx, "phone", phone, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject genBody = genRespJson.getJsonObject("body");
+            assertNotNull(genBody);
 
-                    testContext.completeNow();
-                },
-                Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
+            String advertisingTokenString = genBody.getString("advertising_token");
+
+            JsonObject v2Payload = new JsonObject();
+            v2Payload.put("token", advertisingTokenString);
+            v2Payload.put("email", emailAddress);
+
+            send(vertx, "v2/token/validate", v2Payload, 200, json -> {
+                assertFalse(json.getBoolean("body"));
+                assertEquals("success", json.getString("status"));
+
+                testContext.completeNow();
+            });
+        });
     }
 
     @Test
-    void tokenValidateWithEmailHash_Mismatch(Vertx vertx, VertxTestContext testContext) {
+    void tokenValidateWithInvalidToken(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();

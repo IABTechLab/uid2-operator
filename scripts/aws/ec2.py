@@ -167,8 +167,74 @@ class EC2(ConfidentialCompute):
 
         self.run_service([command, command], "flask_config_server", separate_process=True)
 
+    def __fix_network_interface_in_sockd_conf(self) -> None:
+        """
+        Auto-detects the primary network interface and updates /etc/sockd.conf.
+        This fixes compatibility with R7i instances which use 'enp39s0' instead of 'ens5'.
+        """
+        logging.info("Auto-detecting network interface for SOCKS proxy configuration")
+        
+        try:
+            # Get the primary network interface (exclude loopback)
+            result = subprocess.run(
+                ["ip", "-o", "link", "show"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            primary_interface = None
+            # Try to find an interface in UP state first
+            for line in result.stdout.split('\n'):
+                if line.strip() and 'lo:' not in line and 'state UP' in line:
+                    # Extract interface name (format: "2: ens5: <BROADCAST...")
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        primary_interface = parts[1].strip()
+                        break
+            
+            if not primary_interface:
+                # Fallback: just get the first non-loopback interface
+                for line in result.stdout.split('\n'):
+                    if line.strip() and 'lo:' not in line:
+                        parts = line.split(':')
+                        if len(parts) >= 2:
+                            primary_interface = parts[1].strip()
+                            break
+            
+            if not primary_interface:
+                logging.warning("Could not detect primary network interface, using default 'ens5'")
+                primary_interface = "ens5"
+            
+            logging.info(f"Detected primary network interface: {primary_interface}")
+            
+            # Read the current sockd.conf
+            with open('/etc/sockd.conf', 'r') as f:
+                config = f.read()
+            
+            # Replace any external interface declaration
+            new_config = re.sub(
+                r'external:\s+\w+',
+                f'external: {primary_interface}',
+                config
+            )
+            
+            # Write back the updated config
+            with open('/etc/sockd.conf', 'w') as f:
+                f.write(new_config)
+            
+            logging.info(f"Updated /etc/sockd.conf with interface: {primary_interface}")
+            
+        except Exception as e:
+            logging.error(f"Failed to auto-detect network interface: {e}")
+            logging.info("Continuing with existing /etc/sockd.conf configuration")
+
     def __run_socks_proxy(self) -> None:
         logging.info("Starts the SOCKS proxy service")
+        
+        # Fix network interface for R7i compatibility
+        self.__fix_network_interface_in_sockd_conf()
+        
         command = ["sockd", "-D"]
 
         # -d specifies debug level

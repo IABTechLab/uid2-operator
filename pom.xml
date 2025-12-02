@@ -6,8 +6,8 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.61.18-alpha-264-SNAPSHOT</version>
-  
+    <version>5.61.28</version>
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <vertx.version>4.5.21</vertx.version>

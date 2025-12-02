@@ -14,11 +14,5 @@
     "optout_api_uri": "https://optout.uidapi.com/optout/replicate",
     "uid_instance_id_prefix": "unknown",
     "optout_s3_folder": "uid-optout-integ/",
-    "runtime_config_store": {
-        "type": "http",
-        "config" : {
-            "url": "https://core.uidapi.com/operator/config"
-        },
-        "config_scan_period_ms": 300000
-    }
+    "encrypted_files": true
 }

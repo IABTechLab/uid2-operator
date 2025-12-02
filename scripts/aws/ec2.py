@@ -175,47 +175,19 @@ class EC2(ConfidentialCompute):
         logging.info("Auto-detecting network interface for SOCKS proxy configuration")
         
         try:
-            # Get the primary network interface (exclude loopback)
             result = subprocess.run(
-                ["ip", "-o", "link", "show"],
-                capture_output=True,
-                text=True,
-                check=True
+                ["ip", "-o", "route", "get", "1"],
+                capture_output=True, text=True, check=True
             )
-            
-            primary_interface = None
-            # Try to find an interface in UP state first
-            for line in result.stdout.split('\n'):
-                if line.strip() and 'lo:' not in line and 'state UP' in line:
-                    # Extract interface name (format: "2: ens5: <BROADCAST...")
-                    parts = line.split(':')
-                    if len(parts) >= 2:
-                        primary_interface = parts[1].strip()
-                        break
-            
-            if not primary_interface:
-                # Fallback: just get the first non-loopback interface
-                for line in result.stdout.split('\n'):
-                    if line.strip() and 'lo:' not in line:
-                        parts = line.split(':')
-                        if len(parts) >= 2:
-                            primary_interface = parts[1].strip()
-                            break
-            
-            if not primary_interface:
-                logging.warning("Could not detect primary network interface, using default 'ens5'")
-                primary_interface = "ens5"
+            match = re.search(r'dev\s+(\S+)', result.stdout)
+            primary_interface = match.group(1) if match else "ens5"
             
             logging.info(f"Detected primary network interface: {primary_interface}")
             
             with open('/etc/sockd.conf', 'r') as f:
                 config = f.read()
             
-            new_config = re.sub(
-                r'external:\s+\w+',
-                f'external: {primary_interface}',
-                config
-            )
+            new_config = re.sub(r'external:\s+\w+', f'external: {primary_interface}', config)
             
             with open('/etc/sockd.conf', 'w') as f:
                 f.write(new_config)

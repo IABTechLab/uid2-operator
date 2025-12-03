@@ -283,11 +283,16 @@ class EC2(ConfidentialCompute):
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to get config from config server: {e}")
         proxies = {"http": AuxiliaryConfig.get_socks_url(), "https": AuxiliaryConfig.get_socks_url()}
-        try:
-            response = requests.get(AuxiliaryConfig.get_config_url(), proxies=proxies)
-            response.raise_for_status()
-        except requests.RequestException as e:
-            raise RuntimeError(f"Cannot connect to config server via SOCKS proxy: {e}")
+        for attempt in range(10):
+            try:
+                response = requests.get(AuxiliaryConfig.get_config_url(), proxies=proxies)
+                response.raise_for_status()
+                break
+            except requests.RequestException as e:
+                logging.error(f"Connecting via SOCKS proxy, attempt {attempt + 1} failed: {e}")
+            time.sleep(1)
+        else:
+            raise RuntimeError(f"Cannot connect to config server via SOCKS proxy after 10 attempts")
         logging.info("Connectivity check to config server passes")
 
     def __run_nitro_enclave(self):

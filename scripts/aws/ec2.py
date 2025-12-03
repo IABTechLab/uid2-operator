@@ -169,12 +169,20 @@ class EC2(ConfidentialCompute):
 
     def __configure_sockd_network_interface(self) -> None:
         """
-        Auto-detects the primary network interface and updates /sockd.conf.
-        This fixes compatibility with R7i instances which use 'enp39s0' instead of 'ens5'.
+        Auto-detects the primary network interface and configures sockd.conf.
+        This ensures compatibility with R7i instances which use 'enp39s0' instead of 'ens5'.
         """
         logging.info("Auto-detecting network interface for SOCKS proxy configuration")
         
         try:
+            with open('/etc/sockd.conf', 'r') as f:
+                config = f.read()
+            
+            # Extract current interface from config
+            current_match = re.search(r'external:\s+(\S+)', config)
+            current_interface = current_match.group(1) if current_match else "unknown"
+            
+            # Detect primary network interface
             result = subprocess.run(
                 ["ip", "-o", "route", "get", "1"],
                 capture_output=True, text=True, check=True
@@ -182,17 +190,14 @@ class EC2(ConfidentialCompute):
             match = re.search(r'dev\s+(\S+)', result.stdout)
             primary_interface = match.group(1) if match else "ens5"
             
-            logging.info(f"Detected primary network interface: {primary_interface}")
+            logging.info(f"Detected primary network interface: {primary_interface} (default in config: {current_interface})")
             
-            with open('/etc/sockd.conf', 'r') as f:
-                config = f.read()
-            
-            new_config = re.sub(r'external:\s+\w+', f'external: {primary_interface}', config)
+            new_config = re.sub(r'external:\s+\S+', f'external: {primary_interface}', config)
             
             with open('/etc/sockd.conf', 'w') as f:
                 f.write(new_config)
             
-            logging.info(f"Updated /etc/sockd.conf with interface: {primary_interface}")
+            logging.info(f"/etc/sockd.conf configured with interface: {primary_interface}")
             
         except Exception as e:
             logging.error(f"Failed to auto-detect network interface: {e}")

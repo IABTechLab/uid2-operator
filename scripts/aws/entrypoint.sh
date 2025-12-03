@@ -23,7 +23,21 @@ echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
 build_parameterized_config() {
-  curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
+  # Retry loop - vsockpx needs time to establish connection to host
+  MAX_RETRIES=30
+  RETRY_DELAY=1
+  for i in $(seq 1 $MAX_RETRIES); do
+    if curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig; then
+      echo "Successfully fetched config on attempt $i"
+      break
+    fi
+    echo "Config fetch attempt $i failed, retrying in ${RETRY_DELAY}s..."
+    sleep $RETRY_DELAY
+    if [ $i -eq $MAX_RETRIES ]; then
+      echo "Failed to fetch config after $MAX_RETRIES attempts"
+      exit 1
+    fi
+  done
   REQUIRED_KEYS=("optout_base_url" "core_base_url" "core_api_token" "optout_api_token" "environment" "uid_instance_id_prefix")
   for key in "${REQUIRED_KEYS[@]}"; do
     if ! jq -e "has(\"${key}\")" "${PARAMETERIZED_CONFIG}" > /dev/null; then

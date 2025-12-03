@@ -167,9 +167,9 @@ class EC2(ConfidentialCompute):
 
         self.run_service([command, command], "flask_config_server", separate_process=True)
 
-    def __fix_network_interface_in_sockd_conf(self) -> None:
+    def __configure_sockd_network_interface(self) -> None:
         """
-        Auto-detects the primary network interface and updates /etc/sockd.conf.
+        Auto-detects the primary network interface and updates /sockd.conf.
         This fixes compatibility with R7i instances which use 'enp39s0' instead of 'ens5'.
         """
         logging.info("Auto-detecting network interface for SOCKS proxy configuration")
@@ -201,7 +201,7 @@ class EC2(ConfidentialCompute):
     def __run_socks_proxy(self) -> None:
         logging.info("Starts the SOCKS proxy service")
         
-        self.__fix_network_interface_in_sockd_conf()
+        self.__configure_sockd_network_interface()
         
         command = ["sockd", "-D"]
 
@@ -209,10 +209,6 @@ class EC2(ConfidentialCompute):
         debug_command = ["sockd", "-d", "0"]
 
         self.run_service([command, debug_command], "socks_proxy")
-        
-        # sockd -D daemonizes and returns immediately, but child process needs time to initialize
-        logging.info("Waiting for sockd to fully initialize...")
-        time.sleep(2)
 
     def run_service(self, command: List[List[str]], log_filename: str, separate_process: bool = False) -> None:
         """
@@ -287,11 +283,16 @@ class EC2(ConfidentialCompute):
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to get config from config server: {e}")
         proxies = {"http": AuxiliaryConfig.get_socks_url(), "https": AuxiliaryConfig.get_socks_url()}
-        try:
-            response = requests.get(AuxiliaryConfig.get_config_url(), proxies=proxies)
-            response.raise_for_status()
-        except requests.RequestException as e:
-            raise RuntimeError(f"Cannot connect to config server via SOCKS proxy: {e}")
+        for attempt in range(10):
+            try:
+                response = requests.get(AuxiliaryConfig.get_config_url(), proxies=proxies)
+                response.raise_for_status()
+                break
+            except requests.RequestException as e:
+                logging.error(f"Connecting via SOCKS proxy, attempt {attempt + 1} failed: {e}")
+            time.sleep(1)
+        else:
+            raise RuntimeError(f"Cannot connect to config server via SOCKS proxy after 10 attempts")
         logging.info("Connectivity check to config server passes")
 
     def __run_nitro_enclave(self):

@@ -348,6 +348,12 @@ if __name__ == "__main__":
         if args.operation == "stop":
             ec2.cleanup()
         else:
+            # Always cleanup before starting to ensure clean state
+            logging.info("Cleaning up any previous enclave and auxiliary processes before starting")
+            try:
+                ec2.cleanup()
+            except Exception as e:
+                logging.warning(f"Cleanup before start encountered an error (may be expected on first boot): {e}")
             ec2.run_compute()
     except ConfidentialComputeStartupError as e:
         logging.error(f"Failed starting up Confidential Compute. Please checks the logs for errors and retry {e}")

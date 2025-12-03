@@ -1,11 +1,14 @@
 package com.uid2.operator.model;
 
+import com.uid2.operator.util.Tuple;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
 import com.uid2.shared.Const;
 import com.uid2.shared.auth.Keyset;
 import com.uid2.shared.model.KeysetKey;
 import com.uid2.shared.store.IKeysetKeyStore;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Metrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +20,10 @@ import java.util.stream.Collectors;
 
 public class KeyManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(KeyManager.class);
+    private static final String SITE_KEYSET_STATUS = "site_keyset_found";
+    private static final String FALLBACK_KEYSET_STATUS = "fallback_keyset_found";
+    private static final String KEYSET_NOT_FOUND_STATUS = "keyset_not_found";
+
     private final IKeysetKeyStore keysetKeyStore;
     private final RotatingKeysetProvider keysetProvider;
 
@@ -34,12 +41,45 @@ public class KeyManager {
                 this.getDefaultKeysetBySiteId(siteId));
     }
 
-    public KeysetKey getActiveKeyBySiteIdWithFallback(int siteId, int fallbackSiteId, Instant asOf) {
+    private void recordSiteKeysetStatusMetrics(int siteId, Boolean keysetFound, Boolean isFallback, Map<Tuple.Tuple2<String, String>, Counter> siteKeysetStatusMetrics) {
+        String status;
+        if (!keysetFound) {
+            status = KEYSET_NOT_FOUND_STATUS;
+        } else if (isFallback) {
+            status = FALLBACK_KEYSET_STATUS;
+        } else {
+            status = SITE_KEYSET_STATUS;
+        }
+
+        siteKeysetStatusMetrics.computeIfAbsent(
+            new Tuple.Tuple2<>(String.valueOf(siteId), status),
+            tuple -> Counter
+                .builder("uid2_site_keyset_status")
+                .description("counts site keyset status by site ID")
+                .tags(
+                    "site_id", tuple.getItem1(),
+                    "status", tuple.getItem2()
+                )
+                .register(Metrics.globalRegistry)
+        ).increment();
+    }
+
+    public KeysetKey getActiveKeyBySiteIdWithFallback(int siteId, int fallbackSiteId, Instant asOf, Map<Tuple.Tuple2<String, String>, Counter> siteKeysetStatusMetrics) {
+        boolean isFallback = false;
+
         KeysetKey key = getActiveKeyBySiteId(siteId, asOf);
-        if (key == null) key = getActiveKeyBySiteId(fallbackSiteId, asOf);
+
         if (key == null) {
+            isFallback = true;
+            key = getActiveKeyBySiteId(fallbackSiteId, asOf);
+        }
+
+        if (key == null) {
+            recordSiteKeysetStatusMetrics(siteId, false, null, siteKeysetStatusMetrics);
             throw new NoActiveKeyException(String.format("Cannot get active key in default keyset with SITE ID %d or %d.", siteId, fallbackSiteId));
         }
+
+        recordSiteKeysetStatusMetrics(siteId, true, isFallback, siteKeysetStatusMetrics);
         return key;
     }
 

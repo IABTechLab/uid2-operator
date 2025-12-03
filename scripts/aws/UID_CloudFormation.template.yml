@@ -38,6 +38,8 @@ Parameters:
       - m6i.4xlarge
       - r6i.2xlarge
       - r6i.4xlarge
+      - r7i.2xlarge
+      - r7i.4xlarge
     ConstraintDescription: must be a valid EC2 instance type.
   RootVolumeSize:
     Description: Instance root volume size

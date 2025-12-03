@@ -167,8 +167,47 @@ class EC2(ConfidentialCompute):
 
         self.run_service([command, command], "flask_config_server", separate_process=True)
 
+    def __configure_sockd_network_interface(self) -> None:
+        """
+        Auto-detects the primary network interface and configures sockd.conf.
+        This ensures compatibility with R7i instances which use 'enp39s0' instead of 'ens5'.
+        """
+        logging.info("Auto-detecting network interface for SOCKS proxy configuration")
+        
+        try:
+            with open('/etc/sockd.conf', 'r') as f:
+                config = f.read()
+            
+            # Extract current interface from config
+            current_match = re.search(r'external:\s+(\S+)', config)
+            current_interface = current_match.group(1) if current_match else "unknown"
+            
+            # Detect primary network interface
+            result = subprocess.run(
+                ["ip", "-o", "route", "get", "1"],
+                capture_output=True, text=True, check=True
+            )
+            match = re.search(r'dev\s+(\S+)', result.stdout)
+            primary_interface = match.group(1) if match else "ens5"
+            
+            logging.info(f"Detected primary network interface: {primary_interface} (default in config: {current_interface})")
+            
+            new_config = re.sub(r'external:\s+\S+', f'external: {primary_interface}', config)
+            
+            with open('/etc/sockd.conf', 'w') as f:
+                f.write(new_config)
+            
+            logging.info(f"/etc/sockd.conf configured with interface: {primary_interface}")
+            
+        except Exception as e:
+            logging.error(f"Failed to auto-detect network interface: {e}")
+            logging.info("Continuing with existing /etc/sockd.conf configuration")
+
     def __run_socks_proxy(self) -> None:
         logging.info("Starts the SOCKS proxy service")
+        
+        self.__configure_sockd_network_interface()
+        
         command = ["sockd", "-D"]
 
         # -d specifies debug level

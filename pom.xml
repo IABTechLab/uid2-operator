@@ -20,8 +20,8 @@
         <micrometer.version>1.12.2</micrometer.version>
         <enclave-api.version>2.1.6</enclave-api.version>
         <enclave-aws.version>2.1.0</enclave-aws.version>
-        <enclave-azure.version>2.1.13</enclave-azure.version>
-        <enclave-gcp.version>2.1.0</enclave-gcp.version>
+        <enclave-azure.version>2.1.19</enclave-azure.version> 
+        <enclave-gcp.version>2.1.9</enclave-gcp.version> 
         <uid2-shared.version>11.1.91</uid2-shared.version>
         <image.version>${project.version}</image.version>
         <maven.compiler.source>21</maven.compiler.source>

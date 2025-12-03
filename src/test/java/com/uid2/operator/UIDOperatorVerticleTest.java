@@ -1543,11 +1543,6 @@ public class UIDOperatorVerticleTest {
                     assertArrayEquals(advertisingId, advertisingToken.userIdentity.id);
                     assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id);
 
-                    String advertisingTokenString = body.getString("advertising_token");
-                    final Instant now = Instant.now();
-                    final String token = advertisingTokenString;
-                    final boolean matchedOptedOutIdentity = this.uidOperatorVerticle.getIdService().advertisingTokenMatches(token, optOutTokenInput.toUserIdentity(getIdentityScope(), 0, now), now, IdentityEnvironment.TEST);
-                    assertTrue(matchedOptedOutIdentity);
                     assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
                     assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
 
@@ -1932,6 +1927,36 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
+    void tokenGenerateThenValidate_Unauthorized(Vertx vertx, VertxTestContext testContext) {
+        final int clientSiteId = 201;
+        fakeAuth(clientSiteId, Role.GENERATOR);
+        setupSalts();
+        setupKeys();
+
+        generateTokens(vertx, "email", ValidateIdentityForEmail, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject genBody = genRespJson.getJsonObject("body");
+            assertNotNull(genBody);
+
+            String advertisingTokenString = genBody.getString("advertising_token");
+
+            // This site ID did not generate the token and is therefore not authorised to validate the token
+            fakeAuth(999, Role.GENERATOR);
+
+            JsonObject v2Payload = new JsonObject();
+            v2Payload.put("token", advertisingTokenString);
+            v2Payload.put("email", ValidateIdentityForEmail);
+
+            send(vertx, "v2/token/validate", v2Payload, 400, json -> {
+                assertEquals("client_error", json.getString("status"));
+                assertEquals("Unauthorised to validate token", json.getString("message"));
+
+                testContext.completeNow();
+            });
+        });
+    }
+
+    @Test
     void tokenGenerateThenValidateWithBothEmailAndEmailHash(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         final String emailAddress = ValidateIdentityForEmail;
@@ -2252,24 +2277,34 @@ public class UIDOperatorVerticleTest {
     @ValueSource(strings = {"text/plain", "application/octet-stream"})
     void tokenValidateWithEmail_Mismatch(String contentType, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
+        final String phone = ValidateIdentityForPhone;
         final String emailAddress = ValidateIdentityForEmail;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
         setupKeys();
 
-        send(vertx, "v2/token/validate", new JsonObject().put("token", "abcdef").put("email", emailAddress),
-                200,
-                respJson -> {
-                    assertFalse(respJson.getBoolean("body"));
-                    assertEquals("success", respJson.getString("status"));
+        generateTokens(vertx, "phone", phone, genRespJson -> {
+            assertEquals("success", genRespJson.getString("status"));
+            JsonObject genBody = genRespJson.getJsonObject("body");
+            assertNotNull(genBody);
 
-                    testContext.completeNow();
-                },
-                Map.of(HttpHeaders.CONTENT_TYPE.toString(), contentType));
+            String advertisingTokenString = genBody.getString("advertising_token");
+
+            JsonObject v2Payload = new JsonObject();
+            v2Payload.put("token", advertisingTokenString);
+            v2Payload.put("email", emailAddress);
+
+            send(vertx, "v2/token/validate", v2Payload, 200, json -> {
+                assertFalse(json.getBoolean("body"));
+                assertEquals("success", json.getString("status"));
+
+                testContext.completeNow();
+            });
+        });
     }
 
     @Test
-    void tokenValidateWithEmailHash_Mismatch(Vertx vertx, VertxTestContext testContext) {
+    void tokenValidateWithInvalidToken(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.GENERATOR);
         setupSalts();
@@ -2277,10 +2312,54 @@ public class UIDOperatorVerticleTest {
 
         send(vertx, "v2/token/validate",
                 new JsonObject().put("token", "abcdef").put("email_hash", EncodingUtils.toBase64String(ValidateIdentityForEmailHash)),
-                200,
+                400,
                 respJson -> {
-                    assertFalse(respJson.getBoolean("body"));
-                    assertEquals("success", respJson.getString("status"));
+                    assertEquals("client_error", respJson.getString("status"));
+                    assertEquals("Invalid token", respJson.getString("message"));
+
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void corsTokenValidateAllowsAuthorizationHeader(Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        client.requestAbs(io.vertx.core.http.HttpMethod.OPTIONS, getUrlForEndpoint("v2/token/validate"))
+                .putHeader("Origin", "https://example.com")
+                .putHeader("Access-Control-Request-Method", "POST")
+                .putHeader("Access-Control-Request-Headers", "Content-Type, Authorization")
+                .send(ar -> {
+                    assertTrue(ar.succeeded());
+                    HttpResponse<Buffer> response = ar.result();
+                    assertEquals(204, response.statusCode());
+
+                    String allowedHeaders = response.getHeader("Access-Control-Allow-Headers");
+                    assertNotNull(allowedHeaders, "Access-Control-Allow-Headers header should be present");
+                    assertTrue(allowedHeaders.contains("Content-Type"), "Content-Type should be allowed");
+                    assertTrue(allowedHeaders.contains(ClientVersionHeader), "Client version header should be allowed");
+                    assertTrue(allowedHeaders.contains("Authorization"), "Authorization header should be allowed for token/validate");
+
+                    testContext.completeNow();
+                });
+    }
+
+    @Test
+    void corsTokenGenerateDoesNotAllowAuthorizationHeader(Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        client.requestAbs(io.vertx.core.http.HttpMethod.OPTIONS, getUrlForEndpoint("v2/token/generate"))
+                .putHeader("Origin", "https://example.com")
+                .putHeader("Access-Control-Request-Method", "POST")
+                .putHeader("Access-Control-Request-Headers", "Content-Type, Authorization")
+                .send(ar -> {
+                    assertTrue(ar.succeeded());
+                    HttpResponse<Buffer> response = ar.result();
+                    assertEquals(204, response.statusCode());
+
+                    String allowedHeaders = response.getHeader("Access-Control-Allow-Headers");
+                    assertNotNull(allowedHeaders, "Access-Control-Allow-Headers header should be present");
+                    assertTrue(allowedHeaders.contains("Content-Type"), "Content-Type should be allowed");
+                    assertTrue(allowedHeaders.contains(ClientVersionHeader), "Client version header should be allowed");
+                    assertFalse(allowedHeaders.contains("Authorization"), "Authorization header should NOT be allowed for token/generate");
 
                     testContext.completeNow();
                 });

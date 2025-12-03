@@ -13,5 +13,6 @@
   "cloud_encryption_keys_metadata_path": "https://core-integ.uidapi.com/cloud_encryption_keys/retrieve",
   "runtime_config_metadata_path": "https://core-integ.uidapi.com/operator/config",
   "optout_s3_folder": "uid-optout-integ/",
-  "identity_scope": "uid2"
+  "identity_scope": "uid2",
+  "encrypted_files": true
 }

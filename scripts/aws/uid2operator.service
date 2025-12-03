@@ -10,7 +10,6 @@ StandardError=journal
 SyslogIdentifier=uid2operator
 ExecStart=/opt/uid2operator/init/bin/python /opt/uid2operator/ec2.py
 ExecStop=/opt/uid2operator/init/bin/python /opt/uid2operator/ec2.py -o stop
-ExecStartPre=-/usr/bin/nitro-cli terminate-enclave --all
 
 [Install]
 WantedBy=multi-user.target

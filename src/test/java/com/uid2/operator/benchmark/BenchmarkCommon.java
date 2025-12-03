@@ -69,7 +69,8 @@ public final class BenchmarkCommon {
                 "/com.uid2.core/test/salts/metadata.json");
         saltProvider.loadContent();
 
-        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(new KeyManager(keysetKeyStore, keysetProvider));
+        final KeyManager keyManager = new KeyManager(keysetKeyStore, keysetProvider);
+        final EncryptedTokenEncoder tokenEncoder = new EncryptedTokenEncoder(keyManager);
         final List<String> optOutPartitionFiles = new ArrayList<>();
         final ICloudStorage optOutLocalStorage = make1mOptOutEntryStorage(
                 saltProvider.getSnapshot(Instant.now()).getFirstLevelSalt(),
@@ -84,7 +85,8 @@ public final class BenchmarkCommon {
                 IdentityScope.UID2,
                 shutdownHandler::handleSaltRetrievalResponse,
                 false,
-                new UidInstanceIdProvider("test-instance", "id")
+                new UidInstanceIdProvider("test-instance", "id"),
+                keyManager
         );
     }
 

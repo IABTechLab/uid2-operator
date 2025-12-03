@@ -117,6 +117,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
     private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersions = new HashMap<>();
+    private final Map<Tuple.Tuple2<String, String>, Counter> _tokenValidateCounters = new HashMap<>();
 
     private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
     private final IdentityScope identityScope;
@@ -210,7 +211,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 this.identityScope,
                 this.saltRetrievalResponseHandler,
                 this.identityV3Enabled,
-                this.uidInstanceIdProvider
+                this.uidInstanceIdProvider,
+                this.keyManager
         );
 
         final Router router = createRoutesSetup();
@@ -233,13 +235,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     }
 
-    private Router createRoutesSetup() throws IOException {
-        final Router router = Router.router(vertx);
-
-        router.allowForward(AllowForwardHeaders.X_FORWARD);
-        router.route().handler(new RequestCapturingHandler(siteProvider));
-        router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js", clientKeyProvider));
-        router.route().handler(CorsHandler.create()
+    private CorsHandler createCorsHandler() {
+        return CorsHandler.create()
                 .addRelativeOrigin(".*.")
                 .allowedMethod(io.vertx.core.http.HttpMethod.GET)
                 .allowedMethod(io.vertx.core.http.HttpMethod.POST)
@@ -249,7 +246,17 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 .allowedHeader("Access-Control-Allow-Credentials")
                 .allowedHeader("Access-Control-Allow-Origin")
                 .allowedHeader("Access-Control-Allow-Headers")
-                .allowedHeader("Content-Type"));
+                .allowedHeader("Content-Type");
+    }
+
+    private Router createRoutesSetup() throws IOException {
+        final Router router = Router.router(vertx);
+
+        router.allowForward(AllowForwardHeaders.X_FORWARD);
+        router.route().handler(new RequestCapturingHandler(siteProvider));
+        router.route().handler(new ClientVersionCapturingHandler("static/js", "*.js", clientKeyProvider));
+        router.route(V2_TOKEN_VALIDATE.toString()).handler(createCorsHandler().allowedHeader("Authorization"));
+        router.route().handler(createCorsHandler());
         router.route().handler(new StatsCollectorHandler(_statsCollectorQueue, vertx));
         router.route("/static/*").handler(StaticHandler.create("static"));
         router.route().handler(ctx -> {
@@ -807,6 +814,22 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private void recordTokenValidateStats(Integer siteId, String result) {
+        final String siteIdStr = siteId != null ? String.valueOf(siteId) : "unknown";
+        _tokenValidateCounters.computeIfAbsent(
+                new Tuple.Tuple2<>(siteIdStr, result),
+                tuple -> Counter
+                        .builder("uid2_token_validate_total")
+                        .description("counter for token validate endpoint results")
+                        .tags(
+                            "site_id", tuple.getItem1(), 
+                            "site_name", getSiteName(siteProvider, Integer.valueOf(tuple.getItem1())), 
+                            "result", tuple.getItem2()
+                        )
+                        .register(Metrics.globalRegistry)
+        ).increment();
+    }
+
     private void handleTokenRefreshV2(RoutingContext rc) {
         Integer siteId = null;
         TokenResponseStatsCollector.PlatformType platformType = TokenResponseStatsCollector.PlatformType.Other;
@@ -848,33 +871,38 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private void handleTokenValidateV2(RoutingContext rc) {
         RuntimeConfig config = this.getConfigFromRc(rc);
         IdentityEnvironment env = config.getIdentityEnvironment();
+        final Integer participantSiteId = AuthMiddleware.getAuthClient(rc).getSiteId();
 
         try {
             final JsonObject req = (JsonObject) rc.data().get("request");
 
             final InputUtil.InputVal input = getTokenInputV2(req);
             if (!isTokenInputValid(input, rc)) {
+                recordTokenValidateStats(participantSiteId, "invalid_input");
                 return;
             }
-            if ((input.getIdentityType() == IdentityType.Email && Arrays.equals(ValidateIdentityForEmailHash, input.getIdentityInput()))
-                    || (input.getIdentityType() == IdentityType.Phone && Arrays.equals(ValidateIdentityForPhoneHash, input.getIdentityInput()))) {
-                try {
-                    final Instant now = Instant.now();
-                    final String token = req.getString("token");
 
-                    if (this.idService.advertisingTokenMatches(token, input.toUserIdentity(this.identityScope, 0, now), now, env)) {
-                        ResponseUtil.SuccessV2(rc, Boolean.TRUE);
-                    } else {
-                        ResponseUtil.SuccessV2(rc, Boolean.FALSE);
-                    }
-                } catch (Exception e) {
-                    ResponseUtil.SuccessV2(rc, Boolean.FALSE);
-                }
-            } else {
+            final Instant now = Instant.now();
+            final String token = req.getString("token");
+
+            final TokenValidateResult result = this.idService.validateAdvertisingToken(participantSiteId, token, input.toUserIdentity(this.identityScope, 0, now), now, env);
+
+            if (result == TokenValidateResult.MATCH) {
+                recordTokenValidateStats(participantSiteId, "match");
+                ResponseUtil.SuccessV2(rc, Boolean.TRUE);
+            } else if (result == TokenValidateResult.MISMATCH) {
+                recordTokenValidateStats(participantSiteId, "mismatch");
                 ResponseUtil.SuccessV2(rc, Boolean.FALSE);
+            } else if (result == TokenValidateResult.UNAUTHORIZED) {
+                recordTokenValidateStats(participantSiteId, "unauthorized");
+                ResponseUtil.LogInfoAndSend400Response(rc, "Unauthorised to validate token");
+            } else if (result == TokenValidateResult.INVALID_TOKEN) {
+                recordTokenValidateStats(participantSiteId, "invalid_token");
+                ResponseUtil.LogInfoAndSend400Response(rc, "Invalid token");
             }
         } catch (Exception e) {
-            LOGGER.error("Unknown error while validating token v2", e);
+            recordTokenValidateStats(participantSiteId, "error");
+            LOGGER.error("Unknown error while validating token", e);
             rc.fail(500);
         }
     }

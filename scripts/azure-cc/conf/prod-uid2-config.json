@@ -15,5 +15,5 @@
   "optout_s3_folder": "optout-v2/",
   "identity_token_expires_after_seconds": 259200,
   "uid_instance_id_prefix": "unknown",
-  "encrypted_files": true
+  "encrypted_files": false
 }

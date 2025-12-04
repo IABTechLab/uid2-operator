@@ -14,5 +14,5 @@
   "runtime_config_metadata_path": "https://core.integ.euid.eu/operator/config",
   "optout_s3_folder": "optout/",
   "identity_scope": "euid",
-  "encrypted_files": true
+  "encrypted_files": false
 }

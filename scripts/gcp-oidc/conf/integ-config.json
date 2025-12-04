@@ -14,5 +14,5 @@
     "optout_api_uri": "https://optout.uidapi.com/optout/replicate",
     "uid_instance_id_prefix": "unknown",
     "optout_s3_folder": "uid-optout-integ/",
-    "encrypted_files": true
+    "encrypted_files": false
 }

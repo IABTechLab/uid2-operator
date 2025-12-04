@@ -29,5 +29,5 @@
   "enable_phone_support": true,
   "enable_v1_phone_support": false,
   "enable_v2_encryption": true,
-  "encrypted_files": false
+  "encrypted_files": true
 }

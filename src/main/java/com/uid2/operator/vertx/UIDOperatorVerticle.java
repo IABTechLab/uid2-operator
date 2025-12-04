@@ -1026,7 +1026,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     body.put("optout", "OK");
                     ResponseUtil.SuccessV2(rc, body);
                 } else {
-                    rc.fail(500);
+                    Throwable cause = ar.cause();
+                    String errorMsg = cause != null ? cause.getMessage() : "Unknown error during opt-out";
+                    LOGGER.error("V2 logout failed for traceId={}: {}", uidTraceId, errorMsg, cause);
+                    ResponseUtil.LogErrorAndSendResponse(ResponseStatus.GenericError, 500, rc, errorMsg);
                 }
                 promise.complete();
             });

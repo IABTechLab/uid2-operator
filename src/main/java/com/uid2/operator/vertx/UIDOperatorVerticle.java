@@ -1004,6 +1004,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private Future handleLogoutAsyncV2(RoutingContext rc) {
+        LOGGER.info("handleLogoutAsyncV2 is called");
         RuntimeConfig config = getConfigFromRc(rc);
         IdentityEnvironment env = config.getIdentityEnvironment();
 
@@ -1011,6 +1012,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = getTokenInputV2(req);
         final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
         if (input != null && input.isValid()) {
+            LOGGER.info("input is valid");
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
@@ -1018,6 +1020,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final String phone = req == null ? null : req.getString("phone");
             final String clientIp = req == null ? null : req.getString("clientIp");
 
+            LOGGER.info("invalidating tokens async");
             this.idService.invalidateTokensAsync(input.toUserIdentity(this.identityScope, 0, now), now, uidTraceId, env,
                     email, phone, clientIp,
                     ar -> {

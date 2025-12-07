@@ -16,3 +16,10 @@ CVE-2025-64720 exp:2026-06-05
 
 # UID2-6340
 CVE-2025-65018 exp:2026-06-05
+
+
+# ignore for testing only.
+# Investigating below vulnerabilites are out of scope of this ticket
+CVE-2025-66418
+CVE-2025-66471
+# ignore for testing only.

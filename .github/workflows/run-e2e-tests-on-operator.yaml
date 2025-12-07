@@ -117,14 +117,14 @@ on:
 jobs:
   e2e-test:
     name: E2E Test
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml@v3
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-run-e2e-tests.yaml
     with:
       operator_type: ${{ inputs.operator_type }}
       identity_scope: ${{ inputs.identity_scope }}
       target_environment: ${{ inputs.target_environment }}
       delay_operator_shutdown: ${{ inputs.delay_operator_shutdown }}
       operator_image_version: ${{ inputs.operator_image_version }}
-      core_image_version: ${{ inputs.core_image_version }}
+      core_image_version: 2.30.39-alpha-161-SNAPSHOT # hardcoded to wzh-UID2-6362-E2E-pipeline-fix-workaround-private 
       optout_image_version: ${{ inputs.optout_image_version }}
       e2e_image_version: ${{ inputs.e2e_image_version }}
       operator_branch: ${{ github.ref }}

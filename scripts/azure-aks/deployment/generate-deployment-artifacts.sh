@@ -52,6 +52,10 @@ for f in ${INPUT_FILES[@]}; do
 done
 
 az version
+# Upgrade typing_extensions to fix pydantic-core compatibility issue with confcom extension
+# The confcom extension requires typing_extensions>=4.10.0 for the Sentinel class
+sudo /opt/az/bin/python3 -m pip install --upgrade typing_extensions
+
 # Install confcom extension, az is originally available in GitHub workflow environment
 az extension add --name confcom
 if [[ $? -ne 0 ]]; then

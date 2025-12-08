@@ -1,4 +1,5 @@
 {
+  "service_instances": 4,
   "sites_metadata_path": "https://core.uidapi.com/sites/refresh",
   "clients_metadata_path": "https://core.uidapi.com/clients/refresh",
   "keysets_metadata_path": "https://core.uidapi.com/key/keyset/refresh",

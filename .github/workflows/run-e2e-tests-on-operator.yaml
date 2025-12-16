@@ -124,7 +124,7 @@ jobs:
       target_environment: ${{ inputs.target_environment }}
       delay_operator_shutdown: ${{ inputs.delay_operator_shutdown }}
       operator_image_version: ${{ inputs.operator_image_version }}
-      core_image_version: 2.30.39-alpha-161-SNAPSHOT # hardcoded to wzh-UID2-6362-E2E-pipeline-fix-workaround-private 
+      core_image_version: ${{ inputs.core_image_version }}
       optout_image_version: ${{ inputs.optout_image_version }}
       e2e_image_version: ${{ inputs.e2e_image_version }}
       operator_branch: ${{ github.ref }}

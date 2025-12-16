@@ -240,7 +240,7 @@
                     <artifactId>attestation-gcp</artifactId>
                     <version>${enclave-gcp.version}</version>
                 </dependency>
-                <!-- Required for GCP Secret Manager - attestation-gcp uses newer gax-rpc that needs this -->
+                <!-- Required: attestation-gcp uses google-cloud-secretmanager which needs this class -->
                 <dependency>
                     <groupId>com.google.auth</groupId>
                     <artifactId>google-auth-library-oauth2-http</artifactId>

@@ -6,7 +6,7 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.62.11</version>
+    <version>5.62.16-alpha-583-SNAPSHOT</version>
   
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -239,6 +239,12 @@
                     <groupId>com.uid2</groupId>
                     <artifactId>attestation-gcp</artifactId>
                     <version>${enclave-gcp.version}</version>
+                </dependency>
+                <!-- Required for GCP Secret Manager - attestation-gcp uses newer gax-rpc that needs this -->
+                <dependency>
+                    <groupId>com.google.auth</groupId>
+                    <artifactId>google-auth-library-oauth2-http</artifactId>
+                    <version>1.41.0</version>
                 </dependency>
             </dependencies>
         </profile>

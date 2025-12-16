@@ -6,11 +6,7 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-<<<<<<< HEAD
-    <version>5.62.16-alpha-583-SNAPSHOT</version>
-=======
     <version>5.62.22</version>
->>>>>>> 625638cbc5c81bd1d959d6225d499f25af0a48a7
   
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

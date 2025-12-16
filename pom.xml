@@ -244,12 +244,6 @@
                     <artifactId>attestation-gcp</artifactId>
                     <version>${enclave-gcp.version}</version>
                 </dependency>
-                <!-- Required: attestation-gcp uses google-cloud-secretmanager which needs this class -->
-                <dependency>
-                    <groupId>com.google.auth</groupId>
-                    <artifactId>google-auth-library-oauth2-http</artifactId>
-                    <version>1.41.0</version>
-                </dependency>
             </dependencies>
         </profile>
     </profiles>

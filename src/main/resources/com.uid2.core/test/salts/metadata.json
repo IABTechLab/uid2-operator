@@ -7,12 +7,12 @@
   "salts" : [
     {
       "effective" : 1670796729291,
-      "expires" : 1766125493000,
+      "expires" : 253370793600000,
       "location" : "/com.uid2.core/test/salts/salts.txt.1670796729291",
       "size" : 5
     },{
       "effective" : 1745907348982,
-      "expires" : 1766720293000,
+      "expires" : 253402329599000,
       "location" : "/com.uid2.core/test/salts/salts.txt.1745907348982",
       "size" : 5
     }

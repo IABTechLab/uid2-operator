@@ -197,14 +197,14 @@ You will be provided a new operator API token which should be stored in Secret M
 `~tee-env-DEPLOYMENT_ENVIRONMENT=prod~`.
 
 It is recommended that you also specify the machine type in the gcloud script. Currently, it is recommended to run the
-UID2 operator on a machine type of n2d-standard-16. (default to n2d-standard-2)
+UID2 operator on a machine type of n2d-standard-8 for production. (default to n2d-standard-2)
 
 An example of the script is given below:
 
 ```
 $ gcloud compute instances create {INSTANCE_NAME} \
   --zone {ZONE} \
-  --machine-type n2d-standard-16 \
+  --machine-type n2d-standard-8 \
   --confidential-compute \
   --shielded-secure-boot \
   --maintenance-policy Terminate \
@@ -215,7 +215,7 @@ $ gcloud compute instances create {INSTANCE_NAME} \
   --metadata ^~^tee-image-reference={OPERATOR_IMAGE}~tee-restart-policy=Never~tee-container-log-redirect=true~tee-env-DEPLOYMENT_ENVIRONMENT=prod~tee-env-API_TOKEN_SECRET_NAME={OPERATOR_KEY_SECRET_FULL_NAME}
 ```
 
-Note that compared to the `gcloud` command used in the prior section, parameter `--machine-type n2d-standard-16` is set to ensure production deployment of UID2 Operator runs on the recommended machine type for production.
+Note that compared to the `gcloud` command used in the prior section, parameter `--machine-type n2d-standard-8` is set to ensure production deployment of UID2 Operator runs on the recommended machine type for production.
 
 ## Upgrading
 

@@ -381,12 +381,18 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             .description("gauge for max entries can be cached in bloomfilter")
             .register(Metrics.globalRegistry);
 
+        private static final Gauge GAUGE_OPTOUT_OLD_COUNT = Gauge
+            .builder("uid2_operator_optout_old_count", () -> OptOutStoreSnapshot.oldCount.get())
+            .description("gauge for number of unique optout entries older than threshold (configurable)")
+            .register(Metrics.globalRegistry);
+
         // stores the timestamp of last updated delta or partition file
         private static final AtomicReference<Instant> lastUpdatedTimestamp = new AtomicReference<>(Instant.EPOCH);
         private static final AtomicLong bloomFilterSize = new AtomicLong(0);
         private static final AtomicLong bloomFilterMax = new AtomicLong(0);
         private static final AtomicLong totalEntries = new AtomicLong(0);
         private static final AtomicInteger adIdCount = new AtomicInteger(0);
+        private static final AtomicLong oldCount = new AtomicLong(0);
         private static final BiFunction<Long, Long, Long> OPT_OUT_TIMESTAMP_MERGE_STRATEGY = Long::min;
 
         private final DownloadCloudStorage fsLocal;
@@ -418,6 +424,8 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         private final Clock clock;
 
+        private final long optOutOldCountThresholdSeconds;
+
         public OptOutStoreSnapshot(DownloadCloudStorage fsLocal, JsonObject jsonConfig, Clock clock) {
             this.clock = clock;
             this.fsLocal = fsLocal;
@@ -436,6 +444,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
             this.adIdToOptOutTimestamp = Collections.emptyMap();
             this.optoutStatusApiEnabled = jsonConfig.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
+            this.optOutOldCountThresholdSeconds = jsonConfig.getLong(Const.Config.OptOutOldCountThresholdSecondsProp, 3600L); // Default 1 hour
 
             // initially 1 partition
             this.partitions = new OptOutPartition[1];
@@ -453,6 +462,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             this.fsLocal = last.fsLocal;
             this.fileUtils = last.fileUtils;
             this.iteration = last.iteration + 1;
+            this.optOutOldCountThresholdSeconds = last.optOutOldCountThresholdSeconds;
 
             this.bloomFilter = bf;
             this.heap = heap;
@@ -481,6 +491,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             // update total entries
             totalEntries.set(size());
             adIdCount.set(this.adIdToOptOutTimestamp.size());
+            oldCount.set(countOldRecords(this.optOutOldCountThresholdSeconds));
         }
 
         public long size() {
@@ -488,6 +499,22 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                 .filter(Objects::nonNull)
                 .mapToLong(OptOutPartition::size)
                 .sum();
+        }
+
+        public long countOldRecords(long thresholdSeconds) {
+            long currentTimeSeconds = clock.instant().getEpochSecond();
+            long cutoffTime = currentTimeSeconds - thresholdSeconds;
+            
+            Set<String> uniqueHashes = new HashSet<>();
+            for (OptOutPartition partition : this.partitions) {
+                if (partition == null) continue;
+                partition.forEach(entry -> {
+                    if (entry.timestamp < cutoffTime) {
+                        uniqueHashes.add(entry.idHashToB64());
+                    }
+                });
+            }
+            return uniqueHashes.size();
         }
 
         // method provided for OptOutService to assess health

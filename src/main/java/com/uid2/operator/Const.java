@@ -28,6 +28,7 @@ public class Const extends com.uid2.shared.Const {
         public static final String GcpSecretVersionNameProp = "gcp_secret_version_name";
         public static final String OptOutStatusApiEnabled = "optout_status_api_enabled";
         public static final String OptOutStatusMaxRequestSize = "optout_status_max_request_size";
+        public static final String OptOutOldCountThresholdSecondsProp = "optout_old_count_threshold_seconds";
         public static final String MaxInvalidPaths = "logging_limit_max_invalid_paths_per_interval";
         public static final String MaxVersionBucketsPerSite = "logging_limit_max_version_buckets_per_site";
 

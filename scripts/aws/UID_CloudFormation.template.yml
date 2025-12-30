@@ -92,7 +92,7 @@ Metadata:
       DeployToEnvironment:
         default: UID2 environment to deploy to. Prod - production; Integ - integration test.
       InstanceType:
-        default: Instance Type for EC2. Minimum 4 vCPUs needed. M5, M5a, M5n, M6i and R6i Instance types are tested. Choose 2xlarge or 4xlarge.
+        default: Instance Type for EC2. Minimum 8 vCPUs needed. M5, M5a, M5n, M6i, R6i and R7i Instance types are tested. Choose 2xlarge or 4xlarge.
       SSHKeyName:
         default: Key Name for SSH to EC2 (required)
       RootVolumeSize:

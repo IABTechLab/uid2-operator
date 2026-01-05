@@ -1,5 +1,5 @@
 # sha from https://hub.docker.com/layers/library/eclipse-temurin/21.0.8_9-jre-alpine-3.22/images/sha256-3408c45e1faee20e4e68808939a75f87efa469b927d20e12309689ead053daba
-FROM eclipse-temurin:21-jdk-jammy
+FROM eclipse-temurin@sha256:89517925fa675c6c4b770bee7c44d38a7763212741b0d6fca5a5103caab21a97
 
 WORKDIR /app
 EXPOSE 8080
@@ -19,6 +19,9 @@ COPY ./conf/default-config.json /app/conf/
 COPY ./conf/*.xml /app/conf/
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
+
+# Fix CVE-2025-68973: Update gnupg to patched version
+RUN apk update && apk upgrade gnupg && rm -rf /var/cache/apk/*
 
 RUN adduser -D uid2-operator && mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && mkdir -p /app && chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads && mkdir -p /app/pod_terminating && chmod 777 -R /app/pod_terminating
 USER uid2-operator

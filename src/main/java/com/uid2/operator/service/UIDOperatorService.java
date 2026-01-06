@@ -210,10 +210,10 @@ public class UIDOperatorService implements IUIDOperatorService {
             return TokenValidateResult.INVALID_TOKEN;
         }
 
-        int tokenSiteId = this.keyManager.getSiteIdFromKeyId(token.siteKeyId);
-        if (tokenSiteId != participantSiteId) {
-            return TokenValidateResult.UNAUTHORIZED;
-        }
+//        int tokenSiteId = this.keyManager.getSiteIdFromKeyId(token.siteKeyId);
+//        if (tokenSiteId != participantSiteId) {
+//            return TokenValidateResult.UNAUTHORIZED;
+//        }
 
         if (!Arrays.equals(mappedIdentity.advertisingId, token.userIdentity.id)) {
             return TokenValidateResult.MISMATCH;

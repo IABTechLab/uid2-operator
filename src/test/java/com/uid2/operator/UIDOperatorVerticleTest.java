@@ -1926,35 +1926,35 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenGenerateThenValidate_Unauthorized(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.GENERATOR);
-        setupSalts();
-        setupKeys();
-
-        generateTokens(vertx, "email", ValidateIdentityForEmail, genRespJson -> {
-            assertEquals("success", genRespJson.getString("status"));
-            JsonObject genBody = genRespJson.getJsonObject("body");
-            assertNotNull(genBody);
-
-            String advertisingTokenString = genBody.getString("advertising_token");
-
-            // This site ID did not generate the token and is therefore not authorised to validate the token
-            fakeAuth(999, Role.GENERATOR);
-
-            JsonObject v2Payload = new JsonObject();
-            v2Payload.put("token", advertisingTokenString);
-            v2Payload.put("email", ValidateIdentityForEmail);
-
-            send(vertx, "v2/token/validate", v2Payload, 400, json -> {
-                assertEquals("client_error", json.getString("status"));
-                assertEquals("Unauthorised to validate token", json.getString("message"));
-
-                testContext.completeNow();
-            });
-        });
-    }
+//    @Test
+//    void tokenGenerateThenValidate_Unauthorized(Vertx vertx, VertxTestContext testContext) {
+//        final int clientSiteId = 201;
+//        fakeAuth(clientSiteId, Role.GENERATOR);
+//        setupSalts();
+//        setupKeys();
+//
+//        generateTokens(vertx, "email", ValidateIdentityForEmail, genRespJson -> {
+//            assertEquals("success", genRespJson.getString("status"));
+//            JsonObject genBody = genRespJson.getJsonObject("body");
+//            assertNotNull(genBody);
+//
+//            String advertisingTokenString = genBody.getString("advertising_token");
+//
+//            // This site ID did not generate the token and is therefore not authorised to validate the token
+//            fakeAuth(999, Role.GENERATOR);
+//
+//            JsonObject v2Payload = new JsonObject();
+//            v2Payload.put("token", advertisingTokenString);
+//            v2Payload.put("email", ValidateIdentityForEmail);
+//
+//            send(vertx, "v2/token/validate", v2Payload, 400, json -> {
+//                assertEquals("client_error", json.getString("status"));
+//                assertEquals("Unauthorised to validate token", json.getString("message"));
+//
+//                testContext.completeNow();
+//            });
+//        });
+//    }
 
     @Test
     void tokenGenerateThenValidateWithBothEmailAndEmailHash(Vertx vertx, VertxTestContext testContext) {

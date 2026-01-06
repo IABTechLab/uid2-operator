@@ -1,5 +1,5 @@
-# sha from https://hub.docker.com/layers/library/eclipse-temurin/21.0.8_9-jre-alpine-3.22/images/sha256-3408c45e1faee20e4e68808939a75f87efa469b927d20e12309689ead053daba
-FROM eclipse-temurin@sha256:4ca7eff3ab0ef9b41f5fefa35efaeda9ed8d26e161e1192473b24b3a6c348aef
+# sha from https://hub.docker.com/layers/library/eclipse-temurin/8u472-b08-jre-alpine-3.23/images/sha256-c10101f6b597cfeb8265cb7969f32ba9704afb52d28a2967f72c4dfca69633b5
+FROM eclipse-temurin@sha256:d5a08fce8cc0bd81591a0793ede78cbc2167c3fbdd0b45743022cbe126b94916
 
 LABEL "tee.launch_policy.allow_env_override"="API_TOKEN_SECRET_NAME,DEPLOYMENT_ENVIRONMENT,CORE_BASE_URL,OPTOUT_BASE_URL,DEBUG_MODE,SKIP_VALIDATIONS"
 LABEL "tee.launch_policy.log_redirect"="always"

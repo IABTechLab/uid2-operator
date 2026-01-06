@@ -6,7 +6,8 @@
 
     <groupId>com.uid2</groupId>
     <artifactId>uid2-operator</artifactId>
-    <version>5.62.39-alpha-272-SNAPSHOT</version>
+    <version>5.62.48</version>
+
   
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

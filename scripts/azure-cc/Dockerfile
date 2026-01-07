@@ -1,5 +1,5 @@
-# sha from https://hub.docker.com/layers/library/eclipse-temurin/8u472-b08-jre-alpine-3.23/images/sha256-c10101f6b597cfeb8265cb7969f32ba9704afb52d28a2967f72c4dfca69633b5
-FROM eclipse-temurin@sha256:d5a08fce8cc0bd81591a0793ede78cbc2167c3fbdd0b45743022cbe126b94916
+# sha from https://hub.docker.com/layers/library/eclipse-temurin/21.0.9_10-jre-alpine-3.23/images/sha256-f599f6fa11f007b6dcf6e85ec2c372c1eba2b6940a7828eb6e665665ea5edd1c
+FROM eclipse-temurin@sha256:243e711289b0f17e05a4df60454bbb1b8ed7b126db4de2d5535da994b7417111
 
 # Install necessary packages and set up virtual environment
 RUN apk update && apk add --no-cache jq python3 py3-pip && \

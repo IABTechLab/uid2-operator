@@ -30,13 +30,14 @@ public enum Endpoints {
     UID2_SDK_2_0_0("/static/js/uid2-sdk-2.0.0.js")
     ;
     private final String path;
+    private static final Set<String> endpoints = Stream.of(Endpoints.values()).map(Endpoints::toString).collect(Collectors.toSet());
 
     Endpoints(final String path) {
         this.path = path;
     }
 
     public static Set<String> pathSet() {
-        return Stream.of(Endpoints.values()).map(Endpoints::toString).collect(Collectors.toSet());
+        return endpoints;
     }
 
     @Override

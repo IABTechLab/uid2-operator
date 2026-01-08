@@ -91,6 +91,42 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private static final ObjectMapper OBJECT_MAPPER = Mapper.getApiInstance();
     private static final long SECOND_IN_MILLIS = 1000;
 
+    // ECDH provider selection: tries ACCP first, falls back to default (SunEC)
+    private static final String ECDH_PROVIDER_NAME = initEcdhProvider();
+    private static final ThreadLocal<KeyAgreement> THREAD_LOCAL_KEY_AGREEMENT = ThreadLocal.withInitial(() -> {
+        try {
+            return createKeyAgreement();
+        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            throw new RuntimeException("Failed to create KeyAgreement", e);
+        }
+    });
+
+    private static String initEcdhProvider() {
+        // Try ACCP (Amazon Corretto Crypto Provider) first
+        try {
+            KeyAgreement ka = KeyAgreement.getInstance("ECDH", "AmazonCorrettoCryptoProvider");
+            LOGGER.info("ECDH using AmazonCorrettoCryptoProvider");
+            return "AmazonCorrettoCryptoProvider";
+        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            // ACCP not available, fall through
+        }
+
+        // Fall back to default provider (SunEC on most JDKs)
+        LOGGER.info("ECDH using default provider (SunEC)");
+        return null;
+    }
+
+    private static KeyAgreement createKeyAgreement() throws NoSuchAlgorithmException, NoSuchProviderException {
+        if (ECDH_PROVIDER_NAME != null) {
+            return KeyAgreement.getInstance("ECDH", ECDH_PROVIDER_NAME);
+        }
+        return KeyAgreement.getInstance("ECDH");
+    }
+
+    private static KeyAgreement getKeyAgreement() {
+        return THREAD_LOCAL_KEY_AGREEMENT.get();
+    }
+
     private static final String REQUEST = "request";
     private final HealthComponent healthComponent = HealthManager.instance.registerComponent("http-server");
     private final Cipher aesGcm;
@@ -408,8 +444,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             return;
         }
 
-        // Perform key agreement
-        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
+        // Perform key agreement (uses cached provider: ACCP > Conscrypt > SunEC)
+        final KeyAgreement ka = getKeyAgreement();
         ka.init(clientSideKeypair.getPrivateKey());
         ka.doPhase(clientPublicKey, true);
 

@@ -1,12 +1,13 @@
 package com.uid2.operator.service;
 
-import com.uid2.operator.vertx.UIDOperatorVerticle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.cryptools.AmazonCorrettoCryptoProvider;
 
 import javax.crypto.KeyAgreement;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.Security;
 
 public class CryptoProviderService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CryptoProviderService.class);
@@ -24,15 +25,19 @@ public class CryptoProviderService {
     private static String initEcdhProvider() {
         // Try ACCP (Amazon Corretto Crypto Provider) first
         try {
-            KeyAgreement ka = KeyAgreement.getInstance("ECDH", "AmazonCorrettoCryptoProvider");
-            LOGGER.info("ECDH using AmazonCorrettoCryptoProvider");
-            return "AmazonCorrettoCryptoProvider";
-        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
-            // ACCP not available, fall through
-            LOGGER.info("AmazonCorrettoCryptoProvider is not available");
+            // Add ACCP at lowest priority so it doesn't become default for other algorithms            
+            Security.addProvider(AmazonCorrettoCryptoProvider.INSTANCE);
+            
+            // Verify it works for ECDH
+            KeyAgreement ka = KeyAgreement.getInstance("ECDH", AmazonCorrettoCryptoProvider.PROVIDER_NAME);
+            LOGGER.info("ECDH using AmazonCorrettoCryptoProvider (added at lowest priority)");
+            return AmazonCorrettoCryptoProvider.PROVIDER_NAME;
+        } catch (Throwable e) {
+            // ACCP not available
+            LOGGER.info("AmazonCorrettoCryptoProvider is not available: {}", e.getMessage());
         }
 
-        // Fall back to default provider (SunEC on most JDKs)
+        // Fall back to default provider
         LOGGER.info("ECDH using default provider (SunEC)");
         return null;
     }

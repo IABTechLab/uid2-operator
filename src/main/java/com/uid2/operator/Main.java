@@ -12,7 +12,6 @@ import com.uid2.operator.reader.RotatingCloudEncryptionKeyApiProvider;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.operator.store.BootstrapConfigStore;
-import com.uid2.operator.util.HTTPPathMetricFilterOptimized;
 import com.uid2.operator.vertx.Endpoints;
 import com.uid2.operator.vertx.OperatorShutdownHandler;
 import com.uid2.operator.vertx.UIDOperatorVerticle;
@@ -28,6 +27,7 @@ import com.uid2.shared.store.salt.EncryptedRotatingSaltProvider;
 import com.uid2.shared.store.salt.RotatingSaltProvider;
 import com.uid2.shared.store.reader.*;
 import com.uid2.shared.store.scope.GlobalScope;
+import com.uid2.shared.util.HTTPPathMetricFilter;
 import com.uid2.shared.vertx.CloudSyncVerticle;
 import com.uid2.shared.vertx.ICloudSync;
 import com.uid2.shared.vertx.RotatingStoreVerticle;
@@ -517,7 +517,7 @@ public class Main {
                 // providing common renaming for prometheus metric, e.g. "hello.world" to "hello_world"
                 .meterFilter(new PrometheusRenameFilter())
                 .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(),
-                        actualPath -> HTTPPathMetricFilterOptimized.filterPath(actualPath, Endpoints.pathSet())))
+                        actualPath -> HTTPPathMetricFilter.filterPathWithoutPathParameters(actualPath, Endpoints.pathSet())))
                 // Don't record metrics for 404s.
                 .meterFilter(MeterFilter.deny(id ->
                     id.getName().startsWith(MetricsDomain.HTTP_SERVER.getPrefix()) &&

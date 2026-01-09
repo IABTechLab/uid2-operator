@@ -2,7 +2,7 @@ package com.uid2.operator.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.cryptools.AmazonCorrettoCryptoProvider;
+import com.amazon.corretto.crypto.provider.AmazonCorrettoCryptoProvider;
 
 import javax.crypto.KeyAgreement;
 import java.security.NoSuchAlgorithmException;

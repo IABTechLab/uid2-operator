@@ -33,8 +33,14 @@ public class GenericFailureHandler implements Handler<RoutingContext> {
         }
 
         if (!response.ended() && !response.closed()) {
-            response.setStatusCode(statusCode)
-                    .end(EnglishReasonPhraseCatalog.INSTANCE.getReason(statusCode, null));
+            String responseBody;
+            // Include error message for debugging (especially in e2e tests)
+            if (t != null && t.getMessage() != null) {
+                responseBody = EnglishReasonPhraseCatalog.INSTANCE.getReason(statusCode, null) + ": " + t.getMessage();
+            } else {
+                responseBody = EnglishReasonPhraseCatalog.INSTANCE.getReason(statusCode, null);
+            }
+            response.setStatusCode(statusCode).end(responseBody);
         }
     }
 }

@@ -1026,7 +1026,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     body.put("optout", "OK");
                     ResponseUtil.SuccessV2(rc, body);
                 } else {
-                    rc.fail(500);
+                    String errorMsg = ar.cause() != null ? ar.cause().getMessage() : "Unknown error";
+                    LOGGER.error("Failed to process logout request: " + errorMsg, ar.cause());
+                    rc.fail(500, ar.cause());
                 }
                 promise.complete();
             });

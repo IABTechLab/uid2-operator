@@ -130,7 +130,9 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             if (ar.failed()) {
                 failure = new Exception(ar.cause());
             } else if (ar.result().statusCode() != 200) {
-                failure = new Exception("optout api http status: " + String.valueOf(ar.result().statusCode()));
+                String responseBody = ar.result().body();
+                failure = new Exception("optout api http status: " + ar.result().statusCode() 
+                    + ", response: " + (responseBody != null ? responseBody : "empty"));
             }
 
             if (failure == null) {

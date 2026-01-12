@@ -35,6 +35,11 @@ public class CryptoProviderService {
         return null;
     }
 
+    /**
+     * Create ECDH Key Agreement using ACCP if available, fall back to SunEC if not
+     * @return ECDH KeyAgreement
+     * @throws NoSuchAlgorithmException
+     */
     public static KeyAgreement createKeyAgreement() throws  NoSuchAlgorithmException {
         if (ECDH_PROVIDER_NAME != null) {
             try {

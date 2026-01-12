@@ -409,7 +409,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         // Perform key agreement
-        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
+        final KeyAgreement ka = CryptoProviderService.createKeyAgreement();
         ka.init(clientSideKeypair.getPrivateKey());
         ka.doPhase(clientPublicKey, true);
 

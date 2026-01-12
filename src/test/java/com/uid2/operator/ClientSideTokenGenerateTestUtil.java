@@ -1,5 +1,7 @@
 package com.uid2.operator;
 
+import com.uid2.operator.service.CryptoProviderService;
+
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -37,7 +39,7 @@ public class ClientSideTokenGenerateTestUtil {
     }
 
     public static SecretKey deriveKey(PublicKey serverPublicKey, PrivateKey clientPrivateKey) throws NoSuchAlgorithmException, InvalidKeyException {
-        KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH");
+        KeyAgreement keyAgreement = CryptoProviderService.createKeyAgreement();
         keyAgreement.init(clientPrivateKey);
         keyAgreement.doPhase(serverPublicKey, true);
 

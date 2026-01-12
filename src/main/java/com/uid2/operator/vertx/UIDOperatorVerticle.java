@@ -409,7 +409,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         // Perform key agreement (uses cached provider: ACCP > SunEC)
-        final KeyAgreement ka = CryptoProviderService.getKeyAgreement();
+        final KeyAgreement ka = CryptoProviderService.createKeyAgreement();
         ka.init(clientSideKeypair.getPrivateKey());
         ka.doPhase(clientPublicKey, true);
 

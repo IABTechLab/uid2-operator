@@ -14,13 +14,6 @@ public class CryptoProviderService {
 
     // ECDH provider selection: tries ACCP first, falls back to default (SunEC)
     private static final String ECDH_PROVIDER_NAME = initEcdhProvider();
-    private static final ThreadLocal<KeyAgreement> THREAD_LOCAL_KEY_AGREEMENT = ThreadLocal.withInitial(() -> {
-        try {
-            return createKeyAgreement();
-        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
-            throw new RuntimeException("Failed to create KeyAgreement", e);
-        }
-    });
 
     private static String initEcdhProvider() {
         // Try ACCP (Amazon Corretto Crypto Provider) first
@@ -42,14 +35,14 @@ public class CryptoProviderService {
         return null;
     }
 
-    private static KeyAgreement createKeyAgreement() throws NoSuchAlgorithmException, NoSuchProviderException {
+    public static KeyAgreement createKeyAgreement() throws  NoSuchAlgorithmException {
         if (ECDH_PROVIDER_NAME != null) {
-            return KeyAgreement.getInstance("ECDH", ECDH_PROVIDER_NAME);
+            try {
+                return KeyAgreement.getInstance("ECDH", ECDH_PROVIDER_NAME);
+            } catch (NoSuchProviderException e) {
+                LOGGER.info("{} is not available: {}", ECDH_PROVIDER_NAME, e.getMessage());
+            }
         }
         return KeyAgreement.getInstance("ECDH");
-    }
-
-    public static KeyAgreement getKeyAgreement() {
-        return THREAD_LOCAL_KEY_AGREEMENT.get();
     }
 }

@@ -204,12 +204,25 @@
             <version>5.12.0</version>
             <scope>test</scope>
         </dependency>
-        <!-- ACCP - Amazon Corretto Crypto Provider -->
+
+        <!-- ACCP - Amazon Corretto Crypto Provider (Linux + macOS) -->
         <dependency>
             <groupId>software.amazon.cryptools</groupId>
             <artifactId>AmazonCorrettoCryptoProvider</artifactId>
             <version>${accp.version}</version>
             <classifier>linux-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.cryptools</groupId>
+            <artifactId>AmazonCorrettoCryptoProvider</artifactId>
+            <version>${accp.version}</version>
+            <classifier>osx-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.cryptools</groupId>
+            <artifactId>AmazonCorrettoCryptoProvider</artifactId>
+            <version>${accp.version}</version>
+            <classifier>osx-aarch_64</classifier>
         </dependency>
     </dependencies>
 

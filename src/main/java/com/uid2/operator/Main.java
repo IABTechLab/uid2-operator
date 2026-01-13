@@ -115,10 +115,22 @@ public class Main {
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
         this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
-        this.shutdownHandler = new OperatorShutdownHandler(Duration.ofHours(12),
+        boolean timeDriftShutdownEnabled = config.getBoolean(Const.Config.TimeDriftShutdownEnabledProp, false);
+        int timeDriftThresholdSeconds = config.getInteger(Const.Config.TimeDriftThresholdSecondsProp, 30);
+        int timeDriftCriticalThresholdSeconds = config.getInteger(Const.Config.TimeDriftCriticalThresholdSecondsProp, 300);
+        Duration timeDriftThreshold = Duration.ofSeconds(timeDriftThresholdSeconds);
+        Duration timeDriftCriticalThreshold = Duration.ofSeconds(timeDriftCriticalThresholdSeconds);
+        
+        this.shutdownHandler = new OperatorShutdownHandler(
+                Duration.ofHours(12),
                 Duration.ofHours(config.getInteger(Const.Config.SaltsExpiredShutdownHours, 12)),
                 Duration.ofHours(config.getInteger(Const.Config.StoreRefreshStaleShutdownHours, 12)),
-                Clock.systemUTC(), new ShutdownService());
+                Clock.systemUTC(),
+                new ShutdownService(),
+                this.vertx,
+                timeDriftShutdownEnabled,
+                timeDriftThreshold,
+                timeDriftCriticalThreshold);
         this.uidInstanceIdProvider = new UidInstanceIdProvider(config);
 
         String coreAttestUrl = this.config.getString(Const.Config.CoreAttestUrlProp);
@@ -432,6 +444,10 @@ public class Main {
             else {
                 promise.complete();
                 this.shutdownHandler.startPeriodicStaleCheck(this.vertx);
+                
+                // Start time drift check if enabled
+                int timeDriftCheckIntervalMinutes = config.getInteger(Const.Config.TimeDriftCheckIntervalMinutesProp, 15);
+                this.shutdownHandler.startPeriodicTimeDriftCheck(this.vertx, timeDriftCheckIntervalMinutes);
             }
         });
 

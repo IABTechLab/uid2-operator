@@ -44,6 +44,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.DecodeException;
@@ -271,6 +272,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         // Static and health check
         router.get(OPS_HEALTHCHECK.toString()).handler(this::handleHealthCheck);
+        
+        // Test endpoints for time drift (only in non-production or when enabled)
+        router.get("/ops/time-drift/check").handler(this::handleTimeDriftCheck);
+        router.get("/ops/time-drift/status").handler(this::handleTimeDriftStatus);
+        router.post("/ops/time-drift/test-mode").handler(this::handleTimeDriftTestMode);
 
         return router;
     }
@@ -796,6 +802,88 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             resp.setChunked(true);
             resp.write(reason);
             resp.end();
+        }
+    }
+
+    private void handleTimeDriftCheck(RoutingContext rc) {
+        OperatorShutdownHandler handler = OperatorShutdownHandler.getInstance();
+        if (handler == null) {
+            rc.response().setStatusCode(503).end("Time drift handler not available");
+            return;
+        }
+        
+        handler.triggerTimeDriftCheck();
+        JsonObject response = new JsonObject();
+        response.put("status", "check_triggered");
+        response.put("message", "Time drift check has been triggered. Check logs for results.");
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json").end(response.encodePrettily());
+    }
+
+    private void handleTimeDriftStatus(RoutingContext rc) {
+        OperatorShutdownHandler handler = OperatorShutdownHandler.getInstance();
+        if (handler == null) {
+            rc.response().setStatusCode(503).end("Time drift handler not available");
+            return;
+        }
+        
+        JsonObject status = handler.getTimeDriftStatus();
+        rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json").end(status.encodePrettily());
+    }
+
+    private void handleTimeDriftTestMode(RoutingContext rc) {
+        OperatorShutdownHandler handler = OperatorShutdownHandler.getInstance();
+        if (handler == null) {
+            rc.response().setStatusCode(503).end("Time drift handler not available");
+            return;
+        }
+        
+        try {
+            JsonObject body = rc.body().asJsonObject();
+            if (body == null) {
+                rc.response().setStatusCode(400).end("JSON body required");
+                return;
+            }
+            
+            String action = body.getString("action");
+            if ("set".equals(action)) {
+                // Set test mode with fake reference time
+                String referenceTimeStr = body.getString("reference_time");
+                if (referenceTimeStr == null) {
+                    // Calculate drift by offset
+                    Integer offsetSeconds = body.getInteger("offset_seconds");
+                    if (offsetSeconds == null) {
+                        rc.response().setStatusCode(400).end("Either 'reference_time' or 'offset_seconds' required");
+                        return;
+                    }
+                    Instant now = Instant.now();
+                    Instant testTime = now.plusSeconds(offsetSeconds);
+                    handler.setTestModeReferenceTime(testTime);
+                    
+                    JsonObject response = new JsonObject();
+                    response.put("status", "test_mode_enabled");
+                    response.put("current_time", now.toString());
+                    response.put("test_reference_time", testTime.toString());
+                    response.put("drift_seconds", offsetSeconds);
+                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json").end(response.encodePrettily());
+                } else {
+                    Instant testTime = Instant.parse(referenceTimeStr);
+                    handler.setTestModeReferenceTime(testTime);
+                    
+                    JsonObject response = new JsonObject();
+                    response.put("status", "test_mode_enabled");
+                    response.put("test_reference_time", testTime.toString());
+                    rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json").end(response.encodePrettily());
+                }
+            } else if ("clear".equals(action)) {
+                handler.clearTestMode();
+                JsonObject response = new JsonObject();
+                response.put("status", "test_mode_cleared");
+                rc.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json").end(response.encodePrettily());
+            } else {
+                rc.response().setStatusCode(400).end("Invalid action. Use 'set' or 'clear'");
+            }
+        } catch (Exception e) {
+            rc.response().setStatusCode(500).end("Error: " + e.getMessage());
         }
     }
 

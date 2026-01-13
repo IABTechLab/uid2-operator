@@ -39,5 +39,9 @@ public class Const extends com.uid2.shared.Const {
         public static final String RuntimeConfigMetadataPathProp = "runtime_config_metadata_path";
 
         public static final String IdentityEnvironmentProp = "identity_environment";
+        public static final String TimeDriftCheckIntervalMinutesProp = "time_drift_check_interval_minutes";
+        public static final String TimeDriftThresholdSecondsProp = "time_drift_threshold_seconds";
+        public static final String TimeDriftCriticalThresholdSecondsProp = "time_drift_critical_threshold_seconds";
+        public static final String TimeDriftShutdownEnabledProp = "time_drift_shutdown_enabled";
     }
 }

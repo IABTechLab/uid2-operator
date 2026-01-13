@@ -1,4 +1,4 @@
 requests[socks]==2.32.3
 boto3==1.35.59
-urllib3==2.6.0
+urllib3==2.6.3
 PyYAML===6.0.2

@@ -517,7 +517,7 @@ public class Main {
                 // providing common renaming for prometheus metric, e.g. "hello.world" to "hello_world"
                 .meterFilter(new PrometheusRenameFilter())
                 .meterFilter(MeterFilter.replaceTagValues(Label.HTTP_PATH.toString(),
-                        actualPath -> HTTPPathMetricFilter.filterPath(actualPath, Endpoints.pathSet())))
+                        actualPath -> HTTPPathMetricFilter.filterPathWithoutPathParameters(actualPath, Endpoints.pathSet())))
                 // Don't record metrics for 404s.
                 .meterFilter(MeterFilter.deny(id ->
                     id.getName().startsWith(MetricsDomain.HTTP_SERVER.getPrefix()) &&

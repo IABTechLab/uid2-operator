@@ -1654,17 +1654,28 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             respectOptOut = OptoutCheckPolicy.fromValue(requestJsonObject.getInteger(POLICY_PARAM)) == OptoutCheckPolicy.respectOptOut();
         }
 
-        final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
-        final ClientKey oldestClientKey = this.clientKeyProvider.getOldestClientKey(clientKey.getSiteId());
-        boolean newClient = oldestClientKey.getCreated() >= OPT_OUT_CHECK_CUTOFF_DATE;
+        if (respectOptOut) {
+            return true;
+        } else {
+            final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
+            final ClientKey oldestClientKey = this.clientKeyProvider.getOldestClientKey(clientKey.getSiteId());
+            boolean newClient = oldestClientKey.getCreated() >= OPT_OUT_CHECK_CUTOFF_DATE;
 
-        if (newClient && !respectOptOut) {
-            // log policy violation
-            LOGGER.warn(String.format("Failed to respect opt-out policy: siteId=%d, clientKeyName=%s, clientKeyCreated=%d",
-                    oldestClientKey.getSiteId(), oldestClientKey.getName(), oldestClientKey.getCreated()));
-            return false;
+            if (!newClient) {
+                Counter.builder("uid2_opt_out_no_respect_total")
+                        .description("Counter for the number of successful requests that have optout set to zero (legacy clients)")
+                        .tag("client_name", clientKey.getName())
+                        .tag("client_contact", clientKey.getContact())
+                        .register(Metrics.globalRegistry)
+                        .increment();
+                return true;
+            } else {
+                // log policy violation
+                LOGGER.warn(String.format("Failed to respect opt-out policy: siteId=%d, clientKeyName=%s, clientKeyCreated=%d",
+                        oldestClientKey.getSiteId(), oldestClientKey.getName(), oldestClientKey.getCreated()));
+                return false;
+            }
         }
-        return true;
     }
 
     private Tuple.Tuple2<OptoutCheckPolicy, String> readOptoutCheckPolicy(JsonObject req) {

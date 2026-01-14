@@ -115,7 +115,7 @@ public class Main {
         this.clientSideTokenGenerate = config.getBoolean(Const.Config.EnableClientSideTokenGenerate, false);
         this.validateServiceLinks = config.getBoolean(Const.Config.ValidateServiceLinks, false);
         this.encryptedCloudFilesEnabled = config.getBoolean(Const.Config.EncryptedFiles, false);
-        boolean timeDriftShutdownEnabled = config.getBoolean(Const.Config.TimeDriftShutdownEnabledProp, false);
+        boolean timeDriftShutdownEnabled = config.getBoolean(Const.Config.TimeDriftShutdownEnabledProp, true);
         int timeDriftThresholdSeconds = config.getInteger(Const.Config.TimeDriftThresholdSecondsProp, 30);
         int timeDriftCriticalThresholdSeconds = config.getInteger(Const.Config.TimeDriftCriticalThresholdSecondsProp, 300);
         Duration timeDriftThreshold = Duration.ofSeconds(timeDriftThresholdSeconds);

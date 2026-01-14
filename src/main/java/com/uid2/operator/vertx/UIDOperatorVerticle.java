@@ -276,7 +276,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         // Test endpoints for time drift (only in non-production or when enabled)
         router.get("/ops/time-drift/check").handler(this::handleTimeDriftCheck);
         router.get("/ops/time-drift/status").handler(this::handleTimeDriftStatus);
-        router.post("/ops/time-drift/test-mode").handler(this::handleTimeDriftTestMode);
+        router.post("/ops/time-drift/test-mode").handler(bodyHandler).handler(this::handleTimeDriftTestMode);
 
         return router;
     }

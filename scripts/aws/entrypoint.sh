@@ -72,8 +72,8 @@ sync_enclave_time_with_offset_once || true
 
 start_time_sync_loop() {
   while true; do
-    sync_enclave_time || true
     sleep "${TIME_SYNC_INTERVAL_SECONDS}"
+    sync_enclave_time || true
   done
 }
 

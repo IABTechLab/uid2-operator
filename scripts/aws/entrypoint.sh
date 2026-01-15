@@ -27,7 +27,16 @@ TIME_SYNC_INTERVAL_SECONDS="${TIME_SYNC_INTERVAL_SECONDS:-300}"
 
 sync_enclave_time() {
   local current_time
+  local parent_epoch
+  local enclave_epoch
+  local drift_seconds
   if current_time=$(curl -s -f -x socks5h://127.0.0.1:3305 "${TIME_SYNC_URL}"); then
+    parent_epoch=$(date -u -d "${current_time}" +%s 2>/dev/null || true)
+    enclave_epoch=$(date -u +%s)
+    if [[ -n "${parent_epoch}" ]]; then
+      drift_seconds=$((enclave_epoch - parent_epoch))
+      echo "Time sync: drift seconds (enclave - parent) = ${drift_seconds}"
+    fi
     if ! date -u -s "${current_time}"; then
       echo "Time sync: failed to set enclave time from '${current_time}'"
       return 1

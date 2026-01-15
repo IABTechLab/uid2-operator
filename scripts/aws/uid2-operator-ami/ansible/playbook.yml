@@ -19,6 +19,44 @@
       name: nmap-ncat
       state: latest
 
+  - name: Install chrony for time sync
+    ansible.builtin.dnf:
+      name: chrony
+      state: latest
+
+  - name: Comment out default chrony pool servers
+    ansible.builtin.replace:
+      path: /etc/chrony.conf
+      regexp: '^pool\s+'
+      replace: '# pool '
+
+  - name: Configure AWS Time Sync Service in chrony
+    ansible.builtin.lineinfile:
+      path: /etc/chrony.conf
+      line: 'server 169.254.169.123 prefer iburst'
+      state: present
+      insertafter: EOF
+
+  - name: Enable RTC sync in chrony
+    ansible.builtin.lineinfile:
+      path: /etc/chrony.conf
+      line: 'rtcsync'
+      state: present
+      insertafter: EOF
+
+  - name: Allow chrony to step clock at startup
+    ansible.builtin.lineinfile:
+      path: /etc/chrony.conf
+      line: 'makestep 1.0 3'
+      state: present
+      insertafter: EOF
+
+  - name: Ensure chronyd is enabled at boot
+    ansible.builtin.systemd:
+      name: chronyd
+      state: started
+      enabled: true
+
   - name: Install python
     ansible.builtin.dnf:
       name:

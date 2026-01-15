@@ -22,6 +22,33 @@ ifconfig lo 127.0.0.1
 echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
+TIME_SYNC_URL="http://127.0.0.1:27015/getCurrentTime"
+TIME_SYNC_INTERVAL_SECONDS="${TIME_SYNC_INTERVAL_SECONDS:-300}"
+
+sync_enclave_time() {
+  local current_time
+  if current_time=$(curl -s -f -x socks5h://127.0.0.1:3305 "${TIME_SYNC_URL}"); then
+    if ! date -u -s "${current_time}"; then
+      echo "Time sync: failed to set enclave time from '${current_time}'"
+      return 1
+    fi
+    echo "Time sync: updated enclave time to ${current_time}"
+  else
+    echo "Time sync: failed to fetch time from parent instance"
+    return 1
+  fi
+}
+
+start_time_sync_loop() {
+  while true; do
+    sync_enclave_time || true
+    sleep "${TIME_SYNC_INTERVAL_SECONDS}"
+  done
+}
+
+sync_enclave_time || true
+start_time_sync_loop &
+
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
   REQUIRED_KEYS=("optout_base_url" "core_base_url" "core_api_token" "optout_api_token" "environment" "uid_instance_id_prefix")

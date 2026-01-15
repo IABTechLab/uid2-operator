@@ -1,4 +1,5 @@
 from flask import Flask
+from datetime import datetime, timezone
 import json
 import os
 
@@ -11,6 +12,13 @@ def get_config():
             secret_value = secret_file.read().strip()
             secret_value_json = json.loads(secret_value)
         return json.dumps(secret_value_json)
+    except Exception as e:
+        return str(e), 500
+
+@app.route('/getCurrentTime', methods=['GET'])
+def get_time():
+    try:
+        return datetime.now(timezone.utc).isoformat(timespec="seconds")
     except Exception as e:
         return str(e), 500
 

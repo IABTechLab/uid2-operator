@@ -1662,10 +1662,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             boolean newClient = oldestClientKey.getCreated() >= OPT_OUT_CHECK_CUTOFF_DATE;
 
             if (!newClient) {
-                Counter.builder("uid2_opt_out_no_respect_total")
+                Counter.builder("uid2_legacy_opt_out_bypass_total")
                         .description("Counter for the number of successful requests that have optout set to zero (legacy clients)")
-                        .tag("client_name", clientKey.getName())
-                        .tag("client_contact", clientKey.getContact())
+                        .tag("site_id", clientKey.getSiteId().toString())
                         .register(Metrics.globalRegistry)
                         .increment();
                 return true;

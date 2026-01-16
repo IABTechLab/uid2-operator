@@ -24,7 +24,6 @@ echo "Starting vsock proxy..."
 
 TIME_SYNC_URL="http://127.0.0.1:27015/getCurrentTime"
 TIME_SYNC_INTERVAL_SECONDS="${TIME_SYNC_INTERVAL_SECONDS:-86400}"
-TIME_SYNC_OFFSET_SECONDS="${TIME_SYNC_OFFSET_SECONDS:-30}"
 
 sync_enclave_time() {
   local current_time

@@ -111,7 +111,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
-    private final Map<Tuple.Tuple3<String, OptoutCheckPolicy, String>, Counter> _tokenGeneratePolicyCounters = new HashMap<>();
     private final Map<String, Counter> _tokenGenerateTCFUsage = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
@@ -486,7 +485,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     new IdentityRequest(
                             new PublisherIdentity(clientSideKeypair.getSiteId(), 0, 0),
                             input.toUserIdentity(this.identityScope, privacyBits.getAsInt(), Instant.now()),
-                            OptoutCheckPolicy.RespectOptOut,
                             identityEnvironment
                     ),
                     refreshIdentityAfter,
@@ -947,7 +945,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
                                 input.toUserIdentity(this.identityScope, 1, Instant.now()),
-                                OptoutCheckPolicy.respectOptOut(),
                                 identityEnvironment),
                         refreshIdentityAfter,
                         refreshExpiresAfter,
@@ -1099,7 +1096,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 final MappedIdentity mappedIdentity = idService.mapIdentity(
                         new MapRequest(
                                 input.toUserIdentity(this.identityScope, 0, now),
-                                OptoutCheckPolicy.respectOptOut(),
                                 now,
                                 env));
 
@@ -1154,7 +1150,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     final MappedIdentity mappedId = idService.mapIdentity(
                             new MapRequest(
                                     rawId.toUserIdentity(this.identityScope, 0, now),
-                                    OptoutCheckPolicy.respectOptOut(),
                                     now,
                                     env));
 

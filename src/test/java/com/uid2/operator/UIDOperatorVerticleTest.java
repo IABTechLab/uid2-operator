@@ -735,8 +735,7 @@ public class UIDOperatorVerticleTest {
         setupSalts();
         setupKeys();
 
-        JsonObject req = createBatchEmailsRequestPayload();
-        req.put("optout_check", 1);
+        JsonObject req = createBatchEmailsRequestPayload();        
         return req;
     }
 
@@ -999,118 +998,6 @@ public class UIDOperatorVerticleTest {
         }, Map.of(HttpHeaders.CONTENT_TYPE.toString(), "application/octet-stream"), true);
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"policy", "optout_check"})
-    void identityMapNewClientWrongPolicySpecified(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, newClientCreationDateTime, Role.MAPPER);
-        setupSalts();
-        setupKeys();
-        // the clock value shouldn't matter here
-        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
-                .thenReturn(now.minus(1, ChronoUnit.HOURS));
-        JsonObject req = new JsonObject();
-        JsonArray emails = new JsonArray();
-        emails.add("random-optout-user@email.io");
-        req.put("email", emails);
-        req.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
-
-        send(vertx, "v2/identity/map", req, 200, respJson -> {
-            assertTrue(respJson.containsKey("body"));
-            assertFalse(respJson.containsKey("client_error"));
-            JsonArray unmappedArr = respJson.getJsonObject("body").getJsonArray("unmapped");
-            Assertions.assertEquals(1, unmappedArr.size());
-            Assertions.assertEquals(emails.getString(0), unmappedArr.getJsonObject(0).getString("identifier"));
-            Assertions.assertEquals("optout", unmappedArr.getJsonObject(0).getString("reason"));
-            testContext.completeNow();
-        });
-    }
-
-    @Deprecated // We don't need a test for different behavior of new vs legacy participants
-    @Test
-    void identityMapNewClientNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey(
-                null,
-                null,
-                Utils.toBase64String(clientSecret),
-                "test-contact",
-                newClientCreationDateTime,
-                Set.of(Role.MAPPER),
-                201,
-                null
-        );
-        ClientKey oldClientKey = new ClientKey(
-                null,
-                null,
-                Utils.toBase64String(clientSecret),
-                "test-contact",
-                newClientCreationDateTime.minusSeconds(5),
-                Set.of(Role.MAPPER),
-                201,
-                null
-        );
-        when(clientKeyProvider.get(any())).thenReturn(newClientKey);
-        when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
-        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
-        setupSalts();
-        setupKeys();
-
-        JsonObject req = new JsonObject();
-        JsonArray emails = new JsonArray();
-        req.put("email", emails);
-        emails.add("test1@uid2.com");
-        // policy parameter not passed but will still succeed as old participant
-
-        send(vertx, "v2/identity/map", req, 200, respJson -> {
-            assertTrue(respJson.containsKey("body"));
-            assertEquals("success", respJson.getString("status"));
-            testContext.completeNow();
-        });
-    }
-
-    @Deprecated // We don't need a test for different behavior of new vs legacy participants
-    @ParameterizedTest
-    @ValueSource(strings = {"policy", "optout_check"})
-    void identityMapNewClientWrongPolicySpecifiedOlderKeySuccessful(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey(
-                null,
-                null,
-                Utils.toBase64String(clientSecret),
-                "test-contact",
-                newClientCreationDateTime,
-                Set.of(Role.MAPPER),
-                201,
-                null
-        );
-        ClientKey oldClientKey = new ClientKey(
-                null,
-                null,
-                Utils.toBase64String(clientSecret),
-                "test-contact",
-                newClientCreationDateTime.minusSeconds(5),
-                Set.of(Role.MAPPER),
-                201,
-                null
-        );
-        when(clientKeyProvider.get(any())).thenReturn(newClientKey);
-        when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
-        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
-        setupSalts();
-        setupKeys();
-
-        JsonObject req = new JsonObject();
-        JsonArray emails = new JsonArray();
-        req.put("email", emails);
-        req.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
-
-        emails.add("test1@uid2.com");
-
-        send(vertx, "v2/identity/map", req, 200, respJson -> {
-            assertTrue(respJson.containsKey("body"));
-            assertEquals("success", respJson.getString("status"));
-            testContext.completeNow();
-        });
-    }
 
     @ParameterizedTest
     @CsvSource({
@@ -1360,87 +1247,7 @@ public class UIDOperatorVerticleTest {
         });
     }
 
-    @Test
-    void tokenGenerateNewClientNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey(
-                null,
-                null,
-                Utils.toBase64String(clientSecret),
-                "test-contact",
-                newClientCreationDateTime,
-                Set.of(Role.GENERATOR),
-                201,
-                null
-        );
-        ClientKey oldClientKey = new ClientKey(
-                null,
-                null,
-                Utils.toBase64String(clientSecret),
-                "test-contact",
-                newClientCreationDateTime.minusSeconds(5),
-                Set.of(Role.GENERATOR),
-                201,
-                null
-        );
-        when(clientKeyProvider.get(any())).thenReturn(newClientKey);
-        when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
-        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
-        setupSalts();
-        setupKeys();
-
-        JsonObject v2Payload = new JsonObject();
-        v2Payload.put("email", "test@email.com");
-
-        sendTokenGenerate(vertx,
-                v2Payload, 200,
-                json -> {
-                    assertTrue(json.containsKey("body"));
-                    assertEquals("success", json.getString("status"));
-                    testContext.completeNow();
-                });
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"policy", "optout_check"})
-    void tokenGenerateNewClientWrongPolicySpecifiedOlderKeySuccessful(String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
-        ClientKey newClientKey = new ClientKey(
-                null,
-                null,
-                Utils.toBase64String(clientSecret),
-                "test-contact",
-                newClientCreationDateTime,
-                Set.of(Role.GENERATOR),
-                201,
-                null
-        );
-        ClientKey oldClientKey = new ClientKey(
-                null,
-                null,
-                Utils.toBase64String(clientSecret),
-                "test-contact",
-                newClientCreationDateTime.minusSeconds(5),
-                Set.of(Role.GENERATOR),
-                201,
-                null
-        );
-        when(clientKeyProvider.get(any())).thenReturn(newClientKey);
-        when(clientKeyProvider.getClientKey(any())).thenReturn(newClientKey);
-        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
-        setupSalts();
-        setupKeys();
-
-        JsonObject v2Payload = new JsonObject();
-        v2Payload.put("email", "test@email.com");
-        v2Payload.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
-
-        sendTokenGenerate(vertx,
-                v2Payload, 200,
-                json -> {
-                    assertTrue(json.containsKey("body"));
-                    assertEquals("success", json.getString("status"));
-                    testContext.completeNow();
-                });
-    }
+   
 
     @ParameterizedTest
     @CsvSource({
@@ -1676,7 +1483,6 @@ public class UIDOperatorVerticleTest {
 
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", "test@email.com");
-        v2Payload.put("optout_check", 1);
 
         sendTokenGenerate(vertx,
                 v2Payload, 200,
@@ -1895,7 +1701,6 @@ public class UIDOperatorVerticleTest {
 
         JsonObject v2Payload = new JsonObject();
         v2Payload.put("email", "test@email.com");
-        v2Payload.put("optout_check", 1);
 
         sendTokenGenerate(vertx,
                 v2Payload, 500,
@@ -3086,43 +2891,6 @@ public class UIDOperatorVerticleTest {
     }
 
     @ParameterizedTest
-    @CsvSource({
-            "true,policy",
-            "true,optout_check",
-
-            "false,policy",
-            "false,optout_check"
-    })
-    void tokenGenerateRespectOptOutOption(boolean useV4Uid, String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.GENERATOR);
-        setupKeys();
-        setupSalts(useV4Uid);
-
-        // the clock value shouldn't matter here
-        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
-                .thenReturn(now.minus(1, ChronoUnit.HOURS));
-
-        JsonObject req = new JsonObject();
-        req.put("email", "random-optout-user@email.io");
-        req.put(policyParameterKey, 1);
-
-        // for EUID
-        addAdditionalTokenGenerateParams(req);
-
-        send(vertx, "v2/token/generate", req, 200, json -> {
-            try {
-                Assertions.assertEquals(ResponseUtil.ResponseStatus.OptOut, json.getString("status"));
-                Assertions.assertNull(json.getJsonObject("body"));
-                assertTokenStatusMetrics(clientSiteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, TokenResponseStatsCollector.PlatformType.Other);
-                testContext.completeNow();
-            } catch (Exception e) {
-                testContext.failNow(e);
-            }
-        });
-    }
-
-    @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void identityMapOptoutDefaultOption(boolean useV4Uid, Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
@@ -3147,43 +2915,6 @@ public class UIDOperatorVerticleTest {
                 Assertions.assertEquals(1, unmappedArr.size());
                 Assertions.assertEquals("random-optout-user@email.io", unmappedArr.getJsonObject(0).getString("identifier"));
                 Assertions.assertEquals("optout", unmappedArr.getJsonObject(0).getString("reason"));
-                testContext.completeNow();
-            } catch (Exception e) {
-                testContext.failNow(e);
-            }
-        });
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-            "true,policy",
-            "true,optout_check",
-
-            "false,policy",
-            "false,optout_check"
-    })
-    void identityMapRespectOptOutOption(boolean useV4Uid, String policyParameterKey, Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, Role.MAPPER);
-        setupKeys();
-        setupSalts(useV4Uid);
-
-        // the clock value shouldn't matter here
-        when(optOutStore.getLatestEntry(any(UserIdentity.class)))
-                .thenReturn(now.minus(1, ChronoUnit.HOURS));
-
-        JsonObject req = new JsonObject();
-        JsonArray emails = new JsonArray();
-        emails.add("random-optout-user@email.io");
-        req.put("email", emails);
-        req.put(policyParameterKey, 1);
-
-        send(vertx, "v2/identity/map", req, 200, json -> {
-            try {
-                Assertions.assertTrue(json.getJsonObject("body").getJsonArray("mapped").isEmpty());
-                Assertions.assertEquals(1, json.getJsonObject("body").getJsonArray("unmapped").size());
-                Assertions.assertEquals("random-optout-user@email.io", json.getJsonObject("body").getJsonArray("unmapped").getJsonObject(0).getString("identifier"));
-                Assertions.assertEquals("optout", json.getJsonObject("body").getJsonArray("unmapped").getJsonObject(0).getString("reason"));
                 testContext.completeNow();
             } catch (Exception e) {
                 testContext.failNow(e);
@@ -4291,8 +4022,7 @@ public class UIDOperatorVerticleTest {
         setupKeys(true);
 
         JsonObject identity = new JsonObject();
-        identity.put(identityType, getSha256(rawUID) + getSha256(rawUID));
-        identity.put("optout_check", 1);
+        identity.put(identityType, getSha256(rawUID) + getSha256(rawUID));    
         Tuple.Tuple2<JsonObject, SecretKey> data = createClientSideTokenGenerateRequestWithPayload(identity, Instant.now().toEpochMilli(), null);
 
         sendCstg(vertx,

@@ -153,11 +153,6 @@ public class UIDOperatorVerticleTest {
 
         setupConfig(config);
         runtimeConfig = setupRuntimeConfig(config);
-        // TODO: Remove this when we remove tokenGenerateOptOutTokenWithDisableOptoutTokenFF test
-        if (testInfo.getTestMethod().isPresent() &&
-                testInfo.getTestMethod().get().getName().equals("tokenGenerateOptOutTokenWithDisableOptoutTokenFF")) {
-            config.put(Const.Config.DisableOptoutTokenProp, true);
-        }
         if (testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
         }
@@ -201,7 +196,6 @@ public class UIDOperatorVerticleTest {
         config.put(Const.Config.AllowClockSkewSecondsProp, 3600);
         config.put(Const.Config.OptOutStatusApiEnabled, true);
         config.put(Const.Config.OptOutStatusMaxRequestSize, optOutStatusMaxRequestSize);
-        config.put(Const.Config.DisableOptoutTokenProp, false);
         config.put(Const.Config.ConfigScanPeriodMsProp, 10000);
     }
 
@@ -1367,47 +1361,6 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
-    void tokenGenerateNewClientNoPolicySpecified(Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, newClientCreationDateTime, Role.GENERATOR);
-        setupSalts();
-        setupKeys();
-
-        JsonObject v2Payload = new JsonObject();
-        v2Payload.put("email", "test@email.com");
-
-        sendTokenGenerate(vertx, v2Payload, 400,
-                json -> {
-                    assertFalse(json.containsKey("body"));
-                    assertEquals("client_error", json.getString("status"));
-                    assertEquals("Required opt-out policy argument for token/generate is missing or not set to 1", json.getString("message"));
-                    testContext.completeNow();
-                });
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"policy", "optout_check"})
-    void tokenGenerateNewClientWrongPolicySpecified(String policyParamterKey, Vertx vertx, VertxTestContext testContext) {
-        final int clientSiteId = 201;
-        fakeAuth(clientSiteId, newClientCreationDateTime, Role.GENERATOR);
-        setupSalts();
-        setupKeys();
-
-        JsonObject v2Payload = new JsonObject();
-        v2Payload.put("email", "test@email.com");
-        v2Payload.put(policyParamterKey, OptoutCheckPolicy.DoNotRespect.policy);
-
-        sendTokenGenerate(vertx,
-                v2Payload, 400,
-                json -> {
-                    assertFalse(json.containsKey("body"));
-                    assertEquals("client_error", json.getString("status"));
-                    assertEquals("Required opt-out policy argument for token/generate is missing or not set to 1", json.getString("message"));
-                    testContext.completeNow();
-                });
-    }
-
-    @Test
     void tokenGenerateNewClientNoPolicySpecifiedOlderKeySuccessful(Vertx vertx, VertxTestContext testContext) {
         ClientKey newClientKey = new ClientKey(
                 null,
@@ -1485,130 +1438,6 @@ public class UIDOperatorVerticleTest {
                 json -> {
                     assertTrue(json.containsKey("body"));
                     assertEquals("success", json.getString("status"));
-                    testContext.completeNow();
-                });
-    }
-
-    @ParameterizedTest // TODO: remove test after optout check phase 3
-    @CsvSource({
-            "policy,someoptout@example.com,Email",
-            "policy,+01234567890,Phone",
-            "optout_check,someoptout@example.com,Email",
-            "optout_check,+01234567890,Phone"
-    })
-    void tokenGenerateOptOutToken(String policyParameterKey, String identity, IdentityType identityType,
-                                  Vertx vertx, VertxTestContext testContext) {
-        ClientKey oldClientKey = new ClientKey(
-                null,
-                null,
-                Utils.toBase64String(clientSecret),
-                "test-contact",
-                newClientCreationDateTime.minusSeconds(5),
-                Set.of(Role.GENERATOR),
-                201,
-                null
-        );
-        when(clientKeyProvider.get(any())).thenReturn(oldClientKey);
-        when(clientKeyProvider.getClientKey(any())).thenReturn(oldClientKey);
-        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
-        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
-        setupSalts();
-        setupKeys();
-
-        JsonObject v2Payload = new JsonObject();
-        v2Payload.put(identityType.name().toLowerCase(), identity);
-        v2Payload.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
-
-        sendTokenGenerate(vertx,
-                v2Payload, 200,
-                json -> {
-                    InputUtil.InputVal optOutTokenInput = identityType == IdentityType.Email ?
-                            InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail) :
-                            InputUtil.InputVal.validPhone(OptOutIdentityForPhone, OptOutTokenIdentityForPhone);
-
-                    assertEquals("success", json.getString("status"));
-
-                    JsonObject body = json.getJsonObject("body");
-                    assertNotNull(body);
-
-                    decodeV2RefreshToken(json);
-
-                    AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, identityType);
-                    RefreshToken refreshToken = encoder.decodeRefreshToken(body.getString("decrypted_refresh_token"));
-                    final byte[] advertisingId = getAdvertisingIdFromIdentity(identityType,
-                            optOutTokenInput.getNormalized(),
-                            firstLevelSalt,
-                            rotatingSalt123.currentSalt());
-                    final byte[] firstLevelHash = TokenUtils.getFirstLevelHashFromIdentity(optOutTokenInput.getNormalized(), firstLevelSalt);
-                    assertArrayEquals(advertisingId, advertisingToken.userIdentity.id);
-                    assertArrayEquals(firstLevelHash, refreshToken.userIdentity.id);
-
-                    assertFalse(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenGenerated());
-                    assertTrue(PrivacyBits.fromInt(advertisingToken.userIdentity.privacyBits).isClientSideTokenOptedOut());
-
-                    assertTokenStatusMetrics(
-                            201,
-                            TokenResponseStatsCollector.Endpoint.GenerateV2,
-                            TokenResponseStatsCollector.ResponseStatus.Success,
-                            TokenResponseStatsCollector.PlatformType.Other);
-
-                    sendTokenRefresh(vertx, testContext, body.getString("refresh_token"), body.getString("refresh_response_key"), 200, refreshRespJson -> {
-                        assertEquals("optout", refreshRespJson.getString("status"));
-                        JsonObject refreshBody = refreshRespJson.getJsonObject("body");
-                        assertNull(refreshBody);
-                        assertTokenStatusMetrics(
-                                201,
-                                TokenResponseStatsCollector.Endpoint.RefreshV2,
-                                TokenResponseStatsCollector.ResponseStatus.OptOut,
-                                TokenResponseStatsCollector.PlatformType.InApp);
-                        testContext.completeNow();
-                    }, Map.of(ClientVersionHeader, tvosClientVersionHeaderValue));
-                });
-    }
-
-    @ParameterizedTest // TODO: remove test after optout check phase 3
-    @CsvSource({
-            "policy,someoptout@example.com,Email",
-            "policy,+01234567890,Phone",
-            "optout_check,someoptout@example.com,Email",
-            "optout_check,+01234567890,Phone"
-    })
-    void tokenGenerateOptOutTokenWithDisableOptoutTokenFF(String policyParameterKey, String identity, IdentityType identityType,
-                                                          Vertx vertx, VertxTestContext testContext) {
-        ClientKey oldClientKey = new ClientKey(
-                null,
-                null,
-                Utils.toBase64String(clientSecret),
-                "test-contact",
-                newClientCreationDateTime.minusSeconds(5),
-                Set.of(Role.GENERATOR),
-                201,
-                null
-        );
-        when(clientKeyProvider.get(any())).thenReturn(oldClientKey);
-        when(clientKeyProvider.getClientKey(any())).thenReturn(oldClientKey);
-        when(clientKeyProvider.getOldestClientKey(201)).thenReturn(oldClientKey);
-        when(this.optOutStore.getLatestEntry(any())).thenReturn(Instant.now());
-        setupSalts();
-        setupKeys();
-
-        JsonObject v2Payload = new JsonObject();
-        v2Payload.put(identityType.name().toLowerCase(), identity);
-        v2Payload.put(policyParameterKey, OptoutCheckPolicy.DoNotRespect.policy);
-
-        sendTokenGenerate(vertx,
-                v2Payload, 200,
-                json -> {
-                    assertEquals("optout", json.getString("status"));
-
-                    decodeV2RefreshToken(json);
-
-                    assertTokenStatusMetrics(
-                            201,
-                            TokenResponseStatsCollector.Endpoint.GenerateV2,
-                            TokenResponseStatsCollector.ResponseStatus.OptOut,
-                            TokenResponseStatsCollector.PlatformType.Other);
-
                     testContext.completeNow();
                 });
     }

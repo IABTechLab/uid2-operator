@@ -105,7 +105,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final IClientKeyProvider clientKeyProvider;
     private final Clock clock;
     private final boolean identityV3Enabled;
-    private final boolean disableOptoutToken;
     private final UidInstanceIdProvider uidInstanceIdProvider;
     protected IUIDOperatorService idService;
 
@@ -196,7 +195,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.optOutStatusApiEnabled = config.getBoolean(Const.Config.OptOutStatusApiEnabled, true);
         this.optOutStatusMaxRequestSize = config.getInteger(Const.Config.OptOutStatusMaxRequestSize, 5000);
         this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
-        this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
         this.uidInstanceIdProvider = uidInstanceIdProvider;
     }
 
@@ -945,14 +943,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     }
                 }
 
-                final Tuple.Tuple2<OptoutCheckPolicy, String> optoutCheckPolicy = readOptoutCheckPolicy(req);
-                recordTokenGeneratePolicy(apiContact, optoutCheckPolicy.getItem1(), optoutCheckPolicy.getItem2());
-
-                if (!meetPolicyCheckRequirements(rc)) {
-                    SendClientErrorResponseAndRecordStats(ResponseStatus.ClientError, 400, rc, "Required opt-out policy argument for token/generate is missing or not set to 1", siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, platformType);
-                    return;
-                }
-
                 final IdentityTokens t = this.idService.generateIdentity(
                         new IdentityRequest(
                                 new PublisherIdentity(siteId, 0, 0),
@@ -964,31 +954,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         identityExpiresAfter);
 
                 if (t.isEmptyToken()) {
-                    if (optoutCheckPolicy.getItem1() == OptoutCheckPolicy.DoNotRespect && !this.disableOptoutToken) { // only legacy can use this policy
-                        final InputUtil.InputVal optOutTokenInput = input.getIdentityType() == IdentityType.Email
-                                ? InputUtil.InputVal.validEmail(OptOutTokenIdentityForEmail, OptOutTokenIdentityForEmail)
-                                : InputUtil.InputVal.validPhone(OptOutTokenIdentityForPhone, OptOutTokenIdentityForPhone);
-
-                        PrivacyBits pb = new PrivacyBits();
-                        pb.setLegacyBit();
-                        pb.setClientSideTokenGenerateOptout();
-
-                        final IdentityTokens optOutTokens = this.idService.generateIdentity(
-                                new IdentityRequest(
-                                        new PublisherIdentity(siteId, 0, 0),
-                                        optOutTokenInput.toUserIdentity(this.identityScope, pb.getAsInt(), Instant.now()),
-                                        OptoutCheckPolicy.DoNotRespect,
-                                        identityEnvironment),
-                                refreshIdentityAfter,
-                                refreshExpiresAfter,
-                                identityExpiresAfter);
-
-                        ResponseUtil.SuccessV2(rc, toTokenResponseJson(optOutTokens));
-                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, optOutTokens.getAdvertisingTokenVersion(), platformType);
-                    } else { // new participant, or legacy specified policy/optout_check=1
-                        ResponseUtil.SuccessNoBodyV2("optout", rc);
-                        recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider, null, platformType);
-                    }
+                    ResponseUtil.SuccessNoBodyV2("optout", rc);
+                    recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.OptOut, siteProvider, null, platformType);
                 } else {
                     ResponseUtil.SuccessV2(rc, toTokenResponseJson(t));
                     recordTokenResponseStats(siteId, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.Success, siteProvider, t.getAdvertisingTokenVersion(), platformType);
@@ -1640,59 +1607,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
 
         return UserConsentStatus.SUFFICIENT;
-    }
-
-    private static final String POLICY_PARAM = "policy";
-    private static final String OPTOUT_CHECK_POLICY_PARAM = "optout_check";
-
-    private boolean meetPolicyCheckRequirements(RoutingContext rc) {
-        JsonObject requestJsonObject = (JsonObject) rc.data().get(REQUEST);
-        boolean respectOptOut = false;
-        if (requestJsonObject.containsKey(OPTOUT_CHECK_POLICY_PARAM)) {
-            respectOptOut = OptoutCheckPolicy.fromValue(requestJsonObject.getInteger(OPTOUT_CHECK_POLICY_PARAM)) == OptoutCheckPolicy.respectOptOut();
-        } else if (requestJsonObject.containsKey(POLICY_PARAM)) {
-            respectOptOut = OptoutCheckPolicy.fromValue(requestJsonObject.getInteger(POLICY_PARAM)) == OptoutCheckPolicy.respectOptOut();
-        }
-
-        if (respectOptOut) {
-            return true;
-        } else {
-            final ClientKey clientKey = (ClientKey) AuthMiddleware.getAuthClient(rc);
-            final ClientKey oldestClientKey = this.clientKeyProvider.getOldestClientKey(clientKey.getSiteId());
-            boolean newClient = oldestClientKey.getCreated() >= OPT_OUT_CHECK_CUTOFF_DATE;
-
-            if (!newClient) {
-                Counter.builder("uid2_legacy_opt_out_bypass_total")
-                        .description("Counter for the number of successful requests that have optout set to zero (legacy clients)")
-                        .tag("site_id", clientKey.getSiteId().toString())
-                        .register(Metrics.globalRegistry)
-                        .increment();
-                return true;
-            } else {
-                // log policy violation
-                LOGGER.warn(String.format("Failed to respect opt-out policy: siteId=%d, clientKeyName=%s, clientKeyCreated=%d",
-                        oldestClientKey.getSiteId(), oldestClientKey.getName(), oldestClientKey.getCreated()));
-                return false;
-            }
-        }
-    }
-
-    private Tuple.Tuple2<OptoutCheckPolicy, String> readOptoutCheckPolicy(JsonObject req) {
-        if(req.containsKey(OPTOUT_CHECK_POLICY_PARAM)) {
-            return new Tuple.Tuple2<>(OptoutCheckPolicy.fromValue(req.getInteger(OPTOUT_CHECK_POLICY_PARAM)), OPTOUT_CHECK_POLICY_PARAM);
-        } else if(req.containsKey(POLICY_PARAM)) {
-            return new Tuple.Tuple2<>(OptoutCheckPolicy.fromValue(req.getInteger(POLICY_PARAM)), POLICY_PARAM);
-        } else {
-            return new Tuple.Tuple2<>(OptoutCheckPolicy.defaultPolicy(), "null");
-        }
-    }
-
-    private void recordTokenGeneratePolicy(String apiContact, OptoutCheckPolicy policy, String policyParameterKey) {
-        _tokenGeneratePolicyCounters.computeIfAbsent(new Tuple.Tuple3<>(apiContact, policy, policyParameterKey), triple -> Counter
-                .builder("uid2_token_generate_policy_usage_total")
-                .description("Counter for token generate policy usage")
-                .tags("api_contact", triple.getItem1(), "policy", String.valueOf(triple.getItem2()), "policy_parameter", triple.getItem3())
-                .register(Metrics.globalRegistry)).increment();
     }
 
     private void recordTokenGenerateTCFUsage(String apiContact) {

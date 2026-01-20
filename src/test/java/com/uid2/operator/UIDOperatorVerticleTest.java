@@ -221,7 +221,6 @@ public class UIDOperatorVerticleTest {
         );
         when(clientKeyProvider.get(any())).thenReturn(clientKey);
         when(clientKeyProvider.getClientKey(any())).thenReturn(clientKey);
-        when(clientKeyProvider.getOldestClientKey(anyInt())).thenReturn(clientKey);
     }
 
     private void clearAuth() {

@@ -133,6 +133,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public static final long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
     private final Handler<Boolean> saltRetrievalResponseHandler;
     private final int allowClockSkewSeconds;
+    private final ComputePoolService computePoolService;
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
     protected boolean keySharingEndpointProvideAppNames;
     protected Instant lastInvalidOriginProcessTime = Instant.now();
@@ -164,7 +165,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IStatsCollectorQueue statsCollectorQueue,
                                SecureLinkValidatorService secureLinkValidatorService,
                                Handler<Boolean> saltRetrievalResponseHandler,
-                               UidInstanceIdProvider uidInstanceIdProvider) {
+                               UidInstanceIdProvider uidInstanceIdProvider,
+                               ComputePoolService computePoolService) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -198,6 +200,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
         this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
         this.uidInstanceIdProvider = uidInstanceIdProvider;
+        this.computePoolService = computePoolService;
     }
 
     @Override
@@ -283,9 +286,9 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         mainRouter.post(V2_TOKEN_VALIDATE.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
         mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handleAsync(rc, this::handleBucketsV2Async), Role.MAPPER));
         mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handleAsync(rc, this::handleIdentityMapV2Async), Role.MAPPER));
         mainRouter.post(V2_KEY_LATEST.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
@@ -304,7 +307,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             mainRouter.post(V2_TOKEN_CLIENTGENERATE.toString()).handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
         mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
+                rc -> encryptedPayloadHandler.handleAsync(rc, this::handleIdentityMapV3Async), Role.MAPPER));
     }
 
     private void handleClientSideTokenGenerate(RoutingContext rc) {
@@ -1037,6 +1040,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
+    private Future<Void> handleBucketsV2Async(RoutingContext rc) {
+        return computePoolService.executeBlocking(() -> {
+            handleBucketsV2(rc);
+        });
+    }
+
     private void handleBucketsV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final String qp = req.getString("since_timestamp");
@@ -1222,6 +1231,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return false;
     }
 
+    private Future<Void> handleIdentityMapV2Async(RoutingContext rc) {
+        return computePoolService.executeBlocking(() -> {
+            handleIdentityMapV2(rc);
+        });
+    }
+
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
             final Integer siteId = RoutingContextUtil.getSiteId(rc);
@@ -1283,6 +1298,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return getInputList == null ?
                 createInputList(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
                 getInputList.get();
+    }
+
+    private Future<Void> handleIdentityMapV3Async(RoutingContext rc) {
+        return computePoolService.executeBlocking(() -> {
+            handleIdentityMapV3(rc);
+        });
     }
 
     private void handleIdentityMapV3(RoutingContext rc) {

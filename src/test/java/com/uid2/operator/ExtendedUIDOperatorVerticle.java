@@ -2,6 +2,7 @@ package com.uid2.operator;
 
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.monitoring.IStatsCollectorQueue;
+import com.uid2.operator.service.ComputePoolService;
 import com.uid2.operator.service.IUIDOperatorService;
 import com.uid2.operator.service.SecureLinkValidatorService;
 import com.uid2.operator.store.IConfigStore;
@@ -33,8 +34,9 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        IStatsCollectorQueue statsCollectorQueue,
                                        SecureLinkValidatorService secureLinkValidationService,
                                        Handler<Boolean> saltRetrievalResponseHandler,
-                                       UidInstanceIdProvider uidInstanceIdProvider) {
-        super(configStore, config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler, uidInstanceIdProvider);
+                                       UidInstanceIdProvider uidInstanceIdProvider,
+                                       ComputePoolService computePoolService) {
+        super(configStore, config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler, uidInstanceIdProvider, computePoolService);
     }
 
     public IUIDOperatorService getIdService() {

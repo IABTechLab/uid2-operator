@@ -142,6 +142,7 @@ public class UIDOperatorVerticleTest {
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
     private RuntimeConfig runtimeConfig;
     private EncryptedTokenEncoder encoder;
+    private ComputePoolService computePoolService;
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
@@ -165,7 +166,8 @@ public class UIDOperatorVerticleTest {
 
         this.uidInstanceIdProvider = new UidInstanceIdProvider("test-instance", "id");
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse, uidInstanceIdProvider);
+        this.computePoolService = new ComputePoolService(vertx);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse, uidInstanceIdProvider, this.computePoolService);
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 
         this.registry = new SimpleMeterRegistry();
@@ -177,6 +179,9 @@ public class UIDOperatorVerticleTest {
     @AfterEach
     void teardown() {
         Metrics.globalRegistry.remove(registry);
+        if (computePoolService != null) {
+            computePoolService.close();
+        }
     }
 
     private RuntimeConfig setupRuntimeConfig(JsonObject config) {

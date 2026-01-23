@@ -341,8 +341,11 @@ public class Main {
         this.createVertxInstancesMetric();
         this.createVertxEventLoopsMetric();
 
+        // Create shared compute pool for CPU-intensive operations
+        final ComputePoolService computePoolService = new ComputePoolService(vertx);
+
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse, this.uidInstanceIdProvider);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse, this.uidInstanceIdProvider, computePoolService);
             return verticle;
         };
 
@@ -371,6 +374,7 @@ public class Main {
                 })
                 .onFailure(t -> {
                     LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
+                    computePoolService.close();
                     vertx.close();
                     System.exit(1);
                 });
@@ -499,7 +503,8 @@ public class Main {
 
         VertxOptions vertxOptions = new VertxOptions()
             .setMetricsOptions(metricOptions)
-            .setBlockedThreadCheckInterval(threadBlockedCheckInterval);
+            .setBlockedThreadCheckInterval(threadBlockedCheckInterval)
+            .setWorkerPoolSize(8);
 
         return Vertx.vertx(vertxOptions);
     }

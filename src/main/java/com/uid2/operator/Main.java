@@ -492,7 +492,7 @@ public class Main {
 
         MicrometerMetricsOptions metricOptions = new MicrometerMetricsOptions()
             .setPrometheusOptions(prometheusOptions)
-            .setLabels(EnumSet.of(Label.HTTP_METHOD, Label.HTTP_CODE, Label.HTTP_PATH))
+            .setLabels(EnumSet.of(Label.HTTP_METHOD, Label.HTTP_CODE, Label.HTTP_PATH, Label.POOL_NAME))
             .setJvmMetricsEnabled(true)
             .setEnabled(true);
         setupMetrics(metricOptions);
@@ -529,12 +529,19 @@ public class Main {
                     Objects.equals(id.getTag(Label.HTTP_CODE.toString()), "404")))
                 .meterFilter(new MeterFilter() {
                     private final String httpServerResponseTime = MetricsDomain.HTTP_SERVER.getPrefix() + MetricsNaming.v4Names().getHttpResponseTime();
+                    private final String poolQueueTime = MetricsDomain.HTTP_SERVER.getPrefix() + MetricsNaming.v4Names().getPoolQueueTime();
 
                     @Override
                     public DistributionStatisticConfig configure(Meter.Id id, DistributionStatisticConfig config) {
                         if (id.getName().equals(httpServerResponseTime)) {
                             return DistributionStatisticConfig.builder()
                                 .percentiles(0.90, 0.95, 0.99)
+                                .build()
+                                .merge(config);
+                        }
+                        if (id.getName().equals(poolQueueTime)) {
+                            return DistributionStatisticConfig.builder()
+                                .percentiles(0.50, 0.90, 0.95, 0.99)
                                 .build()
                                 .merge(config);
                         }

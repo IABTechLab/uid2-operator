@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ComputePoolService {
@@ -22,15 +23,15 @@ public class ComputePoolService {
 
     private final WorkerExecutor workerExecutor;
 
-    // Queue length: incremented on queue, decremented on completion
-    // since Vert.x worker executor doesn't expose queue length
-    private final AtomicLong queueLength = new AtomicLong(0);
+    // Queue pending: incremented on queue, decremented on dispatch
+    // Tracks tasks waiting in queue but not yet started
+    private final AtomicLong queuePending = new AtomicLong(0);
 
     // Prometheus histogram for queue wait time (time between queued and dispatched)
     private final Timer queueWaitTimer;
 
-    // Prometheus gauge for queue length
-    private final Gauge queueLengthGauge;
+    // Prometheus gauge for queue pending
+    private final Gauge queuePendingGauge;
 
     /**
      * Creates a ComputePoolService with default pool size (available processors - 2, minimum 1).
@@ -58,8 +59,8 @@ public class ComputePoolService {
                 .maximumExpectedValue(Duration.ofMillis(500))      // 500ms
                 .register(Metrics.globalRegistry);
   
-        this.queueLengthGauge = Gauge.builder(METRIC_PREFIX + "queue_length", queueLength::get)
-                .description("Number of tasks queued but not yet completed")
+        this.queuePendingGauge = Gauge.builder(METRIC_PREFIX + "queue_pending", queuePending::get)
+                .description("Number of tasks waiting in queue but not yet dispatched to a worker")
                 .register(Metrics.globalRegistry);
 
         LOGGER.info("ComputePoolService initialized with pool size: {}", poolSize);
@@ -76,18 +77,30 @@ public class ComputePoolService {
      */
     public <T> Future<T> executeBlocking(Callable<T> callable) {
         final long queuedAt = System.nanoTime();
-        queueLength.incrementAndGet();
+        final AtomicBoolean dispatched = new AtomicBoolean(false);
 
-        return workerExecutor.<T>executeBlocking(() -> {
-            try {
+        queuePending.incrementAndGet();
+
+        try {
+            return workerExecutor.<T>executeBlocking(() -> {
+                dispatched.set(true);
+                queuePending.decrementAndGet();
+
                 final long dispatchedAt = System.nanoTime();
                 queueWaitTimer.record(dispatchedAt - queuedAt, TimeUnit.NANOSECONDS);
 
                 return callable.call();
-            } finally {  
-                queueLength.decrementAndGet();
-            }
-        });
+            }).onComplete(ar -> {
+                // If task was never dispatched, clean up
+                if (!dispatched.get()) {
+                    queuePending.decrementAndGet();
+                }
+            });
+        } catch (Exception e) {
+            // executeBlocking threw before returning a Future
+            queuePending.decrementAndGet();
+            return Future.failedFuture(e);
+        }
     }
 
     /**
@@ -105,10 +118,10 @@ public class ComputePoolService {
 
 
     /**
-     * Returns the current queue length (tasks queued but not yet completed).
+     * Returns the number of tasks waiting in queue but not yet dispatched to a worker.
      */
-    public long getQueueLength() {
-        return queueLength.get();
+    public long getQueuePending() {
+        return queuePending.get();
     }
 
     public void close() {

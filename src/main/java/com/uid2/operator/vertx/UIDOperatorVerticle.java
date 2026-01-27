@@ -307,6 +307,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             mainRouter.post(V2_TOKEN_CLIENTGENERATE.toString()).handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
         if (isAsyncBatchRequestsEnabled) {
+            LOGGER.info("Async batch requests enabled");
             mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
                     rc -> encryptedPayloadHandler.handleAsync(rc, this::handleBucketsV2Async), Role.MAPPER));
             mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(

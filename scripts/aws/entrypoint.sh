@@ -40,7 +40,7 @@ Description=UID2 enclave time sync
 Type=oneshot
 Environment=TIME_SYNC_URL=${TIME_SYNC_URL}
 Environment=TIME_SYNC_PROXY=${TIME_SYNC_PROXY}
-ExecStart=/bin/bash -c 'set -euo pipefail; curl -sSf -x "$TIME_SYNC_PROXY" "$TIME_SYNC_URL" | xargs -I{} date -u -s "{}"; echo "Time sync: updated enclave time to $current_time"'
+ExecStart=/bin/bash -c 'set -euo pipefail; current_time="$(curl -sSf -x "$TIME_SYNC_PROXY" "$TIME_SYNC_URL")"; date -u -s "$current_time"; echo "Time sync: updated enclave time to $current_time"'
 EOF
 
   cat <<EOF >/etc/systemd/system/uid2-time-sync.timer

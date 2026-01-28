@@ -23,39 +23,46 @@ echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
 TIME_SYNC_URL="http://127.0.0.1:27015/getCurrentTime"
-TIME_SYNC_INTERVAL_SECONDS="${TIME_SYNC_INTERVAL_SECONDS:-86400}"
+TIME_SYNC_PROXY="socks5h://127.0.0.1:3305"
+TIME_SYNC_INTERVAL_SECONDS="300"
 
-sync_enclave_time() {
-  local current_time
-  local parent_epoch
-  local enclave_epoch
-  local drift_seconds
-  if current_time=$(curl -s -f -x socks5h://127.0.0.1:3305 "${TIME_SYNC_URL}"); then
-    parent_epoch=$(date -u -d "${current_time}" +%s 2>/dev/null || true)
-    enclave_epoch=$(date -u +%s)
-    if [[ -n "${parent_epoch}" ]]; then
-      drift_seconds=$((enclave_epoch - parent_epoch))
-      echo "Time sync: drift seconds (enclave - parent) = ${drift_seconds}"
-    fi
-    if ! date -u -s "${current_time}"; then
-      echo "Time sync: failed to set enclave time from '${current_time}'"
-      return 1
-    fi
-    echo "Time sync: updated enclave time to ${current_time}"
-  else
-    echo "Time sync: failed to fetch time from parent instance"
-    return 1
+enable_time_sync_timer() {
+  if ! command -v systemctl >/dev/null 2>&1 || [[ ! -d /run/systemd/system ]]; then
+    echo "Time sync: systemd not available; skipping timer setup" >&2
+    return 0
   fi
+
+  cat <<EOF >/etc/systemd/system/uid2-time-sync.service
+[Unit]
+Description=UID2 enclave time sync
+
+[Service]
+Type=oneshot
+Environment=TIME_SYNC_URL=${TIME_SYNC_URL}
+Environment=TIME_SYNC_PROXY=${TIME_SYNC_PROXY}
+ExecStart=/bin/bash -c 'set -euo pipefail; curl -sSf -x "$TIME_SYNC_PROXY" "$TIME_SYNC_URL" | xargs -I{} date -u -s "{}"; echo "Time sync: updated enclave time to $current_time"'
+EOF
+
+  cat <<EOF >/etc/systemd/system/uid2-time-sync.timer
+[Unit]
+Description=UID2 enclave time sync timer
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=${TIME_SYNC_INTERVAL_SECONDS}s
+Unit=uid2-time-sync.service
+Persistent=true
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable --now uid2-time-sync.timer
 }
 
-start_time_sync_loop() {
-  while true; do
-    sleep "${TIME_SYNC_INTERVAL_SECONDS}"
-    sync_enclave_time || true
-  done
-}
-
-start_time_sync_loop &
+enable_time_sync_timer
 
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig

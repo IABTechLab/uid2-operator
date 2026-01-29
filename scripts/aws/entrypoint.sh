@@ -51,10 +51,13 @@ sync_enclave_time_with_offset_once || true
 
 
 start_time_sync_server() {
-  python3 - <<'PY' &
+  python3 -u - <<'PY' &
+import sys
 import os
 import subprocess
 from http.server import BaseHTTPRequestHandler, HTTPServer
+
+sys.stdout.reconfigure(line_buffering=True)
 
 TIME_SYNC_URL = os.environ.get("TIME_SYNC_URL", "http://127.0.0.1:27015/getCurrentTime")
 TIME_SYNC_PROXY = os.environ.get("TIME_SYNC_PROXY", "socks5h://127.0.0.1:3305")
@@ -76,12 +79,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             result = sync_time()
-            print(f"Time sync: updated enclave time to {result}")
+            print(f"Time sync: updated enclave time to {result}", flush=True)
             self.send_response(200)
             self.end_headers()
             self.wfile.write(f"OK {result}\n".encode())
         except Exception as exc:  # pragma: no cover - best effort logging
-            print(f"Time sync error: {exc}")
+            print(f"Time sync error: {exc}", flush=True)
             self.send_response(500)
             self.end_headers()
             self.wfile.write(f"ERROR {exc}\n".encode())

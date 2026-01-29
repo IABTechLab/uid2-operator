@@ -25,30 +25,6 @@ echo "Starting vsock proxy..."
 TIME_SYNC_URL="http://127.0.0.1:27015/getCurrentTime"
 TIME_SYNC_PROXY="socks5h://127.0.0.1:3305"
 TIME_SYNC_TRIGGER_PORT="${TIME_SYNC_TRIGGER_PORT:-27100}"
-TIME_SYNC_OFFSET_SECONDS="${TIME_SYNC_OFFSET_SECONDS:-30}"
-
-sync_enclave_time_with_offset_once() {
-  local current_time
-  local parent_epoch
-  if current_time=$(curl -s -f -x socks5h://127.0.0.1:3305 "${TIME_SYNC_URL}"); then
-    parent_epoch=$(date -u -d "${current_time}" +%s 2>/dev/null || true)
-    if [[ -n "${parent_epoch}" ]]; then
-      parent_epoch=$((parent_epoch + TIME_SYNC_OFFSET_SECONDS))
-      if ! date -u -s "@${parent_epoch}"; then
-        echo "Time sync: failed to set enclave time from '${current_time}' with offset ${TIME_SYNC_OFFSET_SECONDS}s"
-        return 1
-      fi
-      echo "Time sync: updated enclave time to ${current_time} + ${TIME_SYNC_OFFSET_SECONDS}s"
-    fi
-  else
-    echo "Time sync: failed to fetch time from parent instance"
-    return 1
-  fi
-}
-
-sync_enclave_time_with_offset_once || true
-
-
 
 start_time_sync_server() {
   python3 -u - <<'PY' &

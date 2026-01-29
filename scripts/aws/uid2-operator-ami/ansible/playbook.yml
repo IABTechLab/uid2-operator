@@ -266,7 +266,7 @@
       dest: /etc/cron.d/uid2-time-sync
       mode: "0644"
       content: |
-        */5 * * * * root /usr/local/bin/uid2-time-sync
+        0 0 * * * root /usr/local/bin/uid2-time-sync
 
   - name: Clean up tmp files
     file:

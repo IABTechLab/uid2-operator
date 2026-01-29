@@ -167,6 +167,15 @@
       dest: /etc/systemd/system/uid2operator.service
       remote_src: yes
 
+  - name: Install time sync trigger script
+    ansible.builtin.copy:
+      dest: /usr/local/bin/uid2-time-sync
+      mode: "0755"
+      content: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+        curl -sSf http://127.0.0.1:27100/sync > /dev/null
+
   - name: Install AWS Nitro Enclaves CLI
     ansible.builtin.dnf:
       name: aws-nitro-enclaves-cli
@@ -240,6 +249,13 @@
     ansible.builtin.systemd:
       name: uid2operator.service
       enabled: yes
+  
+  - name: Install time sync cron job
+    ansible.builtin.copy:
+      dest: /etc/cron.d/uid2-time-sync
+      mode: "0644"
+      content: |
+        */5 * * * * root /usr/local/bin/uid2-time-sync
 
   - name: Clean up tmp files
     file:

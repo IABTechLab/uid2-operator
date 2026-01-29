@@ -24,8 +24,7 @@ echo "Starting vsock proxy..."
 
 TIME_SYNC_URL="http://127.0.0.1:27015/getCurrentTime"
 TIME_SYNC_PROXY="socks5h://127.0.0.1:3305"
-TIME_SYNC_INTERVAL_SECONDS="300"
-
+TIME_SYNC_TRIGGER_PORT="${TIME_SYNC_TRIGGER_PORT:-27100}"
 TIME_SYNC_OFFSET_SECONDS="${TIME_SYNC_OFFSET_SECONDS:-30}"
 
 sync_enclave_time_with_offset_once() {
@@ -50,43 +49,52 @@ sync_enclave_time_with_offset_once() {
 sync_enclave_time_with_offset_once || true
 
 
-enable_time_sync_timer() {
-  if ! command -v systemctl >/dev/null 2>&1 || [[ ! -d /run/systemd/system ]]; then
-    echo "Time sync: systemd not available; skipping timer setup" >&2
-    return 0
-  fi
 
-  cat <<EOF >/etc/systemd/system/uid2-time-sync.service
-[Unit]
-Description=UID2 enclave time sync
+start_time_sync_server() {
+  python3 - <<'PY' &
+import os
+import subprocess
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-[Service]
-Type=oneshot
-Environment=TIME_SYNC_URL=${TIME_SYNC_URL}
-Environment=TIME_SYNC_PROXY=${TIME_SYNC_PROXY}
-ExecStart=/bin/bash -c 'set -euo pipefail; current_time="$(curl -sSf -x "$TIME_SYNC_PROXY" "$TIME_SYNC_URL")"; date -u -s "$current_time"; echo "Time sync: updated enclave time to $current_time"'
-EOF
+TIME_SYNC_URL = os.environ.get("TIME_SYNC_URL", "http://127.0.0.1:27015/getCurrentTime")
+TIME_SYNC_PROXY = os.environ.get("TIME_SYNC_PROXY", "socks5h://127.0.0.1:3305")
+TIME_SYNC_TRIGGER_PORT = int(os.environ.get("TIME_SYNC_TRIGGER_PORT", "27100"))
 
-  cat <<EOF >/etc/systemd/system/uid2-time-sync.timer
-[Unit]
-Description=UID2 enclave time sync timer
+def sync_time() -> str:
+    current_time = subprocess.check_output(
+        ["curl", "-sSf", "-x", TIME_SYNC_PROXY, TIME_SYNC_URL],
+        text=True,
+    ).strip()
+    subprocess.check_call(["date", "-u", "-s", current_time])
+    return current_time
 
-[Timer]
-OnBootSec=300s
-OnUnitActiveSec=${TIME_SYNC_INTERVAL_SECONDS}s
-Unit=uid2-time-sync.service
-Persistent=true
-AccuracySec=1s
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        if self.path not in ("/", "/sync"):
+            self.send_response(404)
+            self.end_headers()
+            return
+        try:
+            result = sync_time()
+            print(f"Time sync: updated enclave time to {result}")
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(f"OK {result}\n".encode())
+        except Exception as exc:  # pragma: no cover - best effort logging
+            print(f"Time sync error: {exc}")
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(f"ERROR {exc}\n".encode())
 
-[Install]
-WantedBy=timers.target
-EOF
+    def log_message(self, format, *args):  # noqa: N802 - match base class
+        return
 
-  systemctl daemon-reload
-  systemctl enable --now uid2-time-sync.timer
+server = HTTPServer(("127.0.0.1", TIME_SYNC_TRIGGER_PORT), Handler)
+server.serve_forever()
+PY
 }
 
-enable_time_sync_timer
+start_time_sync_server
 
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig

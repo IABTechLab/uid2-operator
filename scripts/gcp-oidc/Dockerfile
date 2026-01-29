@@ -5,7 +5,7 @@ LABEL "tee.launch_policy.allow_env_override"="API_TOKEN_SECRET_NAME,DEPLOYMENT_E
 LABEL "tee.launch_policy.log_redirect"="always"
 
 # Install Packages
-RUN apk update && apk add --no-cache jq python3 py3-pip && \
+RUN apk update && apk add --no-cache --upgrade libpng && apk add --no-cache jq python3 py3-pip && \
     python3 -m venv /venv && \
     . /venv/bin/activate && \
     pip install --no-cache-dir google-cloud-secret-manager google-auth google-api-core packaging && \

@@ -51,7 +51,7 @@ sync_enclave_time_with_offset_once || true
 install_time_sync_cron() {
   mkdir -p /etc/cron.d
   cat > /etc/cron.d/uid-time-sync <<EOF
-*/5 * * * * root current_time=\$(curl -sSf -x "${TIME_SYNC_PROXY}" "${TIME_SYNC_URL}") && date -u -s "\${current_time}" && echo "Time sync: updated enclave time to \${current_time}" >>/proc/1/fd/1 2>>/proc/1/fd/2
+*/5 * * * * root current_time=\$(curl -sSf -x "${TIME_SYNC_PROXY}" "${TIME_SYNC_URL}") && date -u -s "\${current_time}" && echo "Time sync: updated enclave time to \${current_time}" >>/home/start.txt 2>&1
 EOF
   chmod 0644 /etc/cron.d/uid-time-sync
   cron

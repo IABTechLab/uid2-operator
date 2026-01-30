@@ -19,8 +19,3 @@ syslogng:
   service: direct
   listen: tcp://127.0.0.1:2011
   connect: vsock://3:2011
-time-sync:
-  service: direct
-  listen: vsock://-1:27100
-  connect: tcp://127.0.0.1:27100
-

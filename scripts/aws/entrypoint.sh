@@ -24,56 +24,40 @@ echo "Starting vsock proxy..."
 
 TIME_SYNC_URL="http://127.0.0.1:27015/getCurrentTime"
 TIME_SYNC_PROXY="socks5h://127.0.0.1:3305"
-TIME_SYNC_TRIGGER_PORT="${TIME_SYNC_TRIGGER_PORT:-27100}"
 
-start_time_sync_server() {
-  python3 -u - <<'PY' &
-import sys
-import os
-import subprocess
-from http.server import BaseHTTPRequestHandler, HTTPServer
+TIME_SYNC_OFFSET_SECONDS="${TIME_SYNC_OFFSET_SECONDS:-30}"
 
-sys.stdout.reconfigure(line_buffering=True)
-
-TIME_SYNC_URL = os.environ.get("TIME_SYNC_URL", "http://127.0.0.1:27015/getCurrentTime")
-TIME_SYNC_PROXY = os.environ.get("TIME_SYNC_PROXY", "socks5h://127.0.0.1:3305")
-TIME_SYNC_TRIGGER_PORT = int(os.environ.get("TIME_SYNC_TRIGGER_PORT", "27100"))
-
-def sync_time() -> str:
-    current_time = subprocess.check_output(
-        ["curl", "-sSf", "-x", TIME_SYNC_PROXY, TIME_SYNC_URL],
-        text=True,
-    ).strip()
-    subprocess.check_call(["date", "-u", "-s", current_time])
-    return current_time
-
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self) -> None:
-        if self.path not in ("/", "/sync"):
-            self.send_response(404)
-            self.end_headers()
-            return
-        try:
-            result = sync_time()
-            print(f"Time sync: updated enclave time to {result}", flush=True)
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(f"OK {result}\n".encode())
-        except Exception as exc:  # pragma: no cover - best effort logging
-            print(f"Time sync error: {exc}", flush=True)
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(f"ERROR {exc}\n".encode())
-
-    def log_message(self, format, *args):  # noqa: N802 - match base class
-        return
-
-server = HTTPServer(("127.0.0.1", TIME_SYNC_TRIGGER_PORT), Handler)
-server.serve_forever()
-PY
+sync_enclave_time_with_offset_once() {
+  local current_time
+  local parent_epoch
+  if current_time=$(curl -s -f -x socks5h://127.0.0.1:3305 "${TIME_SYNC_URL}"); then
+    parent_epoch=$(date -u -d "${current_time}" +%s 2>/dev/null || true)
+    if [[ -n "${parent_epoch}" ]]; then
+      parent_epoch=$((parent_epoch + TIME_SYNC_OFFSET_SECONDS))
+      if ! date -u -s "@${parent_epoch}"; then
+        echo "Time sync: failed to set enclave time from '${current_time}' with offset ${TIME_SYNC_OFFSET_SECONDS}s"
+        return 1
+      fi
+      echo "Time sync: updated enclave time to ${current_time} + ${TIME_SYNC_OFFSET_SECONDS}s"
+    fi
+  else
+    echo "Time sync: failed to fetch time from parent instance"
+    return 1
+  fi
 }
 
-start_time_sync_server
+sync_enclave_time_with_offset_once || true
+
+install_time_sync_cron() {
+  mkdir -p /etc/cron.d
+  cat > /etc/cron.d/uid-time-sync <<EOF
+*/5 * * * * root current_time=\$(curl -sSf "${TIME_SYNC_URL}") && date -u -s "\${current_time}" && echo "Time sync: updated enclave time to \${current_time}"
+EOF
+  chmod 0644 /etc/cron.d/uid-time-sync
+  cron
+}
+
+install_time_sync_cron
 
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig

@@ -42,5 +42,5 @@
   "enable_remote_config": true,
   "uid_instance_id_prefix": "local-operator",
   "enable_async_batch_request": false,
-  "compute_pool_thread_count": 12
+  "compute_pool_thread_count": 7
 }

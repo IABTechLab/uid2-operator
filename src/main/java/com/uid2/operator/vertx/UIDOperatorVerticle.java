@@ -291,10 +291,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> encryptedPayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
         mainRouter.post(V2_KEY_LATEST.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
-        mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
-        mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
         mainRouter.post(V2_TOKEN_LOGOUT.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
         if (this.optOutStatusApiEnabled) {
@@ -308,6 +304,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         if (isAsyncBatchRequestsEnabled) {
             LOGGER.info("Async batch requests enabled");
+            mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handleAsync(rc, this::handleKeysSharingAsync), Role.SHARER, Role.ID_READER));
+            mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handleAsync(rc, this::handleKeysBidstreamAsync), Role.ID_READER));
             mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
                     rc -> encryptedPayloadHandler.handleAsync(rc, this::handleBucketsV2Async), Role.MAPPER));
             mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
@@ -315,6 +315,10 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
                     rc -> encryptedPayloadHandler.handleAsync(rc, this::handleIdentityMapV3Async), Role.MAPPER));
         } else {
+            mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
+            mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
             mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
                     rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
             mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
@@ -692,6 +696,20 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         addSites(resp, accessibleKeys, keysetMap);
 
         ResponseUtil.SuccessV2(rc, resp);
+    }
+
+    private Future<Void> handleKeysSharingAsync(RoutingContext rc) {
+        return computeWorkerPool.executeBlocking(() -> {
+            handleKeysSharing(rc);
+            return null;
+        });
+    }
+
+    private Future<Void> handleKeysBidstreamAsync(RoutingContext rc) {
+        return computeWorkerPool.executeBlocking(() -> {
+            handleKeysBidstream(rc);
+            return null;
+        });
     }
 
     private void addBidstreamHeaderFields(JsonObject resp, int maxBidstreamLifetimeSeconds) {

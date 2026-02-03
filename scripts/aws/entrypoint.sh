@@ -22,6 +22,20 @@ ifconfig lo 127.0.0.1
 echo "Starting vsock proxy..."
 /app/vsockpx --config /app/proxies.nitro.yaml --daemon --workers $(( ( $(nproc) + 3 ) / 4 )) --log-level 3
 
+TIME_SYNC_URL="http://127.0.0.1:27015/getCurrentTime"
+TIME_SYNC_PROXY="socks5h://127.0.0.1:3305"
+
+install_time_sync_cron() {
+  mkdir -p /etc/cron.d
+  cat > /etc/cron.d/uid-time-sync <<EOF
+0 0 * * * root current_time=\$(curl -sSf -x "${TIME_SYNC_PROXY}" "${TIME_SYNC_URL}") && date -u -s "\${current_time}" && echo "Time sync: updated enclave time to \${current_time}" >>/home/start.txt 2>&1
+EOF
+  chmod 0644 /etc/cron.d/uid-time-sync
+  cron
+}
+
+install_time_sync_cron
+
 build_parameterized_config() {
   curl -s -f -o "${PARAMETERIZED_CONFIG}" -x socks5h://127.0.0.1:3305 http://127.0.0.1:27015/getConfig
   REQUIRED_KEYS=("optout_base_url" "core_base_url" "core_api_token" "optout_api_token" "environment" "uid_instance_id_prefix")

@@ -39,8 +39,4 @@ public class TransparentConsent {
                 .reduce(0, (f, x) -> (f | (1 << x))) 
                 & requiredBits) == requiredBits;
     }
-
-    public boolean hasSpecialFeature(TransparentConsentSpecialFeature feature) {
-        return this.tcString.getSpecialFeatureOptIns().contains(feature.value);
-    }
 }

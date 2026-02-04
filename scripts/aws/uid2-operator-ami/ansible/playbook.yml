@@ -240,7 +240,7 @@
     ansible.builtin.systemd:
       name: uid2operator.service
       enabled: yes
-
+  
   - name: Clean up tmp files
     file:
       path: /tmp/artifacts

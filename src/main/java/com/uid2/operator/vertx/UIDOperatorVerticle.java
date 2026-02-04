@@ -12,7 +12,6 @@ import com.uid2.operator.monitoring.TokenResponseStatsCollector;
 import com.uid2.operator.privacy.tcf.TransparentConsent;
 import com.uid2.operator.privacy.tcf.TransparentConsentParseResult;
 import com.uid2.operator.privacy.tcf.TransparentConsentPurpose;
-import com.uid2.operator.privacy.tcf.TransparentConsentSpecialFeature;
 import com.uid2.operator.service.*;
 import com.uid2.operator.store.*;
 import com.uid2.operator.store.IConfigStore;
@@ -1688,9 +1687,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     TransparentConsentPurpose.MEASURE_AD_PERFORMANCE,           // 7
                     TransparentConsentPurpose.DEVELOP_AND_IMPROVE_PRODUCTS      // 10
             );
-            final boolean allowPreciseGeo = tcResult.getTCString().hasSpecialFeature(TransparentConsentSpecialFeature.PreciseGeolocationData);
-
-            if (!userConsent || !allowPreciseGeo) {
+            if (!userConsent) {
                 return UserConsentStatus.INSUFFICIENT;
             }
         }

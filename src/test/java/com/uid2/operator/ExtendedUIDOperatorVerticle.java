@@ -11,6 +11,7 @@ import com.uid2.shared.audit.UidInstanceIdProvider;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.salt.ISaltProvider;
 import io.vertx.core.Handler;
+import io.vertx.core.WorkerExecutor;
 import io.vertx.core.json.JsonObject;
 
 import java.time.Clock;
@@ -33,8 +34,9 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        IStatsCollectorQueue statsCollectorQueue,
                                        SecureLinkValidatorService secureLinkValidationService,
                                        Handler<Boolean> saltRetrievalResponseHandler,
-                                       UidInstanceIdProvider uidInstanceIdProvider) {
-        super(configStore, config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler, uidInstanceIdProvider);
+                                       UidInstanceIdProvider uidInstanceIdProvider,
+                                       WorkerExecutor computeWorkerPool) {
+        super(configStore, config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler, uidInstanceIdProvider, computeWorkerPool);
     }
 
     public IUIDOperatorService getIdService() {

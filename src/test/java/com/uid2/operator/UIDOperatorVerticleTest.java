@@ -38,6 +38,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.WorkerExecutor;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.json.JsonArray;
@@ -142,6 +143,7 @@ public class UIDOperatorVerticleTest {
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
     private RuntimeConfig runtimeConfig;
     private EncryptedTokenEncoder encoder;
+    private WorkerExecutor computeWorkerPool;
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
@@ -165,7 +167,8 @@ public class UIDOperatorVerticleTest {
 
         this.uidInstanceIdProvider = new UidInstanceIdProvider("test-instance", "id");
 
-        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse, uidInstanceIdProvider);
+        this.computeWorkerPool = vertx.createSharedWorkerExecutor("compute", 4);
+        this.uidOperatorVerticle = new ExtendedUIDOperatorVerticle(configStore, config, config.getBoolean("client_side_token_generate"), siteProvider, clientKeyProvider, clientSideKeypairProvider, new KeyManager(keysetKeyStore, keysetProvider), saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidatorService, shutdownHandler::handleSaltRetrievalResponse, uidInstanceIdProvider, this.computeWorkerPool);
         vertx.deployVerticle(uidOperatorVerticle, testContext.succeeding(id -> testContext.completeNow()));
 
         this.registry = new SimpleMeterRegistry();
@@ -177,6 +180,9 @@ public class UIDOperatorVerticleTest {
     @AfterEach
     void teardown() {
         Metrics.globalRegistry.remove(registry);
+        if (computeWorkerPool != null) {
+            computeWorkerPool.close();
+        }
     }
 
     private RuntimeConfig setupRuntimeConfig(JsonObject config) {

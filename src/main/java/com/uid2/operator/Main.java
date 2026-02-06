@@ -341,8 +341,13 @@ public class Main {
         this.createVertxInstancesMetric();
         this.createVertxEventLoopsMetric();
 
+        // Create shared compute pool for CPU-intensive operations
+        final int computePoolSize = config.getInteger(Const.Config.ComputePoolThreadCountProp, Math.max(1, Runtime.getRuntime().availableProcessors() - 2));
+        final WorkerExecutor computeWorkerPool = vertx.createSharedWorkerExecutor("compute", computePoolSize);
+        LOGGER.info("Created compute worker pool with size: {}", computePoolSize);
+
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse, this.uidInstanceIdProvider);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse, this.uidInstanceIdProvider, computeWorkerPool);
             return verticle;
         };
 
@@ -371,6 +376,9 @@ public class Main {
                 })
                 .onFailure(t -> {
                     LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
+                    if (computeWorkerPool != null) {
+                        computeWorkerPool.close();
+                    }
                     vertx.close();
                     System.exit(1);
                 });
@@ -488,7 +496,7 @@ public class Main {
 
         MicrometerMetricsOptions metricOptions = new MicrometerMetricsOptions()
             .setPrometheusOptions(prometheusOptions)
-            .setLabels(EnumSet.of(Label.HTTP_METHOD, Label.HTTP_CODE, Label.HTTP_PATH))
+            .setLabels(EnumSet.of(Label.HTTP_METHOD, Label.HTTP_CODE, Label.HTTP_PATH, Label.POOL_NAME))
             .setJvmMetricsEnabled(true)
             .setEnabled(true);
         setupMetrics(metricOptions);
@@ -499,7 +507,8 @@ public class Main {
 
         VertxOptions vertxOptions = new VertxOptions()
             .setMetricsOptions(metricOptions)
-            .setBlockedThreadCheckInterval(threadBlockedCheckInterval);
+            .setBlockedThreadCheckInterval(threadBlockedCheckInterval)
+            .setWorkerPoolSize(12);
 
         return Vertx.vertx(vertxOptions);
     }
@@ -524,12 +533,19 @@ public class Main {
                     Objects.equals(id.getTag(Label.HTTP_CODE.toString()), "404")))
                 .meterFilter(new MeterFilter() {
                     private final String httpServerResponseTime = MetricsDomain.HTTP_SERVER.getPrefix() + MetricsNaming.v4Names().getHttpResponseTime();
+                    private final String poolQueueTime = MetricsDomain.NAMED_POOLS.getPrefix() + MetricsNaming.v4Names().getPoolQueueTime();
 
                     @Override
                     public DistributionStatisticConfig configure(Meter.Id id, DistributionStatisticConfig config) {
                         if (id.getName().equals(httpServerResponseTime)) {
                             return DistributionStatisticConfig.builder()
                                 .percentiles(0.90, 0.95, 0.99)
+                                .build()
+                                .merge(config);
+                        }
+                        if (id.getName().equals(poolQueueTime)) {
+                            return DistributionStatisticConfig.builder()
+                                .percentiles(0.50, 0.90, 0.95, 0.99)
                                 .build()
                                 .merge(config);
                         }

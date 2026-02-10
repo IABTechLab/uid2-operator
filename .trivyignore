@@ -2,12 +2,6 @@
 # See https://aquasecurity.github.io/trivy/v0.35/docs/vulnerability/examples/filter/ 
 # for more details
 
-# UID2-6340
-CVE-2025-64720 exp:2026-06-05
-
-# UID2-6340
-CVE-2025-65018 exp:2026-06-05
-
 # UID2-6385
 CVE-2025-66293 exp:2026-06-15
 

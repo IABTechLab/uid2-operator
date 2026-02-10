@@ -133,7 +133,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public static final long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
     private final Handler<Boolean> saltRetrievalResponseHandler;
     private final int allowClockSkewSeconds;
-    private final WorkerExecutor computeWorkerPool;
+    private final WorkerExecutor computeHeavyRequestWorkerPool;
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
     protected boolean keySharingEndpointProvideAppNames;
     protected Instant lastInvalidOriginProcessTime = Instant.now();
@@ -168,7 +168,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                SecureLinkValidatorService secureLinkValidatorService,
                                Handler<Boolean> saltRetrievalResponseHandler,
                                UidInstanceIdProvider uidInstanceIdProvider,
-                               WorkerExecutor computeWorkerPool) {
+                               WorkerExecutor computeHeavyRequestWorkerPool) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -202,7 +202,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
         this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
         this.uidInstanceIdProvider = uidInstanceIdProvider;
-        this.computeWorkerPool = computeWorkerPool;
+        this.computeHeavyRequestWorkerPool = computeHeavyRequestWorkerPool;
         this.isAsyncBatchRequestsEnabled = config.getBoolean(EnableAsyncBatchRequestProp, false);
     }
 
@@ -698,14 +698,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private Future<Void> handleKeysSharingAsync(RoutingContext rc) {
-        return computeWorkerPool.executeBlocking(() -> {
+        return computeHeavyRequestWorkerPool.executeBlocking(() -> {
             handleKeysSharing(rc);
             return null;
         });
     }
 
     private Future<Void> handleKeysBidstreamAsync(RoutingContext rc) {
-        return computeWorkerPool.executeBlocking(() -> {
+        return computeHeavyRequestWorkerPool.executeBlocking(() -> {
             handleKeysBidstream(rc);
             return null;
         });
@@ -1072,7 +1072,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private Future<Void> handleBucketsV2Async(RoutingContext rc) {
-        return computeWorkerPool.executeBlocking(() -> {
+        return computeHeavyRequestWorkerPool.executeBlocking(() -> {
             handleBucketsV2(rc);
             return null;
         });
@@ -1264,7 +1264,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private Future<Void> handleIdentityMapV2Async(RoutingContext rc) {
-        return computeWorkerPool.executeBlocking(() -> {
+        return computeHeavyRequestWorkerPool.executeBlocking(() -> {
             handleIdentityMapV2(rc);
             return null;
         });
@@ -1334,7 +1334,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     private Future<Void> handleIdentityMapV3Async(RoutingContext rc) {
-        return computeWorkerPool.executeBlocking(() -> {
+        return computeHeavyRequestWorkerPool.executeBlocking(() -> {
             handleIdentityMapV3(rc);
             return null;
         });

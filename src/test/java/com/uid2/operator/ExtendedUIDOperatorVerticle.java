@@ -35,8 +35,8 @@ public class ExtendedUIDOperatorVerticle extends UIDOperatorVerticle {
                                        SecureLinkValidatorService secureLinkValidationService,
                                        Handler<Boolean> saltRetrievalResponseHandler,
                                        UidInstanceIdProvider uidInstanceIdProvider,
-                                       WorkerExecutor computeWorkerPool) {
-        super(configStore, config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler, uidInstanceIdProvider, computeWorkerPool);
+                                       WorkerExecutor computeHeavyRequestWorkerPool) {
+        super(configStore, config, clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, keyManager, saltProvider, optOutStore, clock, statsCollectorQueue, secureLinkValidationService, saltRetrievalResponseHandler, uidInstanceIdProvider, computeHeavyRequestWorkerPool);
     }
 
     public IUIDOperatorService getIdService() {

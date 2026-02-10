@@ -40,7 +40,7 @@ public class Const extends com.uid2.shared.Const {
 
         public static final String IdentityEnvironmentProp = "identity_environment";
 
-        public static final String ComputePoolThreadCountProp = "compute_pool_thread_count";
+        public static final String ComputeHeavyRequestPoolThreadCountProp = "compute_heavy_request_pool_thread_count";
         public static final String EnableAsyncBatchRequestProp = "enable_async_batch_request";
     }
 }

@@ -341,13 +341,13 @@ public class Main {
         this.createVertxInstancesMetric();
         this.createVertxEventLoopsMetric();
 
-        // Create shared compute pool for CPU-intensive operations
-        final int computePoolSize = config.getInteger(Const.Config.ComputePoolThreadCountProp, Math.max(1, Runtime.getRuntime().availableProcessors() - 2));
-        final WorkerExecutor computeWorkerPool = vertx.createSharedWorkerExecutor("compute", computePoolSize);
-        LOGGER.info("Created compute worker pool with size: {}", computePoolSize);
+        // Create worker pool for compute-heavy requests (identity/map, key/sharing, key/bidstream)
+        final int computeHeavyRequestPoolSize = config.getInteger(Const.Config.ComputeHeavyRequestPoolThreadCountProp, Math.max(1, Runtime.getRuntime().availableProcessors() - 2));
+        final WorkerExecutor computeHeavyRequestWorkerPool = vertx.createSharedWorkerExecutor("compute-heavy-request", computeHeavyRequestPoolSize);
+        LOGGER.info("Created compute-heavy-request worker pool with size: {}", computeHeavyRequestPoolSize);
 
         Supplier<Verticle> operatorVerticleSupplier = () -> {
-            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse, this.uidInstanceIdProvider, computeWorkerPool);
+            UIDOperatorVerticle verticle = new UIDOperatorVerticle(configStore, config, this.clientSideTokenGenerate, siteProvider, clientKeyProvider, clientSideKeypairProvider, getKeyManager(), saltProvider, optOutStore, Clock.systemUTC(), _statsCollectorQueue, new SecureLinkValidatorService(this.serviceLinkProvider, this.serviceProvider), this.shutdownHandler::handleSaltRetrievalResponse, this.uidInstanceIdProvider, computeHeavyRequestWorkerPool);
             return verticle;
         };
 
@@ -376,8 +376,8 @@ public class Main {
                 })
                 .onFailure(t -> {
                     LOGGER.error("Failed to bootstrap operator: " + t.getMessage(), new Exception(t));
-                    if (computeWorkerPool != null) {
-                        computeWorkerPool.close();
+                    if (computeHeavyRequestWorkerPool != null) {
+                        computeHeavyRequestWorkerPool.close();
                     }
                     vertx.close();
                     System.exit(1);

@@ -303,16 +303,16 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
         if (isAsyncBatchRequestsEnabled) {
             LOGGER.info("Async batch requests enabled");
-            mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
-                    rc -> encryptedPayloadHandler.handleAsync(rc, this::handleKeysSharingAsync), Role.SHARER, Role.ID_READER));
-            mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
-                    rc -> encryptedPayloadHandler.handleAsync(rc, this::handleKeysBidstreamAsync), Role.ID_READER));
-            mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
-                    rc -> encryptedPayloadHandler.handleAsync(rc, this::handleBucketsV2Async), Role.MAPPER));
-            mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                    rc -> encryptedPayloadHandler.handleAsync(rc, this::handleIdentityMapV2Async), Role.MAPPER));
-            mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                    rc -> encryptedPayloadHandler.handleAsync(rc, this::handleIdentityMapV3Async), Role.MAPPER));
+            mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER), false);
+            mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER), false);
+            mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER), false);
+            mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER), false);
+            mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER), false);
         } else {
             mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
                     rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));

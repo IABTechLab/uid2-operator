@@ -42,7 +42,6 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
-import io.vertx.core.WorkerExecutor;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerResponse;
@@ -133,7 +132,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     public static final long OPT_OUT_CHECK_CUTOFF_DATE = Instant.parse("2023-09-01T00:00:00.00Z").getEpochSecond();
     private final Handler<Boolean> saltRetrievalResponseHandler;
     private final int allowClockSkewSeconds;
-    private final WorkerExecutor computeHeavyRequestWorkerPool;
     protected Map<Integer, Set<String>> siteIdToInvalidOriginsAndAppNames = new HashMap<>();
     protected boolean keySharingEndpointProvideAppNames;
     protected Instant lastInvalidOriginProcessTime = Instant.now();
@@ -167,8 +165,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                                IStatsCollectorQueue statsCollectorQueue,
                                SecureLinkValidatorService secureLinkValidatorService,
                                Handler<Boolean> saltRetrievalResponseHandler,
-                               UidInstanceIdProvider uidInstanceIdProvider,
-                               WorkerExecutor computeHeavyRequestWorkerPool) {
+                               UidInstanceIdProvider uidInstanceIdProvider) {
         this.keyManager = keyManager;
         this.secureLinkValidatorService = secureLinkValidatorService;
         try {
@@ -202,7 +199,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
         this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
         this.uidInstanceIdProvider = uidInstanceIdProvider;
-        this.computeHeavyRequestWorkerPool = computeHeavyRequestWorkerPool;
         this.isAsyncBatchRequestsEnabled = config.getBoolean(EnableAsyncBatchRequestProp, false);
     }
 
@@ -314,6 +310,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
                     rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER), false);
         } else {
+            LOGGER.info("Async batch requests disabled");
             mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
                     rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
             mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
@@ -697,20 +694,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         ResponseUtil.SuccessV2(rc, resp);
     }
 
-    private Future<Void> handleKeysSharingAsync(RoutingContext rc) {
-        return computeHeavyRequestWorkerPool.executeBlocking(() -> {
-            handleKeysSharing(rc);
-            return null;
-        });
-    }
-
-    private Future<Void> handleKeysBidstreamAsync(RoutingContext rc) {
-        return computeHeavyRequestWorkerPool.executeBlocking(() -> {
-            handleKeysBidstream(rc);
-            return null;
-        });
-    }
-
     private void addBidstreamHeaderFields(JsonObject resp, int maxBidstreamLifetimeSeconds) {
         resp.put("max_bidstream_lifetime_seconds", maxBidstreamLifetimeSeconds + TOKEN_LIFETIME_TOLERANCE.toSeconds());
         addIdentityScopeField(resp);
@@ -1071,13 +1054,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         }
     }
 
-    private Future<Void> handleBucketsV2Async(RoutingContext rc) {
-        return computeHeavyRequestWorkerPool.executeBlocking(() -> {
-            handleBucketsV2(rc);
-            return null;
-        });
-    }
-
     private void handleBucketsV2(RoutingContext rc) {
         final JsonObject req = (JsonObject) rc.data().get("request");
         final String qp = req.getString("since_timestamp");
@@ -1263,13 +1239,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return false;
     }
 
-    private Future<Void> handleIdentityMapV2Async(RoutingContext rc) {
-        return computeHeavyRequestWorkerPool.executeBlocking(() -> {
-            handleIdentityMapV2(rc);
-            return null;
-        });
-    }
-
     private void handleIdentityMapV2(RoutingContext rc) {
         try {
             final Integer siteId = RoutingContextUtil.getSiteId(rc);
@@ -1331,13 +1300,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return getInputList == null ?
                 createInputList(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
                 getInputList.get();
-    }
-
-    private Future<Void> handleIdentityMapV3Async(RoutingContext rc) {
-        return computeHeavyRequestWorkerPool.executeBlocking(() -> {
-            handleIdentityMapV3(rc);
-            return null;
-        });
     }
 
     private void handleIdentityMapV3(RoutingContext rc) {

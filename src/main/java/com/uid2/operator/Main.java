@@ -505,10 +505,15 @@ public class Main {
             ? 60 * 1000
             : 3600 * 1000;
 
+        // Worker pool size: read from env var, default to (cpus-2)/2 + 1 clamped to min 2
+        final int defaultWorkerPoolSize = Math.max(2, (Runtime.getRuntime().availableProcessors() - 2) / 2 + 1);
+        final int workerPoolSize = getEnvInt(Const.Config.DefaultWorkerPoolThreadCount, defaultWorkerPoolSize);
+        LOGGER.info("Creating Vertx with worker pool size: {}", workerPoolSize);
+
         VertxOptions vertxOptions = new VertxOptions()
             .setMetricsOptions(metricOptions)
             .setBlockedThreadCheckInterval(threadBlockedCheckInterval)
-            .setWorkerPoolSize(12);
+            .setWorkerPoolSize(workerPoolSize);
 
         return Vertx.vertx(vertxOptions);
     }
@@ -640,6 +645,19 @@ public class Main {
             default: {
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));
             }
+        }
+    }
+
+    private static int getEnvInt(String name, int defaultValue) {
+        String value = System.getenv(name);
+        if (value == null || value.isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            LOGGER.warn("Invalid integer value for environment variable {}: '{}', using default: {}", name, value, defaultValue);
+            return defaultValue;
         }
     }
 }

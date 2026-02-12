@@ -61,7 +61,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
@@ -498,7 +497,7 @@ public class Main {
             : 3600 * 1000;
 
         final int defaultWorkerPoolSize = Math.max(2, (Runtime.getRuntime().availableProcessors() - 2) / 2 + 1);
-        final int workerPoolSize = getEnvInt(Const.Config.DefaultWorkerPoolThreadCount, defaultWorkerPoolSize);
+        final int workerPoolSize = getEnvInt(Const.Config.DefaultWorkerPoolThreadCountProp, defaultWorkerPoolSize);
         LOGGER.info("Creating Vertx with default worker pool size: {}", workerPoolSize);
 
         VertxOptions vertxOptions = new VertxOptions()

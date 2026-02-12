@@ -142,6 +142,7 @@ public class UIDOperatorVerticleTest {
     private ExtendedUIDOperatorVerticle uidOperatorVerticle;
     private RuntimeConfig runtimeConfig;
     private EncryptedTokenEncoder encoder;
+    private ListAppender<ILoggingEvent> asyncBatchRequestLogWatcher;
 
     @BeforeEach
     void deployVerticle(Vertx vertx, VertxTestContext testContext, TestInfo testInfo) {
@@ -160,6 +161,20 @@ public class UIDOperatorVerticleTest {
         }
         if (testInfo.getDisplayName().equals("cstgNoPhoneSupport(Vertx, VertxTestContext)")) {
             config.put("enable_phone_support", false);
+        }
+        if (testInfo.getTestMethod().isPresent() &&
+                testInfo.getTestMethod().get().getName().equals("asyncBatchRequestEnabledLogsCorrectMessage")) {
+            config.put(Const.Config.EnableAsyncBatchRequestProp, true);
+            asyncBatchRequestLogWatcher = new ListAppender<>();
+            asyncBatchRequestLogWatcher.start();
+            ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(asyncBatchRequestLogWatcher);
+        }
+        if (testInfo.getTestMethod().isPresent() &&
+                testInfo.getTestMethod().get().getName().equals("asyncBatchRequestDisabledLogsCorrectMessage")) {
+            config.put(Const.Config.EnableAsyncBatchRequestProp, false);
+            asyncBatchRequestLogWatcher = new ListAppender<>();
+            asyncBatchRequestLogWatcher.start();
+            ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(asyncBatchRequestLogWatcher);
         }
         when(configStore.getConfig()).thenAnswer(x -> runtimeConfig);
 
@@ -5601,5 +5616,25 @@ public class UIDOperatorVerticleTest {
             assertLastUpdatedHasMillis(buckets);
             testContext.completeNow();
         });
+    }
+
+    @Test
+    void asyncBatchRequestEnabledLogsCorrectMessage(Vertx vertx, VertxTestContext testContext) {
+        // Verify that when enable_async_batch_request is true, the correct log message is emitted
+        assertThat(asyncBatchRequestLogWatcher.list.stream()
+                .map(ILoggingEvent::getFormattedMessage)
+                .collect(Collectors.toList()))
+                .contains("Async batch requests enabled");
+        testContext.completeNow();
+    }
+
+    @Test
+    void asyncBatchRequestDisabledLogsCorrectMessage(Vertx vertx, VertxTestContext testContext) {
+        // Verify that when enable_async_batch_request is false, the correct log message is emitted
+        assertThat(asyncBatchRequestLogWatcher.list.stream()
+                .map(ILoggingEvent::getFormattedMessage)
+                .collect(Collectors.toList()))
+                .contains("Async batch requests disabled");
+        testContext.completeNow();
     }
 }

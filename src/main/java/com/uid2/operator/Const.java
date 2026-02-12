@@ -39,5 +39,9 @@ public class Const extends com.uid2.shared.Const {
         public static final String RuntimeConfigMetadataPathProp = "runtime_config_metadata_path";
 
         public static final String IdentityEnvironmentProp = "identity_environment";
+
+        public static final String EnableAsyncBatchRequestProp = "enable_async_batch_request";
+
+        public static final String DefaultWorkerPoolThreadCountProp = "default_worker_pool_thread_count";
     }
 }

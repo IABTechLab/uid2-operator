@@ -139,6 +139,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final int optOutStatusMaxRequestSize;
     private final boolean optOutStatusApiEnabled;
 
+    private final boolean isAsyncBatchRequestsEnabled;
+
     //"Android" is from https://github.com/IABTechLab/uid2-android-sdk/blob/ff93ebf597f5de7d440a84f7015a334ba4138ede/sdk/src/main/java/com/uid2/UID2Client.kt#L46
     //"ios"/"tvos" is from https://github.com/IABTechLab/uid2-ios-sdk/blob/91c290d29a7093cfc209eca493d1fee80c17e16a/Sources/UID2/UID2Client.swift#L36-L38
     private static final List<String> SUPPORTED_IN_APP = Arrays.asList("Android", "ios", "tvos");
@@ -197,6 +199,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         this.identityV3Enabled = config.getBoolean(IdentityV3Prop, false);
         this.disableOptoutToken = config.getBoolean(DisableOptoutTokenProp, false);
         this.uidInstanceIdProvider = uidInstanceIdProvider;
+        this.isAsyncBatchRequestsEnabled = config.getBoolean(EnableAsyncBatchRequestProp, false);
     }
 
     @Override
@@ -281,16 +284,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> encryptedPayloadHandler.handleTokenRefresh(rc, this::handleTokenRefreshV2)));
         mainRouter.post(V2_TOKEN_VALIDATE.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handle(rc, this::handleTokenValidateV2), Role.GENERATOR));
-        mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
-        mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
         mainRouter.post(V2_KEY_LATEST.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
-        mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
-        mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
         mainRouter.post(V2_TOKEN_LOGOUT.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
         if (this.optOutStatusApiEnabled) {
@@ -302,8 +297,31 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         if (this.clientSideTokenGenerate)
             mainRouter.post(V2_TOKEN_CLIENTGENERATE.toString()).handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
 
-        mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
-                rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
+        if (isAsyncBatchRequestsEnabled) {
+            LOGGER.info("Async batch requests enabled");
+            mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER), false);
+            mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER), false);
+            mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER), false);
+            mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER), false);
+            mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER), false);
+        } else {
+            LOGGER.info("Async batch requests disabled");
+            mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleKeysSharing), Role.SHARER, Role.ID_READER));
+            mainRouter.post(V2_KEY_BIDSTREAM.toString()).handler(bodyHandler).handler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleKeysBidstream), Role.ID_READER));
+            mainRouter.post(V2_IDENTITY_BUCKETS.toString()).handler(bodyHandler).handler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleBucketsV2), Role.MAPPER));
+            mainRouter.post(V2_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
+            mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
+                    rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
+        }
     }
 
     private void handleClientSideTokenGenerate(RoutingContext rc) {

@@ -61,7 +61,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.uid2.operator.Const.Config.EnableRemoteConfigProp;
@@ -488,7 +487,7 @@ public class Main {
 
         MicrometerMetricsOptions metricOptions = new MicrometerMetricsOptions()
             .setPrometheusOptions(prometheusOptions)
-            .setLabels(EnumSet.of(Label.HTTP_METHOD, Label.HTTP_CODE, Label.HTTP_PATH))
+            .setLabels(EnumSet.of(Label.HTTP_METHOD, Label.HTTP_CODE, Label.HTTP_PATH, Label.POOL_NAME))
             .setJvmMetricsEnabled(true)
             .setEnabled(true);
         setupMetrics(metricOptions);
@@ -497,9 +496,14 @@ public class Main {
             ? 60 * 1000
             : 3600 * 1000;
 
+        final int defaultWorkerPoolSize = Math.max(2, (Runtime.getRuntime().availableProcessors() - 2) / 2 + 1);
+        final int workerPoolSize = getEnvInt(Const.Config.DefaultWorkerPoolThreadCountProp, defaultWorkerPoolSize);
+        LOGGER.info("Creating Vertx with default worker pool size: {}", workerPoolSize);
+
         VertxOptions vertxOptions = new VertxOptions()
             .setMetricsOptions(metricOptions)
-            .setBlockedThreadCheckInterval(threadBlockedCheckInterval);
+            .setBlockedThreadCheckInterval(threadBlockedCheckInterval)
+            .setWorkerPoolSize(workerPoolSize);
 
         return Vertx.vertx(vertxOptions);
     }
@@ -524,12 +528,19 @@ public class Main {
                     Objects.equals(id.getTag(Label.HTTP_CODE.toString()), "404")))
                 .meterFilter(new MeterFilter() {
                     private final String httpServerResponseTime = MetricsDomain.HTTP_SERVER.getPrefix() + MetricsNaming.v4Names().getHttpResponseTime();
+                    private final String poolQueueTime = MetricsDomain.NAMED_POOLS.getPrefix() + MetricsNaming.v4Names().getPoolQueueTime();
 
                     @Override
                     public DistributionStatisticConfig configure(Meter.Id id, DistributionStatisticConfig config) {
                         if (id.getName().equals(httpServerResponseTime)) {
                             return DistributionStatisticConfig.builder()
                                 .percentiles(0.90, 0.95, 0.99)
+                                .build()
+                                .merge(config);
+                        }
+                        if (id.getName().equals(poolQueueTime)) {
+                            return DistributionStatisticConfig.builder()
+                                .percentiles(0.50, 0.90, 0.95, 0.99)
                                 .build()
                                 .merge(config);
                         }
@@ -624,6 +635,19 @@ public class Main {
             default: {
                 throw new IllegalArgumentException(String.format("enclave_platform is providing the wrong value: %s", enclavePlatform));
             }
+        }
+    }
+
+    private static int getEnvInt(String name, int defaultValue) {
+        String value = System.getenv(name);
+        if (value == null || value.isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            LOGGER.warn("Invalid integer value for environment variable {}: '{}', using default: {}", name, value, defaultValue);
+            return defaultValue;
         }
     }
 }

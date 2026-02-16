@@ -127,7 +127,7 @@ public class IdentityMapBenchmark {
     @BenchmarkMode(Mode.Throughput)
     public MappedIdentity IdentityMapWithOptOutThroughput() {
         return uidService.mapIdentity(
-                new MapRequest(userIdentities[(idx++) & 65535], OptoutCheckPolicy.RespectOptOut, Instant.now(), IdentityEnvironment.TEST)
+                new MapRequest(userIdentities[(idx++) & 65535], Instant.now(), IdentityEnvironment.TEST)
         );
     }
 

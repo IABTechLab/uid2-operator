@@ -41,7 +41,6 @@
   "store_refresh_stale_shutdown_hours": 12,
   "operator_type": "public",
   "encrypted_files": false,
-  "disable_optout_token": true,
   "enable_remote_config": true,
   "uid_instance_id_prefix": "local-operator"
 }

@@ -102,7 +102,7 @@ public class UIDOperatorService implements IUIDOperatorService {
                 request.userIdentity.identityScope, request.userIdentity.identityType, firstLevelHash, request.userIdentity.privacyBits,
                 request.userIdentity.establishedAt, request.userIdentity.refreshedAt);
 
-        if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
+        if (getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return IdentityTokens.LogoutToken;
         } else {
             return this.generateIdentity(request.publisherIdentity, firstLevelHashIdentity, refreshIdentityAfter, refreshExpiresAfter, identityExpiresAfter, request.identityEnvironment);
@@ -153,7 +153,7 @@ public class UIDOperatorService implements IUIDOperatorService {
     @Override
     public MappedIdentity mapIdentity(MapRequest request) {
         final UserIdentity firstLevelHashIdentity = getFirstLevelHashIdentity(request.userIdentity, request.asOf);
-        if (request.shouldCheckOptOut() && getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
+        if (getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return MappedIdentity.LogoutIdentity;
         } else {
             return getMappedIdentity(firstLevelHashIdentity, request.asOf, request.identityEnvironment);

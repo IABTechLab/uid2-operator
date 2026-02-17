@@ -20,7 +20,13 @@ public final class RoutingContextUtil {
         try {
             final String authHeaderValue = rc.request().getHeader("Authorization");
             final String authKey = extractBearerToken(authHeaderValue);
+            if (authKey == null) {
+                return UNKNOWN;
+            }
             final IAuthorizable profile = authKeyStore.get(authKey);
+            if (profile == null) {
+                return UNKNOWN;
+            }
             String apiContact = profile.getContact();
             return apiContact == null ? UNKNOWN : apiContact;
         } catch (Exception ex) {

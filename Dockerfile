@@ -1,6 +1,5 @@
 # sha from https://hub.docker.com/layers/library/eclipse-temurin/21-jre-alpine-3.23/images/sha256-693c22ea458d62395bac47a2da405d0d18c77b205211ceec4846a550a37684b6
-FROM eclipse-temurin:21-jdk-alpine
-
+FROM eclipse-temurin@sha256:89517925fa675c6c4b770bee7c44d38a7763212741b0d6fca5a5103caab21a97
 # For Amazon Corretto Crypto Provider
 RUN apk add --no-cache gcompat
 
@@ -22,6 +21,9 @@ COPY ./conf/default-config.json /app/conf/
 COPY ./conf/*.xml /app/conf/
 
 RUN tar xzvf /app/static.tar.gz --no-same-owner --no-same-permissions && rm -f /app/static.tar.gz
+
+# Fix CVE-2025-68973: Update gnupg to patched version
+RUN apk update && apk upgrade gnupg && rm -rf /var/cache/apk/*
 
 RUN adduser -D uid2-operator && mkdir -p /opt/uid2 && chmod 777 -R /opt/uid2 && mkdir -p /app && chmod 705 -R /app && mkdir -p /app/file-uploads && chmod 777 -R /app/file-uploads && mkdir -p /app/pod_terminating && chmod 777 -R /app/pod_terminating
 USER uid2-operator

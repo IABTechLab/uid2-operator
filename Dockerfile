@@ -2,7 +2,7 @@
 FROM eclipse-temurin@sha256:693c22ea458d62395bac47a2da405d0d18c77b205211ceec4846a550a37684b6
 
 # For Amazon Corretto Crypto Provider
-RUN apk add --no-cache --upgrade gnutls gcompat
+RUN apk add --no-cache gcompat
 
 WORKDIR /app
 EXPOSE 8080

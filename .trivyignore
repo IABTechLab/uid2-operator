@@ -7,3 +7,7 @@ CVE-2025-66293 exp:2026-06-15
 
 # UID2-6481
 CVE-2025-68973 exp:2026-06-15
+
+# gnutls DoS vulnerability via crafted ClientHello - not impactful as gnutls is not used by our Java service
+# See: UID2-6655
+CVE-2026-1584 exp:2026-08-27

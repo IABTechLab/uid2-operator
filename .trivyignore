@@ -17,4 +17,5 @@ CVE-2026-1584 exp:2026-08-27
 GHSA-72hv-8253-57qq exp:2026-09-01
 
 # libpng heap buffer overflow in Alpine base image - fixed version not yet available in Alpine 3.23
+# See: UID2-6677
 CVE-2026-25646 exp:2026-09-02

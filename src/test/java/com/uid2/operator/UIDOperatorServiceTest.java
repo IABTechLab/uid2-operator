@@ -835,7 +835,7 @@ class UIDOperatorServiceTest {
 
         var email = "test@uid.com";
         InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
-        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now),  now, IdentityEnvironment.TEST);
+        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now), now, IdentityEnvironment.TEST);
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 
@@ -858,7 +858,7 @@ class UIDOperatorServiceTest {
 
         var email = "test@uid.com";
         InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
-        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now),  now, IdentityEnvironment.TEST);
+        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now), now, IdentityEnvironment.TEST);
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
         var expectedCurrentUID = UIDOperatorVerticleTest.getRawUid(IdentityScope.UID2, IdentityType.Email, email, FIRST_LEVEL_SALT, salt.currentSalt(), uid2Config.getBoolean(IdentityV3Prop));
@@ -878,7 +878,7 @@ class UIDOperatorServiceTest {
 
         var email = "test@uid.com";
         InputUtil.InputVal emailInput = generateInputVal(TestIdentityInputType.Email, email);
-        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now),  now, IdentityEnvironment.TEST);
+        MapRequest mapRequest = new MapRequest(emailInput.toUserIdentity(IdentityScope.UID2, 0, this.now), now, IdentityEnvironment.TEST);
 
         MappedIdentity mappedIdentity = uid2Service.mapIdentity(mapRequest);
 

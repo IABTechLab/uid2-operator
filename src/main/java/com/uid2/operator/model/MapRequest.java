@@ -6,13 +6,23 @@ public final class MapRequest {
     public final UserIdentity userIdentity;
     public final Instant asOf;
     public final IdentityEnvironment identityEnvironment;
+    public final boolean includePreviousAdvertisingId;
 
     public MapRequest(
             UserIdentity userIdentity,
             Instant asOf,
             IdentityEnvironment identityEnvironment) {
+        this(userIdentity, asOf, identityEnvironment, true);
+    }
+
+    public MapRequest(
+            UserIdentity userIdentity,
+            Instant asOf,
+            IdentityEnvironment identityEnvironment,
+            boolean includePreviousAdvertisingId) {
         this.userIdentity = userIdentity;
         this.asOf = asOf;
         this.identityEnvironment = identityEnvironment;
+        this.includePreviousAdvertisingId = includePreviousAdvertisingId;
     }
 }

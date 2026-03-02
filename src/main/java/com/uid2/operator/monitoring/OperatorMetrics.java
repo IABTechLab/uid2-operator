@@ -35,6 +35,11 @@ public class OperatorMetrics {
                             .map(SaltEntry::lastUpdated).min(Long::compare).orElse(null))
                 .description("max last updated timestamp within currently effective second level salts")
                 .register(globalRegistry);
+        Gauge
+                .builder("uid2_second_level_salt_current_effective", () ->
+                        saltProvider.getSnapshot(Instant.now()).getEffective().toEpochMilli())
+                .description("effective timestamp of the currently effective second level salts")
+                .register(globalRegistry);
 
         update();
     }

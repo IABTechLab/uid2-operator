@@ -156,7 +156,7 @@ public class UIDOperatorService implements IUIDOperatorService {
         if (getGlobalOptOutResult(firstLevelHashIdentity, false).isOptedOut()) {
             return MappedIdentity.LogoutIdentity;
         } else {
-            return getMappedIdentity(firstLevelHashIdentity, request.asOf, request.identityEnvironment);
+            return getMappedIdentity(firstLevelHashIdentity, request.asOf, request.identityEnvironment, request.includePreviousAdvertisingId);
         }
     }
 
@@ -248,9 +248,15 @@ public class UIDOperatorService implements IUIDOperatorService {
     }
 
     private MappedIdentity getMappedIdentity(UserIdentity firstLevelHashIdentity, Instant asOf, IdentityEnvironment env) {
+        return getMappedIdentity(firstLevelHashIdentity, asOf, env, false);
+    }
+
+    private MappedIdentity getMappedIdentity(UserIdentity firstLevelHashIdentity, Instant asOf, IdentityEnvironment env, boolean includePreviousAdvertisingId) {
         final SaltEntry rotatingSalt = getSaltProviderSnapshot(asOf).getRotatingSalt(firstLevelHashIdentity.id);
         final byte[] advertisingId = getAdvertisingId(firstLevelHashIdentity, rotatingSalt.currentSalt(), rotatingSalt.currentKeySalt(), env);
-        final byte[] previousAdvertisingId = getPreviousAdvertisingId(firstLevelHashIdentity, rotatingSalt, asOf, env);
+        final byte[] previousAdvertisingId = includePreviousAdvertisingId
+                ? getPreviousAdvertisingId(firstLevelHashIdentity, rotatingSalt, asOf, env)
+                : null;
         final long refreshFrom = getRefreshFrom(rotatingSalt, asOf);
 
         return new MappedIdentity(

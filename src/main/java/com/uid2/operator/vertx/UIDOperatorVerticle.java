@@ -1114,7 +1114,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                         new MapRequest(
                                 input.toUserIdentity(this.identityScope, 0, now),
                                 now,
-                                env));
+                                env,
+                                false)); // v2 does not use previousAdvertisingId
 
                 if (mappedIdentity.isOptedOut()) {
                     final JsonObject resp = new JsonObject();

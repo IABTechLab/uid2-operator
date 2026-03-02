@@ -11,3 +11,7 @@ CVE-2025-68973 exp:2026-06-15
 # gnutls DoS vulnerability via crafted ClientHello - not impactful as gnutls is not used by our Java service
 # See: UID2-6655
 CVE-2026-1584 exp:2026-08-27
+
+# jackson-core async parser DoS - not exploitable, services only use synchronous ObjectMapper API
+# See: UID2-6670
+GHSA-72hv-8253-57qq exp:2026-09-01

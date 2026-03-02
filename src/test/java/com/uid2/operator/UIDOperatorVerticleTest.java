@@ -323,7 +323,7 @@ public class UIDOperatorVerticleTest {
 
                 JsonObject respJson = new JsonObject(new String(decrypted, 16, decrypted.length - 16, StandardCharsets.UTF_8));
 
-                decodeV2RefreshToken(respJson);
+                ensureDecryptedRefreshTokenInBody(respJson);
 
                 handler.handle(respJson);
             } else {
@@ -362,7 +362,7 @@ public class UIDOperatorVerticleTest {
                         JsonObject respJson = new JsonObject(new String(decrypted, StandardCharsets.UTF_8));
 
                         if (respJson.getString("status").equals("success"))
-                            decodeV2RefreshToken(respJson);
+                            ensureDecryptedRefreshTokenInBody(respJson);
 
                         handler.handle(respJson);
                     } else {
@@ -371,23 +371,37 @@ public class UIDOperatorVerticleTest {
                 })));
     }
 
-    private String decodeV2RefreshToken(JsonObject respJson) {
+    /** For V4, refresh_token in body is the token; ensure decrypted_refresh_token is set for tests that read it.
+     * For V2 API responses, refresh_token is a wrapped envelope; unwrap it so decrypted_refresh_token is the
+     * raw V4 token that decodeRefreshToken expects. We unwrap when the token is not already V4 (byte 1 != 128). */
+    private void ensureDecryptedRefreshTokenInBody(JsonObject respJson) {
         if (respJson.containsKey("body")) {
             JsonObject bodyJson = respJson.getJsonObject("body");
-
-            byte[] tokenBytes = Utils.decodeBase64String(bodyJson.getString("refresh_token"));
-            KeysetKey refreshKey = keysetKeyStore.getSnapshot().getKey(Buffer.buffer(tokenBytes).getInt(1));
-
-            byte[] decrypted = AesGcm.decrypt(tokenBytes, 5, refreshKey);
-            JsonObject tokenKeyJson = new JsonObject(new String(decrypted));
-
-            String refreshToken = tokenKeyJson.getString("refresh_token");
-            bodyJson.put("decrypted_refresh_token", refreshToken);
-
-            return refreshToken;
+            if (bodyJson.getString("refresh_token") != null && bodyJson.getString("decrypted_refresh_token") == null) {
+                String refreshToken = bodyJson.getString("refresh_token");
+                String tokenForDecode = isV2WrappedRefreshToken(refreshToken)
+                        ? encoder.unwrapV2RefreshEnvelope(refreshToken)
+                        : refreshToken;
+                bodyJson.put("decrypted_refresh_token", tokenForDecode);
+            }
         }
+    }
 
-        return null;
+    /** True if the base64-decoded token looks like the V2 envelope (byte 1 is not V4 version 128). */
+    private static boolean isV2WrappedRefreshToken(String refreshTokenBase64) {
+        try {
+            byte[] bytes = Utils.decodeBase64String(refreshTokenBase64);
+            return bytes.length >= 6 && (bytes[1] & 0xff) != TokenVersion.V4.rawVersion;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private String getRefreshTokenStringFromResponse(JsonObject response) {
+        JsonObject body = response.getJsonObject("body");
+        if (body == null) return null;
+        String s = body.getString("decrypted_refresh_token");
+        return s != null ? s : body.getString("refresh_token");
     }
 
     private JsonObject tryParseResponse(HttpResponse<Buffer> resp) {
@@ -916,28 +930,17 @@ public class UIDOperatorVerticleTest {
     }
 
     public static void validateAdvertisingToken(String advertisingTokenString, TokenVersion tokenVersion, IdentityScope identityScope, IdentityType identityType) {
-        if (tokenVersion == TokenVersion.V2) {
-            assertEquals("Ag", advertisingTokenString.substring(0, 2));
+        // V4 only
+        String firstChar = advertisingTokenString.substring(0, 1);
+        if (identityScope == IdentityScope.UID2) {
+            assertEquals(identityType == IdentityType.Email ? "A" : "B", firstChar);
         } else {
-            String firstChar = advertisingTokenString.substring(0, 1);
-            if (identityScope == IdentityScope.UID2) {
-                assertEquals(identityType == IdentityType.Email ? "A" : "B", firstChar);
-            } else {
-                assertEquals(identityType == IdentityType.Email ? "E" : "F", firstChar);
-            }
-
-            String secondChar = advertisingTokenString.substring(1, 2);
-            if (tokenVersion == TokenVersion.V3) {
-                assertEquals("3", secondChar);
-            } else {
-                assertEquals("4", secondChar);
-
-                //No URL-unfriendly characters allowed:
-                assertEquals(-1, advertisingTokenString.indexOf('='));
-                assertEquals(-1, advertisingTokenString.indexOf('+'));
-                assertEquals(-1, advertisingTokenString.indexOf('/'));
-            }
+            assertEquals(identityType == IdentityType.Email ? "E" : "F", firstChar);
         }
+        assertEquals("4", advertisingTokenString.substring(1, 2));
+        assertEquals(-1, advertisingTokenString.indexOf('='));
+        assertEquals(-1, advertisingTokenString.indexOf('+'));
+        assertEquals(-1, advertisingTokenString.indexOf('/'));
     }
 
     RefreshToken decodeRefreshToken(EncryptedTokenEncoder encoder, String refreshTokenString, IdentityType identityType) {
@@ -2991,6 +2994,7 @@ public class UIDOperatorVerticleTest {
             if (result.statusCode() == 200) {
                 byte[] decrypted = decrypt(Utils.decodeBase64String(result.bodyAsString()), 0, secretKey.getEncoded());
                 JsonObject respJson = new JsonObject(new String(decrypted, 0, decrypted.length - 0, StandardCharsets.UTF_8));
+                ensureDecryptedRefreshTokenInBody(respJson);
                 handler.handle(respJson);
             } else { //errors is in plain text
                 handler.handle(tryParseResponse(result));
@@ -3841,7 +3845,7 @@ public class UIDOperatorVerticleTest {
                     final JsonObject genBody = response.getJsonObject("body");
 
                     final AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
-                    final RefreshToken refreshToken = decodeRefreshToken(encoder, decodeV2RefreshToken(response), identityType);
+                    final RefreshToken refreshToken = decodeRefreshToken(encoder, getRefreshTokenStringFromResponse(response), identityType);
 
                     assertAreClientSideGeneratedTokens(advertisingToken, refreshToken, clientSideTokenGenerateSiteId, identityType, id, salt, false, useV4Uid, false);
 
@@ -3923,7 +3927,7 @@ public class UIDOperatorVerticleTest {
                     JsonObject genBody = respJson.getJsonObject("body");
                     assertNotNull(genBody);
 
-                    decodeV2RefreshToken(respJson);
+                    ensureDecryptedRefreshTokenInBody(respJson);
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, genBody, identityType);
                     assertArrayEquals(getAdvertisingIdFromIdentity(identityType, id, firstLevelSalt, salt, useV4Uid, false), advertisingToken.userIdentity.id);
@@ -4324,25 +4328,14 @@ public class UIDOperatorVerticleTest {
 
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
-                    //Uses a key from default keyset
-                    int clientKeyId;
-                    if (advertisingToken.version == TokenVersion.V3 || advertisingToken.version == TokenVersion.V4) {
-                        String advertisingTokenString = body.getString("advertising_token");
-                        byte[] bytes = null;
-                        if (advertisingToken.version == TokenVersion.V3) {
-                            bytes = EncodingUtils.fromBase64(advertisingTokenString);
-                        } else if (advertisingToken.version == TokenVersion.V4) {
-                            bytes = Uid2Base64UrlCoder.decode(advertisingTokenString);  //same as V3 but use Base64URL encoding
-                        }
-                        final Buffer b = Buffer.buffer(bytes);
-                        final int masterKeyId = b.getInt(2);
-
-                        final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, keysetKeyStore.getSnapshot().getKey(masterKeyId));
-                        final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
-                        clientKeyId = masterPayload.getInt(29);
-                    } else {
-                        clientKeyId = advertisingToken.publisherIdentity.clientKeyId;
-                    }
+                    // V4 only: uses a key from default keyset
+                    String advertisingTokenString = body.getString("advertising_token");
+                    byte[] bytes = Uid2Base64UrlCoder.decode(advertisingTokenString);
+                    final Buffer b = Buffer.buffer(bytes);
+                    final int masterKeyId = b.getInt(2);
+                    final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, keysetKeyStore.getSnapshot().getKey(masterKeyId));
+                    final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
+                    int clientKeyId = masterPayload.getInt(29);
                     switch (testRun) {
                         case "MultiKeysets":
                             assertEquals(1007, clientKeyId); // should encrypt with active key in default keyset

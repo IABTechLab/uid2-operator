@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: operator-deployment 
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: operator 

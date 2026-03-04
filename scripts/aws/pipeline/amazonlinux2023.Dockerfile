@@ -10,6 +10,8 @@ RUN dnf -y groupinstall "Development Tools" \
 
 RUN systemctl enable docker
 
+# inet.no has expired their SSL certificate, so we need to use a different source.
+# https://www.inet.no/dante/download.html Got the sha255 from the official website.
 RUN wget https://fossies.org/linux/misc/dante-1.4.4.tar.gz \
     && echo "1973c7732f1f9f0a4c0ccf2c1ce462c7c25060b25643ea90f9b98f53a813faec dante-1.4.4.tar.gz" > dante_checksum \
     && sha256sum --check dante_checksum \

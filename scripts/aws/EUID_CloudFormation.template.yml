@@ -159,7 +159,6 @@ Resources:
           - '", "operator_key": "'
           - Ref: APIToken
           - '"'
-          - ', "service_instances": 6'
           - ', "enclave_cpu_count": 6'
           - ', "enclave_memory_mb": 24576'
           - ', "environment": "'

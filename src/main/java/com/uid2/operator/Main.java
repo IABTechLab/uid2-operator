@@ -94,6 +94,7 @@ public class Main {
     private RotatingServiceLinkStore serviceLinkProvider;
     private RotatingCloudEncryptionKeyApiProvider cloudEncryptionKeyProvider;
     private final UidInstanceIdProvider uidInstanceIdProvider;
+    private final int requestedServiceInstances;
 
     public Main(Vertx vertx, JsonObject config) throws Exception {
         this.vertx = vertx;
@@ -243,6 +244,12 @@ public class Main {
             }
         }
         metrics = new OperatorMetrics(getKeyManager(), saltProvider);
+
+        Integer svcInstances = config.getInteger(Const.Config.ServiceInstancesProp);
+        if (svcInstances == null) {
+            svcInstances = Runtime.getRuntime().availableProcessors();
+        }
+        requestedServiceInstances = svcInstances;
     }
 
     private KeyManager getKeyManager() {
@@ -346,8 +353,7 @@ public class Main {
         };
 
         DeploymentOptions options = new DeploymentOptions();
-        int svcInstances = this.config.getInteger(Const.Config.ServiceInstancesProp);
-        options.setInstances(svcInstances);
+        options.setInstances(requestedServiceInstances);
 
         Promise<Void> compositePromise = Promise.promise();
         List<Future> fs = new ArrayList<>();
@@ -564,7 +570,7 @@ public class Main {
     }
 
     private void createVertxInstancesMetric() {
-        Gauge.builder("uid2_vertx_service_instances", () -> config.getInteger("service_instances"))
+        Gauge.builder("uid2_vertx_service_instances", () -> requestedServiceInstances)
                 .description("gauge for number of vertx service instances requested")
                 .register(Metrics.globalRegistry);
     }

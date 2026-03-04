@@ -10,13 +10,13 @@ RUN dnf -y groupinstall "Development Tools" \
 
 RUN systemctl enable docker
 
-RUN wget https://www.inet.no/dante/files/dante-1.4.3.tar.gz \
-    && echo "418a065fe1a4b8ace8fbf77c2da269a98f376e7115902e76cda7e741e4846a5d dante-1.4.3.tar.gz" > dante_checksum \
+RUN wget https://fossies.org/linux/misc/dante-1.4.4.tar.gz \
+    && echo "1973c7732f1f9f0a4c0ccf2c1ce462c7c25060b25643ea90f9b98f53a813faec dante-1.4.4.tar.gz" > dante_checksum \
     && sha256sum --check dante_checksum \
-    && tar -xf dante-1.4.3.tar.gz \
-    && cd dante-1.4.3; ./configure; make; cd .. \
-    && cp dante-1.4.3/sockd/sockd ./ \
-    && rm -rf dante-1.4.3 dante-1.4.3.tar.gz
+    && tar -xf dante-1.4.4.tar.gz \
+    && cd dante-1.4.4; ./configure; make; cd .. \
+    && cp dante-1.4.4/sockd/sockd ./ \
+    && rm -rf dante-1.4.4 dante-1.4.4.tar.gz
 
 RUN git clone https://github.com/IABTechLab/uid2-aws-enclave-vsockproxy.git \
     && mkdir uid2-aws-enclave-vsockproxy/build \

@@ -250,6 +250,7 @@ public class Main {
             svcInstances = Runtime.getRuntime().availableProcessors();
         }
         requestedServiceInstances = svcInstances;
+        LOGGER.info("Service instances requested: " + requestedServiceInstances);
     }
 
     private KeyManager getKeyManager() {

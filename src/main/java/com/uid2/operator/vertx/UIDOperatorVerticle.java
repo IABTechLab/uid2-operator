@@ -1457,13 +1457,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     }
 
     public TokenVersion getRefreshTokenVersion(String s) {
-        if (s != null && !s.isEmpty()) {
-            final byte[] bytes = EncodingUtils.fromBase64(s);
-            final Buffer b = Buffer.buffer(bytes);
-            if (b.getByte(1) == TokenVersion.V3.rawVersion) {
-                return TokenVersion.V3;
-            } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
-                return TokenVersion.V2;
+        if (s != null && !s.isEmpty() && s.length() >= 4) {
+            try {
+                final byte[] bytes = EncodingUtils.fromBase64(s);
+                final Buffer b = Buffer.buffer(bytes);
+                if (bytes.length >= 6 && (b.getByte(1) & 0xff) == TokenVersion.V4.rawVersion) {
+                    return TokenVersion.V4;
+                }
+            } catch (IllegalArgumentException ignored) {
             }
         }
         return null;

@@ -19,3 +19,8 @@ GHSA-72hv-8253-57qq exp:2026-09-01
 # libpng heap buffer overflow in Alpine base image - fixed version not yet available in Alpine 3.23
 # See: UID2-6677
 CVE-2026-25646 exp:2026-09-02
+
+# zlib contrib/untgz demo utility buffer overflow - not exploitable, Alpine does not ship the untgz binary
+# and the core libz library used by the JRE is unaffected. The zlib maintainer disputes this CVE.
+# See: UID2-6704
+CVE-2026-22184 exp:2026-09-09

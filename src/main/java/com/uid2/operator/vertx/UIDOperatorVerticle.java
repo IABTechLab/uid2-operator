@@ -1113,7 +1113,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return true;
     }
 
-    private JsonObject handleIdentityMapCommon(RoutingContext rc, InputUtil.InputVal[] inputList) {
+    private JsonObject processIdentityMapV2Response(RoutingContext rc, InputUtil.InputVal[] inputList) {
         RuntimeConfig config = getConfigFromRc(rc);
         IdentityEnvironment env = config.getIdentityEnvironment();
 
@@ -1231,7 +1231,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             if (!validateServiceLink(rc)) { return; }
 
-            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
+            final JsonObject resp = processIdentityMapV2Response(rc, inputList);
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v2", e);

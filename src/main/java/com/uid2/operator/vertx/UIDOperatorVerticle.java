@@ -118,7 +118,8 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersions = new HashMap<>();
     private final Map<Tuple.Tuple2<String, String>, Counter> _tokenValidateCounters = new HashMap<>();
 
-    private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
+    private final Map<String, DistributionSummary> optOutStatusInputSizeCounters = new HashMap<>();
+    private final Map<String, DistributionSummary> optOutStatusOptOutSizeCounters = new HashMap<>();
     private final IdentityScope identityScope;
     private final V2PayloadHandler encryptedPayloadHandler;
     private final boolean phoneSupport;
@@ -1448,14 +1449,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void recordOptOutStatusEndpointStats(RoutingContext rc, int inputCount, int optOutCount) {
         String apiContact = getApiContact(rc);
-        DistributionSummary inputDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
+        DistributionSummary inputDistSummary = optOutStatusInputSizeCounters.computeIfAbsent(apiContact, k -> DistributionSummary
                 .builder("uid2_operator_optout_status_input_size")
                 .description("number of UIDs received in request")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
         inputDistSummary.record(inputCount);
 
-        DistributionSummary optOutDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
+        DistributionSummary optOutDistSummary = optOutStatusOptOutSizeCounters.computeIfAbsent(apiContact, k -> DistributionSummary
                 .builder("uid2_operator_optout_status_optout_size")
                 .description("number of UIDs that have opted out")
                 .tags("api_contact", apiContact)

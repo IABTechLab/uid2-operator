@@ -503,7 +503,7 @@ public class Main {
             ? 60 * 1000
             : 3600 * 1000;
 
-        final int defaultWorkerPoolSize = Math.max(2, (Runtime.getRuntime().availableProcessors() - 2) / 2 + 1);
+        final int defaultWorkerPoolSize = Math.max(2, Runtime.getRuntime().availableProcessors());
         final int workerPoolSize = getEnvInt(Const.Config.DefaultWorkerPoolThreadCountProp, defaultWorkerPoolSize);
         LOGGER.info("Creating Vertx with default worker pool size: {}", workerPoolSize);
 
@@ -654,6 +654,19 @@ public class Main {
             return Integer.parseInt(value);
         } catch (NumberFormatException e) {
             LOGGER.warn("Invalid integer value for environment variable {}: '{}', using default: {}", name, value, defaultValue);
+            return defaultValue;
+        }
+    }
+
+    private static boolean getEnvBool(String name, boolean defaultValue) {
+        String value = System.getenv(name);
+        if (value == null || value.isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            return Boolean.parseBoolean(value);
+        } catch (NumberFormatException e) {
+            LOGGER.warn("Invalid boolean value for environment variable {}: '{}', using default: {}", name, value, defaultValue);
             return defaultValue;
         }
     }

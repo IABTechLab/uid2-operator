@@ -108,10 +108,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     protected IUIDOperatorService idService;
 
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
+    private final Map<String, DistributionSummary> _identityMapServicesMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
     private final Map<String, Counter> _tokenGenerateTCFUsage = new HashMap<>();
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
+    private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapServicesUnmappedIdentifiers = new HashMap<>();
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
     private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersions = new HashMap<>();
     private final Map<Tuple.Tuple2<String, String>, Counter> _tokenValidateCounters = new HashMap<>();
@@ -1319,69 +1321,74 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void recordIdentityMapStats(RoutingContext rc, int inputCount, int invalidCount, int optoutCount) {
         String apiContact = getApiContact(rc);
+        String path = rc.request().path();
+        String cacheKey = apiContact + "|" + path;
 
-        DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(apiContact, k -> DistributionSummary
+        DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(cacheKey, k -> DistributionSummary
                 .builder("uid2_operator_identity_map_inputs")
                 .description("number of emails or email hashes passed to identity map batch endpoint")
-                .tags("api_contact", apiContact)
+                .tags("api_contact", apiContact, "path", path)
                 .register(Metrics.globalRegistry));
         ds.record(inputCount);
 
-        Tuple.Tuple2<Counter, Counter> ids = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact, k -> new Tuple.Tuple2<>(
+        Tuple.Tuple2<Counter, Counter> ids = _identityMapUnmappedIdentifiers.computeIfAbsent(cacheKey, k -> new Tuple.Tuple2<>(
                 Counter.builder("uid2_operator_identity_map_unmapped_total")
                         .description("invalid identifiers")
-                        .tags("api_contact", apiContact, "reason", "invalid")
+                        .tags("api_contact", apiContact, "reason", "invalid", "path", path)
                         .register(Metrics.globalRegistry),
                 Counter.builder("uid2_operator_identity_map_unmapped_total")
                         .description("optout identifiers")
-                        .tags("api_contact", apiContact, "reason", "optout")
+                        .tags("api_contact", apiContact, "reason", "optout", "path", path)
                         .register(Metrics.globalRegistry)));
         if (invalidCount > 0) ids.getItem1().increment(invalidCount);
         if (optoutCount > 0) ids.getItem2().increment(optoutCount);
 
-        Counter rs = _identityMapRequestWithUnmapped.computeIfAbsent(apiContact, k -> Counter
+        Counter rs = _identityMapRequestWithUnmapped.computeIfAbsent(cacheKey, k -> Counter
                 .builder("uid2_operator_identity_map_unmapped_requests_total")
                 .description("number of requests with unmapped identifiers")
-                .tags("api_contact", apiContact)
+                .tags("api_contact", apiContact, "path", path)
                 .register(Metrics.globalRegistry));
         if (invalidCount > 0 || optoutCount > 0) {
             rs.increment();
         }
-        recordIdentityMapStatsForServiceLinks(rc, apiContact, inputCount, invalidCount, optoutCount);
+        recordIdentityMapStatsForServiceLinks(rc, apiContact, path, inputCount, invalidCount, optoutCount);
     }
 
-    private void recordIdentityMapStatsForServiceLinks(RoutingContext rc, String apiContact, int inputCount,
-                                                       int invalidCount, int optOutCount) {
+    private void recordIdentityMapStatsForServiceLinks(RoutingContext rc, String apiContact, String path,
+                                                       int inputCount, int invalidCount, int optOutCount) {
         // If request is from a service, break it down further by link_id
         String serviceLinkName = rc.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "");
         if (!serviceLinkName.isBlank()) {
             // serviceName will be non-empty as it will be inserted during validation
             final String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
-            final String metricKey = serviceName + serviceLinkName;
-            DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(metricKey,
+            final String cacheKey = serviceName + serviceLinkName + "|" + path;
+            DistributionSummary ds = _identityMapServicesMetricSummaries.computeIfAbsent(cacheKey,
                     k -> DistributionSummary.builder("uid2_operator_identity_map_services_inputs")
                             .description("number of emails or phone numbers passed to identity map batch endpoint by services")
                             .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                     Tag.of("service_name", serviceName),
-                                    Tag.of("service_link_name", serviceLinkName)))
+                                    Tag.of("service_link_name", serviceLinkName),
+                                    Tag.of("path", path)))
                             .register(Metrics.globalRegistry));
             ds.record(inputCount);
 
-            Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(metricKey,
+            Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapServicesUnmappedIdentifiers.computeIfAbsent(cacheKey,
                     k -> new Tuple.Tuple2<>(
                             Counter.builder("uid2_operator_identity_map_services_unmapped_total")
                                     .description("number of invalid identifiers passed to identity map batch endpoint by services")
                                     .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                             Tag.of("reason", "invalid"),
                                             Tag.of("service_name", serviceName),
-                                            Tag.of("service_link_name", serviceLinkName)))
+                                            Tag.of("service_link_name", serviceLinkName),
+                                            Tag.of("path", path)))
                                     .register(Metrics.globalRegistry),
                             Counter.builder("uid2_operator_identity_map_services_unmapped_total")
                                     .description("number of optout identifiers passed to identity map batch endpoint by services")
                                     .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                             Tag.of("reason", "optout"),
                                             Tag.of("service_name", serviceName),
-                                            Tag.of("service_link_name", serviceLinkName)))
+                                            Tag.of("service_link_name", serviceLinkName),
+                                            Tag.of("path", path)))
                                     .register(Metrics.globalRegistry)));
             if (invalidCount > 0) counterTuple.getItem1().increment(invalidCount);
             if (optOutCount > 0) counterTuple.getItem2().increment(optOutCount);

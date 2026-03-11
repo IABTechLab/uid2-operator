@@ -107,19 +107,32 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final UidInstanceIdProvider uidInstanceIdProvider;
     protected IUIDOperatorService idService;
 
+    // uid2_operator_identity_map_inputs
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
+    // uid2_operator_identity_map_services_inputs
     private final Map<String, DistributionSummary> _identityMapServicesMetricSummaries = new HashMap<>();
+    // uid2_token_refresh_duration_seconds
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
+    // uid2_advertising_token_expired_on_refresh_total
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
+    // uid2_token_generate_tcf_usage_total
     private final Map<String, Counter> _tokenGenerateTCFUsage = new HashMap<>();
+    // uid2_operator_identity_map_unmapped_total (reason=invalid, reason=optout)
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
+    // uid2_operator_identity_map_services_unmapped_total (reason=invalid, reason=optout)
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapServicesUnmappedIdentifiers = new HashMap<>();
+    // uid2_operator_identity_map_unmapped_requests_total
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
+    // uid2_client_sdk_versions_total
     private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersions = new HashMap<>();
+    // uid2_token_validate_total
     private final Map<Tuple.Tuple2<String, String>, Counter> _tokenValidateCounters = new HashMap<>();
 
+    // uid2_operator_optout_status_input_size
     private final Map<String, DistributionSummary> optOutStatusInputSizeCounters = new HashMap<>();
+    // uid2_operator_optout_status_optout_size
     private final Map<String, DistributionSummary> optOutStatusOptOutSizeCounters = new HashMap<>();
+
     private final IdentityScope identityScope;
     private final V2PayloadHandler encryptedPayloadHandler;
     private final boolean phoneSupport;

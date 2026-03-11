@@ -657,17 +657,4 @@ public class Main {
             return defaultValue;
         }
     }
-
-    private static boolean getEnvBool(String name, boolean defaultValue) {
-        String value = System.getenv(name);
-        if (value == null || value.isEmpty()) {
-            return defaultValue;
-        }
-        try {
-            return Boolean.parseBoolean(value);
-        } catch (NumberFormatException e) {
-            LOGGER.warn("Invalid boolean value for environment variable {}: '{}', using default: {}", name, value, defaultValue);
-            return defaultValue;
-        }
-    }
 }

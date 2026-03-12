@@ -39,11 +39,11 @@ spec:
           image: IMAGE_PLACEHOLDER
           resources:
             limits:
-              cpu: "6"
-              memory: "24Gi"
+              cpu: '2'
+              memory: 2Gi
             requests:
-              cpu: "6"
-              memory: "24Gi"
+              cpu: 250m
+              memory: 256Mi
           imagePullPolicy: Always
           securityContext:
             runAsUser: 1000

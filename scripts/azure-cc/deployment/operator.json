@@ -140,6 +140,14 @@
                 {
                   "name": "SKIP_VALIDATIONS",
                   "value": "[parameters('skipValidations')]"
+                },
+                {
+                  "name": "service_instances",
+                  "value": "6"
+                },
+                {
+                  "name": "default_worker_pool_thread_count",
+                  "value": "6"
                 }
               ]
             }

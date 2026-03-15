@@ -94,7 +94,7 @@ module "secret-manager" {
 resource "google_compute_instance_template" "uid_operator" {
   depends_on   = [module.project_services]
   name_prefix  = "uid-operator-cs-template-"
-  machine_type = var.uid_deployment_env == "prod" ? "n2d-standard-16" : "n2d-standard-2"
+  machine_type = var.uid_deployment_env == "prod" ? "n2d-standard-16" : "n2d-standard-8"
 
   tags = [var.network_name]
 
@@ -107,10 +107,10 @@ resource "google_compute_instance_template" "uid_operator" {
       tee-image-reference            = var.uid_operator_image
       tee-container-log-redirect     = true
       tee-restart-policy             = "Never"
-      tee-env-DEPLOYMENT_ENVIRONMENT = var.uid_deployment_env
-      tee-env-API_TOKEN_SECRET_NAME  = module.secret-manager.secret_versions[0]
-      tee-env-CORE_BASE_URL          = var.uid_deployment_env == "integ" ? "https://core-integ.uidapi.com" : "https://core-prod.uidapi.com"
-      tee-env-OPTOUT_BASE_URL        = var.uid_deployment_env == "integ" ? "https://optout-integ.uidapi.com" : "https://optout-prod.uidapi.com"
+      tee-env-DEPLOYMENT_ENVIRONMENT             = var.uid_deployment_env
+      tee-env-API_TOKEN_SECRET_NAME              = module.secret-manager.secret_versions[0]
+      tee-env-CORE_BASE_URL                      = var.uid_deployment_env == "integ" ? "https://core-integ.uidapi.com" : "https://core-prod.uidapi.com"
+      tee-env-OPTOUT_BASE_URL                    = var.uid_deployment_env == "integ" ? "https://optout-integ.uidapi.com" : "https://optout-prod.uidapi.com"
     },
     var.uid_deployment_env != "prod" ? {
       tee-env-DEBUG_MODE = var.debug_mode

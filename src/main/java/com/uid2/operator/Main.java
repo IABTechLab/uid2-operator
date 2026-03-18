@@ -503,7 +503,7 @@ public class Main {
             ? 60 * 1000
             : 3600 * 1000;
 
-        final int defaultWorkerPoolSize = Math.max(2, (Runtime.getRuntime().availableProcessors() - 2) / 2 + 1);
+        final int defaultWorkerPoolSize = Math.max(2, Runtime.getRuntime().availableProcessors());
         final int workerPoolSize = getEnvInt(Const.Config.DefaultWorkerPoolThreadCountProp, defaultWorkerPoolSize);
         LOGGER.info("Creating Vertx with default worker pool size: {}", workerPoolSize);
 

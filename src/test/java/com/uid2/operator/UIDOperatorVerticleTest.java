@@ -32,6 +32,7 @@ import com.uid2.shared.secret.KeyHasher;
 import com.uid2.shared.store.*;
 import com.uid2.shared.store.reader.RotatingKeysetProvider;
 import com.uid2.shared.store.salt.ISaltProvider;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.AsyncResult;
@@ -2902,6 +2903,72 @@ public class UIDOperatorVerticleTest {
         }
 
         send(vertx, "v2/identity/map", req, 413, json -> testContext.completeNow());
+    }
+
+    private double getIdentityMapInputAmount(String path, String diiType) {
+        DistributionSummary ds = registry
+                .find("uid2_operator_identity_map_inputs")
+                .tag("path", path)
+                .tag("dii_type", diiType)
+                .summary();
+        return ds == null ? 0.0 : ds.totalAmount();
+    }
+
+    @Test
+    void identityMapV2InputMetricTaggedWithEmailDiiType(Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(201, Role.MAPPER);
+        setupKeys();
+        setupSalts();
+
+        JsonObject req = new JsonObject()
+                .put("email", new JsonArray().add("test1@uid2.com").add("test2@uid2.com"));
+
+        send(vertx, "v2/identity/map", req, 200, json -> {
+            assertEquals(2.0, getIdentityMapInputAmount("/v2/identity/map", "email"));
+            assertEquals(0.0, getIdentityMapInputAmount("/v2/identity/map", "email_hash"));
+            assertEquals(0.0, getIdentityMapInputAmount("/v2/identity/map", "phone"));
+            assertEquals(0.0, getIdentityMapInputAmount("/v2/identity/map", "phone_hash"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityMapV2InputMetricTaggedWithEmailHashDiiType(Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(201, Role.MAPPER);
+        setupKeys();
+        setupSalts();
+
+        JsonObject req = new JsonObject()
+                .put("email_hash", new JsonArray()
+                        .add(TokenUtils.getIdentityHashString("test1@uid2.com")));
+
+        send(vertx, "v2/identity/map", req, 200, json -> {
+            assertEquals(0.0, getIdentityMapInputAmount("/v2/identity/map", "email"));
+            assertEquals(1.0, getIdentityMapInputAmount("/v2/identity/map", "email_hash"));
+            assertEquals(0.0, getIdentityMapInputAmount("/v2/identity/map", "phone"));
+            assertEquals(0.0, getIdentityMapInputAmount("/v2/identity/map", "phone_hash"));
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void identityMapV3InputMetricTaggedWithPathAndDiiType(Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(201, Role.MAPPER);
+        SaltEntry salt = setupSalts();
+        when(saltProviderSnapshot.getRotatingSalt(any())).thenReturn(salt);
+
+        JsonObject req = new JsonObject()
+                .put("email", new JsonArray().add("test1@uid2.com").add("test2@uid2.com"))
+                .put("phone_hash", new JsonArray()
+                        .add(TokenUtils.getIdentityHashString("+15555555555")));
+
+        send(vertx, "v3/identity/map", req, 200, json -> {
+            assertEquals(2.0, getIdentityMapInputAmount("/v3/identity/map", "email"));
+            assertEquals(0.0, getIdentityMapInputAmount("/v3/identity/map", "email_hash"));
+            assertEquals(0.0, getIdentityMapInputAmount("/v3/identity/map", "phone"));
+            assertEquals(1.0, getIdentityMapInputAmount("/v3/identity/map", "phone_hash"));
+            testContext.completeNow();
+        });
     }
 
     @ParameterizedTest

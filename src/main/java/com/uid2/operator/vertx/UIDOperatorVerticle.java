@@ -107,16 +107,32 @@ public class UIDOperatorVerticle extends AbstractVerticle {
     private final UidInstanceIdProvider uidInstanceIdProvider;
     protected IUIDOperatorService idService;
 
+    // uid2_operator_identity_map_inputs
     private final Map<String, DistributionSummary> _identityMapMetricSummaries = new HashMap<>();
+    // uid2_operator_identity_map_services_inputs
+    private final Map<String, DistributionSummary> _identityMapServicesMetricSummaries = new HashMap<>();
+    // uid2_token_refresh_duration_seconds
     private final Map<Tuple.Tuple2<String, Boolean>, DistributionSummary> _refreshDurationMetricSummaries = new HashMap<>();
+    // uid2_advertising_token_expired_on_refresh_total
     private final Map<Tuple.Tuple3<String, Boolean, Boolean>, Counter> _advertisingTokenExpiryStatus = new HashMap<>();
+    // uid2_token_generate_tcf_usage_total
     private final Map<String, Counter> _tokenGenerateTCFUsage = new HashMap<>();
+    // uid2_operator_identity_map_unmapped_total (reason=invalid, reason=optout)
     private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapUnmappedIdentifiers = new HashMap<>();
+    // uid2_operator_identity_map_services_unmapped_total (reason=invalid, reason=optout)
+    private final Map<String, Tuple.Tuple2<Counter, Counter>> _identityMapServicesUnmappedIdentifiers = new HashMap<>();
+    // uid2_operator_identity_map_unmapped_requests_total
     private final Map<String, Counter> _identityMapRequestWithUnmapped = new HashMap<>();
+    // uid2_client_sdk_versions_total
     private final Map<Tuple.Tuple2<String, String>, Counter> _clientVersions = new HashMap<>();
+    // uid2_token_validate_total
     private final Map<Tuple.Tuple2<String, String>, Counter> _tokenValidateCounters = new HashMap<>();
 
-    private final Map<String, DistributionSummary> optOutStatusCounters = new HashMap<>();
+    // uid2_operator_optout_status_input_size
+    private final Map<String, DistributionSummary> optOutStatusInputSizeCounters = new HashMap<>();
+    // uid2_operator_optout_status_optout_size
+    private final Map<String, DistributionSummary> optOutStatusOptOutSizeCounters = new HashMap<>();
+
     private final IdentityScope identityScope;
     private final V2PayloadHandler encryptedPayloadHandler;
     private final boolean phoneSupport;
@@ -1097,17 +1113,18 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return true;
     }
 
-    private JsonObject handleIdentityMapCommon(RoutingContext rc, InputUtil.InputVal[] inputList) {
+    private JsonObject processIdentityMapV2Response(RoutingContext rc, IdentityMapV2Input v2Input) {
         RuntimeConfig config = getConfigFromRc(rc);
         IdentityEnvironment env = config.getIdentityEnvironment();
+        InputUtil.InputVal[] inputList = v2Input.inputList();
 
         final Instant now = Instant.now();
         final JsonArray mapped = new JsonArray();
         final JsonArray unmapped = new JsonArray();
-        final int count = inputList.length;
+        final int inputCount = inputList.length;
         int invalidCount = 0;
         int optoutCount = 0;
-        for (int i = 0; i < count; ++i) {
+        for (int i = 0; i < inputCount; ++i) {
             final InputUtil.InputVal input = inputList[i];
             if (input != null && input.isValid()) {
                 final MappedIdentity mappedIdentity = idService.mapIdentity(
@@ -1138,7 +1155,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             }
         }
 
-        recordIdentityMapStats(rc, inputList.length, invalidCount, optoutCount);
+        recordIdentityMapStats(rc, Map.of(v2Input.diiType(), inputCount), invalidCount, optoutCount);
 
         final JsonObject resp = new JsonObject();
         resp.put("mapped", mapped);
@@ -1154,12 +1171,12 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final JsonObject mappedResponse = new JsonObject();
         int invalidCount = 0;
         int optoutCount = 0;
-        int inputTotalCount = 0;
+        Map<String, Integer> diiTypeCounts = new HashMap<>();
 
         for (Map.Entry<String, InputUtil.InputVal[]> identityType : input.entrySet()) {
             JsonArray mappedIdentityList = new JsonArray();
             final InputUtil.InputVal[] rawIdentityList = identityType.getValue();
-            inputTotalCount += rawIdentityList.length;
+            diiTypeCounts.put(identityType.getKey(), rawIdentityList.length);
 
             for (final InputUtil.InputVal rawId : rawIdentityList) {
                 final JsonObject resp = new JsonObject();
@@ -1187,7 +1204,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             mappedResponse.put(identityType.getKey(), mappedIdentityList);
         }
 
-        recordIdentityMapStats(rc, inputTotalCount, invalidCount, optoutCount);
+        recordIdentityMapStats(rc, diiTypeCounts, invalidCount, optoutCount);
 
         return mappedResponse;
     }
@@ -1207,61 +1224,61 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             final String apiContact = RoutingContextUtil.getApiContact(rc, clientKeyProvider);
             recordOperatorServedSdkUsage(rc, siteId, apiContact, rc.request().headers().get(Const.Http.ClientVersionHeader));
 
-            final InputUtil.InputVal[] inputList = getIdentityMapV2Input(rc);
-            if (inputList == null) {
+            final IdentityMapV2Input v2Input = getIdentityMapV2Input(rc);
+            if (v2Input == null) {
                 ResponseUtil.LogInfoAndSend400Response(rc, this.phoneSupport ? ERROR_INVALID_INPUT_WITH_PHONE_SUPPORT : ERROR_INVALID_INPUT_EMAIL_MISSING);
                 return;
             }
 
             if (!validateServiceLink(rc)) { return; }
 
-            final JsonObject resp = handleIdentityMapCommon(rc, inputList);
+            final JsonObject resp = processIdentityMapV2Response(rc, v2Input);
             ResponseUtil.SuccessV2(rc, resp);
         } catch (Exception e) {
             ResponseUtil.LogErrorAndSendResponse(ResponseStatus.UnknownError, 500, rc, "Unknown error while mapping identity v2", e);
         }
     }
 
-    private InputUtil.InputVal[] getIdentityMapV2Input(RoutingContext rc) {
+    private IdentityMapV2Input getIdentityMapV2Input(RoutingContext rc) {
         final JsonObject obj = (JsonObject) rc.data().get("request");
 
-        Supplier<InputUtil.InputVal[]> getInputList = null;
+        Supplier<IdentityMapV2Input> getV2Request = null;
         final JsonArray emails = JsonParseUtils.parseArray(obj, "email", rc);
         if (emails != null && !emails.isEmpty()) {
-            getInputList = () -> createInputList(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw);
+            getV2Request = () -> new IdentityMapV2Input("email", createInputList(emails, IdentityType.Email, InputUtil.IdentityInputType.Raw));
         }
 
         final JsonArray emailHashes = JsonParseUtils.parseArray(obj, "email_hash", rc);
         if (emailHashes != null && !emailHashes.isEmpty()) {
-            if (getInputList != null) {
+            if (getV2Request != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputList(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash);
+            getV2Request = () -> new IdentityMapV2Input("email_hash", createInputList(emailHashes, IdentityType.Email, InputUtil.IdentityInputType.Hash));
         }
 
         final JsonArray phones = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone", rc) : null;
         if (phones != null && !phones.isEmpty()) {
-            if (getInputList != null) {
+            if (getV2Request != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputList(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw);
+            getV2Request = () -> new IdentityMapV2Input("phone", createInputList(phones, IdentityType.Phone, InputUtil.IdentityInputType.Raw));
         }
 
         final JsonArray phoneHashes = this.phoneSupport ? JsonParseUtils.parseArray(obj,"phone_hash", rc) : null;
         if (phoneHashes != null && !phoneHashes.isEmpty()) {
-            if (getInputList != null) {
+            if (getV2Request != null) {
                 return null;        // only one type of input is allowed
             }
-            getInputList = () -> createInputList(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash);
+            getV2Request = () -> new IdentityMapV2Input("phone_hash", createInputList(phoneHashes, IdentityType.Phone, InputUtil.IdentityInputType.Hash));
         }
 
         if (emails == null && emailHashes == null && phones == null && phoneHashes == null) {
             return null;
         }
 
-        return getInputList == null ?
-                createInputList(null, IdentityType.Email, InputUtil.IdentityInputType.Raw) :  // handle empty array
-                getInputList.get();
+        return getV2Request == null ?
+                new IdentityMapV2Input("email", createInputList(null, IdentityType.Email, InputUtil.IdentityInputType.Raw)) :  // handle empty array
+                getV2Request.get();
     }
 
     private void handleIdentityMapV3(RoutingContext rc) {
@@ -1317,71 +1334,92 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return apiContact;
     }
 
-    private void recordIdentityMapStats(RoutingContext rc, int inputCount, int invalidCount, int optoutCount) {
+    private void recordIdentityMapStats(RoutingContext rc, Map<String, Integer> diiTypeCounts, int invalidCount, int optoutCount) {
         String apiContact = getApiContact(rc);
+        String path = rc.request().path();
 
-        DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(apiContact, k -> DistributionSummary
-                .builder("uid2_operator_identity_map_inputs")
-                .description("number of emails or email hashes passed to identity map batch endpoint")
-                .tags("api_contact", apiContact)
-                .register(Metrics.globalRegistry));
-        ds.record(inputCount);
+        for (Map.Entry<String, Integer> entry : diiTypeCounts.entrySet()) {
+            String diiType = entry.getKey();
+            int count = entry.getValue();
+            if (count > 0) {
+                String cacheKey = apiContact + "|" + path + "|" + diiType;
+                DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(cacheKey, k -> DistributionSummary
+                        .builder("uid2_operator_identity_map_inputs")
+                        .description("number of identifiers passed to identity map endpoint")
+                        .tags("api_contact", apiContact, "path", path, "dii_type", diiType)
+                        .register(Metrics.globalRegistry));
+                ds.record(count);
+            }
+        }
 
-        Tuple.Tuple2<Counter, Counter> ids = _identityMapUnmappedIdentifiers.computeIfAbsent(apiContact, k -> new Tuple.Tuple2<>(
+        String cacheKey = apiContact + "|" + path;
+        Tuple.Tuple2<Counter, Counter> ids = _identityMapUnmappedIdentifiers.computeIfAbsent(cacheKey, k -> new Tuple.Tuple2<>(
                 Counter.builder("uid2_operator_identity_map_unmapped_total")
                         .description("invalid identifiers")
-                        .tags("api_contact", apiContact, "reason", "invalid")
+                        .tags("api_contact", apiContact, "reason", "invalid", "path", path)
                         .register(Metrics.globalRegistry),
                 Counter.builder("uid2_operator_identity_map_unmapped_total")
                         .description("optout identifiers")
-                        .tags("api_contact", apiContact, "reason", "optout")
+                        .tags("api_contact", apiContact, "reason", "optout", "path", path)
                         .register(Metrics.globalRegistry)));
         if (invalidCount > 0) ids.getItem1().increment(invalidCount);
         if (optoutCount > 0) ids.getItem2().increment(optoutCount);
 
-        Counter rs = _identityMapRequestWithUnmapped.computeIfAbsent(apiContact, k -> Counter
+        Counter rs = _identityMapRequestWithUnmapped.computeIfAbsent(cacheKey, k -> Counter
                 .builder("uid2_operator_identity_map_unmapped_requests_total")
                 .description("number of requests with unmapped identifiers")
-                .tags("api_contact", apiContact)
+                .tags("api_contact", apiContact, "path", path)
                 .register(Metrics.globalRegistry));
         if (invalidCount > 0 || optoutCount > 0) {
             rs.increment();
         }
-        recordIdentityMapStatsForServiceLinks(rc, apiContact, inputCount, invalidCount, optoutCount);
+        recordIdentityMapStatsForServiceLinks(rc, apiContact, path, diiTypeCounts, invalidCount, optoutCount);
     }
 
-    private void recordIdentityMapStatsForServiceLinks(RoutingContext rc, String apiContact, int inputCount,
-                                                       int invalidCount, int optOutCount) {
+    private void recordIdentityMapStatsForServiceLinks(RoutingContext rc, String apiContact, String path,
+                                                       Map<String, Integer> diiTypeCounts, int invalidCount, int optOutCount) {
         // If request is from a service, break it down further by link_id
         String serviceLinkName = rc.get(SecureLinkValidatorService.SERVICE_LINK_NAME, "");
         if (!serviceLinkName.isBlank()) {
             // serviceName will be non-empty as it will be inserted during validation
             final String serviceName = rc.get(SecureLinkValidatorService.SERVICE_NAME);
-            final String metricKey = serviceName + serviceLinkName;
-            DistributionSummary ds = _identityMapMetricSummaries.computeIfAbsent(metricKey,
-                    k -> DistributionSummary.builder("uid2_operator_identity_map_services_inputs")
-                            .description("number of emails or phone numbers passed to identity map batch endpoint by services")
-                            .tags(Arrays.asList(Tag.of("api_contact", apiContact),
-                                    Tag.of("service_name", serviceName),
-                                    Tag.of("service_link_name", serviceLinkName)))
-                            .register(Metrics.globalRegistry));
-            ds.record(inputCount);
 
-            Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapUnmappedIdentifiers.computeIfAbsent(metricKey,
+            for (Map.Entry<String, Integer> entry : diiTypeCounts.entrySet()) {
+                String diiType = entry.getKey();
+                int count = entry.getValue();
+                if (count > 0) {
+                    final String cacheKey = serviceName + serviceLinkName + "|" + path + "|" + diiType;
+                    DistributionSummary ds = _identityMapServicesMetricSummaries.computeIfAbsent(cacheKey,
+                            k -> DistributionSummary.builder("uid2_operator_identity_map_services_inputs")
+                                    .description("number of identifiers passed to identity map endpoint by services")
+                                    .tags(Arrays.asList(Tag.of("api_contact", apiContact),
+                                            Tag.of("service_name", serviceName),
+                                            Tag.of("service_link_name", serviceLinkName),
+                                            Tag.of("path", path),
+                                            Tag.of("dii_type", diiType)))
+                                    .register(Metrics.globalRegistry));
+                    ds.record(count);
+                }
+            }
+
+            final String cacheKey = serviceName + serviceLinkName + "|" + path;
+            Tuple.Tuple2<Counter, Counter> counterTuple = _identityMapServicesUnmappedIdentifiers.computeIfAbsent(cacheKey,
                     k -> new Tuple.Tuple2<>(
                             Counter.builder("uid2_operator_identity_map_services_unmapped_total")
                                     .description("number of invalid identifiers passed to identity map batch endpoint by services")
                                     .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                             Tag.of("reason", "invalid"),
                                             Tag.of("service_name", serviceName),
-                                            Tag.of("service_link_name", serviceLinkName)))
+                                            Tag.of("service_link_name", serviceLinkName),
+                                            Tag.of("path", path)))
                                     .register(Metrics.globalRegistry),
                             Counter.builder("uid2_operator_identity_map_services_unmapped_total")
                                     .description("number of optout identifiers passed to identity map batch endpoint by services")
                                     .tags(Arrays.asList(Tag.of("api_contact", apiContact),
                                             Tag.of("reason", "optout"),
                                             Tag.of("service_name", serviceName),
-                                            Tag.of("service_link_name", serviceLinkName)))
+                                            Tag.of("service_link_name", serviceLinkName),
+                                            Tag.of("path", path)))
                                     .register(Metrics.globalRegistry)));
             if (invalidCount > 0) counterTuple.getItem1().increment(invalidCount);
             if (optOutCount > 0) counterTuple.getItem2().increment(optOutCount);
@@ -1441,14 +1479,14 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
     private void recordOptOutStatusEndpointStats(RoutingContext rc, int inputCount, int optOutCount) {
         String apiContact = getApiContact(rc);
-        DistributionSummary inputDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
+        DistributionSummary inputDistSummary = optOutStatusInputSizeCounters.computeIfAbsent(apiContact, k -> DistributionSummary
                 .builder("uid2_operator_optout_status_input_size")
                 .description("number of UIDs received in request")
                 .tags("api_contact", apiContact)
                 .register(Metrics.globalRegistry));
         inputDistSummary.record(inputCount);
 
-        DistributionSummary optOutDistSummary = optOutStatusCounters.computeIfAbsent(apiContact, k -> DistributionSummary
+        DistributionSummary optOutDistSummary = optOutStatusOptOutSizeCounters.computeIfAbsent(apiContact, k -> DistributionSummary
                 .builder("uid2_operator_optout_status_optout_size")
                 .description("number of UIDs that have opted out")
                 .tags("api_contact", apiContact)

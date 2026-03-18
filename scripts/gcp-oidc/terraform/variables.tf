@@ -40,7 +40,7 @@ variable "uid_operator_key_secret_name" {
 
 variable "max_replicas" {
   type    = number
-  default = 1
+  default = 5
 }
 
 variable "min_replicas" {

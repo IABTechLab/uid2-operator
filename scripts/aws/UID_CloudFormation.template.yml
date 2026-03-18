@@ -1,4 +1,3 @@
-
 AWSTemplateFormatVersion: 2010-09-09
 Description: UID 2.0 CloudFormation template
 Parameters:

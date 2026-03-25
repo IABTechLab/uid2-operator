@@ -5254,6 +5254,67 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
+    void rawEmailMetricsRecorded(Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(201, Role.GENERATOR, Role.MAPPER);
+        setupSalts();
+        setupKeys();
+
+        // /v2/token/generate — one email per characteristic being tested
+        String emailHash = TokenUtils.getIdentityHashString("hash@example.com");
+        sendTokenGenerate(vertx, new JsonObject().put("email", "john.doe@example.com"), 200, json -> {});  // dot, no plus, non-gmail
+        sendTokenGenerate(vertx, new JsonObject().put("email", "johndoe@example.com"), 200, json -> {});   // no dot, non-gmail
+        sendTokenGenerate(vertx, new JsonObject().put("email", "john.doe@gmail.com"), 200, json -> {});    // dot, gmail
+        sendTokenGenerate(vertx, new JsonObject().put("email", "john+tag@example.com"), 200, json -> {});  // plus, non-gmail
+        sendTokenGenerate(vertx, new JsonObject().put("email", "john+tag@gmail.com"), 200, json -> {});    // plus, gmail
+        sendTokenGenerate(vertx, new JsonObject().put("email", "john@example.com."), 200, json -> {});     // trailing dot
+        sendTokenGenerate(vertx, new JsonObject().put("email_hash", emailHash), 200, json -> {             // hash - should not record
+
+            // dot metric
+            assertEquals(1, Metrics.globalRegistry
+                    .get("uid2_operator_raw_email_dot_total")
+                    .tag("path", "/v2/token/generate").tag("has_dot", "true").tag("is_gmail", "false")
+                    .counter().count());
+            assertEquals(1, Metrics.globalRegistry
+                    .get("uid2_operator_raw_email_dot_total")
+                    .tag("path", "/v2/token/generate").tag("has_dot", "true").tag("is_gmail", "true")
+                    .counter().count());
+            // has_dot=false, is_gmail=false count is 3 (johndoe, john+tag@example.com, john@example.com.) — hash did not increment
+            assertEquals(3, Metrics.globalRegistry
+                    .get("uid2_operator_raw_email_dot_total")
+                    .tag("path", "/v2/token/generate").tag("has_dot", "false").tag("is_gmail", "false")
+                    .counter().count());
+
+            // plus metric
+            assertEquals(1, Metrics.globalRegistry
+                    .get("uid2_operator_raw_email_plus_total")
+                    .tag("path", "/v2/token/generate").tag("has_plus", "true").tag("is_gmail", "false")
+                    .counter().count());
+            assertEquals(1, Metrics.globalRegistry
+                    .get("uid2_operator_raw_email_plus_total")
+                    .tag("path", "/v2/token/generate").tag("has_plus", "true").tag("is_gmail", "true")
+                    .counter().count());
+
+            // trailing dot metric
+            assertEquals(1, Metrics.globalRegistry
+                    .get("uid2_operator_raw_email_trailing_dot_total")
+                    .tag("path", "/v2/token/generate").tag("has_trailing_dot", "true")
+                    .counter().count());
+
+            // /v2/identity/map — batch with two emails to verify counter reaches 2
+            JsonObject mapReq = new JsonObject().put("email", new JsonArray()
+                    .add("a.b@example.com")
+                    .add("c.d@example.com"));
+            send(vertx, "v2/identity/map", mapReq, 200, mapJson -> {
+                assertEquals(2, Metrics.globalRegistry
+                        .get("uid2_operator_raw_email_dot_total")
+                        .tag("path", "/v2/identity/map").tag("has_dot", "true").tag("is_gmail", "false")
+                        .counter().count());
+                testContext.completeNow();
+            });
+        });
+    }
+
+    @Test
     void asyncBatchRequestDisabledLogsCorrectMessage(Vertx vertx, VertxTestContext testContext) {
         // Verify that when enable_async_batch_request is false, the correct log message is emitted
         assertThat(asyncBatchRequestLogWatcher.list.stream()

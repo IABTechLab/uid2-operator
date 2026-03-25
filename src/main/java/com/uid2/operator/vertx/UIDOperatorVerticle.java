@@ -910,7 +910,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 recordTokenValidateStats(participantSiteId, "invalid_input");
                 return;
             }
-            recordRawEmailDotMetric(input, rc.request().path());
+            recordRawEmailMetrics(input, rc.request().path());
 
             final Instant now = Instant.now();
             final String token = req.getString("token");
@@ -953,7 +953,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             final InputUtil.InputVal input = this.getTokenInputV2(req);
             if (isTokenInputValid(input, rc)) {
-                recordRawEmailDotMetric(input, rc.request().path());
+                recordRawEmailMetrics(input, rc.request().path());
                 final String apiContact = getApiContact(rc);
 
                 switch (validateUserConsent(req, apiContact)) {
@@ -1010,7 +1010,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         final InputUtil.InputVal input = getTokenInputV2(req);
         final String uidTraceId = rc.request().getHeader(Audit.UID_TRACE_ID_HEADER);
         if (input != null && input.isValid()) {
-            recordRawEmailDotMetric(input, rc.request().path());
+            recordRawEmailMetrics(input, rc.request().path());
             final Instant now = Instant.now();
 
             Promise promise = Promise.promise();
@@ -1237,7 +1237,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
 
             if (v2Input.diiType().equals("email")) {
                 for (InputUtil.InputVal input : v2Input.inputList()) {
-                    recordRawEmailDotMetric(input, rc.request().path());
+                    recordRawEmailMetrics(input, rc.request().path());
                 }
             }
 
@@ -1307,7 +1307,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
             InputUtil.InputVal[] emailInputs = normalizedInput.get("email");
             if (emailInputs != null) {
                 for (InputUtil.InputVal emailInput : emailInputs) {
-                    recordRawEmailDotMetric(emailInput, rc.request().path());
+                    recordRawEmailMetrics(emailInput, rc.request().path());
                 }
             }
 
@@ -1523,19 +1523,47 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         return null;
     }
 
-    private void recordRawEmailDotMetric(InputUtil.InputVal input, String path) {
+    private void recordRawEmailMetrics(InputUtil.InputVal input, String path) {
         if (!input.isValid() || input.getInputType() != InputUtil.IdentityInputType.Raw
                 || input.getIdentityType() != IdentityType.Email) {
             return;
         }
         String provided = input.getProvided();
         int atIndex = provided.indexOf('@');
-        boolean hasDot = atIndex > 0 && provided.lastIndexOf('.', atIndex) >= 0;
         boolean isGmail = input.getNormalized().endsWith("@gmail.com");
+
+        boolean hasDot = atIndex > 0 && provided.lastIndexOf('.', atIndex) >= 0;
         Counter.builder("uid2_operator_raw_email_dot_total")
-                .description("Count of valid raw emails processed, by presence of dot before @ and gmail domain")
+                .description("Count of valid raw emails processed, by presence of dot before @")
                 .tag("path", path)
                 .tag("has_dot", String.valueOf(hasDot))
+                .tag("is_gmail", String.valueOf(isGmail))
+                .register(Metrics.globalRegistry)
+                .increment();
+
+        int plusIndex = provided.indexOf('+');
+        boolean hasPlus = plusIndex >= 0 && plusIndex < atIndex;
+        Counter.builder("uid2_operator_raw_email_plus_total")
+                .description("Count of valid raw emails processed, by presence of + before @")
+                .tag("path", path)
+                .tag("has_plus", String.valueOf(hasPlus))
+                .tag("is_gmail", String.valueOf(isGmail))
+                .register(Metrics.globalRegistry)
+                .increment();
+
+        boolean hasTrailingDot = provided.charAt(provided.length() - 1) == '.';
+        Counter.builder("uid2_operator_raw_email_trailing_dot_total")
+                .description("Count of valid raw emails processed, by presence of trailing dot at end of address")
+                .tag("path", path)
+                .tag("has_trailing_dot", String.valueOf(hasTrailingDot))
+                .register(Metrics.globalRegistry)
+                .increment();
+
+        boolean hasWhitespace = provided.strip().chars().anyMatch(Character::isWhitespace);
+        Counter.builder("uid2_operator_raw_email_whitespace_total")
+                .description("Count of valid raw emails processed, by presence of internal whitespace and gmail domain")
+                .tag("path", path)
+                .tag("has_whitespace", String.valueOf(hasWhitespace))
                 .tag("is_gmail", String.valueOf(isGmail))
                 .register(Metrics.globalRegistry)
                 .increment();

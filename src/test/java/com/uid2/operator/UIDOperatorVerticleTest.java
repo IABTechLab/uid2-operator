@@ -917,28 +917,17 @@ public class UIDOperatorVerticleTest {
     }
 
     public static void validateAdvertisingToken(String advertisingTokenString, TokenVersion tokenVersion, IdentityScope identityScope, IdentityType identityType) {
-        if (tokenVersion == TokenVersion.V2) {
-            assertEquals("Ag", advertisingTokenString.substring(0, 2));
+        assertEquals(TokenVersion.V4, tokenVersion);
+        String firstChar = advertisingTokenString.substring(0, 1);
+        if (identityScope == IdentityScope.UID2) {
+            assertEquals(identityType == IdentityType.Email ? "A" : "B", firstChar);
         } else {
-            String firstChar = advertisingTokenString.substring(0, 1);
-            if (identityScope == IdentityScope.UID2) {
-                assertEquals(identityType == IdentityType.Email ? "A" : "B", firstChar);
-            } else {
-                assertEquals(identityType == IdentityType.Email ? "E" : "F", firstChar);
-            }
-
-            String secondChar = advertisingTokenString.substring(1, 2);
-            if (tokenVersion == TokenVersion.V3) {
-                assertEquals("3", secondChar);
-            } else {
-                assertEquals("4", secondChar);
-
-                //No URL-unfriendly characters allowed:
-                assertEquals(-1, advertisingTokenString.indexOf('='));
-                assertEquals(-1, advertisingTokenString.indexOf('+'));
-                assertEquals(-1, advertisingTokenString.indexOf('/'));
-            }
+            assertEquals(identityType == IdentityType.Email ? "E" : "F", firstChar);
         }
+        assertEquals("4", advertisingTokenString.substring(1, 2));
+        assertEquals(-1, advertisingTokenString.indexOf('='));
+        assertEquals(-1, advertisingTokenString.indexOf('+'));
+        assertEquals(-1, advertisingTokenString.indexOf('/'));
     }
 
     RefreshToken decodeRefreshToken(EncryptedTokenEncoder encoder, String refreshTokenString, IdentityType identityType) {
@@ -4392,24 +4381,14 @@ public class UIDOperatorVerticleTest {
                     AdvertisingToken advertisingToken = validateAndGetToken(encoder, body, IdentityType.Email);
                     assertEquals(clientSiteId, advertisingToken.publisherIdentity.siteId);
                     //Uses a key from default keyset
-                    int clientKeyId;
-                    if (advertisingToken.version == TokenVersion.V3 || advertisingToken.version == TokenVersion.V4) {
-                        String advertisingTokenString = body.getString("advertising_token");
-                        byte[] bytes = null;
-                        if (advertisingToken.version == TokenVersion.V3) {
-                            bytes = EncodingUtils.fromBase64(advertisingTokenString);
-                        } else if (advertisingToken.version == TokenVersion.V4) {
-                            bytes = Uid2Base64UrlCoder.decode(advertisingTokenString);  //same as V3 but use Base64URL encoding
-                        }
-                        final Buffer b = Buffer.buffer(bytes);
-                        final int masterKeyId = b.getInt(2);
-
-                        final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, keysetKeyStore.getSnapshot().getKey(masterKeyId));
-                        final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
-                        clientKeyId = masterPayload.getInt(29);
-                    } else {
-                        clientKeyId = advertisingToken.publisherIdentity.clientKeyId;
-                    }
+                    assertEquals(TokenVersion.V4, advertisingToken.version);
+                    String advertisingTokenString = body.getString("advertising_token");
+                    byte[] bytes = Uid2Base64UrlCoder.decode(advertisingTokenString);
+                    final Buffer b = Buffer.buffer(bytes);
+                    final int masterKeyId = b.getInt(2);
+                    final byte[] masterPayloadBytes = AesGcm.decrypt(bytes, 6, keysetKeyStore.getSnapshot().getKey(masterKeyId));
+                    final Buffer masterPayload = Buffer.buffer(masterPayloadBytes);
+                    int clientKeyId = masterPayload.getInt(29);
                     switch (testRun) {
                         case "MultiKeysets":
                             assertEquals(1007, clientKeyId); // should encrypt with active key in default keyset

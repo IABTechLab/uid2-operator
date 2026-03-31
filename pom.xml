@@ -23,11 +23,12 @@
         <enclave-aws.version>2.1.0</enclave-aws.version>
         <enclave-azure.version>2.1.19</enclave-azure.version> 
         <enclave-gcp.version>2.1.9</enclave-gcp.version> 
-        <uid2-shared.version>11.4.12</uid2-shared.version>
+        <uid2-shared.version>11.4.16</uid2-shared.version>
         <image.version>${project.version}</image.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <java.version>21</java.version>
+        <netty.version>4.1.132.Final</netty.version>
     </properties>
 
 
@@ -44,6 +45,18 @@
             </snapshots>
         </repository>
     </repositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>

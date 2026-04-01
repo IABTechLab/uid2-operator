@@ -54,7 +54,11 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.utils.Pair;
 
 import javax.management.*;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.net.HttpURLConnection;
+import java.net.Proxy;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Clock;
@@ -128,6 +132,7 @@ public class Main {
 
         DownloadCloudStorage fsStores;
         if (coreAttestUrl != null) {
+            Main.validateCoreConnectivityAndOperatorKey(coreAttestUrl, operatorKey);
 
             var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);
             UidCoreClient coreClient = clients.getKey();
@@ -618,6 +623,67 @@ public class Main {
         }
 
         return new AttestationResponseHandler(vertx, attestationUrl, clientApiToken, operatorType, this.appVersion, attestationProvider, responseWatcher, CloudUtils.defaultProxy, this.uidInstanceIdProvider);
+    }
+
+    static void validateCoreConnectivityAndOperatorKey(String coreAttestUrl, String operatorKey) throws Exception {
+        URL attestUrl = new URL(coreAttestUrl);
+        String baseUrl = attestUrl.getProtocol() + "://" + attestUrl.getHost()
+                + (attestUrl.getPort() != -1 ? ":" + attestUrl.getPort() : "");
+        Proxy proxy = CloudUtils.defaultProxy;
+
+        // Step 1: network connectivity check
+        String healthUrl = baseUrl + "/ops/healthcheck";
+        LOGGER.info("Pre-startup: checking network connectivity to core at {}", healthUrl);
+        try {
+            HttpURLConnection conn = openConnection(healthUrl, proxy);
+            conn.setConnectTimeout(5_000);
+            conn.setReadTimeout(10_000);
+            conn.setRequestMethod("GET");
+            int status = conn.getResponseCode();
+            if (status != 200) {
+                throw new IllegalStateException(
+                        "Pre-startup: core healthcheck at " + healthUrl + " returned HTTP " + status + ". Aborting startup.");
+            }
+            LOGGER.info("Pre-startup: network connectivity check passed (HTTP {})", status);
+        } catch (IOException e) {
+            throw new IllegalStateException(
+                    "Pre-startup: cannot connect to uid2-core at " + baseUrl + ": " + e.getMessage(), e);
+        }
+
+        // Step 2: operator key validation
+        String keyCheckUrl = baseUrl + "/ops/operator_key_check";
+        LOGGER.info("Pre-startup: validating operator key at {}", keyCheckUrl);
+        try {
+            HttpURLConnection conn = openConnection(keyCheckUrl, proxy);
+            conn.setConnectTimeout(5_000);
+            conn.setReadTimeout(10_000);
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "Bearer " + operatorKey);
+            int status = conn.getResponseCode();
+            if (status == 401 || status == 403) {
+                throw new IllegalStateException(
+                        "Pre-startup: operator key validation failed (HTTP " + status + ")."
+                        + " The configured operator key is invalid or not authorized."
+                        + " Check core_api_token / secret configuration.");
+            } else if (status == 404) {
+                LOGGER.warn("Pre-startup: /ops/operator_key_check not found on core (HTTP 404)."
+                        + " Skipping key validation — ensure uid2-core is updated.");
+            } else if (status != 200) {
+                throw new IllegalStateException(
+                        "Pre-startup: operator key check returned unexpected HTTP " + status);
+            } else {
+                LOGGER.info("Pre-startup: operator key validation passed (HTTP {})", status);
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException(
+                    "Pre-startup: error during operator key validation: " + e.getMessage(), e);
+        }
+    }
+
+    private static HttpURLConnection openConnection(String url, Proxy proxy) throws IOException {
+        return proxy == null
+                ? (HttpURLConnection) new URL(url).openConnection()
+                : (HttpURLConnection) new URL(url).openConnection(proxy);
     }
 
     private IOperatorKeyRetriever createOperatorKeyRetriever() throws Exception {

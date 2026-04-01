@@ -34,3 +34,8 @@ CVE-2026-32776 exp:2026-04-25
 # See: https://github.com/aquasecurity/trivy/discussions/10412 and UID2-6806
 # This entry can be removed once Trivy fixes the typo
 CVE-2026-32767 exp:2026-04-25
+
+# libpng use-after-free and OOB read/write in Alpine base image - not used by our Java services
+# See: UID2-6837
+CVE-2026-33416 exp:2026-05-01
+CVE-2026-33636 exp:2026-05-01

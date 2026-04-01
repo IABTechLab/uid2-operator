@@ -1,6 +1,9 @@
 # sha from https://hub.docker.com/layers/library/eclipse-temurin/21-jre-alpine-3.23/images/sha256-693c22ea458d62395bac47a2da405d0d18c77b205211ceec4846a550a37684b6
 FROM eclipse-temurin@sha256:693c22ea458d62395bac47a2da405d0d18c77b205211ceec4846a550a37684b6
 
+# Upgrade libpng to fix CVE-2026-33416 and CVE-2026-33636
+RUN apk upgrade --no-cache libpng
+
 # For Amazon Corretto Crypto Provider
 RUN apk add --no-cache gcompat
 

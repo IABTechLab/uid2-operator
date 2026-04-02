@@ -51,6 +51,10 @@ class UID2ServicesUnreachableError(ConfidentialComputeStartupError):
     def __init__(self, cls, ip=None):
         super().__init__(error_name=f"E06: {self.__class__.__name__}", provider=cls, extra_message=ip)
 
+class OperatorKeyRejectedError(ConfidentialComputeStartupError):
+    def __init__(self, cls):
+        super().__init__(error_name=f"E07: {self.__class__.__name__}", provider=cls)
+
 class OperatorKeyPermissionError(ConfidentialComputeStartupError):
     def __init__(self, cls, message = None):
         super().__init__(error_name=f"E08: {self.__class__.__name__}", provider=cls, extra_message=message)
@@ -97,6 +101,30 @@ class ConfidentialCompute(ABC):
                 raise UID2ServicesUnreachableError(self.__class__.__name__, core_ip)
             except Exception as e:
                 raise UID2ServicesUnreachableError(self.__class__.__name__)
+
+        def validate_operator_key_with_service() -> None:
+            """Pre-flight check: verifies the operator key is accepted by the core service.
+            POSTs to /attest with only the Authorization header; core returns 401 for an
+            invalid key before it even inspects the attestation payload."""
+            core_url = self.configs["core_base_url"]
+            operator_key = self.configs.get("operator_key")
+            try:
+                response = requests.post(
+                    f"{core_url}/attest",
+                    headers={"Authorization": f"Bearer {operator_key}"},
+                    json={},
+                    timeout=5
+                )
+                if response.status_code == 401:
+                    logging.error(f"Operator key rejected by core service. Response: {response.text}")
+                    raise OperatorKeyRejectedError(self.__class__.__name__)
+                logging.info(f"Operator key verified with core service (HTTP {response.status_code})")
+            except OperatorKeyRejectedError:
+                raise
+            except (requests.ConnectionError, requests.Timeout) as e:
+                logging.warning(f"Could not reach core service for key pre-verification: {e}")
+            except Exception as e:
+                logging.warning(f"Unexpected error during operator key pre-verification: {e}")
             
         type_hints = get_type_hints(ConfidentialComputeConfig, include_extras=True)
         required_keys = [field for field, hint in type_hints.items() if "NotRequired" not in str(hint)]
@@ -115,6 +143,7 @@ class ConfidentialCompute(ABC):
         validate_url("optout_base_url", environment)
         validate_operator_key()
         validate_connectivity()
+        validate_operator_key_with_service()
         logging.info("Completed static validation of confidential compute config values")
         
     @abstractmethod

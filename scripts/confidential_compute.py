@@ -102,7 +102,7 @@ class ConfidentialCompute(ABC):
             except Exception as e:
                 raise UID2ServicesUnreachableError(self.__class__.__name__)
 
-        def validate_operator_key_with_service() -> None:
+        def validate_operator_key_with_core_service() -> None:
             """Pre-flight check: verifies the operator key is accepted by the core service.
             POSTs to /attest with only the Authorization header; core returns 401 for an
             invalid key before it even inspects the attestation payload."""
@@ -143,7 +143,7 @@ class ConfidentialCompute(ABC):
         validate_url("optout_base_url", environment)
         validate_operator_key()
         validate_connectivity()
-        validate_operator_key_with_service()
+        validate_operator_key_with_core_service()
         logging.info("Completed static validation of confidential compute config values")
         
     @abstractmethod

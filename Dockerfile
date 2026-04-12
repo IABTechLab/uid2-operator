@@ -2,7 +2,8 @@
 FROM eclipse-temurin@sha256:693c22ea458d62395bac47a2da405d0d18c77b205211ceec4846a550a37684b6
 
 # For Amazon Corretto Crypto Provider
-RUN apk add --no-cache gcompat
+# CVE-2026-28390: upgrade libcrypto3/libssl3 to 3.5.6-r0+ (UID2-6905)
+RUN apk add --no-cache gcompat && apk upgrade --no-cache libcrypto3 libssl3
 
 WORKDIR /app
 EXPOSE 8080

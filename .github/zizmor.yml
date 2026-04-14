@@ -1,0 +1,6 @@
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        "IABTechLab/*": ref-pin  # internal org, tag pinning is acceptable
+        "*": hash-pin            # all external actions must be SHA-pinned

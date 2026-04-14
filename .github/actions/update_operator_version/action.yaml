@@ -40,7 +40,7 @@ runs:
 
     - name: Approve Major release
       if: inputs.release_type == 'Major'
-      uses: trstringer/manual-approval@v1
+      uses: trstringer/manual-approval@74d99dff7380e3e4b122d4ededcbca2b6ce59367 # v1
       with:
         secret: ${{ github.token }}
         approvers: atarassov-ttd,vishalegbert-ttd,sunnywu,clarkxuyang
@@ -77,7 +77,7 @@ runs:
         fetch-depth: 0
 
     - name: Restore timestamps
-      uses: thetradedesk/git-restore-mtime-action@v1.3
+      uses: thetradedesk/git-restore-mtime-action@a6059d100648f8027eb1af5e6e6fd6e1328083af # v1.3
 
     - name: Set version number
       id: version

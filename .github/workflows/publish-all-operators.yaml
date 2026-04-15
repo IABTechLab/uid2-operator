@@ -43,7 +43,7 @@ jobs:
           echo "vulnerability_severity=${VULNERABILITY_SEVERITY}" >> $GITHUB_OUTPUT
       - name: Approve Major release
         if: env.RELEASE_TYPE == 'Major'
-        uses: trstringer/manual-approval@v1
+        uses: trstringer/manual-approval@74d99dff7380e3e4b122d4ededcbca2b6ce59367 # v1
         with:
           secret: ${{ github.token }}
           approvers: atarassov-ttd,vishalegbert-ttd,sunnywu,clarkxuyang
@@ -208,7 +208,7 @@ jobs:
 
       - name: Build changelog
         id: changelog
-        uses: mikepenz/release-changelog-builder-action@v4
+        uses: mikepenz/release-changelog-builder-action@32e3c96f29a6532607f638797455e9e98cfc703d # v4
         with:
           toTag: v${{ needs.start.outputs.new_version }}
           configurationJson: |
@@ -229,7 +229,7 @@ jobs:
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
       - name: Create draft release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
         with:
           name: v${{ needs.start.outputs.new_version }}
           body: ${{ steps.changelog.outputs.changelog }}
@@ -253,4 +253,4 @@ jobs:
             SLACK_MESSAGE: ':x: Operator Pipeline failed'
             SLACK_TITLE: Pipeline Failed in ${{ github.workflow }}
             SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          uses: rtCamp/action-slack-notify@v2
+          uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2

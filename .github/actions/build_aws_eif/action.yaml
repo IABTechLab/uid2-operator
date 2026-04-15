@@ -38,7 +38,7 @@ runs:
         fetch-depth: 0
 
     - name: Restore timestamps
-      uses: thetradedesk/git-restore-mtime-action@v1.3
+      uses: thetradedesk/git-restore-mtime-action@a6059d100648f8027eb1af5e6e6fd6e1328083af # v1.3
 
     - name: Free up space - delete preinstalled tools
       shell: bash

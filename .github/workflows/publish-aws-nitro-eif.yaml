@@ -180,7 +180,7 @@ jobs:
       - name: Build changelog
         id: github_release
         if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
-        uses: mikepenz/release-changelog-builder-action@v4
+        uses: mikepenz/release-changelog-builder-action@32e3c96f29a6532607f638797455e9e98cfc703d # v4
         with:
           configurationJson: |
             {
@@ -192,7 +192,7 @@ jobs:
 
       - name: Create release
         if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
         with:
           name: ${{ needs.start.outputs.new_version }}
           body: ${{ steps.github_release.outputs.changelog }}

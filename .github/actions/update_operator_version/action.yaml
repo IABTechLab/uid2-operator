@@ -13,6 +13,9 @@ inputs:
   commit_sha:
     description: The commit SHA for committing the new version for pom.xml.
     default: ''
+  github_token:
+    description: Token used to merge the PR. Defaults to GITHUB_TOKEN if empty.
+    default: ''
 
 
 outputs:
@@ -104,6 +107,7 @@ runs:
       with:
         add: 'pom.xml version.json'
         message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
+        github_token: ${{ inputs.github_token }}
 
     - name: Commit pom.xml, version.json and set tag
       id: commit-and-tag
@@ -113,6 +117,7 @@ runs:
         add: 'pom.xml version.json'
         message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
         tag: v${{ steps.version.outputs.new_version }}
+        github_token: ${{ inputs.github_token }}
 
     - name: Get value of commit_sha
       id: get-commit-sha

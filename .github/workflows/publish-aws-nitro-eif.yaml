@@ -38,6 +38,7 @@ jobs:
   start:
     name: Update Operator Version
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_protected && 'ci-auto-merge' || '' }}
     steps:
       - name: Show Context
         shell: bash
@@ -45,9 +46,9 @@ jobs:
           printenv
           echo "$GITHUB_CONTEXT"
           echo "Commit SHA:" $COMMIT_SHA
-        env: 
+        env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
-        
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -59,6 +60,7 @@ jobs:
           version_number_input: ${{ inputs.version_number_input }}
           image_tag_suffix: ${{ env.ENCLAVE_PROTOCOL }}
           commit_sha: ${{ inputs.commit_sha }}
+          github_token: ${{ github.ref_protected && secrets.GH_MERGE_TOKEN || '' }}
 
     outputs:
       new_version: ${{ steps.update_version.outputs.new_version }}

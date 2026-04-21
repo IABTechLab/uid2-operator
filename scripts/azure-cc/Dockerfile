@@ -1,6 +1,9 @@
 # sha from https://hub.docker.com/layers/library/eclipse-temurin/21-jre-alpine-3.23/images/sha256-693c22ea458d62395bac47a2da405d0d18c77b205211ceec4846a550a37684b6
 FROM eclipse-temurin@sha256:693c22ea458d62395bac47a2da405d0d18c77b205211ceec4846a550a37684b6
 
+# CVE-2026-40200: upgrade musl/musl-utils to 1.2.5-r23+; CVE-2026-28390: upgrade libcrypto3/libssl3 to 3.5.6-r0+
+RUN apk upgrade --no-cache libcrypto3 libssl3 musl musl-utils
+
 # Install necessary packages and set up virtual environment
 RUN apk update && apk add --no-cache jq python3 py3-pip && \
     python3 -m venv /venv && \

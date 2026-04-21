@@ -1,9 +1,8 @@
-# sha from https://hub.docker.com/layers/library/eclipse-temurin/21-jre-alpine-3.23/images/sha256-693c22ea458d62395bac47a2da405d0d18c77b205211ceec4846a550a37684b6
-FROM eclipse-temurin@sha256:693c22ea458d62395bac47a2da405d0d18c77b205211ceec4846a550a37684b6
+# sha from https://hub.docker.com/layers/library/eclipse-temurin/21-jre-alpine-3.23/images/sha256-ad0cdd9782db550ca7dde6939a16fd850d04e683d37d3cff79d84a5848ba6a5a
+FROM eclipse-temurin@sha256:ad0cdd9782db550ca7dde6939a16fd850d04e683d37d3cff79d84a5848ba6a5a
 
 # For Amazon Corretto Crypto Provider
-# CVE-2026-28390: upgrade libcrypto3/libssl3 to 3.5.6-r0+ (UID2-6905)
-RUN apk add --no-cache gcompat && apk upgrade --no-cache libcrypto3 libssl3 musl musl-utils
+RUN apk add --no-cache gcompat
 
 WORKDIR /app
 EXPOSE 8080

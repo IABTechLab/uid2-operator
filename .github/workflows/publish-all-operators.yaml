@@ -25,6 +25,7 @@ jobs:
   start:
     name: Start Operator Build
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_protected && 'ci-auto-merge' || '' }}
     outputs:
         new_version: ${{ steps.version.outputs.new_version }}
         commit_sha: ${{ steps.commit-and-tag.outputs.commit_sha }}
@@ -95,7 +96,8 @@ jobs:
         with:
           add: 'pom.xml version.json'
           message: 'Released ${{ env.RELEASE_TYPE }} version: ${{ steps.version.outputs.new_version }}'
-          tag: v${{ steps.version.outputs.new_version }} 
+          tag: v${{ steps.version.outputs.new_version }}
+          github_token: ${{ github.ref_protected && secrets.GH_MERGE_TOKEN || '' }}
 
   buildPublic:
     name: Public Operator

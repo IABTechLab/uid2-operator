@@ -1,8 +1,8 @@
 # sha from https://hub.docker.com/layers/library/eclipse-temurin/21-jre-alpine-3.23/images/sha256-ad0cdd9782db550ca7dde6939a16fd850d04e683d37d3cff79d84a5848ba6a5a
 FROM eclipse-temurin@sha256:ad0cdd9782db550ca7dde6939a16fd850d04e683d37d3cff79d84a5848ba6a5a
 
-# CVE-2026-33845: upgrade gnutls to 3.8.13-r0+
-RUN apk upgrade --no-cache gnutls
+# CVE-2026-33845: pin gnutls to 3.8.13-r0 (fixes DoS via DTLS zero-length record)
+RUN apk add --no-cache 'gnutls=3.8.13-r0'
 
 # For Amazon Corretto Crypto Provider
 RUN apk add --no-cache gcompat

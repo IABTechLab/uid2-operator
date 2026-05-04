@@ -141,7 +141,7 @@ jobs:
           hide-progress: true
 
       - name: Upload Trivy scan report to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
         with:
           sarif_file: 'trivy-results.sarif'
 

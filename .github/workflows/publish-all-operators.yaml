@@ -60,7 +60,7 @@ jobs:
             GITHUB_CONTEXT: ${{ toJson(github) }}
 
       - name: Check branch and release type
-        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v3
+        uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@sch-UID2-6742-update-node20-actions
         with:
           release_type: ${{ inputs.release_type }}
     
@@ -70,7 +70,7 @@ jobs:
           fetch-depth: 0
 
       - name: Scan vulnerabilities
-        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@v3
+        uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@sch-UID2-6742-update-node20-actions
         with:
           scan_severity: HIGH,CRITICAL
           failure_severity: CRITICAL
@@ -78,7 +78,7 @@ jobs:
 
       - name: Set version number
         id: version
-        uses: IABTechLab/uid2-shared-actions/actions/version_number@v3
+        uses: IABTechLab/uid2-shared-actions/actions/version_number@sch-UID2-6742-update-node20-actions
         with:
           type: ${{ env.RELEASE_TYPE }}
           branch_name: ${{ github.ref }}
@@ -92,7 +92,7 @@ jobs:
 
       - name: Commit pom.xml, version.json and set tag
         id: commit-and-tag
-        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v3
+        uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@sch-UID2-6742-update-node20-actions
         with:
           add: 'pom.xml version.json'
           message: 'Released ${{ env.RELEASE_TYPE }} version: ${{ steps.version.outputs.new_version }}'

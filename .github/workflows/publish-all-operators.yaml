@@ -161,43 +161,43 @@ jobs:
           fetch-depth: 0
 
       - name: Download public manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: public-image-*
           path: ./manifests/public_operator
 
       - name: Download GCP manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: gcp-oidc-enclave-ids-*
           path: ./manifests/gcp_oidc_operator
 
       - name: Download Azure CC manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: azure-cc-enclave-id-*
           path: ./manifests/azure_cc_operator
 
       - name: Download Azure AKS manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: azure-aks-enclave-id-*
           path: ./manifests/azure_aks_operator
 
       - name: Download EIF manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: 'aws-eif-enclave-ids-*'
           path: ./manifests/aws_eif
 
       - name: Download AWS AMI manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: 'aws-ami-ids-*'
           path: ./manifests/aws_ami
 
       - name: Download Deployment Files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: '*-deployment-files-*'
           path: ./deployment

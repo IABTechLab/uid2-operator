@@ -50,7 +50,7 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Update Operator Version
         id: update_version
@@ -74,7 +74,7 @@ jobs:
     needs: start
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
@@ -113,7 +113,7 @@ jobs:
     needs: start
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build EUID AWS EIF
         id: build_euid_eif

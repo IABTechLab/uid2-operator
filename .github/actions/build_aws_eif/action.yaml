@@ -31,7 +31,7 @@ runs:
 
   steps:
     - name: Checkout full history at commit sha ${{ inputs.commit_sha }}
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         ref: ${{ inputs.commit_sha }}
         # git-restore-mtime requires full git history. The default fetch-depth value (1) creates a shallow checkout.

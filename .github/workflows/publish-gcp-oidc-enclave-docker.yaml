@@ -73,7 +73,7 @@ jobs:
       image_tag: ${{ steps.update_version.outputs.image_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Update Operator Version
         id: update_version
@@ -101,7 +101,7 @@ jobs:
           cp scripts/confidential_compute.py ${{ env.DOCKER_CONTEXT_PATH }}/
 
       - name: Log in to the Docker container registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -117,7 +117,7 @@ jobs:
           access_token_lifetime: 300s
 
       - name: Log in to the GCP Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
           registry: ${{ env.GCP_REGISTRY }}
           username: oauth2accesstoken

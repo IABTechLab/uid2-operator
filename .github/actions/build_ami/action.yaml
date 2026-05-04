@@ -56,7 +56,7 @@ runs:
         GITHUB_CONTEXT: ${{ toJson(github) }}
 
     - name: Checkout full history
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Get EIF for Release ${{ inputs.operator_release }}
       uses: ./.github/actions/download_release_artifact

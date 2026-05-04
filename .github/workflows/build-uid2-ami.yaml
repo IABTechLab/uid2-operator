@@ -38,7 +38,7 @@ jobs:
       enclave_id: ${{ steps.buildAMI.outputs.enclave_id }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build UID2 Operator AMI
         id: buildAMI
@@ -78,7 +78,7 @@ jobs:
         enclave_id: ${{ steps.buildAMI.outputs.enclave_id }}
       steps:
         - name: Checkout repo
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
 
         - name: Pre-cleanup
           shell: bash

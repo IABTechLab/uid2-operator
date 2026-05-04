@@ -65,7 +65,7 @@ jobs:
           release_type: ${{ inputs.release_type }}
     
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -156,7 +156,7 @@ jobs:
     needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

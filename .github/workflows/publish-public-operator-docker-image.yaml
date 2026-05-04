@@ -91,7 +91,7 @@ jobs:
           echo $IMAGE > image-details/public-image-$IMAGE_TAG.json
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: public-image-${{ needs.image.outputs.image_tag }}
           path: image-details/

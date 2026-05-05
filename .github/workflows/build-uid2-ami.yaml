@@ -135,7 +135,7 @@ jobs:
           path: ./artifacts
 
       - name: Delete staging artifacts
-        uses: geekyeggo/delete-artifact@b54d29a59e55046d1f7fc8226cdda507e6b9cf62 # v5
+        uses: geekyeggo/delete-artifact@f275313e70c08f6120db482d7a6b98377786765b # v5
         with: 
           name: |
             uid2_AMI_measurement

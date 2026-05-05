@@ -14,6 +14,8 @@ CVE-2026-1584 exp:2026-08-27
 # gnutls DoS vulnerability via DTLS zero-length record - not impactful as gnutls is not used by our Java service
 # See: UID2-7008
 CVE-2026-33845 exp:2026-11-04
+# gnutls DoS vulnerability via heap buffer overflow in DTLS handshake - not impactful as gnutls is not used by our Java service
+CVE-2026-33846 exp:2026-11-05
 
 # jackson-core async parser DoS - not exploitable, services only use synchronous ObjectMapper API
 # See: UID2-6670

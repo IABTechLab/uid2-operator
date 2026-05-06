@@ -59,7 +59,7 @@ jobs:
 
   image:
     name: Image
-    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-java-to-docker-versioned.yaml@sch-UID2-6742-update-node20-actions
+    uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-java-to-docker-versioned.yaml@v3
     needs: check_major
     with:
       release_type: ${{ inputs.release_type }}

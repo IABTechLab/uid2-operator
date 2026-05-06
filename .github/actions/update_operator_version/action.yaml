@@ -37,7 +37,7 @@ runs:
   steps:
     - name: Check branch and release type
       id: checkRelease
-      uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@v3
+      uses: IABTechLab/uid2-shared-actions/actions/check_branch_and_release_type@sch-UID2-6742-update-node20-actions
       with:
         release_type: ${{ inputs.release_type }}
 
@@ -84,7 +84,7 @@ runs:
 
     - name: Set version number
       id: version
-      uses: IABTechLab/uid2-shared-actions/actions/version_number@v3
+      uses: IABTechLab/uid2-shared-actions/actions/version_number@sch-UID2-6742-update-node20-actions
       with:
         type: ${{ inputs.release_type }}
         version_number: ${{ inputs.version_number_input }}
@@ -103,7 +103,7 @@ runs:
     - name: Commit pom.xml and version.json
       id: commit-without-tag
       if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release != 'true' }}
-      uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v3
+      uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@sch-UID2-6742-update-node20-actions
       with:
         add: 'pom.xml version.json'
         message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'
@@ -112,7 +112,7 @@ runs:
     - name: Commit pom.xml, version.json and set tag
       id: commit-and-tag
       if: ${{ inputs.version_number_input == '' && steps.checkRelease.outputs.is_release == 'true' }}
-      uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@v3
+      uses: IABTechLab/uid2-shared-actions/actions/commit_pr_and_merge@sch-UID2-6742-update-node20-actions
       with:
         add: 'pom.xml version.json'
         message: 'Released ${{ inputs.release_type }} version: ${{ steps.version.outputs.new_version }}'

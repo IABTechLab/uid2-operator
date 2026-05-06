@@ -14,6 +14,9 @@ CVE-2026-1584 exp:2026-08-27
 # gnutls DoS vulnerability via DTLS zero-length record - not impactful as gnutls is not used by our Java service
 # See: UID2-7008
 CVE-2026-33845 exp:2026-11-04
+# gnutls DoS vulnerability via heap buffer overflow in DTLS handshake - not impactful as gnutls is not used by our Java service
+# See: UID2-7012
+CVE-2026-33846 exp:2026-11-05
 
 # jackson-core async parser DoS - not exploitable, services only use synchronous ObjectMapper API
 # See: UID2-6670
@@ -27,18 +30,3 @@ CVE-2026-25646 exp:2026-09-02
 # and the core libz library used by the JRE is unaffected. The zlib maintainer disputes this CVE.
 # See: UID2-6704
 CVE-2026-22184 exp:2026-09-09
-
-# libexpat NULL pointer dereference in Alpine base image - not exploitable, our Java services do not use libexpat
-# Fixed in libexpat 2.7.5, not yet available in eclipse-temurin Alpine 3.23 base image
-# See: UID2-6806
-CVE-2026-32776 exp:2026-04-25
-
-# Trivy reports CVE-2026-32776 with transposed digits (32767 instead of 32776) - this is a known Trivy bug
-# See: https://github.com/aquasecurity/trivy/discussions/10412 and UID2-6806
-# This entry can be removed once Trivy fixes the typo
-CVE-2026-32767 exp:2026-04-25
-
-# libpng use-after-free and OOB read/write in Alpine base image - not used by our Java services
-# See: UID2-6837
-CVE-2026-33416 exp:2026-05-01
-CVE-2026-33636 exp:2026-05-01

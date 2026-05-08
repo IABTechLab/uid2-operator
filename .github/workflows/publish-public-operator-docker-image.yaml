@@ -62,6 +62,10 @@ jobs:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-java-to-docker-versioned.yaml@v3
     needs: check_major
     permissions:
+      contents: write
+      security-events: write
+      packages: write
+      pull-requests: write
       id-token: write
       attestations: write
     with:

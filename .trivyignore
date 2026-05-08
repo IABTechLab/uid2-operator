@@ -8,16 +8,6 @@ CVE-2025-66293 exp:2026-06-15
 # UID2-6481
 CVE-2025-68973 exp:2026-06-15
 
-# gnutls DoS vulnerability via crafted ClientHello - not impactful as gnutls is not used by our Java service
-# See: UID2-6655
-CVE-2026-1584 exp:2026-08-27
-# gnutls DoS vulnerability via DTLS zero-length record - not impactful as gnutls is not used by our Java service
-# See: UID2-7008
-CVE-2026-33845 exp:2026-11-04
-# gnutls DoS vulnerability via heap buffer overflow in DTLS handshake - not impactful as gnutls is not used by our Java service
-# See: UID2-7012
-CVE-2026-33846 exp:2026-11-05
-
 # jackson-core async parser DoS - not exploitable, services only use synchronous ObjectMapper API
 # See: UID2-6670
 GHSA-72hv-8253-57qq exp:2026-09-01
@@ -30,3 +20,12 @@ CVE-2026-25646 exp:2026-09-02
 # and the core libz library used by the JRE is unaffected. The zlib maintainer disputes this CVE.
 # See: UID2-6704
 CVE-2026-22184 exp:2026-09-09
+
+# CVE-2026-42577 — netty-transport-native-epoll DoS via RST on half-closed TCP connection.
+# Advisory: https://github.com/netty/netty/security/advisories/GHSA-rwm7-x88c-3g2p
+# Server-side bug; netty maintainers backported the fix only to 4.2.13.Final and we run on
+# vert.x 4 / netty 4.1.x. This service sits behind authenticated load balancers (mTLS / API
+# gateway) so anonymous external attackers cannot reach the netty epoll socket directly;
+# LB-level connection limits and idle timeouts further cap the blast radius. CVSS impact is
+# Availability only (C:N/I:N/A:H). Tracking via UID2-7035; revisit on vert.x 5 migration.
+CVE-2026-42577 exp:2026-06-08

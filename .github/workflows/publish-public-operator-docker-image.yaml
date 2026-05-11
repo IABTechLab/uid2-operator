@@ -68,6 +68,7 @@ jobs:
       pull-requests: write
       id-token: write
       attestations: write
+      artifact-metadata: write
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ inputs.version_number_input }}

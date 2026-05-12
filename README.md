@@ -65,4 +65,21 @@ To check the docker image (which is what the publish-docker pipeline does), buil
 ```
 wsl trivy image <image reference>
 ```
-where `<image reference`> is the built docker image you want to scan (uid2-latest in the example above). 
+where `<image reference>` is the built docker image you want to scan (uid2-latest in the example above). 
+
+## Verifying image provenance
+
+Every non-snapshot image published by this repo's release workflow ships with a [SLSA v1.0](https://slsa.dev/spec/v1.0/) build-provenance attestation, signed by GitHub's [Sigstore](https://www.sigstore.dev/) instance via the OIDC identity of the [shared publish workflow](https://github.com/IABTechLab/uid2-shared-actions). The attestation cryptographically binds the image digest to the source commit, the signing workflow, and the runner that built it.
+
+To verify an image, install [`gh`](https://cli.github.com/) (≥ 2.49) and run:
+
+```bash
+gh attestation verify \
+  oci://ghcr.io/iabtechlab/uid2-operator:<tag> \
+  --owner IABTechLab \
+  --signer-repo IABTechLab/uid2-shared-actions
+```
+
+A successful run prints `✓ Verification succeeded!` followed by the SLSA provenance fields — including `sourceRepositoryDigest` (the source commit), `workflow.path` (the signing workflow), and the runner identity.
+
+Snapshot tags (`-SNAPSHOT` suffix) deliberately skip attestation. `gh attestation verify` returns `no attestations found` against a snapshot — that's expected.

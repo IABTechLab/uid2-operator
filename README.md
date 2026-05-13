@@ -74,11 +74,16 @@ Every non-snapshot image published by this repo's release workflow ships with a 
 To verify an image, install [`gh`](https://cli.github.com/) (≥ 2.49) and run:
 
 ```bash
-gh attestation verify \
-  oci://ghcr.io/iabtechlab/uid2-operator:<tag> \
-  --owner IABTechLab \
-  --signer-repo IABTechLab/uid2-shared-actions
+gh attestation verify oci://ghcr.io/iabtechlab/uid2-operator:<tag> --owner IABTechLab --signer-repo IABTechLab/uid2-shared-actions
 ```
+
+`<tag>` refers to the **Docker image tag** — bare semantic version, no `v` prefix (e.g. `5.70.84`). Note that the corresponding GitHub release and git tag for the same build are named with a `v` (e.g. `v5.70.84`); the registry tag drops it by OCI convention.
+
+**Where to find a tag:**
+
+- **GitHub Packages** for this repo — [`uid2-operator` package](https://github.com/IABTechLab/uid2-operator/pkgs/container/uid2-operator) lists every published image tag and its digest.
+- Or take a [release](https://github.com/IABTechLab/uid2-operator/releases) name (e.g. `v5.70.84`) and drop the leading `v`.
+- To pin to an exact manifest instead of a mutable tag, use the digest form: `oci://ghcr.io/iabtechlab/uid2-operator@sha256:<digest>` (visible on the Packages page, or via `gh api /orgs/IABTechLab/packages/container/uid2-operator/versions`).
 
 A successful run prints `✓ Verification succeeded!` followed by the SLSA provenance fields — including `sourceRepositoryDigest` (the source commit), `workflow.path` (the signing workflow), and the runner identity.
 

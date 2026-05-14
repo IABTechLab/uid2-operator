@@ -22,8 +22,16 @@ on:
     - cron: "0 0 * * *"
 
 jobs:
+  check_major:
+    name: Check if major release
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.release_type == 'Major' && 'publish-major' || '' }}
+    steps:
+      - run: echo "Major release approved"
+
   start:
     name: Start Operator Build
+    needs: check_major
     runs-on: ubuntu-latest
     environment: ${{ github.ref_protected && 'ci-auto-merge' || '' }}
     outputs:
@@ -42,15 +50,6 @@ jobs:
           echo "vulnerability_severity=${{ inputs.vulnerability_severity || (github.event_name == 'schedule' && 'CRITICAL,HIGH') }}" >> $GITHUB_ENV
           echo "release_type=${RELEASE_TYPE}" >> $GITHUB_OUTPUT
           echo "vulnerability_severity=${VULNERABILITY_SEVERITY}" >> $GITHUB_OUTPUT
-      - name: Approve Major release
-        if: env.RELEASE_TYPE == 'Major'
-        uses: trstringer/manual-approval@74d99dff7380e3e4b122d4ededcbca2b6ce59367 # v1
-        with:
-          secret: ${{ github.token }}
-          approvers: atarassov-ttd,vishalegbert-ttd,sunnywu,clarkxuyang
-          minimum-approvals: 1
-          issue-title: Creating Major version of UID2-Operator
-
       - name: Show Context
         run: |
           printenv

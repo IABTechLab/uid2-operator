@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.release_type == 'Major' && 'publish-major' || '' }}
     steps:
-      - run: echo "Major release approved"
+      - run: echo "${{ inputs.release_type == 'Major' && 'Major release approved' || 'Skipped - not a Major release' }}"
 
   image:
     name: Image

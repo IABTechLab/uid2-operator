@@ -27,7 +27,7 @@ runs:
   steps:
     - name: Get Artifact Ids
       id: get_asset_id
-      uses: actions/github-script@v7
+      uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
       with:
         github-token: ${{ inputs.github_token }}
         result-encoding: string

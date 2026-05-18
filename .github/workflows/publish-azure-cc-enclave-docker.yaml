@@ -75,7 +75,7 @@ jobs:
       tags: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Update Operator Version
         id: update_version
@@ -88,7 +88,7 @@ jobs:
           github_token: ${{ github.ref_protected && secrets.GH_MERGE_TOKEN || '' }}
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -103,7 +103,7 @@ jobs:
           cp scripts/confidential_compute.py ${{ env.DOCKER_CONTEXT_PATH }}/
 
       - name: Log in to the Docker container registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -111,14 +111,14 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ steps.update_version.outputs.image_tag }}
 
       - name: Build and export to Docker
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
           load: true
@@ -130,7 +130,7 @@ jobs:
             BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
 
       - name: Generate Trivy vulnerability scan report
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: 'sarif'
@@ -141,12 +141,12 @@ jobs:
           hide-progress: true
 
       - name: Upload Trivy scan report to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@c3f298df8c1fea2fefe20c785e6aa00f32df8260 # v4.35.3
         with:
           sarif_file: 'trivy-results.sarif'
 
       - name: Test with Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: 'table'
@@ -157,7 +157,7 @@ jobs:
 
       - name: Push to Docker
         id: push-to-docker
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
           push: true
@@ -174,7 +174,7 @@ jobs:
     needs: buildImage
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Azure CLI
         uses: ./.github/actions/install_az_cli
@@ -193,14 +193,14 @@ jobs:
           bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
 
       - name: Upload deployment artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: azure-cc-deployment-files-${{ needs.buildImage.outputs.jar_version }}
           path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Upload manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: azure-cc-enclave-id-${{ needs.buildImage.outputs.jar_version }}
           path: ${{ env.MANIFEST_OUTPUT_DIR }}
@@ -222,7 +222,7 @@ jobs:
     needs: buildImage
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Azure CLI
         uses: ./.github/actions/install_az_cli
@@ -241,14 +241,14 @@ jobs:
           bash ./scripts/azure-aks/deployment/generate-deployment-artifacts.sh
 
       - name: Upload deployment artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: azure-aks-deployment-files-${{ needs.buildImage.outputs.jar_version }}
           path: ${{ env.ARTIFACTS_OUTPUT_DIR }}
           if-no-files-found: error
 
       - name: Upload manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: azure-aks-enclave-id-${{ needs.buildImage.outputs.jar_version }}
           path: ${{ env.MANIFEST_OUTPUT_DIR }}

@@ -56,7 +56,7 @@ runs:
         GITHUB_CONTEXT: ${{ toJson(github) }}
 
     - name: Checkout full history
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Get EIF for Release ${{ inputs.operator_release }}
       uses: ./.github/actions/download_release_artifact
@@ -71,7 +71,7 @@ runs:
 
     - name: Get EIF for Run ${{ inputs.operator_run_number }}
       id: get_eif_for_run
-      uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v6
+      uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151 # v21
       if: ${{ inputs.operator_release == '' }}
       with:
         name: 'aws-${{ inputs.identity_scope }}-deployment-files-.*'
@@ -94,14 +94,14 @@ runs:
         ls ./scripts/aws/uid2-operator-ami/artifacts/ -al
 
     - name: Configure UID2 AWS credentials
-      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
       if: ${{ inputs.identity_scope == 'uid2' }}
       with:
         aws-region: ${{ inputs.uid2_aws_region }}
         role-to-assume: ${{ inputs.uid2_aws_role }}
 
     - name: Configure EUID AWS credentials
-      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
       if: ${{ inputs.identity_scope == 'euid' }}
       with:
         aws-region: ${{ inputs.euid_aws_region }}
@@ -190,7 +190,7 @@ runs:
         ls -al
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ inputs.identity_scope }}_AMI_measurement
         path: ./scripts/aws/uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt

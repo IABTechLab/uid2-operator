@@ -37,7 +37,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Build Docker Image for EKS Pod
         id: build_docker_image_uid
@@ -65,7 +65,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Build Docker Image for EKS Pod
         id: build_docker_image_euid
@@ -128,7 +128,7 @@ jobs:
           echo "Enclave ID (maybe shared by other images): " ${{ needs.buildEUIDImage.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
 
       - name: Save Manifests as build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: aws-eks-enclave-ids-${{ needs.buildUID2Image.outputs.image_tag }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests

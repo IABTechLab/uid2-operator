@@ -2,6 +2,7 @@
 
 import json
 import os
+import socket
 import time
 from typing import Dict
 import sys
@@ -25,6 +26,8 @@ class AZR(ConfidentialCompute):
     default_optout_endpoint = f"https://optout-{env_name}.uidapi.com".lower()
 
     FINAL_CONFIG = "/tmp/final-config.json"
+    SKR_HOST = "localhost"
+    SKR_PORT = 9000
 
     def __init__(self):
         super().__init__()
@@ -118,27 +121,25 @@ class AZR(ConfidentialCompute):
         self.run_command(java_command, separate_process=False)
 
     def _validate_auxiliaries(self):
-        logging.info("Waiting for sidecar ...")
-
+        # Block JVM start until SKR is accepting TCP connections on :9000.
+        # Without this, the first attestation calls race the sidecar's HTTP
+        # server warmup and Core sees BAD_PAYLOAD (signature on a
+        # half-bootstrapped MAA token).
         MAX_RETRIES = 15
-        PING_URL = "http://169.254.169.254/ping"
         delay = 1
+
+        logging.info(f"Waiting for SKR sidecar on {AZR.SKR_HOST}:{AZR.SKR_PORT} ...")
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                response = requests.get(PING_URL, timeout=5)
-                if response.status_code in [200, 204]:
-                    logging.info("Sidecar started successfully.")
+                with socket.create_connection((AZR.SKR_HOST, AZR.SKR_PORT), timeout=5):
+                    logging.info("SKR sidecar is ready.")
                     return
-                else:
-                    logging.warning(
-                        f"Attempt {attempt}: Unexpected status code {response.status_code}. Response: {response.text}"
-                    )
-            except Exception as e:
-                logging.info(f"Attempt {attempt}: Error during request - {e}")
+            except OSError as e:
+                logging.info(f"Attempt {attempt}: SKR sidecar not ready - {e}")
 
             if attempt == MAX_RETRIES:
-                raise RuntimeError(f"Unable to detect sidecar running after {MAX_RETRIES} attempts. Exiting.")
+                raise RuntimeError(f"SKR sidecar not ready after {MAX_RETRIES} attempts. Exiting.")
 
             logging.info(f"Retrying in {delay} seconds... (Attempt {attempt}/{MAX_RETRIES})")
             time.sleep(delay)
@@ -152,10 +153,13 @@ class AZR(ConfidentialCompute):
             self.validate_configuration()
         self.__create_final_config()
         self._setup_auxiliaries()
+        self._validate_auxiliaries()
         self.__run_operator()
 
     def _setup_auxiliaries(self) -> None:
-        """ setup auxiliary services are running."""
+        # No-op for Azure CC: the SKR sidecar is a separate container declared
+        # in the ARM template and started by Azure ACI alongside this one. We
+        # only need to wait for it (see _validate_auxiliaries), not start it.
         pass
 
 if __name__ == "__main__":

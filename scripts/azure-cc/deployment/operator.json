@@ -147,7 +147,7 @@
           {
             "name": "skr",
             "properties": {
-              "image": "mcr.microsoft.com/aci/skr:2.3",
+              "image": "mcr.microsoft.com/aci/skr:2.14",
               "command": [
                 "/skr.sh"
               ],

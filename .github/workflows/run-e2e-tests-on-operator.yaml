@@ -132,7 +132,7 @@ jobs:
       optout_branch: ${{ fromJson(inputs.branch).optout }}
       admin_branch: ${{ fromJson(inputs.branch).admin }}
       gcp_workload_identity_provider_id: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
-      gcp_service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      gcp_service_account: ${{ vars.GCP_E2E_SERVICE_ACCOUNT }}
       gcp_project: ${{ vars.GCP_PROJECT }}
       aws_region: ${{ fromJson(inputs.aws).region }}
       aws_ami: ${{ fromJson(inputs.aws).ami }}

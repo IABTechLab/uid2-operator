@@ -17,7 +17,7 @@ spec:
         microsoft.containerinstance.virtualnode.injectdns: "false"
     spec:
       containers:
-        - image: "mcr.microsoft.com/aci/skr:2.7"
+        - image: "mcr.microsoft.com/aci/skr:2.14"
           imagePullPolicy: Always
           name: skr
           resources:

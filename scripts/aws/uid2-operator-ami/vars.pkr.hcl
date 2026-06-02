@@ -18,10 +18,6 @@ variable "region" {
   default     = "us-east-1"
 }
 
-variable "source_ami" {
-  description = "Base AMI to build on. Pinned per region in *.pkrvars.hcl while the latest AL2023 image has the SSM session-stability regression (swi-fix-ami-timeout)."
-}
-
 variable "instance_type" {
   description = "instance type to build on"
   default     = "m5.2xlarge"

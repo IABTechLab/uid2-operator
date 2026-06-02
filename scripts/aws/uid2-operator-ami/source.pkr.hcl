@@ -1,20 +1,14 @@
 source "amazon-ebs" "linux" {
 
   # source parameters
-  # TEMPORARY PIN (swi-fix-ami-timeout): the latest AL2023 base image regressed SSM
-  # session stability, hanging the Packer build until SSM's 20-min idle timeout fires.
-  # Pinned to the last known-good base AMI (May 25 green build) per region, set in the
-  # *.pkrvars.hcl files. Revert to the most_recent filter below once the SSM connection
-  # issue is resolved.
-  source_ami = var.source_ami
-  # source_ami_filter {
-  #   filters = {
-  #     name                = "al2023-ami-2023*-x86_64"
-  #     root-device-type    = "ebs"
-  #   }
-  #   most_recent = true
-  #   owners      = ["amazon"]
-  # }
+  source_ami_filter {
+    filters = {
+      name                = "al2023-ami-2023*-x86_64"
+      root-device-type    = "ebs"
+    }
+    most_recent = true
+    owners      = ["amazon"]
+  }
 
   # disable ami creation for testing
   # skip_create_ami = true

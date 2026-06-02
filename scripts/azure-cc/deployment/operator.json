@@ -122,10 +122,6 @@
               },
               "environmentVariables": [
                 {
-                  "name": "IMAGE_NAME",
-                  "value": "IMAGE_PLACEHOLDER"
-                },
-                {
                   "name": "VAULT_NAME",
                   "value": "[parameters('vaultName')]"
                 },

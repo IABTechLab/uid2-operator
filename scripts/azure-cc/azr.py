@@ -88,7 +88,7 @@ class AZR(ConfidentialCompute):
         Fetches Image version from non-modifiable environment variable.
         """
         try:
-            return os.getenv("IMAGE_NAME")
+            return os.getenv("IMAGE_VERSION")
         except Exception as e:
             raise RuntimeError(f"Failed to fetch Azure image info: {e}")
         

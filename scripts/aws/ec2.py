@@ -72,6 +72,10 @@ DEFAULT_BASE_URLS = {
 
 class EC2(ConfidentialCompute):
 
+    # Minimum enclave resources we support
+    MIN_ENCLAVE_CPU_COUNT = 6
+    MIN_ENCLAVE_MEMORY_MB = 24576  # 24 GB
+
     def __init__(self):
         super().__init__()
 
@@ -113,11 +117,15 @@ class EC2(ConfidentialCompute):
         
     def __validate_aws_specific_config(self):
         if "enclave_memory_mb" in self.configs or "enclave_cpu_count" in self.configs:
+            """
+            Verify that CPU and Memory reserved for the enclave meet our minimum requirements.
+            Note: nitro-cli will fail if we attempt to launch an enclave larger than what the allocator reserved, hence the upper bound checks
+            """
             max_capacity = self.__get_max_capacity()
-            if self.configs.get('enclave_memory_mb') < 11000 or self.configs.get('enclave_memory_mb') > max_capacity.get('enclave_memory_mb'):
-                raise ConfigurationValueError(self.__class__.__name__, f"enclave_memory_mb must be in range 11000 and {max_capacity.get('enclave_memory_mb')}")
-            if self.configs.get('enclave_cpu_count') < 2 or self.configs.get('enclave_cpu_count') > max_capacity.get('enclave_cpu_count'):
-                raise ConfigurationValueError(self.__class__.__name__, f"enclave_cpu_count must be in range 2 and {max_capacity.get('enclave_cpu_count')}")
+            if self.configs.get('enclave_memory_mb') < self.MIN_ENCLAVE_MEMORY_MB or self.configs.get('enclave_memory_mb') > max_capacity.get('enclave_memory_mb'):
+                raise ConfigurationValueError(self.__class__.__name__, f"enclave_memory_mb must be in range {self.MIN_ENCLAVE_MEMORY_MB} and {max_capacity.get('enclave_memory_mb')}")
+            if self.configs.get('enclave_cpu_count') < self.MIN_ENCLAVE_CPU_COUNT or self.configs.get('enclave_cpu_count') > max_capacity.get('enclave_cpu_count'):
+                raise ConfigurationValueError(self.__class__.__name__, f"enclave_cpu_count must be in range {self.MIN_ENCLAVE_CPU_COUNT} and {max_capacity.get('enclave_cpu_count')}")
         
     def _set_confidential_config(self, secret_identifier: str) -> None:
         """Fetches a secret value from AWS Secrets Manager and adds defaults"""

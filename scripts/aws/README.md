@@ -41,8 +41,8 @@ UID2 Operator application reads configuration from [AWS Secrets Manager](https:/
 ```
 {
   "api_token": "<your-operator-key>",
-  "enclave_cpu_count": "6",
-  "enclave_memory_mb": "24000",
+  "enclave_cpu_count": 6,
+  "enclave_memory_mb": 24576,
   "clients_metadata_path": "https://core-integ.uidapi.com/clients/refresh",
   "salts_metadata_path": "https://core-integ.uidapi.com/salt/refresh",
   "keysets_metadata_path": "https://core-integ.uidapi.com/key/keyset/refresh",
@@ -54,7 +54,6 @@ UID2 Operator application reads configuration from [AWS Secrets Manager](https:/
 ```
 Important Notes:
 - above fields are all required
-- enclave_cpu_count/enclave_memory_mb are currently not customizable, modification to these fields will be ignored
 - `core-integ` is integration test endpoint; use `core-prod` when ready for production usage
 - you might need to replicate secret after creation to use it in other regions
 

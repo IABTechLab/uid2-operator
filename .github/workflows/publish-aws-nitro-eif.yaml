@@ -50,7 +50,7 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Update Operator Version
         id: update_version
@@ -74,7 +74,7 @@ jobs:
     needs: start
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Build UID2 AWS EIF
         id: build_uid2_eif
@@ -93,7 +93,7 @@ jobs:
           df -h
 
       - name: Save UID2 eif artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
@@ -113,7 +113,7 @@ jobs:
     needs: start
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Build EUID AWS EIF
         id: build_euid_eif
@@ -132,7 +132,7 @@ jobs:
           df -h
 
       - name: Save EUID eif artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: aws-euid-deployment-files-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
@@ -157,12 +157,12 @@ jobs:
           df -h  
 
       - name: Download UID2 artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2
 
       - name: Download EUID artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid
 
@@ -173,7 +173,7 @@ jobs:
           echo ${{ needs.buildEUIDEIF.outputs.euid_enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt
 
       - name: Save Manifests as build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: aws-eif-enclave-ids-${{ needs.start.outputs.new_version }}
           path: ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests
@@ -182,7 +182,7 @@ jobs:
       - name: Build changelog
         id: github_release
         if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
-        uses: mikepenz/release-changelog-builder-action@32e3c96f29a6532607f638797455e9e98cfc703d # v4
+        uses: mikepenz/release-changelog-builder-action@348e88fab4c37338b1e803ceb2d4a7a5db6c0833 # v6.2.2
         with:
           configurationJson: |
             {
@@ -194,7 +194,7 @@ jobs:
 
       - name: Create release
         if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           name: ${{ needs.start.outputs.new_version }}
           body: ${{ steps.github_release.outputs.changelog }}

@@ -113,7 +113,7 @@ jobs:
         with:
           token_format: access_token
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          service_account: ${{ vars.GCP_PUBLISH_SERVICE_ACCOUNT }}
           access_token_lifetime: 300s
 
       - name: Log in to the GCP Registry

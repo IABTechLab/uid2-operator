@@ -71,7 +71,7 @@ runs:
 
     - name: Get EIF for Run ${{ inputs.operator_run_number }}
       id: get_eif_for_run
-      uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v6
+      uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151 # v21
       if: ${{ inputs.operator_release == '' }}
       with:
         name: 'aws-${{ inputs.identity_scope }}-deployment-files-.*'
@@ -94,14 +94,14 @@ runs:
         ls ./scripts/aws/uid2-operator-ami/artifacts/ -al
 
     - name: Configure UID2 AWS credentials
-      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6.2.0
       if: ${{ inputs.identity_scope == 'uid2' }}
       with:
         aws-region: ${{ inputs.uid2_aws_region }}
         role-to-assume: ${{ inputs.uid2_aws_role }}
 
     - name: Configure EUID AWS credentials
-      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6.2.0
       if: ${{ inputs.identity_scope == 'euid' }}
       with:
         aws-region: ${{ inputs.euid_aws_region }}
@@ -124,7 +124,7 @@ runs:
 
     - name: Setup Packer
       id: setup-packer
-      uses: hashicorp/setup-packer@c3d53c525d422944e50ee27b840746d6522b08de # main
+      uses: hashicorp/setup-packer@3286471d6cc6756d056a0b199fea5e0becdbc189 # v3.3.0
 
     - name: Create AMI
       shell: bash

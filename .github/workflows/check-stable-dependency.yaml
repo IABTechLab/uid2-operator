@@ -1,6 +1,9 @@
 name: Check Stable Dependencies 
 on: [pull_request, workflow_dispatch]
 
+permissions:
+  contents: read
+
 jobs:
   check_dependency:
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-check-stable-dependency.yaml@v3

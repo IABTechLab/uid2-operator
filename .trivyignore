@@ -28,4 +28,10 @@ CVE-2026-22184 exp:2026-09-09
 # gateway) so anonymous external attackers cannot reach the netty epoll socket directly;
 # LB-level connection limits and idle timeouts further cap the blast radius. CVSS impact is
 # Availability only (C:N/I:N/A:H). Tracking via UID2-7035; revisit on vert.x 5 migration.
-CVE-2026-42577 exp:2026-06-08
+CVE-2026-42577 exp:2026-09-11
+
+# CVE-2026-45447 — libcrypto3 PKCS#7/S/MIME memory corruption in Alpine base image.
+# uid2-operator is a pure Java service; the JVM uses JSSE for TLS, not the native
+# libcrypto3 C library. No JNI or OpenSSL calls in source. Attack vector (malformed
+# PKCS#7/S/MIME parsing) is not reachable from this service. See: UID2-7279
+CVE-2026-45447 exp:2026-07-11

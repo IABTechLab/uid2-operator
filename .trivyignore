@@ -2,11 +2,12 @@
 # See https://aquasecurity.github.io/trivy/v0.35/docs/vulnerability/examples/filter/ 
 # for more details
 
-# UID2-6385
-CVE-2025-66293 exp:2026-06-15
-
-# UID2-6481
-CVE-2025-68973 exp:2026-06-15
+# libpng OOB read in png_image_read_composite - uid2-operator is a pure Java service
+# that never calls into libpng's simplified PNG processing API; the JVM does not use
+# libpng for image handling. Fix is available in Alpine 3.23 >= 1.6.53-r0 but the
+# pinned eclipse-temurin image has not yet been rebuilt with it (tracked alongside
+# sibling CVE-2026-25646 which shares the same base-image lag). See: UID2-6385
+CVE-2025-66293 exp:2026-09-15
 
 # jackson-core async parser DoS - not exploitable, services only use synchronous ObjectMapper API
 # See: UID2-6670

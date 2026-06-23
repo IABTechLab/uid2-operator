@@ -229,12 +229,23 @@ jobs:
           (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
 
-      - name: Create draft release
+      # Publish as a pre-release (not a draft): durable + fetchable by tag
+      # without claiming GA. The Major-release approval gate stays the
+      # check_major job above, and promoting this to Latest in the UI remains
+      # the deliberate manual GA checkpoint. See UID2-7340.
+      - name: Create pre-release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
+          # tag_name must be explicit. softprops defaults it to github.ref_name
+          # (the dispatch branch, e.g. main) — not the version tag. The draft
+          # masked this (a draft carries no tag until manually published); a
+          # published release needs the tag now or get-by-tag would still 404.
+          # The v<version> tag already exists (pushed by the start job). UID2-7340.
+          tag_name: v${{ needs.start.outputs.new_version }}
           name: v${{ needs.start.outputs.new_version }}
           body: ${{ steps.changelog.outputs.changelog }}
-          draft: true
+          draft: false
+          prerelease: true
           files: |
               ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip
               ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip

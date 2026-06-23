@@ -236,6 +236,12 @@ jobs:
       - name: Create pre-release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
+          # tag_name must be explicit. softprops defaults it to github.ref_name
+          # (the dispatch branch, e.g. main) — not the version tag. The draft
+          # masked this (a draft carries no tag until manually published); a
+          # published release needs the tag now or get-by-tag would still 404.
+          # The v<version> tag already exists (pushed by the start job). UID2-7340.
+          tag_name: v${{ needs.start.outputs.new_version }}
           name: v${{ needs.start.outputs.new_version }}
           body: ${{ steps.changelog.outputs.changelog }}
           draft: false

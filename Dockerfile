@@ -1,8 +1,8 @@
-# sha from https://hub.docker.com/layers/library/eclipse-temurin/21-jre-alpine-3.23/images/sha256-704db3c40204a44f471191446ddd9cda5d60dab40f0e15c6507b815ed897238b
-FROM eclipse-temurin@sha256:704db3c40204a44f471191446ddd9cda5d60dab40f0e15c6507b815ed897238b
+# sha from https://hub.docker.com/layers/library/eclipse-temurin/21-jre-alpine-3.23/images/sha256-3f08b13888f595cc49edabea7250ba69499ba25602b267da591720769400e08c
+FROM eclipse-temurin@sha256:3f08b13888f595cc49edabea7250ba69499ba25602b267da591720769400e08c
 
 # For Amazon Corretto Crypto Provider
-RUN apk add --no-cache --upgrade gcompat libexpat
+RUN apk add --no-cache gcompat
 
 WORKDIR /app
 EXPOSE 8080

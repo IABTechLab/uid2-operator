@@ -44,3 +44,11 @@ CVE-2026-45447 exp:2026-07-11
 # See: UID2-7364
 CVE-2026-54512 exp:2026-07-25
 CVE-2026-54513 exp:2026-07-25
+
+# CVE-2026-2100 — p11-kit NULL dereference via C_DeriveKey in the Alpine base image.
+# uid2-operator is a pure Java service; the JVM uses JSSE for TLS and the bundled Java cacerts keystore for trust — it does
+# not load the native p11-kit PKCS#11 module loader and never calls C_DeriveKey, so the
+# vulnerable code path is not reachable. Fixed in Alpine v3.23 >= 0.26.2-r0 but the pinned
+# eclipse-temurin base image has not yet been rebuilt with it.
+# See: UID2-7376
+CVE-2026-2100 exp:2026-09-01

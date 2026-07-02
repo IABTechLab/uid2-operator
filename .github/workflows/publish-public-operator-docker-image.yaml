@@ -55,15 +55,6 @@ on:
         description: The tag used to describe the image in Docker
         value: ${{ jobs.Image.outputs.image_tag }}
 
-# Serialize with publish-all-operators' version bump: its `start` job shares this
-# group. A standalone Patch/Minor/Major dispatch on main and the scheduled
-# full-train both commit a pom bump + push v<version>, so one group per ref keeps
-# them from racing into a push conflict / duplicate-tag failure. cancel-in-progress
-# is false so an in-flight bump/release is queued behind, never killed.
-concurrency:
-  group: operator-version-bump-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   check_major:
     name: Check if major release
@@ -85,6 +76,18 @@ jobs:
     name: Image
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-java-to-docker-versioned.yaml@v3
     needs: check_major
+    # Job-level (not workflow-level) so the lock covers only this job's version
+    # bump + tag push, not the e2e/artifact-collection jobs that follow — those
+    # don't touch pom.xml/tags and shouldn't extend the hold time. Shares the
+    # group with publish-all-operators' `start` job. cancel-in-progress is false
+    # so an in-flight bump/release is queued rather than killed, though only one
+    # waiter deep: a third concurrent trigger cancels the queued second one
+    # (GitHub Actions concurrency semantics, not specific to this workflow) —
+    # notifyFailure's cancelled() check in publish-all-operators.yaml is the
+    # backstop if that happens.
+    concurrency:
+      group: operator-version-bump-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       contents: write
       security-events: write

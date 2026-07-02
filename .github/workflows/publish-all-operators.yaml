@@ -106,6 +106,7 @@ jobs:
       release_type: ${{ needs.start.outputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
       vulnerability_severity: ${{ needs.start.outputs.vulnerability_severity }}
+      force_release: 'no' # The createRelease job below publishes the single combined Release; the component build must not.
     secrets: inherit
 
   buildGCP:

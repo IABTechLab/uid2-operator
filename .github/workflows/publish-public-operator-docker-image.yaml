@@ -22,6 +22,14 @@ on:
         - CRITICAL,HIGH
         - CRITICAL,HIGH,MEDIUM
         - CRITICAL (DO NOT use if JIRA ticket not raised)
+      force_release:
+        description: "Create a GitHub Release for this build. 'branch' (default) releases only Patch/Minor/Major builds on the default or a release branch; 'no' skips; 'yes' forces a release regardless of branch."
+        type: choice
+        default: branch
+        options:
+        - branch
+        - "no"
+        - "yes"
 
   workflow_call:
     inputs:
@@ -37,6 +45,10 @@ on:
         description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised. Must be one of ['CRITICAL', 'CRITICAL,HIGH' or 'CRITICAL,HIGH,MEDIUM'] (without space in between).
         type: string
         default: 'CRITICAL,HIGH'
+      force_release:
+        description: Whether the shared build should publish a GitHub Release. The parent publish-all-operators passes 'no' because it creates the combined Release itself.
+        type: string
+        default: 'no'
 
     outputs:
       image_tag:
@@ -66,7 +78,7 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ inputs.version_number_input }}
-      force_release: 'no' # Do not create a release for the component builds, will be created by the parent
+      force_release: ${{ inputs.force_release }} # Standalone dispatch: 'branch' default releases main builds. From publish-all-operators: 'no' (parent creates the combined Release).
       vulnerability_severity: ${{ inputs.vulnerability_severity }}
       java_version: 21
       merge_environment: ${{ github.ref_protected && 'ci-auto-merge' || '' }}

@@ -268,7 +268,12 @@ jobs:
   notifyFailure:
       name: Notify Slack on Failure
       runs-on: ubuntu-latest
-      if: failure() && github.ref == 'refs/heads/main'
+      # cancelled() catches the case where a needed job (e.g. buildPublic's
+      # image job) loses the operator-version-bump-* concurrency group to a
+      # concurrent standalone dispatch and gets evicted — that surfaces as
+      # "cancelled", not "failure", and failure() alone would miss it, silently
+      # reintroducing the no-Release gap this workflow exists to close.
+      if: (failure() || cancelled()) && github.ref == 'refs/heads/main'
       needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI, createRelease]
       steps:
         - name: Send Slack Alert

@@ -23,7 +23,7 @@ on:
         - CRITICAL,HIGH,MEDIUM
         - CRITICAL (DO NOT use if JIRA ticket not raised)
       force_release:
-        description: "Create a GitHub Release for this build. 'branch' (default) releases only Patch/Minor/Major builds on the default or a release branch; 'no' skips; 'yes' forces a release regardless of branch."
+        description: "Create a GitHub Release for this build. 'branch' (default) releases only Patch/Minor/Major builds on the default or a release branch; 'no' skips; 'yes' forces regardless of branch. NOTE: a Patch/Minor/Major dispatch on main commits a version bump + pushes the v<version> tag to main and publishes a public-operator-only pre-release (private-operator images for that version are not built here)."
         type: choice
         default: branch
         options:

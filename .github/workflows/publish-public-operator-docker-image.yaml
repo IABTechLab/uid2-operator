@@ -22,6 +22,14 @@ on:
         - CRITICAL,HIGH
         - CRITICAL,HIGH,MEDIUM
         - CRITICAL (DO NOT use if JIRA ticket not raised)
+      force_release:
+        description: "Create a GitHub Release for this build. 'branch' (default) releases only Patch/Minor/Major builds on the default or a release branch; 'no' skips; 'yes' forces regardless of branch. NOTE: a Patch/Minor/Major dispatch on main commits a version bump + pushes the v<version> tag to main and publishes a public-operator-only pre-release (private-operator images for that version are not built here)."
+        type: choice
+        default: branch
+        options:
+        - branch
+        - "no"
+        - "yes"
 
   workflow_call:
     inputs:
@@ -37,6 +45,10 @@ on:
         description: The severity to fail the workflow if such vulnerability is detected. DO NOT override it unless a Jira ticket is raised. Must be one of ['CRITICAL', 'CRITICAL,HIGH' or 'CRITICAL,HIGH,MEDIUM'] (without space in between).
         type: string
         default: 'CRITICAL,HIGH'
+      force_release:
+        description: Whether the shared build should publish a GitHub Release. The parent publish-all-operators passes 'no' because it creates the combined Release itself.
+        type: string
+        default: 'no'
 
     outputs:
       image_tag:
@@ -49,12 +61,33 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.release_type == 'Major' && 'publish-major' || '' }}
     steps:
+      # check_branch_and_release_type sets IS_RELEASE=true unconditionally for
+      # force_release='yes', with no release_type check — so without this guard
+      # a Snapshot dispatch could be forced into a GitHub Release/tag, which the
+      # rest of this PR's safety reasoning assumes is impossible.
+      - name: Reject Snapshot + forced release
+        if: ${{ inputs.release_type == 'Snapshot' && inputs.force_release == 'yes' }}
+        run: |
+          echo "::error::force_release=yes cannot be combined with release_type=Snapshot — this would publish a Snapshot GitHub Release/tag."
+          exit 1
       - run: echo "${{ inputs.release_type == 'Major' && 'Major release approved' || 'Skipped - not a Major release' }}"
 
   image:
     name: Image
     uses: IABTechLab/uid2-shared-actions/.github/workflows/shared-publish-java-to-docker-versioned.yaml@v3
     needs: check_major
+    # Job-level (not workflow-level) so the lock covers only this job's version
+    # bump + tag push, not the e2e/artifact-collection jobs that follow — those
+    # don't touch pom.xml/tags and shouldn't extend the hold time. Shares the
+    # group with publish-all-operators' `start` job. cancel-in-progress is false
+    # so an in-flight bump/release is queued rather than killed, though only one
+    # waiter deep: a third concurrent trigger cancels the queued second one
+    # (GitHub Actions concurrency semantics, not specific to this workflow) —
+    # notifyFailure's cancelled() check in publish-all-operators.yaml is the
+    # backstop if that happens.
+    concurrency:
+      group: operator-version-bump-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       contents: write
       security-events: write
@@ -66,7 +99,7 @@ jobs:
     with:
       release_type: ${{ inputs.release_type }}
       version_number_input: ${{ inputs.version_number_input }}
-      force_release: 'no' # Do not create a release for the component builds, will be created by the parent
+      force_release: ${{ inputs.force_release }} # Standalone dispatch: 'branch' default releases main builds. From publish-all-operators: 'no' (parent creates the combined Release).
       vulnerability_severity: ${{ inputs.vulnerability_severity }}
       java_version: 21
       merge_environment: ${{ github.ref_protected && 'ci-auto-merge' || '' }}

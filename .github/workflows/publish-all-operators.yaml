@@ -33,6 +33,13 @@ jobs:
     name: Start Operator Build
     needs: check_major
     runs-on: ubuntu-latest
+    # Job-level (not workflow-level) so the lock frees when `start` completes,
+    # before buildPublic runs — sharing this group with publish-public-operator
+    # at the workflow level would otherwise deadlock the reusable call. Serializes
+    # this train's version bump against a standalone public-operator dispatch.
+    concurrency:
+      group: operator-version-bump-${{ github.ref }}
+      cancel-in-progress: false
     environment: ${{ github.ref_protected && 'ci-auto-merge' || '' }}
     outputs:
         new_version: ${{ steps.version.outputs.new_version }}
@@ -106,6 +113,7 @@ jobs:
       release_type: ${{ needs.start.outputs.release_type }}
       version_number_input: ${{ needs.start.outputs.new_version }}
       vulnerability_severity: ${{ needs.start.outputs.vulnerability_severity }}
+      force_release: 'no' # The createRelease job below publishes the single combined Release; the component build must not.
     secrets: inherit
 
   buildGCP:
@@ -151,7 +159,11 @@ jobs:
   createRelease:
     name: Create Release
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    # Also publish on scheduled builds, not just manual dispatch: the deployed
+    # operator versions may come from the daily scheduled run, so
+    # the uid2-deployment pre-deploy release gate won't hard-block
+    # any deploy/rollback of a version due to not having a release.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
     steps:
       - name: Checkout repo
@@ -256,8 +268,13 @@ jobs:
   notifyFailure:
       name: Notify Slack on Failure
       runs-on: ubuntu-latest
-      if: failure() && github.ref == 'refs/heads/main'
-      needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
+      # cancelled() catches the case where a needed job (e.g. buildPublic's
+      # image job) loses the operator-version-bump-* concurrency group to a
+      # concurrent standalone dispatch and gets evicted — that surfaces as
+      # "cancelled", not "failure", and failure() alone would miss it, silently
+      # reintroducing the no-Release gap this workflow exists to close.
+      if: (failure() || cancelled()) && github.ref == 'refs/heads/main'
+      needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI, createRelease]
       steps:
         - name: Send Slack Alert
           env:

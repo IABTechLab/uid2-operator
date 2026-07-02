@@ -70,6 +70,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.release_type == 'Major' && 'publish-major' || '' }}
     steps:
+      # check_branch_and_release_type sets IS_RELEASE=true unconditionally for
+      # force_release='yes', with no release_type check — so without this guard
+      # a Snapshot dispatch could be forced into a GitHub Release/tag, which the
+      # rest of this PR's safety reasoning assumes is impossible.
+      - name: Reject Snapshot + forced release
+        if: ${{ inputs.release_type == 'Snapshot' && inputs.force_release == 'yes' }}
+        run: |
+          echo "::error::force_release=yes cannot be combined with release_type=Snapshot — this would publish a Snapshot GitHub Release/tag."
+          exit 1
       - run: echo "${{ inputs.release_type == 'Major' && 'Major release approved' || 'Skipped - not a Major release' }}"
 
   image:

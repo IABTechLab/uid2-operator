@@ -160,11 +160,9 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     # Also publish on scheduled builds, not just manual dispatch: the deployed
-    # operator versions come from the daily scheduled run, so gating this on
-    # workflow_dispatch left those versions tagged but with no GitHub Release.
-    # The uid2-deployment pre-deploy release gate (UID2-6767) then hard-blocks
-    # any deploy/rollback of such a version. Scheduled runs are always
-    # release_type 'patch' (never Snapshot), so no Snapshot-release edge case.
+    # operator versions may come from the daily scheduled run, so
+    # the uid2-deployment pre-deploy release gate won't hard-block
+    # any deploy/rollback of a version due to not having a release.
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     needs: [start, buildPublic, buildGCP, buildAzure, buildAWS, buildAMI]
     steps:

@@ -55,6 +55,15 @@ on:
         description: The tag used to describe the image in Docker
         value: ${{ jobs.Image.outputs.image_tag }}
 
+# Serialize with publish-all-operators' version bump: its `start` job shares this
+# group. A standalone Patch/Minor/Major dispatch on main and the scheduled
+# full-train both commit a pom bump + push v<version>, so one group per ref keeps
+# them from racing into a push conflict / duplicate-tag failure. cancel-in-progress
+# is false so an in-flight bump/release is queued behind, never killed.
+concurrency:
+  group: operator-version-bump-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   check_major:
     name: Check if major release

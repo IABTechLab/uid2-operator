@@ -33,6 +33,13 @@ jobs:
     name: Start Operator Build
     needs: check_major
     runs-on: ubuntu-latest
+    # Job-level (not workflow-level) so the lock frees when `start` completes,
+    # before buildPublic runs — sharing this group with publish-public-operator
+    # at the workflow level would otherwise deadlock the reusable call. Serializes
+    # this train's version bump against a standalone public-operator dispatch.
+    concurrency:
+      group: operator-version-bump-${{ github.ref }}
+      cancel-in-progress: false
     environment: ${{ github.ref_protected && 'ci-auto-merge' || '' }}
     outputs:
         new_version: ${{ steps.version.outputs.new_version }}

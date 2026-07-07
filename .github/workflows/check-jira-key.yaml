@@ -1,0 +1,16 @@
+name: Check Jira Key
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  # Job name pinned to `check_jira_key` so every gated repo yields the same status-check context
+  # for a single terraform required_status_checks entry (UID2-7426).
+  check_jira_key:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: IABTechLab/uid2-shared-actions/actions/check_jira_key@v3

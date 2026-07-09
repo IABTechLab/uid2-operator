@@ -52,3 +52,13 @@ CVE-2026-54513 exp:2026-07-25
 # eclipse-temurin base image has not yet been rebuilt with it.
 # See: UID2-7376
 CVE-2026-2100 exp:2026-09-01
+
+# CVE-2026-56131 / CVE-2026-56407 / CVE-2026-56408 — libexpat stack exhaustion / integer overflows
+# in the Alpine base image. uid2-operator is a pure Java service; the JVM parses XML via the built-in
+# JAXP/Xerces implementation, not the native libexpat C library, and there are no JNI bindings or
+# native deps that call into libexpat, so the crafted-XML attack path is not reachable. Fixed in
+# Alpine v3.23 libexpat >= 2.8.2-r0; the pinned eclipse-temurin base image has not yet been rebuilt with it.
+# See: UID2-7456
+CVE-2026-56131 exp:2026-08-09
+CVE-2026-56407 exp:2026-08-09
+CVE-2026-56408 exp:2026-08-09

@@ -172,6 +172,10 @@ public class UIDOperatorVerticleTest {
             asyncBatchRequestLogWatcher.start();
             ((Logger) LoggerFactory.getLogger(UIDOperatorVerticle.class)).addAppender(asyncBatchRequestLogWatcher);
         }
+        if (testInfo.getTestMethod().isPresent() &&
+                testInfo.getTestMethod().get().getName().equals("optOutStatusRequestWithAsyncBatchEnabled")) {
+            config.put(Const.Config.EnableAsyncBatchRequestProp, true);
+        }
         when(configStore.getConfig()).thenAnswer(x -> runtimeConfig);
 
         this.uidInstanceIdProvider = new UidInstanceIdProvider("test-instance", "id");
@@ -2304,6 +2308,28 @@ public class UIDOperatorVerticleTest {
                 long expectedTimestamp = Instant.ofEpochSecond(optedOutIds.get(advertisingId)).toEpochMilli();
                 assertEquals(expectedTimestamp, optOutObject.getLong("opted_out_since"));
             }
+            testContext.completeNow();
+        });
+    }
+
+    @Test
+    void optOutStatusRequestWithAsyncBatchEnabled(Vertx vertx, VertxTestContext testContext) {
+        fakeAuth(126, Role.MAPPER);
+        setupKeys();
+        setupSalts(true);
+
+        String rawUid = "qAmIGxqLk_RhOtm4f1nLlqYewqSma8fgvjEXYnQ3Jr0K";
+        long optedOutSince = Instant.now().minus(1, DAYS).getEpochSecond();
+        when(this.optOutStore.getOptOutTimestampByAdId(rawUid)).thenReturn(optedOutSince);
+
+        JsonObject requestJson = new JsonObject();
+        requestJson.put("advertising_ids", new JsonArray().add(rawUid));
+
+        send(vertx, "v2/optout/status", requestJson, 200, respJson -> {
+            assertEquals("success", respJson.getString("status"));
+            JsonArray optOutJsonArray = respJson.getJsonObject("body").getJsonArray("opted_out");
+            assertEquals(1, optOutJsonArray.size());
+            assertEquals(rawUid, optOutJsonArray.getJsonObject(0).getString("advertising_id"));
             testContext.completeNow();
         });
     }

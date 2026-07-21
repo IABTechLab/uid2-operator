@@ -120,7 +120,24 @@ public class V2RequestUtilTest {
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("dGVzdA==", null, clock);
 
-        assertEquals("Invalid body: Body too short. Check encryption method.", res.errorMessage);
+        assertThat(res.errorMessage).startsWith("Invalid body: Body too short. Check encryption method.");
+        assertThat(res.errorMessage).contains("gs-encryption-decryption");
+    }
+
+    @Test
+    public void testParseRequestWithVersionMismatch() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // Base64 of plain (unencrypted) JSON long enough to pass the length check but whose first byte
+        // is not the expected envelope version byte - this is what a raw curl-with-base64 request produces.
+        String plainJsonBase64 = java.util.Base64.getEncoder().encodeToString(
+                "{\"email_hash\":\"tMmiiTI7IaAcPpQPFQ65uMVCWH8av9jw4cwf/F5HVRQ=\",\"version\":2}"
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(plainJsonBase64, null, clock);
+
+        assertThat(res.errorMessage).startsWith("Invalid body: Version mismatch.");
+        assertThat(res.errorMessage).contains("gs-encryption-decryption");
     }
 
     @Test

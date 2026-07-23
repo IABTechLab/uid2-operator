@@ -49,7 +49,8 @@ public class V2RequestUtil {
     // version: 1 byte, IV: 12 bytes, GCM tag: 16 bytes, timestamp: 8 bytes, nonce: 8 bytes
     private static final int MIN_PAYLOAD_LENGTH = 1 + AesGcm.GCM_IV_LENGTH + AesGcm.GCM_AUTHTAG_LENGTH + 8 + 8;
 
-    private static final byte VERSION = 1;
+    // The version byte of the encrypted request envelope format, not an operator or API version
+    private static final byte ENVELOPE_FORMAT_VERSION = 1;
 
     public static final int V2_REFRESH_PAYLOAD_LENGTH = 388;
     public static final long V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES = 1;
@@ -148,11 +149,13 @@ public class V2RequestUtil {
             return new V2Request("Invalid body: Body too short. Check encryption method.");
         }
 
-        if (bodyBytes[0] != VERSION) {
+        if (bodyBytes[0] != ENVELOPE_FORMAT_VERSION) {
             if (isUnencryptedJson(bodyBytes)) {
                 return new V2Request(unencryptedJsonErrorMessage(identityScope));
             }
-            return new V2Request("Invalid body: Version mismatch.");
+            return new V2Request(String.format(
+                    "Invalid body: Invalid request envelope format version: received %d, must be %d.",
+                    Byte.toUnsignedInt(bodyBytes[0]), ENVELOPE_FORMAT_VERSION));
         }
 
         byte[] decryptedBody;

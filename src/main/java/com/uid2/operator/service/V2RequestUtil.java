@@ -104,30 +104,26 @@ public class V2RequestUtil {
             } else {
                 RoutingContextReader rcReader = new RoutingContextReader(rc);
 
-                // If the binary request is invalid, fall back to the base64 interpretation. A binary
-                // envelope can never be valid base64 (its first byte is the 0x01 version byte, not a
-                // base64 character), so base64-decodability decides which interpretation of the body
-                // is authoritative.
+                // Attempt to decode as Bas64
                 String bodyString = rc.body().asString();
                 byte[] decoded = bodyString == null ? null : tryDecodeBase64(bodyString);
                 if (decoded == null) {
-                    // TODO: Delete this log line after fix is verified
-                    LOGGER.info("Fallback failed for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
-
                     // The body was truly binary; keep the binary parse error
+                    // TODO: Delete this log line after fix is verified
+                    LOGGER.info("Fallback skipped, body is not base64, for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
                     return requestAsBuffer;
                 }
 
                 V2Request requestAsString = parseRequestCommon(decoded, ck, clock, identityScope);
                 if (requestAsString.isValid()) {
                     // TODO: Delete this log line after fix is verified
-                    LOGGER.info("Fallback successful for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
+                    LOGGER.info("Fallback successful, body parsed as base64, for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
 
                     // If the base64 request is valid, set the request content type to text/plain, use the base64 request string
                     rc.request().headers().set(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType());
                 } else {
                     // TODO: Delete this log line after fix is verified
-                    LOGGER.info("Fallback failed for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
+                    LOGGER.info("Fallback failed, base64-decoded body is not a valid envelope, for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
                 }
                 return requestAsString;
             }

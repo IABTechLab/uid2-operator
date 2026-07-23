@@ -56,9 +56,29 @@ public class V2RequestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
-    public static V2Request parseRequest(RoutingContext rc, ClientKey ck, IClock clock) {
+    // Returned when the request body is plain JSON: the caller skipped the encryption step and sent
+    // (possibly base64-encoded) unencrypted JSON instead of an encrypted request envelope.
+    public static String unencryptedJsonErrorMessage(IdentityScope identityScope) {
+        String docsHost = identityScope == IdentityScope.EUID ? "https://euid.eu" : "https://unifiedid.com";
+        return "Invalid body: The request body is unencrypted JSON. It must be an encrypted request envelope;"
+                + " base64-encoding the JSON without encrypting it first is not sufficient. See "
+                + docsHost + "/docs/getting-started/gs-encryption-decryption#encryption-and-decryption-code-examples"
+                + " for encryption and decryption code examples.";
+    }
+
+    // Only called after envelope parsing has already failed; an encrypted envelope never parses as JSON.
+    private static boolean isUnencryptedJson(byte[] bytes) {
+        try {
+            new JsonObject(new String(bytes, StandardCharsets.UTF_8));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static V2Request parseRequest(RoutingContext rc, ClientKey ck, IClock clock, IdentityScope identityScope) {
         if (rc.request().headers().contains(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType(), true)) {
-            V2Request requestAsBuffer = V2RequestUtil.parseRequestAsBuffer(rc.body().buffer(), ck, clock);
+            V2Request requestAsBuffer = V2RequestUtil.parseRequestAsBuffer(rc.body().buffer(), ck, clock, identityScope);
 
             if (requestAsBuffer.isValid()) {
                 // If the binary request is valid, use the binary request buffer
@@ -67,7 +87,7 @@ public class V2RequestUtil {
                 RoutingContextReader rcReader = new RoutingContextReader(rc);
 
                 // If the binary request is invalid, try to parse it as a base64 encoded string
-                V2Request requestAsString = V2RequestUtil.parseRequestAsString(rc.body().asString(), ck, clock);
+                V2Request requestAsString = V2RequestUtil.parseRequestAsString(rc.body().asString(), ck, clock, identityScope);
                 if (requestAsString.isValid()) {
                     // TODO: Delete this log line after fix is verified
                     LOGGER.info("Fallback successful for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
@@ -84,19 +104,19 @@ public class V2RequestUtil {
                 }
             }
         } else {
-            return V2RequestUtil.parseRequestAsString(rc.body().asString(), ck, clock);
+            return V2RequestUtil.parseRequestAsString(rc.body().asString(), ck, clock, identityScope);
         }
     }
 
-    public static V2Request parseRequestAsBuffer(Buffer bodyBuffer, ClientKey ck, IClock clock) {
+    public static V2Request parseRequestAsBuffer(Buffer bodyBuffer, ClientKey ck, IClock clock, IdentityScope identityScope) {
         if (bodyBuffer == null) {
             return new V2Request("Invalid body: Body is missing.");
         }
-        return parseRequestCommon(bodyBuffer.getBytes(), ck, clock);
+        return parseRequestCommon(bodyBuffer.getBytes(), ck, clock, identityScope);
     }
 
     // clock is passed in to test V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES in unit tests
-    public static V2Request parseRequestAsString(String bodyString, ClientKey ck, IClock clock) {
+    public static V2Request parseRequestAsString(String bodyString, ClientKey ck, IClock clock, IdentityScope identityScope) {
         if (bodyString == null) {
             return new V2Request("Invalid body: Body is missing.");
         }
@@ -104,12 +124,15 @@ public class V2RequestUtil {
         try {
             bodyBytes = Utils.decodeBase64String(bodyString);
         } catch (IllegalArgumentException ex) {
+            if (isUnencryptedJson(bodyString.getBytes(StandardCharsets.UTF_8))) {
+                return new V2Request(unencryptedJsonErrorMessage(identityScope));
+            }
             return new V2Request("Invalid body: Body is not valid base64.");
         }
-        return parseRequestCommon(bodyBytes, ck, clock);
+        return parseRequestCommon(bodyBytes, ck, clock, identityScope);
     }
 
-    private static V2Request parseRequestCommon(byte[] bodyBytes, ClientKey ck, IClock clock) {
+    private static V2Request parseRequestCommon(byte[] bodyBytes, ClientKey ck, IClock clock, IdentityScope identityScope) {
         // Payload envelop format:
         //  byte 0: version
         //  byte 1-12: GCM IV
@@ -119,10 +142,16 @@ public class V2RequestUtil {
         }
 
         if (bodyBytes.length < MIN_PAYLOAD_LENGTH) {
+            if (isUnencryptedJson(bodyBytes)) {
+                return new V2Request(unencryptedJsonErrorMessage(identityScope));
+            }
             return new V2Request("Invalid body: Body too short. Check encryption method.");
         }
 
         if (bodyBytes[0] != VERSION) {
+            if (isUnencryptedJson(bodyBytes)) {
+                return new V2Request(unencryptedJsonErrorMessage(identityScope));
+            }
             return new V2Request("Invalid body: Version mismatch.");
         }
 

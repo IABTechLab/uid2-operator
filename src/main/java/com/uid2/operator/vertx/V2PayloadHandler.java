@@ -49,7 +49,7 @@ public class V2PayloadHandler {
             passThrough(rc, apiHandler);
             return;
         }
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock(), identityScope);
 
         if (!request.isValid()) {
             ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
@@ -68,7 +68,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock(), identityScope);
         if (!request.isValid()) {
             ResponseUtil.LogInfoAndSend400Response(rc, request.errorMessage);
             return;
@@ -86,7 +86,7 @@ public class V2PayloadHandler {
             return;
         }
 
-        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock());
+        V2RequestUtil.V2Request request = V2RequestUtil.parseRequest(rc, AuthMiddleware.getAuthClient(ClientKey.class, rc), new InstantClock(), identityScope);
         if (!request.isValid()) {
             SendClientErrorResponseAndRecordStats(ResponseUtil.ResponseStatus.ClientError, 400, rc, request.errorMessage, null, TokenResponseStatsCollector.Endpoint.GenerateV2, TokenResponseStatsCollector.ResponseStatus.BadPayload, siteProvider, TokenResponseStatsCollector.PlatformType.Other);
             return;

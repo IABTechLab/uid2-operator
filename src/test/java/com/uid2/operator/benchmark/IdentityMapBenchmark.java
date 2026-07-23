@@ -138,7 +138,7 @@ public class IdentityMapBenchmark {
     @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
     @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
     public void decompressionBenchmarkingBinary(PayloadState state, Blackhole bh) {
-        var data = V2RequestUtil.parseRequestAsBuffer(state.payloadBinary, PayloadState.clientKey, new InstantClock());
+        var data = V2RequestUtil.parseRequestAsBuffer(state.payloadBinary, PayloadState.clientKey, new InstantClock(), IdentityScope.UID2);
         bh.consume(data);
     }
 
@@ -149,7 +149,7 @@ public class IdentityMapBenchmark {
     @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
     @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
     public void decompressionBenchmarkingNone(PayloadState state, Blackhole bh) {
-        var data = V2RequestUtil.parseRequestAsString(state.payloadNone, PayloadState.clientKey, new InstantClock());
+        var data = V2RequestUtil.parseRequestAsString(state.payloadNone, PayloadState.clientKey, new InstantClock(), IdentityScope.UID2);
         bh.consume(data);
     }
 

@@ -22,7 +22,10 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -92,7 +95,7 @@ public class V2RequestUtilTest {
                 false,
                 "key-id"
         );
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, ck, clock);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, ck, clock, IdentityScope.UID2);
 
         assertEquals(expectedPayload, res.payload);
     }
@@ -100,7 +103,7 @@ public class V2RequestUtilTest {
     public void testParseRequestWithNullBody() {
         when(clock.now()).thenReturn(MOCK_NOW);
 
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(null, null, clock);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(null, null, clock, IdentityScope.UID2);
 
         assertEquals("Invalid body: Body is missing.", res.errorMessage);
     }
@@ -109,7 +112,7 @@ public class V2RequestUtilTest {
     public void testParseRequestWithNonBase64Body() {
         when(clock.now()).thenReturn(MOCK_NOW);
 
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("test string", null, clock);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("test string", null, clock, IdentityScope.UID2);
 
         assertEquals("Invalid body: Body is not valid base64.", res.errorMessage);
     }
@@ -118,9 +121,73 @@ public class V2RequestUtilTest {
     public void testParseRequestWithTooShortBody() {
         when(clock.now()).thenReturn(MOCK_NOW);
 
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("dGVzdA==", null, clock);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("dGVzdA==", null, clock, IdentityScope.UID2);
 
         assertEquals("Invalid body: Body too short. Check encryption method.", res.errorMessage);
+    }
+
+    @Test
+    public void testParseRequestWithVersionMismatch() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // Long enough to pass the length check, wrong version byte, not JSON - e.g. a corrupted envelope
+        byte[] corrupted = new byte[64];
+        Arrays.fill(corrupted, (byte) 2);
+        String bodyString = Base64.getEncoder().encodeToString(corrupted);
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, null, clock, IdentityScope.UID2);
+
+        assertEquals("Invalid body: Version mismatch.", res.errorMessage);
+    }
+
+    @Test
+    public void testParseRequestWithBase64EncodedUnencryptedJson() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // Base64 of plain (unencrypted) JSON - what a raw curl caller sends when they skip the encryption step
+        String bodyString = Base64.getEncoder().encodeToString(
+                "{\"email_hash\": \"tMmiiTI7IaAcPpQPFQ65uMVCWH8av9jw4cwf/F5HVRQ=\", \"version\": 2}"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, null, clock, IdentityScope.UID2);
+
+        assertEquals(V2RequestUtil.unencryptedJsonErrorMessage(IdentityScope.UID2), res.errorMessage);
+        assertThat(res.errorMessage).contains("unencrypted JSON");
+        assertThat(res.errorMessage).contains("https://unifiedid.com/docs/getting-started/gs-encryption-decryption");
+    }
+
+    @Test
+    public void testParseRequestWithBase64EncodedShortUnencryptedJson() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // Unencrypted JSON short enough to fail the length check before the version check
+        String bodyString = Base64.getEncoder().encodeToString(
+                "{\"version\": 2}".getBytes(StandardCharsets.UTF_8));
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, null, clock, IdentityScope.UID2);
+
+        assertEquals(V2RequestUtil.unencryptedJsonErrorMessage(IdentityScope.UID2), res.errorMessage);
+    }
+
+    @Test
+    public void testParseRequestWithRawUnencryptedJson() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // Plain JSON sent directly, without base64 encoding
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(
+                "{\"email_hash\": \"tMmiiTI7IaAcPpQPFQ65uMVCWH8av9jw4cwf/F5HVRQ=\"}", null, clock, IdentityScope.UID2);
+
+        assertEquals(V2RequestUtil.unencryptedJsonErrorMessage(IdentityScope.UID2), res.errorMessage);
+    }
+
+    @Test
+    public void testParseRequestWithUnencryptedJsonEuidScope() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(
+                "{\"email_hash\": \"tMmiiTI7IaAcPpQPFQ65uMVCWH8av9jw4cwf/F5HVRQ=\"}", null, clock, IdentityScope.EUID);
+
+        assertThat(res.errorMessage).contains("https://euid.eu/docs/getting-started/gs-encryption-decryption");
     }
 
     @Test
@@ -146,7 +213,7 @@ public class V2RequestUtilTest {
                 false,
                 "key-id"
         );
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, ck, clock);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, ck, clock, IdentityScope.UID2);
 
         assertEquals("Invalid payload in body: Data is not valid json string.", res.errorMessage);
         assertThat(memoryAppender.countEventsForLogger(LOGGER_NAME)).isEqualTo(1);

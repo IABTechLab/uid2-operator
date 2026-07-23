@@ -61,8 +61,7 @@ public class V2RequestUtil {
     // (possibly base64-encoded) unencrypted JSON instead of an encrypted request envelope.
     public static String unencryptedJsonErrorMessage(IdentityScope identityScope) {
         String docsHost = identityScope == IdentityScope.EUID ? "https://euid.eu" : "https://unifiedid.com";
-        return "Invalid body: The request body is unencrypted JSON. It must be an encrypted request envelope;"
-                + " base64-encoding the JSON without encrypting it first is not sufficient. See "
+        return "Invalid body: The request body is unencrypted JSON. It must be an encrypted request envelope. See "
                 + docsHost + "/docs/getting-started/gs-encryption-decryption#encryption-and-decryption-code-examples"
                 + " for encryption and decryption code examples.";
     }

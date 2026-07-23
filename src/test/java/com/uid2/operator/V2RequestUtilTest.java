@@ -137,7 +137,7 @@ public class V2RequestUtilTest {
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, null, clock, IdentityScope.UID2);
 
-        assertEquals("Invalid body: Version mismatch.", res.errorMessage);
+        assertEquals("Invalid body: Invalid request envelope format version: received 2, must be 1.", res.errorMessage);
     }
 
     @Test

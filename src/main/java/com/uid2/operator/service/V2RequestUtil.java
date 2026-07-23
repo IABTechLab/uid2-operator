@@ -51,6 +51,14 @@ public class V2RequestUtil {
 
     private static final byte VERSION = 1;
 
+    // Appended to request-envelope parse errors to help callers who send an unencrypted body (e.g. a raw
+    // curl request with base64-encoded JSON) understand that the body must be an encrypted request envelope.
+    static final String ENCRYPTION_HINT = " The request body must be an encrypted request envelope, not plain or"
+            + " base64-encoded JSON. If you are calling this endpoint directly (for example with curl), base64-encoding"
+            + " the JSON is not enough. See"
+            + " https://unifiedid.com/docs/getting-started/gs-encryption-decryption#encryption-and-decryption-code-examples"
+            + " for payload encryption and response decryption code examples.";
+
     public static final int V2_REFRESH_PAYLOAD_LENGTH = 388;
     public static final long V2_REQUEST_TIMESTAMP_DRIFT_THRESHOLD_IN_MINUTES = 1;
 
@@ -119,18 +127,18 @@ public class V2RequestUtil {
         }
 
         if (bodyBytes.length < MIN_PAYLOAD_LENGTH) {
-            return new V2Request("Invalid body: Body too short. Check encryption method.");
+            return new V2Request("Invalid body: Body too short. Check encryption method." + ENCRYPTION_HINT);
         }
 
         if (bodyBytes[0] != VERSION) {
-            return new V2Request("Invalid body: Version mismatch.");
+            return new V2Request("Invalid body: Version mismatch." + ENCRYPTION_HINT);
         }
 
         byte[] decryptedBody;
         try {
             decryptedBody = AesGcm.decrypt(bodyBytes, 1, ck.getSecretBytes());
         } catch (Exception ex) {
-            return new V2Request("Invalid body: Check encryption key (ClientSecret)");
+            return new V2Request("Invalid body: Check encryption key (ClientSecret)" + ENCRYPTION_HINT);
         }
 
         // Request envelop format:

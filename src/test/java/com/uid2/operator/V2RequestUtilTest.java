@@ -153,9 +153,10 @@ public class V2RequestUtilTest {
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, null, clock, IdentityScope.UID2);
 
-        assertEquals(V2RequestUtil.unencryptedJsonErrorMessage(IdentityScope.UID2), res.errorMessage);
-        assertThat(res.errorMessage).contains("unencrypted JSON");
-        assertThat(res.errorMessage).contains("https://unifiedid.com/docs/getting-started/gs-encryption-decryption");
+        // Canonical rendering: assert the full literal so message wording regressions are caught
+        assertEquals("Invalid body: The request body is unencrypted JSON. It must be an encrypted request envelope."
+                + " See https://unifiedid.com/docs/getting-started/gs-encryption-decryption#encryption-and-decryption-code-examples"
+                + " for encryption and decryption code examples.", res.errorMessage);
     }
 
     @Test
@@ -168,7 +169,8 @@ public class V2RequestUtilTest {
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, null, clock, IdentityScope.UID2);
 
-        assertEquals(V2RequestUtil.unencryptedJsonErrorMessage(IdentityScope.UID2), res.errorMessage);
+        assertThat(res.errorMessage).startsWith("Invalid body: The request body is unencrypted JSON.");
+        assertThat(res.errorMessage).contains("https://unifiedid.com/docs/getting-started/gs-encryption-decryption");
     }
 
     @Test
@@ -179,7 +181,22 @@ public class V2RequestUtilTest {
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(
                 "{\"email_hash\": \"tMmiiTI7IaAcPpQPFQ65uMVCWH8av9jw4cwf/F5HVRQ=\"}", null, clock, IdentityScope.UID2);
 
-        assertEquals(V2RequestUtil.unencryptedJsonErrorMessage(IdentityScope.UID2), res.errorMessage);
+        assertThat(res.errorMessage).startsWith("Invalid body: The request body is unencrypted JSON.");
+        assertThat(res.errorMessage).contains("https://unifiedid.com/docs/getting-started/gs-encryption-decryption");
+    }
+
+    @Test
+    public void testParseRequestWithWrongClientSecret() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // A well-formed envelope decrypted with the wrong client secret fails the GCM auth check
+        ClientKey wrongKey = new ClientKey("hash", "salt", "gXQbQ460HNwOHOauI2R+g2gHG3GV6pQXHwTWHVewwlU=",
+                "name", "contact", MOCK_NOW, Set.of(), 113, false, "key-id");
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(VALID_REQUEST_ENVELOPE_BASE64, wrongKey, clock, IdentityScope.UID2);
+
+        assertThat(res.errorMessage).startsWith("Invalid body: Check encryption key (ClientSecret).");
+        assertThat(res.errorMessage).contains("https://unifiedid.com/docs/getting-started/gs-encryption-decryption");
     }
 
     private RoutingContext mockOctetStreamContext(byte[] wireBytes) {
@@ -208,7 +225,8 @@ public class V2RequestUtilTest {
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequest(mockOctetStreamContext(wireBytes), null, clock, IdentityScope.UID2);
 
-        assertEquals(V2RequestUtil.unencryptedJsonErrorMessage(IdentityScope.UID2), res.errorMessage);
+        assertThat(res.errorMessage).startsWith("Invalid body: The request body is unencrypted JSON.");
+        assertThat(res.errorMessage).contains("https://unifiedid.com/docs/getting-started/gs-encryption-decryption");
     }
 
     @Test
@@ -262,6 +280,20 @@ public class V2RequestUtilTest {
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(
                 "{\"email_hash\": \"tMmiiTI7IaAcPpQPFQ65uMVCWH8av9jw4cwf/F5HVRQ=\"}", null, clock, IdentityScope.EUID);
 
+        assertThat(res.errorMessage).contains("https://euid.eu/docs/getting-started/gs-encryption-decryption");
+    }
+
+    @Test
+    public void testParseRequestOctetStreamUnencryptedJsonEuidScope() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // EUID scope through the HTTP entry point: the docs link points to euid.eu
+        byte[] wireBytes = Base64.getEncoder().encode(
+                "{\"email_hash\": \"tMmiiTI7IaAcPpQPFQ65uMVCWH8av9jw4cwf/F5HVRQ=\"}".getBytes(StandardCharsets.UTF_8));
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequest(mockOctetStreamContext(wireBytes), null, clock, IdentityScope.EUID);
+
+        assertThat(res.errorMessage).startsWith("Invalid body: The request body is unencrypted JSON.");
         assertThat(res.errorMessage).contains("https://euid.eu/docs/getting-started/gs-encryption-decryption");
     }
 

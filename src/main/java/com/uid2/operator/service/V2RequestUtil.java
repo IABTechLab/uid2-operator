@@ -57,6 +57,8 @@ public class V2RequestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
+    private static final String DOCS_PATH = "/docs/getting-started/gs-encryption-decryption";
+
     private static String docsHost(IdentityScope identityScope) {
         return identityScope == IdentityScope.EUID ? "https://euid.eu" : "https://unifiedid.com";
     }
@@ -65,15 +67,15 @@ public class V2RequestUtil {
     // (possibly base64-encoded) unencrypted JSON instead of an encrypted request envelope.
     public static String unencryptedJsonErrorMessage(IdentityScope identityScope) {
         return "Invalid body: The request body is unencrypted JSON. It must be an encrypted request envelope. See "
-                + docsHost(identityScope) + "/docs/getting-started/gs-encryption-decryption#encryption-and-decryption-code-examples"
+                + docsHost(identityScope) + DOCS_PATH + "#encryption-and-decryption-code-examples"
                 + " for encryption and decryption code examples.";
     }
 
     // Appended to envelope parse errors as a neutral pointer; the linked page documents the envelope format.
     // Deliberately makes no claim about the cause - the leading part of each message does that.
     private static String envelopeDocsHint(IdentityScope identityScope) {
-        return " See " + docsHost(identityScope)
-                + "/docs/getting-started/gs-encryption-decryption for details on the request envelope format.";
+        return " See " + docsHost(identityScope) + DOCS_PATH
+                + " for details on the request envelope format.";
     }
 
     private static byte[] tryDecodeBase64(String bodyString) {
@@ -114,8 +116,7 @@ public class V2RequestUtil {
                 }
                 byte[] decoded = tryDecodeBase64(bodyString);
                 if (decoded == null) {
-                    // Not base64, so genuinely binary: the buffer parse already examined these exact
-                    // bytes (including the unencrypted-JSON check), so its error stands.
+                    // Not base64; keep the binary parsing error
                     // TODO: Delete this log line after fix is verified
                     LOGGER.info("Fallback skipped, body is not base64, for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
                     return requestAsBuffer;

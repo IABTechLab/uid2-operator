@@ -6,12 +6,18 @@ import ch.qos.logback.classic.LoggerContext;
 import com.uid2.operator.model.IdentityScope;
 import com.uid2.operator.model.KeyManager;
 import com.uid2.operator.service.V2RequestUtil;
+import com.uid2.operator.util.HttpMediaType;
 import com.uid2.shared.IClock;
 import com.uid2.shared.auth.ClientKey;
 import com.uid2.shared.encryption.Random;
 import com.uid2.shared.model.KeysetKey;
+import io.vertx.core.MultiMap;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RequestBody;
+import io.vertx.ext.web.RoutingContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,12 +31,14 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Base64;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -181,6 +189,48 @@ public class V2RequestUtilTest {
                 "{\"email_hash\": \"tMmiiTI7IaAcPpQPFQ65uMVCWH8av9jw4cwf/F5HVRQ=\"}", null, clock, IdentityScope.UID2);
 
         assertEquals(V2RequestUtil.unencryptedJsonErrorMessage(IdentityScope.UID2), res.errorMessage);
+    }
+
+    private RoutingContext mockOctetStreamContext(byte[] wireBytes) {
+        RoutingContext rc = mock(RoutingContext.class);
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.set(HttpHeaders.CONTENT_TYPE, HttpMediaType.APPLICATION_OCTET_STREAM.getType());
+        when(rc.request()).thenReturn(request);
+        when(request.headers()).thenReturn(headers);
+        when(rc.data()).thenReturn(new HashMap<>());
+        RequestBody body = mock(RequestBody.class);
+        when(rc.body()).thenReturn(body);
+        when(body.buffer()).thenReturn(Buffer.buffer(wireBytes));
+        when(body.asString()).thenReturn(new String(wireBytes, StandardCharsets.UTF_8));
+        return rc;
+    }
+
+    @Test
+    public void testParseRequestOctetStreamWithBase64EncodedUnencryptedJson() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // Base64 of plain JSON sent with a binary content type: the binary parse fails on the base64
+        // text, but the fallback decodes it and diagnoses unencrypted JSON - that diagnosis must win
+        byte[] wireBytes = Base64.getEncoder().encode(
+                "{\"email_hash\": \"tMmiiTI7IaAcPpQPFQ65uMVCWH8av9jw4cwf/F5HVRQ=\"}".getBytes(StandardCharsets.UTF_8));
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequest(mockOctetStreamContext(wireBytes), null, clock, IdentityScope.UID2);
+
+        assertEquals(V2RequestUtil.unencryptedJsonErrorMessage(IdentityScope.UID2), res.errorMessage);
+    }
+
+    @Test
+    public void testParseRequestOctetStreamWithCorruptedBinaryBody() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // A genuinely binary (non-base64) body keeps the binary parse error
+        byte[] wireBytes = new byte[64];
+        Arrays.fill(wireBytes, (byte) 2);
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequest(mockOctetStreamContext(wireBytes), null, clock, IdentityScope.UID2);
+
+        assertThat(res.errorMessage).startsWith("Invalid body: Invalid request envelope format version: received 2, must be 1.");
     }
 
     @Test

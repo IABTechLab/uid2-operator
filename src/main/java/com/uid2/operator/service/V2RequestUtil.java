@@ -26,12 +26,19 @@ public class V2RequestUtil {
         public final byte[] nonce;
         public final Object payload;
         public final byte[] encryptionKey;
+        // True when the body could not even be base64-decoded, i.e. it was never base64 text
+        final boolean failedBase64Decoding;
 
         V2Request(String errorMessage) {
+            this(errorMessage, false);
+        }
+
+        V2Request(String errorMessage, boolean failedBase64Decoding) {
             this.errorMessage = errorMessage;
             this.nonce = null;
             this.payload = null;
             this.encryptionKey = null;
+            this.failedBase64Decoding = failedBase64Decoding;
         }
 
         V2Request(byte[] nonce, Object payload, byte[] encryptionKey) {
@@ -39,6 +46,7 @@ public class V2RequestUtil {
             this.nonce = nonce;
             this.payload = payload;
             this.encryptionKey = encryptionKey;
+            this.failedBase64Decoding = false;
         }
 
         public boolean isValid() {
@@ -109,8 +117,11 @@ public class V2RequestUtil {
                     // TODO: Delete this log line after fix is verified
                     LOGGER.info("Fallback failed for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
 
-                    // If both binary and base64 requests are invalid, return the original binary request buffer error
-                    return requestAsBuffer;
+                    // If both binary and base64 requests are invalid, pick the error from the interpretation
+                    // that matches what the body actually was. A binary envelope can never be valid base64
+                    // (its first byte is the 0x01 version byte, not a base64 character), so if the fallback
+                    // got past base64 decoding, the body was base64 text and the fallback's diagnosis applies.
+                    return requestAsString.failedBase64Decoding ? requestAsBuffer : requestAsString;
                 }
             }
         } else {
@@ -137,7 +148,7 @@ public class V2RequestUtil {
             if (isUnencryptedJson(bodyString.getBytes(StandardCharsets.UTF_8))) {
                 return new V2Request(unencryptedJsonErrorMessage(identityScope));
             }
-            return new V2Request("Invalid body: Body is not valid base64." + envelopeDocsHint(identityScope));
+            return new V2Request("Invalid body: Body is not valid base64." + envelopeDocsHint(identityScope), true);
         }
         return parseRequestCommon(bodyBytes, ck, clock, identityScope);
     }

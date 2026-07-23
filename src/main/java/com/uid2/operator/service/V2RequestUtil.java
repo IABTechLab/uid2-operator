@@ -49,7 +49,7 @@ public class V2RequestUtil {
     // version: 1 byte, IV: 12 bytes, GCM tag: 16 bytes, timestamp: 8 bytes, nonce: 8 bytes
     private static final int MIN_PAYLOAD_LENGTH = 1 + AesGcm.GCM_IV_LENGTH + AesGcm.GCM_AUTHTAG_LENGTH + 8 + 8;
 
-    // The version byte of the encrypted request envelope format, not an operator or API version
+    // The version byte of the encrypted request envelope format
     private static final byte ENVELOPE_FORMAT_VERSION = 1;
 
     public static final int V2_REFRESH_PAYLOAD_LENGTH = 388;

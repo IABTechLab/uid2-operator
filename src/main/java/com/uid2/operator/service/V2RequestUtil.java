@@ -57,13 +57,23 @@ public class V2RequestUtil {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(V2RequestUtil.class);
 
+    private static String docsHost(IdentityScope identityScope) {
+        return identityScope == IdentityScope.EUID ? "https://euid.eu" : "https://unifiedid.com";
+    }
+
     // Returned when the request body is plain JSON: the caller skipped the encryption step and sent
     // (possibly base64-encoded) unencrypted JSON instead of an encrypted request envelope.
     public static String unencryptedJsonErrorMessage(IdentityScope identityScope) {
-        String docsHost = identityScope == IdentityScope.EUID ? "https://euid.eu" : "https://unifiedid.com";
         return "Invalid body: The request body is unencrypted JSON. It must be an encrypted request envelope. See "
-                + docsHost + "/docs/getting-started/gs-encryption-decryption#encryption-and-decryption-code-examples"
+                + docsHost(identityScope) + "/docs/getting-started/gs-encryption-decryption#encryption-and-decryption-code-examples"
                 + " for encryption and decryption code examples.";
+    }
+
+    // Appended to envelope parse errors as a neutral pointer; the linked page documents the envelope format.
+    // Deliberately makes no claim about the cause - the leading part of each message does that.
+    private static String envelopeDocsSuffix(IdentityScope identityScope) {
+        return " See " + docsHost(identityScope)
+                + "/docs/getting-started/gs-encryption-decryption for details on the request envelope format.";
     }
 
     // Only called after envelope parsing has already failed; an encrypted envelope never parses as JSON.
@@ -127,7 +137,7 @@ public class V2RequestUtil {
             if (isUnencryptedJson(bodyString.getBytes(StandardCharsets.UTF_8))) {
                 return new V2Request(unencryptedJsonErrorMessage(identityScope));
             }
-            return new V2Request("Invalid body: Body is not valid base64.");
+            return new V2Request("Invalid body: Body is not valid base64." + envelopeDocsSuffix(identityScope));
         }
         return parseRequestCommon(bodyBytes, ck, clock, identityScope);
     }
@@ -145,7 +155,7 @@ public class V2RequestUtil {
             if (isUnencryptedJson(bodyBytes)) {
                 return new V2Request(unencryptedJsonErrorMessage(identityScope));
             }
-            return new V2Request("Invalid body: Body too short. Check encryption method.");
+            return new V2Request("Invalid body: Body too short. Check encryption method." + envelopeDocsSuffix(identityScope));
         }
 
         if (bodyBytes[0] != ENVELOPE_FORMAT_VERSION) {
@@ -154,14 +164,14 @@ public class V2RequestUtil {
             }
             return new V2Request(String.format(
                     "Invalid body: Invalid request envelope format version: received %d, must be %d.",
-                    Byte.toUnsignedInt(bodyBytes[0]), ENVELOPE_FORMAT_VERSION));
+                    Byte.toUnsignedInt(bodyBytes[0]), ENVELOPE_FORMAT_VERSION) + envelopeDocsSuffix(identityScope));
         }
 
         byte[] decryptedBody;
         try {
             decryptedBody = AesGcm.decrypt(bodyBytes, 1, ck.getSecretBytes());
         } catch (Exception ex) {
-            return new V2Request("Invalid body: Check encryption key (ClientSecret)");
+            return new V2Request("Invalid body: Check encryption key (ClientSecret)." + envelopeDocsSuffix(identityScope));
         }
 
         // Request envelop format:

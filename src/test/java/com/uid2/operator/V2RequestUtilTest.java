@@ -114,7 +114,8 @@ public class V2RequestUtilTest {
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("test string", null, clock, IdentityScope.UID2);
 
-        assertEquals("Invalid body: Body is not valid base64.", res.errorMessage);
+        assertThat(res.errorMessage).startsWith("Invalid body: Body is not valid base64.");
+        assertThat(res.errorMessage).contains("https://unifiedid.com/docs/getting-started/gs-encryption-decryption");
     }
 
     @Test
@@ -123,7 +124,8 @@ public class V2RequestUtilTest {
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString("dGVzdA==", null, clock, IdentityScope.UID2);
 
-        assertEquals("Invalid body: Body too short. Check encryption method.", res.errorMessage);
+        assertThat(res.errorMessage).startsWith("Invalid body: Body too short. Check encryption method.");
+        assertThat(res.errorMessage).contains("https://unifiedid.com/docs/getting-started/gs-encryption-decryption");
     }
 
     @Test
@@ -137,7 +139,8 @@ public class V2RequestUtilTest {
 
         V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, null, clock, IdentityScope.UID2);
 
-        assertEquals("Invalid body: Invalid request envelope format version: received 2, must be 1.", res.errorMessage);
+        assertThat(res.errorMessage).startsWith("Invalid body: Invalid request envelope format version: received 2, must be 1.");
+        assertThat(res.errorMessage).contains("https://unifiedid.com/docs/getting-started/gs-encryption-decryption");
     }
 
     @Test

@@ -71,7 +71,7 @@ public class V2RequestUtil {
 
     // Appended to envelope parse errors as a neutral pointer; the linked page documents the envelope format.
     // Deliberately makes no claim about the cause - the leading part of each message does that.
-    private static String envelopeDocsSuffix(IdentityScope identityScope) {
+    private static String envelopeDocsHint(IdentityScope identityScope) {
         return " See " + docsHost(identityScope)
                 + "/docs/getting-started/gs-encryption-decryption for details on the request envelope format.";
     }
@@ -137,7 +137,7 @@ public class V2RequestUtil {
             if (isUnencryptedJson(bodyString.getBytes(StandardCharsets.UTF_8))) {
                 return new V2Request(unencryptedJsonErrorMessage(identityScope));
             }
-            return new V2Request("Invalid body: Body is not valid base64." + envelopeDocsSuffix(identityScope));
+            return new V2Request("Invalid body: Body is not valid base64." + envelopeDocsHint(identityScope));
         }
         return parseRequestCommon(bodyBytes, ck, clock, identityScope);
     }
@@ -155,7 +155,7 @@ public class V2RequestUtil {
             if (isUnencryptedJson(bodyBytes)) {
                 return new V2Request(unencryptedJsonErrorMessage(identityScope));
             }
-            return new V2Request("Invalid body: Body too short. Check encryption method." + envelopeDocsSuffix(identityScope));
+            return new V2Request("Invalid body: Body too short. Check encryption method." + envelopeDocsHint(identityScope));
         }
 
         if (bodyBytes[0] != ENVELOPE_FORMAT_VERSION) {
@@ -164,14 +164,14 @@ public class V2RequestUtil {
             }
             return new V2Request(String.format(
                     "Invalid body: Invalid request envelope format version: received %d, must be %d.",
-                    Byte.toUnsignedInt(bodyBytes[0]), ENVELOPE_FORMAT_VERSION) + envelopeDocsSuffix(identityScope));
+                    Byte.toUnsignedInt(bodyBytes[0]), ENVELOPE_FORMAT_VERSION) + envelopeDocsHint(identityScope));
         }
 
         byte[] decryptedBody;
         try {
             decryptedBody = AesGcm.decrypt(bodyBytes, 1, ck.getSecretBytes());
         } catch (Exception ex) {
-            return new V2Request("Invalid body: Check encryption key (ClientSecret)." + envelopeDocsSuffix(identityScope));
+            return new V2Request("Invalid body: Check encryption key (ClientSecret)." + envelopeDocsHint(identityScope));
         }
 
         // Request envelop format:

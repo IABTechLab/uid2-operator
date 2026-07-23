@@ -234,6 +234,22 @@ public class V2RequestUtilTest {
     }
 
     @Test
+    public void testParseRequestOctetStreamWithBase64EncodedCorruptEnvelope() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // Valid base64 of a corrupt (wrong-version, non-JSON) envelope sent as octet-stream: the
+        // fallback's error about the decoded bytes (received 2) wins over the binary parse error
+        // about the base64 text itself (which would report its first character, 'A' = 65)
+        byte[] corrupted = new byte[64];
+        Arrays.fill(corrupted, (byte) 2);
+        byte[] wireBytes = Base64.getEncoder().encode(corrupted);
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequest(mockOctetStreamContext(wireBytes), null, clock, IdentityScope.UID2);
+
+        assertThat(res.errorMessage).startsWith("Invalid body: Invalid request envelope format version: received 2, must be 1.");
+    }
+
+    @Test
     public void testParseRequestWithUnencryptedJsonEuidScope() {
         when(clock.now()).thenReturn(MOCK_NOW);
 

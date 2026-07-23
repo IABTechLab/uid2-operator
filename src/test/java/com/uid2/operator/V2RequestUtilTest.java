@@ -47,6 +47,15 @@ public class V2RequestUtilTest {
     private static final String LOGGER_NAME = "com.uid2.operator.service.V2RequestUtil";
     private static final Instant MOCK_NOW = Instant.parse("2024-03-20T04:02:46.130Z");
 
+    // A valid encrypted request envelope, decryptable with newClientKey() at MOCK_NOW. Encoded from:
+    // {"token":"AdvertisingTokenmZ4dZgeuXXl6DhoXqbRXQbHlHhA96leN94U1uavZVspwKXlfWETZ3b%2FbesPFFvJxNLLySg4QEYHUAiyUrNncgnm7ppu0mi6wU2CW6hssiuEkKfstbo9XWgRUbWNTM%2BewMzXXM8G9j8Q%3D","email_hash":"LdhtUlMQ58ZZy5YUqGPRQw5xUMS5dXG5ocJHYJHbAKI="}
+    private static final String VALID_REQUEST_ENVELOPE_BASE64 = "ATDX9gBKxgQaLwUi9ZDbSqo1b66u55jEN322XSR+aCvOy/c3ZiaVOh8VG22pDUSSNaUqfUwwxxYT0pS9zjW7oVPCeluHU5GCc+6A+LUTIQ8vOR+1CN7ds/61Bp82RzKf5wPABMNtqr1XkoN6d5FU/R0vpxf2hfo1cYYmW0ziCy15pPh17GN2vNTn6YK6g+MAi/dDC7mG+Mxnh9ZaEz+3IetgDPWfp5zHh/T3LWhDAA+2drlDn8KwcQE/TYKh5raR4BDHmhgBUCU6+nymoWruNYxzcII63xMTLMTGzpinNnTL3iBPII9lKRJJ2ZrGjjgMMXi066iaDDpBHH3xY+bAwriU+6GEsE8bveRMwRqT83gmkYp6mn+75Yrpdw==";
+
+    private static ClientKey newClientKey() {
+        return new ClientKey("hash", "salt", "YGdzZw9oM2RzBgB8THMyAEe408lvdfsTsGteaLAGayY=",
+                "name", "contact", MOCK_NOW, Set.of(), 113, false, "key-id");
+    }
+
     @Mock
     private IClock clock;
     @Mock
@@ -85,25 +94,7 @@ public class V2RequestUtilTest {
         expectedPayload.put("token", testToken);
         expectedPayload.put("email_hash", testEmailHash);
 
-        // The bodyString was encoded by below json:
-        // {
-        //    "token": "AdvertisingTokenmZ4dZgeuXXl6DhoXqbRXQbHlHhA96leN94U1uavZVspwKXlfWETZ3b%2FbesPFFvJxNLLySg4QEYHUAiyUrNncgnm7ppu0mi6wU2CW6hssiuEkKfstbo9XWgRUbWNTM%2BewMzXXM8G9j8Q%3D",
-        //    "email_hash": "LdhtUlMQ58ZZy5YUqGPRQw5xUMS5dXG5ocJHYJHbAKI="
-        //}
-        String bodyString = "ATDX9gBKxgQaLwUi9ZDbSqo1b66u55jEN322XSR+aCvOy/c3ZiaVOh8VG22pDUSSNaUqfUwwxxYT0pS9zjW7oVPCeluHU5GCc+6A+LUTIQ8vOR+1CN7ds/61Bp82RzKf5wPABMNtqr1XkoN6d5FU/R0vpxf2hfo1cYYmW0ziCy15pPh17GN2vNTn6YK6g+MAi/dDC7mG+Mxnh9ZaEz+3IetgDPWfp5zHh/T3LWhDAA+2drlDn8KwcQE/TYKh5raR4BDHmhgBUCU6+nymoWruNYxzcII63xMTLMTGzpinNnTL3iBPII9lKRJJ2ZrGjjgMMXi066iaDDpBHH3xY+bAwriU+6GEsE8bveRMwRqT83gmkYp6mn+75Yrpdw==";
-        ClientKey ck = new ClientKey(
-                "hash",
-                "salt",
-                "YGdzZw9oM2RzBgB8THMyAEe408lvdfsTsGteaLAGayY=",
-                "name",
-                "contact",
-                MOCK_NOW,
-                Set.of(),
-                113,
-                false,
-                "key-id"
-        );
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, ck, clock, IdentityScope.UID2);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(VALID_REQUEST_ENVELOPE_BASE64, newClientKey(), clock, IdentityScope.UID2);
 
         assertEquals(expectedPayload, res.payload);
     }
@@ -234,6 +225,21 @@ public class V2RequestUtilTest {
     }
 
     @Test
+    public void testParseRequestOctetStreamWithValidBase64Envelope() {
+        when(clock.now()).thenReturn(MOCK_NOW);
+
+        // A valid encrypted envelope sent as base64 text under an octet-stream content type: the
+        // fallback decodes and parses it, and rewrites the content type to text/plain
+        RoutingContext rc = mockOctetStreamContext(VALID_REQUEST_ENVELOPE_BASE64.getBytes(StandardCharsets.UTF_8));
+
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequest(rc, newClientKey(), clock, IdentityScope.UID2);
+
+        assertThat(res.isValid()).isTrue();
+        assertThat(((JsonObject) res.payload).getString("email_hash")).isEqualTo("LdhtUlMQ58ZZy5YUqGPRQw5xUMS5dXG5ocJHYJHbAKI=");
+        assertThat(rc.request().headers().get(HttpHeaders.CONTENT_TYPE)).isEqualTo(HttpMediaType.TEXT_PLAIN.getType());
+    }
+
+    @Test
     public void testParseRequestOctetStreamWithBase64EncodedCorruptEnvelope() {
         when(clock.now()).thenReturn(MOCK_NOW);
 
@@ -270,19 +276,7 @@ public class V2RequestUtilTest {
         //    test
         //}
         String bodyString = "AWDCc1W2zSIJUFbCF1Ti7FxS9Vq4xywgUxHWm60+aaNIbk9k1c3GLjcezo6ZGx3J9TUEKdCXLVi+t2d4T17acgSZYRhfTUC6OfxEHxzSkhDLviQ6BXqrx0Ute5PWT55FYG5dR8YM8CAUfLuWSxCq4yB+aJ/Sojpl2nmDO7sn7D6K+dAsdCtyciM+8ihxzOb7obhlOhjS5159XqkQTcAQvbfLXi/QJRtFPoDBpwQQZ3TvBFPUvh8uiT0Zb708Xt7zt9NHziqkwAcJWIvnTgLkxBdACpbGGl3mNcwJhHwBM0m9zlSy050yyx/b+U1mJxjj5yqBwaNSzTKiGHs+M1+vhmVD8w7J13Ec+jAUa8rUeN7c61GD/Rh7GndeEBo4WVLvfw==";
-        ClientKey ck = new ClientKey(
-                "hash",
-                "salt",
-                "YGdzZw9oM2RzBgB8THMyAEe408lvdfsTsGteaLAGayY=",
-                "name",
-                "contact",
-                MOCK_NOW,
-                Set.of(),
-                113,
-                false,
-                "key-id"
-        );
-        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, ck, clock, IdentityScope.UID2);
+        V2RequestUtil.V2Request res = V2RequestUtil.parseRequestAsString(bodyString, newClientKey(), clock, IdentityScope.UID2);
 
         assertEquals("Invalid payload in body: Data is not valid json string.", res.errorMessage);
         assertThat(memoryAppender.countEventsForLogger(LOGGER_NAME)).isEqualTo(1);

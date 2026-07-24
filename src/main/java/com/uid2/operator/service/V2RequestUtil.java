@@ -106,29 +106,28 @@ public class V2RequestUtil {
             } else {
                 RoutingContextReader rcReader = new RoutingContextReader(rc);
 
-                // Binary parse failed; fall back to interpreting the body as base64. A well-formed
-                // envelope never decodes as base64 (its first byte is 0x01, outside the base64
-                // alphabet), so base64-decodability decides which interpretation is authoritative.
+                // Binary parse failed
+                // Check if the body is valid base64
                 String bodyString = rc.body().asString();
                 if (bodyString == null) {
-                    // No body to fall back on; the binary parse error (missing body) stands
+                    // Keep the binary parsing error
                     return requestAsBuffer;
                 }
                 byte[] decoded = tryDecodeBase64(bodyString);
                 if (decoded == null) {
-                    // Not base64; keep the binary parsing error
+                    // Not valid base64; keep the binary parsing error
                     // TODO: Delete this log line after fix is verified
                     LOGGER.info("Fallback skipped, body is not base64, for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
                     return requestAsBuffer;
                 }
 
+                // Fallback and attempt to parse the body as base64
                 V2Request requestAsString = parseRequestCommon(decoded, ck, clock, identityScope);
                 if (requestAsString.isValid()) {
                     // TODO: Delete this log line after fix is verified
                     LOGGER.info("Fallback successful, body parsed as base64, for {}, site ID: {}", rcReader.getContact(), rcReader.getSiteId());
 
-                    // Body was base64, not binary, despite the octet-stream header: rewrite the content
-                    // type so the response is base64-encoded to match what the client sent.
+                    // Body was actually base64, set content type to text/plain
                     rc.request().headers().set(HttpHeaders.CONTENT_TYPE, HttpMediaType.TEXT_PLAIN.getType());
                 } else {
                     // TODO: Delete this log line after fix is verified

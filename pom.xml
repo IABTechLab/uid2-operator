@@ -28,7 +28,8 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <java.version>21</java.version>
-        <netty.version>4.1.135.Final</netty.version>
+        <netty.version>4.1.136.Final</netty.version>
+        <jackson.version>2.21.4</jackson.version>
     </properties>
 
 
@@ -48,6 +49,14 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Force jackson to a fixed version to resolve CVE-2026-54512, CVE-2026-54513 (UID2-7569, UID2-7570). -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>

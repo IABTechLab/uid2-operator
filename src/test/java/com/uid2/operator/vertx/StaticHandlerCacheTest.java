@@ -46,6 +46,7 @@ class StaticHandlerCacheTest {
 
     @Test
     void encodedDotSegmentRequestDoesNotPoisonSdkCache() throws Exception {
+        // A malformed path must not cache a missing lookup under the canonical SDK path.
         assertThat(get(SDK_PATH)).isEqualTo(200);
         get(POISON_PATH);
         assertThat(get(SDK_PATH)).isEqualTo(200);

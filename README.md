@@ -88,3 +88,4 @@ gh attestation verify oci://ghcr.io/iabtechlab/uid2-operator:<tag> --owner IABTe
 A successful run prints `✓ Verification succeeded!` followed by the SLSA provenance fields — including `sourceRepositoryDigest` (the source commit), `workflow.path` (the signing workflow), and the runner identity.
 
 Snapshot tags (`-SNAPSHOT` suffix) deliberately skip attestation. `gh attestation verify` returns `no attestations found` against a snapshot — that's expected.
+boo 👻

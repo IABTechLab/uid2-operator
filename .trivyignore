@@ -47,7 +47,13 @@ CVE-2026-2100 exp:2026-09-01
 # See: UID2-7456
 CVE-2026-56131 exp:2026-08-09
 CVE-2026-56407 exp:2026-08-09
-CVE-2026-56408 exp:2026-08-09
+# CVE-2026-56408 — libexpat (Alpine base image, transitive via eclipse-temurin:21-jre-
+# alpine-3.23) (HIGH).
+# Not exploitable here: Same alpine base (adds only gcompat for Corretto crypto). No native
+# libexpat path; pure-Java XML via JAXP. Nitro builder is a separate ubuntu:22.04 build stage,
+# not the scanned runtime image.
+# See: UID2-7656
+CVE-2026-56408 exp:2026-11-11
 
 # jackson-core async parser maxNumberLength bypass (GHSA-r7wm-3cxj-wff9) - incomplete fix for
 # GHSA-72hv-8253-57qq. Not exploitable: services only use the synchronous ObjectMapper API, not

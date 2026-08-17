@@ -207,6 +207,15 @@ jobs:
             docker buildx imagetools create -t "$tag" "${IMAGE}@${DIGEST}"
           done <<< "$TAGS"
 
+          while IFS= read -r tag; do
+            [[ -z "$tag" ]] && continue
+            resolved="$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')"
+            if [[ "$resolved" != "$DIGEST" ]]; then
+              echo "::error::Promoted tag $tag resolved to $resolved, expected $DIGEST"
+              exit 1
+            fi
+          done <<< "$TAGS"
+
   azureCc:
     name: Create Azure CC artifacts
     runs-on: ubuntu-latest

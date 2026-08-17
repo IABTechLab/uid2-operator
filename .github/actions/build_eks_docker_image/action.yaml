@@ -157,6 +157,9 @@ runs:
         context: ${{ inputs.artifacts_output_dir }}
         labels: ${{ steps.meta.outputs.labels }}
         outputs: type=image,name=${{ steps.image-ref.outputs.value }},push-by-digest=true,push=true
+        # Keep the private image as a plain single-platform manifest. Signed
+        # SLSA provenance is added separately by attest_image below.
+        provenance: false
         build-args: |
           JAR_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
           IMAGE_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}

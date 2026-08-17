@@ -251,7 +251,7 @@ jobs:
             local tags="$2"
             while IFS= read -r tag; do
               [[ -z "$tag" ]] && continue
-              docker buildx imagetools create -t "$tag" "${image}@${DIGEST}"
+              docker buildx imagetools create --prefer-index=false -t "$tag" "${image}@${DIGEST}"
             done <<< "$tags"
           }
 

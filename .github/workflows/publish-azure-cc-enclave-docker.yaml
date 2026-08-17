@@ -207,7 +207,7 @@ jobs:
           set -euo pipefail
           while IFS= read -r tag; do
             [[ -z "$tag" ]] && continue
-            docker buildx imagetools create -t "$tag" "${IMAGE}@${DIGEST}"
+            docker buildx imagetools create --prefer-index=false -t "$tag" "${IMAGE}@${DIGEST}"
           done <<< "$TAGS"
 
           while IFS= read -r tag; do

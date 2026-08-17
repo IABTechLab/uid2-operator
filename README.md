@@ -67,24 +67,104 @@ wsl trivy image <image reference>
 ```
 where `<image reference>` is the built docker image you want to scan (uid2-latest in the example above). 
 
-## Verifying image provenance
+## Verifying artifact provenance
 
-Every non-snapshot image published by this repo's release workflow ships with a [SLSA v1.0](https://slsa.dev/spec/v1.0/) build-provenance attestation, signed by GitHub's [Sigstore](https://www.sigstore.dev/) instance via the OIDC identity of the [shared publish workflow](https://github.com/IABTechLab/uid2-shared-actions). The attestation cryptographically binds the image digest to the source commit, the signing workflow, and the runner that built it.
+Every non-snapshot operator image and release artifact published by this repo
+ships with a [SLSA v1.0](https://slsa.dev/spec/v1.0/) build-provenance
+attestation, signed by GitHub's [Sigstore](https://www.sigstore.dev/) instance.
+The attestation cryptographically binds the artifact digest to the source
+repository, signing workflow, and GitHub-hosted runner that produced it.
 
-To verify an image, install [`gh`](https://cli.github.com/) (≥ 2.49) and run:
+Install [`gh`](https://cli.github.com/) (≥ 2.49), then use the command for the
+artifact type you want to verify. Prefer `--signer-workflow` so verification
+rejects attestations produced by a different workflow in the same repository.
+
+### Public operator image
+
+The public image uses the shared publish workflow:
 
 ```bash
-gh attestation verify oci://ghcr.io/iabtechlab/uid2-operator:<tag> --owner IABTechLab --signer-repo IABTechLab/uid2-shared-actions
+gh attestation verify \
+  oci://ghcr.io/iabtechlab/uid2-operator:<version> \
+  --repo IABTechLab/uid2-operator \
+  --signer-repo IABTechLab/uid2-shared-actions
 ```
 
-`<tag>` refers to the **Docker image tag** — bare semantic version, no `v` prefix (e.g. `5.70.84`). Note that the corresponding GitHub release and git tag for the same build are named with a `v` (e.g. `v5.70.84`); the registry tag drops it by OCI convention.
+### Private operator images
 
-**Where to find a tag:**
+Pin both the signing workflow and the registry-stored attestation bundle:
 
-- **GitHub Packages** for this repo — [`uid2-operator` package](https://github.com/IABTechLab/uid2-operator/pkgs/container/uid2-operator) lists every published image tag and its digest.
-- Or take a [release](https://github.com/IABTechLab/uid2-operator/releases) name (e.g. `v5.70.84`) and drop the leading `v`.
-- To pin to an exact manifest instead of a mutable tag, use the digest form: `oci://ghcr.io/iabtechlab/uid2-operator@sha256:<digest>` (visible on the Packages page, or via `gh api /orgs/IABTechLab/packages/container/uid2-operator/versions`).
+```bash
+# GCP Confidential Space image in GitHub Container Registry
+gh attestation verify \
+  oci://ghcr.io/iabtechlab/uid2-operator:<version>-gcp-oidc \
+  --repo IABTechLab/uid2-operator \
+  --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-gcp-oidc-enclave-docker.yaml \
+  --bundle-from-oci
 
-A successful run prints `✓ Verification succeeded!` followed by the SLSA provenance fields — including `sourceRepositoryDigest` (the source commit), `workflow.path` (the signing workflow), and the runner identity.
+# The same GCP image in Google Artifact Registry
+gh attestation verify \
+  oci://us-docker.pkg.dev/uid2-prod-project/iabtechlab/uid2-operator:<version>-gcp-oidc \
+  --repo IABTechLab/uid2-operator \
+  --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-gcp-oidc-enclave-docker.yaml \
+  --bundle-from-oci
 
-Snapshot tags (`-SNAPSHOT` suffix) deliberately skip attestation. `gh attestation verify` returns `no attestations found` against a snapshot — that's expected.
+# Azure CC/AKS image
+gh attestation verify \
+  oci://ghcr.io/iabtechlab/uid2-operator:<version>-azure-cc \
+  --repo IABTechLab/uid2-operator \
+  --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-azure-cc-enclave-docker.yaml \
+  --bundle-from-oci
+
+# AWS EKS Nitro images
+gh attestation verify \
+  oci://ghcr.io/iabtechlab/uid2-operator-eks-uid2:<version>.<run-number> \
+  --repo IABTechLab/uid2-operator \
+  --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-aws-eks-nitro-enclave-docker.yaml \
+  --bundle-from-oci
+gh attestation verify \
+  oci://ghcr.io/iabtechlab/uid2-operator-eks-euid:<version>.<run-number> \
+  --repo IABTechLab/uid2-operator \
+  --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-aws-eks-nitro-enclave-docker.yaml \
+  --bundle-from-oci
+```
+
+When an image was published through `publish-all-operators.yaml`, use that
+workflow path as `--signer-workflow` instead of the cloud-specific workflow.
+
+To pin an image to immutable bytes, replace its tag with the
+`@sha256:<digest>` shown by the registry.
+
+### EIFs, measurements, and release archives
+
+Download the release assets and verify the exact file:
+
+```bash
+gh release download v<version> --repo IABTechLab/uid2-operator
+
+# Deployment or combined-manifest archive from Publish All Operators
+gh attestation verify <downloaded-archive>.zip \
+  --repo IABTechLab/uid2-operator \
+  --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-all-operators.yaml
+
+# An EIF or measurement file extracted from the downloaded archives
+gh attestation verify <path-to>/uid2operator.eif \
+  --repo IABTechLab/uid2-operator \
+  --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-aws-nitro-eif.yaml
+gh attestation verify <path-to>/<measurement-file>.txt \
+  --repo IABTechLab/uid2-operator \
+  --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-all-operators.yaml
+```
+
+AWS AMI measurement files contain AMI IDs and the EIF PCR0 used by the build.
+Their attestations prove the provenance of those metadata files; they do not
+represent a byte-level signature of an AWS AMI. The AMI workflow also verifies
+the consumed EIF’s existing provenance before Packer runs.
+
+A successful verification prints `✓ Verification succeeded!` and the SLSA
+provenance, including `sourceRepositoryDigest`, `workflow.path`, and runner
+identity.
+
+Snapshot versions (`-SNAPSHOT`) deliberately skip attestation.
+`gh attestation verify` returning `no attestations found` for a snapshot is
+expected.

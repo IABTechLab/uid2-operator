@@ -35,6 +35,9 @@ jobs:
       contents: write
       security-events: write
       packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -63,6 +66,9 @@ jobs:
       contents: write
       security-events: write
       packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -110,7 +116,15 @@ jobs:
     name: Cleanup Building AWS Image
     runs-on: ubuntu-latest
     needs: [buildUID2Image, buildEUIDImage, testUID2Eks, testEUIDEks]
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
       - name: Check disk usage
         shell: bash
         run: |
@@ -126,6 +140,14 @@ jobs:
           echo "EUID EIF Version: ${{ needs.buildEUIDImage.outputs.eif_version_number }}" > ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
           echo "EUID Image Tag: ${{ needs.buildEUIDImage.outputs.image_tag }}" >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
           echo "Enclave ID (maybe shared by other images): " ${{ needs.buildEUIDImage.outputs.enclave_id }} >> ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
+
+      - name: Attest enclave ID manifests
+        if: ${{ !contains(needs.buildUID2Image.outputs.eif_version_number, 'SNAPSHOT') }}
+        uses: ./.github/actions/attest_file
+        with:
+          subject_paths: |
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.image_tag }}.txt
+            ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

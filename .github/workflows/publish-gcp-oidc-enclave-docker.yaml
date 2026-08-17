@@ -67,6 +67,8 @@ jobs:
       security-events: write
       packages: write
       id-token: write
+      attestations: write
+      artifact-metadata: write
       pull-requests: write
     outputs:
       jar_version: ${{ steps.update_version.outputs.new_version }}
@@ -100,28 +102,8 @@ jobs:
           cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
           cp scripts/confidential_compute.py ${{ env.DOCKER_CONTEXT_PATH }}/
 
-      - name: Log in to the Docker container registry
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Authenticate with Google Cloud
-        id: gcp_auth
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
-        with:
-          token_format: access_token
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
-          service_account: ${{ vars.GCP_PUBLISH_SERVICE_ACCOUNT }}
-          access_token_lifetime: 300s
-
-      - name: Log in to the GCP Registry
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          registry: ${{ env.GCP_REGISTRY }}
-          username: oauth2accesstoken
-          password: ${{ steps.gcp_auth.outputs.access_token }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -149,6 +131,20 @@ jobs:
           tags: |
             type=raw,value=${{ steps.update_version.outputs.new_version }}-${{ env.ENCLAVE_PROTOCOL }}
 
+      - name: Set image repository references
+        id: image-refs
+        env:
+          GHCR_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          GAR_IMAGE: ${{ env.GCP_REGISTRY }}/${{ env.GCP_GAR_PROJECT }}/${{ env.IMAGE_NAME }}
+        run: |
+          ghcr_image="$(printf '%s' "$GHCR_IMAGE" | tr '[:upper:]' '[:lower:]')"
+          gar_image="$(printf '%s' "$GAR_IMAGE" | tr '[:upper:]' '[:lower:]')"
+          {
+            echo "ghcr=${ghcr_image}"
+            echo "gar=${gar_image}"
+            echo "all=${ghcr_image},${gar_image}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and export to Docker
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
@@ -169,17 +165,110 @@ jobs:
           skip_files: '/venv/lib/python3.12/site-packages/google/auth/crypt/__pycache__/_python_rsa.cpython-312.pyc' # Skip scanning this file as per UID2-4968
           failure_severity: ${{ (inputs.vulnerability_severity == 'CRITICAL (DO NOT use if JIRA ticket not raised)' && 'CRITICAL') || inputs.vulnerability_severity }}
 
-      - name: Push to Docker
+      # Re-authenticate immediately before registry publish. Build + Trivy can exceed
+      # a short-lived GAR token obtained earlier in the job.
+      - name: Log in to the Docker container registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Authenticate with Google Cloud
+        id: gcp_auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
+          service_account: ${{ vars.GCP_PUBLISH_SERVICE_ACCOUNT }}
+          access_token_lifetime: 3600s
+
+      - name: Log in to the GCP Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.GCP_REGISTRY }}
+          username: oauth2accesstoken
+          password: ${{ steps.gcp_auth.outputs.access_token }}
+
+      - name: Push to registries by digest
         id: push-to-docker
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
-          push: true
-          tags: ${{ steps.meta-all.outputs.tags }}
           labels: ${{ steps.meta-all.outputs.labels }}
+          # Quote name= so commas inside the multi-registry value are not parsed as CSV separators.
+          outputs: type=image,"name=${{ steps.image-refs.outputs.all }}",push-by-digest=true,push=true
           build-args: |
             JAR_VERSION=${{ steps.update_version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.update_version.outputs.new_version }}
+            BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
+
+      - name: Attest GHCR image
+        if: ${{ !contains(steps.update_version.outputs.new_version, 'SNAPSHOT') }}
+        uses: IABTechLab/uid2-shared-actions/actions/attest_image@v3
+        with:
+          subject_name: ${{ steps.image-refs.outputs.ghcr }}
+          subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+
+      - name: Verify GHCR attestation from registry
+        if: ${{ !contains(steps.update_version.outputs.new_version, 'SNAPSHOT') }}
+        uses: ./.github/actions/verify_oci_attestation
+        with:
+          subject_name: ${{ steps.image-refs.outputs.ghcr }}
+          subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+
+      - name: Attest GAR image
+        if: ${{ !contains(steps.update_version.outputs.new_version, 'SNAPSHOT') }}
+        uses: IABTechLab/uid2-shared-actions/actions/attest_image@v3
+        with:
+          subject_name: ${{ steps.image-refs.outputs.gar }}
+          subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+
+      - name: Verify GAR attestation from registry
+        if: ${{ !contains(steps.update_version.outputs.new_version, 'SNAPSHOT') }}
+        uses: ./.github/actions/verify_oci_attestation
+        with:
+          subject_name: ${{ steps.image-refs.outputs.gar }}
+          subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+
+      - name: Promote digest to registry tags
+        env:
+          DIGEST: ${{ steps.push-to-docker.outputs.digest }}
+          GHCR_IMAGE: ${{ steps.image-refs.outputs.ghcr }}
+          GHCR_TAGS: ${{ steps.meta.outputs.tags }}
+          GAR_IMAGE: ${{ steps.image-refs.outputs.gar }}
+          GAR_TAGS: ${{ steps.meta-gcp.outputs.tags }}
+        run: |
+          set -euo pipefail
+
+          promote_tags() {
+            local image="$1"
+            local tags="$2"
+            while IFS= read -r tag; do
+              [[ -z "$tag" ]] && continue
+              docker buildx imagetools create -t "$tag" "${image}@${DIGEST}"
+            done <<< "$tags"
+          }
+
+          verify_tags() {
+            local image="$1"
+            local tags="$2"
+            while IFS= read -r tag; do
+              [[ -z "$tag" ]] && continue
+              resolved="$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')"
+              if [[ "$resolved" != "$DIGEST" ]]; then
+                echo "::error::Promoted tag $tag resolved to $resolved, expected $DIGEST"
+                exit 1
+              fi
+            done <<< "$tags"
+          }
+
+          # Promote GAR before GHCR so a mid-promotion failure is less likely to
+          # leave the more widely consumed GHCR version tag published alone.
+          promote_tags "$GAR_IMAGE" "$GAR_TAGS"
+          promote_tags "$GHCR_IMAGE" "$GHCR_TAGS"
+          verify_tags "$GAR_IMAGE" "$GAR_TAGS"
+          verify_tags "$GHCR_IMAGE" "$GHCR_TAGS"
 
       - name: Generate GCP deployment artifacts
         env:
@@ -190,6 +279,14 @@ jobs:
           VERSION_NUMBER: ${{ steps.update_version.outputs.new_version }}
         run: |
           bash ./scripts/gcp-oidc/generate-deployment-artifacts.sh
+
+      - name: Attest manifest artifacts
+        if: ${{ !contains(steps.update_version.outputs.new_version, 'SNAPSHOT') }}
+        uses: ./.github/actions/attest_file
+        with:
+          subject_paths: |
+            ${{ env.MANIFEST_OUTPUT_DIR }}/gcp-oidc-enclave-id-${{ steps.update_version.outputs.new_version }}.txt
+            ${{ env.MANIFEST_OUTPUT_DIR }}/gcp-oidc-enclave-id-debug-${{ steps.update_version.outputs.new_version }}.txt
 
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -209,6 +306,12 @@ jobs:
         if: ${{ inputs.version_number_input == '' && steps.update_version.outputs.is_release == 'true' }}
         run: |
             zip -j ${{ env.ARTIFACTS_OUTPUT_DIR }}/gcp-oidc-deployment-files-${{ steps.update_version.outputs.new_version }}.zip ${{ env.ARTIFACTS_OUTPUT_DIR }}/*
+
+      - name: Attest release archive
+        if: ${{ inputs.version_number_input == '' && steps.update_version.outputs.is_release == 'true' }}
+        uses: ./.github/actions/attest_file
+        with:
+          subject_paths: ${{ env.ARTIFACTS_OUTPUT_DIR }}/gcp-oidc-deployment-files-${{ steps.update_version.outputs.new_version }}.zip
 
       - name: Build changelog
         id: github_release

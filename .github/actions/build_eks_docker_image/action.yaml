@@ -111,6 +111,9 @@ runs:
       run: |
         df -h
 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
     - name: Log in to the Docker container registry
       uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
       with:
@@ -126,6 +129,15 @@ runs:
         tags: |
           type=raw,value=${{ steps.versionNumber.outputs.VERSION_NUMBER }}.${{ github.run_number }}
 
+    - name: Set image repository reference
+      id: image-ref
+      shell: bash
+      env:
+        IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-eks-${{ inputs.identity_scope }}
+      run: |
+        image="$(printf '%s' "$IMAGE" | tr '[:upper:]' '[:lower:]')"
+        echo "value=${image}" >> "$GITHUB_OUTPUT"
+
     - name: Build and export to Docker
       uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
       with:
@@ -138,17 +150,44 @@ runs:
           IMAGE_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
           BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
 
-    - name: Push to Docker
+    - name: Push to Docker by digest
       id: push-to-docker
       uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
       with:
         context: ${{ inputs.artifacts_output_dir }}
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        outputs: type=image,name=${{ steps.image-ref.outputs.value }},push-by-digest=true,push=true
         build-args: |
           JAR_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
           IMAGE_VERSION=${{ steps.versionNumber.outputs.VERSION_NUMBER }}
+          BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
+
+    - name: Attest image
+      if: ${{ !contains(steps.versionNumber.outputs.VERSION_NUMBER, 'SNAPSHOT') }}
+      uses: IABTechLab/uid2-shared-actions/actions/attest_image@v3
+      with:
+        subject_name: ${{ steps.image-ref.outputs.value }}
+        subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+
+    - name: Verify image attestation from registry
+      if: ${{ !contains(steps.versionNumber.outputs.VERSION_NUMBER, 'SNAPSHOT') }}
+      uses: ./.github/actions/verify_oci_attestation
+      with:
+        subject_name: ${{ steps.image-ref.outputs.value }}
+        subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+
+    - name: Promote digest to Docker tags
+      shell: bash
+      env:
+        DIGEST: ${{ steps.push-to-docker.outputs.digest }}
+        IMAGE: ${{ steps.image-ref.outputs.value }}
+        TAGS: ${{ steps.meta.outputs.tags }}
+      run: |
+        set -euo pipefail
+        while IFS= read -r tag; do
+          [[ -z "$tag" ]] && continue
+          docker buildx imagetools create -t "$tag" "${IMAGE}@${DIGEST}"
+        done <<< "$TAGS"
 
     - name: Check disk usage
       shell: bash

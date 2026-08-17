@@ -159,6 +159,11 @@ jobs:
   createRelease:
     name: Create Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     # Also publish on scheduled builds, not just manual dispatch: the deployed
     # operator versions may come from the daily scheduled run, so
     # the uid2-deployment pre-deploy release gate won't hard-block
@@ -240,6 +245,18 @@ jobs:
           (cd ./deployment/azure-aks-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd ./deployment/gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }} && zip -r ../../gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip . )
           (cd manifests && zip -r ../uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip .)
+
+      - name: Attest release archives
+        if: ${{ !contains(needs.start.outputs.new_version, 'SNAPSHOT') }}
+        uses: ./.github/actions/attest_file
+        with:
+          subject_paths: |
+            ./aws-euid-deployment-files-${{ needs.start.outputs.new_version }}.zip
+            ./aws-uid2-deployment-files-${{ needs.start.outputs.new_version }}.zip
+            ./azure-cc-deployment-files-${{ needs.start.outputs.new_version }}.zip
+            ./azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip
+            ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
+            ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip
 
       # Publish as a pre-release (not a draft): durable + fetchable by tag
       # without claiming GA. The Major-release approval gate stays the

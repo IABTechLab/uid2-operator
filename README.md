@@ -129,8 +129,8 @@ gh attestation verify \
   --bundle-from-oci
 ```
 
-When an image was published through `publish-all-operators.yaml`, use that
-workflow path as `--signer-workflow` instead of the cloud-specific workflow.
+When `publish-all-operators.yaml` invokes a cloud-specific reusable workflow,
+the reusable workflow remains the signer.
 
 To pin an image to immutable bytes, replace its tag with the
 `@sha256:<digest>` shown by the registry.
@@ -147,13 +147,15 @@ gh attestation verify <downloaded-archive>.zip \
   --repo IABTechLab/uid2-operator \
   --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-all-operators.yaml
 
-# An EIF or measurement file extracted from the downloaded archives
+# An EIF extracted from the downloaded archives
 gh attestation verify <path-to>/uid2operator.eif \
   --repo IABTechLab/uid2-operator \
   --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-aws-nitro-eif.yaml
+
+# A measurement file (use the workflow that generated that measurement)
 gh attestation verify <path-to>/<measurement-file>.txt \
   --repo IABTechLab/uid2-operator \
-  --signer-workflow IABTechLab/uid2-operator/.github/workflows/publish-all-operators.yaml
+  --signer-workflow IABTechLab/uid2-operator/.github/workflows/<producer-workflow>.yaml
 ```
 
 AWS AMI measurement files contain AMI IDs and the EIF PCR0 used by the build.

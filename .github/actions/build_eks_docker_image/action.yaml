@@ -175,6 +175,7 @@ runs:
       with:
         subject_name: ${{ steps.image-ref.outputs.value }}
         subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+        signer_workflow: ${{ github.repository }}/.github/workflows/publish-aws-eks-nitro-enclave-docker.yaml
 
     - name: Promote digest to Docker tags
       shell: bash

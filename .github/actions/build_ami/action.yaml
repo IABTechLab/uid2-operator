@@ -135,10 +135,10 @@ runs:
           exit 1
         fi
         # EIF may have been attested by the standalone Nitro workflow or by
-        # Publish All Operators calling that workflow via workflow_call.
+        # the same reusable Nitro workflow invoked by Publish All Operators.
         gh attestation verify "$EIF_PATH" \
           --repo "$EIF_REPO" \
-          --cert-identity-regex "^https://github\\.com/${EIF_REPO}/\\.github/workflows/(publish-aws-nitro-eif|publish-all-operators)\\.ya?ml@"
+          --signer-workflow "${EIF_REPO}/.github/workflows/publish-aws-nitro-eif.yaml"
 
     - name: Prepare EIF archive for Packer
       shell: bash

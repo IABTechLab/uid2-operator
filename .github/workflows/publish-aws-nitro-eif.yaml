@@ -104,6 +104,7 @@ jobs:
           subject_paths: |
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/uid2operator.eif
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/uid2/pcr0.txt
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-aws-nitro-eif.yaml
 
       - name: Save UID2 eif artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -156,6 +157,7 @@ jobs:
           subject_paths: |
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/uid2operator.eif
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/euid/pcr0.txt
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-aws-nitro-eif.yaml
 
       - name: Save EUID eif artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -215,6 +217,7 @@ jobs:
           subject_paths: |
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-uid2-enclave-id-${{ needs.start.outputs.new_version }}.txt
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-euid-enclave-id-${{ needs.start.outputs.new_version }}.txt
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-aws-nitro-eif.yaml
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -253,6 +256,7 @@ jobs:
           subject_paths: |
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-uid2-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/aws-euid-deployment-artifacts-${{ needs.start.outputs.new_version }}.zip
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-aws-nitro-eif.yaml
 
       - name: Create release
         if: ${{ inputs.version_number_input == '' && needs.start.outputs.is_release == 'true' }}

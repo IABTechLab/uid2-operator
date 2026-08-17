@@ -5,6 +5,9 @@ inputs:
   subject_paths:
     description: Newline-separated paths to the files to attest.
     required: true
+  signer_workflow:
+    description: Exact owner/repository/path of the workflow signing the attestation.
+    required: true
 
 runs:
   using: composite
@@ -19,15 +22,9 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
         SUBJECT_PATHS: ${{ inputs.subject_paths }}
-        WORKFLOW_REF: ${{ github.workflow_ref }}
+        SIGNER_WORKFLOW: ${{ inputs.signer_workflow }}
       run: |
         set -euo pipefail
-
-        # Reusable workflow_call jobs are signed as the caller
-        # (publish-all-operators). Standalone dispatches are signed as this
-        # workflow file. Reject every other workflow in the repository.
-        signer_file="$(basename "${WORKFLOW_REF%%@*}")"
-        cert_identity_regex="^https://github\\.com/${GITHUB_REPOSITORY}/\\.github/workflows/(publish-all-operators\\.ya?ml|${signer_file})@"
 
         while IFS= read -r subject_path; do
           [[ -z "$subject_path" ]] && continue
@@ -39,5 +36,5 @@ runs:
 
           gh attestation verify "$subject_path" \
             --repo "$GITHUB_REPOSITORY" \
-            --cert-identity-regex "$cert_identity_regex"
+            --signer-workflow "$SIGNER_WORKFLOW"
         done <<< "$SUBJECT_PATHS"

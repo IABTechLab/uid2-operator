@@ -193,6 +193,7 @@ jobs:
         with:
           subject_name: ${{ steps.image-ref.outputs.value }}
           subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-azure-cc-enclave-docker.yaml
 
       - name: Promote digest to Docker tags
         env:
@@ -240,6 +241,7 @@ jobs:
         uses: ./.github/actions/attest_file
         with:
           subject_paths: ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ needs.buildImage.outputs.jar_version }}.txt
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-azure-cc-enclave-docker.yaml
 
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -298,6 +300,7 @@ jobs:
         uses: ./.github/actions/attest_file
         with:
           subject_paths: ${{ env.MANIFEST_OUTPUT_DIR }}/azure-aks-operator-digest-${{ needs.buildImage.outputs.jar_version }}.txt
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-azure-cc-enclave-docker.yaml
 
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

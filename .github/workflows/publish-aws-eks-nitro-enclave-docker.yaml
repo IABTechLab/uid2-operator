@@ -148,6 +148,7 @@ jobs:
           subject_paths: |
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-uid2-enclave-id-${{ needs.buildUID2Image.outputs.image_tag }}.txt
             ${{ env.ARTIFACTS_BASE_OUTPUT_DIR }}/manifests/aws-eks-euid-enclave-id-${{ needs.buildEUIDImage.outputs.image_tag }}.txt
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-aws-eks-nitro-enclave-docker.yaml
 
       - name: Save Manifests as build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

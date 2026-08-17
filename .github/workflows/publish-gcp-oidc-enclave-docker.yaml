@@ -216,6 +216,7 @@ jobs:
         with:
           subject_name: ${{ steps.image-refs.outputs.ghcr }}
           subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-gcp-oidc-enclave-docker.yaml
 
       - name: Attest GAR image
         if: ${{ !contains(steps.update_version.outputs.new_version, 'SNAPSHOT') }}
@@ -230,6 +231,7 @@ jobs:
         with:
           subject_name: ${{ steps.image-refs.outputs.gar }}
           subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-gcp-oidc-enclave-docker.yaml
 
       - name: Promote digest to registry tags
         env:
@@ -287,6 +289,7 @@ jobs:
           subject_paths: |
             ${{ env.MANIFEST_OUTPUT_DIR }}/gcp-oidc-enclave-id-${{ steps.update_version.outputs.new_version }}.txt
             ${{ env.MANIFEST_OUTPUT_DIR }}/gcp-oidc-enclave-id-debug-${{ steps.update_version.outputs.new_version }}.txt
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-gcp-oidc-enclave-docker.yaml
 
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -312,6 +315,7 @@ jobs:
         uses: ./.github/actions/attest_file
         with:
           subject_paths: ${{ env.ARTIFACTS_OUTPUT_DIR }}/gcp-oidc-deployment-files-${{ steps.update_version.outputs.new_version }}.zip
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-gcp-oidc-enclave-docker.yaml
 
       - name: Build changelog
         id: github_release

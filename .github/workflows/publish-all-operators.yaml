@@ -257,6 +257,7 @@ jobs:
             ./azure-aks-deployment-files-${{ needs.start.outputs.new_version }}.zip
             ./gcp-oidc-deployment-files-${{ needs.start.outputs.new_version }}.zip
             ./uid2-operator-release-manifests-${{ needs.start.outputs.new_version }}.zip
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-all-operators.yaml
 
       # Publish as a pre-release (not a draft): durable + fetchable by tag
       # without claiming GA. The Major-release approval gate stays the

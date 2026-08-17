@@ -163,6 +163,19 @@ Their attestations prove the provenance of those metadata files; they do not
 represent a byte-level signature of an AWS AMI. The AMI workflow also verifies
 the consumed EIF’s existing provenance before Packer runs.
 
+### Rebuilding AMIs from legacy EIFs
+
+The AMI workflow fails closed when a non-snapshot EIF has no provenance
+attestation. EIFs produced before provenance enforcement was introduced cannot
+therefore be used to rebuild or repair an AMI with the current workflow. The
+cutover is the first non-snapshot operator release published after this
+workflow change.
+
+For a legacy EIF, `gh attestation verify` reports `no attestations found`
+before Packer starts. This indicates a pre-provenance artifact, not necessarily
+artifact corruption. There is currently no bypass; supporting a legacy AMI
+rebuild requires a reviewed workflow change.
+
 A successful verification prints `✓ Verification succeeded!` and the SLSA
 provenance, including `sourceRepositoryDigest`, `workflow.path`, and runner
 identity.

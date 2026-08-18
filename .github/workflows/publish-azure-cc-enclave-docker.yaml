@@ -174,7 +174,7 @@ jobs:
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ steps.image-ref.outputs.value }},push-by-digest=true,push=true
+          outputs: type=image,name=${{ steps.image-ref.outputs.value }},oci-mediatypes=false,push-by-digest=true,push=true
           # Keep the private image as a plain single-platform manifest. Signed
           # SLSA provenance is added separately by attest_image below.
           provenance: false

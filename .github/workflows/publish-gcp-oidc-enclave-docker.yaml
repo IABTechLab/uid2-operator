@@ -197,7 +197,7 @@ jobs:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
           labels: ${{ steps.meta-all.outputs.labels }}
           # Quote name= so commas inside the multi-registry value are not parsed as CSV separators.
-          outputs: type=image,"name=${{ steps.image-refs.outputs.all }}",push-by-digest=true,push=true
+          outputs: type=image,"name=${{ steps.image-refs.outputs.all }}",oci-mediatypes=false,push-by-digest=true,push=true
           # Keep the private image as a plain single-platform manifest. Signed
           # SLSA provenance is added separately by attest_image below.
           provenance: false

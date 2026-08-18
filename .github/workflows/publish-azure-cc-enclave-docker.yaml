@@ -66,6 +66,8 @@ jobs:
       security-events: write
       packages: write
       id-token: write
+      attestations: write
+      artifact-metadata: write
       pull-requests: write
     outputs:
       jar_version: ${{ steps.update_version.outputs.new_version }}
@@ -102,6 +104,9 @@ jobs:
           cp -r target ${{ env.DOCKER_CONTEXT_PATH }}/
           cp scripts/confidential_compute.py ${{ env.DOCKER_CONTEXT_PATH }}/
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
       - name: Log in to the Docker container registry
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
@@ -116,6 +121,14 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ steps.update_version.outputs.image_tag }}
+
+      - name: Set image repository reference
+        id: image-ref
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          image="$(printf '%s' "$IMAGE" | tr '[:upper:]' '[:lower:]')"
+          echo "value=${image}" >> "$GITHUB_OUTPUT"
 
       - name: Build and export to Docker
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
@@ -155,22 +168,65 @@ jobs:
           severity: ${{ inputs.vulnerability_severity }}
           hide-progress: true
 
-      - name: Push to Docker
+      - name: Push to Docker by digest
         id: push-to-docker
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: ${{ env.DOCKER_CONTEXT_PATH }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ steps.image-ref.outputs.value }},oci-mediatypes=false,push-by-digest=true,push=true
+          # Keep the private image as a plain single-platform manifest. Signed
+          # SLSA provenance is added separately by attest_image below.
+          provenance: false
           build-args: |
             JAR_VERSION=${{ steps.update_version.outputs.new_version }}
             IMAGE_VERSION=${{ steps.update_version.outputs.new_version }}
+            BUILD_TARGET=${{ env.ENCLAVE_PROTOCOL }}
+
+      - name: Attest image
+        if: ${{ !contains(steps.update_version.outputs.new_version, 'SNAPSHOT') }}
+        uses: IABTechLab/uid2-shared-actions/actions/attest_image@v3
+        with:
+          subject_name: ${{ steps.image-ref.outputs.value }}
+          subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+
+      - name: Verify image attestation from registry
+        if: ${{ !contains(steps.update_version.outputs.new_version, 'SNAPSHOT') }}
+        uses: ./.github/actions/verify_oci_attestation
+        with:
+          subject_name: ${{ steps.image-ref.outputs.value }}
+          subject_digest: ${{ steps.push-to-docker.outputs.digest }}
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-azure-cc-enclave-docker.yaml
+
+      - name: Promote digest to Docker tags
+        env:
+          DIGEST: ${{ steps.push-to-docker.outputs.digest }}
+          IMAGE: ${{ steps.image-ref.outputs.value }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            [[ -z "$tag" ]] && continue
+            docker buildx imagetools create --prefer-index=false -t "$tag" "${IMAGE}@${DIGEST}"
+          done <<< "$TAGS"
+
+          while IFS= read -r tag; do
+            [[ -z "$tag" ]] && continue
+            resolved="$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')"
+            if [[ "$resolved" != "$DIGEST" ]]; then
+              echo "::error::Promoted tag $tag resolved to $resolved, expected $DIGEST"
+              exit 1
+            fi
+          done <<< "$TAGS"
 
   azureCc:
     name: Create Azure CC artifacts
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     needs: buildImage
     steps:
       - name: Checkout
@@ -191,6 +247,13 @@ jobs:
           VERSION_NUMBER: ${{ needs.buildImage.outputs.jar_version }}
         run: |
           bash ./scripts/azure-cc/deployment/generate-deployment-artifacts.sh
+
+      - name: Attest manifest
+        if: ${{ !contains(needs.buildImage.outputs.jar_version, 'SNAPSHOT') }}
+        uses: ./.github/actions/attest_file
+        with:
+          subject_paths: ${{ env.MANIFEST_OUTPUT_DIR }}/azure-cc-operator-digest-${{ needs.buildImage.outputs.jar_version }}.txt
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-azure-cc-enclave-docker.yaml
 
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -218,7 +281,11 @@ jobs:
   azureAks:
     name: Create Azure AKS artifacts
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     needs: buildImage
     steps:
       - name: Checkout
@@ -239,6 +306,13 @@ jobs:
           VERSION_NUMBER: ${{ needs.buildImage.outputs.jar_version }}
         run: |
           bash ./scripts/azure-aks/deployment/generate-deployment-artifacts.sh
+
+      - name: Attest manifest
+        if: ${{ !contains(needs.buildImage.outputs.jar_version, 'SNAPSHOT') }}
+        uses: ./.github/actions/attest_file
+        with:
+          subject_paths: ${{ env.MANIFEST_OUTPUT_DIR }}/azure-aks-operator-digest-${{ needs.buildImage.outputs.jar_version }}.txt
+          signer_workflow: ${{ github.repository }}/.github/workflows/publish-azure-cc-enclave-docker.yaml
 
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

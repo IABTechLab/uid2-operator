@@ -42,6 +42,9 @@ outputs:
   enclave_id:
     description: the Enclave_ID of the EIF used to create the AMI
     value: ${{ steps.extractAmiIdAndEnclaveId.outputs.ENCLAVE_ID }}
+  measurement_path:
+    description: Path to the generated AMI measurement metadata file
+    value: ${{ steps.measurementPath.outputs.path }}
 
 runs:
   using: "composite"
@@ -87,10 +90,6 @@ runs:
         FILE=$(echo $ARTIFACTS | jq -r '.[0].name')
         unzip -o -d ./scripts/aws/uid2-operator-ami/artifacts $FILE.zip
         rm $FILE.zip
-        cd "./scripts/aws/uid2-operator-ami/artifacts/"
-        zip "uid2operatoreif.zip" "uid2operator.eif"
-        cd -
-        rm ./scripts/aws/uid2-operator-ami/artifacts/uid2operator.eif
         ls ./scripts/aws/uid2-operator-ami/artifacts/ -al
 
     - name: Configure UID2 AWS credentials
@@ -121,6 +120,34 @@ runs:
         VERSION_NUMBER=$(cat ./artifacts/version_number.txt)
         echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_OUTPUT
         echo $VERSION_NUMBER
+
+    - name: Verify consumed EIF provenance
+      if: ${{ !contains(steps.versionNumber.outputs.VERSION_NUMBER, 'SNAPSHOT') }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        EIF_PATH: ${{ github.workspace }}/scripts/aws/uid2-operator-ami/artifacts/uid2operator.eif
+        EIF_REPO: ${{ inputs.eif_repo_owner }}/${{ inputs.eif_repo_name }}
+      run: |
+        set -euo pipefail
+        if [[ ! -f "$EIF_PATH" ]]; then
+          echo "::error file=${EIF_PATH}::Expected EIF subject is missing before AMI build"
+          exit 1
+        fi
+        # EIF may have been attested by the standalone Nitro workflow or by
+        # the same reusable Nitro workflow invoked by Publish All Operators.
+        gh attestation verify "$EIF_PATH" \
+          --repo "$EIF_REPO" \
+          --signer-workflow "${EIF_REPO}/.github/workflows/publish-aws-nitro-eif.yaml"
+
+    - name: Prepare EIF archive for Packer
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd "./scripts/aws/uid2-operator-ami/artifacts/"
+        zip "uid2operatoreif.zip" "uid2operator.eif"
+        rm "uid2operator.eif"
+        ls -al
 
     - name: Setup Packer
       id: setup-packer
@@ -189,8 +216,10 @@ runs:
         cat euid_AMI_measurement.txt
         ls -al
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: ${{ inputs.identity_scope }}_AMI_measurement
-        path: ./scripts/aws/uid2-operator-ami/${{ inputs.identity_scope }}_AMI_measurement.txt
+    - name: Set measurement metadata path
+      id: measurementPath
+      shell: bash
+      env:
+        IDENTITY_SCOPE: ${{ inputs.identity_scope }}
+      run: |
+        echo "path=${GITHUB_WORKSPACE}/scripts/aws/uid2-operator-ami/${IDENTITY_SCOPE}_AMI_measurement.txt" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,36 @@
+name: Verify OCI attestation
+description: |
+  Verifies that a registry-stored SLSA attestation bundle is retrievable for an
+  OCI image digest and was signed by the explicitly trusted workflow.
+
+inputs:
+  subject_name:
+    description: Fully qualified image reference (registry/owner/repo[+suffix]).
+    required: true
+  subject_digest:
+    description: OCI manifest digest (sha256:...) emitted by docker/build-push-action.
+    required: true
+  signer_workflow:
+    description: Exact owner/repository/path of the workflow signing the attestation.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Verify attestation from registry
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SUBJECT_NAME: ${{ inputs.subject_name }}
+        SUBJECT_DIGEST: ${{ inputs.subject_digest }}
+        SIGNER_WORKFLOW: ${{ inputs.signer_workflow }}
+      run: |
+        set -euo pipefail
+
+        image_ref="$(printf '%s' "$SUBJECT_NAME" | tr '[:upper:]' '[:lower:]')"
+
+        gh attestation verify \
+          "oci://${image_ref}@${SUBJECT_DIGEST}" \
+          --bundle-from-oci \
+          --repo "$GITHUB_REPOSITORY" \
+          --signer-workflow "$SIGNER_WORKFLOW"

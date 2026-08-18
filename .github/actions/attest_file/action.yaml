@@ -1,0 +1,40 @@
+name: Attest files
+description: Generates and verifies SLSA build provenance for one or more files.
+
+inputs:
+  subject_paths:
+    description: Newline-separated paths to the files to attest.
+    required: true
+  signer_workflow:
+    description: Exact owner/repository/path of the workflow signing the attestation.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Attest build provenance
+      uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+      with:
+        subject-path: ${{ inputs.subject_paths }}
+
+    - name: Verify attestations
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SUBJECT_PATHS: ${{ inputs.subject_paths }}
+        SIGNER_WORKFLOW: ${{ inputs.signer_workflow }}
+      run: |
+        set -euo pipefail
+
+        while IFS= read -r subject_path; do
+          [[ -z "$subject_path" ]] && continue
+
+          if [[ ! -f "$subject_path" ]]; then
+            echo "::error file=${subject_path}::Attestation subject does not exist"
+            exit 1
+          fi
+
+          gh attestation verify "$subject_path" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$SIGNER_WORKFLOW"
+        done <<< "$SUBJECT_PATHS"

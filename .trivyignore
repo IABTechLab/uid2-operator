@@ -44,9 +44,12 @@ CVE-2026-2100 exp:2026-09-01
 # JAXP/Xerces implementation, not the native libexpat C library, and there are no JNI bindings or
 # native deps that call into libexpat, so the crafted-XML attack path is not reachable. Fixed in
 # Alpine v3.23 libexpat >= 2.8.2-r0; the pinned eclipse-temurin base image has not yet been rebuilt with it.
+# Renewed rather than removed: Alpine's package index now shows libexpat 2.8.3-r0, above the fix
+# threshold, but that's not yet confirmed inside our pinned image digest. See UID2-7763 for the
+# base-image-bump investigation.
 # See: UID2-7456
-CVE-2026-56131 exp:2026-08-09
-CVE-2026-56407 exp:2026-08-09
+CVE-2026-56131 exp:2026-09-27
+CVE-2026-56407 exp:2026-09-27
 # CVE-2026-56408 — libexpat (Alpine base image, transitive via eclipse-temurin:21-jre-
 # alpine-3.23) (HIGH).
 # Not exploitable here: Same alpine base (adds only gcompat for Corretto crypto). No native
@@ -57,9 +60,9 @@ CVE-2026-56408 exp:2026-11-11
 
 # jackson-core async parser maxNumberLength bypass (GHSA-r7wm-3cxj-wff9) - incomplete fix for
 # GHSA-72hv-8253-57qq. Not exploitable: services only use the synchronous ObjectMapper API, not
-# jackson-core's non-blocking/async parser. A jackson bump is also in flight via uid2-shared
-# (PR #631) and will flow on the next release. See: UID2-7557 (predecessor UID2-6670)
-GHSA-r7wm-3cxj-wff9 exp:2026-08-23
+# jackson-core's non-blocking/async parser. Note: uid2-shared PR #631 (previously cited here as
+# "in flight") was reverted in #633 — not a fix for this GHSA. See: UID2-7557 (predecessor UID2-6670)
+GHSA-r7wm-3cxj-wff9 exp:2026-09-27
 
 # CVE-2026-40984 — io.micrometer:micrometer-core (transitive via micrometer-registry-
 # prometheus/-jmx); micrometer-jetty11/12 not present (HIGH).

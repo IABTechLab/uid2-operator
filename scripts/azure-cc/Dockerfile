@@ -3,7 +3,6 @@ FROM eclipse-temurin@sha256:319339a7fc9c7b59478cbed0340b6ba4944b45384a6eba3b0086
 
 # Install necessary packages and set up virtual environment
 RUN apk update && apk add --no-cache jq python3 py3-pip && \
-    apk add --no-cache --upgrade libcrypto3 libssl3 && \
     python3 -m venv /venv && \
     . /venv/bin/activate && \
     pip install --no-cache-dir requests azure-identity azure-keyvault-secrets && \

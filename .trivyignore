@@ -29,3 +29,14 @@ GHSA-r7wm-3cxj-wff9 exp:2026-09-27
 # See: UID2-7662
 CVE-2026-40984 exp:2026-11-11
 
+# CVE-2026-14456 — libcrypto3/libssl3 (openssl, Alpine base image, transitive via
+# eclipse-temurin:21-jre-alpine-3.23) (HIGH): DoS via unbounded memory growth in an OpenSSL
+# QUIC server. Not exploitable: uid2-operator terminates TLS via JSSE over plain TCP and never
+# runs an OpenSSL QUIC server. The bundled Amazon Corretto Crypto Provider (ACCP) only exposes
+# JCA Cipher/Signature/MessageDigest/KeyAgreement via OpenSSL's EVP API — it never touches
+# libssl's QUIC server implementation, so ACCP does not make this path reachable. Applies to the
+# GCP OIDC and Azure CC private-operator images (scripts/gcp-oidc, scripts/azure-cc), which don't
+# carry the apk upgrade applied to ./Dockerfile in #2708.
+# See: UID2-7761
+CVE-2026-14456 exp:2026-09-28
+

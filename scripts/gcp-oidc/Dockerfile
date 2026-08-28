@@ -6,6 +6,7 @@ LABEL "tee.launch_policy.log_redirect"="always"
 
 # Install Packages
 RUN apk update && apk add --no-cache jq python3 py3-pip && \
+    apk add --no-cache --upgrade libcrypto3 libssl3 && \
     python3 -m venv /venv && \
     . /venv/bin/activate && \
     pip install --no-cache-dir google-cloud-secret-manager google-auth google-api-core packaging && \

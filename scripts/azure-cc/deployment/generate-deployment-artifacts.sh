@@ -86,6 +86,11 @@ fi
 POLICY_DIGEST_FILE=azure-cc-operator-digest-$VERSION_NUMBER.txt
 az confcom acipolicygen --approve-wildcards --omit-id --template-file ${OUTPUT_DIR}/operator.json --print-policy > ${INPUT_DIR}/policy.base64
 base64 -di < ${INPUT_DIR}/policy.base64 > ${INPUT_DIR}/generated.rego
+# Azure ACI injects these managed-identity vars into confidential containers, but confcom's built-in
+# ACI-injected allowlist does not yet cover them. Without matching rules the container fails to start,
+# since env-var dropping is off below. skr needs IDENTITY_ENDPOINT/IMDS_ENDPOINT to fetch the
+# managed-identity token for key release, so they must be allowed rather than dropped. See UID2-7797.
+sed -i "s#{\"pattern\":\"IDENTITY_SERVER_THUMBPRINT=.+\",\"required\":false,\"strategy\":\"re2\"},#{\"pattern\":\"IDENTITY_SERVER_THUMBPRINT=.+\",\"required\":false,\"strategy\":\"re2\"},{\"pattern\":\"APP_IDENTITY_ENDPOINT=.+\",\"required\":false,\"strategy\":\"re2\"},{\"pattern\":\"IDENTITY_ENDPOINT=.+\",\"required\":false,\"strategy\":\"re2\"},{\"pattern\":\"IMDS_ENDPOINT=.+\",\"required\":false,\"strategy\":\"re2\"},#g" ${INPUT_DIR}/generated.rego
 sed -i "s#allow_environment_variable_dropping := true#allow_environment_variable_dropping := false#g" ${INPUT_DIR}/generated.rego
 base64 -w0 < ${INPUT_DIR}/generated.rego > ${INPUT_DIR}/generated.rego.base64
 python3 ${SCRIPT_DIR}/generate.py ${INPUT_DIR}/generated.rego > ${MANIFEST_DIR}/${POLICY_DIGEST_FILE}

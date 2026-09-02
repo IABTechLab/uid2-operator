@@ -40,3 +40,16 @@ CVE-2026-40984 exp:2026-11-11
 # See: UID2-7761
 CVE-2026-14456 exp:2026-09-28
 
+# CVE-2026-66046 — libexpat (Alpine base-image OS library) (HIGH).
+# Not exploitable here: Dockerfile FROM eclipse-temurin:21-jre-alpine-3.23 (adds gcompat +
+# libcrypto3/libssl3 for Amazon Corretto Crypto Provider only). Pure-Java; no native XML
+# binding to libexpat in src.
+# See: UID2-7800
+CVE-2026-66046 exp:2026-12-02
+
+# CVE-2026-76641 — libexpat (Alpine base-image native C library) (HIGH).
+# Not exploitable here: Dockerfile FROM eclipse-temurin 21-jre-alpine-3.23; adds gcompat +
+# libcrypto3/libssl3 for Amazon Corretto Crypto Provider only; no libexpat, no native XML
+# binding; runs java -jar
+# See: UID2-7801
+CVE-2026-76641 exp:2026-12-02

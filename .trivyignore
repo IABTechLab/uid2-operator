@@ -2,24 +2,9 @@
 # See https://aquasecurity.github.io/trivy/v0.35/docs/vulnerability/examples/filter/ 
 # for more details
 
-# UID2-6385
-CVE-2025-66293 exp:2026-06-15
-
-# UID2-6481
-CVE-2025-68973 exp:2026-06-15
-
 # jackson-core async parser DoS - not exploitable, services only use synchronous ObjectMapper API
 # See: UID2-6670
 GHSA-72hv-8253-57qq exp:2026-09-01
-
-# libpng heap buffer overflow in Alpine base image - fixed version not yet available in Alpine 3.23
-# See: UID2-6677
-CVE-2026-25646 exp:2026-09-02
-
-# zlib contrib/untgz demo utility buffer overflow - not exploitable, Alpine does not ship the untgz binary
-# and the core libz library used by the JRE is unaffected. The zlib maintainer disputes this CVE.
-# See: UID2-6704
-CVE-2026-22184 exp:2026-09-09
 
 # CVE-2026-42577 — netty-transport-native-epoll DoS via RST on half-closed TCP connection.
 # Advisory: https://github.com/netty/netty/security/advisories/GHSA-rwm7-x88c-3g2p
@@ -28,4 +13,43 @@ CVE-2026-22184 exp:2026-09-09
 # gateway) so anonymous external attackers cannot reach the netty epoll socket directly;
 # LB-level connection limits and idle timeouts further cap the blast radius. CVSS impact is
 # Availability only (C:N/I:N/A:H). Tracking via UID2-7035; revisit on vert.x 5 migration.
-CVE-2026-42577 exp:2026-06-08
+CVE-2026-42577 exp:2026-09-11
+
+# jackson-core async parser maxNumberLength bypass (GHSA-r7wm-3cxj-wff9) - incomplete fix for
+# GHSA-72hv-8253-57qq. Not exploitable: services only use the synchronous ObjectMapper API, not
+# jackson-core's non-blocking/async parser. Note: uid2-shared PR #631 (previously cited here as
+# "in flight") was reverted in #633 — not a fix for this GHSA. See: UID2-7557 (predecessor UID2-6670)
+GHSA-r7wm-3cxj-wff9 exp:2026-09-27
+
+# CVE-2026-40984 — io.micrometer:micrometer-core (transitive via micrometer-registry-
+# prometheus/-jmx); micrometer-jetty11/12 not present (HIGH).
+# Not exploitable here: pom.xml:103/108/113 vertx-micrometer + registry 1.12.2; Main.java:495
+# MicrometerMetricsOptions.setLabels(HTTP_METHOD,HTTP_CODE,HTTP_PATH,POOL_NAME) — tags computed
+# by Vert.x instrumentation, not Micrometer's vulnerable HTTP server binder
+# See: UID2-7662
+CVE-2026-40984 exp:2026-11-11
+
+# CVE-2026-14456 — libcrypto3/libssl3 (openssl, Alpine base image, transitive via
+# eclipse-temurin:21-jre-alpine-3.23) (HIGH): DoS via unbounded memory growth in an OpenSSL
+# QUIC server. Not exploitable: uid2-operator terminates TLS via JSSE over plain TCP and never
+# runs an OpenSSL QUIC server. The bundled Amazon Corretto Crypto Provider (ACCP) only exposes
+# JCA Cipher/Signature/MessageDigest/KeyAgreement via OpenSSL's EVP API — it never touches
+# libssl's QUIC server implementation, so ACCP does not make this path reachable. Applies to the
+# GCP OIDC and Azure CC private-operator images (scripts/gcp-oidc, scripts/azure-cc), which don't
+# carry the apk upgrade applied to ./Dockerfile in #2708.
+# See: UID2-7761
+CVE-2026-14456 exp:2026-09-28
+
+# CVE-2026-66046 — libexpat (Alpine base-image OS library) (HIGH).
+# Not exploitable here: Dockerfile FROM eclipse-temurin:21-jre-alpine-3.23 (adds gcompat +
+# libcrypto3/libssl3 for Amazon Corretto Crypto Provider only). Pure-Java; no native XML
+# binding to libexpat in src.
+# See: UID2-7800
+CVE-2026-66046 exp:2026-12-02
+
+# CVE-2026-76641 — libexpat (Alpine base-image native C library) (HIGH).
+# Not exploitable here: Dockerfile FROM eclipse-temurin 21-jre-alpine-3.23; adds gcompat +
+# libcrypto3/libssl3 for Amazon Corretto Crypto Provider only; no libexpat, no native XML
+# binding; runs java -jar
+# See: UID2-7801
+CVE-2026-76641 exp:2026-12-02

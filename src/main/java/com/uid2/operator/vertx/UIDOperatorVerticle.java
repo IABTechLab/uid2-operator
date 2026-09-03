@@ -1525,15 +1525,7 @@ public class UIDOperatorVerticle extends AbstractVerticle {
         } catch (ClientInputValidationException cie) {
             LOGGER.warn("Failed to decode refresh token for site ID: " + rc.data().get(Const.RoutingContextData.SiteId), cie);
             return RefreshResponse.Invalid;
-        } catch (Exception e) {
-            if (e.getCause() instanceof BadPaddingException || e.getCause() instanceof IllegalBlockSizeException) {
-                LOGGER.warn("Failed to decode refresh token for site ID: " + rc.data().get(Const.RoutingContextData.SiteId), e);
-            } else {
-                LOGGER.error("Unexpected error decoding refresh token for site ID: " + rc.data().get(Const.RoutingContextData.SiteId), e);
-            }
-            return RefreshResponse.Invalid;
         }
-
         if (refreshToken == null) {
             return RefreshResponse.Invalid;
         }

@@ -14,7 +14,6 @@ import com.uid2.shared.store.scope.GlobalScope;
 import io.micrometer.core.instrument.Metrics;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
-import org.junit.Assert;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -45,7 +44,7 @@ class TokenEncodingTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = TokenVersion.class, names = {"V3", "V4"})
+    @EnumSource(value = TokenVersion.class, names = {"V4"})
     void testRefreshTokenEncoding(TokenVersion tokenVersion) {
         final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
         final Instant now = EncodingUtils.NowUTCMillis();
@@ -60,24 +59,19 @@ class TokenEncodingTest {
                 new UserIdentity(IdentityScope.UID2, IdentityType.Email, firstLevelHash, 121, now, now.minusSeconds(122))
         );
 
-        if (tokenVersion == TokenVersion.V4) {
-            Assert.assertThrows(Exception.class, () -> encoder.encode(token, now));
-            return; //V4 not supported for RefreshTokens
-        }
         final byte[] encodedBytes = encoder.encode(token, now);
         final RefreshToken decoded = encoder.decodeRefreshToken(EncodingUtils.toBase64String(encodedBytes));
 
         assertEquals(tokenVersion, decoded.version);
         assertEquals(token.createdAt, decoded.createdAt);
-        int addSeconds = (tokenVersion == TokenVersion.V2) ? 60 : 0; //todo: why is there a 60 second buffer in encodeV2() but not in encodeV3()?
-        assertEquals(token.expiresAt.plusSeconds(addSeconds), decoded.expiresAt);
+        assertEquals(token.expiresAt, decoded.expiresAt);
         assertTrue(token.userIdentity.matches(decoded.userIdentity));
         assertEquals(token.userIdentity.privacyBits, decoded.userIdentity.privacyBits);
         assertEquals(token.userIdentity.establishedAt, decoded.userIdentity.establishedAt);
         assertEquals(token.publisherIdentity.siteId, decoded.publisherIdentity.siteId);
 
         Buffer b = Buffer.buffer(encodedBytes);
-        int keyId = b.getInt(tokenVersion == TokenVersion.V2 ? 25 : 2);
+        int keyId = b.getInt(2);
         assertEquals(Data.RefreshKeySiteId, keyManager.getSiteIdFromKeyId(keyId));
 
         assertNotNull(Metrics.globalRegistry
@@ -87,13 +81,8 @@ class TokenEncodingTest {
 
     @ParameterizedTest
     @CsvSource({
-            "false, V4", //same as current UID2 prod (as at 2024-12-10)
-            "true, V4", //same as current EUID prod  (as at 2024-12-10)
-            //the following combinations aren't used in any UID2/EUID environments but just testing them regardless
-            "false, V3",
-            "true, V3",
-            "false, V2",
-            "true, V2"
+            "false, V4",
+            "true, V4"
     })
     void testAdvertisingTokenEncodings(boolean useRawUIDv3, TokenVersion adTokenVersion) {
         final EncryptedTokenEncoder encoder = new EncryptedTokenEncoder(this.keyManager);
@@ -122,7 +111,7 @@ class TokenEncodingTest {
         assertEquals(token.publisherIdentity.siteId, decoded.publisherIdentity.siteId);
 
         Buffer b = Buffer.buffer(encodedBytes);
-        int keyId = b.getInt(adTokenVersion == TokenVersion.V2 ? 1 : 2); //TODO - extract master key from token should be a helper function
+        int keyId = b.getInt(2);
         assertEquals(Data.MasterKeySiteId, keyManager.getSiteIdFromKeyId(keyId));
     }
 }

@@ -85,7 +85,7 @@ public class UIDOperatorService implements IUIDOperatorService {
 
         this.operatorIdentity = new OperatorIdentity(0, OperatorType.Service, 0, 0);
 
-        this.refreshTokenVersion = TokenVersion.V3;
+        this.refreshTokenVersion = TokenVersion.V4;
         this.rawUidV3Enabled = identityV3Enabled;
 
         registerAdvertisingIdVersionCounter(IdentityVersion.V2);

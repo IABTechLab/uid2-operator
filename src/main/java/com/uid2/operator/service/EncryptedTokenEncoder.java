@@ -88,47 +88,10 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
             final Buffer b = Buffer.buffer(bytes);
             if (b.getByte(1) == TokenVersion.V3.rawVersion) {
                 return decodeRefreshTokenV3(b, bytes);
-            } else if (b.getByte(0) == TokenVersion.V2.rawVersion) {
-                return decodeRefreshTokenV2(b);
             }
         }
 
         throw new ClientInputValidationException("Invalid refresh token version");
-    }
-
-    private RefreshToken decodeRefreshTokenV2(Buffer b) {
-        final Instant createdAt = Instant.ofEpochMilli(b.getLong(1));
-        //final Instant expiresAt = Instant.ofEpochMilli(b.getLong(9));
-        final Instant validTill = Instant.ofEpochMilli(b.getLong(17));
-        final int keyId = b.getInt(25);
-
-        final KeysetKey key = this.keyManager.getKey(keyId);
-
-        if (key == null) {
-            throw new ClientInputValidationException("Failed to fetch key with id: " + keyId);
-        }
-
-        final byte[] decryptedPayload = AesCbc.decrypt(b.slice(29, b.length()).getBytes(), key);
-
-        final Buffer b2 = Buffer.buffer(decryptedPayload);
-
-        final int siteId = b2.getInt(0);
-        final int length = b2.getInt(4);
-        final byte[] identity;
-        try {
-            identity = EncodingUtils.fromBase64(b2.slice(8, 8 + length).getBytes());
-        } catch (Exception e) {
-            throw new ClientInputValidationException("Failed to decode refreshTokenV2: Identity segment is not valid base64.", e);
-        }
-
-        final int privacyBits = b2.getInt(8 + length);
-        final long establishedMillis = b2.getLong(8 + length + 4);
-
-        return new RefreshToken(
-                TokenVersion.V2, createdAt, validTill,
-                new OperatorIdentity(0, OperatorType.Service, 0, 0),
-                new PublisherIdentity(siteId, 0, 0),
-                new UserIdentity(IdentityScope.UID2, IdentityType.Email, identity, privacyBits, Instant.ofEpochMilli(establishedMillis), null));
     }
 
     private RefreshToken decodeRefreshTokenV3(Buffer b, byte[] bytes) {
@@ -285,28 +248,12 @@ public class EncryptedTokenEncoder implements ITokenEncoder {
         final KeysetKey serviceKey = this.keyManager.getRefreshKey(asOf);
 
         switch (t.version) {
-            case V2:
-                recordRefreshTokenVersionCount(String.valueOf(t.publisherIdentity.siteId), TokenVersion.V2);
-                return encodeV2(t, serviceKey);
             case V3:
                 recordRefreshTokenVersionCount(String.valueOf(t.publisherIdentity.siteId), TokenVersion.V3);
                 return encodeV3(t, serviceKey);
             default:
                 throw new ClientInputValidationException("RefreshToken version " + t.version + " not supported");
         }
-    }
-
-    public byte[] encodeV2(RefreshToken t, KeysetKey serviceKey) {
-        final Buffer b = Buffer.buffer();
-        b.appendByte((byte) t.version.rawVersion);
-        b.appendLong(t.createdAt.toEpochMilli());
-        b.appendLong(t.expiresAt.toEpochMilli()); // should not be used
-        // give an extra minute for clients which are trying to refresh tokens close to or at the refresh expiry timestamp
-        b.appendLong(t.expiresAt.plusSeconds(60).toEpochMilli());
-        b.appendInt(serviceKey.getId());
-        final byte[] encryptedIdentity = encryptIdentityV2(t.publisherIdentity, t.userIdentity, serviceKey);
-        b.appendBytes(encryptedIdentity);
-        return b.getBytes();
     }
 
     public byte[] encodeV3(RefreshToken t, KeysetKey serviceKey) {

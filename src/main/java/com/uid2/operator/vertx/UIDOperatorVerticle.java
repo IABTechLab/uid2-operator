@@ -301,11 +301,6 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                 rc -> encryptedPayloadHandler.handle(rc, this::handleKeysRequestV2), Role.ID_READER));
         mainRouter.post(V2_TOKEN_LOGOUT.toString()).handler(bodyHandler).handler(auth.handleV1(
                 rc -> encryptedPayloadHandler.handleAsync(rc, this::handleLogoutAsyncV2), Role.OPTOUT));
-        if (this.optOutStatusApiEnabled) {
-            mainRouter.post(V2_OPTOUT_STATUS.toString()).handler(bodyHandler).handler(auth.handleV1(
-                    rc -> encryptedPayloadHandler.handle(rc, this::handleOptoutStatus),
-                    Role.MAPPER, Role.SHARER, Role.ID_READER));
-        }
 
         if (this.clientSideTokenGenerate)
             mainRouter.post(V2_TOKEN_CLIENTGENERATE.toString()).handler(bodyHandler).handler(this::handleClientSideTokenGenerate);
@@ -322,6 +317,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER), false);
             mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
                     rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER), false);
+            if (this.optOutStatusApiEnabled) {
+                mainRouter.post(V2_OPTOUT_STATUS.toString()).handler(bodyHandler).blockingHandler(auth.handleV1(
+                        rc -> encryptedPayloadHandler.handle(rc, this::handleOptoutStatus),
+                        Role.MAPPER, Role.SHARER, Role.ID_READER), false);
+            }
         } else {
             LOGGER.info("Async batch requests disabled");
             mainRouter.post(V2_KEY_SHARING.toString()).handler(bodyHandler).handler(auth.handleV1(
@@ -334,6 +334,11 @@ public class UIDOperatorVerticle extends AbstractVerticle {
                     rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV2), Role.MAPPER));
             mainRouter.post(V3_IDENTITY_MAP.toString()).handler(bodyHandler).handler(auth.handleV1(
                     rc -> encryptedPayloadHandler.handle(rc, this::handleIdentityMapV3), Role.MAPPER));
+            if (this.optOutStatusApiEnabled) {
+                mainRouter.post(V2_OPTOUT_STATUS.toString()).handler(bodyHandler).handler(auth.handleV1(
+                        rc -> encryptedPayloadHandler.handle(rc, this::handleOptoutStatus),
+                        Role.MAPPER, Role.SHARER, Role.ID_READER));
+            }
         }
     }
 

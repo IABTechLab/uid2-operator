@@ -64,5 +64,5 @@ CVE-2026-76957 exp:2026-10-10
 
 # CVE-2026-93990 — libexpat (Alpine base-image native C library) (HIGH). Not exploitable here.
 # See the ticket below for the assessment.
-# See: [TICKET]
+# See: UID2-7962
 CVE-2026-93990 exp:2026-12-25

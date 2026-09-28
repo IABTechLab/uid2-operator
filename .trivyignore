@@ -36,9 +36,10 @@ CVE-2026-40984 exp:2026-11-11
 # JCA Cipher/Signature/MessageDigest/KeyAgreement via OpenSSL's EVP API — it never touches
 # libssl's QUIC server implementation, so ACCP does not make this path reachable. Applies to the
 # GCP OIDC and Azure CC private-operator images (scripts/gcp-oidc, scripts/azure-cc), which don't
-# carry the apk upgrade applied to ./Dockerfile in #2708.
+# carry the apk upgrade applied to ./Dockerfile in #2708. Renewed 2026-09-28 (previous suppression
+# from #2710 expired without a code/reachability change).
 # See: UID2-7761
-CVE-2026-14456 exp:2026-09-28
+CVE-2026-14456 exp:2026-12-28
 
 # CVE-2026-66046 — libexpat (Alpine base-image OS library) (HIGH).
 # Not exploitable here: Dockerfile FROM eclipse-temurin:21-jre-alpine-3.23 (adds gcompat +

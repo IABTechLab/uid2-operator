@@ -28,3 +28,7 @@ GHSA-r7wm-3cxj-wff9 exp:2026-09-27
 # by Vert.x instrumentation, not Micrometer's vulnerable HTTP server binder
 # See: UID2-7662
 CVE-2026-40984 exp:2026-11-11
+
+# CVE-2026-77214 — libexpat (HIGH). Not vulnerable.
+# See: UID2-8106
+CVE-2026-77214 exp:2027-01-19

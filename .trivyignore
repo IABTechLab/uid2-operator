@@ -61,3 +61,7 @@ CVE-2026-76956 exp:2026-10-10
 # libexpat is an Alpine OS package; this is a Java/Vert.x service that parses XML via JAXP/Xerces, not libexpat — no native/JNI path reaches it
 # See: UID2-7849
 CVE-2026-76957 exp:2026-10-10
+
+# CVE-2026-77214 — libexpat (HIGH). Not vulnerable.
+# See: UID2-8106
+CVE-2026-77214 exp:2027-01-19

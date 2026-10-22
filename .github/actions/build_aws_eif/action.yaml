@@ -97,6 +97,7 @@ runs:
         cp ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/identity_scope.txt                                       ${ARTIFACTS_OUTPUT_DIR}/
         cp ${{ steps.buildFolder.outputs.BUILD_FOLDER }}/version_number.txt                                       ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/ec2.py                                                                                   ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/autoupdate.py                                                                            ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/confidential_compute.py                                                                      ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/requirements.txt                                                                         ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/proxies.host.yaml                                                                        ${ARTIFACTS_OUTPUT_DIR}/
@@ -112,6 +113,7 @@ runs:
         cp ./scripts/aws/logrotate/operator-logrotate.conf                                                        ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/logrotate/logrotate                                                                      ${ARTIFACTS_OUTPUT_DIR}/
         cp ./scripts/aws/logrotate/logrotateDaily                                                                 ${ARTIFACTS_OUTPUT_DIR}/
+        cp ./scripts/aws/logrotate/autoupdate                                                                     ${ARTIFACTS_OUTPUT_DIR}/
         cp -r ./scripts/aws/config-server                                                                         ${ARTIFACTS_OUTPUT_DIR}/
 
         docker cp amazonlinux:/sockd                                    ${ARTIFACTS_OUTPUT_DIR}/

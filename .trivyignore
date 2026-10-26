@@ -32,3 +32,7 @@ CVE-2026-40984 exp:2026-11-11
 # CVE-2026-77214 — libexpat (HIGH). Not vulnerable.
 # See: UID2-8106
 CVE-2026-77214 exp:2027-01-19
+
+# CVE-2026-111497 — brotli-libs (HIGH). Not vulnerable.
+# See: UID2-8173
+CVE-2026-111497 exp:2027-04-26

@@ -36,3 +36,7 @@ CVE-2026-77214 exp:2027-01-19
 # CVE-2026-111497 — brotli-libs (HIGH). Not vulnerable.
 # See: UID2-8173
 CVE-2026-111497 exp:2027-04-26
+
+# CVE-2026-102554 — guava (HIGH). Not vulnerable.
+# See: UID2-8213
+CVE-2026-102554 exp:2027-04-28

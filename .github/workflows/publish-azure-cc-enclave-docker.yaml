@@ -221,7 +221,7 @@ jobs:
 
   azureCc:
     name: Create Azure CC artifacts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       id-token: write
@@ -280,7 +280,7 @@ jobs:
 
   azureAks:
     name: Create Azure AKS artifacts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       id-token: write

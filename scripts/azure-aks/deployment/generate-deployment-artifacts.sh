@@ -57,7 +57,7 @@ az version
 sudo /opt/az/bin/python3 -m pip install --upgrade typing_extensions
 
 # Install confcom extension, az is originally available in GitHub workflow environment
-az extension add --name confcom
+az extension add --name confcom --version 2.4.1
 if [[ $? -ne 0 ]]; then
   echo "Failed to install Azure confcom extension"
   exit 1

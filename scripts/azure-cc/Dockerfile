@@ -8,6 +8,9 @@ RUN apk update && apk add --no-cache jq python3 py3-pip && \
     pip install --no-cache-dir requests azure-identity azure-keyvault-secrets && \
     rm -rf /var/cache/apk/*
 
+COPY ./remove-distrusted-roots.sh /tmp/
+RUN sh /tmp/remove-distrusted-roots.sh && rm /tmp/remove-distrusted-roots.sh
+
 # Set virtual environment path
 ENV PATH="/venv/bin:$PATH"
 

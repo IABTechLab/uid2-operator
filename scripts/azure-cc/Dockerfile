@@ -6,6 +6,8 @@ RUN apk update && apk add --no-cache jq python3 py3-pip && \
     python3 -m venv /venv && \
     . /venv/bin/activate && \
     pip install --no-cache-dir requests azure-identity azure-keyvault-secrets && \
+    pip uninstall -y pip && \
+    apk del py3-pip && \
     rm -rf /var/cache/apk/*
 
 # Set virtual environment path

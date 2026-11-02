@@ -2,13 +2,12 @@
 FROM eclipse-temurin@sha256:5583e3116cba3393e885b70a4498fc961556fa42afa2d892ecffcd4f689e2107
 
 # Install necessary packages and set up virtual environment
-RUN apk update && apk add --no-cache jq python3 py3-pip && \
+RUN apk update && apk add --no-cache jq python3 && \
     python3 -m venv /venv && \
     . /venv/bin/activate && \
     pip install --no-cache-dir requests azure-identity azure-keyvault-secrets && \
     pip uninstall -y pip && \
-    apk del py3-pip && \
-    rm -rf /var/cache/apk/*
+    rm -rf /usr/lib/python3*/ensurepip /var/cache/apk/*
 
 # Set virtual environment path
 ENV PATH="/venv/bin:$PATH"

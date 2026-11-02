@@ -1,12 +1,13 @@
-# sha from https://hub.docker.com/layers/library/eclipse-temurin/21-jre-alpine-3.23/images/sha256-42b42237d59d901504348d97b8bc304e6b5f4e12f5cf8f45c4f76fef2427aa84
-FROM eclipse-temurin@sha256:42b42237d59d901504348d97b8bc304e6b5f4e12f5cf8f45c4f76fef2427aa84
+# sha from https://hub.docker.com/layers/library/eclipse-temurin/21.0.13_9-jre-alpine-3.23/images/sha256-5583e3116cba3393e885b70a4498fc961556fa42afa2d892ecffcd4f689e2107
+FROM eclipse-temurin@sha256:5583e3116cba3393e885b70a4498fc961556fa42afa2d892ecffcd4f689e2107
 
 # Install necessary packages and set up virtual environment
-RUN apk update && apk add --no-cache jq python3 py3-pip && \
+RUN apk update && apk add --no-cache jq python3 && \
     python3 -m venv /venv && \
     . /venv/bin/activate && \
     pip install --no-cache-dir requests azure-identity azure-keyvault-secrets && \
-    rm -rf /var/cache/apk/*
+    pip uninstall -y pip && \
+    rm -rf /usr/lib/python3*/ensurepip /var/cache/apk/*
 
 # Set virtual environment path
 ENV PATH="/venv/bin:$PATH"

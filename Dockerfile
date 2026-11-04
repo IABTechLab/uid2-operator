@@ -4,6 +4,9 @@ FROM eclipse-temurin@sha256:5583e3116cba3393e885b70a4498fc961556fa42afa2d892ecff
 # For Amazon Corretto Crypto Provider
 RUN apk add --no-cache gcompat
 
+# Headless service: remove the unused font support (fontconfig brings libexpat, libpng and freetype)
+RUN apk del --no-cache fontconfig ttf-dejavu
+
 WORKDIR /app
 EXPOSE 8080
 

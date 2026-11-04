@@ -40,3 +40,11 @@ CVE-2026-111497 exp:2027-04-26
 # CVE-2026-102554 — guava (HIGH). Not vulnerable.
 # See: UID2-8213
 CVE-2026-102554 exp:2027-04-28
+
+# CVE-2026-117610 — libexpat (HIGH). Not vulnerable.
+# See: UID2-8254
+CVE-2026-117610 exp:2027-11-04
+
+# CVE-2026-118370 — libexpat (HIGH). Not vulnerable.
+# See: UID2-8255
+CVE-2026-118370 exp:2027-11-04

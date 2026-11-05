@@ -2,25 +2,6 @@
 # See https://aquasecurity.github.io/trivy/v0.35/docs/vulnerability/examples/filter/ 
 # for more details
 
-# jackson-core async parser DoS - not exploitable, services only use synchronous ObjectMapper API
-# See: UID2-6670
-GHSA-72hv-8253-57qq exp:2026-09-01
-
-# CVE-2026-42577 — netty-transport-native-epoll DoS via RST on half-closed TCP connection.
-# Advisory: https://github.com/netty/netty/security/advisories/GHSA-rwm7-x88c-3g2p
-# Server-side bug; netty maintainers backported the fix only to 4.2.13.Final and we run on
-# vert.x 4 / netty 4.1.x. This service sits behind authenticated load balancers (mTLS / API
-# gateway) so anonymous external attackers cannot reach the netty epoll socket directly;
-# LB-level connection limits and idle timeouts further cap the blast radius. CVSS impact is
-# Availability only (C:N/I:N/A:H). Tracking via UID2-7035; revisit on vert.x 5 migration.
-CVE-2026-42577 exp:2026-09-11
-
-# jackson-core async parser maxNumberLength bypass (GHSA-r7wm-3cxj-wff9) - incomplete fix for
-# GHSA-72hv-8253-57qq. Not exploitable: services only use the synchronous ObjectMapper API, not
-# jackson-core's non-blocking/async parser. Note: uid2-shared PR #631 (previously cited here as
-# "in flight") was reverted in #633 — not a fix for this GHSA. See: UID2-7557 (predecessor UID2-6670)
-GHSA-r7wm-3cxj-wff9 exp:2026-09-27
-
 # CVE-2026-40984 — io.micrometer:micrometer-core (transitive via micrometer-registry-
 # prometheus/-jmx); micrometer-jetty11/12 not present (HIGH).
 # Not exploitable here: pom.xml:103/108/113 vertx-micrometer + registry 1.12.2; Main.java:495
@@ -28,14 +9,6 @@ GHSA-r7wm-3cxj-wff9 exp:2026-09-27
 # by Vert.x instrumentation, not Micrometer's vulnerable HTTP server binder
 # See: UID2-7662
 CVE-2026-40984 exp:2026-11-11
-
-# CVE-2026-77214 — libexpat (HIGH). Not vulnerable.
-# See: UID2-8106
-CVE-2026-77214 exp:2027-01-19
-
-# CVE-2026-111497 — brotli-libs (HIGH). Not vulnerable.
-# See: UID2-8173
-CVE-2026-111497 exp:2027-04-26
 
 # CVE-2026-102554 — guava (HIGH). Not vulnerable.
 # See: UID2-8213

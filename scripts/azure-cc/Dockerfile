@@ -2,7 +2,9 @@
 FROM eclipse-temurin@sha256:5583e3116cba3393e885b70a4498fc961556fa42afa2d892ecffcd4f689e2107
 
 # Install necessary packages and set up virtual environment
+# python3 needs libexpat, so upgrade it past the version in the base image
 RUN apk update && apk add --no-cache jq python3 && \
+    apk upgrade --no-cache libexpat && \
     python3 -m venv /venv && \
     . /venv/bin/activate && \
     pip install --no-cache-dir requests azure-identity azure-keyvault-secrets && \

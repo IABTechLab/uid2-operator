@@ -4,9 +4,12 @@ FROM eclipse-temurin@sha256:5583e3116cba3393e885b70a4498fc961556fa42afa2d892ecff
 LABEL "tee.launch_policy.allow_env_override"="API_TOKEN_SECRET_NAME,DEPLOYMENT_ENVIRONMENT,CORE_BASE_URL,OPTOUT_BASE_URL,DEBUG_MODE,SKIP_VALIDATIONS"
 LABEL "tee.launch_policy.log_redirect"="always"
 
+# Headless service: remove the unused font support (fontconfig brings libexpat, libpng and freetype)
+RUN apk del --no-cache fontconfig ttf-dejavu
+
 # Install Packages
 # python3 needs libexpat, so upgrade it past the version in the base image
-RUN apk update && apk add --no-cache jq python3 && \
+RUN apk update && apk add --no-cache python3 && \
     apk upgrade --no-cache libexpat && \
     python3 -m venv /venv && \
     . /venv/bin/activate && \

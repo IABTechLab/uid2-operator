@@ -1,9 +1,12 @@
 # sha from https://hub.docker.com/layers/library/eclipse-temurin/21.0.13_9-jre-alpine-3.23/images/sha256-5583e3116cba3393e885b70a4498fc961556fa42afa2d892ecffcd4f689e2107
 FROM eclipse-temurin@sha256:5583e3116cba3393e885b70a4498fc961556fa42afa2d892ecffcd4f689e2107
 
+# Headless service: remove the unused font support (fontconfig brings libexpat, libpng and freetype)
+RUN apk del --no-cache fontconfig ttf-dejavu
+
 # Install necessary packages and set up virtual environment
 # python3 needs libexpat, so upgrade it past the version in the base image
-RUN apk update && apk add --no-cache jq python3 && \
+RUN apk update && apk add --no-cache python3 && \
     apk upgrade --no-cache libexpat && \
     python3 -m venv /venv && \
     . /venv/bin/activate && \

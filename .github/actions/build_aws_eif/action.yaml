@@ -81,6 +81,15 @@ runs:
       run: |
         make -f ${{ inputs.makefile }} ${{ inputs.identity_scope }}operator.eif
 
+    - name: Scan enclave image
+      uses: IABTechLab/uid2-shared-actions/actions/vulnerability_scan@v3
+      with:
+        scan_type: image
+        image_ref: ${{ inputs.identity_scope }}operator
+        scan_severity: CRITICAL,HIGH
+        failure_severity: CRITICAL,HIGH
+        publish_vulnerabilities: 'false'
+
     - name: Free up space
       shell: bash
       run: |

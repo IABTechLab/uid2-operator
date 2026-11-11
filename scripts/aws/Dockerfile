@@ -19,6 +19,7 @@ RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends net-tools curl jq cron syslog-ng-core \
     && apt-get install -y --allow-remove-essential coreutils-from-gnu coreutils-from-uutils- rust-coreutils- \
+    && apt-get purge -y --autoremove fontconfig fonts-dejavu-core fonts-dejavu-mono \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./target/${JAR_NAME}-${JAR_VERSION}-jar-with-dependencies.jar /app/${JAR_NAME}-${JAR_VERSION}.jar

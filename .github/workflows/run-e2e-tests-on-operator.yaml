@@ -144,4 +144,5 @@ jobs:
       azure_client_id: ${{ vars.AZURE_CLIENT_ID }}
       azure_tenant_id: ${{ vars.AZURE_TENANT_ID }}
       azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      azure_environment: ${{ (inputs.operator_type == 'azure' || inputs.operator_type == 'aks') && 'e2e-test' || '' }}
     secrets: inherit

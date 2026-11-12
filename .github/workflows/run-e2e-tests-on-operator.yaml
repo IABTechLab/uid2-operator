@@ -141,7 +141,4 @@ jobs:
       aws_region: ${{ fromJson(inputs.aws).region }}
       aws_ami: ${{ fromJson(inputs.aws).ami }}
       aws_pcr0: ${{ fromJson(inputs.aws).pcr0 }}
-      azure_client_id: ${{ vars.AZURE_CLIENT_ID }}
-      azure_tenant_id: ${{ vars.AZURE_TENANT_ID }}
-      azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
     secrets: inherit

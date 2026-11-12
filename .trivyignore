@@ -8,7 +8,7 @@
 # MicrometerMetricsOptions.setLabels(HTTP_METHOD,HTTP_CODE,HTTP_PATH,POOL_NAME) — tags computed
 # by Vert.x instrumentation, not Micrometer's vulnerable HTTP server binder
 # See: UID2-7662
-CVE-2026-40984 exp:2026-11-11
+CVE-2026-40984 exp:2027-01-13
 
 # CVE-2026-102554 — guava (HIGH). Not vulnerable.
 # See: UID2-8213

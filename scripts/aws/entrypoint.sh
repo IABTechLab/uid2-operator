@@ -85,6 +85,8 @@ build_operator_config() {
     .[1] as $params
     | (.[0] * .[1])
     | if $env == "prod" then .
+      elif ([$params.core_base_url, $params.optout_base_url] | any(type != "string" or length == 0)) then
+        error("core_base_url and optout_base_url must be non-empty strings")
       else walk(
         if type != "string" then .
         elif test($core_re) then sub($core_re; $params.core_base_url)

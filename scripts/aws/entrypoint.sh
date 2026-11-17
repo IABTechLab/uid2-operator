@@ -55,44 +55,48 @@ build_parameterized_config() {
 }
 
 build_operator_config() {
+  CORE_BASE_URL=$(jq -r ".core_base_url" < "${PARAMETERIZED_CONFIG}")
+  OPTOUT_BASE_URL=$(jq -r ".optout_base_url" < "${PARAMETERIZED_CONFIG}")
   DEPLOYMENT_ENVIRONMENT=$(jq -r ".environment" < "${PARAMETERIZED_CONFIG}")
   DEBUG_MODE=$(jq -r ".debug_mode" < "${PARAMETERIZED_CONFIG}")
 
   IDENTITY_SCOPE_LOWER=$(echo "${IDENTITY_SCOPE}" | tr '[:upper:]' '[:lower:]')
   DEPLOYMENT_ENVIRONMENT_LOWER=$(echo "${DEPLOYMENT_ENVIRONMENT}" | tr '[:upper:]' '[:lower:]')
+  DEFAULT_CONFIG="/app/conf/${IDENTITY_SCOPE_LOWER}-${DEPLOYMENT_ENVIRONMENT_LOWER}-config.json"
 
   if [[ "$DEPLOYMENT_ENVIRONMENT_LOWER" != "integ" && "$DEPLOYMENT_ENVIRONMENT_LOWER" != "prod" ]]; then
     echo "Unsupported environment '${DEPLOYMENT_ENVIRONMENT}', expected integ or prod. Exiting."
     exit 1
   fi
 
-  if [[ "$DEPLOYMENT_ENVIRONMENT_LOWER" == "prod" && "$DEBUG_MODE" == "true" ]]; then
-    echo "Cannot run in DEBUG_MODE in production environment. Exiting."
-    exit 1
-  fi
+  jq -s '.[0] * .[1]' "${DEFAULT_CONFIG}" "${PARAMETERIZED_CONFIG}" > "${OPERATOR_CONFIG}"
 
-  DEFAULT_CONFIG="/app/conf/${IDENTITY_SCOPE_LOWER}-${DEPLOYMENT_ENVIRONMENT_LOWER}-config.json"
+  if [[ "$DEPLOYMENT_ENVIRONMENT_LOWER" == "prod" ]]; then
+    if [[ "$DEBUG_MODE" == "true" ]]; then
+      echo "Cannot run in DEBUG_MODE in production environment. Exiting."
+      exit 1
+    fi
+  fi
 
   #TODO: Remove below logic after remote config management is implemented
-  CORE_PATTERN='^https://core[^/]*uidapi\.com'
-  OPTOUT_PATTERN='^https://optout[^/]*uidapi\.com'
-  if [[ "$IDENTITY_SCOPE_LOWER" == "euid" ]]; then
-    CORE_PATTERN='^https://core[^/]*euid\.eu'
-    OPTOUT_PATTERN='^https://optout[^/]*euid\.eu'
-  fi
 
-  jq -s --arg env "${DEPLOYMENT_ENVIRONMENT_LOWER}" --arg core_re "${CORE_PATTERN}" --arg optout_re "${OPTOUT_PATTERN}" '
-    .[1] as $params
-    | (.[0] * .[1])
-    | if $env == "prod" then .
-      elif ([$params.core_base_url, $params.optout_base_url] | any(type != "string" or length == 0)) then
-        error("core_base_url and optout_base_url must be non-empty strings")
-      else walk(
-        if type != "string" then .
-        elif test($core_re) then sub($core_re; $params.core_base_url)
-        elif test($optout_re) then sub($optout_re; $params.optout_base_url)
-        else . end)
-      end' "${DEFAULT_CONFIG}" "${PARAMETERIZED_CONFIG}" > "${OPERATOR_CONFIG}"
+  if [[ "$DEPLOYMENT_ENVIRONMENT_LOWER" != "prod" ]]; then
+    #Allow override of base URL in non-prod environments
+    if [[ ! "$CORE_BASE_URL" =~ ^https://[^/]+$ || ! "$OPTOUT_BASE_URL" =~ ^https://[^/]+$ ]]; then
+      echo "core_base_url and optout_base_url must be https://<host> with no path or trailing slash. Exiting."
+      exit 1
+    fi
+    CORE_PATTERN="https://core.*uidapi.com"
+    OPTOUT_PATTERN="https://optout.*uidapi.com"
+    if [[ "$IDENTITY_SCOPE_LOWER" == "euid" ]]; then
+      CORE_PATTERN="https://core.*euid.eu"
+      OPTOUT_PATTERN="https://optout.*euid.eu"
+    fi
+    jq -s --arg core_re "${CORE_PATTERN}" --arg optout_re "${OPTOUT_PATTERN}" --arg core "${CORE_BASE_URL}" --arg optout "${OPTOUT_BASE_URL}" \
+      '(.[0] | walk(if type == "string" then gsub($core_re; $core) | gsub($optout_re; $optout) else . end)) * .[1]' \
+      "${DEFAULT_CONFIG}" "${PARAMETERIZED_CONFIG}" > "${OPERATOR_CONFIG}"
+  fi
+  
 }
 
 build_parameterized_config

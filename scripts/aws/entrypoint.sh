@@ -82,8 +82,8 @@ build_operator_config() {
 
   if [[ "$DEPLOYMENT_ENVIRONMENT_LOWER" != "prod" ]]; then
     #Allow override of base URL in non-prod environments
-    if [[ ! "$CORE_BASE_URL" =~ ^https://[^/]+$ || ! "$OPTOUT_BASE_URL" =~ ^https://[^/]+$ ]]; then
-      echo "core_base_url and optout_base_url must be https://<host> with no path or trailing slash. Exiting."
+    if [[ ! "$CORE_BASE_URL" =~ ^https?://[^/]+$ || ! "$OPTOUT_BASE_URL" =~ ^https?://[^/]+$ ]]; then
+      echo "core_base_url and optout_base_url must be http(s)://<host> with no path or trailing slash. Exiting."
       exit 1
     fi
     CORE_PATTERN="https://core.*uidapi.com"

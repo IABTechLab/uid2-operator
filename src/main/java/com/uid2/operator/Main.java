@@ -127,9 +127,12 @@ public class Main {
         var operatorKey = operatorKeyRetriever.retrieve();
 
         DownloadCloudStorage fsStores;
+        Supplier<String> optOutBaseUrl;
         if (coreAttestUrl != null) {
+            AttestationResponseHandler attestationResponseHandler = getAttestationTokenRetriever(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);
+            optOutBaseUrl = attestationResponseHandler::getOptOutUrl;
 
-            var clients = createUidClients(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);
+            var clients = createUidClients(attestationResponseHandler, operatorKey);
             UidCoreClient coreClient = clients.getKey();
             UidOptOutClient optOutClient = clients.getValue();
             fsStores = coreClient;
@@ -141,11 +144,13 @@ public class Main {
                 this.fsOptOut = configureAttestedOptOutStore(optOutClient, coreAttestUrl);
             }
         } else if (useStorageMock) {
+            optOutBaseUrl = () -> this.config.getString(Const.Config.OptOutApiUriProp);
             fsStores = new EmbeddedResourceStorage(Main.class);
             LOGGER.info("Salt/Key/Client stores - Using EmbeddedResourceStorage");
 
             this.fsOptOut = configureMockOptOutStore();
         } else {
+            optOutBaseUrl = () -> this.config.getString(Const.Config.OptOutApiUriProp);
             String coreBucket = this.config.getString(Const.Config.CoreS3BucketProp);
             fsStores = CloudUtils.createStorage(coreBucket, config);
             LOGGER.info("Salt/Key/Client stores - Using the same storage as optout: s3://" + coreBucket);
@@ -193,7 +198,7 @@ public class Main {
             this.siteProvider = clientSideTokenGenerate ? new RotatingSiteStore(fsStores, new GlobalScope(new CloudPath(sitesMdPath))) : null;
         }
 
-        this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, Clock.systemUTC());
+        this.optOutStore = new CloudSyncOptOutStore(vertx, fsLocal, this.config, operatorKey, optOutBaseUrl, Clock.systemUTC());
         
         if (useRemoteConfig) {
             String configMdPath = this.config.getString(Const.Config.RuntimeConfigMetadataPathProp);
@@ -582,8 +587,7 @@ public class Main {
                 .register(Metrics.globalRegistry);
     }
 
-    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(Vertx vertx, String attestationUrl, String clientApiToken, Handler<Pair<AttestationResponseCode, String>> responseWatcher) throws Exception {
-        AttestationResponseHandler attestationResponseHandler = getAttestationTokenRetriever(vertx, attestationUrl, clientApiToken, responseWatcher);
+    private Map.Entry<UidCoreClient, UidOptOutClient> createUidClients(AttestationResponseHandler attestationResponseHandler, String clientApiToken) {
         UidCoreClient coreClient = new UidCoreClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler, this.encryptedCloudFilesEnabled, this.uidInstanceIdProvider);
         UidOptOutClient optOutClient = new UidOptOutClient(clientApiToken, CloudUtils.defaultProxy, attestationResponseHandler, this.uidInstanceIdProvider);
         return new AbstractMap.SimpleEntry<>(coreClient, optOutClient);

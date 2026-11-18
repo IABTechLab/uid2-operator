@@ -7,6 +7,7 @@ import com.uid2.operator.Const;
 import com.uid2.operator.model.UserIdentity;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.shared.Utils;
+import com.uid2.shared.attest.UidOptOutClient;
 import com.uid2.shared.audit.Audit;
 import com.uid2.shared.cloud.CloudStorageException;
 import com.uid2.shared.cloud.DownloadCloudStorage;
@@ -41,6 +42,7 @@ import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class CloudSyncOptOutStore implements IOptOutStore {
@@ -49,31 +51,25 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     private final AtomicReference<OptOutStoreSnapshot> snapshot = new AtomicReference<>(null);
     private final ICloudStorage fsLocal;
     private final WebClient webClient;
-    private final int remoteApiPort;
-    private final String remoteApiHost;
-    private final String remoteApiPath;
+    private final String remoteApi;
+    private final Supplier<String> optOutBaseUrl;
     private final String remoteApiBearerToken;
-    private final boolean remoteApiSsl;
 
-    public CloudSyncOptOutStore(Vertx vertx, ICloudStorage fsLocal, JsonObject jsonConfig, String operatorKey, Clock clock) throws MalformedURLException {
+    /**
+     * @param optOutBaseUrl supplies the opt-out base URL on each request; its scheme, host and port are combined with
+     *                      the path of the configured opt-out API URI.
+     */
+    public CloudSyncOptOutStore(Vertx vertx, ICloudStorage fsLocal, JsonObject jsonConfig, String operatorKey, Supplier<String> optOutBaseUrl, Clock clock) throws MalformedURLException {
         this.fsLocal = fsLocal;
         this.webClient = WebClient.create(vertx);
+        this.optOutBaseUrl = optOutBaseUrl;
 
-        String remoteApi = jsonConfig.getString(Const.Config.OptOutApiUriProp);
+        this.remoteApi = jsonConfig.getString(Const.Config.OptOutApiUriProp);
         if (remoteApi != null) {
-            URL url = new URL(remoteApi);
-            boolean isHttps = "https".equalsIgnoreCase(url.getProtocol());
-            this.remoteApiSsl = isHttps;
-            this.remoteApiPort = url.getPort() != -1 ? url.getPort() : url.getDefaultPort();
-            this.remoteApiHost = url.getHost();
-            this.remoteApiPath = url.getPath();
+            new URL(remoteApi);
             this.remoteApiBearerToken = "Bearer " + operatorKey;
         } else {
-            this.remoteApiPort = -1;
-            this.remoteApiHost = null;
-            this.remoteApiPath = null;
             this.remoteApiBearerToken = null;
-            this.remoteApiSsl = false;
         }
 
         this.snapshot.set(new OptOutStoreSnapshot(fsLocal, jsonConfig, clock));
@@ -100,19 +96,36 @@ public class CloudSyncOptOutStore implements IOptOutStore {
                          String phone,
                          String clientIp,
                          Handler<AsyncResult<Instant>> handler) {
-        if (remoteApiHost == null) {
+        if (remoteApi == null) {
             handler.handle(Future.failedFuture("remote api not set"));
             return;
         }
 
-        HttpRequest<String> request = this.webClient.post(remoteApiPort, remoteApiHost, remoteApiPath)
+        String baseUrl = optOutBaseUrl.get();
+        if (baseUrl == null) {
+            LOGGER.warn("CloudSyncOptOutStore.addEntry opt-out URL not available");
+            handler.handle(Future.failedFuture("opt-out url not available"));
+            return;
+        }
+
+        URL url;
+        try {
+            url = UidOptOutClient.buildOptOutUrl(baseUrl, remoteApi);
+        } catch (MalformedURLException e) {
+            LOGGER.error("CloudSyncOptOutStore.addEntry unable to parse opt-out URL");
+            handler.handle(Future.failedFuture(e));
+            return;
+        }
+        int port = url.getPort() != -1 ? url.getPort() : url.getDefaultPort();
+
+        HttpRequest<String> request = this.webClient.post(port, url.getHost(), url.getPath())
             .addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.id))
             .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId))
             .putHeader("Authorization", remoteApiBearerToken)
             .putHeader(Audit.UID_INSTANCE_ID_HEADER, uidInstanceId)
             .as(BodyCodec.string());
 
-        if (remoteApiSsl) {
+        if ("https".equalsIgnoreCase(url.getProtocol())) {
             request = request.ssl(true);
         }
 

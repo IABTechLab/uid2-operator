@@ -127,7 +127,8 @@ public class Main {
         var operatorKey = operatorKeyRetriever.retrieve();
 
         DownloadCloudStorage fsStores;
-        Supplier<String> optOutBaseUrl = () -> this.config.getString(Const.Config.OptOutApiUriProp);
+        String configuredOptOutApiUri = this.config.getString(Const.Config.OptOutApiUriProp);
+        Supplier<String> optOutBaseUrl = () -> configuredOptOutApiUri;
         if (coreAttestUrl != null) {
             AttestationResponseHandler attestationResponseHandler = getAttestationTokenRetriever(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);
             optOutBaseUrl = attestationResponseHandler::getOptOutUrl;

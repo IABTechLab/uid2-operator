@@ -66,7 +66,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         this.remoteApi = jsonConfig.getString(Const.Config.OptOutApiUriProp);
         if (remoteApi != null) {
-            new URL(remoteApi);
+            UidOptOutClient.buildOptOutUrl(remoteApi, remoteApi);
             this.remoteApiBearerToken = "Bearer " + operatorKey;
         } else {
             this.remoteApiBearerToken = null;
@@ -116,18 +116,13 @@ public class CloudSyncOptOutStore implements IOptOutStore {
             handler.handle(Future.failedFuture(e));
             return;
         }
-        int port = url.getPort() != -1 ? url.getPort() : url.getDefaultPort();
 
-        HttpRequest<String> request = this.webClient.post(port, url.getHost(), url.getPath())
+        HttpRequest<String> request = this.webClient.postAbs(url.toExternalForm())
             .addQueryParam("identity_hash", EncodingUtils.toBase64String(firstLevelHashIdentity.id))
             .addQueryParam("advertising_id", EncodingUtils.toBase64String(advertisingId))
             .putHeader("Authorization", remoteApiBearerToken)
             .putHeader(Audit.UID_INSTANCE_ID_HEADER, uidInstanceId)
             .as(BodyCodec.string());
-
-        if ("https".equalsIgnoreCase(url.getProtocol())) {
-            request = request.ssl(true);
-        }
 
         JsonObject payload = new JsonObject();
         if (email != null) payload.put("email", email);

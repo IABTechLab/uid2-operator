@@ -7,6 +7,7 @@ import com.uid2.operator.model.UserIdentity;
 import com.uid2.operator.service.EncodingUtils;
 import com.uid2.shared.cloud.MemCachedStorage;
 import com.uid2.shared.audit.Audit;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
@@ -16,11 +17,19 @@ import io.vertx.ext.web.handler.BodyHandler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -29,6 +38,9 @@ public class CloudSyncOptOutStoreTest {
     private HttpServer server;
     private int port;
     private Router router;
+
+    private static final String PATH = "/optout/replicate";
+    private static final String CONFIGURED_API_URI = "https://configured.example.invalid" + PATH;
 
     @BeforeEach
     void setUp() throws InterruptedException {
@@ -58,8 +70,7 @@ public class CloudSyncOptOutStoreTest {
     }
 
     @Test
-    void addEntry_sendsPostWithQueryAndJsonBody() throws Exception {
-        final String path = "/optout/replicate";
+    void addEntry_sendsPostToOptOutBaseUrlHostWithQueryAndJsonBody() throws Exception {
         final String operatorKey = "test-operator-key";
         final String uidTraceId = "trace-123";
         final String email = "post@test.com";
@@ -73,10 +84,10 @@ public class CloudSyncOptOutStoreTest {
 
         CountDownLatch received = new CountDownLatch(1);
 
-        router.post(path).handler(ctx -> {
+        router.post(PATH).handler(ctx -> {
             try {
                 assertEquals(HttpMethod.POST, ctx.request().method());
-                assertEquals(path, ctx.normalisedPath());
+                assertEquals(PATH, ctx.normalisedPath());
                 assertEquals(expectedIdentityHash, ctx.request().getParam("identity_hash"));
                 assertEquals(expectedAdvertisingId, ctx.request().getParam("advertising_id"));
                 assertEquals("Bearer " + operatorKey, ctx.request().getHeader("Authorization"));
@@ -93,8 +104,64 @@ public class CloudSyncOptOutStoreTest {
                 received.countDown();
             }
         });
+        CloudSyncOptOutStore store = createStore(operatorKey, () -> "http://localhost:" + port);
+
+        UserIdentity uid = new UserIdentity(IdentityScope.UID2, IdentityType.Email, userIdBytes, 0, Instant.now(), Instant.now());
+
+        CountDownLatch done = new CountDownLatch(1);
+        store.addEntry(uid, advIdBytes, uidTraceId, "local-instance", email, phone, clientIp, ar -> done.countDown());
+
+        assertTrue(received.await(5, TimeUnit.SECONDS));
+        assertTrue(done.await(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void addEntry_readsOptOutBaseUrlOnEachCall() throws Exception {
+        List<String> hosts = Collections.synchronizedList(new ArrayList<>());
+        router.post(PATH).handler(ctx -> {
+            hosts.add(ctx.request().getHeader("Host"));
+            ctx.response().setStatusCode(200).end();
+        });
+        AtomicReference<String> baseUrl = new AtomicReference<>("http://localhost:" + port);
+        CloudSyncOptOutStore store = createStore("key", baseUrl::get);
+
+        assertTrue(addEntry(store).succeeded());
+        baseUrl.set("http://127.0.0.1:" + port);
+        assertTrue(addEntry(store).succeeded());
+
+        assertEquals(List.of("localhost:" + port, "127.0.0.1:" + port), hosts);
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"nowhere"})
+    void addEntry_failsWithoutRequestWhenOptOutBaseUrlUnusable(String optOutBaseUrl) throws Exception {
+        List<String> requests = Collections.synchronizedList(new ArrayList<>());
+        router.route().handler(ctx -> {
+            requests.add(ctx.request().uri());
+            ctx.response().setStatusCode(200).end();
+        });
+        CloudSyncOptOutStore store = createStore("key", () -> optOutBaseUrl);
+
+        assertTrue(addEntry(store).failed());
+        assertTrue(requests.isEmpty());
+    }
+
+    private AsyncResult<Instant> addEntry(CloudSyncOptOutStore store) throws InterruptedException {
+        UserIdentity uid = new UserIdentity(IdentityScope.UID2, IdentityType.Email, new byte[] {1}, 0, Instant.now(), Instant.now());
+        AtomicReference<AsyncResult<Instant>> result = new AtomicReference<>();
+        CountDownLatch done = new CountDownLatch(1);
+        store.addEntry(uid, new byte[] {2}, null, "local-instance", null, null, null, ar -> {
+            result.set(ar);
+            done.countDown();
+        });
+        assertTrue(done.await(5, TimeUnit.SECONDS));
+        return result.get();
+    }
+
+    private CloudSyncOptOutStore createStore(String operatorKey, Supplier<String> optOutBaseUrl) throws Exception {
         JsonObject config = new JsonObject()
-                .put(Const.Config.OptOutApiUriProp, "http://localhost:" + port + path)
+                .put(Const.Config.OptOutApiUriProp, CONFIGURED_API_URI)
                 .put(Const.Config.OptOutBloomFilterSizeProp, 8192)
                 .put(Const.Config.OptOutHeapDefaultCapacityProp, 8192)
                 .put(Const.Config.OptOutStatusApiEnabled, true)
@@ -107,14 +174,6 @@ public class CloudSyncOptOutStoreTest {
                 .put("optout_s3_folder", "optout/")
                 .put("optout_s3_path_compat", false);
 
-        CloudSyncOptOutStore store = new CloudSyncOptOutStore(vertx, new MemCachedStorage(), config, operatorKey, Clock.systemUTC());
-
-        UserIdentity uid = new UserIdentity(IdentityScope.UID2, IdentityType.Email, userIdBytes, 0, Instant.now(), Instant.now());
-
-        CountDownLatch done = new CountDownLatch(1);
-        store.addEntry(uid, advIdBytes, uidTraceId, "local-instance", email, phone, clientIp, ar -> done.countDown());
-
-        assertTrue(received.await(5, TimeUnit.SECONDS));
-        assertTrue(done.await(5, TimeUnit.SECONDS));
+        return new CloudSyncOptOutStore(vertx, new MemCachedStorage(), config, operatorKey, optOutBaseUrl, Clock.systemUTC());
     }
 }

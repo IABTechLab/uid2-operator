@@ -55,10 +55,6 @@ public class CloudSyncOptOutStore implements IOptOutStore {
     private final Supplier<String> optOutBaseUrl;
     private final String remoteApiBearerToken;
 
-    /**
-     * @param optOutBaseUrl supplies the opt-out base URL on each request; its scheme, host and port are combined with
-     *                      the path of the configured opt-out API URI.
-     */
     public CloudSyncOptOutStore(Vertx vertx, ICloudStorage fsLocal, JsonObject jsonConfig, String operatorKey, Supplier<String> optOutBaseUrl, Clock clock) throws MalformedURLException {
         this.fsLocal = fsLocal;
         this.webClient = WebClient.create(vertx);
@@ -66,7 +62,6 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         this.remoteApi = jsonConfig.getString(Const.Config.OptOutApiUriProp);
         if (remoteApi != null) {
-            // fail fast at startup if the configured URI can't be used to build opt-out requests
             UidOptOutClient.buildOptOutUrl(remoteApi, remoteApi);
             this.remoteApiBearerToken = "Bearer " + operatorKey;
         } else {

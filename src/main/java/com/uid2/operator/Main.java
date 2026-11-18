@@ -127,7 +127,7 @@ public class Main {
         var operatorKey = operatorKeyRetriever.retrieve();
 
         DownloadCloudStorage fsStores;
-        Supplier<String> optOutBaseUrl;
+        Supplier<String> optOutBaseUrl = () -> this.config.getString(Const.Config.OptOutApiUriProp);
         if (coreAttestUrl != null) {
             AttestationResponseHandler attestationResponseHandler = getAttestationTokenRetriever(this.vertx, coreAttestUrl, operatorKey, this.shutdownHandler::handleAttestResponse);
             optOutBaseUrl = attestationResponseHandler::getOptOutUrl;
@@ -144,13 +144,11 @@ public class Main {
                 this.fsOptOut = configureAttestedOptOutStore(optOutClient, coreAttestUrl);
             }
         } else if (useStorageMock) {
-            optOutBaseUrl = () -> this.config.getString(Const.Config.OptOutApiUriProp);
             fsStores = new EmbeddedResourceStorage(Main.class);
             LOGGER.info("Salt/Key/Client stores - Using EmbeddedResourceStorage");
 
             this.fsOptOut = configureMockOptOutStore();
         } else {
-            optOutBaseUrl = () -> this.config.getString(Const.Config.OptOutApiUriProp);
             String coreBucket = this.config.getString(Const.Config.CoreS3BucketProp);
             fsStores = CloudUtils.createStorage(coreBucket, config);
             LOGGER.info("Salt/Key/Client stores - Using the same storage as optout: s3://" + coreBucket);

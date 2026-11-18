@@ -17,6 +17,9 @@ import io.vertx.ext.web.handler.BodyHandler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -130,14 +133,16 @@ public class CloudSyncOptOutStoreTest {
         assertEquals(List.of("localhost:" + port, "127.0.0.1:" + port), hosts);
     }
 
-    @Test
-    void addEntry_failsWithoutRequestWhenOptOutBaseUrlNotAvailable() throws Exception {
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"nowhere"})
+    void addEntry_failsWithoutRequestWhenOptOutBaseUrlUnusable(String optOutBaseUrl) throws Exception {
         List<String> requests = Collections.synchronizedList(new ArrayList<>());
         router.route().handler(ctx -> {
             requests.add(ctx.request().uri());
             ctx.response().setStatusCode(200).end();
         });
-        CloudSyncOptOutStore store = createStore("key", () -> null);
+        CloudSyncOptOutStore store = createStore("key", () -> optOutBaseUrl);
 
         assertTrue(addEntry(store).failed());
         assertTrue(requests.isEmpty());

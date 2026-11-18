@@ -112,7 +112,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
         try {
             url = UidOptOutClient.buildOptOutUrl(baseUrl, remoteApi);
         } catch (MalformedURLException e) {
-            LOGGER.error("CloudSyncOptOutStore.addEntry unable to parse opt-out URL");
+            LOGGER.error("CloudSyncOptOutStore.addEntry unable to parse opt-out URL", e);
             handler.handle(Future.failedFuture(e));
             return;
         }

@@ -71,7 +71,6 @@ public class CloudSyncOptOutStoreTest {
 
     @Test
     void addEntry_sendsPostToOptOutBaseUrlHostWithQueryAndJsonBody() throws Exception {
-        final String path = PATH;
         final String operatorKey = "test-operator-key";
         final String uidTraceId = "trace-123";
         final String email = "post@test.com";
@@ -85,10 +84,10 @@ public class CloudSyncOptOutStoreTest {
 
         CountDownLatch received = new CountDownLatch(1);
 
-        router.post(path).handler(ctx -> {
+        router.post(PATH).handler(ctx -> {
             try {
                 assertEquals(HttpMethod.POST, ctx.request().method());
-                assertEquals(path, ctx.normalisedPath());
+                assertEquals(PATH, ctx.normalisedPath());
                 assertEquals(expectedIdentityHash, ctx.request().getParam("identity_hash"));
                 assertEquals(expectedAdvertisingId, ctx.request().getParam("advertising_id"));
                 assertEquals("Bearer " + operatorKey, ctx.request().getHeader("Authorization"));

@@ -66,6 +66,7 @@ public class CloudSyncOptOutStore implements IOptOutStore {
 
         this.remoteApi = jsonConfig.getString(Const.Config.OptOutApiUriProp);
         if (remoteApi != null) {
+            // fail fast at startup if the configured URI can't be used to build opt-out requests
             UidOptOutClient.buildOptOutUrl(remoteApi, remoteApi);
             this.remoteApiBearerToken = "Bearer " + operatorKey;
         } else {

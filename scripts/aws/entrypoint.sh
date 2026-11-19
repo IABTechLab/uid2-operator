@@ -64,9 +64,14 @@ build_operator_config() {
   DEPLOYMENT_ENVIRONMENT_LOWER=$(echo "${DEPLOYMENT_ENVIRONMENT}" | tr '[:upper:]' '[:lower:]')
   DEFAULT_CONFIG="/app/conf/${IDENTITY_SCOPE_LOWER}-${DEPLOYMENT_ENVIRONMENT_LOWER}-config.json"
 
+  if [[ "$DEPLOYMENT_ENVIRONMENT_LOWER" != "integ" && "$DEPLOYMENT_ENVIRONMENT_LOWER" != "prod" ]]; then
+    echo "Unsupported environment '${DEPLOYMENT_ENVIRONMENT}', expected integ or prod. Exiting."
+    exit 1
+  fi
+
   jq -s '.[0] * .[1]' "${DEFAULT_CONFIG}" "${PARAMETERIZED_CONFIG}" > "${OPERATOR_CONFIG}"
 
-  if [[ "$DEPLOYMENT_ENVIRONMENT" == "prod" ]]; then
+  if [[ "$DEPLOYMENT_ENVIRONMENT_LOWER" == "prod" ]]; then
     if [[ "$DEBUG_MODE" == "true" ]]; then
       echo "Cannot run in DEBUG_MODE in production environment. Exiting."
       exit 1
@@ -75,7 +80,7 @@ build_operator_config() {
 
   #TODO: Remove below logic after remote config management is implemented
 
-  if [[ "$DEPLOYMENT_ENVIRONMENT" != "prod" ]]; then
+  if [[ "$DEPLOYMENT_ENVIRONMENT_LOWER" != "prod" ]]; then
     #Allow override of base URL in non-prod environments
     CORE_PATTERN="https://core.*uidapi.com"
     OPTOUT_PATTERN="https://optout.*uidapi.com"
@@ -83,8 +88,9 @@ build_operator_config() {
       CORE_PATTERN="https://core.*euid.eu"
       OPTOUT_PATTERN="https://optout.*euid.eu"
     fi
-    sed -i "s#${CORE_PATTERN}#${CORE_BASE_URL}#g" "${OPERATOR_CONFIG}"
-    sed -i "s#${OPTOUT_PATTERN}#${OPTOUT_BASE_URL}#g" "${OPERATOR_CONFIG}"
+    jq -s --arg core_re "${CORE_PATTERN}" --arg optout_re "${OPTOUT_PATTERN}" --arg core "${CORE_BASE_URL}" --arg optout "${OPTOUT_BASE_URL}" \
+      '(.[0] | walk(if type == "string" then gsub($core_re; $core) | gsub($optout_re; $optout) else . end)) * .[1]' \
+      "${DEFAULT_CONFIG}" "${PARAMETERIZED_CONFIG}" > "${OPERATOR_CONFIG}"
   fi
   
 }

@@ -2015,6 +2015,17 @@ public class UIDOperatorVerticleTest {
     }
 
     @Test
+    void malformedForwardedHostHeaderReturnsNotFound(Vertx vertx, VertxTestContext testContext) {
+        WebClient client = WebClient.create(vertx);
+        client.getAbs(getUrlForEndpoint(""))
+                .putHeader("X-Forwarded-Host", "%41%42%43")
+                .send(testContext.succeeding(response -> testContext.verify(() -> {
+                    assertEquals(404, response.statusCode());
+                    testContext.completeNow();
+                })));
+    }
+
+    @Test
     void identityMapBatchBothEmailAndHashEmpty(Vertx vertx, VertxTestContext testContext) {
         final int clientSiteId = 201;
         fakeAuth(clientSiteId, Role.MAPPER);

@@ -4,10 +4,10 @@
 
 # CVE-2026-40984 — io.micrometer:micrometer-core (transitive via micrometer-registry-
 # prometheus/-jmx); micrometer-jetty11/12 not present (HIGH).
-# Not exploitable here: pom.xml:103/108/113 vertx-micrometer + registry 1.12.2; Main.java:495
+# Not exploitable here: pom.xml:103/108/113 vertx-micrometer + registry 1.12.13; Main.java:495
 # MicrometerMetricsOptions.setLabels(HTTP_METHOD,HTTP_CODE,HTTP_PATH,POOL_NAME) — tags computed
 # by Vert.x instrumentation, not Micrometer's vulnerable HTTP server binder
-# See: UID2-7662
+# See: UID2-7662. Fix (micrometer 1.15.12 on Vert.x 4.5) tracked in UID2-8398.
 CVE-2026-40984 exp:2027-01-13
 
 # CVE-2026-102554 — guava (HIGH). Not vulnerable.

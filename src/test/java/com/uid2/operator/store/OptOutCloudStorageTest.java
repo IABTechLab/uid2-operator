@@ -48,6 +48,8 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class OptOutCloudStorageTest {
@@ -115,13 +117,13 @@ public class OptOutCloudStorageTest {
 
     private static Stream<Arguments> downloadFailures() {
         return Stream.of(
-                Arguments.of("io error", (FailureSetup) (c, h) -> when(c.get(anyString(), anyMap())).thenThrow(new IOException())),
-                Arguments.of("connection refused", (FailureSetup) (c, h) -> when(c.get(anyString(), anyMap())).thenThrow(new ConnectException())),
-                Arguments.of("unknown host", (FailureSetup) (c, h) -> when(c.get(anyString(), anyMap())).thenThrow(new UnknownHostException())),
-                Arguments.of("http 404", httpStatus(404)),
-                Arguments.of("http 500", httpStatus(500)),
-                Arguments.of("http 503", httpStatus(503)),
-                Arguments.of("no opt-out url", (FailureSetup) (c, h) -> when(h.getOptOutUrl()).thenReturn(null)));
+                Arguments.of("io error", 1, (FailureSetup) (c, h) -> when(c.get(anyString(), anyMap())).thenThrow(new IOException())),
+                Arguments.of("connection refused", 1, (FailureSetup) (c, h) -> when(c.get(anyString(), anyMap())).thenThrow(new ConnectException())),
+                Arguments.of("unknown host", 1, (FailureSetup) (c, h) -> when(c.get(anyString(), anyMap())).thenThrow(new UnknownHostException())),
+                Arguments.of("http 404", 1, httpStatus(404)),
+                Arguments.of("http 500", 1, httpStatus(500)),
+                Arguments.of("http 503", 1, httpStatus(503)),
+                Arguments.of("no opt-out url", 0, (FailureSetup) (c, h) -> when(h.getOptOutUrl()).thenReturn(null)));
     }
 
     @SuppressWarnings("unchecked")
@@ -135,7 +137,7 @@ public class OptOutCloudStorageTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("downloadFailures")
-    public void extractListFromMetadata_downloadFailure_throws(String name, FailureSetup setup) throws Exception {
+    public void extractListFromMetadata_downloadFailure_throws(String name, int expectedRequests, FailureSetup setup) throws Exception {
         URLConnectionHttpClient httpClient = mock(URLConnectionHttpClient.class);
         AttestationResponseHandler handler = mock(AttestationResponseHandler.class);
         when(handler.attested()).thenReturn(true);
@@ -146,6 +148,7 @@ public class OptOutCloudStorageTest {
         OptOutCloudStorage storage = new OptOutCloudStorage(client, "/optout/refresh");
 
         assertThrows(CloudStorageException.class, storage::extractListFromMetadata);
+        verify(httpClient, times(expectedRequests)).get(anyString(), anyMap());
     }
 
     private static JsonObject optOutSyncConfig(Path dataDir) {

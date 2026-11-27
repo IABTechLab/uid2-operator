@@ -205,7 +205,9 @@ public class OptOutCloudStorageTest {
             when(uidOptOutClient.download(anyString())).thenAnswer(i -> InputStream.nullInputStream());
 
             vertx.deployVerticle(createVerticle(dataDir)).onComplete(testContext.failing(e -> testContext.verify(() -> {
+                assertTrue(e.getMessage().contains("E12: Data Download Failure"));
                 assertFalse(HealthManager.instance.isHealthy());
+                assertTrue(HealthManager.instance.reason().contains("E12: Data Download Failure"));
                 testContext.completeNow();
             })));
         }
@@ -220,13 +222,15 @@ public class OptOutCloudStorageTest {
 
             vertx.deployVerticle(verticle).onComplete(testContext.succeeding(id -> {
                 failing.set(true);
-                vertx.eventBus().consumer(verticle.eventRefreshed(), m -> testContext.verify(() -> {
-                    double failures = registry.get("uid2_cloud_downloaded_consecutive_refresh_failures").tag("store", storeName).gauge().value();
-                    assertEquals(1.0, failures, 0.0);
-                    assertTrue(HealthManager.instance.isHealthy());
-                    testContext.completeNow();
-                }));
                 vertx.eventBus().publish(verticle.eventRefresh(), 0);
+                vertx.setPeriodic(10, timerId -> testContext.verify(() -> {
+                    double failures = registry.get("uid2_cloud_downloaded_consecutive_refresh_failures").tag("store", storeName).gauge().value();
+                    if (failures == 1.0) {
+                        vertx.cancelTimer(timerId);
+                        assertTrue(HealthManager.instance.isHealthy());
+                        testContext.completeNow();
+                    }
+                }));
             }));
         }
     }

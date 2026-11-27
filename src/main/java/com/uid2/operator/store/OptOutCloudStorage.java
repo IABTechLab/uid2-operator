@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Proxy;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -45,8 +44,10 @@ public class OptOutCloudStorage extends URLStorageWithMetadata {
                 }
             } else {
                 LOGGER.warn("Empty string returned from UidOptOutClient. Unable to read OptOut metadata");
-                return new ArrayList<String>();
+                throw new CloudStorageException("E12: Data Download Failure - unable to download opt-out metadata. For troubleshooting information, refer to the applicable Private Operator guide: see https://unifiedid.com/docs/guides/integration-options-private-operator.");
             }
+        } catch (CloudStorageException e) {
+            throw e;
         } catch (Exception e) {
             // Intentionally not logging the exception as it may contain sensitive URLs
             throw new CloudStorageException("extractListFromMetadata error.");
